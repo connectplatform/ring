@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkring_docs=self.webpackChunkring_docs||[]).push([[7707],{59729:e=>{e.exports=JSON.parse('{"metadata":{"permalink":"/ring/blog","page":1,"postsPerPage":10,"totalPages":1,"totalCount":6,"blogDescription":"Blog","blogTitle":"Blog"}}')}}]);

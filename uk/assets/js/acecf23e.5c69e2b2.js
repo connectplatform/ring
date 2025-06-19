@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkring_docs=self.webpackChunkring_docs||[]).push([[1903],{1912:s=>{s.exports=JSON.parse('{"blogBasePath":"/ring/uk/blog","blogTitle":"Blog","authorsListPath":"/ring/uk/blog/authors"}')}}]);
