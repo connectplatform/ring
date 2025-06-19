@@ -1,0 +1,707 @@
+{
+  "404": "404",
+  "about": "About",
+  "aboutUs": "About Us",
+  "aboutUsDescription": "Ring is a high-tech business hub in Cherkasy that promotes the development of technology business in the region.",
+  "accountCreated": "Account Created",
+  "add": "Add",
+  "addEntity": "Add Entity",
+  "addEntityDescription": "Add a new entity to the directory",
+  "addOpportunity": "Add Opportunity",
+  "addOpportunityDescription": "Create a new opportunity",
+  "addSkill": "Add Skill",
+  "addTag": "Add a tag",
+  "addressFull": "Address: 1 Techno Plaza, Cherkasy, Ukraine",
+  "backToHome": "Back to Home",
+  "bio": "Bio",
+  "blog": "Blog",
+  "briefDescription": "Brief Description",
+  "budget": "Budget",
+  "budgetError": "Please enter a valid budget",
+  "cancel": "Cancel",
+  "catalog": "Catalog",
+  "categories": {
+    "3dPrinting": "3D Printing",
+    "aiMachineLearning": "AI & Machine Learning",
+    "biotechnology": "Biotechnology",
+    "blockchainDevelopment": "Blockchain Development",
+    "cleanEnergy": "Clean Energy Technology",
+    "cloudComputing": "Cloud Computing",
+    "cncMachining": "CNC Machining",
+    "compositeManufacturing": "Composite Manufacturing",
+    "cybersecurity": "Cybersecurity",
+    "droneTechnology": "Drone Technology",
+    "electronicManufacturing": "Electronic Manufacturing",
+    "industrialDesign": "Industrial Design",
+    "iotDevelopment": "IoT Development",
+    "laserCutting": "Laser Cutting",
+    "manufacturing": "Manufacturing",
+    "metalFabrication": "Metal Fabrication",
+    "other": "Other",
+    "plasticInjectionMolding": "Plastic Injection Molding",
+    "precisionEngineering": "Precision Engineering",
+    "quantumComputing": "Quantum Computing",
+    "robotics": "Robotics & Automation",
+    "semiconductorProduction": "Semiconductor Production",
+    "smartMaterials": "Smart Materials",
+    "softwareDevelopment": "Software Development",
+    "technologyCenter": "Technology Center",
+    "virtualReality": "Virtual & Augmented Reality"
+  },
+  "category": "Category",
+  "certifications": "Certifications",
+  "cherkasy": "Cherkasy",
+  "close": "Close",
+  "closeMenu": "Close menu",
+  "connect": "Connect",
+  "contact": {
+    "title": "Contact Us",
+    "getInTouch": "Get in Touch",
+    "description": "We'd love to hear from you. Please fill out the form below and we'll get back to you as soon as possible.",
+    "loadingForm": "Loading contact form...",
+    "contactInformation": "Contact Information",
+    "faq": "Frequently Asked Questions",
+    "faqJoin": "How can I join Ring?",
+    "faqJoinAnswer": "You can join Ring by registering on our platform. Once registered, you can create a profile for your organization and start connecting with others in the tech ecosystem.",
+    "faqOpportunities": "What kind of opportunities can I find on Ring?",
+    "faqOpportunitiesAnswer": "Ring offers a wide range of opportunities including job postings, partnership proposals, investment opportunities, and collaboration requests within the tech industry.",
+    "partners": "Our Partners",
+    "metaDescription": "Get in touch with the Ring App team"
+  },
+  "contactUs": "Contact Us",
+  "contacts": "Contacts",
+  "copyright": "© {{year}} Trinity Ukraine. All rights reserved.",
+  "currency": "Currency",
+  "dark": "Dark",
+  "deadline": "Deadline",
+  "details": "Details",
+  "directory": "Directory",
+  "directoryDescription": "Explore our network of hi-tech factories and ventures.",
+  "directoryTitle": "Directory",
+  "documents": "Documents",
+  "download": "Download",
+  "editProfile": "Edit Profile",
+  "emailAddress": "Email",
+  "emailFull": "Email: info@ring.ck.ua",
+  "employees": "{{count}} employees",
+  "enableNotifications": "Enable notifications",
+  "entities": "Entities",
+  "entitiesTitle": "Explore Organizations",
+  "entity": {
+    "name": "Name",
+    "connect": "Connect",
+    "contactEmail": "Email address",
+    "imageGallery": "Image Gallery",
+    "logo": "Logo",
+    "logoDescription": "Upload a logo for your entity (PNG, JPG, or SVG, max 2MB)",
+    "logoUploadError": "Error uploading logo. Please try again.",
+    "logoUploadSuccess": "Logo uploaded successfully",
+    "shortDescription": "Short Description",
+    "uploadLogo": "Upload Logo",
+    "visibility": "Visibility",
+    "visitWebsite": "Visit Website"
+  },
+  "errorAddingEntity": "Error adding entity. Please try again.",
+  "errorAddingOpportunity": "Error adding opportunity",
+  "errorFetchingEntities": "Error fetching entities",
+  "errorFetchingOpportunities": "Error fetching opportunities. Please try again later.",
+  "errorFetchingProfile": "Error fetching profile",
+  "errorFetchingSettings": "Error fetching settings. Please try again later.",
+  "errorSigningIn": "Error signing in with Google. Please try again.",
+  "errorSubmittingForm": "Error submitting form. Please try again later.",
+  "errorUpdatingProfile": "Error updating profile",
+  "errorUpdatingSettings": "Error updating settings. Please try again later.",
+  "errors": {
+    "fileTooLarge": "File is too large. Maximum size is 5MB.",
+    "invalidFileType": "Invalid file type. Please upload a PNG, JPG, or SVG file.",
+    "invalidPassword": "Invalid password",
+    "emailAlreadyInUse": "Email already in use",
+    "userNotFound": "User not found",
+    "wrongPassword": "Incorrect password",
+    "weakPassword": "Password should be at least 6 characters long",
+    "networkError": "Network error. Please try again.",
+    "unknownError": "An unknown error occurred. Please try again."
+  },
+  "expectedDuration": "Expected Duration",
+  "expectedStartDate": "Expected Start Date",
+  "fieldRequired": "This field is required",
+  "followUs": "Follow us",
+  "form": {
+    "fileUpload": {
+      "dragDrop": "Drag and drop your file here, or click to select",
+      "fileSelected": "File selected:",
+      "maxSize": "Maximum file size: 2MB",
+      "removeFile": "Remove file"
+    }
+  },
+  "formSubmitted": "Your form has been submitted successfully. We'll get back to you soon.",
+  "foundedIn": "Founded in {{year}}",
+  "fullDescription": "Full description",
+  "homeDescription": "Discover cutting-edge solutions, connect with innovators, and shape the future of technology.",
+  "imageGallery": "Image Gallery",
+  "invalidEmail": "Invalid email format",
+  "language": "Language",
+  "lastLogin": "Last Login",
+  "learnMore": "Learn More",
+  "light": "Light",
+  "loadingMessage": "Loading...",
+  "location": "Location",
+  "login": {
+    "title": "Login",
+    "metaDescription": "Log in to access tech opportunities in Cherkasy region"
+  },
+  "logout": "Logout",
+  "longDescription": "Full Description",
+  "manufacturing": "Manufacturing",
+  "maxBudget": "Maximum Budget",
+  "membersOnly": "Members Only",
+  "menu": "Menu",
+  "message": "Message",
+  "metadata": {
+    "about": "About Us - Ring App Tech Ecosystem",
+    "contact": "Contact Us | Ring App",
+    "login": "Login | Ring App",
+    "profile": "User Profile | Ring",
+    "settings": "User Settings | Ring",
+    "entities": "Entities | Ring App",
+    "entityDetails": "Entity Details | Ring App",
+    "opportunities": "Opportunities | Ring App",
+    "opportunityDetails": "Opportunity Details | Ring App",
+    "unauthorized": "Unauthorized | Ring App",
+    "confidentialEntities": "Confidential Entities | Ring App",
+    "confidentialOpportunities": "Confidential Opportunities | Ring App",
+    "privacy": "Privacy Policy | Ring App",
+    "terms": "Terms of Service | Ring App",
+    "news": "News & Updates | Ring Platform"
+  },
+  "metaDescription": {
+    "about": "Learn about the Ring App and the tech ecosystem in Cherkasy region",
+    "contact": "Get in touch with the Ring App team",
+    "login": "Log in to access tech opportunities in Cherkasy region",
+    "profile": "View and manage your Ring user profile",
+    "settings": "Manage your Ring account settings",
+    "entities": "View entities in the Ring App",
+    "entityDetails": "View entity details in the Ring App",
+    "opportunities": "Discover opportunities in the Ring App",
+    "opportunityDetails": "View opportunity details in the Ring App",
+    "unauthorized": "Access denied - unauthorized page",
+    "confidentialEntities": "View confidential entities in the Ring App",
+    "confidentialOpportunities": "View confidential opportunities in the Ring App",
+    "privacy": "Privacy Policy for Ring App - Your business connectivity platform",
+    "terms": "Terms of Service for Ring App - Your business connectivity platform",
+    "news": "Stay updated with the latest news, updates, and announcements from Ring Platform."
+  },
+  "minBudget": "Minimum Budget",
+  "mustBeLoggedIn": "You must be logged in to add an entity",
+  "name": "Name",
+  "noProfileFound": "No profile found",
+  "noSettingsFound": "No settings found. Please try again later.",
+  "notifications": "Notifications",
+  "notSpecified": "Not Specified",
+  "openMenu": "Open menu",
+  "opportunities": "Opportunities",
+  "opportunitiesDescription": "Discover exciting business opportunities and collaborations.",
+  "organization": "Organization",
+  "other": "Other",
+  "pageNotFound": "404 - Page Not Found",
+  "pageNotFoundDescription": "The page you are looking for does not exist.",
+  "partners": "Partners",
+  "password": "Password",
+  "phoneFull": "Phone: +380 12 345 6789",
+  "phoneNumber": "Phone Number",
+  "profile": "Profile",
+  "profileUpdated": "Profile updated successfully",
+  "public": "Public",
+  "quickLinks": "Quick Links",
+  "remove": "Remove",
+  "required": "This field is required",
+  "requiredDocuments": "Required Documents",
+  "requiredSkills": "Required Skills",
+  "retry": "Retry",
+  "save": "Save",
+  "saveProfile": "Save Profile",
+  "saveSettings": "Save Settings",
+  "saving": "Saving...",
+  "selectCategory": "Select a category",
+  "selectType": "Select type",
+  "selectVisibility": "Select visibility",
+  "send": "Send",
+  "settings": "Settings",
+  "settingsUpdated": "Settings updated successfully",
+  "signIn": "Sign in",
+  "sighOut": "Sign out",
+  "signInWithGoogle": "Sign in with Google",
+  "signInWithApple": "Sign in with Apple", 
+  "signInWithMetaMask": "Sign in with Metamask", 
+  "signingIn": "Signing In...",
+  "skills": "Skills",
+  "softwareDevelopment": "Software Development",
+  "status": "Status",
+  "success": "Success",
+  "support": "Support",
+  "system": "System",
+  "tags": "Tags",
+  "ringName": "Ring",
+  "technologyCenter": "Technology Center",
+  "telegram": "Telegram",
+  "telegramContact": "Telegram ID",
+  "theme": "Theme",
+  "title": "Title",
+  "toggleLanguage": "Toggle language",
+  "toggleMenu": "Toggle menu",
+  "toggleTheme": "Toggle theme",
+  "type": "Type",
+  "ukraine": "Ukraine",
+  "unauthorized": {
+    "title": "Unauthorized Access",
+    "message": "You do not have permission to view this page.",
+    "returnHome": "Return to home",
+    "metaDescription": "Access denied - unauthorized page"
+  },
+  "url": "URL",
+  "viewDetails": "View Details",
+  "visitWebsite": "Visit Website",
+  "website": "Visit Website",
+  "welcomeTo": "Welcome to",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "errorSigningUp": "An error occurred during sign up",
+  "signUp": "Sign Up",
+  "confirmPassword": "Confirm Password",
+  "signingUp": "Signing Up...",
+  "passwordResetEmailSent": "Password reset email sent. Please check your inbox.",
+  "passwordResetSuccess": "Password reset successful. You can now sign in with your new password.",
+  "emailVerificationSent": "Email verification sent. Please check your inbox.",
+  "emailVerified": "Email verified successfully.",
+  "forgotPassword": "Forgot Password",
+  "resetPassword": "Reset Password",
+  "sendResetEmail": "Send Reset Email",
+  "emailPlaceholder": "Enter your email",
+  "passwordPlaceholder": "Enter your password",
+  "confirmPasswordPlaceholder": "Confirm your password",
+  "namePlaceholder": "Enter your name",
+  "connectWallet": "Connect Wallet",
+  "viewWallet": "View Wallet",
+  "walletAddress": "Wallet Address",
+  "walletBalance": "Wallet Balance",
+  "role": "Role",
+  "loading": "Loading...",
+  "errorFetchingBalance": "Error fetching balance",
+  "notSet": "Not set",
+  "maticBalance": "Matic Balance",
+  "memberSince": "Member since",
+  "primaryAuthMethod": "Primary authentication",
+  "verificationLevel": "Verification level",
+  "getVerified": "Get Verified",
+  "upgrade": "Upgrade",
+  "uploadAvatar": "Upload Avatar",
+  "kycVerification": {
+    "title": "KYC Verification",
+    "description": "Verify your identity to access advanced features",
+    "levels": {
+      "none": "Not verified",
+      "basic": "Basic verification",
+      "standard": "Standard verification", 
+      "enhanced": "Enhanced verification"
+    },
+    "status": {
+      "not_started": "Not started",
+      "pending": "Pending review",
+      "under_review": "Under review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "methods": {
+      "diia": "Verify with DIIA",
+      "bank_id": "Verify with BankID",
+      "manual": "Manual verification"
+    },
+    "startVerification": "Start Verification",
+    "verifyWithDiia": "Verify with DIIA",
+    "verifyWithBankId": "Verify with BankID",
+    "uploadDocuments": "Upload Documents"
+  },
+  "roleUpgrade": {
+    "title": "Upgrade Account",
+    "description": "Request to upgrade your account role for additional privileges",
+    "currentRole": "Current role",
+    "requestedRole": "Requested role",
+    "reason": "Reason for upgrade",
+    "organization": "Organization",
+    "position": "Position",
+    "linkedinProfile": "LinkedIn Profile",
+    "portfolioUrl": "Portfolio URL",
+    "additionalInfo": "Additional Information",
+    "submitRequest": "Submit Request",
+    "requestSubmitted": "Upgrade request submitted successfully",
+    "status": {
+      "pending": "Pending review",
+      "under_review": "Under review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "authMethods": {
+    "google": "Google",
+    "apple": "Apple",
+    "metamask": "MetaMask",
+    "credentials": "Email/Password",
+    "crypto-wallet": "Crypto Wallet"
+  },
+  "privacyPolicy": "Privacy Policy",
+  "privacyPolicyText": {
+    "title": "Privacy Policy",
+    "introduction": {
+      "title": "Introduction",
+      "content": "Welcome to the Ring App Privacy Policy. This policy describes how we collect, use, and protect your personal information."
+    },
+    "dataCollection": {
+      "title": "Data Collection",
+      "content": "We collect the following types of information:",
+      "item1": "Personal information you provide when creating an account",
+      "item2": "Information about your organization",
+      "item3": "Data related to opportunities you create or interact with",
+      "item4": "Usage data and analytics"
+    },
+    "dataUsage": {
+      "title": "How We Use Your Data",
+      "content": "We use your data to provide and improve our services, facilitate connections between users, and ensure the security of our platform."
+    },
+    "dataSecurity": {
+      "title": "Data Security",
+      "content": "We implement industry-standard security measures to protect your data from unauthorized access, disclosure, alteration, and destruction."
+    },
+    "userRights": {
+      "title": "Your Rights",
+      "content": "You have the right to access, correct, or delete your personal information. You can also opt-out of certain data collection practices."
+    },
+    "contactUsPrivacy": {
+      "title": "Contact Us",
+      "content": "If you have any questions about this Privacy Policy, please contact us at privacy@ring.ck.ua."
+    }
+  },
+  "termsOfService": "Terms of Service",
+  "termsOfServiceText": {
+    "title": "Terms of Service",
+    "introduction": {
+      "title": "Introduction",
+      "content": "Welcome to the Ring App Terms of Service. By using our platform, you agree to these terms."
+    },
+    "userAgreement": {
+      "title": "User Agreement",
+      "content": "By accessing or using Ring App, you agree to be bound by these Terms of Service."
+    },
+    "accountResponsibilities": {
+      "title": "Account Responsibilities",
+      "content": "As a user of Ring App, you are responsible for:",
+      "item1": "Maintaining the confidentiality of your account",
+      "item2": "All activities that occur under your account",
+      "item3": "Ensuring that all information you provide is accurate and up-to-date"
+    },
+    "contentGuidelines": {
+      "title": "Content Guidelines",
+      "content": "Users are prohibited from posting content that is illegal, abusive, or violates the rights of others."
+    },
+    "intellectualProperty": {
+      "title": "Intellectual Property",
+      "content": "All content and materials available on Ring App are protected by intellectual property rights."
+    },
+    "limitationOfLiability": {
+      "title": "Limitation of Liability",
+      "content": "Ring App is not liable for any indirect, incidental, special, consequential, or punitive damages."
+    },
+    "termination": {
+      "title": "Termination",
+      "content": "We reserve the right to terminate or suspend your account at our sole discretion, without notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties, or for any other reason."
+    },
+    "changes": {
+      "title": "Changes to Terms",
+      "content": "We may modify these Terms of Service at any time. We will notify users of any significant changes."
+    },
+    "contact": {
+      "title": "Contact Us",
+      "content": "If you have any questions about these Terms of Service, please contact us at terms@ring.ck.ua."
+    }
+  },
+  "agro": {
+    "hero": {
+      "title": "DAARION DAO",
+      "subtitle": "Ukrainian Agro-Tech Startup - Digital Cooperative of the New Millennium",
+      "cta": "Learn More"
+    },
+    "mission": {
+      "title": "Our Vision",
+      "description": "Creating a decentralized autonomous organization (DAO) on the Web 3.0 platform and developing a blockchain ecosystem and metaverse for sustainable microeconomics.",
+      "details": "We aim to support small farmers and organic producers by providing access to resources, markets, and financing.",
+      "learnMore": "Learn More"
+    },
+    "goals": {
+      "title": "Our Goals",
+      "land": {
+        "title": "Producer Support",
+        "description": "Providing branding opportunities and marketing support through cooperatives."
+      },
+      "network": {
+        "title": "Technological Innovation",
+        "description": "Utilizing DAO for tokenization and decentralization of exchanges/payments between users."
+      },
+      "token": {
+        "title": "DAAR Organic Token",
+        "description": "Digital certificate for farmers for barter trade. 1 DAAR = 1 liter of Acacia honey or 2.4 kg of amaranth."
+      },
+      "income": {
+        "title": "Staking",
+        "description": "Opportunity to earn an annual income of 4% through staking."
+      }
+    },
+    "investment": {
+      "title": "Why Invest in DAARION?",
+      "description": "A unique Ukrainian project combining agriculture with innovation and cryptocurrencies, paving the way for outstanding opportunities in the agricultural sector's future development.",
+      "benefits": {
+        "location": {
+          "title": "Growing Market",
+          "description": "The healthy food market is growing by 20-30% annually."
+        },
+        "technology": {
+          "title": "Innovative Technologies",
+          "description": "Greenfood combines social networks, ecology, and supports small businesses."
+        },
+        "returns": {
+          "title": "Transparency",
+          "description": "A dedicated team of journalists and bloggers ensures coverage of the production process."
+        },
+        "trust": {
+          "title": "Cooperative Governance",
+          "description": "1 Token = 1 Cooperative Vote, ensuring democratic decision-making."
+        },
+        "income": {
+          "title": "Platform Profit",
+          "description": "20% of profits are generated through the Greenfood.live platform."
+        }
+      }
+    },
+    "token": {
+      "title": "How to Buy and Earn with DAAR",
+      "description": "Become a co-owner of the revolutionary agricultural project through tokens! Use GreenWallet to access the investor's cabinet.",
+      "buyTokens": "Buy Tokens",
+      "earnings": {
+        "title": "Opportunities with DAAR:",
+        "staking": "Staking: 4% annual returns.",
+        "referral": "DAO Participation: Voting and decision-making.",
+        "growth": "Barter Trade: Exchange tokens for real products."
+      }
+    },
+    "community": {
+      "title": "Join Our Community",
+      "links": {
+        "telegram": {
+          "text": "Telegram",
+          "url": "https://t.me/greenfoodliv"
+        },
+        "email": {
+          "text": "Email",
+          "url": "mailto:greenfood.live@gmail.com"
+        },
+        "twitter": {
+          "text": "Twitter",
+          "url": "https://x.com/@IvanTytar"
+        },
+        "facebook": {
+          "text": "Facebook",
+          "url": "https://www.facebook.com/profile.php?id=61563304310202"
+        },
+        "viber": {
+          "text": "Viber",
+          "url": "https://invite.viber.com/?g2=AQAT0QG58xPbV0v9fpsSGDsXFqyagRGuUEE2BEB458s%2F3FYaf%2BqxMcGo05kApj%2BB"
+        },
+        "tiktok": {
+          "text": "TikTok",
+          "url": "https://www.tiktok.com/@greenfood.live"
+        },
+        "instagram": {
+          "text": "Instagram",
+          "url": "https://www.instagram.com/greenfood.live_/"
+        },
+        "youtube": {
+          "text": "YouTube",
+          "url": "https://www.youtube.com/channel/UCyquVli-dLDmfwGk6IXcLvQ"
+        }
+      }
+    },
+    "statistics": {
+      "title": "DAARION Projects",
+      "fields": {
+        "value": "DAO Platform",
+        "label": "Fundraising Platform"
+      },
+      "facilities": {
+        "value": "DAO-Labs Greenfood",
+        "label": "Innovative Food Laboratory"
+      },
+      "pastures": {
+        "value": "Greenfood Wallet",
+        "label": "Investor's Cabinet"
+      },
+      "ponds": {
+        "value": "DAAR Token",
+        "label": "Crypto Token for Barter"
+      },
+      "crops": {
+        "value": "Ecosystem",
+        "label": "Blockchain and Metaverse"
+      }
+    },
+    "cta": {
+      "title": "Ready to Join the Agricultural Revolution?",
+      "description": "Invest in DAARION today and be part of the future of sustainable agriculture.",
+      "button": "Explore Opportunities"
+    }
+  },
+  "aboutUsText": {
+    "title": "About Ring",
+    "introduction": {
+      "title": "Empowering Technological Innovation",
+      "content": "Ring is a cutting-edge digital platform designed to revolutionize the process of creating and showcasing technological projects. Born from the collaborative efforts of Trinity Ukraine, a Cherkasy-based IT company, and the Regional Development Agency of the Cherkasy Region Administration, Ring serves as a bridge connecting innovative ideas with the resources they need to thrive."
+    },
+    "forWhom": {
+      "title": "Who Can Benefit from Ring?",
+      "content": "Our platform caters to a diverse range of technology-driven entities and collaborators:",
+      "item1": "Ukrainian technology companies operating across various cutting-edge sectors",
+      "item2": "International and Ukrainian businesses seeking synergistic partnerships within the Ring ecosystem"
+    },
+    "howToUse": {
+      "title": "Navigating Ring: Your Path to Innovation",
+      "item1": "Create your account: Sign up using your Google account, Apple ID, or Metamask wallet for seamless access.",
+      "item2": "Establish your presence: Add your company or organization to our growing network of innovators.",
+      "item3": "Share your vision: Post detailed offers or requests on behalf of your entity.",
+      "item4": "Harness AI-powered matchmaking: Our intelligent system analyzes your posts, adding relevant tags to connect you with ideal collaborators.",
+      "item5": "Engage with potential partners: Receive and respond to incoming chat requests from interested entities.",
+      "item6": "Explore opportunities: Browse the diverse array of offers and requests from fellow Ring participants.",
+      "item7": "Initiate collaborations: Start meaningful conversations with organizations that align with your goals."
+    },
+    "techFields": {
+      "title": "Embracing a Wide Spectrum of Technologies",
+      "content": "Ring supports a vast array of technological fields, including but not limited to 3D Printing, AI & Machine Learning, Biotechnology, Blockchain Development, Clean Energy, Cloud Computing, CNC Machining, Composite Manufacturing, Cybersecurity, Drone Technology, Electronic Manufacturing, Industrial Design, IoT Development, Laser Cutting, Manufacturing, Metal Fabrication, Plastic Injection Molding, Precision Engineering, Quantum Computing, Robotics, Semiconductor Production, Smart Materials, Software Development, and Virtual Reality. Whatever your technological niche, Ring provides the platform to showcase your expertise and find valuable partnerships."
+    }
+  },
+  "sending": "Sending...",
+  "error": "Error",
+  "noDataAvailable": "No data available",
+  "noResults": "No results",
+  "noPermission": "You don't have permission to view this content",
+  "submit": "Submit",
+  "anErrorOccurred": "An error occurred",
+  "welcomeBack": "Welcome back, {{name}}!",
+  "homeLink": "Home",
+  "userMenu": "User menu",
+  "signInError": "Error signing in",
+  "signOutError": "Error signing out",
+  "confidentialOpportunity": "Confidential Opportunity",
+  "confidentialOpportunityDescription": "This opportunity contains sensitive information.",
+  "organizationDetails": "Organization Details",
+  "opportunityDetails": "Opportunity Details",
+  "expirationDate": "Expiration Date",
+  "attachments": "Attachments",
+  "confidentialInformation": "Confidential Information",
+  "confidentialInformationDescription": "This section contains additional confidential details about the opportunity.",
+  "walletConnected": "Wallet Connected",
+  "connectWalletDescription": "Connect your wallet to access additional features",
+  "connecting": "Connecting...",
+  "disconnectWallet": "Disconnect Wallet",
+  "pageTitle": {
+    "profile": "User Profile | Ring",
+    "settings": "User Settings | Ring"
+  },
+  "pageDescription": {
+    "profile": "View and manage your Ring user profile",
+    "settings": "Manage your Ring account settings"
+  },
+  "showingEntities": "Showing {{start}}-{{end}} of {{total}} entities",
+  "previous": "Previous",
+  "next": "Next",
+  "entitiesDescription": "Discover our network of innovative organizations",
+  "admin": {
+    "newsManagement": "News Management",
+    "newsManagementDescription": "Manage news articles, categories, and content for Ring Platform",
+    "userManagement": "User Management",
+    "userManagementDescription": "Manage users, roles, and permissions for Ring Platform",
+    "dashboard": "Admin Dashboard",
+    "dashboardDescription": "Overview of platform administration"
+  },
+  "news": {
+    "title": "News & Updates",
+    "description": "Stay informed with the latest news, platform updates, partnership announcements, and community highlights from Ring Platform.",
+    "featuredStories": "Featured Stories",
+    "allArticles": "All Articles",
+    "featured": "Featured",
+    "byAuthor": "By",
+    "readMore": "Read more",
+    "backToNews": "Back to News",
+    "share": "Share",
+    "tags": "Tags",
+    "gallery": "Gallery",
+    "relatedArticles": "Related Articles",
+    "articleNotFound": "Article Not Found - Ring Platform",
+    "articleNotFoundDescription": "The requested article could not be found.",
+    "searchPlaceholder": "Search articles...",
+    "filterByCategory": "Filter by category",
+    "sortBy": "Sort by",
+    "sortByNewest": "Newest first",
+    "sortByOldest": "Oldest first",
+    "sortByMostViewed": "Most viewed",
+    "sortByMostLiked": "Most liked",
+    "loadMore": "Load more articles",
+    "noArticlesFound": "No articles found",
+    "categories": {
+      "all": "All Categories",
+      "platform-updates": "Platform Updates",
+      "partnerships": "Partnerships",
+      "community": "Community",
+      "industry-news": "Industry News",
+      "events": "Events",
+      "announcements": "Announcements",
+      "press-releases": "Press Releases",
+      "tutorials": "Tutorials",
+      "other": "Other"
+    },
+    "createArticle": "Create Article",
+    "editArticle": "Edit Article",
+    "saveAsDraft": "Save as Draft",
+    "publishArticle": "Publish Article",
+    "articleContent": "Article Content",
+    "seoSettings": "SEO Settings",
+    "publishSettings": "Publish Settings",
+    "categoryAndTags": "Category & Tags",
+    "featuredImage": "Featured Image",
+    "status": "Status",
+    "visibility": "Visibility",
+    "draft": "Draft",
+    "published": "Published",
+    "archived": "Archived",
+    "public": "Public",
+    "subscriber": "Subscriber Only",
+    "member": "Member Only",
+    "confidential": "Confidential",
+    "metaTitle": "Meta Title",
+    "metaDescription": "Meta Description",
+    "openGraphTitle": "Open Graph Title",
+    "openGraphDescription": "Open Graph Description",
+    "twitterTitle": "Twitter Title",
+    "twitterDescription": "Twitter Description",
+    "addTag": "Add Tag",
+    "uploadImage": "Upload Image",
+    "removeImage": "Remove Image",
+    "backToArticles": "Back to Articles",
+    "preview": "Preview",
+    "edit": "Edit",
+    "saving": "Saving...",
+    "publishing": "Publishing...",
+    "articleCreated": "Article created successfully!",
+    "articleUpdated": "Article updated successfully!",
+    "titleRequired": "Title is required",
+    "slugRequired": "Slug is required",
+    "contentRequired": "Content is required",
+    "excerptRequired": "Excerpt is required",
+    "excerptTooLong": "Excerpt must be less than 300 characters"
+  }
+}

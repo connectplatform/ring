@@ -1,0 +1,52 @@
+{
+  "css.customData": [
+    {
+      "version": 1.1,
+      "atDirectives": [
+        {
+          "name": "@theme",
+          "description": "TailwindCSS v4 theme configuration directive"
+        },
+        {
+          "name": "@apply",
+          "description": "TailwindCSS utility application directive"
+        },
+        {
+          "name": "@layer",
+          "description": "TailwindCSS layer directive for organizing styles"
+        },
+        {
+          "name": "@import",
+          "description": "CSS import directive, including TailwindCSS v4 import"
+        }
+      ]
+    }
+  ],
+  "css.validate": true,
+  "css.lint.unknownAtRules": "ignore",
+  "scss.validate": true,
+  "scss.lint.unknownAtRules": "ignore",
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.preferences.importModuleSpecifierEnding": "minimal",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "css.validate": false,
+  "less.validate": false,
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  },
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

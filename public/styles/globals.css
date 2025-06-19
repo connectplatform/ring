@@ -1,0 +1,6 @@
+/* This file is served statically to resolve 404 errors */
+/* The actual styles are processed by Next.js from styles/globals.css */
+body {
+  margin: 0;
+  padding: 0;
+} 

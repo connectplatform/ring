@@ -1,0 +1,35 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Define theme variables for TailwindCSS v4",
+      "references": [
+        {
+          "name": "TailwindCSS v4 Documentation",
+          "url": "https://tailwindcss.com/docs/upgrade-guide"
+        }
+      ]
+    },
+    {
+      "name": "@tailwind",
+      "description": "Include TailwindCSS styles",
+      "references": [
+        {
+          "name": "TailwindCSS v4 Documentation",
+          "url": "https://tailwindcss.com/docs/upgrade-guide"
+        }
+      ]
+    },
+    {
+      "name": "@apply",
+      "description": "Apply TailwindCSS utility classes",
+      "references": [
+        {
+          "name": "TailwindCSS v4 Documentation",
+          "url": "https://tailwindcss.com/docs/upgrade-guide"
+        }
+      ]
+    }
+  ]
+} 

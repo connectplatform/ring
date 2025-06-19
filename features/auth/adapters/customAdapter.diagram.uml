@@ -1,0 +1,77 @@
+@startmindmap
+<style>
+mindmapDiagram {
+  .standard {
+    BackgroundColor lightblue
+  }
+  .custom {
+    BackgroundColor lightgreen
+  }
+  .group {
+    BackgroundColor lightyellow
+  }
+}
+</style>
+
+* CustomAdapter
+** User Management
+*** createUser
+*** getUser
+*** getUserByEmail
+*** getUserByAccount
+*** updateUser
+*** deleteUser
+** Account Management
+*** linkAccount
+*** unlinkAccount
+** Session Handling
+*** createSession
+*** getSessionAndUser
+*** updateSession
+*** deleteSession
+** Verification
+*** createVerificationToken
+*** useVerificationToken
+** Custom Operations
+*** upgradeUserRole <<custom>>
+*** addUserToOrganization <<custom>>
+*** updateUserSettings <<custom>>
+*** getUsersByRole <<custom>>
+*** verifyUser <<custom>>
+*** addVerificationDocument <<custom>>
+*** updateLastVisit <<custom>>
+
+legend right
+  <back:lightblue>   </back> Standard Adapter Operations
+  <back:lightgreen>   </back> Custom Operations
+endlegend
+
+note right of CustomAdapter
+  Manages user authentication and
+  profile operations using Firebase
+end note
+
+note right of (User Management)
+  Core user CRUD operations
+end note
+
+note left of (Account Management)
+  Handles linking/unlinking of
+  external provider accounts
+end note
+
+note right of (Session Handling)
+  Manages user sessions
+end note
+
+note left of (Verification)
+  Handles email verification
+  token creation and usage
+end note
+
+note right of (Custom Operations)
+  Additional operations specific
+  to the Ring application
+end note
+
+@endmindmap

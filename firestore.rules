@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions (unchanged)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    function isSubscriber() {
+      return hasRole('subscriber');
+    }
+    
+    function isMember() {
+      return hasRole('member');
+    }
+    
+    function isConfidential() {
+      return hasRole('confidential');
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    // Entity rules (unchanged)
+    match /entities/{entityId} {
+      allow read: if isAuthenticated() && (isSubscriber() || isMember() || isConfidential() || isAdmin());
+      allow create: if isMember() || isConfidential() || isAdmin();
+      allow update, delete: if isAdmin() || (isMember() && resource.data.createdBy == request.auth.uid) || (isConfidential() && resource.data.isConfidential == true);
+    }
+
+    // Opportunity rules (unchanged)
+    match /opportunities/{opportunityId} {
+      allow read: if isAuthenticated();
+      allow create: if isMember() || isConfidential() || isAdmin();
+      allow update, delete: if isAdmin() || 
+        (isMember() && get(/databases/$(database)/documents/entities/$(resource.data.entityId)).data.createdBy == request.auth.uid) || 
+        (isConfidential() && resource.data.isConfidential == true);
+    }
+
+    // Updated User rules
+    match /users/{userId} {
+      // Allow users to read their own document
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow creation of new user documents
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow updates to user documents
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Special rule for role upgrade (subscriber to member)
+      allow update: if isSubscriber() && request.auth.uid == userId && 
+        request.resource.data.role == 'member' && 
+        exists(/databases/$(database)/documents/entities/$(request.resource.data.entityId));
+    }
+
+    // News rules
+    match /news/{newsId} {
+      // Public news can be read by anyone
+      allow read: if resource.data.visibility == 'public' && resource.data.status == 'published';
+      
+      // Subscriber news can be read by authenticated users
+      allow read: if isAuthenticated() && resource.data.visibility == 'subscriber' && resource.data.status == 'published';
+      
+      // Member news can be read by members and above
+      allow read: if (isMember() || isConfidential() || isAdmin()) && resource.data.visibility == 'member' && resource.data.status == 'published';
+      
+      // Confidential news can be read by confidential users and admins
+      allow read: if (isConfidential() || isAdmin()) && resource.data.visibility == 'confidential' && resource.data.status == 'published';
+      
+      // Authors can read their own drafts
+      allow read: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      
+      // Only admins can create, update, and delete news
+      allow create, update, delete: if isAdmin();
+    }
+
+    // News categories rules
+    match /newsCategories/{categoryId} {
+      // Anyone can read news categories
+      allow read: if true;
+      
+      // Only admins can manage categories
+      allow create, update, delete: if isAdmin();
+    }
+
+    // News comments rules
+    match /newsComments/{commentId} {
+      // Anyone can read comments
+      allow read: if true;
+      
+      // Authenticated users can create comments
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update/delete their own comments
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Admins can manage all comments
+      allow update, delete: if isAdmin();
+    }
+  }
+}
