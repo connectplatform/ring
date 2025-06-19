@@ -4,12 +4,18 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslation } from '@/node_modules/react-i18next'
 import { useTheme } from 'next-themes'
+import { useSession } from 'next-auth/react'
 import { Entity } from '@/types'
 import Link from 'next/link'
-import { Building2, MapPin, Tag, Globe, Calendar, Users, Award } from 'lucide-react'
+import { Building2, MapPin, Tag, Globe, Calendar, Users, Award, Plus, ArrowUp } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { UserRole } from '@/features/auth/types'
+import { ROUTES } from '@/constants/routes'
+import { defaultLocale } from '@/utils/i18n-server'
+import SlidingPopup from '@/components/widgets/modal'
+import UpgradeRequestModal from '@/components/modals/upgrade-request-modal'
 
 interface EntitiesContentProps {
   initialEntities: Entity[];
@@ -36,10 +42,12 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 }) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
+  const { data: session } = useSession()
   const [entities, setentities] = useState<Entity[]>(initialEntities)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   const fetchEntities = useCallback(async () => {
     if (initialError || initialEntities.length > 0) {
@@ -66,6 +74,38 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   useEffect(() => {
     fetchEntities()
   }, [fetchEntities])
+
+  // Check if user can create entities (MEMBER and above)
+  const canCreateEntity = session?.user?.role && [
+    UserRole.MEMBER, 
+    UserRole.CONFIDENTIAL, 
+    UserRole.ADMIN
+  ].includes(session.user.role as UserRole)
+
+  // Check if user needs upgrade (VISITOR or SUBSCRIBER)
+  const needsUpgrade = !session?.user || [
+    UserRole.VISITOR, 
+    UserRole.SUBSCRIBER
+  ].includes(session?.user?.role as UserRole)
+
+  const handleUpgradeRequest = async (requestData: any) => {
+    try {
+      // Here you would typically call an API to submit the upgrade request
+      console.log('Submitting upgrade request:', requestData)
+      
+      // For now, show success message
+      // In a real implementation, you'd call the upgrade request API
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      
+    } catch (error) {
+      console.error('Error submitting upgrade request:', error)
+      throw error
+    }
+  }
+
+  const handleCloseUpgradeModal = async () => {
+    setShowUpgradeModal(false)
+  }
 
   if (loading) {
     return (
@@ -94,24 +134,106 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-12">
-        <motion.h1
+        <motion.div
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="text-center mb-8"
         >
-          <div className="text-4xl font-bold text-center mb-8">{t('entitiesTitle')}</div>
-        </motion.h1>
+          <h1 className="text-4xl font-bold mb-6">{t('entitiesTitle')}</h1>
+          
+          {/* Action Buttons Section */}
+          <div className="flex justify-center gap-4 mb-8">
+            {canCreateEntity ? (
+              <Button asChild size="lg" className="gap-2">
+                <Link href={ROUTES.ADD_ENTITY(defaultLocale)}>
+                  <Plus className="h-5 w-5" />
+                  {t('addMyEntity') || 'Add my Entity'}
+                </Link>
+              </Button>
+            ) : needsUpgrade ? (
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => setShowUpgradeModal(true)}
+              >
+                <ArrowUp className="h-5 w-5" />
+                {t('upgradeToBeMember') || 'Upgrade to Member'}
+              </Button>
+            ) : null}
+          </div>
+        </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {entities.map((entity) => (
             <EntityCard key={entity.id} entity={entity} />
           ))}
         </div>
+        
         <Pagination 
           page={page} 
           totalPages={totalPages} 
           totalEntities={totalEntities}
         />
       </div>
+
+      {/* Upgrade Modal for Visitors/Subscribers */}
+      {needsUpgrade && session?.user && (
+        <SlidingPopup
+          isOpen={showUpgradeModal}
+          onCloseAction={handleCloseUpgradeModal}
+        >
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-4 text-center">
+              {t('upgradeToBeMember') || 'Upgrade to Member'}
+            </h2>
+            <div className="space-y-4 text-center">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">
+                  {t('memberBenefits') || 'Member Benefits'}
+                </h3>
+                <ul className="text-sm space-y-2 text-left">
+                  <li className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-blue-500" />
+                    {t('createEntities') || 'Create and manage entities'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-500" />
+                    {t('postOpportunities') || 'Post business opportunities'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Award className="h-4 w-4 text-blue-500" />
+                    {t('accessMemberContent') || 'Access member-only content'}
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                {t('upgradeDescription') || 'To add entities and access full platform features, upgrade your account to Member status.'}
+              </div>
+              
+              <div className="flex gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowUpgradeModal(false)}
+                >
+                  {t('cancel') || 'Cancel'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowUpgradeModal(false)
+                    // Redirect to contact or upgrade page
+                    window.open('mailto:support@ring.ck.ua?subject=Member%20Upgrade%20Request', '_blank')
+                  }}
+                >
+                  {t('requestUpgrade') || 'Request Upgrade'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </SlidingPopup>
+      )}
     </div>
   )
 }

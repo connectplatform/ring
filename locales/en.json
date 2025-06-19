@@ -703,5 +703,13 @@
     "contentRequired": "Content is required",
     "excerptRequired": "Excerpt is required",
     "excerptTooLong": "Excerpt must be less than 300 characters"
-  }
+  },
+  "addMyEntity": "Add my Entity",
+  "upgradeToBeMember": "Upgrade to Member",
+  "memberBenefits": "Member Benefits",
+  "createEntities": "Create and manage entities",
+  "postOpportunities": "Post business opportunities",
+  "accessMemberContent": "Access member-only content",
+  "upgradeDescription": "To add entities and access full platform features, upgrade your account to Member status.",
+  "requestUpgrade": "Request Upgrade"
 }
