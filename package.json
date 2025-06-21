@@ -92,7 +92,7 @@
         "three": "^0.177.0",
         "url": "^0.11.4",
         "web3": "^4.16.0",
-        "zod": "^3.25.51"
+        "zod": "^3.25.67"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.1",
