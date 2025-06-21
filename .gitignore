@@ -1,6 +1,5 @@
 node_modules/*
 .next/*
-package-lock.json
 .firebase/
 out/
 tsconfig.tsbuildinfo
