@@ -4,24 +4,31 @@ This directory contains various setup and configuration scripts for the Ring Pla
 
 ## 📋 Available Scripts
 
-### 🚀 `setup-dev.sh` - Development Environment Setup
-**Primary development environment setup script**
+### 🚀 `setup.sh` - Universal Environment Setup
+**Primary setup script for both development and production environments**
 
 ```bash
-./scripts/setup-dev.sh
+# Located in Ring project root directory
+./setup.sh         # Development environment setup (default)
+./setup.sh dev     # Development environment setup (explicit)
+./setup.sh prod    # Production deployment setup
 ```
 
 **Features:**
-- ✨ Beautiful oh-my-zsh style interface with colors and Unicode symbols
+- 🎨 Beautiful 80s-style MOTD with retro ASCII art
+- ✨ Oh-my-zsh style interface with colors and emojis
+- 🔄 Dual-mode operation: Development & Production
 - 🔍 Automatic OS detection (macOS/Linux)
 - 📦 Auto-installs required packages (Node.js, Firebase CLI, Vercel CLI)
+- 🚀 Production deployment to Vercel or Ubuntu servers
 - 🔑 Interactive environment variable configuration with guided links
 - 💻 IDE detection and configuration (Cursor/VS Code)
 - 🔥 Firebase project setup guidance
 - 🔐 OAuth provider setup (Google, Apple)
 - 🌐 Automatic AUTH_SECRET generation
 - 📂 Project dependency installation
-- 🚀 Development server startup
+- 🖥️ SSH-based Ubuntu server deployment with PM2
+- 🎯 Smart prompts with sensible defaults (Y/n for continuation)
 
 **Prerequisites:**
 - Git installed
@@ -86,6 +93,7 @@ node scripts/inject-firebase-config.js
 
 ## 🎯 Quick Start
 
+### Development Setup
 For new developers setting up the Ring Platform:
 
 ```bash
@@ -94,16 +102,27 @@ git clone <repository-url>
 cd ring
 
 # Run the comprehensive development setup
-./scripts/setup-dev.sh
+./setup.sh
 ```
 
-The script will guide you through the entire setup process with beautiful, interactive prompts.
+### Production Deployment
+For deploying to production:
+
+```bash
+# Navigate to your Ring project
+cd ring
+
+# Run production deployment
+./setup.sh prod
+```
+
+The script will guide you through the entire setup process with a beautiful 80s-style interface and smart interactive prompts.
 
 ## 🔧 Environment Setup Priority
 
-1. **Development**: Use `setup-dev.sh` for complete local development setup
-2. **Production**: Use `setup-vercel-env.sh` for Vercel deployment configuration
-3. **Manual**: Use `setup-env.js` for quick environment file management
+1. **Universal Setup**: Use `./setup.sh` for complete development or production setup
+2. **Manual Vercel**: Use `setup-vercel-env.sh` for manual Vercel environment configuration
+3. **Quick Environment**: Use `setup-env.js` for quick environment file management
 
 ## 📚 Related Documentation
 
@@ -116,7 +135,7 @@ The script will guide you through the entire setup process with beautiful, inter
 
 **Script fails to run:**
 ```bash
-chmod +x scripts/setup-dev.sh
+chmod +x ./setup.sh
 ```
 
 **Missing dependencies:**
