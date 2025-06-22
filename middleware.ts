@@ -16,21 +16,25 @@ const { auth } = NextAuth(authConfig)
  * @returns {NextResponse} The response object, either allowing the request or redirecting
  */
 export default auth((req) => {
-  const { pathname } = req.nextUrl
+  try {
+    const { pathname } = req.nextUrl
 
-  // Skip middleware for API routes, static files, and Next.js internals
-  if (
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon.ico') ||
-    pathname.includes('.')
-  ) {
-    return NextResponse.next()
-  }
+    // Skip middleware for API routes, static files, and Next.js internals
+    if (
+      pathname.startsWith('/api') ||
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon.ico') ||
+      pathname.includes('.')
+    ) {
+      return NextResponse.next()
+    }
+
+    // Ensure we have a valid base URL for redirects
+    const baseUrl = req.nextUrl.origin || process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
   // Handle root redirect to default locale
   if (pathname === '/') {
-    return NextResponse.redirect(new URL(`/${defaultLocale}`, req.url))
+    return NextResponse.redirect(new URL(`/${defaultLocale}`, baseUrl))
   }
 
   // Extract locale from pathname
@@ -39,13 +43,13 @@ export default auth((req) => {
 
   // If no valid locale in URL, redirect to default locale
   if (!pathname.startsWith(`/${locale}`) && !isValidLocale(pathname.split('/')[1])) {
-    return NextResponse.redirect(new URL(`/${defaultLocale}${pathname}`, req.url))
+    return NextResponse.redirect(new URL(`/${defaultLocale}${pathname}`, baseUrl))
   }
 
   // Handle legacy route redirects (e.g., /settings -> /en/settings)
   const legacyRoutes = Object.values(LEGACY_ROUTES)
   if (legacyRoutes.includes(pathname)) {
-    return NextResponse.redirect(new URL(`/${defaultLocale}${pathname}`, req.url))
+    return NextResponse.redirect(new URL(`/${defaultLocale}${pathname}`, baseUrl))
   }
 
   // Get auth info from Auth.js v5
@@ -72,7 +76,7 @@ export default auth((req) => {
   // If trying to access protected route without auth, redirect to localized login
   if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn) {
     console.log(`Middleware: Redirecting to login, from: ${pathname}`);
-    const url = new URL(ROUTES.LOGIN(locale), req.url);
+    const url = new URL(ROUTES.LOGIN(locale), baseUrl);
     url.searchParams.set('from', pathname);
     return NextResponse.redirect(url);
   }
@@ -80,13 +84,13 @@ export default auth((req) => {
   // If trying to access confidential route without proper role, redirect to localized home
   if (confidentialRoutes.includes(pathnameWithoutLocale) && (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN)) {
     console.log(`Middleware: Unauthorized access to confidential route, redirecting to home`);
-    return NextResponse.redirect(new URL(ROUTES.HOME(locale), req.url));
+    return NextResponse.redirect(new URL(ROUTES.HOME(locale), baseUrl));
   }
 
   // If authenticated user tries to access login page, redirect to localized profile
   if (pathnameWithoutLocale === '/login' && isLoggedIn) {
     console.log(`Middleware: Redirecting to profile, from: ${pathname}`);
-    return NextResponse.redirect(new URL(ROUTES.PROFILE(locale), req.url));
+    return NextResponse.redirect(new URL(ROUTES.PROFILE(locale), baseUrl));
   }
 
   // Allow authenticated users to access the entities page
@@ -97,6 +101,11 @@ export default auth((req) => {
 
   console.log(`Middleware: Proceeding with request to: ${pathname}`);
   return NextResponse.next();
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // In case of any error, allow the request to proceed
+    return NextResponse.next();
+  }
 })
 
 export const config = {

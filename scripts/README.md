@@ -91,6 +91,38 @@ node scripts/inject-firebase-config.js
 - 🔄 Automatic configuration replacement
 - ✅ Validation and error handling
 
+---
+
+### 🔥 `import-firebase-service-account.sh` - Firebase Service Account Importer
+**Import Firebase service account credentials from JSON file**
+
+```bash
+./scripts/import-firebase-service-account.sh <firebase-service-account.json>
+```
+
+**Features:**
+- 🔍 Validates Firebase service account JSON files
+- 📝 Updates .env.local with extracted credentials
+- 🌐 Imports to Vercel production environment
+- 🚀 Optional automatic deployment
+- 🔒 Security warnings and best practices
+- ✅ Validates JSON structure before import
+
+**Usage:**
+```bash
+# Import from specific JSON file
+./scripts/import-firebase-service-account.sh ring-main-a17a2bb45d90.json
+
+# Or with relative/absolute path
+./scripts/import-firebase-service-account.sh path/to/your-service-account.json
+```
+
+**Process:**
+1. Provide Firebase service account JSON file as parameter
+2. Script validates the JSON structure
+3. Choose whether to update local and/or Vercel environments
+4. Optionally deploy to production immediately
+
 ## 🎯 Quick Start
 
 ### Development Setup
