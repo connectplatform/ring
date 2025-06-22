@@ -21,9 +21,30 @@ let adminRtdb: Database;
  * @returns {App} The Firebase Admin app instance.
  */
 function getFirebaseAdminApp(): App {
-  if (typeof window === 'undefined' && !adminApp) {
+  // Skip initialization during build time or if window is defined (client-side)
+  if (typeof window !== 'undefined') {
+    throw new Error('Firebase Admin SDK should not be initialized on client-side');
+  }
+  
+  // Check if this is a build-time environment and skip if environment variables are missing
+  if (!process.env.AUTH_FIREBASE_PROJECT_ID && (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'production')) {
+    throw new Error('Firebase configuration missing - this may be expected during build time');
+  }
+  
+  if (!adminApp) {
     const apps = getApps();
     if (!apps.length) {
+      // Validate required environment variables
+      if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
+        throw new Error('AUTH_FIREBASE_PROJECT_ID environment variable is required');
+      }
+      if (!process.env.AUTH_FIREBASE_CLIENT_EMAIL) {
+        throw new Error('AUTH_FIREBASE_CLIENT_EMAIL environment variable is required');
+      }
+      if (!process.env.AUTH_FIREBASE_PRIVATE_KEY) {
+        throw new Error('AUTH_FIREBASE_PRIVATE_KEY environment variable is required');
+      }
+
       adminApp = initializeApp({
         credential: cert({
           projectId: process.env.AUTH_FIREBASE_PROJECT_ID,
@@ -133,20 +154,17 @@ export function getAdminRtdbServerTimestamp(): typeof ServerValue.TIMESTAMP {
   return ServerValue.TIMESTAMP;
 }
 
-// Initialize Firebase Admin when this module is imported on the server side.
-if (typeof window === 'undefined') {
-  getFirebaseAdminApp();
-}
+// Note: Firebase Admin is now initialized lazily when first used
+// This prevents build-time initialization issues
 
 /**
  * Exported Firestore instance for general use.
- *
- * User steps:
- * 1. Import this constant in your files where you need to use Firestore.
- * 2. Use it for Firestore operations.
+ * 
+ * Note: This is now initialized lazily to prevent build-time issues.
+ * Use getAdminDb() function instead for better error handling.
  *
  * @type {Firestore}
  */
-export const adminFirestore = typeof window === 'undefined' ? getAdminDb() : null;
+export const adminFirestore = null; // Deprecated: Use getAdminDb() instead
 
 export { adminAuth, adminRtdb };

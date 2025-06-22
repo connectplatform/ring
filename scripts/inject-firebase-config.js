@@ -22,6 +22,17 @@ const firebaseConfig = {
   FIREBASE_MEASUREMENT_ID: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+// Map to actual environment variable names for error reporting
+const envVarNames = {
+  FIREBASE_API_KEY: 'NEXT_PUBLIC_FIREBASE_API_KEY',
+  FIREBASE_AUTH_DOMAIN: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  FIREBASE_PROJECT_ID: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  FIREBASE_STORAGE_BUCKET: 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  FIREBASE_MESSAGING_SENDER_ID: 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  FIREBASE_APP_ID: 'NEXT_PUBLIC_FIREBASE_APP_ID',
+  FIREBASE_MEASUREMENT_ID: 'NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID',
+};
+
 function injectFirebaseConfig() {
   try {
     const swPath = path.join(process.cwd(), 'public', 'firebase-messaging-sw.js');
@@ -38,7 +49,7 @@ function injectFirebaseConfig() {
     // Check for missing environment variables
     const missingVars = Object.entries(firebaseConfig)
       .filter(([key, value]) => !value)
-      .map(([key]) => key);
+      .map(([key]) => envVarNames[key]);
 
     if (missingVars.length > 0) {
       console.warn('⚠️  Missing Firebase environment variables:', missingVars.join(', '));
