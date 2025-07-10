@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from '@/node_modules/react-i18next'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
-import { useInView } from 'react-intersection-observer'
+import { useInView } from '@/hooks/use-intersection-observer'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -79,7 +79,7 @@ export default function OpportunityList({
   const { t } = useTranslation()
   const { theme } = useTheme()
   const { data: session, status } = useSession()
-  const [ref, inView] = useInView()
+  const { ref, inView } = useInView()
 
   // Optimistic state for opportunities
   const [optimisticOpportunities, addOptimisticOpportunity] = useOptimistic<

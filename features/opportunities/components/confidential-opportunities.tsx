@@ -12,7 +12,7 @@ import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { UserRole } from "@/features/auth/types"
-import { useInView } from "react-intersection-observer"
+import { useInView } from "@/hooks/use-intersection-observer"
 import { formatBudget, truncateDescription, formatTimestampOrFieldValue } from "@/lib/utils"
 import { useAppContext } from "@/contexts/app-context"
 
@@ -50,7 +50,7 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
   const { opportunities, setOpportunities, error, setError } = useAppContext()
   const [loading, setLoading] = useState(false)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
-  const [ref, inView] = useInView()
+  const { ref, inView } = useInView()
 
   // Initialize opportunities and error state from props
   useEffect(() => {

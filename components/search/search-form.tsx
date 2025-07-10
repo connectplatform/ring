@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useActionState } from 'react'
+import { useActionState, useTransition, useDeferredValue } from 'react'
 import { useFormStatus } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, Filter, Clock } from 'lucide-react'
@@ -29,18 +29,20 @@ interface SearchResult {
   createdAt: string
 }
 
-function SearchButton() {
+function SearchButton({ isPending }: { isPending?: boolean }) {
   const { pending } = useFormStatus()
   const { t } = useTranslation()
+  
+  const isLoading = pending || isPending
   
   return (
     <Button 
       type="submit" 
       size="sm"
-      disabled={pending}
+      disabled={isLoading}
       className="absolute right-1 top-1 bottom-1 px-3"
     >
-      {pending ? (
+      {isLoading ? (
         <motion.div 
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -165,15 +167,28 @@ function RecentSearches({ searches, onSelect }: { searches: string[], onSelect: 
 
 /**
  * SearchForm component
- * Real-time search with Server Actions and React 19 features
+ * Real-time search with Server Actions and React 19 concurrent features
  * 
- * Features:
+ * React 19 Features:
  * - useActionState() for search state management
  * - useFormStatus() for automatic loading states
+ * - useTransition() for non-blocking search operations
+ * - useDeferredValue() for optimized rendering during fast typing
  * - Server Actions for search functionality
+ * 
+ * Performance Features:
+ * - Non-blocking UI updates with useTransition
+ * - Deferred query processing to prevent excessive re-renders
+ * - Optimized search debouncing (300ms)
  * - Real-time search results display
- * - Recent searches storage
- * - Debounced search to prevent excessive requests
+ * - Recent searches storage with localStorage
+ * - Automatic loading state management
+ * 
+ * Benefits:
+ * - Responsive UI during heavy search operations
+ * - Reduced input lag during fast typing
+ * - Better perceived performance
+ * - Automatic error handling and recovery
  * 
  * @param {SearchFormProps} props - Component props
  * @returns JSX.Element
@@ -190,6 +205,10 @@ export default function SearchForm({
   const [recentSearches, setRecentSearches] = React.useState<string[]>([])
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  
+  // React 19 Concurrent Features
+  const [isPending, startTransition] = useTransition()
+  const deferredQuery = useDeferredValue(query)
   
   const [state, formAction] = useActionState<SearchFormState | null, FormData>(
     searchEntities,
@@ -218,7 +237,21 @@ export default function SearchForm({
     }
   }, [state, onResults])
 
-  // Debounced search
+  // React 19: Handle deferred query for optimized rendering
+  React.useEffect(() => {
+    // Only trigger search when deferred query is different from current query
+    // This prevents excessive re-renders during fast typing
+    if (deferredQuery !== query && deferredQuery.trim().length >= 2) {
+      startTransition(() => {
+        const formData = new FormData()
+        formData.append('query', deferredQuery)
+        formData.append('category', category)
+        formAction(formData)
+      })
+    }
+  }, [deferredQuery, query, category, formAction])
+
+  // React 19 Enhanced Search with useTransition
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setQuery(value)
@@ -229,14 +262,19 @@ export default function SearchForm({
 
     if (value.trim().length >= 2) {
       searchTimeoutRef.current = setTimeout(() => {
-        // Trigger search automatically
-        const formData = new FormData()
-        formData.append('query', value)
-        formData.append('category', category)
-        formAction(formData)
+        // Use startTransition for non-blocking search
+        startTransition(() => {
+          const formData = new FormData()
+          formData.append('query', value)
+          formData.append('category', category)
+          formAction(formData)
+        })
       }, 300)
     } else {
-      setSearchResults([])
+      // Clear results immediately for short queries
+      startTransition(() => {
+        setSearchResults([])
+      })
     }
   }
 
@@ -249,19 +287,24 @@ export default function SearchForm({
     setRecentSearches(updated)
     localStorage.setItem('recent-searches', JSON.stringify(updated))
 
-    // Create FormData and submit
-    const formData = new FormData()
-    formData.append('query', query)
-    formData.append('category', category)
-    formAction(formData)
+    // Use startTransition for non-blocking form submission
+    startTransition(() => {
+      const formData = new FormData()
+      formData.append('query', query)
+      formData.append('category', category)
+      formAction(formData)
+    })
   }
 
   const handleRecentSearchSelect = (search: string) => {
     setQuery(search)
-    const formData = new FormData()
-    formData.append('query', search)
-    formData.append('category', category)
-    formAction(formData)
+    // Use startTransition for non-blocking recent search selection
+    startTransition(() => {
+      const formData = new FormData()
+      formData.append('query', search)
+      formData.append('category', category)
+      formAction(formData)
+    })
   }
 
   const clearResults = () => {
@@ -296,7 +339,7 @@ export default function SearchForm({
                 <X className="h-3 w-3" />
               </Button>
             )}
-            <SearchButton />
+            <SearchButton isPending={isPending} />
           </div>
         </div>
 

@@ -1,13 +1,18 @@
 #!/bin/bash
 
 # =============================================================================
-# 🎯 RING PLATFORM - Development Environment Setup Script
+# 🎯 RING PLATFORM - Environment Setup Script
 # =============================================================================
-# Beautiful Linux-style installation script with oh-my-zsh aesthetics
-# Version: 1.0.0 - Development Environment Focus
+# Version: 1.0.0 - Development & Production Environment Setup
+# 
+# Usage:
+#   ./setup-dev.sh         # Development environment setup
+#   ./setup-dev.sh dev     # Development environment setup (explicit)
+#   ./setup-dev.sh prod    # Production deployment setup
+#
 # =============================================================================
 
-# Color definitions for beautiful output
+# Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -19,7 +24,7 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-# Unicode symbols for beautiful formatting
+# Emoji symbols
 ROCKET="🚀"
 CHECK="✅"
 CROSS="❌"
@@ -38,53 +43,78 @@ FOLDER="📁"
 SCRIPT_NAME="Ring Platform Dev Setup"
 SCRIPT_VERSION="1.0.0"
 PROJECT_NAME="Ring Platform"
+SETUP_MODE="${1:-dev}"  # Default to dev mode
 
 # =============================================================================
 # Utility Functions
 # =============================================================================
 
-print_banner() {
-    echo -e "${PURPLE}${BOLD}"
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-    echo "║                                                                              ║"
-    echo "║    ${ROCKET} ${WHITE}RING PLATFORM - DEVELOPMENT ENVIRONMENT SETUP${PURPLE}${BOLD}                    ║"
-    echo "║                                                                              ║"
-    echo "║    ${WHITE}Version: ${SCRIPT_VERSION} ${DIM}| Focus: Development Environment${PURPLE}${BOLD}                      ║"
-    echo "║    ${WHITE}Next.js 15 + Firebase + Auth.js v5 + TailwindCSS${PURPLE}${BOLD}                    ║"
-    echo "║                                                                              ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+print_motd() {
+    clear
+    echo -e "${CYAN}${BOLD}"
+    echo "████████████████████████████████████████████████████████████████"
+    echo "██                                                            ██"
+    echo "██               ██████╗ ██╗███╗   ██╗ ██████╗                ██"
+    echo "██               ██╔══██╗██║████╗  ██║██╔════╝                ██"
+    echo "██               ██████╔╝██║██╔██╗ ██║██║  ███╗               ██"
+    echo "██               ██╔══██╗██║██║╚██╗██║██║   ██║               ██"
+    echo "██               ██║  ██║██║██║ ╚████║╚██████╔╝               ██"
+    echo "██               ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝                ██"
+    echo "██                                                            ██"
+    echo -e "██                    ${YELLOW}${BOLD}♦ WELCOME TO RING ♦${CYAN}${BOLD}                     ██"
+    echo "██                                                            ██"
+    echo -e "██  ${WHITE}Ring is an AI-assisted collaborative platform designed${CYAN}${BOLD}    ██"
+    echo -e "██  ${WHITE}to benefit humanity through intelligent cooperation and${CYAN}${BOLD}   ██"
+    echo -e "██  ${WHITE}shared innovation.${CYAN}${BOLD}                                        ██"
+    echo "██                                                            ██"
+    echo -e "██  ${GREEN}${BOLD}Join our legion of light by contributing your modules or${CYAN}${BOLD}  ██"
+    echo -e "██  ${GREEN}${BOLD}deploying Ring in production environments for everyone's${CYAN}${BOLD}  ██"
+    echo -e "██  ${GREEN}${BOLD}benefit.${CYAN}${BOLD}                                                  ██"
+    echo "██                                                            ██"
+    # Adjust spacing based on environment name length to preserve right boundary
+    if [[ "$(echo $SETUP_MODE | tr '[:lower:]' '[:upper:]')" == "PROD" ]]; then
+        echo -e "██  ${PURPLE}${BOLD}▶ Environment: ${YELLOW}$(echo $SETUP_MODE | tr '[:lower:]' '[:upper:]')${CYAN}${BOLD}                                       ██"
+    else
+        echo -e "██  ${PURPLE}${BOLD}▶ Environment: ${YELLOW}$(echo $SETUP_MODE | tr '[:lower:]' '[:upper:]')${CYAN}${BOLD}                                        ██"
+    fi
+    echo -e "██  ${PURPLE}${BOLD}▶ Script Version: ${SCRIPT_VERSION}${CYAN}${BOLD}                                   ██"
+    echo "██                                                            ██"
+    echo "████████████████████████████████████████████████████████████████"
     echo -e "${RESET}"
+    echo
+    echo -e "${YELLOW}${BOLD}Press any key to continue...${RESET}"
+    read -n 1 -s
     echo
 }
 
 print_step() {
     local step_num=$1
     local step_name=$2
-    echo -e "${CYAN}${BOLD}[$step_num/8] ${GEAR} $step_name${RESET}"
+    echo -e "${CYAN}${BOLD}[$step_num/8] ⚙️ $step_name${RESET}"
     echo -e "${DIM}────────────────────────────────────────────────────────────────────────────${RESET}"
     echo
 }
 
 print_success() {
-    echo -e "${GREEN}${BOLD}${CHECK} $1${RESET}"
+    echo -e "${GREEN}${BOLD}✅ $1${RESET}"
 }
 
 print_error() {
-    echo -e "${RED}${BOLD}${CROSS} $1${RESET}"
+    echo -e "${RED}${BOLD}❌ $1${RESET}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}${BOLD}${WARNING} $1${RESET}"
+    echo -e "${YELLOW}${BOLD}⚠️ $1${RESET}"
 }
 
 print_info() {
-    echo -e "${BLUE}${BOLD}${INFO} $1${RESET}"
+    echo -e "${BLUE}${BOLD}ℹ️ $1${RESET}"
 }
 
 print_link() {
     local description=$1
     local url=$2
-    echo -e "${BLUE}${BOLD}${GLOBE} $description${RESET}"
+    echo -e "${BLUE}${BOLD}🌐 $description${RESET}"
     echo -e "${DIM}   Ctrl+Click to open: ${CYAN}$url${RESET}"
     echo
 }
@@ -116,13 +146,144 @@ check_command() {
 prompt_continue() {
     local message=${1:-"Continue with the setup?"}
     echo
-    read -p "$(echo -e "${YELLOW}${BOLD}${message} ${DIM}(y/N):${RESET} ")" -n 1 -r
+    read -p "$(echo -e "${YELLOW}${BOLD}${message} ${DIM}(Y/n):${RESET} ")" -n 1 -r
     echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
         print_error "Setup cancelled by user"
         exit 1
     fi
     echo
+}
+
+prompt_destructive() {
+    local message=${1:-"Proceed with this action?"}
+    echo
+    read -p "$(echo -e "${YELLOW}${BOLD}${message} ${DIM}(y/N):${RESET} ")" -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        return 1
+    fi
+    return 0
+}
+
+select_deployment_provider() {
+    echo -e "${BLUE}${BOLD}🚀 Production Deployment Options${RESET}"
+    echo
+    echo -e "${DIM}Select your preferred hosting provider:${RESET}"
+    echo -e "  ${CYAN}1.${RESET} Vercel (Recommended - Zero config deployment)"
+    echo -e "  ${CYAN}2.${RESET} Ubuntu Server (SSH deployment)"
+    echo -e "  ${CYAN}3.${RESET} Cancel and return to development setup"
+    echo
+    
+    while true; do
+        read -p "$(echo -e "${YELLOW}${BOLD}Choose deployment option ${DIM}(1-3):${RESET} ")" -n 1 -r
+        echo
+        case $REPLY in
+            1)
+                DEPLOYMENT_PROVIDER="vercel"
+                break
+                ;;
+            2)
+                DEPLOYMENT_PROVIDER="ubuntu"
+                break
+                ;;
+            3)
+                print_info "Switching to development setup..."
+                SETUP_MODE="dev"
+                return
+                ;;
+            *)
+                print_error "Invalid option. Please select 1, 2, or 3."
+                ;;
+        esac
+    done
+    
+    echo
+    print_success "Selected: $DEPLOYMENT_PROVIDER deployment"
+}
+
+# =============================================================================
+# Production Deployment Functions
+# =============================================================================
+
+deploy_to_vercel() {
+    print_step 1 "Vercel Production Deployment"
+    
+    print_info "Preparing Vercel deployment..."
+    
+    # Check if already logged in to Vercel
+    if ! vercel whoami >/dev/null 2>&1; then
+        print_info "Logging into Vercel..."
+        vercel login
+    else
+        print_success "Already logged into Vercel: $(vercel whoami)"
+    fi
+    
+    # Build the project
+    print_info "Building project for production..."
+    npm run build
+    
+    # Deploy to Vercel
+    print_info "Deploying to Vercel..."
+    vercel --prod
+    
+    print_success "Deployment completed! Check your Vercel dashboard for the live URL."
+}
+
+deploy_to_ubuntu() {
+    print_step 1 "Ubuntu Server Deployment"
+    
+    print_info "Setting up Ubuntu server deployment..."
+    
+    # Get server details
+    echo -e "${YELLOW}${BOLD}Ubuntu Server Configuration:${RESET}"
+    read -p "$(echo -e "${CYAN}Server IP/Domain: ${RESET}")" SERVER_HOST
+    read -p "$(echo -e "${CYAN}SSH Username: ${RESET}")" SSH_USER
+    read -p "$(echo -e "${CYAN}SSH Port (default 22): ${RESET}")" SSH_PORT
+    SSH_PORT=${SSH_PORT:-22}
+    
+    # Test SSH connection
+    print_info "Testing SSH connection..."
+    if ssh -p "$SSH_PORT" -o ConnectTimeout=10 "$SSH_USER@$SERVER_HOST" "echo 'Connection successful'" >/dev/null 2>&1; then
+        print_success "SSH connection established"
+    else
+        print_error "Failed to connect to server. Please check your credentials."
+        return 1
+    fi
+    
+    # Build the project
+    print_info "Building project for production..."
+    npm run build
+    
+    # Create deployment script
+    cat > deploy-to-ubuntu.sh << EOF
+#!/bin/bash
+set -e
+
+echo "🚀 Deploying Ring Platform to Ubuntu Server..."
+
+# Upload build files
+rsync -avz --delete -e "ssh -p $SSH_PORT" .next/ $SSH_USER@$SERVER_HOST:~/ring-platform/.next/
+rsync -avz -e "ssh -p $SSH_PORT" package.json $SSH_USER@$SERVER_HOST:~/ring-platform/
+rsync -avz -e "ssh -p $SSH_PORT" public/ $SSH_USER@$SERVER_HOST:~/ring-platform/public/
+
+# Install dependencies and restart on server
+ssh -p $SSH_PORT $SSH_USER@$SERVER_HOST << 'ENDSSH'
+cd ~/ring-platform
+npm ci --only=production
+pm2 restart ring-platform || pm2 start npm --name "ring-platform" -- start
+ENDSSH
+
+echo "✅ Deployment completed!"
+EOF
+    
+    chmod +x deploy-to-ubuntu.sh
+    
+    print_info "Executing deployment..."
+    ./deploy-to-ubuntu.sh
+    
+    print_success "Ubuntu deployment completed!"
+    print_info "Your Ring Platform should be running on your Ubuntu server"
 }
 
 # =============================================================================
@@ -175,7 +336,7 @@ step_2_install_packages() {
         fi
         
         print_info "Installing packages via Homebrew..."
-        brew install node npm firebase-cli vercel
+        brew install node npm firebase-cli vercel-cli
         
     elif [[ "$os" == "linux" ]]; then
         # Linux with apt
@@ -229,7 +390,7 @@ step_3_project_dependencies() {
 step_4_firebase_setup() {
     print_step 4 "Firebase Configuration Setup"
     
-    echo -e "${FIRE}${BOLD} Firebase Project Setup${RESET}"
+    echo -e "🔥${BOLD} Firebase Project Setup${RESET}"
     echo
     
     print_link "1. Go to Firebase Console" "https://console.firebase.google.com"
@@ -259,7 +420,7 @@ step_4_firebase_setup() {
 step_5_oauth_setup() {
     print_step 5 "OAuth Providers Configuration"
     
-    echo -e "${KEY}${BOLD} OAuth Provider Setup${RESET}"
+    echo -e "🔑${BOLD} OAuth Provider Setup${RESET}"
     echo
     
     print_link "Google OAuth Console" "https://console.developers.google.com/apis/credentials"
@@ -293,9 +454,7 @@ step_6_env_setup() {
     # Check if .env.local exists
     if [[ -f "$env_file" ]]; then
         print_warning ".env.local already exists!"
-        read -p "$(echo -e "${YELLOW}Overwrite existing .env.local? ${DIM}(y/N):${RESET} ")" -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        if ! prompt_destructive "Overwrite existing .env.local?"; then
             print_info "Keeping existing .env.local"
             return
         fi
@@ -365,7 +524,7 @@ step_7_ide_config() {
         echo -e "${DIM}Available configurations:${RESET}"
         for file in .vscode/*; do
             if [[ -f "$file" ]]; then
-                echo -e "  ${CHECK} $(basename "$file")"
+                echo -e "  ✅ $(basename "$file")"
             fi
         done
     else
@@ -407,10 +566,19 @@ step_8_start_server() {
         print_info "The server will start, but some features may not work until configured"
     fi
     
+    echo -e "${BLUE}${BOLD}📋 Available Commands:${RESET}"
+    echo -e "${DIM}   • ${CYAN}npm run dev${RESET}        - Start development server"
+    echo -e "${DIM}   • ${CYAN}npm run build${RESET}      - Build for production"
+    echo -e "${DIM}   • ${CYAN}npm run start${RESET}      - Start production server"
+    echo -e "${DIM}   • ${CYAN}npm run lint${RESET}       - Run ESLint"
+    echo -e "${DIM}   • ${CYAN}npm run type-check${RESET} - Run TypeScript check"
+    echo
+    
     print_info "Starting Next.js development server..."
     echo
-    echo -e "${GREEN}${BOLD}${SPARKLES} Development server starting...${RESET}"
-    echo -e "${DIM}Press Ctrl+C to stop the server${RESET}"
+    echo -e "${GREEN}${BOLD}✨ Development server starting...${RESET}"
+    echo -e "${GREEN}${BOLD}🎉 If server starts successfully = Installation complete!${RESET}"
+    echo -e "${DIM}   Press Ctrl+C to stop server, then start developing! Happy coding! 🚀${RESET}"
     echo
     
     # Start the development server
@@ -424,17 +592,17 @@ step_8_start_server() {
 print_success_message() {
     echo
     echo -e "${GREEN}${BOLD}"
-    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "╔═══════════════════════════════════════════════════════════════════════╗"
     echo "║                                                                              ║"
-    echo "║    ${SPARKLES} ${WHITE}RING PLATFORM DEVELOPMENT ENVIRONMENT READY!${GREEN}${BOLD}                    ║"
+    echo -e "║    ✨ ${WHITE}RING PLATFORM DEVELOPMENT ENVIRONMENT READY!${GREEN}${BOLD}             ║"
     echo "║                                                                              ║"
-    echo "║    ${WHITE}Your development server is running at:${GREEN}${BOLD}                                ║"
-    echo "║    ${CYAN}http://localhost:3000${GREEN}${BOLD}                                                 ║"
+    echo -e "║    ${WHITE}Your development server is running at:${GREEN}${BOLD}                                ║"
+    echo -e "║    ${CYAN}http://localhost:3000${GREEN}${BOLD}                                                 ║"
     echo "║                                                                              ║"
-    echo "║    ${WHITE}Next steps:${GREEN}${BOLD}                                                           ║"
-    echo "║    ${DIM}• Configure remaining environment variables in .env.local${GREEN}${BOLD}            ║"
-    echo "║    ${DIM}• Test authentication with your OAuth providers${GREEN}${BOLD}                     ║"
-    echo "║    ${DIM}• Review Firebase security rules${GREEN}${BOLD}                                     ║"
+    echo -e "║    ${WHITE}Next steps:${GREEN}${BOLD}                                                           ║"
+    echo -e "║    ${DIM}• Configure remaining environment variables in .env.local${GREEN}${BOLD}            ║"
+    echo -e "║    ${DIM}• Test authentication with your OAuth providers${GREEN}${BOLD}                     ║"
+    echo -e "║    ${DIM}• Review Firebase security rules${GREEN}${BOLD}                                     ║"
     echo "║                                                                              ║"
     echo "╚══════════════════════════════════════════════════════════════════════════════╝"
     echo -e "${RESET}"
@@ -457,9 +625,15 @@ handle_error() {
 # =============================================================================
 
 main() {
-    # Clear screen and show banner
-    clear
-    print_banner
+    # Validate setup mode
+    if [[ "$SETUP_MODE" != "dev" && "$SETUP_MODE" != "prod" ]]; then
+        echo -e "${RED}${BOLD}❌ Invalid setup mode: $SETUP_MODE${RESET}"
+        echo -e "${DIM}Usage: $0 [dev|prod]${RESET}"
+        exit 1
+    fi
+    
+    # Show MOTD
+    print_motd
     
     # Check if we're in the right directory
     if [[ ! -f "package.json" ]] || [[ ! -f "env.local.template" ]]; then
@@ -467,11 +641,34 @@ main() {
         exit 1
     fi
     
-    # Welcome message
+    # Handle production mode
+    if [[ "$SETUP_MODE" == "prod" ]]; then
+        select_deployment_provider
+        
+        case $DEPLOYMENT_PROVIDER in
+            "vercel")
+                deploy_to_vercel
+                ;;
+            "ubuntu")
+                deploy_to_ubuntu
+                ;;
+            *)
+                print_info "Continuing with development setup..."
+                SETUP_MODE="dev"
+                ;;
+        esac
+        
+        if [[ "$SETUP_MODE" == "prod" ]]; then
+            print_success "Production deployment completed!"
+            exit 0
+        fi
+    fi
+    
+    # Development mode setup
+    
     echo -e "${YELLOW}${BOLD}Welcome to the Ring Platform development environment setup!${RESET}"
     echo -e "${DIM}This script will guide you through setting up everything needed for development.${RESET}"
     echo
-    prompt_continue "Ready to begin setup?"
     
     # Execute setup steps
     trap 'handle_error "System Check"' ERR

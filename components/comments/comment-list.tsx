@@ -5,7 +5,7 @@ import { useOptimistic, useActionState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from '@/node_modules/react-i18next'
 import { useSession } from 'next-auth/react'
-import { useInView } from 'react-intersection-observer'
+import { useInView } from '@/hooks/use-intersection-observer'
 import { 
   MessageCircle, 
   Heart, 
@@ -82,7 +82,7 @@ export default function CommentList({
 }: CommentListProps) {
   const { t } = useTranslation()
   const { data: session } = useSession()
-  const [ref, inView] = useInView()
+  const { ref, inView } = useInView()
 
   // Optimistic state for comments
   const [optimisticComments, addOptimisticComment] = useOptimistic<

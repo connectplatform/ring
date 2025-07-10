@@ -13,7 +13,7 @@ import { useSession } from "next-auth/react"
 import LoginForm from '@/components/auth/login-form'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useInView } from 'react-intersection-observer'
+import { useInView } from '@/hooks/use-intersection-observer'
 import { formatTimestampOrFieldValue, truncateDescription, fetchOpportunities, formatBudget } from '@/lib/utils'
 import { useAppContext } from '@/contexts/app-context'
 
@@ -38,7 +38,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
-  const [ref, inView] = useInView()
+  const { ref, inView } = useInView()
 
   useEffect(() => {
     setOpportunities(initialOpportunities)

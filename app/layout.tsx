@@ -3,6 +3,8 @@ import { ThemeProvider } from '@/components/providers/theme-provider'
 import { SessionProvider } from '@/components/providers/session-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
+import { WebVitalsProvider } from '@/components/providers/web-vitals-provider'
+import { WebSocketProvider } from '@/components/providers/websocket-provider'
 import Navigation from '@/features/layout/components/navigation'
 import Footer from '@/features/layout/components/footer'
 import { Toaster } from '@/components/ui/toaster'
@@ -136,22 +138,26 @@ export default async function RootLayout({
       </head>
       <body className="font-inter antialiased">
         <SessionProvider session={session}>
-          <I18nProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-              <AppProvider>
-                <FCMProvider>
-                  <div className="flex flex-col min-h-screen">
-                    <Navigation />
-                    <main className="flex-grow pt-16">{children}</main>
-                    <Footer />
-                  </div>
-                  <div className="theme-transition-bg" aria-hidden="true" />
-                  <FCMPermissionPrompt />
-                  <Toaster />
-                </FCMProvider>
-              </AppProvider>
-            </ThemeProvider>
-          </I18nProvider>
+          <WebVitalsProvider>
+            <I18nProvider>
+              <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                <AppProvider>
+                  <FCMProvider>
+                    <WebSocketProvider>
+                      <div className="flex flex-col min-h-screen">
+                        <Navigation />
+                        <main className="flex-grow pt-16">{children}</main>
+                        <Footer />
+                      </div>
+                      <div className="theme-transition-bg" aria-hidden="true" />
+                      <FCMPermissionPrompt />
+                      <Toaster />
+                    </WebSocketProvider>
+                  </FCMProvider>
+                </AppProvider>
+              </ThemeProvider>
+            </I18nProvider>
+          </WebVitalsProvider>
         </SessionProvider>
       </body>
     </html>
