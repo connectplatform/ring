@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { wsClient } from '@/lib/websocket-client'
 import { toast } from '@/hooks/use-toast'
@@ -33,7 +33,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [reconnecting, setReconnecting] = useState(false)
 
-  const connect = async () => {
+  const connect = useCallback(async () => {
     if (!session?.accessToken || status !== 'authenticated') return
 
     try {
@@ -51,13 +51,13 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     } finally {
       setReconnecting(false)
     }
-  }
+  }, [session?.accessToken, status])
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     wsClient.disconnect()
     setIsConnected(false)
     setConnectionError(null)
-  }
+  }, [])
 
   useEffect(() => {
     if (status === 'authenticated' && session?.accessToken) {
@@ -66,30 +66,45 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       disconnect()
     }
 
-    // Event handlers
+    // Event handlers with error boundary
     const handleConnected = () => {
-      setIsConnected(true)
-      setConnectionError(null)
-      setReconnecting(false)
-      toast({
-        title: 'Connected',
-        description: 'Real-time features are now active',
-        variant: 'default'
-      })
+      try {
+        setIsConnected(true)
+        setConnectionError(null)
+        setReconnecting(false)
+        console.log('WebSocket connected successfully')
+      } catch (error) {
+        console.error('Error in connected handler:', error)
+      }
     }
 
-    const handleDisconnected = () => {
-      setIsConnected(false)
-      toast({
-        title: 'Disconnected',
-        description: 'Real-time features are temporarily unavailable',
-        variant: 'destructive'
-      })
+    const handleDisconnected = (reason: string) => {
+      try {
+        setIsConnected(false)
+        console.log('WebSocket disconnected:', reason)
+        
+        // Only show toast for unexpected disconnections
+        if (reason !== 'io client disconnect' && reason !== 'transport close') {
+          toast({
+            title: 'Connection Lost',
+            description: 'Attempting to reconnect...',
+            variant: 'destructive'
+          })
+        }
+      } catch (error) {
+        console.error('Error in disconnected handler:', error)
+      }
     }
 
     const handleConnectionError = (error: any) => {
-      setConnectionError(error.message)
-      setIsConnected(false)
+      try {
+        const errorMessage = error?.message || 'Connection failed'
+        setConnectionError(errorMessage)
+        setIsConnected(false)
+        console.error('WebSocket connection error:', errorMessage)
+      } catch (handlerError) {
+        console.error('Error in connection error handler:', handlerError)
+      }
     }
 
     wsClient.on('connected', handleConnected)
@@ -97,11 +112,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     wsClient.on('connection_error', handleConnectionError)
 
     return () => {
-      wsClient.off('connected', handleConnected)
-      wsClient.off('disconnected', handleDisconnected)
-      wsClient.off('connection_error', handleConnectionError)
+      try {
+        wsClient.off('connected', handleConnected)
+        wsClient.off('disconnected', handleDisconnected)
+        wsClient.off('connection_error', handleConnectionError)
+      } catch (error) {
+        console.error('Error cleaning up WebSocket event handlers:', error)
+      }
     }
-  }, [session, status])
+  }, [session?.accessToken, status, connect, disconnect])
 
   const contextValue: WebSocketContextType = {
     isConnected,

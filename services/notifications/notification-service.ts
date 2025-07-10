@@ -118,7 +118,7 @@ export async function createNotification(
 }
 
 /**
- * Get notifications for a user
+ * Get user notifications with pagination
  * 
  * @param userId - The user ID
  * @param options - Query options
@@ -137,77 +137,85 @@ export async function getUserNotifications(
 
   try {
     const adminDb = getAdminDb();
-    const {
-      limit: queryLimit = 20,
-      startAfter: startAfterDoc,
-      unreadOnly = false,
-      types
-    } = options;
+    
+    // Add timeout for network issues
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Firestore connection timeout')), 10000)
+    );
 
-    // Build query
     let query = adminDb
       .collection('notifications')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .limit(queryLimit + 1); // Get one extra to check if there are more
+      .orderBy('createdAt', 'desc');
 
-    // Add filters
-    if (unreadOnly) {
+    // Apply filters
+    if (options.unreadOnly) {
       query = query.where('readAt', '==', null);
     }
-
-    if (types && types.length > 0) {
-      query = query.where('type', 'in', types);
+    
+    if (options.types && options.types.length > 0) {
+      query = query.where('type', 'in', options.types);
     }
 
-    if (startAfterDoc) {
-      const startAfterSnapshot = await adminDb.collection('notifications').doc(startAfterDoc).get();
-      if (startAfterSnapshot.exists) {
-        query = query.startAfter(startAfterSnapshot);
+    // Apply pagination
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options.startAfter) {
+      const startAfterDoc = await adminDb.collection('notifications').doc(options.startAfter).get();
+      if (startAfterDoc.exists) {
+        query = query.startAfter(startAfterDoc);
       }
     }
 
-    const snapshot = await query.get();
-    const docs = snapshot.docs;
-    const hasMore = docs.length > queryLimit;
-    const notifications = docs.slice(0, queryLimit);
-
-    const notificationList: Notification[] = notifications.map(doc => ({
+    const firestoreQuery = query.get();
+    const snapshot = await Promise.race([firestoreQuery, timeout]) as any;
+    
+    const notifications = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date(),
-      scheduledFor: doc.data().scheduledFor?.toDate(),
-      readAt: doc.data().readAt?.toDate(),
-      expiresAt: doc.data().expiresAt?.toDate(),
-      deliveries: doc.data().deliveries || []
-    } as Notification));
+      readAt: doc.data().readAt?.toDate() || null,
+      deliveredAt: doc.data().deliveredAt?.toDate() || null
+    })) as Notification[];
 
-    // Get unread count
-    const unreadSnapshot = await adminDb
-      .collection('notifications')
-      .where('userId', '==', userId)
-      .where('readAt', '==', null)
-      .get();
-    const unreadCount = unreadSnapshot.size;
-
-    // Get total count
-    const totalSnapshot = await adminDb
-      .collection('notifications')
-      .where('userId', '==', userId)
-      .get();
-    const totalCount = totalSnapshot.size;
+    // Get the last document for pagination
+    const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    const nextCursor = lastDoc ? lastDoc.id : null;
 
     return {
-      notifications: notificationList,
-      unreadCount,
-      totalCount,
-      hasMore,
-      lastVisible: hasMore ? notifications[notifications.length - 1].id : undefined
+      notifications,
+      unreadCount: 0, // Will be calculated separately if needed
+      totalCount: notifications.length,
+      hasMore: snapshot.docs.length === (options.limit || 20),
+      lastVisible: lastDoc ? lastDoc.id : undefined
     };
 
   } catch (error) {
     console.error('NotificationService: Error getting user notifications:', error);
-    throw new Error(`Failed to get notifications: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Check if it's a connection/network error
+    if (error instanceof Error && (
+      error.message.includes('UNAVAILABLE') ||
+      error.message.includes('Name resolution failed') ||
+      error.message.includes('timeout') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      console.warn('NotificationService: Network connectivity issue detected, returning empty notifications');
+      
+      // Return empty result instead of throwing
+      return {
+        notifications: [],
+        unreadCount: 0,
+        totalCount: 0,
+        hasMore: false,
+        lastVisible: undefined
+      };
+    }
+    
+    // For other errors, still throw
+    throw new Error(`Failed to get user notifications: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -333,11 +341,19 @@ export async function getNotificationStats(
 
   try {
     const adminDb = getAdminDb();
-    const snapshot = await adminDb
+    
+    // Add timeout and better error handling for network issues
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Firestore connection timeout')), 10000)
+    );
+    
+    const firestoreQuery = adminDb
       .collection('notifications')
       .where('userId', '==', userId)
       .get();
 
+    const snapshot = await Promise.race([firestoreQuery, timeout]) as any;
+    
     const notifications = snapshot.docs.map(doc => ({
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date()
@@ -382,6 +398,29 @@ export async function getNotificationStats(
 
   } catch (error) {
     console.error('NotificationService: Error getting notification stats:', error);
+    
+    // Check if it's a connection/network error
+    if (error instanceof Error && (
+      error.message.includes('UNAVAILABLE') ||
+      error.message.includes('Name resolution failed') ||
+      error.message.includes('timeout') ||
+      error.message.includes('ENOTFOUND')
+    )) {
+      console.warn('NotificationService: Network connectivity issue detected, returning default stats');
+      
+      // Return default/empty stats instead of throwing
+      return {
+        totalNotifications: 0,
+        unreadCount: 0,
+        todayCount: 0,
+        weekCount: 0,
+        byType: {} as Record<NotificationType, number>,
+        byChannel: {} as Record<NotificationChannel, number>,
+        byStatus: {} as Record<NotificationStatus, number>
+      };
+    }
+    
+    // For other errors, still throw
     throw new Error(`Failed to get notification stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

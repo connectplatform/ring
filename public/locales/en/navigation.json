@@ -1,0 +1,64 @@
+{
+  "navigation": {
+    "home": "Home",
+    "entities": "Entities",
+    "opportunities": "Opportunities",
+    "about": "About",
+    "contact": "Contact",
+    "login": "Login",
+    "logout": "Logout",
+    "profile": "Profile",
+    "settings": "Settings",
+    "dashboard": "Dashboard",
+    "menu": "Menu",
+    "closeMenu": "Close menu"
+  },
+  "breadcrumb": {
+    "home": "Home",
+    "entities": "Entities",
+    "opportunities": "Opportunities",
+    "profile": "Profile",
+    "settings": "Settings",
+    "admin": "Admin",
+    "analytics": "Analytics"
+  },
+  "sections": {
+    "main": "Main Navigation",
+    "user": "User Menu",
+    "admin": "Admin Panel",
+    "footer": "Footer Links"
+  },
+  "actions": {
+    "viewAll": "View All",
+    "viewDetails": "View Details",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import"
+  },
+  "labels": {
+    "newItem": "New",
+    "draft": "Draft",
+    "published": "Published",
+    "archived": "Archived",
+    "featured": "Featured",
+    "trending": "Trending",
+    "recent": "Recent"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "away": "Away",
+    "busy": "Busy"
+  },
+  "metadata": {
+    "lastUpdated": "Last updated",
+    "createdAt": "Created",
+    "modifiedAt": "Modified",
+    "publishedAt": "Published"
+  }
+} 

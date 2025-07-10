@@ -184,8 +184,10 @@ export function MessageComposer({
             onClick={handleImageUpload}
             disabled={disabled || isLoading}
             className="h-8 w-8 p-0"
+            aria-label="Upload image"
           >
-                          <Image className="h-4 w-4" />
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image className="h-4 w-4" />
           </Button>
         </div>
 

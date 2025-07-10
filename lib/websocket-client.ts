@@ -48,40 +48,63 @@ export class WebSocketClient {
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 
                    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
 
-      this.socket = io(wsUrl, {
-        auth: { token: sessionToken },
-        transports: ['websocket', 'polling'],
-        timeout: 20000,
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: this.maxReconnectAttempts
-      })
+      try {
+        this.socket = io(wsUrl, {
+          auth: { token: sessionToken },
+          transports: ['websocket', 'polling'],
+          timeout: 10000,
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: this.maxReconnectAttempts,
+          forceNew: true,
+          autoConnect: true
+        })
 
-      this.setupEventHandlers()
+        this.setupEventHandlers()
 
-      this.socket.on('connect', () => {
-        console.log('WebSocket connected')
-        this.reconnectAttempts = 0
-        this.connectionPromise = null
-        this.emit('connected')
-        resolve()
-      })
+        this.socket.on('connect', () => {
+          console.log('WebSocket connected successfully')
+          this.reconnectAttempts = 0
+          this.connectionPromise = null
+          this.emit('connected')
+          resolve()
+        })
 
-      this.socket.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error)
-        this.emit('connection_error', error)
+        this.socket.on('connect_error', (error) => {
+          console.error('WebSocket connection error:', error.message || error)
+          this.emit('connection_error', error)
+          this.connectionPromise = null
+          
+          // Only reject if this is the first connection attempt
+          if (this.reconnectAttempts === 0) {
+            reject(new Error(`Connection failed: ${error.message || 'Unknown error'}`))
+          }
+        })
+
+        this.socket.on('error', (error) => {
+          console.error('WebSocket error:', error)
+          this.emit('error', error)
+        })
+
+        // Timeout fallback
+        const timeoutId = setTimeout(() => {
+          if (!this.socket?.connected) {
+            this.connectionPromise = null
+            reject(new Error('Connection timeout after 10 seconds'))
+          }
+        }, 12000)
+
+        // Clear timeout on successful connection
+        this.socket.on('connect', () => {
+          clearTimeout(timeoutId)
+        })
+
+      } catch (error) {
+        console.error('Failed to create socket connection:', error)
         this.connectionPromise = null
         reject(error)
-      })
-
-      // Timeout fallback
-      setTimeout(() => {
-        if (!this.socket?.connected) {
-          this.connectionPromise = null
-          reject(new Error('Connection timeout'))
-        }
-      }, 25000)
+      }
     })
   }
 
@@ -210,8 +233,66 @@ export class WebSocketClient {
   }
 }
 
-// Singleton instance
-export const wsClient = new WebSocketClient()
+// Singleton WebSocket client instance
+let wsClientInstance: WebSocketClient | null = null
 
-// Export instance and class for flexibility
+export const wsClient = {
+  getInstance(): WebSocketClient {
+    if (!wsClientInstance) {
+      wsClientInstance = new WebSocketClient()
+    }
+    return wsClientInstance
+  },
+
+  async connect(sessionToken: string): Promise<void> {
+    return this.getInstance().connect(sessionToken)
+  },
+
+  disconnect(): void {
+    this.getInstance().disconnect()
+  },
+
+  on<K extends keyof WebSocketEvents>(event: K, handler: WebSocketEvents[K]): void {
+    this.getInstance().on(event, handler)
+  },
+
+  off<K extends keyof WebSocketEvents>(event: K, handler: WebSocketEvents[K]): void {
+    this.getInstance().off(event, handler)
+  },
+
+  get isConnected(): boolean {
+    return wsClientInstance?.isConnected || false
+  },
+
+  get isConnecting(): boolean {
+    return wsClientInstance?.isConnecting || false
+  },
+
+  // Message operations
+  joinConversation(conversationId: string): void {
+    this.getInstance().joinConversation(conversationId)
+  },
+
+  leaveConversation(conversationId: string): void {
+    this.getInstance().leaveConversation(conversationId)
+  },
+
+  sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'status'>): void {
+    this.getInstance().sendMessage(message)
+  },
+
+  startTyping(conversationId: string): void {
+    this.getInstance().startTyping(conversationId)
+  },
+
+  stopTyping(conversationId: string): void {
+    this.getInstance().stopTyping(conversationId)
+  },
+
+  markAsRead(conversationId: string, messageIds: string[]): void {
+    this.getInstance().markAsRead(conversationId, messageIds)
+  }
+}
+
+// Export singleton instance (backward compatibility)
 export default wsClient 

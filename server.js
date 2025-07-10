@@ -1,8 +1,7 @@
-const { createServer } = require('http')
-const next = require('next')
-const { Server } = require('socket.io')
-const { auth } = require('./auth')
-const { getToken } = require('next-auth/jwt')
+import { createServer } from 'http'
+import next from 'next'
+import { Server } from 'socket.io'
+import { getToken } from 'next-auth/jwt'
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
@@ -27,201 +26,239 @@ class WebSocketService {
 
   async authenticateSocket(socket) {
     try {
-      const token = socket.handshake.auth.token
-      if (!token) return null
+      const token = socket.handshake.auth.token || 
+                   socket.handshake.headers.authorization?.replace('Bearer ', '') ||
+                   socket.request.headers.authorization?.replace('Bearer ', '')
+      
+      if (!token) {
+        console.warn('WebSocket authentication failed: No token provided')
+        throw new Error('No authentication token provided')
+      }
 
-      // Verify JWT token (adjust based on your auth setup)
-      const decoded = await getToken({
-        req: { headers: { authorization: `Bearer ${token}` } },
-        secret: process.env.NEXTAUTH_SECRET
+      // Validate token format
+      if (typeof token !== 'string' || token.length < 10) {
+        console.warn('WebSocket authentication failed: Invalid token format')
+        throw new Error('Invalid token format')
+      }
+
+      const session = await getToken({ 
+        token, 
+        secret: process.env.NEXTAUTH_SECRET 
       })
 
-      if (!decoded || !decoded.sub) return null
-
-      return {
-        userId: decoded.sub,
-        userRole: decoded.role || 'user',
-        userName: decoded.name || 'User',
-        userAvatar: decoded.picture,
-        sessionId: decoded.jti
+      if (!session || !session.sub) {
+        console.warn('WebSocket authentication failed: Invalid session')
+        throw new Error('Invalid authentication token')
       }
+
+      console.log(`WebSocket authentication successful for user: ${session.email || session.sub}`)
+      return session
     } catch (error) {
-      console.error('Socket authentication error:', error)
-      return null
+      console.error('Socket authentication failed:', error.message)
+      throw new Error(`Authentication failed: ${error.message}`)
     }
   }
 
   setupEventHandlers() {
     this.io.use(async (socket, next) => {
-      const authData = await this.authenticateSocket(socket)
-      if (authData) {
-        socket.authData = authData
+      try {
+        const session = await this.authenticateSocket(socket)
+        socket.userId = session.sub
+        socket.userEmail = session.email || session.sub
+        socket.sessionData = session
         next()
-      } else {
+      } catch (error) {
+        console.error('WebSocket middleware authentication failed:', error.message)
         next(new Error('Authentication failed'))
       }
     })
 
     this.io.on('connection', (socket) => {
-      const { userId, userName } = socket.authData
-      console.log(`User ${userName} (${userId}) connected via WebSocket`)
+      try {
+        console.log(`User connected: ${socket.userEmail} (${socket.userId})`)
+        
+        // Store user socket mapping
+        this.userSockets.set(socket.userId, socket)
 
-      // Join user to their personal room
-      socket.join(`user:${userId}`)
-      this.addUserSocket(userId, socket.id)
+        // Join user to their personal room for direct notifications
+        socket.join(`user:${socket.userId}`)
 
-      // Broadcast user presence
-      this.broadcastPresenceUpdate(userId, true)
+        // Handle conversation joining with error handling
+        socket.on('join_conversation', (conversationId) => {
+          try {
+            if (!conversationId || typeof conversationId !== 'string') {
+              socket.emit('error', { message: 'Invalid conversation ID' })
+              return
+            }
 
-      // Handle conversation events
-      socket.on('join_conversation', (conversationId) => {
-        this.joinConversation(socket, conversationId)
-      })
+            socket.join(`conversation:${conversationId}`)
+            
+            // Track users in conversation room
+            if (!this.conversationRooms.has(conversationId)) {
+              this.conversationRooms.set(conversationId, new Set())
+            }
+            this.conversationRooms.get(conversationId).add(socket.userId)
+            
+            console.log(`User ${socket.userEmail} joined conversation: ${conversationId}`)
+            socket.emit('conversation_joined', { conversationId })
+          } catch (error) {
+            console.error('Error joining conversation:', error)
+            socket.emit('error', { message: 'Failed to join conversation' })
+          }
+        })
 
-      socket.on('leave_conversation', (conversationId) => {
-        this.leaveConversation(socket, conversationId)
-      })
+        // Handle conversation leaving with error handling
+        socket.on('leave_conversation', (conversationId) => {
+          try {
+            if (!conversationId || typeof conversationId !== 'string') {
+              socket.emit('error', { message: 'Invalid conversation ID' })
+              return
+            }
 
-      socket.on('send_message', (data) => {
-        this.handleSendMessage(socket, data)
-      })
+            socket.leave(`conversation:${conversationId}`)
+            
+            if (this.conversationRooms.has(conversationId)) {
+              this.conversationRooms.get(conversationId).delete(socket.userId)
+              if (this.conversationRooms.get(conversationId).size === 0) {
+                this.conversationRooms.delete(conversationId)
+              }
+            }
+            
+            console.log(`User ${socket.userEmail} left conversation: ${conversationId}`)
+            socket.emit('conversation_left', { conversationId })
+          } catch (error) {
+            console.error('Error leaving conversation:', error)
+            socket.emit('error', { message: 'Failed to leave conversation' })
+          }
+        })
 
-      socket.on('typing_start', (data) => {
-        this.handleTypingStart(socket, data)
-      })
+        // Handle message sending
+        socket.on('send_message', async (messageData) => {
+          try {
+            const { conversationId, content, type = 'text' } = messageData
+            
+            if (!conversationId || !content) {
+              socket.emit('error', { message: 'Missing required message data' })
+              return
+            }
 
-      socket.on('typing_stop', (data) => {
-        this.handleTypingStop(socket, data)
-      })
+            // Create message object with server-side data
+            const message = {
+              id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              conversationId,
+              senderId: socket.userId,
+              senderName: socket.userEmail,
+              content,
+              type,
+              timestamp: new Date(),
+              status: 'sent'
+            }
 
-      socket.on('mark_read', (data) => {
-        this.handleMarkRead(socket, data)
-      })
+            // Broadcast to all users in the conversation
+            this.io.to(`conversation:${conversationId}`).emit('message_received', message)
+            
+            console.log(`Message sent in conversation ${conversationId} by ${socket.userEmail}`)
+            
+          } catch (error) {
+            console.error('Error handling message:', error)
+            socket.emit('error', { message: 'Failed to send message' })
+          }
+        })
 
-      // Handle disconnect
-      socket.on('disconnect', () => {
-        console.log(`User ${userName} (${userId}) disconnected`)
-        this.removeUserSocket(userId, socket.id)
-        if (!this.isUserOnline(userId)) {
-          this.broadcastPresenceUpdate(userId, false)
-        }
-      })
-    })
-  }
+        // Handle typing indicators
+        socket.on('typing_start', (conversationId) => {
+          socket.to(`conversation:${conversationId}`).emit('user_typing', {
+            userId: socket.userId,
+            userEmail: socket.userEmail,
+            isTyping: true
+          })
+        })
 
-  joinConversation(socket, conversationId) {
-    socket.join(`conversation:${conversationId}`)
-    if (!this.conversationRooms.has(conversationId)) {
-      this.conversationRooms.set(conversationId, new Set())
-    }
-    this.conversationRooms.get(conversationId).add(socket.id)
-  }
+        socket.on('typing_stop', (conversationId) => {
+          socket.to(`conversation:${conversationId}`).emit('user_typing', {
+            userId: socket.userId,
+            userEmail: socket.userEmail,
+            isTyping: false
+          })
+        })
 
-  leaveConversation(socket, conversationId) {
-    socket.leave(`conversation:${conversationId}`)
-    const room = this.conversationRooms.get(conversationId)
-    if (room) {
-      room.delete(socket.id)
-      if (room.size === 0) {
-        this.conversationRooms.delete(conversationId)
+        // Handle presence updates
+        socket.on('update_presence', (status) => {
+          socket.broadcast.emit('presence_update', {
+            userId: socket.userId,
+            userEmail: socket.userEmail,
+            isOnline: status === 'online',
+            lastSeen: new Date()
+          })
+        })
+
+        // Handle disconnection
+        socket.on('disconnect', (reason) => {
+          console.log(`User disconnected: ${socket.userEmail} (${reason})`)
+          
+          // Remove from user sockets mapping
+          this.userSockets.delete(socket.userId)
+          
+          // Remove from all conversation rooms
+          for (const [conversationId, users] of this.conversationRooms.entries()) {
+            if (users.has(socket.userId)) {
+              users.delete(socket.userId)
+              if (users.size === 0) {
+                this.conversationRooms.delete(conversationId)
+              }
+            }
+          }
+
+          // Broadcast offline status
+          socket.broadcast.emit('presence_update', {
+            userId: socket.userId,
+            userEmail: socket.userEmail,
+            isOnline: false,
+            lastSeen: new Date()
+          })
+        })
+
+        // Send connection confirmation
+        socket.emit('connected', { 
+          message: 'WebSocket connected successfully',
+          userId: socket.userId,
+          userEmail: socket.userEmail
+        })
+      } catch (error) {
+        console.error('Error in connection handler:', error)
+        socket.emit('error', { message: 'Connection handler error' })
       }
-    }
-  }
-
-  async handleSendMessage(socket, data) {
-    try {
-      const { userId, userName, userAvatar } = socket.authData
-      
-      // Basic validation
-      if (!data.conversationId || !data.content) {
-        socket.emit('error', { message: 'Invalid message data' })
-        return
-      }
-
-      // For now, broadcast the message (in production, save to database first)
-      const message = {
-        id: `msg_${Date.now()}_${Math.random()}`,
-        conversationId: data.conversationId,
-        senderId: userId,
-        senderName: userName,
-        senderAvatar: userAvatar,
-        content: data.content,
-        type: data.type || 'text',
-        status: 'sent',
-        timestamp: new Date(),
-        replyTo: data.replyTo,
-        attachments: data.attachments
-      }
-
-      // Broadcast to conversation participants
-      this.io.to(`conversation:${data.conversationId}`).emit('message_received', message)
-      
-      console.log(`Message sent in conversation ${data.conversationId}`)
-      
-    } catch (error) {
-      console.error('Error handling message:', error)
-      socket.emit('error', { message: 'Failed to send message' })
-    }
-  }
-
-  handleTypingStart(socket, { conversationId }) {
-    const { userId } = socket.authData
-    socket.to(`conversation:${conversationId}`).emit('user_typing', {
-      userId,
-      conversationId,
-      isTyping: true
     })
   }
 
-  handleTypingStop(socket, { conversationId }) {
-    const { userId } = socket.authData
-    socket.to(`conversation:${conversationId}`).emit('user_typing', {
-      userId,
-      conversationId,
-      isTyping: false
-    })
-  }
-
-  handleMarkRead(socket, { conversationId, messageIds }) {
-    const { userId } = socket.authData
-    socket.to(`conversation:${conversationId}`).emit('messages_read', {
-      userId,
-      conversationId,
-      messageIds,
-      readAt: new Date()
-    })
-  }
-
-  broadcastPresenceUpdate(userId, isOnline) {
-    this.io.emit('presence_update', {
-      userId,
-      isOnline,
-      lastSeen: new Date()
-    })
-  }
-
-  addUserSocket(userId, socketId) {
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set())
+  // Public API methods
+  sendToUser(userId, event, data) {
+    const socket = this.userSockets.get(userId)
+    if (socket) {
+      socket.emit(event, data)
+      return true
     }
-    this.userSockets.get(userId).add(socketId)
+    return false
   }
 
-  removeUserSocket(userId, socketId) {
-    const sockets = this.userSockets.get(userId)
-    if (sockets) {
-      sockets.delete(socketId)
-      if (sockets.size === 0) {
-        this.userSockets.delete(userId)
-      }
-    }
+  sendToConversation(conversationId, event, data) {
+    this.io.to(`conversation:${conversationId}`).emit(event, data)
   }
 
-  isUserOnline(userId) {
-    return this.userSockets.has(userId) && this.userSockets.get(userId).size > 0
+  broadcast(event, data) {
+    this.io.emit(event, data)
+  }
+
+  getActiveUsers() {
+    return Array.from(this.userSockets.keys())
+  }
+
+  getConversationUsers(conversationId) {
+    return Array.from(this.conversationRooms.get(conversationId) || [])
   }
 }
 
+// Start the server
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     handle(req, res)
@@ -229,10 +266,18 @@ app.prepare().then(() => {
 
   // Initialize WebSocket service
   const wsService = new WebSocketService(server)
+  
+  // Make wsService available globally for API routes if needed
+  global.wsService = wsService
 
   const port = process.env.PORT || 3000
-  server.listen(port, () => {
-    console.log(`🚀 Ring Platform with WebSocket server running on http://localhost:${port}`)
-    console.log(`📡 WebSocket server initialized and ready`)
+  
+  server.listen(port, (err) => {
+    if (err) throw err
+    console.log(`🚀 Server ready on http://localhost:${port}`)
+    console.log(`📡 WebSocket server ready`)
   })
+}).catch((ex) => {
+  console.error('Error starting server:', ex)
+  process.exit(1)
 }) 

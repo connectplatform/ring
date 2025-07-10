@@ -16,6 +16,7 @@ import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/utils/i18n-server'
 import SlidingPopup from '@/components/widgets/modal'
 import UpgradeRequestModal from '@/components/modals/upgrade-request-modal'
+import Image from 'next/image'
 
 interface EntitiesContentProps {
   initialEntities: Entity[];
@@ -145,12 +146,12 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
           {/* Action Buttons Section */}
           <div className="flex justify-center gap-4 mb-8">
             {canCreateEntity ? (
-              <Button asChild size="lg" className="gap-2">
-                <Link href={ROUTES.ADD_ENTITY(defaultLocale)}>
+              <Link href={ROUTES.ADD_ENTITY(defaultLocale)}>
+                <Button size="lg" className="gap-2">
                   <Plus className="h-5 w-5" />
                   {t('addMyEntity') || 'Add my Entity'}
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             ) : needsUpgrade ? (
               <Button 
                 size="lg" 
@@ -247,27 +248,40 @@ const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <Card className="h-full flex flex-col">
+      <Card className="h-full flex flex-col relative">
+        {/* Members Only Badge */}
+        {entity.visibility === 'member' && (
+          <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded z-10">
+            {t('membersOnly')}
+          </div>
+        )}
+        
         <CardContent className="flex-grow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">{entity.name}</h2>
             {entity.logo && (
-              <img src={entity.logo} alt={`${entity.name} logo`} className="w-12 h-12 object-contain" />
+              <div className="w-12 h-12 flex-shrink-0">
+                <Image 
+                  src={entity.logo} 
+                  alt={`${entity.name} logo`} 
+                  width={48}
+                  height={48}
+                  className="w-full h-full object-contain" 
+                />
+              </div>
             )}
           </div>
           <p className="text-sm text-muted-foreground mb-4">{entity.shortDescription}</p>
           <EntityDetails entity={entity} />
         </CardContent>
-        <CardFooter className="bg-muted/50">
-          <Link href={`/entities/${entity.id}`} passHref className="w-full">
-            <Button className="w-full">{t('viewDetails')}</Button>
-          </Link>
+        
+        <CardFooter className="bg-muted/50 p-4">
+          <Button asChild className="w-full">
+            <Link href={`/entities/${entity.id}`}>
+              {t('viewDetails')}
+            </Link>
+          </Button>
         </CardFooter>
-        {entity.visibility === 'member' && (
-          <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-            {t('membersOnly')}
-          </div>
-        )}
       </Card>
     </motion.div>
   )

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging'
-import { app } from '@/lib/firebase-client'
+import { app, validateFirebaseConfig } from '@/lib/firebase-client'
 
 interface FCMState {
   token: string | null
@@ -25,7 +25,7 @@ export function useFCM(): FCMHookReturn {
     token: null,
     permission: 'default',
     isSupported: false,
-    isLoading: true,
+    isLoading: false,
     error: null
   })
 
@@ -33,27 +33,58 @@ export function useFCM(): FCMHookReturn {
   useEffect(() => {
     const checkSupport = async () => {
       try {
-        if (typeof window === 'undefined') {
-          setState(prev => ({ ...prev, isSupported: false, isLoading: false }))
+        // Check if Firebase is properly configured
+        if (!validateFirebaseConfig()) {
+          setState(prev => ({ 
+            ...prev, 
+            isSupported: false,
+            error: 'Firebase configuration incomplete' 
+          }))
           return
         }
 
-        // Check if service worker and notifications are supported
-        const isSupported = 'serviceWorker' in navigator && 'Notification' in window
-        
+        // Check if browser supports notifications
+        if (!('Notification' in window)) {
+          setState(prev => ({ 
+            ...prev, 
+            isSupported: false,
+            error: 'Browser does not support notifications' 
+          }))
+          return
+        }
+
+        // Check if service worker is supported
+        if (!('serviceWorker' in navigator)) {
+          setState(prev => ({ 
+            ...prev, 
+            isSupported: false,
+            error: 'Service workers not supported' 
+          }))
+          return
+        }
+
+        // Check if Firebase messaging is available
+        if (!app) {
+          setState(prev => ({ 
+            ...prev, 
+            isSupported: false,
+            error: 'Firebase app not initialized' 
+          }))
+          return
+        }
+
         setState(prev => ({ 
           ...prev, 
-          isSupported,
+          isSupported: true,
           permission: Notification.permission,
-          isLoading: false
+          error: null 
         }))
       } catch (error) {
         console.error('Error checking FCM support:', error)
         setState(prev => ({ 
           ...prev, 
-          isSupported: false, 
-          isLoading: false,
-          error: 'FCM not supported'
+          isSupported: false,
+          error: error instanceof Error ? error.message : 'Failed to check FCM support'
         }))
       }
     }
@@ -74,8 +105,19 @@ export function useFCM(): FCMHookReturn {
             console.log('Service Worker registered:', registration)
           }
 
-          // Get messaging instance
-          const messaging = getMessaging(app)
+          // Get messaging instance with error handling
+          let messaging;
+          try {
+            messaging = getMessaging(app)
+          } catch (messagingError) {
+            console.error('Error getting messaging instance:', messagingError)
+            setState(prev => ({ 
+              ...prev, 
+              isLoading: false,
+              error: 'Failed to initialize messaging service' 
+            }))
+            return
+          }
 
           // Get existing token
           const currentToken = await getToken(messaging, {

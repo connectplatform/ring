@@ -228,9 +228,11 @@ export const ConfidentialEntitiesContent: React.FC<ConfidentialEntitiesContentPr
                   )}
                 </CardContent>
                 <CardFooter className="bg-muted/50">
-                  <Link href={`/confidential/entities/${entity.id}`} passHref className="w-full">
-                    <Button className="w-full">{t('viewConfidentialDetails')}</Button>
-                  </Link>
+                  <Button asChild className="w-full">
+                    <Link href={`/confidential/entities/${entity.id}`}>
+                      {t('viewConfidentialDetails')}
+                    </Link>
+                  </Button>
                 </CardFooter>
                 <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded flex items-center">
                   <Lock className="w-3 h-3 mr-1" />

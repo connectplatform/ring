@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useTranslation } from '@/node_modules/react-i18next'
 import EntityDetails from '@/features/entities/components/entity-details'
 import { Entity } from '@/features/entities/types'
-import { Chat } from '@/features/chat/components/chat'
+import Chat from '@/features/chat/components/chat'
 
 interface EntityDetailsWrapperProps {
   initialEntity: Entity | null

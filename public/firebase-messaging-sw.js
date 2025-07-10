@@ -5,13 +5,13 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 // Firebase configuration - will be dynamically injected during build
 // This configuration object will be replaced by the build process with actual environment variables
 const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "your-sender-id",
-  appId: "your-app-id",
-  measurementId: "G-XXXXXXXXXX"
+  apiKey: "AIzaSyCWd2YVU7mN0FkMMO9ZDuIv6MlnunH7VX8",
+  authDomain: "ring-main.firebaseapp.com",
+  projectId: "ring-main",
+  storageBucket: "ring-main.appspot.com",
+  messagingSenderId: "919637187324",
+  appId: "1:919637187324:web:af95cb1c3d96f2bc0bd579",
+  measurementId: "G-WVDVCRX12R"
 }
 
 // Initialize Firebase

@@ -16,6 +16,40 @@ const clientCredentials = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+/**
+ * Validate Firebase configuration
+ * @returns {boolean} True if all required fields are present
+ */
+function validateFirebaseConfig(): boolean {
+  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'appId', 'messagingSenderId'];
+  
+  for (const field of requiredFields) {
+    if (!clientCredentials[field as keyof typeof clientCredentials]) {
+      // Use console.warn instead of console.error to reduce noise in development
+      console.warn(`Firebase configuration missing: ${field}. Add NEXT_PUBLIC_FIREBASE_${field.toUpperCase()} to your .env.local file`);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Get development Firebase configuration from .env.local
+ * @returns {object} Development Firebase config
+ */
+function getDevFirebaseConfig() {
+  return {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_DEV_API_KEY || "demo-api-key",
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_DEV_AUTH_DOMAIN || "demo-project.firebaseapp.com",
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_DEV_PROJECT_ID || "demo-project",
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_DEV_STORAGE_BUCKET || "demo-project.appspot.com",
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_DEV_MESSAGING_SENDER_ID || "123456789",
+    appId: process.env.NEXT_PUBLIC_FIREBASE_DEV_APP_ID || "1:123456789:web:demo-app-id",
+    measurementId: process.env.NEXT_PUBLIC_FIREBASE_DEV_MEASUREMENT_ID || "G-DEMO-ID"
+  };
+}
+
 let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
@@ -31,15 +65,31 @@ let auth: Auth;
  */
 function initializeFirebaseClient(): FirebaseApp {
   if (typeof window !== 'undefined' && !getApps().length) {
-    app = initializeApp(clientCredentials);
-    db = getFirestore(app);
-    auth = getAuth(app);
+    try {
+      // Check if we have valid configuration
+      const config = validateFirebaseConfig() ? clientCredentials : getDevFirebaseConfig();
+      
+      if (!validateFirebaseConfig()) {
+        console.warn('Using development Firebase configuration. Set environment variables for production.');
+      }
+      
+      app = initializeApp(config);
+      db = getFirestore(app);
+      auth = getAuth(app);
+    } catch (error) {
+      console.error('Failed to initialize Firebase:', error);
+      throw error;
+    }
   }
   return app;
 }
 
 // Initialize Firebase client when this module is imported
-initializeFirebaseClient();
+try {
+  initializeFirebaseClient();
+} catch (error) {
+  console.error('Firebase initialization failed:', error);
+}
 
-export { app, db, auth };
+export { app, db, auth, validateFirebaseConfig };
 

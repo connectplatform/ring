@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
+import Image from 'next/image'
 import { Camera, X, AlertCircle } from 'lucide-react'
 import { StarRating } from '@/components/ui/star-rating'
 import { Button } from '@/components/ui/button'
@@ -298,9 +299,11 @@ export function ReviewForm({
               <div className="grid grid-cols-3 gap-4">
                 {photoUrls.map((url, index) => (
                   <div key={`existing-${index}`} className="relative group">
-                    <img
+                    <Image
                       src={url}
                       alt={`Review photo ${index + 1}`}
+                      width={96}
+                      height={96}
                       className="w-full h-24 object-cover rounded-lg"
                     />
                     <button
@@ -320,10 +323,13 @@ export function ReviewForm({
               <div className="grid grid-cols-3 gap-4">
                 {uploadedPhotos.map((file, index) => (
                   <div key={`upload-${index}`} className="relative group">
-                    <img
+                    <Image
                       src={URL.createObjectURL(file)}
                       alt={`Upload preview ${index + 1}`}
+                      width={96}
+                      height={96}
                       className="w-full h-24 object-cover rounded-lg"
+                      unoptimized
                     />
                     <button
                       type="button"

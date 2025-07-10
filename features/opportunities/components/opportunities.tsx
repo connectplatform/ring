@@ -222,9 +222,11 @@ const OpportunityCard: React.FC<{ opportunity: Opportunity, entity: Entity | und
             </div>
           )}
           <OpportunityTags tags={opportunity.tags} />
-          <Link href={`/opportunities/${opportunity.id}`} passHref>
-            <Button className="w-full mt-4">{t('viewDetails')}</Button>
-          </Link>
+          <Button asChild className="w-full mt-4">
+            <Link href={`/opportunities/${opportunity.id}`}>
+              {t('viewDetails')}
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     </motion.div>

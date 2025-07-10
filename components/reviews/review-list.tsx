@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import { useOptimistic, useTransition } from 'react'
+import Image from 'next/image'
 import { ThumbsUp, ThumbsDown, MoreHorizontal, Flag, Edit, Trash2, Calendar, User } from 'lucide-react'
 import { StarRating } from '@/components/ui/star-rating'
 import { Button } from '@/components/ui/button'
@@ -347,9 +348,11 @@ export function ReviewList({
                   {/* User Avatar */}
                   <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
                     {review.userAvatar ? (
-                      <img 
+                      <Image
                         src={review.userAvatar} 
                         alt={review.userName}
+                        width={40}
+                        height={40}
                         className="w-full h-full rounded-full object-cover"
                       />
                     ) : (
@@ -435,10 +438,12 @@ export function ReviewList({
                     {review.photos && review.photos.length > 0 && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
                         {review.photos.map((photo, index) => (
-                          <img
+                          <Image
                             key={index}
                             src={photo}
                             alt={`Review photo ${index + 1}`}
+                            width={80}
+                            height={80}
                             className="w-full h-20 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         ))}
