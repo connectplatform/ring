@@ -44,7 +44,7 @@ export function getRegistrationStatus() {
 /**
  * Embed script generator for external websites
  */
-export function generateEmbedScript(baseUrl: string = 'https://ring.technoring.com') {
+export function generateEmbedScript(baseUrl: string = 'https://ring.ck.ua') {
   return `
 <!-- Ring Platform Custom Elements -->
 <script type="module">

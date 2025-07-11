@@ -1,10 +1,11 @@
 {
     "name": "ring",
-    "version": "0.7.1",
+    "version": "0.7.2",
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "NODE_OPTIONS='--no-deprecation' next dev",
+        "dev": "NODE_OPTIONS='--no-deprecation' node server.js",
+        "dev:nextjs": "NODE_OPTIONS='--no-deprecation' next dev",
         "dev:ws": "NODE_OPTIONS='--no-deprecation' node server.js",
         "prebuild": "node scripts/inject-firebase-config.js",
         "build": "NODE_OPTIONS='--no-deprecation' next build",

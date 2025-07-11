@@ -179,7 +179,7 @@ function SearchWidgetComponent({
         className: 'p-2 border-t border-gray-200 text-center' 
       },
         React.createElement('a', {
-          href: `https://ring.technoring.com/search?q=${encodeURIComponent(query)}`,
+          href: `https://ring.ck.ua/search?q=${encodeURIComponent(query)}`,
           target: '_blank',
           rel: 'noopener noreferrer',
           className: 'text-xs text-blue-600 hover:text-blue-800 transition-colors'

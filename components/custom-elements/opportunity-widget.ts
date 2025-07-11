@@ -164,7 +164,7 @@ function OpportunityWidgetComponent({
     ),
     React.createElement('div', { className: 'mt-3 pt-3 border-t border-gray-200' },
       React.createElement('a', {
-        href: 'https://ring.technoring.com/opportunities',
+        href: 'https://ring.ck.ua/opportunities',
         target: '_blank',
         rel: 'noopener noreferrer',
         className: 'text-xs text-blue-600 hover:text-blue-800 transition-colors'

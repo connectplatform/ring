@@ -162,7 +162,7 @@ function NewsFeedComponent({
     ),
     React.createElement('div', { className: 'mt-4 pt-3 border-t border-gray-200' },
       React.createElement('a', {
-        href: 'https://ring.technoring.com/news',
+        href: 'https://ring.ck.ua/news',
         target: '_blank',
         rel: 'noopener noreferrer',
         className: 'text-xs text-blue-600 hover:text-blue-800 transition-colors'
