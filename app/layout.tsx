@@ -107,7 +107,6 @@ export default async function RootLayout({
   
   // Preload critical images
   preload('/images/logo.svg', { as: 'image' })
-  preload('/images/hero-banner.webp', { as: 'image' })
   preload('/placeholder.svg', { as: 'image' })
   
   // Preinit critical scripts for better performance
@@ -129,12 +128,11 @@ export default async function RootLayout({
         {/* Performance hints */}
         <meta httpEquiv="x-dns-prefetch-control" content="on" />
         
-        {/* PWA manifest */}
-        <link rel="manifest" href="/manifest.json" />
+        {/* PWA manifest - uncomment when manifest.json is created */}
+        {/* <link rel="manifest" href="/manifest.json" /> */}
         
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="font-inter antialiased">
         <SessionProvider session={session}>

@@ -8,7 +8,7 @@ import { MessageCircle, Send, Users, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useTranslation } from 'react-i18next'
@@ -139,8 +139,8 @@ function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opp
   }, [status, session, entityId, entityCreatorId, opportunityId, entityName, opportunityName])
 
   // Handle message sending
-  const handleSendMessage = useCallback(async (content: string) => {
-    if (!session?.user?.id || !conversationData?.id) return
+  const handleSendMessage = useCallback(async (content: string): Promise<Message | null> => {
+    if (!session?.user?.id || !conversationData?.id) return null
 
     try {
       // Optimistic update
@@ -165,6 +165,8 @@ function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opp
       // Mark conversation as read
       await markAsRead()
 
+      return optimisticMessage
+
     } catch (err) {
       console.error('Error sending message:', err)
       toast({
@@ -172,6 +174,7 @@ function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opp
         description: 'Failed to send message. Please try again.',
         variant: 'destructive'
       })
+      return null
     }
   }, [session, conversationData, sendMessageHook, markAsRead, addOptimisticMessage])
 
@@ -254,7 +257,6 @@ function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opp
                   key={message.id}
                   message={message}
                   isOwn={message.senderId === session?.user?.id}
-                  showActions={message.senderId === session?.user?.id}
                 />
               ))}
             </AnimatePresence>
@@ -269,7 +271,7 @@ function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opp
         {/* Message Input */}
         <MessageComposer
           conversationId={conversationData.id}
-          onSendMessage={handleSendMessage}
+          onSendMessageAction={handleSendMessage}
           disabled={!isConnected}
           placeholder={t('typeMessage') || 'Type a message...'}
         />

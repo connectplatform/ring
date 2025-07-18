@@ -105,6 +105,15 @@ Ring Platform implements a tiered access model for professional networking:
 - **Rich Media**: Support for images, videos, and presentations
 - **Content Categorization**: Organized content discovery
 
+### **Analytics & Monitoring**
+- **Real-time Analytics**: Comprehensive user behavior and interaction tracking
+- **Business Intelligence**: Entity interaction analytics and engagement metrics
+- **Error Monitoring**: Intelligent JavaScript error capture and reporting
+- **Performance Tracking**: React 19 optimization benefits and Core Web Vitals monitoring
+- **Navigation Analytics**: User journey tracking and session management
+- **Theme Persistence**: Advanced theme management with FOUC prevention
+- **List Performance**: Entity list interaction and performance analytics
+
 ### **Security & Privacy**
 - **Role-Based Access**: Sophisticated permission system
 - **Data Protection**: GDPR-compliant data handling
@@ -197,12 +206,20 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 ### **Available Scripts**
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
+npm run dev          # Start development server with custom Node.js server
+npm run dev:nextjs   # Start Next.js development server only
+npm run dev:ws       # Start development server with WebSocket support
+npm run type-check   # Run TypeScript type checking
+npm run build        # Build for production with type validation (includes prebuild step)
+npm run build:skip-types # Build for production without type validation
+npm run build:clean  # Clean build with fresh start
 npm run start        # Start production server
 npm run lint         # Run ESLint
-npm run type-check   # TypeScript type checking
-npm test             # Run test suite
+npm run test         # Run test suite
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage report
+npm run setup        # Set up environment configuration
+npm run analyze      # Analyze bundle size (skips type validation for speed)
 ```
 
 ## 📚 **Documentation**

@@ -98,9 +98,9 @@ export function ReviewList({
   const [isPending, startTransition] = useTransition()
 
   // Optimistic updates for voting
-  const [optimisticVotes, updateOptimisticVotes] = useOptimistic<OptimisticVote[]>(
+  const [optimisticVotes, updateOptimisticVotes] = useOptimistic<OptimisticVote[], OptimisticVote>(
     [],
-    (state, newVote: OptimisticVote) => {
+    (state: OptimisticVote[], newVote: OptimisticVote) => {
       const existingIndex = state.findIndex(v => v.reviewId === newVote.reviewId)
       if (existingIndex >= 0) {
         return state.map((vote, index) => 

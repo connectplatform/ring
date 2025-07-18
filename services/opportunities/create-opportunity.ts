@@ -1,9 +1,10 @@
 import { getAdminDb } from '@/lib/firebase-admin.server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { Opportunity } from '@/types';
-import { auth } from '@/auth';
+import { getServerAuthSession } from '@/auth';
 import { UserRole } from '@/features/auth/types';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
+import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
 
 /**
  * Type definition for the data required to create a new opportunity.
@@ -28,102 +29,199 @@ type NewOpportunityData = Omit<Opportunity, 'id' | 'dateCreated' | 'dateUpdated'
  * 
  * @param {NewOpportunityData} data - The data for the new opportunity.
  * @returns {Promise<Opportunity>} A promise that resolves to the created Opportunity object, including its generated ID.
- * @throws {Error} If the user is not authenticated, lacks necessary permissions, or if opportunity creation fails.
+ * @throws {OpportunityAuthError} If user authentication fails
+ * @throws {OpportunityPermissionError} If user lacks permission to create opportunities
+ * @throws {OpportunityDatabaseError} If database operations fail
+ * @throws {OpportunityQueryError} If opportunity creation fails
  */
 export async function createOpportunity(data: NewOpportunityData): Promise<Opportunity> {
   try {
     console.log('Services: createOpportunity - Starting opportunity creation process...');
 
-    // Step 1: Authenticate and get user session
-    const session = await auth();
+    // Step 1: Authenticate the user
+    const session = await getServerAuthSession();
     if (!session || !session.user) {
-      throw new Error('Unauthorized access');
+      throw new OpportunityAuthError('User authentication required to create opportunity', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'createOpportunity'
+      });
     }
 
-    const { id: userId, role: userRole } = session.user;
+    const userId = session.user.id;
+    const userRole = session.user.role as UserRole;
 
-    console.log(`Services: createOpportunity - User authenticated with ID ${userId} and role ${userRole}`);
-
-    // Step 2: Validate user permissions
-    if (![UserRole.MEMBER, UserRole.CONFIDENTIAL, UserRole.ADMIN].includes(userRole as UserRole)) {
-      throw new Error('Insufficient permissions to create an opportunity');
+    // Step 2: Validate user permissions and opportunity data
+    if (!userId) {
+      throw new OpportunityAuthError('Valid user ID required to create opportunity', undefined, {
+        timestamp: Date.now(),
+        session: !!session,
+        operation: 'createOpportunity'
+      });
     }
 
-    // Step 3: Process opportunity creation
-    const createdOpportunity = await processOpportunityCreation(userId, userRole as UserRole, data);
+    // Validate confidential opportunity permissions
+    if (data.isConfidential && userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+      throw new OpportunityPermissionError(
+        'Only ADMIN or CONFIDENTIAL users can create confidential opportunities',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          isConfidential: data.isConfidential,
+          requiredRoles: [UserRole.ADMIN, UserRole.CONFIDENTIAL],
+          operation: 'createOpportunity'
+        }
+      );
+    }
 
-    console.log('Services: createOpportunity - Opportunity created with ID:', createdOpportunity.id);
+    // Validate regular opportunity permissions
+    if (!data.isConfidential && ![UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole)) {
+      throw new OpportunityPermissionError(
+        'Only MEMBER, ADMIN, or CONFIDENTIAL users can create opportunities',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          isConfidential: data.isConfidential,
+          requiredRoles: [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL],
+          operation: 'createOpportunity'
+        }
+      );
+    }
 
+    console.log(`Services: createOpportunity - User authenticated: ${userId} with role: ${userRole}`);
+
+    // Step 3: Initialize database connection
+    let adminDb;
+    try {
+      adminDb = await getAdminDb();
+    } catch (error) {
+      throw new OpportunityDatabaseError(
+        'Failed to initialize database connection',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          operation: 'getAdminDb'
+        }
+      );
+    }
+
+    const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
+
+    // Step 4: Create the new opportunity document
+    const newOpportunityData = {
+      ...data,
+      createdBy: userId,
+      dateCreated: FieldValue.serverTimestamp(),
+      dateUpdated: FieldValue.serverTimestamp(),
+    };
+
+    let docRef;
+    try {
+      docRef = await opportunitiesCollection.add(newOpportunityData);
+    } catch (error) {
+      throw new OpportunityQueryError(
+        'Failed to create opportunity document',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          opportunityData: newOpportunityData,
+          operation: 'opportunity_creation'
+        }
+      );
+    }
+
+    // Step 5: Retrieve the created opportunity
+    let docSnap;
+    try {
+      docSnap = await docRef.get();
+    } catch (error) {
+      throw new OpportunityQueryError(
+        'Failed to retrieve created opportunity',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          opportunityId: docRef.id,
+          operation: 'opportunity_retrieval'
+        }
+      );
+    }
+
+    if (!docSnap.exists) {
+      throw new OpportunityQueryError(
+        'Created opportunity document not found',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          opportunityId: docRef.id,
+          operation: 'opportunity_verification'
+        }
+      );
+    }
+
+    // Step 6: Retrieve and return the created opportunity
+    const opportunityData = {
+      ...docSnap.data(),
+      id: docSnap.id,
+      dateCreated: docSnap.createTime || Timestamp.now(),
+      dateUpdated: docSnap.updateTime || Timestamp.now(),
+    };
+
+    let createdOpportunity;
+    try {
+      createdOpportunity = opportunityConverter.fromFirestore({
+        ...docSnap,
+        data: () => opportunityData,
+      } as any);
+    } catch (error) {
+      throw new OpportunityQueryError(
+        'Failed to convert opportunity document',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          opportunityId: docRef.id,
+          operation: 'opportunity_conversion'
+        }
+      );
+    }
+
+    console.log(`Services: createOpportunity - Opportunity created successfully with ID: ${docRef.id}`);
     return createdOpportunity;
+
   } catch (error) {
-    console.error('Services: createOpportunity - Error:', error);
-    throw error instanceof Error ? error : new Error('Unknown error occurred while creating opportunity');
-  }
-}
-
-/**
- * Processes the creation of an opportunity in Firestore.
- * 
- * This function performs the following steps:
- * 1. Validates the associated Entity.
- * 2. Checks confidentiality rules.
- * 3. Creates the new opportunity document in Firestore.
- * 4. Retrieves and returns the created opportunity.
- * 
- * @param {string} userId - The ID of the user creating the opportunity.
- * @param {UserRole} userRole - The role of the user creating the opportunity.
- * @param {NewOpportunityData} data - The data for the new opportunity.
- * @returns {Promise<Opportunity>} A promise that resolves to the created Opportunity object.
- * @throws {Error} If entity validation fails or opportunity creation fails.
- */
-async function processOpportunityCreation(userId: string, userRole: UserRole, data: NewOpportunityData): Promise<Opportunity> {
-  const adminDb = await getAdminDb();
-  const opportunitiesCollection = adminDb.collection('opportunities');
-  const entitiesCollection = adminDb.collection('entities');
-
-  // Step 1: Validate the associated Entity
-  const entityDoc = await entitiesCollection.doc(data.organizationId).get();
-  if (!entityDoc.exists) {
-    throw new Error(`Entity with ID ${data.organizationId} not found.`);
-  }
-
-  const entity = entityDoc.data();
-  const isEntityConfidential = entity?.isConfidential || false;
-  const entityAddedBy = entity?.contactAccount;
-
-  // Step 2: Check confidentiality rules
-  if (data.isConfidential) {
-    if (!isEntityConfidential || (entityAddedBy !== UserRole.CONFIDENTIAL && entityAddedBy !== UserRole.ADMIN)) {
-      throw new Error('Confidential opportunities must be linked to confidential entities created by ADMIN or CONFIDENTIAL users.');
+    // Enhanced error logging with cause information
+    logRingError(error, 'Services: createOpportunity - Error creating opportunity');
+    
+    // Re-throw known errors, wrap unknown errors
+    if (error instanceof OpportunityAuthError || 
+        error instanceof OpportunityPermissionError ||
+        error instanceof OpportunityDatabaseError ||
+        error instanceof OpportunityQueryError) {
+      throw error;
     }
+    
+    throw new OpportunityQueryError(
+      'Unknown error occurred while creating opportunity',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        timestamp: Date.now(),
+        operation: 'createOpportunity'
+      }
+    );
   }
-
-  // Step 3: Create the new opportunity document
-  const newOpportunityData = {
-    ...data,
-    createdBy: userId,
-    dateCreated: FieldValue.serverTimestamp(),
-    dateUpdated: FieldValue.serverTimestamp(),
-  };
-
-  const docRef = await opportunitiesCollection.add(newOpportunityData);
-  const docSnap = await docRef.get();
-
-  if (!docSnap.exists) {
-    throw new Error('Failed to create opportunity');
-  }
-
-  // Step 4: Retrieve and return the created opportunity
-  const opportunityData = {
-    ...docSnap.data(),
-    id: docSnap.id,
-    dateCreated: docSnap.createTime || Timestamp.now(),
-    dateUpdated: docSnap.updateTime || Timestamp.now(),
-  };
-
-  return opportunityConverter.fromFirestore({
-    ...docSnap,
-    data: () => opportunityData,
-  } as any);
 }
 

@@ -387,7 +387,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                             {user.photoURL ? (
-                              <img src={user.photoURL} alt={user.name || 'User'} className="w-8 h-8 rounded-full" />
+                              <img src={user.photoURL} alt={user.name ?? 'User'} className="w-8 h-8 rounded-full" />
                             ) : (
                               <span className="text-sm font-medium">
                                 {(user.name || user.email).charAt(0).toUpperCase()}

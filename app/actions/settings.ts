@@ -39,7 +39,7 @@ export async function updateSettings(state: UpdateSettingsResponse | null, formD
   const data = Object.fromEntries(formData.entries()) as unknown as UserSettings
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/user-settings/${userId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/user-settings/${userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { Opportunity } from '@/types';
 import { UserRole } from '@/features/auth/types';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { getServerAuthSession } from '@/auth';
+import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors';
 
 /**
  * Fetches a paginated list of opportunities based on user role.
@@ -25,7 +26,9 @@ import { getServerAuthSession } from '@/auth';
  * @param {number} limit - The maximum number of opportunities to fetch (default: 20)
  * @param {string} [startAfter] - The ID of the last document from the previous page for pagination
  * @returns {Promise<{ opportunities: Opportunity[]; lastVisible: string | null }>} A promise that resolves to an object containing the opportunities and the ID of the last visible document
- * @throws {Error} If the user is not authenticated or if there's an issue fetching the opportunities
+ * @throws {OpportunityAuthError} If the user is not authenticated
+ * @throws {OpportunityDatabaseError} If there's an error accessing the database
+ * @throws {OpportunityQueryError} If there's an error executing the query
  */
 export async function getOpportunities(
   limit: number = 20,
@@ -37,7 +40,12 @@ export async function getOpportunities(
     // Step 1: Authenticate and get user session
     const session = await getServerAuthSession();
     if (!session || !session.user) {
-      throw new Error('Unauthorized access');
+      throw new OpportunityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'getOpportunities'
+      });
     }
 
     const userRole = session.user.role as UserRole;
@@ -45,64 +53,103 @@ export async function getOpportunities(
     console.log(`Services: getOpportunities - User authenticated with role ${userRole}`);
 
     // Step 2: Access Firestore using the admin SDK and initialize collection with converter
-    const adminDb = await getAdminDb();
-    const opportunitiesCol = adminDb.collection('opportunities').withConverter(opportunityConverter);
-
-    // Step 3: Build the query based on user role and apply filters
-    // Use a simpler approach to avoid complex composite indexes
-    let query: Query<Opportunity>;
-
-    if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
-      // Admins and confidential users can see all opportunities
-      query = opportunitiesCol.orderBy('dateCreated', 'desc').limit(limit);
-    } else {
-      // For other users, fetch public opportunities first (this is the most common case)
-      // We'll use a simple query that doesn't require complex indexes
-      query = opportunitiesCol
-        .where('visibility', '==', 'public')
-        .orderBy('dateCreated', 'desc')
-        .limit(limit);
+    let adminDb;
+    try {
+      adminDb = await getAdminDb();
+    } catch (error) {
+      throw new OpportunityDatabaseError(
+        'Failed to initialize database connection',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole,
+          operation: 'getAdminDb'
+        }
+      );
     }
 
-    // Step 4: Handle pagination using `startAfter`
+    const opportunitiesCol = adminDb.collection('opportunities').withConverter(opportunityConverter);
+
+    // Step 3: Build query based on user role
+    let query: Query<Opportunity> = opportunitiesCol;
+
+    // Apply role-based filtering for non-admin users
+    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+      query = query.where('visibility', 'in', ['public', 'subscriber', userRole]);
+    }
+
+    // Step 4: Handle pagination
+    query = query.limit(limit);
     if (startAfter) {
-      const startAfterDoc = await opportunitiesCol.doc(startAfter).get();
-      if (startAfterDoc.exists) {
-        query = query.startAfter(startAfterDoc);
-      } else {
-        console.log(`Services: getOpportunities - Start-after document ${startAfter} does not exist`);
+      try {
+        const startAfterDoc = await opportunitiesCol.doc(startAfter).get();
+        if (startAfterDoc.exists) {
+          query = query.startAfter(startAfterDoc);
+        }
+      } catch (error) {
+        throw new OpportunityQueryError(
+          'Failed to apply pagination',
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            timestamp: Date.now(),
+            userRole,
+            startAfter,
+            operation: 'pagination'
+          }
+        );
       }
     }
 
-    // Step 5: Execute the query and process results
-    const querySnapshot: QuerySnapshot<Opportunity> = await query.get();
+    // Step 5: Execute query
+    let snapshot: QuerySnapshot<Opportunity>;
+    try {
+      snapshot = await query.get();
+    } catch (error) {
+      throw new OpportunityQueryError(
+        'Failed to execute opportunities query',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole,
+          limit,
+          startAfter,
+          operation: 'query_execution'
+        }
+      );
+    }
 
-    // Step 6: Map document snapshots to Opportunity objects and apply additional filtering if needed
-    let opportunities = querySnapshot.docs.map((doc) => ({
+    // Step 6: Map document snapshots to Opportunity objects
+    const opportunities = snapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
     }));
 
-    // For non-admin users, we need to filter in memory to include subscriber and role-specific opportunities
-    // This is a trade-off to avoid complex indexes while still providing role-based access
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      // For now, we'll only show public opportunities to avoid the index issue
-      // TODO: Implement a more sophisticated approach for subscriber and role-specific opportunities
-      opportunities = opportunities.filter(op => 
-        op.visibility === 'public' || 
-        op.visibility === 'subscriber' || 
-        op.visibility === userRole
-      );
-    }
+    // Get the ID of the last visible document for pagination
+    const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
 
-    // Step 7: Get the ID of the last visible document for pagination
-    const lastVisible = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1].id : null;
+    console.log('Services: getOpportunities - Total opportunities fetched:', opportunities.length);
 
-    console.log(`Services: getOpportunities - Retrieved ${opportunities.length} opportunities`);
     return { opportunities, lastVisible };
   } catch (error) {
-    console.error('Services: getOpportunities - Error fetching opportunities:', error);
-    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching opportunities');
+    // Enhanced error logging with cause information using centralized logger
+    logRingError(error, 'Services: getOpportunities - Error');
+    
+    // Re-throw known errors, wrap unknown errors
+    if (error instanceof OpportunityAuthError || 
+        error instanceof OpportunityPermissionError ||
+        error instanceof OpportunityQueryError ||
+        error instanceof OpportunityDatabaseError) {
+      throw error;
+    }
+    
+    throw new OpportunityQueryError(
+      'Unknown error occurred while fetching opportunities',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        timestamp: Date.now(),
+        operation: 'getOpportunities'
+      }
+    );
   }
 }
 

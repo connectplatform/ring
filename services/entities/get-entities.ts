@@ -4,6 +4,7 @@ import { UserRole } from '@/features/auth/types'
 import { getServerAuthSession } from '@/auth'
 import { QuerySnapshot, Query } from 'firebase-admin/firestore'
 import { entityConverter } from '@/lib/converters/entity-converter'
+import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
 
 /**
  * Fetch a paginated list of entities based on user role.
@@ -26,7 +27,9 @@ import { entityConverter } from '@/lib/converters/entity-converter'
  * @param {number} limit - The maximum number of entities to fetch per page. Defaults to 20.
  * @param {string} [startAfter] - The ID of the last entity from the previous page for pagination. Optional.
  * @returns {Promise<{ entities: Entity[]; lastVisible: string | null }>} A promise that resolves to an object containing the fetched entities and the ID of the last visible entity for pagination.
- * @throws {Error} If the user is not authenticated or if an error occurs during the fetching process.
+ * @throws {EntityAuthError} If the user is not authenticated
+ * @throws {EntityDatabaseError} If there's an error accessing the database
+ * @throws {EntityQueryError} If there's an error executing the query
  */
 export async function getEntities(
   limit: number = 20,
@@ -38,7 +41,12 @@ export async function getEntities(
     // Step 1: Authenticate and get user session
     const session = await getServerAuthSession()
     if (!session || !session.user) {
-      throw new Error('Unauthorized access')
+      throw new EntityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'getEntities'
+      });
     }
 
     const userRole = session.user.role as UserRole
@@ -46,37 +54,72 @@ export async function getEntities(
     console.log(`Services: getEntities - User authenticated with role ${userRole}`)
 
     // Step 2: Access Firestore and initialize collection with converter
-    const adminDb = await getAdminDb()
-    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
-
-    // Step 3: Build the query based on user role and apply filters
-    // Use the simplest possible approach to avoid complex composite indexes
-    let query: Query<Entity>
-
-    if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
-      // Admins and confidential users can see all entities
-      // Use simple query without orderBy to avoid index requirements
-      query = entitiesCollection.limit(limit)
-    } else {
-      // For other users, fetch public entities only
-      // Use simple equality query without orderBy to avoid index requirements
-      query = entitiesCollection
-        .where('visibility', '==', 'public')
-        .limit(limit)
+    let adminDb;
+    try {
+      adminDb = await getAdminDb()
+    } catch (error) {
+      throw new EntityDatabaseError(
+        'Failed to initialize database connection',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole,
+          operation: 'getAdminDb'
+        }
+      );
     }
 
-    // Step 4: Handle pagination using `startAfter`
+    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
+
+    // Step 3: Build query based on user role
+    let query: Query<Entity> = entitiesCollection
+
+    // Apply role-based filtering for non-admin users
+    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+      query = query.where('visibility', 'in', ['public', 'subscriber', userRole])
+    }
+
+    // Step 4: Apply pagination
+    query = query.limit(limit)
     if (startAfter) {
-      const startAfterDoc = await entitiesCollection.doc(startAfter).get()
-      if (startAfterDoc.exists) {
-        query = query.startAfter(startAfterDoc)
+      try {
+        const startAfterDoc = await entitiesCollection.doc(startAfter).get()
+        if (startAfterDoc.exists) {
+          query = query.startAfter(startAfterDoc)
+        }
+      } catch (error) {
+        throw new EntityQueryError(
+          'Failed to apply pagination',
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            timestamp: Date.now(),
+            userRole,
+            startAfter,
+            operation: 'pagination'
+          }
+        );
       }
     }
 
-    // Step 5: Execute the query and process results
-    const snapshot: QuerySnapshot<Entity> = await query.get()
+    // Step 5: Execute query
+    let snapshot: QuerySnapshot<Entity>;
+    try {
+      snapshot = await query.get()
+    } catch (error) {
+      throw new EntityQueryError(
+        'Failed to execute entities query',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole,
+          limit,
+          startAfter,
+          operation: 'query_execution'
+        }
+      );
+    }
 
-    // Step 6: Map document snapshots to Entity objects and apply additional filtering if needed
+    // Step 6: Map document snapshots to Entity objects
     let entities = snapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
@@ -101,8 +144,25 @@ export async function getEntities(
 
     return { entities, lastVisible }
   } catch (error) {
-    console.error('Services: getEntities - Error:', error)
-    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching entities')
+    // Enhanced error logging with cause information using centralized logger
+    logRingError(error, 'Services: getEntities - Error')
+    
+    // Re-throw known errors, wrap unknown errors
+    if (error instanceof EntityAuthError || 
+        error instanceof EntityPermissionError ||
+        error instanceof EntityQueryError ||
+        error instanceof EntityDatabaseError) {
+      throw error;
+    }
+    
+    throw new EntityQueryError(
+      'Unknown error occurred while fetching entities',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        timestamp: Date.now(),
+        operation: 'getEntities'
+      }
+    );
   }
 }
 
@@ -118,12 +178,15 @@ export async function getEntities(
  * 
  * User steps:
  * 1. User requests confidential entities (e.g., from an admin panel).
- * 2. The function authenticates the user and checks if they have the necessary permissions.
- * 3. If authorized, the function fetches all confidential entities.
+ * 2. The function authenticates the user and checks their role.
+ * 3. Based on the user's role, the function fetches confidential entities.
  * 4. The function returns the confidential entities to the user.
  * 
- * @returns {Promise<Entity[]>} A promise that resolves to an array of confidential Entity objects.
- * @throws {Error} If the user is not authenticated, lacks necessary permissions, or if an error occurs during the fetching process.
+ * @returns {Promise<Entity[]>} A promise that resolves to an array of confidential entities.
+ * @throws {EntityAuthError} If the user is not authenticated
+ * @throws {EntityPermissionError} If the user lacks sufficient permissions
+ * @throws {EntityDatabaseError} If there's an error accessing the database
+ * @throws {EntityQueryError} If there's an error executing the query
  */
 export async function getConfidentialEntities(): Promise<Entity[]> {
   try {
@@ -132,25 +195,66 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
     // Step 1: Authenticate and get user session
     const session = await getServerAuthSession()
     if (!session || !session.user) {
-      throw new Error('Unauthorized access')
+      throw new EntityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'getConfidentialEntities'
+      });
     }
 
     const userRole = session.user.role as UserRole
 
     // Step 2: Validate user role and permissions
     if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      throw new Error('Access denied. Only ADMIN or CONFIDENTIAL users can fetch confidential entities.')
+      throw new EntityPermissionError(
+        'Access denied. Only ADMIN or CONFIDENTIAL users can fetch confidential entities.',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userRole,
+          requiredRoles: [UserRole.ADMIN, UserRole.CONFIDENTIAL],
+          operation: 'getConfidentialEntities'
+        }
+      );
     }
 
     console.log(`Services: getConfidentialEntities - User authenticated with role ${userRole}`)
 
     // Step 3: Access Firestore and initialize collection with converter
-    const adminDb = await getAdminDb()
+    let adminDb;
+    try {
+      adminDb = await getAdminDb()
+    } catch (error) {
+      throw new EntityDatabaseError(
+        'Failed to initialize database connection',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole,
+          operation: 'getAdminDb'
+        }
+      );
+    }
+
     const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
 
     // Step 4: Build and execute query for confidential entities
-    const query = entitiesCollection.where('isConfidential', '==', true)
-    const snapshot: QuerySnapshot<Entity> = await query.get()
+    let snapshot: QuerySnapshot<Entity>;
+    try {
+      const query = entitiesCollection.where('isConfidential', '==', true)
+      snapshot = await query.get()
+    } catch (error) {
+      throw new EntityQueryError(
+        'Failed to execute confidential entities query',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole,
+          operation: 'confidential_query_execution'
+        }
+      );
+    }
 
     // Step 5: Map and return resulting confidential entities
     const confidentialEntities = snapshot.docs.map(doc => ({
@@ -162,8 +266,25 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
 
     return confidentialEntities
   } catch (error) {
-    console.error('Services: getConfidentialEntities - Error:', error)
-    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching confidential entities')
+    // Enhanced error logging with cause information using centralized logger
+    logRingError(error, 'Services: getConfidentialEntities - Error')
+    
+    // Re-throw known errors, wrap unknown errors
+    if (error instanceof EntityAuthError || 
+        error instanceof EntityPermissionError ||
+        error instanceof EntityQueryError ||
+        error instanceof EntityDatabaseError) {
+      throw error;
+    }
+    
+    throw new EntityQueryError(
+      'Unknown error occurred while fetching confidential entities',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        timestamp: Date.now(),
+        operation: 'getConfidentialEntities'
+      }
+    );
   }
 }
 

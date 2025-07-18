@@ -1,6 +1,7 @@
 import { getAdminDb } from '@/lib/firebase-admin.server';
 import { AuthUser, UserRole } from '@/features/auth/types';
-import { auth } from '@/auth'; // Auth.js v5 session handler
+import { getServerAuthSession } from '@/auth';
+import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors';
 
 /**
  * Create a new user in Firestore, with authentication and role-based access control.
@@ -27,47 +28,121 @@ import { auth } from '@/auth'; // Auth.js v5 session handler
  * @param {Date} [userData.emailVerified] - The date the email was verified. Defaults to null
  * 
  * @returns {Promise<AuthUser | null>} A promise that resolves to the created AuthUser object or null if creation failed
- * 
- * @throws {Error} If the email or name is not provided
- * @throws {Error} If the requesting user is not authenticated (for admin creation)
+ * @throws {AuthError} If user authentication fails
+ * @throws {AuthPermissionError} If user lacks permission to create users
+ * @throws {ValidationError} If required user data is missing or invalid
+ * @throws {EntityDatabaseError} If database operations fail
  */
 export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser | null> {
-  console.log('Services: createUser - Starting user creation process');
-
   try {
-    // Step 1: Authenticate and get session of the requesting user (if applicable)
-    const session = await auth();
-    const isAdminCreation = !!session && session.user?.role === UserRole.ADMIN;
+    console.log('Services: createUser - Starting user creation process...');
 
-    if (isAdminCreation) {
-      console.log(`Services: createUser - Admin user authenticated with ID ${session.user.id}`);
-    } else {
-      console.log('Services: createUser - New user self-registration');
+    // Step 1: Validate required fields
+    if (!userData.email) {
+      throw new ValidationError('Email is required for user creation', undefined, {
+        timestamp: Date.now(),
+        providedData: userData,
+        missingField: 'email',
+        operation: 'createUser'
+      });
     }
 
-    // Step 2: Validate input data
-    if (!userData.email || !userData.name) {
-      throw new Error('Email and name are required fields');
+    if (!userData.name) {
+      throw new ValidationError('Name is required for user creation', undefined, {
+        timestamp: Date.now(),
+        providedData: userData,
+        missingField: 'name',
+        operation: 'createUser'
+      });
     }
 
-    // Step 3: Firestore setup
-    const adminDb = getAdminDb();
+    // Step 2: Authenticate the requesting user (for admin-created users)
+    const session = await getServerAuthSession();
+    
+    // If there's a session, validate permissions for admin-created users
+    if (session && session.user) {
+      const requestingUserRole = session.user.role as UserRole;
+      
+      // Only admins can create users with roles other than SUBSCRIBER
+      if (userData.role && userData.role !== UserRole.SUBSCRIBER) {
+        if (requestingUserRole !== UserRole.ADMIN) {
+          throw new AuthPermissionError(
+            'Only ADMIN users can create users with non-SUBSCRIBER roles',
+            undefined,
+            {
+              timestamp: Date.now(),
+              requestingUserId: session.user.id,
+              requestingUserRole,
+              requestedRole: userData.role,
+              operation: 'createUser'
+            }
+          );
+        }
+      }
+    }
+
+    // Step 3: Initialize database connection
+    let adminDb;
+    try {
+      adminDb = await getAdminDb();
+    } catch (error) {
+      throw new EntityDatabaseError(
+        'Failed to initialize database connection',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          operation: 'getAdminDb'
+        }
+      );
+    }
+
     const usersCollection = adminDb.collection('users');
 
-    // Step 4: Prepare user data
-    const userId = userData.id || usersCollection.doc().id; // Generate a new ID if not provided
+    // Step 4: Check if user already exists
+    let existingUserQuery;
+    try {
+      existingUserQuery = await usersCollection.where('email', '==', userData.email).get();
+    } catch (error) {
+      throw new EntityDatabaseError(
+        'Failed to check for existing user',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          email: userData.email,
+          operation: 'existing_user_check'
+        }
+      );
+    }
+
+    if (!existingUserQuery.empty) {
+      throw new ValidationError(
+        'User with this email already exists',
+        undefined,
+        {
+          timestamp: Date.now(),
+          email: userData.email,
+          existingUserId: existingUserQuery.docs[0].id,
+          operation: 'createUser'
+        }
+      );
+    }
+
+    // Step 5: Prepare user data with defaults
+    const userId = userData.id || usersCollection.doc().id;
+    const now = new Date();
+    
     const newUser: AuthUser = {
       id: userId,
       email: userData.email,
       name: userData.name,
-      role: isAdminCreation ? (userData.role || UserRole.SUBSCRIBER) : UserRole.SUBSCRIBER,
-      createdAt: new Date(),
-      lastLogin: new Date(),
-      isVerified: userData.isVerified || false,
-      emailVerified: userData.emailVerified || null,
+      role: userData.role || UserRole.SUBSCRIBER,
       authProvider: userData.authProvider || 'credentials',
       authProviderId: userData.authProviderId || userId,
-      settings: {
+      isVerified: userData.isVerified || false,
+      emailVerified: userData.emailVerified || null,
+      createdAt: now,
+      lastLogin: userData.lastLogin || null,
+      settings: userData.settings || {
         language: 'en',
         theme: 'system',
         notifications: true,
@@ -77,26 +152,51 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           sms: false,
         },
       },
-      canPostconfidentialOpportunities: false,
-      canViewconfidentialOpportunities: false,
-      postedopportunities: [],
-      savedopportunities: [],
-      notificationPreferences: {
+      canPostconfidentialOpportunities: userData.role === UserRole.ADMIN || userData.role === UserRole.CONFIDENTIAL,
+      canViewconfidentialOpportunities: userData.role === UserRole.ADMIN || userData.role === UserRole.CONFIDENTIAL,
+      postedopportunities: userData.postedopportunities || [],
+      savedopportunities: userData.savedopportunities || [],
+      notificationPreferences: userData.notificationPreferences || {
         sms: false,
         email: true,
         inApp: true,
       },
-      wallets: [], // Initialize with an empty array of wallets
+      wallets: userData.wallets || [],
     };
 
-    // Step 5: Create the user document in Firestore
-    await usersCollection.doc(newUser.id).set(newUser);
+    // Step 6: Create the user document in Firestore
+    try {
+      await usersCollection.doc(newUser.id).set(newUser);
+    } catch (error) {
+      throw new EntityDatabaseError(
+        'Failed to create user document',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userId: newUser.id,
+          email: newUser.email,
+          operation: 'user_creation'
+        }
+      );
+    }
 
     console.log(`Services: createUser - User created successfully with ID: ${newUser.id}`);
     return newUser;
 
   } catch (error) {
-    console.error('Services: createUser - Error creating user:', error);
-    return null; // Indicate failure by returning null
+    // Enhanced error logging with cause information
+    logRingError(error, 'Services: createUser - Error creating user');
+    
+    // Re-throw known errors, wrap unknown errors
+    if (error instanceof AuthError || 
+        error instanceof AuthPermissionError ||
+        error instanceof ValidationError ||
+        error instanceof EntityDatabaseError) {
+      throw error;
+    }
+    
+    // For unknown errors, still return null for backward compatibility
+    console.error('Services: createUser - Unknown error occurred:', error);
+    return null;
   }
 }

@@ -1,6 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
+import { FirebaseConfigError, FirebaseInitializationError } from '@/lib/errors';
 
 /**
  * Firebase client configuration
@@ -44,8 +45,8 @@ function getDevFirebaseConfig() {
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_DEV_AUTH_DOMAIN || "demo-project.firebaseapp.com",
     projectId: process.env.NEXT_PUBLIC_FIREBASE_DEV_PROJECT_ID || "demo-project",
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_DEV_STORAGE_BUCKET || "demo-project.appspot.com",
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_DEV_MESSAGING_SENDER_ID || "123456789",
-    appId: process.env.NEXT_PUBLIC_FIREBASE_DEV_APP_ID || "1:123456789:web:demo-app-id",
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_DEV_MESSAGING_SENDER_ID || "123_456_789",
+    appId: process.env.NEXT_PUBLIC_FIREBASE_DEV_APP_ID || "1:123_456_789:web:demo-app-id",
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_DEV_MEASUREMENT_ID || "G-DEMO-ID"
   };
 }
@@ -62,6 +63,8 @@ let auth: Auth;
  * 2. Call this function in your client-side code before using Firebase services
  * 
  * @returns {FirebaseApp} The initialized Firebase app
+ * @throws {FirebaseConfigError} If configuration is invalid
+ * @throws {FirebaseInitializationError} If initialization fails
  */
 function initializeFirebaseClient(): FirebaseApp {
   if (typeof window !== 'undefined' && !getApps().length) {
@@ -77,8 +80,19 @@ function initializeFirebaseClient(): FirebaseApp {
       db = getFirestore(app);
       auth = getAuth(app);
     } catch (error) {
+      const context = {
+        timestamp: Date.now(),
+        environment: process.env.NODE_ENV,
+        hasValidConfig: validateFirebaseConfig(),
+        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server'
+      };
+      
       console.error('Failed to initialize Firebase:', error);
-      throw error;
+      throw new FirebaseInitializationError(
+        'Firebase client initialization failed',
+        error instanceof Error ? error : new Error(String(error)),
+        context
+      );
     }
   }
   return app;
@@ -89,6 +103,19 @@ try {
   initializeFirebaseClient();
 } catch (error) {
   console.error('Firebase initialization failed:', error);
+  // Re-throw with additional context for module loading
+  if (error instanceof FirebaseInitializationError) {
+    throw error;
+  }
+  throw new FirebaseInitializationError(
+    'Firebase module initialization failed',
+    error instanceof Error ? error : new Error(String(error)),
+    {
+      timestamp: Date.now(),
+      phase: 'module_load',
+      environment: process.env.NODE_ENV
+    }
+  );
 }
 
 export { app, db, auth, validateFirebaseConfig };

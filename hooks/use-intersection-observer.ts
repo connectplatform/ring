@@ -39,8 +39,8 @@ export function useIntersectionObserver({
 }: UseIntersectionObserverOptions = {}): UseIntersectionObserverReturn {
   const [entry, setEntry] = useState<IntersectionObserverEntry>()
   const [inView, setInView] = useState(initialIsIntersecting)
-  const observerRef = useRef<IntersectionObserver>()
-  const elementRef = useRef<Element>()
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const elementRef = useRef<Element | null>(null)
   const frozenRef = useRef(false)
 
   // Memoized callback to avoid recreating observer
@@ -78,7 +78,7 @@ export function useIntersectionObserver({
     }
     
     // Set new element
-    elementRef.current = node || undefined
+    elementRef.current = node
     
     // Create new observer if element exists
     if (node) {

@@ -1,5 +1,5 @@
 import i18n from 'i18next'
-import { initReactI18next } from '@/node_modules/react-i18next'
+import { initReactI18next } from 'react-i18next'
 
 // Import translations
 import enTranslations from './locales/en.json'
@@ -22,7 +22,7 @@ const i18nInstance = i18n.use(initReactI18next)
 
 // Add language detector only on client side
 if (isClient) {
-  import('i18next-browser-languagedetector/cjs').then((LanguageDetector) => {
+  import('i18next-browser-languagedetector').then((LanguageDetector) => {
     i18nInstance.use(LanguageDetector.default)
   })
 }
