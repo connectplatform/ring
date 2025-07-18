@@ -4,7 +4,7 @@ title: 🚀 WebSocket Real-Time Messaging Implementation Complete - Enterprise-G
 authors: 
   - name: Ring Platform Engineering Team  
     title: Full-Stack Development Team
-    url: https://ring-platform.com
+    url: https://myri.ng
     image_url: /ring/img/team-engineering.png
 tags: [Real-time, WebSocket, Socket.io, Messaging, React, Performance, Scalability]
 ---
