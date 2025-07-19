@@ -13,7 +13,8 @@ import {
   Shield,
   Database,
   Activity,
-  TrendingUp
+  TrendingUp,
+  Lock
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +52,7 @@ export default async function AdminDashboardPage({
       href: `/${validLocale}/admin/users`,
       icon: Users,
       color: 'bg-blue-500',
-      stats: 'Manage user accounts, roles, and permissions'
+      stats: 'User accounts, roles, and access control'
     },
     {
       title: (t as any).admin?.newsManagement || 'News Management',
@@ -67,15 +68,23 @@ export default async function AdminDashboardPage({
       href: `/${validLocale}/admin/analytics`,
       icon: BarChart3,
       color: 'bg-purple-500',
-      stats: 'View detailed analytics and reports'
+      stats: 'Web Vitals, performance metrics, user analytics'
     },
     {
-      title: 'Security & Permissions',
-      description: 'Manage security settings and access controls',
-      href: `/${validLocale}/admin/security`,
+      title: 'Content Moderation',
+      description: 'Advanced content filtering and community management',
+      href: `/${validLocale}/admin/moderation`,
       icon: Shield,
+      color: 'bg-orange-500',
+      stats: 'Auto-moderation rules, user reports, content review'
+    },
+    {
+      title: 'Security & Audit',
+      description: 'Security monitoring and compliance tracking',
+      href: `/${validLocale}/admin/security`,
+      icon: Lock,
       color: 'bg-red-500',
-      stats: 'Configure security and audit logs'
+      stats: 'Authentication monitoring, permission audits, security events'
     }
   ];
 

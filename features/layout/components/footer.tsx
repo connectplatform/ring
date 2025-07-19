@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useTranslation } from '@/node_modules/react-i18next'
 import { useTheme } from 'next-themes'
-import { Moon, Sun, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react'
+import { Moon, Sun, Facebook, Twitter, Linkedin, Instagram, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import packageInfo from '@/package.json'
 
@@ -96,6 +96,9 @@ export default function footer() {
               </a>
               <a href="#" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram className="w-6 h-6" />
+              </a>
+              <a href="https://connectplatform.github.io/ring" target="_blank" rel="noopener noreferrer" aria-label="Ring Documentation" className="text-muted-foreground hover:text-primary transition-colors">
+                <BookOpen className="w-6 h-6" />
               </a>
             </div>
           </div>

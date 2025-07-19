@@ -46,7 +46,18 @@
     "node_modules",
     "backup/**/*",
     "__tests__/**/*",
-    ".next/types/**/*"
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts", 
+    "**/*.spec.tsx",
+    "*.test.ts",
+    "*.test.tsx",
+    "*.spec.ts",
+    "*.spec.tsx",
+    ".next/types/**/*",
+    "jest.config.js",
+    "jest.setup.js",
+    "**/__mocks__/**/*"
   ],
   "ts-node": {
     "compilerOptions": {

@@ -111,7 +111,7 @@ export async function createNewUserWithEmail(email: string, password: string, na
 
   } catch (error) {
     if (error instanceof ZodError) {
-      console.error('Services: createNewUserWithEmail - Validation error:', error.errors);
+      console.error('Services: createNewUserWithEmail - Validation error:', error.issues);
     } else {
       console.error('Services: createNewUserWithEmail - Error creating new user with email:', error);
     }

@@ -1,64 +1,33 @@
 'use client'
 
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { initWebVitals, setWebVitalsUserId } from '@/lib/web-vitals'
+import { startWebVitalsCollection, setWebVitalsUserId } from '@/lib/web-vitals'
 
-/**
- * Web Vitals Provider Component
- * 
- * React 19 Performance Monitoring Integration
- * 
- * Features:
- * - Automatic Web Vitals collection on client-side
- * - User attribution for authenticated sessions
- * - React 19 optimization tracking
- * - Performance baseline establishment
- * 
- * Usage:
- * - Add to root layout for global monitoring
- * - Automatically starts collecting Core Web Vitals
- * - Sends metrics to /api/analytics/web-vitals
- * 
- * @returns JSX.Element | null
- */
-export function WebVitalsProvider({ children }: { children: React.ReactNode }) {
+interface WebVitalsProviderProps {
+  children: React.ReactNode
+}
+
+export function WebVitalsProvider({ children }: WebVitalsProviderProps) {
   const { data: session } = useSession()
 
   useEffect(() => {
-    // Initialize Web Vitals collection on client-side
-    if (typeof window !== 'undefined') {
-      // Initialize with user ID if available
-      const userId = session?.user?.id
-      initWebVitals(userId)
-      
-      // Track React 19 specific performance benefits
-      if (userId) {
-        setWebVitalsUserId(userId)
-      }
-      
-      // Log initialization for debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🚀 Web Vitals monitoring initialized', {
-          userId: userId || 'anonymous',
-          react19Features: [
-            'useTransition',
-            'useDeferredValue',
-            'useActionState',
-            'useFormStatus',
-            'nativeIntersectionObserver'
-          ]
-        })
+    // Initialize Web Vitals collection
+    const initWebVitals = async () => {
+      try {
+        await startWebVitalsCollection()
+        
+        // Set user ID if available
+        if (session?.user?.id) {
+          setWebVitalsUserId(session.user.id)
+        }
+      } catch (error) {
+        console.error('Failed to initialize Web Vitals:', error)
       }
     }
-  }, [session?.user?.id])
 
-  // Update user ID when session changes
-  useEffect(() => {
-    if (session?.user?.id) {
-      setWebVitalsUserId(session.user.id)
-    }
-  }, [session?.user?.id])
+    initWebVitals()
+  }, [session])
 
   return <>{children}</>
 }

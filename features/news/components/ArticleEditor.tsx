@@ -36,6 +36,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { saveArticle, publishArticle, ArticleFormState } from '@/app/actions/news';
+import { RichTextEditor } from '@/components/news/editor/RichTextEditor';
 
 interface ArticleEditorProps {
   mode: 'create' | 'edit';
@@ -429,16 +430,15 @@ export function ArticleEditor({ mode, article, locale, translations }: ArticleEd
               {/* Content */}
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                <Textarea
-                  id="content"
-                  value={formData.content}
-                  onChange={(e) => handleInputChange('content', e.target.value)}
+                <RichTextEditor
+                  content={formData.content}
+                  onChange={(content) => handleInputChange('content', content)}
+                  articleId={article?.id}
                   placeholder="Write your article content here..."
-                  rows={15}
-                  className="font-mono"
+                  height={500}
                 />
                 <p className="text-sm text-gray-500">
-                  HTML content supported. Use proper HTML tags for formatting.
+                  Rich text editor with auto-save. Images and media are supported.
                 </p>
               </div>
             </CardContent>

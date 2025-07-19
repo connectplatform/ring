@@ -8,37 +8,27 @@ import { Entity } from '@/features/entities/types'
 import { Timestamp } from 'firebase/firestore'
 import { useAppContext } from '@/contexts/app-context'
 import { useTranslation } from '@/node_modules/react-i18next'
+import { OpportunitySuspenseBoundary } from '@/components/suspense/enhanced-suspense-boundary'
 
-// Dynamically import components with loading fallback
+// Dynamically import components
 const Opportunities = dynamic(() => import('@/features/opportunities/components/opportunities'), {
-  loading: () => <LoadingFallback />,
   ssr: false
 })
 
 const OpportunityDetails = dynamic(() => import('@/features/opportunities/components/opportunity-details'), {
-  loading: () => <LoadingFallback />,
   ssr: false
 })
-
-function LoadingFallback() {
-  const { t } = useTranslation()
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-pulse">{t('loading')}</div>
-    </div>
-  )
-}
 
 interface OpportunitiesWrapperProps {
   initialOpportunities?: Opportunity[]
   initialOpportunity?: (Opportunity & {
-    attachments: Attachment[];
+    attachments?: Attachment[];
     visibility: OpportunityVisibility;
     expirationDate: Timestamp;
   }) | null
   initialEntity?: Entity | null
-  initialError: string | null
-  lastVisible: string | null
+  initialError?: string | null
+  lastVisible?: string | null
   initialLimit: number
 }
 
@@ -65,32 +55,53 @@ export default function OpportunitiesWrapper({
   }, [initialOpportunities, initialError, setError])
 
   if (!isClient) {
-    return <LoadingFallback />
+    return (
+      <OpportunitySuspenseBoundary 
+        level="page" 
+        showProgress={true}
+        description="Preparing opportunities directory for display"
+        retryEnabled={false}
+      >
+        <div />
+      </OpportunitySuspenseBoundary>
+    )
   }
 
   // If initialOpportunity is provided, render opportunity-details
   if (initialOpportunity) {
     return (
-      <Suspense fallback={<LoadingFallback />}>
+      <OpportunitySuspenseBoundary 
+        level="page" 
+        showProgress={true}
+        description="Loading opportunity details and related information"
+        retryEnabled={true}
+        onRetry={() => window.location.reload()}
+      >
         <OpportunityDetails 
           initialOpportunity={initialOpportunity}
           initialEntity={initialEntity || null}
           initialError={initialError}
         />
-      </Suspense>
+      </OpportunitySuspenseBoundary>
     )
   }
 
   // Otherwise, render the opportunities list
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <OpportunitySuspenseBoundary 
+      level="page" 
+      showProgress={true}
+      description="Loading opportunities directory with filtering and search capabilities"
+      retryEnabled={true}
+      onRetry={() => window.location.reload()}
+    >
       <Opportunities 
         initialOpportunities={opportunities}
         initialError={initialError}
         lastVisible={lastVisible}
         limit={limit}
       />
-    </Suspense>
+    </OpportunitySuspenseBoundary>
   )
 }
 

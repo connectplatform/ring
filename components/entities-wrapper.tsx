@@ -4,39 +4,18 @@ import { Suspense, useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import type { Entity } from "@/types"
 import { useSearchParams } from "next/navigation"
+import { EntitySuspenseBoundary } from "@/components/suspense/enhanced-suspense-boundary"
 
 /**
  * Dynamically import the EntitiesContent component
  * This allows for code splitting and improved performance
  */
 const EntitiesContent = dynamic(() => import("@/features/entities/components/entities"), {
-  loading: () => <LoadingFallback />,
+  ssr: false
 })
 
 /**
- * LoadingFallback component
- * Displays a loading message while the EntitiesContent is being loaded
- *
- * @returns {JSX.Element} A div with a loading message
- */
-function LoadingFallback() {
-  return <div className="text-center py-8">Loading directory...</div>
-}
-
-/**
- * EntitiesWrapperProps interface
- * Defines the props for the EntitiesWrapper component
- *
- * @typedef {Object} EntitiesWrapperProps
- * @property {Entity[]} initialEntities - Initial list of entities to display
- * @property {string | null} initialError - Initial error message, if any
- * @property {number} page - Initial page number
- * @property {number} totalPages - Total number of pages
- * @property {number} totalEntities - Total number of entities
- * @property {string | null} lastVisible - Last visible entity for pagination
- * @property {number} initialLimit - Initial number of entities per page
- * @property {string} initialSort - Initial sort order
- * @property {string} initialFilter - Initial filter applied
+ * EntitiesWrapper component props
  */
 interface EntitiesWrapperProps {
   initialEntities: Entity[]
@@ -102,11 +81,26 @@ export default function EntitiesWrapper({
 
   // Show loading state until mounted to prevent hydration mismatches
   if (!mounted) {
-    return <LoadingFallback />
+    return (
+      <EntitySuspenseBoundary 
+        level="page" 
+        showProgress={true}
+        description="Preparing entities directory for display"
+        retryEnabled={false}
+      >
+        <div />
+      </EntitySuspenseBoundary>
+    )
   }
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <EntitySuspenseBoundary 
+      level="page" 
+      showProgress={true}
+      description="Loading entities directory with advanced filtering and sorting"
+      retryEnabled={true}
+      onRetry={() => window.location.reload()}
+    >
       <EntitiesContent
         initialEntities={entities}
         initialError={error}
@@ -118,7 +112,7 @@ export default function EntitiesWrapper({
         sort={sort}
         filter={filter}
       />
-    </Suspense>
+    </EntitySuspenseBoundary>
   )
 }
 
