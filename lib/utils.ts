@@ -67,6 +67,163 @@ export function getInitials(name: string): string {
     .slice(0, 2)
 }
 
+// ====================
+// ES2022 Object.hasOwn() Implementation
+// Safe property checking utilities to replace hasOwnProperty
+// ====================
+
+/**
+ * ES2022 Object.hasOwn() - Safe property checking
+ * Validates that an object has its own property (not inherited)
+ * @param obj - The object to check
+ * @param property - The property name to check for
+ * @returns True if the object has the own property, false otherwise
+ */
+export function hasOwnProperty<T extends object>(obj: T, property: PropertyKey): boolean {
+  if (!obj || typeof obj !== 'object') {
+    return false
+  }
+  return Object.hasOwn(obj, property)
+}
+
+/**
+ * Validates that an object contains all required fields using Object.hasOwn()
+ * @param data - The object to validate
+ * @param requiredFields - Array of required field names
+ * @returns True if all required fields exist, false otherwise
+ */
+export function validateRequiredFields<T extends Record<string, any>>(
+  data: T, 
+  requiredFields: (keyof T)[]
+): boolean {
+  if (!data || typeof data !== 'object') {
+    return false
+  }
+  return requiredFields.every(field => Object.hasOwn(data, field) && data[field] !== null && data[field] !== undefined)
+}
+
+/**
+ * Safely extracts properties from an object using Object.hasOwn()
+ * @param source - The source object
+ * @param properties - Array of property names to extract
+ * @returns New object with only the specified properties (if they exist)
+ */
+export function extractProperties<T extends Record<string, any>, K extends keyof T>(
+  source: T,
+  properties: K[]
+): Partial<Pick<T, K>> {
+  if (!source || typeof source !== 'object') {
+    return {}
+  }
+  
+  const result: Partial<Pick<T, K>> = {}
+  
+  for (const property of properties) {
+    if (Object.hasOwn(source, property)) {
+      result[property] = source[property]
+    }
+  }
+  
+  return result
+}
+
+/**
+ * Filters an object's properties based on a predicate using Object.hasOwn()
+ * @param obj - The object to filter
+ * @param predicate - Function to test each property
+ * @returns New object with filtered properties
+ */
+export function filterObjectProperties<T extends Record<string, any>>(
+  obj: T,
+  predicate: (key: string, value: any) => boolean
+): Partial<T> {
+  if (!obj || typeof obj !== 'object') {
+    return {}
+  }
+  
+  const result: Partial<T> = {}
+  
+  for (const key in obj) {
+    if (Object.hasOwn(obj, key) && predicate(key, obj[key])) {
+      result[key as keyof T] = obj[key]
+    }
+  }
+  
+  return result
+}
+
+/**
+ * Safely merges objects ensuring no prototype pollution using Object.hasOwn()
+ * @param target - The target object to merge into
+ * @param sources - Source objects to merge from
+ * @returns New merged object
+ */
+export function safeMergeObjects<T extends Record<string, any>>(
+  target: T,
+  ...sources: Partial<T>[]
+): T {
+  const result = { ...target }
+  
+  for (const source of sources) {
+    if (source && typeof source === 'object') {
+      for (const key in source) {
+        if (Object.hasOwn(source, key) && source[key] !== undefined) {
+          result[key] = source[key]
+        }
+      }
+    }
+  }
+  
+  return result
+}
+
+/**
+ * Validates entity data using Object.hasOwn() for safe property checking
+ * @param data - The entity data to validate
+ * @returns True if entity data is valid, false otherwise
+ */
+export function validateEntityData(data: any): boolean {
+  if (!data || typeof data !== 'object') {
+    return false
+  }
+  
+  const requiredFields = ['name', 'type', 'description'] as const
+  return requiredFields.every(field => Object.hasOwn(data, field) && 
+    typeof data[field] === 'string' && 
+    data[field].trim().length > 0
+  )
+}
+
+/**
+ * Validates opportunity data using Object.hasOwn() for safe property checking
+ * @param data - The opportunity data to validate  
+ * @returns True if opportunity data is valid, false otherwise
+ */
+export function validateOpportunityData(data: any): boolean {
+  if (!data || typeof data !== 'object') {
+    return false
+  }
+  
+  const requiredFields = ['title', 'briefDescription', 'budget', 'expirationDate'] as const
+  const hasAllRequired = requiredFields.every(field => Object.hasOwn(data, field))
+  
+  if (!hasAllRequired) {
+    return false
+  }
+  
+  // Additional validation for nested objects
+  if (Object.hasOwn(data, 'budget') && data.budget && typeof data.budget === 'object') {
+    const budgetFields = ['min', 'max', 'currency'] as const
+    return budgetFields.every(field => Object.hasOwn(data.budget, field))
+  }
+  
+  return true
+}
+
+// ====================
+// End ES2022 Object.hasOwn() Implementation  
+// ====================
+
 /**
  * Formats a Timestamp or FieldValue into a localized date string
  * @param timestamp - The Timestamp or FieldValue to format

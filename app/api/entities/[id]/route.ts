@@ -18,6 +18,16 @@ async function hasConfidentialAccess(user: any): Promise<boolean> {
 }
 
 /**
+ * Checks if a user has admin privileges.
+ * @param user - The user session object.
+ * @returns {boolean} True if the user is an admin.
+ */
+function isAdmin(user: any): boolean {
+  if (!user) return false;
+  return user.role === 'admin';
+}
+
+/**
  * Handle GET: Retrieve a single entity by ID.
  * 
  * @param req - The request object

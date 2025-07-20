@@ -246,6 +246,23 @@ function AddEntityFormContent() {
                 </div>
               </div>
 
+              {/* Visibility field */}
+              <div>
+                <Label htmlFor="visibility">{t('entity.visibility')} *</Label>
+                <Select name="visibility" defaultValue="public" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('selectVisibility')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">{t('public')}</SelectItem>
+                    <SelectItem value="member">{t('membersOnly')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {state?.fieldErrors?.visibility && (
+                  <span className="text-destructive text-sm">{state.fieldErrors.visibility}</span>
+                )}
+              </div>
+
               {/* Confidential checkbox */}
               <div className="flex items-center space-x-2">
                 <input

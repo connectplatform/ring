@@ -1,191 +1,290 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { useOptimistic } from 'react'
 import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Send, Users, Loader2 } from 'lucide-react'
+import { MessageCircle, Send, Users, Loader2, ArrowLeft, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useTranslation } from 'react-i18next'
-import { useConversation, useMessages } from '@/hooks/use-messaging'
+import { useConversations, useConversation, useMessages } from '@/hooks/use-messaging'
 import { useWebSocket } from '@/hooks/use-websocket'
-import { MessageBubble } from '@/components/messaging/message-bubble'
-import { MessageComposer } from '@/components/messaging/message-composer'
-import { TypingIndicator } from '@/components/messaging/typing-indicator'
+import { ConversationList } from '@/components/messaging/conversation-list'
+import { MessageThread } from '@/components/messaging/message-thread'
 import { ConversationHeader } from '@/components/messaging/conversation-header'
-import { Message } from '@/features/chat/types'
+import { Conversation, CreateConversationRequest } from '@/features/chat/types'
 import { toast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 interface ChatProps {
-  entityId: string
-  entityName: string
-  entityCreatorId: string
+  entityId?: string
+  entityName?: string
+  entityCreatorId?: string
   opportunityId?: string
   opportunityName?: string
   className?: string
+  // New props for direct messaging
+  targetUserId?: string
+  targetUserName?: string
+  // Layout control
+  showConversationList?: boolean
+  initialConversationId?: string
 }
 
-interface ConversationData {
-  id: string
-  type: 'entity' | 'opportunity'
-  title: string
-  participants: string[]
-  isActive: boolean
+interface MessagingState {
+  selectedConversationId: string | null
+  showMobileConversationList: boolean
+  isCreatingConversation: boolean
 }
 
-function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opportunityName, className }: ChatProps) {
+function ChatContent({ 
+  entityId, 
+  entityName, 
+  entityCreatorId, 
+  opportunityId, 
+  opportunityName, 
+  targetUserId,
+  targetUserName,
+  className,
+  showConversationList = true,
+  initialConversationId
+}: ChatProps) {
   const { t } = useTranslation()
   const { data: session, status } = useSession()
-  const [conversationData, setConversationData] = useState<ConversationData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
   const { isConnected } = useWebSocket()
   
-  // Create or find conversation based on entity/opportunity
-  const conversationId = conversationData?.id || ''
-  const { conversation, markAsRead } = useConversation(conversationId)
-  const { messages, sendMessage: sendMessageHook, loading: messagesLoading } = useMessages(conversationId)
+  // Component state
+  const [state, setState] = useState<MessagingState>({
+    selectedConversationId: initialConversationId || null,
+    showMobileConversationList: true,
+    isCreatingConversation: false
+  })
+  
+  // Messaging hooks
+  const { conversations, loading: conversationsLoading, createConversation } = useConversations()
+  const { conversation: selectedConversation } = useConversation(state.selectedConversationId || '')
 
-  // Optimistic updates for better UX
-  const [optimisticMessages, addOptimisticMessage] = useOptimistic(
-    messages,
-    (currentMessages: Message[], newMessage: Message) => [...currentMessages, newMessage]
-  )
-
-  // Create or find conversation on component mount
+  // Auto-select or create conversation based on props
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.id) return
+    if (state.selectedConversationId) return // Already have a selection
 
-    const initializeConversation = async () => {
+    const autoSelectOrCreateConversation = async () => {
+      setState(prev => ({ ...prev, isCreatingConversation: true }))
+
       try {
-        setLoading(true)
-        setError(null)
+        // Case 1: Entity/Opportunity conversation
+        if (entityId) {
+          const existingConversation = conversations.find(conv => 
+            conv.type === (opportunityId ? 'opportunity' : 'entity') &&
+            conv.metadata.entityId === entityId &&
+            (!opportunityId || conv.metadata.opportunityId === opportunityId)
+          )
 
-        // Try to find existing conversation first
-        const conversationType = opportunityId ? 'opportunity' : 'entity'
-        const conversationTitle = opportunityName ? `${entityName} - ${opportunityName}` : entityName
-        
-        // Check if conversation already exists
-        const existingResponse = await fetch(`/api/conversations?type=${conversationType}&entityId=${entityId}${opportunityId ? `&opportunityId=${opportunityId}` : ''}`)
-        
-        if (existingResponse.ok) {
-          const existingData = await existingResponse.json()
-          if (existingData.data && existingData.data.length > 0) {
-            setConversationData({
-              id: existingData.data[0].id,
-              type: conversationType,
-              title: conversationTitle,
-              participants: existingData.data[0].participants.map((p: any) => p.userId),
-              isActive: existingData.data[0].isActive
-            })
+          if (existingConversation) {
+            setState(prev => ({ 
+              ...prev, 
+              selectedConversationId: existingConversation.id,
+              showMobileConversationList: false 
+            }))
             return
           }
-        }
 
-        // Create new conversation if none exists
-        const createResponse = await fetch('/api/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: conversationType,
-            title: conversationTitle,
-            participants: [
-              { userId: session.user.id, role: 'member' },
-              { userId: entityCreatorId, role: 'admin' }
-            ],
-            entityId,
-            opportunityId,
-            metadata: {
-              entityName,
-              entityCreatorId,
-              opportunityName: opportunityName || null
+                     // Create new entity/opportunity conversation
+           if (entityCreatorId) {
+             const conversationData: CreateConversationRequest = {
+               type: opportunityId ? 'opportunity' : 'entity',
+               participantIds: [session.user.id, entityCreatorId],
+               metadata: {
+                 entityId,
+                 entityName,
+                 opportunityId,
+                 opportunityName
+               }
+             }
+
+            const newConversation = await createConversation(conversationData)
+            if (newConversation) {
+              setState(prev => ({ 
+                ...prev, 
+                selectedConversationId: newConversation.id,
+                showMobileConversationList: false 
+              }))
             }
-          })
-        })
+          }
+        }
+        // Case 2: Direct user conversation
+        else if (targetUserId) {
+          const existingConversation = conversations.find(conv => 
+            conv.type === 'direct' &&
+            conv.participants.some(p => p.userId === targetUserId)
+          )
 
-        if (!createResponse.ok) {
-          throw new Error('Failed to create conversation')
+          if (existingConversation) {
+            setState(prev => ({ 
+              ...prev, 
+              selectedConversationId: existingConversation.id,
+              showMobileConversationList: false 
+            }))
+            return
+          }
+
+                     // Create new direct conversation
+           const conversationData: CreateConversationRequest = {
+             type: 'direct',
+             participantIds: [session.user.id, targetUserId],
+             metadata: {
+               // Store target user info in entity fields for direct conversations
+               entityId: targetUserId,
+               entityName: targetUserName
+             }
+           }
+
+          const newConversation = await createConversation(conversationData)
+          if (newConversation) {
+            setState(prev => ({ 
+              ...prev, 
+              selectedConversationId: newConversation.id,
+              showMobileConversationList: false 
+            }))
+          }
+        }
+        // Case 3: Show conversation list for general messaging
+        else if (conversations.length > 0 && showConversationList) {
+          // Auto-select first conversation if none specified
+          setState(prev => ({ 
+            ...prev, 
+            selectedConversationId: conversations[0].id,
+            showMobileConversationList: false 
+          }))
         }
 
-        const newConversation = await createResponse.json()
-        setConversationData({
-          id: newConversation.data.id,
-          type: conversationType,
-          title: conversationTitle,
-          participants: newConversation.data.participants.map((p: any) => p.userId),
-          isActive: true
-        })
-
-      } catch (err) {
-        console.error('Error initializing conversation:', err)
-        setError(err instanceof Error ? err.message : 'Failed to initialize chat')
+      } catch (error) {
+        console.error('Error auto-selecting conversation:', error)
         toast({
           title: 'Chat Error',
           description: 'Failed to initialize chat. Please try again.',
           variant: 'destructive'
         })
       } finally {
-        setLoading(false)
+        setState(prev => ({ ...prev, isCreatingConversation: false }))
       }
     }
 
-    initializeConversation()
-  }, [status, session, entityId, entityCreatorId, opportunityId, entityName, opportunityName])
+    if (!conversationsLoading) {
+      autoSelectOrCreateConversation()
+    }
+  }, [
+    status, session, conversations, conversationsLoading, createConversation,
+    entityId, entityName, entityCreatorId, opportunityId, opportunityName,
+    targetUserId, targetUserName, showConversationList, state.selectedConversationId
+  ])
 
-  // Handle message sending
-  const handleSendMessage = useCallback(async (content: string): Promise<Message | null> => {
-    if (!session?.user?.id || !conversationData?.id) return null
+  // Event handlers
+  const handleConversationSelect = useCallback((conversationId: string) => {
+    setState(prev => ({ 
+      ...prev, 
+      selectedConversationId: conversationId,
+      showMobileConversationList: false 
+    }))
+  }, [])
 
+  const handleBackToList = useCallback(() => {
+    setState(prev => ({ ...prev, showMobileConversationList: true }))
+  }, [])
+
+  const handleNewConversation = useCallback(() => {
+    // TODO: Implement new conversation modal/flow
+    toast({
+      title: 'Coming Soon',
+      description: 'New conversation creation coming soon!'
+    })
+  }, [])
+
+  // Message actions
+  const handleMessageEdit = useCallback(async (messageId: string, newContent: string) => {
     try {
-      // Optimistic update
-      const optimisticMessage: Message = {
-        id: `temp-${Date.now()}`,
-        conversationId: conversationData.id,
-        senderId: session.user.id,
-        senderName: session.user.name || 'You',
-        senderAvatar: session.user.image || undefined,
-        content,
-        type: 'text',
-        status: 'sending',
-        timestamp: new Date() as any,
-        reactions: []
+      const response = await fetch(`/api/messages/${messageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to edit message')
       }
 
-      addOptimisticMessage(optimisticMessage)
-
-      // Send message via hook
-      await sendMessageHook(content)
-
-      // Mark conversation as read
-      await markAsRead()
-
-      return optimisticMessage
-
-    } catch (err) {
-      console.error('Error sending message:', err)
       toast({
-        title: 'Message Error',
-        description: 'Failed to send message. Please try again.',
+        title: 'Message Updated',
+        description: 'Your message has been updated successfully.'
+      })
+    } catch (error) {
+      console.error('Error editing message:', error)
+      toast({
+        title: 'Edit Failed',
+        description: 'Failed to edit message. Please try again.',
         variant: 'destructive'
       })
-      return null
     }
-  }, [session, conversationData, sendMessageHook, markAsRead, addOptimisticMessage])
+  }, [])
+
+  const handleMessageDelete = useCallback(async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/messages/${messageId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete message')
+      }
+
+      toast({
+        title: 'Message Deleted',
+        description: 'Your message has been deleted.'
+      })
+    } catch (error) {
+      console.error('Error deleting message:', error)
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete message. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }, [])
+
+  const handleMessageReaction = useCallback(async (messageId: string, emoji: string) => {
+    try {
+      const response = await fetch(`/api/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add reaction')
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error)
+      toast({
+        title: 'Reaction Failed',
+        description: 'Failed to add reaction. Please try again.',
+        variant: 'destructive'
+      })
+    }
+  }, [])
 
   // Loading state
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || conversationsLoading || state.isCreatingConversation) {
     return (
-      <Card className={`w-full max-w-2xl mx-auto ${className}`}>
+      <Card className={cn("w-full max-w-4xl mx-auto", className)}>
         <CardContent className="p-6">
           <div className="flex items-center justify-center space-x-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-muted-foreground">{t('loadingChat') || 'Loading chat...'}</span>
+            <span className="text-muted-foreground">
+              {t('loadingChat') || 'Loading chat...'}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -204,89 +303,186 @@ function ChatContent({ entityId, entityName, entityCreatorId, opportunityId, opp
     )
   }
 
-  // Error state
-  if (error) {
+  // No session user
+  if (!session?.user?.id) {
     return (
       <Alert variant="destructive" className={className}>
         <MessageCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )
-  }
-
-  // No conversation data
-  if (!conversationData) {
-    return (
-      <Alert className={className}>
-        <MessageCircle className="h-4 w-4" />
         <AlertDescription>
-          {t('noConversation') || 'Unable to load conversation.'}
+          {t('authError') || 'Authentication error. Please refresh the page.'}
         </AlertDescription>
       </Alert>
     )
   }
 
-  return (
-    <Card className={`w-full max-w-2xl mx-auto ${className}`}>
-      {/* Conversation Header */}
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
-            {conversationData.title}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Badge variant={isConnected ? "default" : "secondary"}>
-              {isConnected ? 'Connected' : 'Connecting...'}
-            </Badge>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {conversationData.participants.length}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
 
-      <CardContent className="space-y-4">
-        {/* Messages */}
-        <ScrollArea className="h-96 w-full rounded-md border p-4">
-          <div className="space-y-4">
-            <AnimatePresence>
-              {optimisticMessages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  isOwn={message.senderId === session?.user?.id}
-                />
-              ))}
-            </AnimatePresence>
-            
-            {/* Typing Indicator */}
-            {conversationData.id && (
-              <TypingIndicator conversationId={conversationData.id} />
-            )}
-          </div>
-        </ScrollArea>
-
-        {/* Message Input */}
-        <MessageComposer
-          conversationId={conversationData.id}
-          onSendMessageAction={handleSendMessage}
-          disabled={!isConnected}
-          placeholder={t('typeMessage') || 'Type a message...'}
-        />
-
-        {/* Connection Status */}
-        {!isConnected && (
-          <Alert>
-            <AlertDescription className="text-sm">
-              {t('reconnecting') || 'Reconnecting to chat server...'}
-            </AlertDescription>
-          </Alert>
+  // Render layout based on screen size and conversation selection
+  const renderMobileLayout = () => (
+    <Card className={cn("w-full h-[600px]", className)}>
+      <AnimatePresence mode="wait">
+        {state.showMobileConversationList ? (
+          <motion.div
+            key="conversation-list"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="h-full"
+          >
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" />
+                {t('messages') || 'Messages'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 h-[calc(100%-80px)]">
+              <ConversationList
+                userId={session.user.id}
+                onConversationSelectAction={handleConversationSelect}
+                selectedConversationId={state.selectedConversationId}
+                onNewConversationAction={handleNewConversation}
+              />
+            </CardContent>
+          </motion.div>
+        ) : state.selectedConversationId ? (
+          <motion.div
+            key="message-thread"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="h-full flex flex-col"
+          >
+            <CardHeader className="pb-3 border-b">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handleBackToList}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                {selectedConversation && (
+                  <ConversationHeader
+                    conversation={selectedConversation}
+                    currentUserId={session.user.id}
+                    className="flex-1"
+                  />
+                )}
+                <Badge variant={isConnected ? "default" : "secondary"}>
+                  {isConnected ? 'Connected' : 'Connecting...'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 p-0">
+              <MessageThread
+                conversationId={state.selectedConversationId}
+                userId={session.user.id}
+                onMessageEditAction={handleMessageEdit}
+                onMessageDeleteAction={handleMessageDelete}
+                onMessageReactionAction={handleMessageReaction}
+                className="h-full"
+              />
+            </CardContent>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="no-conversation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="h-full flex items-center justify-center"
+          >
+            <div className="text-center">
+              <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                {t('selectConversation') || 'Select a conversation to start messaging'}
+              </p>
+            </div>
+          </motion.div>
         )}
-      </CardContent>
+      </AnimatePresence>
     </Card>
   )
+
+  const renderDesktopLayout = () => (
+    <Card className={cn("w-full max-w-6xl mx-auto", className)}>
+      <div className="flex h-[700px]">
+        {/* Conversation List Sidebar */}
+        {showConversationList && (
+          <div className="w-80 border-r">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" />
+                {t('messages') || 'Messages'}
+              </CardTitle>
+            </CardHeader>
+            <div className="h-[calc(100%-80px)]">
+              <ConversationList
+                userId={session.user.id}
+                onConversationSelectAction={handleConversationSelect}
+                selectedConversationId={state.selectedConversationId}
+                onNewConversationAction={handleNewConversation}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Message Thread Area */}
+        <div className="flex-1 flex flex-col">
+          {state.selectedConversationId ? (
+            <>
+              {/* Conversation Header */}
+              <CardHeader className="pb-3 border-b">
+                <div className="flex items-center justify-between">
+                  {selectedConversation && (
+                    <ConversationHeader
+                      conversation={selectedConversation}
+                      currentUserId={session.user.id}
+                      className="flex-1"
+                    />
+                  )}
+                  <Badge variant={isConnected ? "default" : "secondary"}>
+                    {isConnected ? 'Connected' : 'Connecting...'}
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-hidden">
+                <MessageThread
+                  conversationId={state.selectedConversationId}
+                  userId={session.user.id}
+                  onMessageEditAction={handleMessageEdit}
+                  onMessageDeleteAction={handleMessageDelete}
+                  onMessageReactionAction={handleMessageReaction}
+                  className="h-full"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <p className="text-lg text-muted-foreground mb-2">
+                  {t('selectConversation') || 'Select a conversation to start messaging'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t('conversationHint') || 'Choose from your conversations or start a new one'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Connection Status Alert */}
+      {!isConnected && (
+        <Alert className="m-4">
+          <AlertDescription className="text-sm">
+            {t('reconnecting') || 'Reconnecting to chat server...'}
+          </AlertDescription>
+        </Alert>
+      )}
+    </Card>
+  )
+
+  return isMobile ? renderMobileLayout() : renderDesktopLayout()
 }
 
 export default function Chat(props: ChatProps) {

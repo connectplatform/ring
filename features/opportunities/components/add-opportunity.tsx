@@ -51,6 +51,8 @@ function AddOpportunityFormContent() {
   const router = useRouter()
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
+  const [requiredSkills, setRequiredSkills] = useState<string[]>([])
+  const [newSkill, setNewSkill] = useState('')
   const [entities, setEntities] = useState<any[]>([])
 
   const [state, formAction] = useActionState<OpportunityFormState | null, FormData>(
@@ -98,6 +100,17 @@ function AddOpportunityFormContent() {
     setTags(tags.filter(tag => tag !== tagToRemove))
   }
 
+  const handleAddSkill = () => {
+    if (newSkill && !requiredSkills.includes(newSkill)) {
+      setRequiredSkills([...requiredSkills, newSkill])
+      setNewSkill('')
+    }
+  }
+
+  const removeSkill = (skillToRemove: string) => {
+    setRequiredSkills(requiredSkills.filter(skill => skill !== skillToRemove))
+  }
+
   if (status === 'loading') {
     return <div>{t('loading')}</div>
   }
@@ -117,6 +130,8 @@ function AddOpportunityFormContent() {
           <form action={formAction} className="space-y-6">
             {/* Hidden field for tags */}
             <input type="hidden" name="tags" value={tags.join(',')} />
+            {/* Hidden field for required skills */}
+            <input type="hidden" name="requiredSkills" value={requiredSkills.join(',')} />
 
             {/* Global error message */}
             {state?.error && (
@@ -157,6 +172,20 @@ function AddOpportunityFormContent() {
               </div>
 
               <div>
+                <Label htmlFor="description">{t('description')} *</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  required
+                  rows={4}
+                  className="mt-1"
+                />
+                {state?.fieldErrors?.description && (
+                  <span className="text-destructive text-sm">{state.fieldErrors.description}</span>
+                )}
+              </div>
+
+              <div>
                 <Label htmlFor="category">{t('category')} *</Label>
                 <Select name="category" required>
                   <SelectTrigger>
@@ -166,13 +195,27 @@ function AddOpportunityFormContent() {
                     <SelectItem value="technology">{t('technology')}</SelectItem>
                     <SelectItem value="business">{t('business')}</SelectItem>
                     <SelectItem value="finance">{t('finance')}</SelectItem>
-                    <SelectItem value="marketing">{t('marketing')}</SelectItem>
-                    <SelectItem value="development">{t('development')}</SelectItem>
-                    <SelectItem value="design">{t('design')}</SelectItem>
+                    <SelectItem value="healthcare">{t('healthcare')}</SelectItem>
+                    <SelectItem value="education">{t('education')}</SelectItem>
+                    <SelectItem value="other">{t('other')}</SelectItem>
                   </SelectContent>
                 </Select>
                 {state?.fieldErrors?.category && (
                   <span className="text-destructive text-sm">{state.fieldErrors.category}</span>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="location">{t('location')} *</Label>
+                <Input
+                  id="location"
+                  name="location"
+                  required
+                  placeholder={t('locationPlaceholder')}
+                  className="mt-1"
+                />
+                {state?.fieldErrors?.location && (
+                  <span className="text-destructive text-sm">{state.fieldErrors.location}</span>
                 )}
               </div>
 
@@ -196,20 +239,6 @@ function AddOpportunityFormContent() {
               </div>
 
               <div>
-                <Label htmlFor="description">{t('description')} *</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  required
-                  rows={4}
-                  className="mt-1"
-                />
-                {state?.fieldErrors?.description && (
-                  <span className="text-destructive text-sm">{state.fieldErrors.description}</span>
-                )}
-              </div>
-
-              <div>
                 <Label htmlFor="requirements">{t('requirements')}</Label>
                 <Textarea
                   id="requirements"
@@ -223,13 +252,32 @@ function AddOpportunityFormContent() {
               </div>
 
               <div>
-                <Label htmlFor="budget">{t('budget')}</Label>
-                <Input
-                  id="budget"
-                  name="budget"
-                  placeholder="e.g., $5,000 - $10,000"
-                  className="mt-1"
-                />
+                <Label>{t('budget')}</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    name="budgetMin"
+                    type="number"
+                    placeholder={t('min')}
+                    className="mt-1"
+                  />
+                  <Input
+                    name="budgetMax"
+                    type="number"
+                    placeholder={t('max')}
+                    className="mt-1"
+                  />
+                  <Select name="budgetCurrency" defaultValue="USD">
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('currency')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="UAH">UAH</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 {state?.fieldErrors?.budget && (
                   <span className="text-destructive text-sm">{state.fieldErrors.budget}</span>
                 )}
@@ -260,6 +308,37 @@ function AddOpportunityFormContent() {
                 {state?.fieldErrors?.contactEmail && (
                   <span className="text-destructive text-sm">{state.fieldErrors.contactEmail}</span>
                 )}
+              </div>
+
+              {/* Required Skills section */}
+              <div>
+                <Label>{t('requiredSkills')}</Label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
+                      placeholder={t('addSkill')}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                    />
+                    <Button type="button" onClick={handleAddSkill} variant="outline">
+                      {t('add')}
+                    </Button>
+                  </div>
+                  {requiredSkills.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {requiredSkills.map((skill) => (
+                        <Badge key={skill} variant="secondary" className="flex items-center gap-1">
+                          {skill}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => removeSkill(skill)}
+                          />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Tags section */}

@@ -163,9 +163,65 @@ export function MessageBubble({
           >
             {/* Message content */}
             <div className="pr-6">
-              {message.type === 'text' && message.content}
+              {/* Text content */}
+              {message.content && (
+                <div className="mb-2">
+                  {message.content}
+                </div>
+              )}
               
-              {message.type === 'image' && (
+              {/* File attachments */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="space-y-2">
+                  {message.attachments.map((attachment, index) => (
+                    <div key={`${attachment.url}-${index}`} className="border rounded-lg overflow-hidden">
+                      {attachment.type === 'image' && (
+                        <div>
+                          <Image 
+                            src={attachment.url} 
+                            alt={attachment.name || 'Shared image'} 
+                            width={400}
+                            height={300}
+                            className="max-w-full h-auto rounded"
+                          />
+                          {attachment.name && (
+                            <div className="p-2 bg-muted/50 text-xs">
+                              {attachment.name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {(attachment.type === 'file' || attachment.type === 'document') && (
+                        <div className="p-3 flex items-center space-x-3 bg-muted/20">
+                          <div className="flex-shrink-0 w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                            📄
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate text-sm">
+                              {attachment.name || 'File attachment'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {attachment.size ? `${(attachment.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
+                            </p>
+                          </div>
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-shrink-0 text-xs text-primary hover:underline"
+                          >
+                            Download
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Legacy support for old message types */}
+              {!message.attachments && message.type === 'image' && (
                 <div>
                   <Image 
                     src={message.content} 
@@ -177,7 +233,7 @@ export function MessageBubble({
                 </div>
               )}
               
-              {message.type === 'file' && (
+              {!message.attachments && message.type === 'file' && (
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
                     <p className="font-medium">File attachment</p>

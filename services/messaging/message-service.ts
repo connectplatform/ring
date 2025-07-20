@@ -517,4 +517,144 @@ export class MessageService {
       );
     }
   }
+
+  /**
+   * Get a single message by ID
+   * @param messageId - The ID of the message to retrieve
+   * @returns Promise<Message | null> - The message or null if not found
+   * @throws {EntityDatabaseError} If database operations fail
+   */
+  async getMessage(messageId: string): Promise<Message | null> {
+    try {
+      const messageDoc = await this.db.collection('messages').doc(messageId).get()
+      
+      if (!messageDoc.exists) {
+        return null
+      }
+      
+      return {
+        id: messageDoc.id,
+        ...messageDoc.data()
+      } as Message
+      
+    } catch (error) {
+      throw new EntityDatabaseError(
+        'Failed to fetch message',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          messageId,
+          operation: 'getMessage'
+        }
+      )
+    }
+  }
+
+  /**
+   * Update a message
+   * @param messageId - The ID of the message to update
+   * @param updates - The updates to apply
+   * @returns Promise<Message> - The updated message
+   * @throws {EntityDatabaseError} If database operations fail
+   */
+  async updateMessage(messageId: string, updates: Partial<Message>): Promise<Message> {
+    try {
+      const messageRef = this.db.collection('messages').doc(messageId)
+      const messageDoc = await messageRef.get()
+      
+      if (!messageDoc.exists) {
+        throw new ValidationError('Message not found', undefined, {
+          timestamp: Date.now(),
+          messageId,
+          operation: 'updateMessage'
+        })
+      }
+      
+      // Update the message
+      await messageRef.update({
+        ...updates,
+        editedAt: Timestamp.now()
+      })
+      
+      // Update real-time database
+      await this.rtdb.ref(`messages/${messageId}`).update({
+        ...updates,
+        editedAt: Date.now()
+      })
+      
+      // Get and return updated message
+      const updatedDoc = await messageRef.get()
+      return {
+        id: updatedDoc.id,
+        ...updatedDoc.data()
+      } as Message
+      
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error
+      }
+      
+      throw new EntityDatabaseError(
+        'Failed to update message',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          messageId,
+          operation: 'updateMessage'
+        }
+      )
+    }
+  }
+
+  /**
+   * Delete a message (soft delete)
+   * @param messageId - The ID of the message to delete
+   * @returns Promise<void>
+   * @throws {EntityDatabaseError} If database operations fail
+   */
+  async deleteMessage(messageId: string): Promise<void> {
+    try {
+      const messageRef = this.db.collection('messages').doc(messageId)
+      const messageDoc = await messageRef.get()
+      
+      if (!messageDoc.exists) {
+        throw new ValidationError('Message not found', undefined, {
+          timestamp: Date.now(),
+          messageId,
+          operation: 'deleteMessage'
+        })
+      }
+      
+      // Soft delete - update content and mark as deleted
+      await messageRef.update({
+        content: '[Message deleted]',
+        type: 'text',
+        deletedAt: Timestamp.now(),
+        attachments: [] // Remove any attachments
+      })
+      
+      // Update real-time database
+      await this.rtdb.ref(`messages/${messageId}`).update({
+        content: '[Message deleted]',
+        type: 'text',
+        deletedAt: Date.now(),
+        attachments: []
+      })
+      
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error
+      }
+      
+      throw new EntityDatabaseError(
+        'Failed to delete message',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          messageId,
+          operation: 'deleteMessage'
+        }
+      )
+    }
+  }
 }

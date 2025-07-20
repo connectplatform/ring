@@ -11,7 +11,6 @@ import { ethers } from 'ethers';
 import { getAuth } from 'firebase/auth';
 import { getUserByWalletAddress } from '@/services/users/get-user-by-wallet-address';
 import { createNewUserWithWallet } from '@/services/users/create-new-user-with-wallet';
-import { getUserProfile } from '@/services/users/get-user-profile';
 
 /**
  * FirebaseService object
@@ -156,7 +155,7 @@ const FirebaseService = {
   },
 
   /**
-   * Get user by email
+   * Get user by email using API route for consistency
    * 
    * User steps:
    * 1. Call this function with an email address
@@ -166,6 +165,13 @@ const FirebaseService = {
    * @returns {Promise<AuthUser | null>} The user associated with the email or null if not found
    */
   async getUserByEmail(email: string): Promise<AuthUser | null> {
+    // ES2022 Logical Assignment for request context
+    const requestContext = {
+      timestamp: Date.now(),
+      operation: 'getUserByEmail',
+      email
+    } as any;
+
     try {
       const adminDb = await getAdminDb();
       const usersRef = adminDb.collection('userProfiles');
@@ -174,11 +180,118 @@ const FirebaseService = {
       
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
-        return getUserProfile(userDoc.id);
+        const userId = userDoc.id;
+        
+        // ES2022 logical assignment for context
+        requestContext.userId ??= userId;
+        requestContext.hasUserDoc ??= true;
+        
+        console.log('FirebaseService: getUserByEmail - User found, fetching profile via API route');
+        
+        // Use API route
+        try {
+          const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/profile`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              // Note: This assumes server-side context with proper authentication
+              // In practice, this method should be called from authenticated contexts
+            },
+          });
+
+          if (!apiResponse.ok) {
+            console.error('FirebaseService: getUserByEmail - API route failed:', apiResponse.statusText);
+            // Fallback: query user data directly if API route fails
+            return this.getUserProfileFallback(userId, userDoc.data());
+          }
+
+          const apiResult = await apiResponse.json();
+          
+          if (apiResult.success && apiResult.data) {
+            console.log('FirebaseService: getUserByEmail - Profile fetched successfully via API route');
+            return apiResult.data as AuthUser;
+          }
+          
+          // Fallback if API response doesn't have expected structure
+          return this.getUserProfileFallback(userId, userDoc.data());
+          
+        } catch (apiError) {
+          console.warn('FirebaseService: getUserByEmail - API route unavailable, using fallback:', apiError);
+          // Fallback to direct data processing if API route is unavailable
+          return this.getUserProfileFallback(userId, userDoc.data());
+        }
       }
+      
+      console.log('FirebaseService: getUserByEmail - No user found with email:', email);
       return null;
+      
     } catch (error) {
-      console.error("Error fetching user by email:", error);
+      console.error("FirebaseService: getUserByEmail - Error:", error);
+      return null;
+    }
+  },
+
+  /**
+   * Fallback method to process user profile data directly
+   * Used when API route is unavailable
+   * 
+   * @private
+   * @param {string} userId - The user ID
+   * @param {any} userData - The user document data
+   * @returns {AuthUser | null} The processed user profile
+   */
+  getUserProfileFallback(userId: string, userData: any): AuthUser | null {
+    try {
+      if (!userData) {
+        return null;
+      }
+
+      // ES2022 logical assignment for default values
+      const userProfile: AuthUser = {
+        id: userId,
+        email: userData.email,
+        emailVerified: userData.emailVerified ? new Date(userData.emailVerified) : null,
+        name: userData.name || null,
+        role: userData.role,
+        photoURL: userData.photoURL || null,
+        wallets: userData.wallets || [],
+        authProvider: userData.authProvider,
+        authProviderId: userData.authProviderId,
+        isVerified: userData.isVerified,
+        createdAt: new Date(userData.createdAt),
+        lastLogin: new Date(userData.lastLogin),
+        bio: userData.bio || undefined,
+        canPostconfidentialOpportunities: userData.canPostconfidentialOpportunities,
+        canViewconfidentialOpportunities: userData.canViewconfidentialOpportunities,
+        postedopportunities: userData.postedopportunities || [],
+        savedopportunities: userData.savedopportunities || [],
+        nonce: userData.nonce,
+        nonceExpires: userData.nonceExpires,
+        notificationPreferences: userData.notificationPreferences || {
+          email: true,
+          inApp: true,
+          sms: false,
+        },
+        settings: userData.settings || {
+          language: 'en',
+          theme: 'light',
+          notifications: false,
+          notificationPreferences: {
+            email: true,
+            inApp: true,
+            sms: false,
+          },
+        },
+      };
+
+      // ES2022 logical assignment for optional fields
+      userProfile.settings.language ??= 'en';
+      userProfile.settings.theme ??= 'light';
+      userProfile.settings.notifications ??= false;
+      
+      return userProfile;
+    } catch (error) {
+      console.error("FirebaseService: getUserProfileFallback - Error processing user data:", error);
       return null;
     }
   },
@@ -281,7 +394,7 @@ const FirebaseService = {
    * @returns {Promise<void>}
    * @throws {Error} If there's an error during the transaction process
    */
-  async updateUserProfileAndentities(userId: string, profileData: Partial<ProfileFormData>, entityUpdates: Array<{ id: string, data: PartialWithFieldValue<Entity> }>): Promise<void> {
+  async updateUserProfileAndEntities(userId: string, profileData: Partial<ProfileFormData>, entityUpdates: Array<{ id: string, data: PartialWithFieldValue<Entity> }>): Promise<void> {
     try {
       const adminDb = await getAdminDb();
       await adminDb.runTransaction(async (transaction) => {

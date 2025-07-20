@@ -5,6 +5,7 @@ import { UserRole } from '@/features/auth/types';
 import { entityConverter } from '@/lib/converters/entity-converter';
 import { FieldValue } from 'firebase-admin/firestore';
 import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors';
+import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
 
 /**
  * Type definition for the data required to create a new entity.
@@ -13,12 +14,12 @@ import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQuer
 type NewEntityData = Omit<Entity, 'id' | 'dateCreated' | 'dateUpdated'>;
 
 /**
- * Creates a new Entity in Firestore.
+ * Creates a new Entity in Firestore with ES2022 enhancements.
  * 
  * This function performs the following steps:
  * 1. Authenticates the user and retrieves their session.
- * 2. Validates the user's role and permissions.
- * 3. Processes the entity creation with server-side timestamp.
+ * 2. Validates the user's role and permissions using Object.hasOwn() for safe property checking.
+ * 3. Processes the entity creation with logical assignment operators for cleaner state management.
  * 4. Sets up presence detection for eligible user roles.
  * 5. Returns the created entity.
  * 
@@ -40,6 +41,7 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     // Step 1: Authenticate the user
     const session = await auth();
     console.log('Services: createEntity - Starting entity creation process...');
+    
     if (!session || !session.user) {
       throw new EntityAuthError('User authentication required to create entity', undefined, {
         timestamp: Date.now(),
@@ -52,64 +54,121 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     const userId = session.user.id;
     const userRole = session.user.role as UserRole;
 
-    // Step 2: Validate user permissions
+    // ES2022 Logical Assignment Operators for cleaner validation
+    const validationContext = {
+      timestamp: Date.now(),
+      operation: 'createEntity'
+    } as any;
+    
+    // Use ??= to assign default values only if undefined/null
+    validationContext.userId ??= userId;
+    validationContext.userRole ??= userRole;
+    validationContext.hasSession ??= !!session;
+    validationContext.hasUser ??= !!session?.user;
+
+    // Step 2: Enhanced validation with ES2022 Object.hasOwn() and logical operators
     if (!userId) {
-      throw new EntityAuthError('Valid user ID required to create entity', undefined, {
-        timestamp: Date.now(),
-        session: !!session,
-        operation: 'createEntity'
+      throw new EntityAuthError('Valid user ID required to create entity', undefined, validationContext);
+    }
+
+    // ES2022 Object.hasOwn() for safe property checking
+    if (Object.hasOwn(data, 'isConfidential') && data.isConfidential) {
+      const hasConfidentialAccess = userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN;
+      
+      if (!hasConfidentialAccess) {
+        // Use &&= for conditional assignment
+        validationContext.requiredRole &&= 'ADMIN or CONFIDENTIAL';
+        throw new EntityPermissionError('Only ADMIN or CONFIDENTIAL users can create confidential entities', undefined, validationContext);
+      }
+    } else {
+      // Use logical OR for multiple role checking
+      const hasEntityAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
+      
+      if (!hasEntityAccess) {
+        validationContext.requiredRole ??= 'ADMIN, MEMBER, or CONFIDENTIAL';
+        throw new EntityPermissionError('Only ADMIN, MEMBER, or CONFIDENTIAL users can create entities', undefined, validationContext);
+      }
+    }
+    
+    console.log(`Services: createEntity - User authenticated: ${userId} with role: ${userRole}`);
+
+    // Step 2.5: Enhanced data validation using ES2022 utilities
+    if (!validateEntityData(data)) {
+      throw new EntityQueryError('Invalid entity data provided', undefined, {
+        ...validationContext,
+        providedData: data,
+        requiredFields: ['name', 'type', 'description']
       });
     }
 
-    if (data.isConfidential) {
-      if (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
-        throw new EntityPermissionError('Only ADMIN or CONFIDENTIAL users can create confidential entities', undefined, {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          requiredRole: 'ADMIN or CONFIDENTIAL',
-          operation: 'createEntity'
-        });
-      }
-    } else {
-      if (userRole !== UserRole.MEMBER && userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-        throw new EntityPermissionError('Only ADMIN, MEMBER, or CONFIDENTIAL users can create entities with presence', undefined, {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          requiredRole: 'ADMIN, MEMBER, or CONFIDENTIAL',
-          operation: 'createEntity'
+    // Additional validation using validateRequiredFields and hasOwnProperty  
+    const requiredFields: (keyof NewEntityData)[] = ['name', 'type', 'shortDescription'];
+    if (!validateRequiredFields(data, requiredFields)) {
+      throw new EntityQueryError('Missing required fields for entity creation', undefined, {
+        ...validationContext,
+        providedData: data,
+        requiredFields,
+        missingFields: requiredFields.filter(field => !hasOwnProperty(data, field))
+      });
+    }
+
+    // Validate optional array fields using hasOwnProperty for safe property checking
+    if (hasOwnProperty(data, 'tags') && data.tags) {
+      if (!Array.isArray(data.tags)) {
+        throw new EntityQueryError('Tags must be an array', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'tags'
         });
       }
     }
-    console.log(`Services: createEntity - User authenticated: ${userId} with role: ${userRole}`);
+
+    if (hasOwnProperty(data, 'services') && data.services) {
+      if (!Array.isArray(data.services)) {
+        throw new EntityQueryError('Services must be an array', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'services'
+        });
+      }
+    }
 
     // Step 3: Initialize database connection
     let adminDb;
+    const dbContext = { ...validationContext, operation: 'getAdminDb' };
+    
     try {
       adminDb = await getAdminDb();
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to initialize database connection',
         error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          operation: 'getAdminDb'
-        }
+        dbContext
       );
     }
 
     const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter);
 
-    // Step 4: Create the new entity document
-    const newEntityData = {
+    // Step 4: Create the new entity document with ES2022 logical assignment
+    const newEntityData: any = {
       ...data,
-      createdBy: userId,
-      dateCreated: FieldValue.serverTimestamp(),
-      dateUpdated: FieldValue.serverTimestamp(),
+      addedBy: userId,
+      dateAdded: FieldValue.serverTimestamp(),
+      lastUpdated: FieldValue.serverTimestamp(),
     };
+    
+    // ES2022 ??= logical assignment - set default values if not provided
+    newEntityData.tags ??= [];
+    newEntityData.services ??= [];
+    newEntityData.certifications ??= [];
+    newEntityData.industries ??= [];
+    newEntityData.members ??= [];
+    newEntityData.opportunities ??= [];
+    newEntityData.partnerships ??= [];
+    
+    // ES2022 ||= logical assignment - set defaults for optional fields
+    newEntityData.visibility ||= 'public';
+    newEntityData.isConfidential ||= false;
 
     let docRef;
     try {

@@ -5,6 +5,7 @@ import { getServerAuthSession } from '@/auth';
 import { UserRole } from '@/features/auth/types';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
+import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
 
 /**
  * Type definition for the data required to create a new opportunity.
@@ -13,12 +14,12 @@ import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseEr
 type NewOpportunityData = Omit<Opportunity, 'id' | 'dateCreated' | 'dateUpdated'>;
 
 /**
- * Creates a new Opportunity in Firestore.
+ * Creates a new Opportunity in Firestore with ES2022 enhancements.
  * 
  * This function performs the following steps:
  * 1. Authenticates the user and retrieves their session.
- * 2. Validates the user's role and permissions.
- * 3. Processes the opportunity creation.
+ * 2. Validates the user's role and permissions using Object.hasOwn() for safe property checking.
+ * 3. Processes the opportunity creation with logical assignment operators for cleaner state management.
  * 4. Returns the created opportunity.
  * 
  * User steps:
@@ -40,6 +41,7 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
 
     // Step 1: Authenticate the user
     const session = await getServerAuthSession();
+    
     if (!session || !session.user) {
       throw new OpportunityAuthError('User authentication required to create opportunity', undefined, {
         timestamp: Date.now(),
@@ -52,75 +54,161 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     const userId = session.user.id;
     const userRole = session.user.role as UserRole;
 
-    // Step 2: Validate user permissions and opportunity data
+    // ES2022 Logical Assignment Operators for cleaner validation context
+    const validationContext = {
+      timestamp: Date.now(),
+      operation: 'createOpportunity'
+    } as any;
+    
+    // Use ??= to assign default values only if undefined/null
+    validationContext.userId ??= userId;
+    validationContext.userRole ??= userRole;
+    validationContext.hasSession ??= !!session;
+    validationContext.hasUser ??= !!session?.user;
+
+    // Step 2: Enhanced validation with ES2022 Object.hasOwn() and logical operators
     if (!userId) {
-      throw new OpportunityAuthError('Valid user ID required to create opportunity', undefined, {
-        timestamp: Date.now(),
-        session: !!session,
-        operation: 'createOpportunity'
-      });
+      throw new OpportunityAuthError('Valid user ID required to create opportunity', undefined, validationContext);
     }
 
-    // Validate confidential opportunity permissions
-    if (data.isConfidential && userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      throw new OpportunityPermissionError(
-        'Only ADMIN or CONFIDENTIAL users can create confidential opportunities',
-        undefined,
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          isConfidential: data.isConfidential,
-          requiredRoles: [UserRole.ADMIN, UserRole.CONFIDENTIAL],
-          operation: 'createOpportunity'
-        }
-      );
-    }
-
-    // Validate regular opportunity permissions
-    if (!data.isConfidential && ![UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole)) {
-      throw new OpportunityPermissionError(
-        'Only MEMBER, ADMIN, or CONFIDENTIAL users can create opportunities',
-        undefined,
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          isConfidential: data.isConfidential,
-          requiredRoles: [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL],
-          operation: 'createOpportunity'
-        }
-      );
+    // ES2022 Object.hasOwn() for safe property checking on confidential opportunities
+    if (Object.hasOwn(data, 'isConfidential') && data.isConfidential) {
+      const hasConfidentialAccess = userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL;
+      
+      if (!hasConfidentialAccess) {
+        // Use &&= for conditional assignment
+        validationContext.requiredRoles &&= [UserRole.ADMIN, UserRole.CONFIDENTIAL];
+        throw new OpportunityPermissionError(
+          'Only ADMIN or CONFIDENTIAL users can create confidential opportunities',
+          undefined,
+          validationContext
+        );
+      }
+    } else {
+      // Use logical OR for multiple role checking
+      const hasOpportunityAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
+      
+      if (!hasOpportunityAccess) {
+        validationContext.requiredRoles ??= [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
+        throw new OpportunityPermissionError(
+          'Only MEMBER, ADMIN, or CONFIDENTIAL users can create opportunities',
+          undefined,
+          validationContext
+        );
+      }
     }
 
     console.log(`Services: createOpportunity - User authenticated: ${userId} with role: ${userRole}`);
 
+    // Step 2.5: Enhanced data validation using ES2022 utilities
+    if (!validateOpportunityData(data)) {
+      throw new OpportunityQueryError('Invalid opportunity data provided', undefined, {
+        ...validationContext,
+        providedData: data,
+        requiredFields: ['title', 'briefDescription', 'budget', 'expirationDate']
+      });
+    }
+
+    // Additional validation using validateRequiredFields and hasOwnProperty
+    const requiredFields: (keyof NewOpportunityData)[] = ['title', 'briefDescription', 'budget', 'expirationDate'];
+    if (!validateRequiredFields(data, requiredFields)) {
+      throw new OpportunityQueryError('Missing required fields for opportunity creation', undefined, {
+        ...validationContext,
+        providedData: data,
+        requiredFields,
+        missingFields: requiredFields.filter(field => !hasOwnProperty(data, field))
+      });
+    }
+
+    // Validate optional array fields using hasOwnProperty for safe property checking
+    if (hasOwnProperty(data, 'tags') && data.tags) {
+      if (!Array.isArray(data.tags)) {
+        throw new OpportunityQueryError('Tags must be an array', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'tags'
+        });
+      }
+    }
+
+    if (hasOwnProperty(data, 'requiredSkills') && data.requiredSkills) {
+      if (!Array.isArray(data.requiredSkills)) {
+        throw new OpportunityQueryError('Required skills must be an array', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'requiredSkills'
+        });
+      }
+    }
+
+    if (hasOwnProperty(data, 'attachments') && data.attachments) {
+      if (!Array.isArray(data.attachments)) {
+        throw new OpportunityQueryError('Attachments must be an array', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'attachments'
+        });
+      }
+    }
+
+    // Validate budget object using Object.hasOwn() for safe property checking
+    if (hasOwnProperty(data, 'budget') && data.budget) {
+      if (typeof data.budget !== 'object' || data.budget === null) {
+        throw new OpportunityQueryError('Budget must be an object', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'budget'
+        });
+      }
+      
+      const budgetFields = ['min', 'max', 'currency'] as const;
+      const budgetValid = budgetFields.every(field => Object.hasOwn(data.budget, field));
+      
+      if (!budgetValid) {
+        throw new OpportunityQueryError('Budget object missing required fields', undefined, {
+          ...validationContext,
+          providedData: data,
+          invalidField: 'budget',
+          requiredBudgetFields: budgetFields,
+          missingBudgetFields: budgetFields.filter(field => !Object.hasOwn(data.budget, field))
+        });
+      }
+    }
+
     // Step 3: Initialize database connection
     let adminDb;
+    const dbContext = { ...validationContext, operation: 'getAdminDb' };
+    
     try {
       adminDb = await getAdminDb();
     } catch (error) {
       throw new OpportunityDatabaseError(
         'Failed to initialize database connection',
         error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          operation: 'getAdminDb'
-        }
+        dbContext
       );
     }
 
     const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
 
-    // Step 4: Create the new opportunity document
-    const newOpportunityData = {
+    // Step 4: Create the new opportunity document with ES2022 logical assignment
+    const newOpportunityData: any = {
       ...data,
       createdBy: userId,
       dateCreated: FieldValue.serverTimestamp(),
       dateUpdated: FieldValue.serverTimestamp(),
     };
+
+    // ES2022 ??= logical assignment - set default values if not provided
+    newOpportunityData.tags ??= [];
+    newOpportunityData.requiredSkills ??= [];
+    newOpportunityData.requiredDocuments ??= [];
+    newOpportunityData.attachments ??= [];
+    newOpportunityData.applicants ??= [];
+    
+    // ES2022 ||= logical assignment - set defaults for optional fields
+    newOpportunityData.isActive ||= true;
+    newOpportunityData.isConfidential ||= false;
 
     let docRef;
     try {
