@@ -56,7 +56,7 @@
         "@radix-ui/react-toolbar": "^1.1.10",
         "@radix-ui/react-tooltip": "^1.2.7",
         "@react-spring/three": "^10.0.1",
-        "@react-three/drei": "^10.5.1",
+        "@react-three/drei": "^10.6.1",
         "@tinymce/tinymce-react": "^6.2.1",
         "@vercel/blob": "^1.1.1",
         "@vercel/functions": "^2.2.4",
