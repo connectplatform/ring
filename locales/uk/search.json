@@ -1,0 +1,21 @@
+{
+  "title": "Пошук",
+  "placeholder": "Пошук...",
+  "searchButton": "Пошук",
+  "clearButton": "Очистити",
+  "noResults": "Результатів не знайдено",
+  "results": "Результати",
+  "loading": "Пошук...",
+  "error": "Сталася помилка пошуку",
+  "suggestions": "Пропозиції",
+  "recentSearches": "Останні пошуки",
+  "popularSearches": "Популярні пошуки",
+  "searchHistory": "Історія пошуку",
+  "clearHistory": "Очистити історію",
+  "searchFilters": "Фільтри пошуку",
+  "advancedSearch": "Розширений пошук",
+  "searchIn": "Шукати в",
+  "allCategories": "Всі категорії",
+  "searchResults": "Результати пошуку для '{query}'",
+  "totalResults": "Знайдено {count} результатів"
+}

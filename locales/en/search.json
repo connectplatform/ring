@@ -1,0 +1,21 @@
+{
+  "title": "Search",
+  "placeholder": "Search...",
+  "searchButton": "Search",
+  "clearButton": "Clear",
+  "noResults": "No results found",
+  "results": "Results",
+  "loading": "Searching...",
+  "error": "Search error occurred",
+  "suggestions": "Suggestions",
+  "recentSearches": "Recent searches",
+  "popularSearches": "Popular searches",
+  "searchHistory": "Search history",
+  "clearHistory": "Clear history",
+  "searchFilters": "Search filters",
+  "advancedSearch": "Advanced search",
+  "searchIn": "Search in",
+  "allCategories": "All categories",
+  "searchResults": "Search results for '{query}'",
+  "totalResults": "{count} results found"
+}

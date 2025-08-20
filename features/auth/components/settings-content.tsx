@@ -48,7 +48,7 @@ interface SettingsContentProps {
  */
 function SubmitButton() {
   const { pending } = useFormStatus()
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   
   return (
     <Button
@@ -90,7 +90,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
   updateSettingsAction, 
   locale 
 }) => {
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   const { theme, setTheme } = useTheme()
   const { data: session, status } = useSession()
   const [settings, setSettings] = useState<UserSettings | null>(initialSettings)

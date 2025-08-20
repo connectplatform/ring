@@ -21,7 +21,7 @@ const DEFAULT_LOCALE = 'en' as const
 
 function SubmitButton() {
   const { pending } = useFormStatus()
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   
   return (
     <Button 
@@ -35,7 +35,7 @@ function SubmitButton() {
 }
 
 function UserSettingsFormContent() {
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   const { data: session } = useSession()
   const [state, formAction] = useActionState<UserFormState | null, FormData>(
     updateUserSettings,
@@ -154,7 +154,7 @@ function UserSettingsFormContent() {
  * @returns JSX.Element
  */
 export default function UserSettingsForm() {
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   const { data: session, status } = useSession()
   const router = useRouter()
 

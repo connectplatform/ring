@@ -22,6 +22,14 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       emails,
       seo,
       config,
+      about,
+      terms,
+      filters,
+      search,
+      comments,
+      privacy,
+      landing,
+      navigation,
       modAuth,
       modEntities,
       modOpp,
@@ -29,13 +37,22 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       modWallet,
       modStore,
       modProfile,
-      modAdmin
+      modAdmin,
+      modSettings
     ] = await Promise.all([
       import(`@/locales/${targetLocale}/common.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/pages.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/emails.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/seo.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/config.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/about.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/terms.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/filters.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/search.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/comments.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/privacy.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/landing.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/navigation.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/auth.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/entities.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/opportunities.json`).then(m => m.default),
@@ -43,7 +60,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       import(`@/locales/${targetLocale}/modules/wallet.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/store.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/profile.json`).then(m => m.default),
-      import(`@/locales/${targetLocale}/modules/admin.json`).then(m => m.default)
+      import(`@/locales/${targetLocale}/modules/admin.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/modules/settings.json`).then(m => m.default)
     ])
 
     return {
@@ -52,6 +70,14 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       emails,
       seo,
       config,
+      about,
+      terms,
+      filters,
+      search,
+      comments,
+      privacy,
+      landing,
+      navigation,
       modules: {
         auth: modAuth,
         entities: modEntities,
@@ -60,7 +86,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
         wallet: modWallet,
         store: modStore,
         profile: modProfile,
-        admin: modAdmin
+        admin: modAdmin,
+        settings: modSettings
       }
     }
   }

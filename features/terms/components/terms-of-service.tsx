@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Typography } from "@/components/ui/typography"
 
 export default function TermsOfService() {
-  const t = useTranslations('termsOfServiceText')
+  const t = useTranslations('terms')
 
   return (
     <motion.div

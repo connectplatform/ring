@@ -1,0 +1,34 @@
+{
+  "privacyPolicyText": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: {date}",
+    "introduction": {
+      "title": "Introduction",
+      "content": "This Privacy Policy describes how Ring Platform collects, uses, and protects your personal information."
+    },
+    "dataCollection": {
+      "title": "Information We Collect",
+      "content": "We collect information you provide directly to us, such as when you create an account, update your profile, or communicate with us.",
+      "item1": "Account information (name, email, profile details)",
+      "item2": "Usage data and interaction with our platform",
+      "item3": "Communication data when you contact us",
+      "item4": "Technical data including IP address and browser information"
+    },
+    "dataUsage": {
+      "title": "How We Use Your Information",
+      "content": "We use the information we collect to provide, maintain, and improve our services, communicate with you, and ensure platform security."
+    },
+    "dataSecurity": {
+      "title": "Data Security",
+      "content": "We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction."
+    },
+    "userRights": {
+      "title": "Your Rights",
+      "content": "You have the right to access, update, or delete your personal information. You can also opt out of certain communications and data collection."
+    },
+    "contactUsPrivacy": {
+      "title": "Contact Us",
+      "content": "If you have any questions about this Privacy Policy, please contact us at privacy@ring.ck.ua"
+    }
+  }
+}

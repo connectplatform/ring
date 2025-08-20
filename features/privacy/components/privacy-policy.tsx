@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Typography } from "@/components/ui/typography"
 
 export default function PrivacyPolicy() {
-  const t = useTranslations('privacyPolicyText')
+  const t = useTranslations('privacy')
 
   return (
     <motion.div

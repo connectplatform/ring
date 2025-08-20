@@ -35,7 +35,7 @@ interface UserSettingsFormProps {
 
 function SubmitButton({ hasChanges }: { hasChanges: boolean }) {
   const { pending } = useFormStatus()
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   
   return (
     <Button 
@@ -68,7 +68,7 @@ function SubmitButton({ hasChanges }: { hasChanges: boolean }) {
 }
 
 export default function UserSettingsOptimistic({ initialSettings, className }: UserSettingsFormProps) {
-  const t = useTranslations('settings')
+  const t = useTranslations('modules.settings')
   const { data: session } = useSession()
 
   // Optimistic updates for instant settings feedback
