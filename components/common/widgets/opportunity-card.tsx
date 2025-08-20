@@ -2,7 +2,7 @@
 
 import React, { memo, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import { useSession, SessionProvider } from 'next-auth/react'
+import { useSession, SessionProvider } from '@/components/providers/session-provider'
 import { Opportunity, Entity } from '@/types'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar } from "@/components/ui/avatar"

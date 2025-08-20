@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "daarion-nft-market",
+  "object_type": "domain",
+  "status": "PLANNING",
+  "tags": ["nft","market"],
+  "purpose": "Import NFT marketplace (mint/list/buy).",
+  "interfaces": {
+    "public_apis": [
+      "ring/features/nft-market: RingNftMarketService"
+    ],
+    "events": []
+  },
+  "dependencies": {
+    "intra_repo": ["ring/features/evm"],
+    "external_services": ["EVM RPC"]
+  }
+}

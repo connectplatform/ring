@@ -11,7 +11,8 @@ import { ROUTES } from '@/constants/routes'
 import UnifiedLoginComponent from '@/features/auth/components/unified-login-component'
 import { NotificationCenter } from '@/features/notifications/components/notification-center'
 
-import { signIn, signOut, useSession } from "next-auth/react"
+import { useSession } from '@/components/providers/session-provider'
+import authClient from '@/lib/auth-client'
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -149,7 +150,7 @@ export default function Navigation() {
   const handleSignOut = useCallback(async () => {
     setIsOpen(false)
     try {
-      await signOut()
+      await authClient.signOut()
     } catch (error) {
       console.error('Sign out error:', error)
       setError(tCommon('status.error'))

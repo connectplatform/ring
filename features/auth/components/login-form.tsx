@@ -3,7 +3,8 @@
 import React, { useState } from 'react'
 import { motion, Variants, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
-import { signIn, useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
+import authClient from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
@@ -63,23 +64,18 @@ export default function LoginForm({ from }: LoginFormProps) {
       const callbackUrl = from || ROUTES.PROFILE(locale)
       
       // Use client-side signIn for proper OAuth flow
-      const result = await signIn(provider, { 
-        redirect: false,
-        callbackUrl 
+      const result = await authClient.signIn.social({
+        provider: provider as 'google' | 'apple',
+        callbackURL: callbackUrl
       })
       
       if (result?.error) {
-        // Handle specific Auth.js errors
-        if (result.error === 'OAuthAccountNotLinked') {
-          setError('Another account already exists with the same email address.')
-        } else if (result.error === 'Configuration') {
-          setError('There was a problem with the authentication configuration.')
-        } else {
-          setError(tAuth('errors.signIn'))
-        }
-      } else if (result?.url) {
-        // Successful sign-in, redirect to the callback URL
-        router.push(result.url)
+        // Handle BetterAuth errors
+        const errorMessage = result.error.message || tAuth('errors.signIn')
+        setError(errorMessage)
+      } else {
+        // BetterAuth handles redirects differently, redirect manually
+        router.push(callbackUrl)
       }
     } catch (error) {
       console.error('Error signing in:', error)
@@ -125,21 +121,10 @@ export default function LoginForm({ from }: LoginFormProps) {
       // Sign the nonce
       const signedNonce = await signer.signMessage(nonce)
 
-      // Authenticate with NextAuth
-      const callbackUrl = from || ROUTES.PROFILE(locale)
-      const result = await signIn('crypto-wallet', {
-        publicAddress,
-        signedNonce,
-        redirect: false,
-        callbackUrl,
-      })
-
-      if (result?.error) {
-        throw new Error(result.error)
-      }
-      if (result?.url) {
-        router.push(result.url)
-      }
+      // Authenticate with BetterAuth
+      // TODO: Implement crypto wallet authentication with BetterAuth
+      // For now, show error that crypto wallet auth needs to be implemented
+      throw new Error('Crypto wallet authentication is being migrated to BetterAuth and will be available soon.')
     } catch (error: any) {
       console.error('Crypto wallet sign-in error:', error)
       setError(error.message || tAuth('errors.signIn'))

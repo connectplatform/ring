@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { Heart, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslations } from 'next-intl'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { toggleLike, LikeActionState } from '@/app/_actions/likes'
 
 interface LikeButtonProps {

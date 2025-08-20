@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent } from "@/components/ui/card"
 import { Typography } from "@/components/ui/typography"
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 
 /**
  * AboutUs component

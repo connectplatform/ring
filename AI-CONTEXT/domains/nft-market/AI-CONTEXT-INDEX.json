@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-nft-market",
+  "object_type": "domain",
+  "updated": "2025-08-14",
+  "status": "IN_PROGRESS",
+  "tags": ["nft", "marketplace", "web3", "evm"],
+  "purpose": "White-label NFT marketplace with listings, search, buy/sell via EVM contracts; profile pages display active listings.",
+  "responsibilities": [
+    "Create/list/cancel/buy listings",
+    "Profile integration: NFTs for sale block",
+    "Public pages: collections, item, search"
+  ],
+  "interfaces": {
+    "endpoints": [
+      "GET /api/nft-market/listings",
+      "POST /api/nft-market/listings",
+      "GET /api/nft-market/listings/[id]",
+      "PUT /api/nft-market/listings/[id]",
+      "POST /api/nft-market/listings/activate"
+    ],
+    "client_modules": [
+      "features/nft-market/client/create-listing.ts (wallet signing, client)"
+    ],
+    "adapters": [
+      "features/nft-market/adapters/evm.ts (list/buy/cancel)"
+    ]
+  },
+  "configuration": {
+    "files": [
+      "features/nft-market/market.config.ts",
+      "features/nft-market/abi/market.json"
+    ],
+    "env": [
+      "NEXT_PUBLIC_MARKET_ADDRESS",
+      "NEXT_PUBLIC_MARKET_FEE_BPS",
+      "NEXT_PUBLIC_MARKET_FEE_RECIPIENT"
+    ]
+  },
+  "data_models": [
+    {"name": "Listing", "storage": "firestore", "collections": ["nft_listings"]}
+  ],
+  "file_structure": {
+    "actions": [
+      "app/actions/nft-market-add-listing.ts (server action for draft creation)"
+    ],
+    "routes": [
+      "app/api/nft-market/listings/route.ts",
+      "app/api/nft-market/listings/[id]/route.ts",
+      "app/api/nft-market/listings/activate/route.ts"
+    ],
+    "pages": [
+      "app/[locale]/u/[username]/page.tsx (public profile with listings)",
+      "app/[locale]/nft/collections/*",
+      "app/[locale]/nft/items/*",
+      "app/[locale]/nft/search/page.tsx"
+    ],
+    "components": [
+      "features/nft-market/components/ProfileListings.tsx"
+    ],
+    "readers": [
+      "features/nft-market/adapters/read.server.ts",
+      "features/nft-market/adapters/read.client.ts"
+    ]
+  },
+  "standards": [
+    "Wallet signing on client; server creates drafts + activates via API",
+    "Server actions live in app/actions; client feature utils live in features/<feature>/client/"
+  ],
+  "recent_changes": [
+    {"date": "2025-08-14", "description": "Added client signer module, server draft+activate routes, market config and ABI"},
+    {"date": "2025-08-14", "description": "Wired profile listings grid and create-listing form"}
+  ],
+  "links": {
+    "docs": ["ring-docs/docs/features/nft-market/overview.md"],
+    "code": ["ring/features/nft-market"]
+  }
+}
+
+

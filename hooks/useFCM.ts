@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging'
 import { app, validateFirebaseConfig } from '@/lib/firebase-client'
 

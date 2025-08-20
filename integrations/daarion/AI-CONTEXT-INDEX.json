@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "daarion-integration",
+  "object_type": "service",
+  "updated": "2025-08-08",
+  "status": "PLANNING",
+  "maturity": "alpha",
+  "criticality": "P2",
+  "lifecycle": "active",
+  "tags": ["integration","web3","wallet","staking","nft","store"],
+  "owner": {"team":"platform-core","maintainers":["frontend@technoring"],"channel":"#techno-platform"},
+  "location": {"repo_root":"/Users/insight/code/technoring","path":"ring/integrations/daarion"},
+  "purpose": "Scaffold for importing the legacy Daarion platform into Ring as modular domains.",
+  "responsibilities": ["Module mapping","Adapter design","Documentation","Testing"],
+  "dependencies": {"runtime":[],"intra_repo":["ring"],"external_services":["EVM RPC"]},
+  "interfaces": {"public_apis": [], "events": []},
+  "configuration": {"env":[],"files":[]},
+  "operations": {"start":"N/A","run_commands":[]},
+  "related_context_files": [
+    "AI-CONTEXT-wallet.json",
+    "AI-CONTEXT-staking.json",
+    "AI-CONTEXT-nft-market.json",
+    "AI-CONTEXT-store.json",
+    "README.md"
+  ]
+}

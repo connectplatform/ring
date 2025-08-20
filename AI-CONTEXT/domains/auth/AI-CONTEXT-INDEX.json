@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-auth",
+  "object_type": "domain",
+  "aliases": ["Auth", "Authentication"],
+  "updated": "2025-08-08",
+  "generated_at": "2025-08-08T00:00:00Z",
+  "status": "PRODUCTION_READY",
+  "maturity": "ga",
+  "criticality": "P1",
+  "lifecycle": "active",
+  "tags": ["auth", "security", "next-auth", "jwt"],
+  "owner": {"team": "platform-core", "maintainers": ["frontend@technoring"], "channel": "#techno-platform"},
+  "location": {
+    "repo_root": "/Users/insight/code/technoring",
+    "path": "ring",
+    "related_paths": [
+      "ring/app/api/auth/[...nextauth]",
+      "ring/auth.ts",
+      "ring/auth.config.ts",
+      "ring/middleware.ts"
+    ]
+  },
+  "purpose": "Authentication and session management using Auth.js v5 with Firebase Adapter and multiple providers (Google, Apple, Crypto Wallet).",
+  "responsibilities": [
+    "User authentication via OAuth and credentials (crypto wallet)",
+    "JWT session issuance and validation",
+    "User profile bootstrap/update on sign-in",
+    "Route protection and i18n-aware middleware"
+  ],
+  "non_goals": [
+    "Authorization policy for domain data (handled by services)",
+    "Long-lived session storage outside JWT"
+  ],
+  "dependencies": {
+    "runtime": ["next-auth", "@auth/firebase-adapter", "firebase-admin", "jose", "next"],
+    "intra_repo": ["ring/lib/firebase-admin.server"],
+    "external_services": ["Firebase Auth", "Firestore"]
+  },
+  "interfaces": {
+    "public_apis": [
+      "GET/POST /api/auth/[...nextauth] (Auth.js v5 routes)",
+      "Middleware guard via `ring/middleware.ts`"
+    ],
+    "events": ["auth.signIn", "auth.signOut", "auth.createUser"],
+    "cli": []
+  },
+  "configuration": {
+    "env": [
+      "AUTH_SECRET",
+      "NEXTAUTH_URL",
+      "AUTH_GOOGLE_ID",
+      "AUTH_GOOGLE_SECRET",
+      "APPLE_ID",
+      "APPLE_SECRET",
+      "AUTH_FIREBASE_PROJECT_ID",
+      "AUTH_FIREBASE_CLIENT_EMAIL",
+      "AUTH_FIREBASE_PRIVATE_KEY",
+      "FIREBASE_DATABASE_URL"
+    ],
+    "files": ["ring/env.local.template", "ring/auth.ts", "ring/auth.config.ts", "ring/middleware.ts"],
+    "feature_flags": []
+  },
+  "data_models": [
+    {"name": "User", "storage": "firestore", "collections_or_tables": ["users"]},
+    {"name": "UserProfile", "storage": "firestore", "collections_or_tables": ["userProfiles"]}
+  ],
+  "operations": {
+    "start": "npm run dev",
+    "stop": "CTRL+C",
+    "health_check": "Auth sign-in page loads and JWT session available via auth()",
+    "run_commands": ["npm run dev", "npm run build", "npm run start"],
+    "health_signals": ["auth_sign_in", "auth_sign_out"],
+    "smoke_tests": ["Open /api/auth/signin", "Verify session in protected route via middleware redirect behavior"]
+  },
+  "logging": {
+    "files": [],
+    "events": ["User X signed in", "User signed out", "New user created"],
+    "metrics": []
+  },
+  "errors": {
+    "common": [
+      {"message": "Missing AUTH/NEXTAUTH env", "cause": "Unconfigured provider/secret", "fix": "Populate .env.local from template"},
+      {"message": "Crypto wallet signature invalid", "cause": "Nonce/signature mismatch", "fix": "Verify ethers.verifyMessage and nonce lifetime"}
+    ],
+    "troubleshooting": [
+      "Check env via next.config.mjs",
+      "Inspect auth events in server logs",
+      "Verify Firebase Admin credentials"
+    ]
+  },
+  "security": {
+    "authn": "Auth.js v5 JWT sessions",
+    "authz_model": "Role-based (visitor→subscriber→member→confidential→admin)",
+    "secrets": ["AUTH_SECRET", "AUTH_GOOGLE_SECRET", "APPLE_SECRET", "AUTH_FIREBASE_PRIVATE_KEY"],
+    "data_privacy": "User PII stored in Firestore; access restricted"
+  },
+  "performance": {
+    "budget": "Fast auth callbacks and session decode",
+    "benchmarks": [],
+    "latency_expectations_ms": {"p50": 5, "p95": 20},
+    "throughput_targets": {"rps": 0}
+  },
+  "tests": {
+    "unit": ["ring/__tests__/api/auth"],
+    "integration": ["ring/__tests__/api"],
+    "how_to_run": "npm run test"
+  },
+  "observability": {"dashboards": [], "alerts": []},
+  "recent_changes": [
+    {"date": "2025-08-08", "description": "Added AI context for auth domain", "impact": "AI-first documentation"}
+  ],
+  "related_context_files": ["ring/AI-CONTEXT/AI-CONTEXT-INDEX.json", "ring/docs/AI-ASSISTANT-ONBOARDING.md"],
+  "links": {
+    "docs": ["ring/docs/SYSTEM-ARCHITECTURE.md"],
+    "code": ["ring/auth.ts", "ring/middleware.ts", "ring/app/api/auth/[...nextauth]/route.ts"],
+    "diagrams": [],
+    "tickets": []
+  }
+}
+
+

@@ -1,0 +1,420 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "Ring White-Label Transition Plan",
+  "updated": "2025-08-08",
+  "status": "active",
+  "object_type": "plan",
+  "owner": {
+    "team": "Sonoratek LLC",
+    "maintainers": ["ringdev@sonoratek.com"],
+    "channel": "#ring-dev"
+  },
+  "goals": {
+    "high_level": [
+      "Make Ring a rebrandable, multi-tenant, open-source white-label platform without code forks",
+      "Abstract providers (Auth/Storage/Uploads) with Firestore + Vercel Blob defaults",
+      "Enable pluggable features and UI/server extension hooks",
+      "Provide easy install/deploy (Docker/CI) and community program (license, docs, governance)"
+    ],
+    "non_goals": [
+      "Replacing Firestore with alternative DBs in this iteration",
+      "Large-scale backend changes in ConnectPlatform"
+    ]
+  },
+  "principles": {
+    "tech_stack": [
+      "Next.js 15 (App Router)",
+      "React 19 patterns",
+      "TypeScript strict",
+      "Auth.js v5",
+      "Tailwind tokens -> CSS variables",
+      "Edge-friendly middleware for i18n and multi-tenant"
+    ],
+    "guardrails": [
+      "Respect role-based access tiers (visitor→subscriber→member→confidential→admin)",
+      "UI responsiveness and SSR/Streaming best practices",
+      "Minimal, reversible edits aligned to existing style"
+    ],
+    "discovery_order": [
+      "AI-CONTEXT-INDEX.json and AI-CONTEXT-*.json",
+      "DATAPOINTS.md (if present)",
+      "AI-INSTRUCTION-PROMPT.md and README.md",
+      "ring/docs and ring-docs"
+    ]
+  },
+  "current_state": {
+    "tech": ["Next.js 15", "React 19", "TypeScript", "Auth.js v5", "Firebase (Firestore/Auth/RTDB)", "Socket.IO", "Tailwind", "i18n", "Zod"],
+    "domains": ["auth", "entities", "opportunities", "messaging", "notifications", "wallet", "news/comments"],
+    "infra": {
+      "custom_server": "ring/server.js (Socket.IO)",
+      "app_router_apis": "ring/app/api/**",
+      "middleware": "ring/middleware.ts (Auth.js v5 + i18n)"
+    },
+    "dx": ["analyzer build", "role-aware caching", "structured logging", "rate limiting"],
+    "docs": [
+      "ring/AI-CONTEXT-INDEX.json",
+      "ring/docs/WHITE-LABEL-QUICKSTART.md",
+      "ring/docs/WHITE-LABEL-CONFIG-REFERENCE.md",
+      "ring/docs/PERFORMANCE-AND-CACHING.md"
+    ],
+    "white_label_scaffolding": {
+      "config_schema": "ring/whitelabel/instance.config.schema.json",
+      "config_example": "ring/whitelabel/examples/default.json",
+      "loader": "ring/lib/instance-config.ts (fs-based, server-only intended)",
+      "slots": [
+        "ring/components/slots/HeaderSlot.tsx",
+        "ring/components/slots/FooterSlot.tsx",
+        "ring/components/slots/HeroSlot.tsx"
+      ],
+      "theme_tokens": "ring/styles/globals.css (CSS variables + Tailwind)",
+      "uploads": [
+        "ring/app/api/entities/upload/route.ts",
+        "ring/app/api/opportunities/upload/route.ts",
+        "ring/app/api/conversations/upload/route.ts"
+      ]
+    }
+  },
+  "phases": {
+    "P0_scaffolding": {
+      "objective": "Complete foundational white-label mechanics without breaking changes",
+      "tasks": [
+        {
+          "id": "P0-01",
+          "title": "Inject instance brand colors as CSS variables at runtime",
+      "status": "done",
+          "files": ["ring/app/layout.tsx", "ring/app/[locale]/layout.tsx", "ring/styles/globals.css"],
+      "actions": [
+            "Create server component `components/whitelabel/InstanceThemeStyle.server.tsx` that reads getInstanceConfig()",
+            "Compute HSL triplets for primary/background/foreground/accent; emit <style> setting --primary/--background/--foreground/--accent",
+            "Include component in both root and locale layouts before body content"
+          ],
+      "acceptance": [
+            "Changing whitelabel/instance.config.json colors updates UI without rebuild",
+            "No FOUC; tokens map correctly to Tailwind theme"
+          ],
+          "depends_on": ["P0-04"]
+        },
+        {
+          "id": "P0-02",
+          "title": "Make instance-config server-only and provide client-safe context",
+      "status": "done",
+      "files": [
+        "ring/lib/instance-config.ts",
+        "ring/components/slots/*",
+        "ring/components/providers/instance-config-provider.tsx",
+        "ring/components/whitelabel/InstanceThemeStyle.server.tsx",
+        "ring/hooks/use-instance-config.ts",
+        "ring/components/whitelabel/instance-config-client.tsx"
+      ],
+          "actions": [
+            "Add `InstanceConfigProvider` (server) to serialize needed fields into a React context",
+            "Add `useInstanceConfig()` hook (client) to consume context",
+            "Refactor HeaderSlot/FooterSlot/HeroSlot to use context instead of direct fs access"
+          ],
+      "acceptance": [
+            "No fs usage in client bundles",
+            "Slots render with instance data in browser"
+          ]
+        },
+        {
+          "id": "P0-03",
+          "title": "Feature registry and route/service gating",
+      "status": "planned",
+          "files": ["ring/whitelabel/features.ts", "ring/app/(main)/**", "ring/services/**"],
+          "actions": [
+            "Create `whitelabel/features.ts` exporting canonical keys and helpers",
+            "Wrap entities/opportunities/messaging/admin page entries with guards",
+            "Return read-only or 404 when feature disabled; ensure API routes also respect flags",
+            "Add SuperAdmin-only Platform Settings page",
+            "Seed demo SuperAdmin user via Firebase Admin"
+          ],
+          "acceptance": [
+            "Toggling features in config reliably hides routes and prevents API writes",
+            "No broken imports when features disabled (use dynamic imports where needed)"
+          ]
+        },
+        {
+          "id": "P0-04",
+          "title": "Document finalized white-label quickstart and config reference",
+          "status": "planned",
+          "files": ["ring/docs/WHITE-LABEL-QUICKSTART.md", "ring/docs/WHITE-LABEL-CONFIG-REFERENCE.md", "ring/README.md"],
+          "actions": [
+            "Update quickstart to note live theming and slot context",
+            "Add cookbook steps: rebrand in 5 minutes, toggle features, add custom hero",
+            "Amend README with white-label overview and links"
+          ],
+          "acceptance": [
+            "A new instance can rebrand via JSON only and see changes instantly",
+            "Docs match actual behavior"
+          ]
+        }
+      ],
+      "deliverables": [
+        "Runtime theme style component",
+        "Instance config provider + hook",
+        "Feature registry + initial gating",
+        "Updated docs"
+      ]
+    },
+    "P1_extensions_providers": {
+      "objective": "Introduce pluggable slots and provider abstractions with minimal refactors",
+      "tasks": [
+        {
+          "id": "P1-01",
+          "title": "UI slot registry and default pack",
+          "status": "planned",
+          "files": ["ring/components/slots/**", "ring/whitelabel/slot-registry.ts", "ring/whitelabel/components/default/**"],
+          "actions": [
+            "Add `slot-registry.ts` mapping slot keys → resolver",
+            "Allow instance overrides from `whitelabel/components/<instance>/*`",
+            "Keep safe fallbacks to default implementations"
+          ],
+          "acceptance": ["Can swap header/footer/hero via instance without code edits"]
+        },
+        {
+          "id": "P1-02",
+          "title": "Storage/Upload provider interface (Vercel Blob default)",
+          "status": "planned",
+          "files": ["ring/lib/storage-provider.ts", "ring/app/api/**/upload/route.ts"],
+          "actions": [
+            "Define minimal upload interface (put, validate, getUrl)",
+            "Implement Vercel Blob adapter using @vercel/blob",
+            "Refactor existing upload routes to use provider"
+          ],
+          "acceptance": [
+            "All upload routes work unchanged",
+            "Alternate adapter can be plugged later with no API changes"
+          ]
+        },
+        {
+          "id": "P1-03",
+          "title": "Normalize Firestore access behind light repo helpers",
+          "status": "planned",
+          "files": ["ring/services/**", "ring/lib/repos/**"],
+          "actions": [
+            "Introduce small repo helpers per domain (entities, opportunities, messaging)",
+            "Adopt incrementally where low-risk (no behavior change)"
+          ],
+          "acceptance": ["Core paths use helpers; behavior identical"]
+        },
+        {
+          "id": "P1-04",
+          "title": "i18n lazy namespaces + per-instance overlay",
+          "status": "planned",
+          "files": ["ring/public/locales/**", "ring/lib/i18n/**", "ring/middleware.ts"],
+          "actions": [
+            "Enable route-level lazy loading of namespaces",
+            "Overlay translations from `whitelabel/locales/<instance>/<locale>/*.json` if present"
+          ],
+          "acceptance": ["Instance-specific text overrides render correctly without rebuild"]
+        },
+        {
+          "id": "P1-05",
+          "title": "CLI scaffolder - create-ring-app (skeleton)",
+          "status": "planned",
+          "files": ["ring/scripts/create-ring-app.ts"],
+          "actions": [
+            "Bootstrap template copier for instance config, theme, env template",
+            "Publish as npx when repo is OSS"
+          ],
+          "acceptance": ["npx flow can scaffold a new instance locally"]
+        }
+      ],
+      "deliverables": ["Slot registry", "Storage provider interface + adapter", "Repo helpers", "i18n overlay", "CLI skeleton"]
+    },
+    "P2_multi_tenant_community": {
+      "objective": "Resolve instance at edge by host and add deployment/community templates",
+      "tasks": [
+        {
+          "id": "P2-01",
+          "title": "Multi-tenant resolver (by host/subpath)",
+          "status": "planned",
+          "files": ["ring/middleware.ts", "ring/lib/instance-resolver.ts"],
+          "actions": [
+            "Add host→instance lookup with cache (tag revalidation)",
+            "Attach instance profile to request context for layouts/routes"
+          ],
+          "acceptance": ["Different hosts get different instance configs without redeploy"]
+        },
+        {
+          "id": "P2-02",
+          "title": "Docker and CI templates for instances",
+          "status": "planned",
+          "files": ["ring/Dockerfile", "ring/docker-compose.yml", 
+            "ring/.github/workflows/ci.yml", "ring/.github/ISSUE_TEMPLATE/**", "ring/.github/PULL_REQUEST_TEMPLATE.md"],
+          "actions": [
+            "Dockerfile supports mounting /app/whitelabel",
+            "Compose example including Firebase emulators",
+            "CI: build/test/lint workflows"
+          ],
+          "acceptance": ["`docker-compose up` runs a branded instance locally"]
+        },
+        {
+          "id": "P2-03",
+          "title": "Legal/security docs and process",
+          "status": "planned",
+          "files": ["ring/SECURITY.md", "ring/CODE_OF_CONDUCT.md", "ring/CONTRIBUTING.md", "ring/ADR/000-base.md"],
+          "actions": [
+            "Add vulnerability reporting, triage SLA",
+            "Add ADR baseline for Next.js+Auth.js and provider interfaces"
+          ],
+          "acceptance": ["Security contact/process visible; initial ADR merged"]
+        },
+        {
+          "id": "P2-04",
+          "title": "Sample plugin: Jobs board micro-feature",
+          "status": "planned",
+          "files": ["ring/plugins/jobs-board/**", "ring/whitelabel/features.ts"],
+          "actions": [
+            "Demonstrate UI slot + service hook integration",
+            "Ship as optional bundle via dynamic import"
+          ],
+          "acceptance": ["Feature can be toggled via instance config"]
+        }
+      ],
+      "deliverables": ["Edge instance resolver", "Docker/CI templates", "Security/legal docs", "Sample plugin"]
+    },
+    "P3_optional_providers_ecosystem": {
+      "objective": "Expand provider interfaces and ecosystem documentation",
+      "tasks": [
+        {
+          "id": "P3-01",
+          "title": "Uploads: S3/R2 adapter outlines",
+          "status": "planned",
+          "files": ["ring/lib/storage-provider-s3.ts", "ring/lib/storage-provider-r2.ts"],
+          "actions": ["Define adapter skeletons and configuration placeholders"],
+          "acceptance": ["Adapters compile; tests stubbed"]
+        },
+        {
+          "id": "P3-02",
+          "title": "Marketplace registry doc format",
+          "status": "planned",
+          "files": ["ring/docs/MARKETPLACE-REGISTRY.md"],
+          "actions": ["Describe JSON format for listing community themes/plugins"]
+        },
+        {
+          "id": "P3-03",
+          "title": "Helm/Terraform examples (optional)",
+          "status": "planned",
+          "files": ["ring/deploy/helm/**", "ring/deploy/terraform/**"],
+          "actions": ["Provide non-blocking infrastructure examples"]
+        }
+      ],
+      "deliverables": ["Provider outlines", "Marketplace doc", "Infra examples (optional)"]
+    }
+  },
+  "concrete_edits": {
+    "add": [
+      "ring/components/whitelabel/InstanceThemeStyle.server.tsx",
+      "ring/components/providers/instance-config-provider.tsx",
+      "ring/hooks/use-instance-config.ts",
+      "ring/whitelabel/features.ts",
+      "ring/lib/storage-provider.ts",
+      "ring/lib/instance-resolver.ts"
+    ],
+    "modify": [
+      "ring/app/layout.tsx",
+      "ring/app/[locale]/layout.tsx",
+      "ring/components/slots/HeaderSlot.tsx",
+      "ring/components/slots/FooterSlot.tsx",
+      "ring/components/slots/HeroSlot.tsx",
+      "ring/docs/WHITE-LABEL-QUICKSTART.md",
+      "ring/docs/WHITE-LABEL-CONFIG-REFERENCE.md",
+      "ring/README.md"
+    ],
+    "refactor_later": [
+      "ring/app/api/**/upload/route.ts (to use storage-provider)",
+      "ring/services/** (to use repo helpers)"
+    ]
+  },
+  "acceptance_criteria": {
+    "p0": [
+      "Colors and assets are controlled by whitelabel/instance.config.json at runtime",
+      "No client bundle reads from fs",
+      "Features can be disabled without build errors and without exposing routes"
+    ],
+    "p1": [
+      "Slots can be overridden per instance",
+      "All uploads go through a provider interface",
+      "i18n instance overlay works for at least en/uk"
+    ],
+    "p2": [
+      "Host-based instance selection works with cache",
+      "Docker compose runs an instance with mounted config",
+      "Security/legal docs exist and are accurate"
+    ],
+    "p3": ["Adapters outlined; marketplace registry documented"]
+  },
+  "testing_validation": {
+    "smoke": [
+      "GET /api/info returns JSON",
+      "Visit /[locale]/entities renders without 500",
+      "Upload endpoints accept files and return Blob URLs"
+    ],
+    "unit": ["Type-safe provider interfaces", "Slot registry resolution"],
+    "integration": ["Feature gating end-to-end", "Multi-tenant host routing"],
+    "performance": [
+      "No FOUC on theme switch",
+      "CLS/LCP unchanged or better after theme injection"
+    ]
+  },
+  "risks_mitigations": [
+    {
+      "risk": "Client components importing fs-based config",
+      "mitigation": "Server-only provider + context hook"
+    },
+    {
+      "risk": "Gating breaks static imports",
+      "mitigation": "Use dynamic imports for optional bundles"
+    },
+    {
+      "risk": "Theme tokens mismatch",
+      "mitigation": "Map hex→HSL converter with tests; verify against Tailwind tokens"
+    }
+  ],
+  "oss_program": {
+    "license": {
+      "choice": "Apache-2.0",
+      "actions": [
+        "Add LICENSE file",
+        "Update README to reflect OSS status and attribution guidelines"
+      ]
+    },
+    "governance_docs": ["ring/SECURITY.md", "ring/CODE_OF_CONDUCT.md", "ring/CONTRIBUTING.md", "ring/ADR/000-base.md"],
+    "templates": {
+      "issues": "ring/.github/ISSUE_TEMPLATE/**",
+      "pull_request": "ring/.github/PULL_REQUEST_TEMPLATE.md"
+    }
+  },
+  "commands": {
+    "dev": ["npm install", "npm run dev"],
+    "docker": [
+      "docker build -t ring:whitelabel .",
+      "docker run -p 3000:3000 -v $PWD/whitelabel:/app/whitelabel ring:whitelabel"
+    ],
+    "lint_test": ["npm run lint", "npm run type-check", "npm run test"],
+    "analyze": ["npm run analyze"]
+  },
+  "timeline": {
+    "p0": {"estimate_days": 3},
+    "p1": {"estimate_days": 7},
+    "p2": {"estimate_days": 5},
+    "p3": {"estimate_days": 5}
+  },
+  "traceability": {
+    "references": [
+      "ring/AI-CONTEXT-INDEX.json",
+      "ring/lib/instance-config.ts",
+      "ring/whitelabel/instance.config.schema.json",
+      "ring/whitelabel/examples/default.json",
+      "ring/components/slots/*",
+      "ring/styles/globals.css",
+      "ring/middleware.ts",
+      "ring/server.js",
+      "ring/docs/WHITE-LABEL-QUICKSTART.md",
+      "ring/docs/WHITE-LABEL-CONFIG-REFERENCE.md"
+    ]
+  }
+}
+

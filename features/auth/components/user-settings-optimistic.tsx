@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useTranslations } from 'next-intl'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 
 interface UserSettings {
   emailNotifications: boolean

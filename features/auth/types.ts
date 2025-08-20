@@ -1,5 +1,3 @@
-import { DefaultSession } from "next-auth";
-
 /**
  * UserRole enum
  * Defines the possible roles a user can have in the system

@@ -1,7 +1,8 @@
 'use client'
 
 import React from 'react'
-import { signIn, useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
+import authClient from '@/lib/auth-client'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { useTranslations } from 'next-intl'
@@ -43,7 +44,7 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({ isOpen, 
    */
   const handleGoogleSignIn = async () => {
     try {
-      await signIn('google')
+      await authClient.signIn.social({ provider: 'google' })
     } catch (error) {
       console.error('Error signing in with Google:', error)
     }

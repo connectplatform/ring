@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-store",
+  "object_type": "domain",
+  "aliases": ["Store", "Commerce", "Shop", "Cart", "Checkout"],
+  "updated": "2025-08-14",
+  "generated_at": "2025-08-12T00:00:00Z",
+  "status": "ALPHA",
+  "maturity": "alpha",
+  "criticality": "P3",
+  "lifecycle": "active",
+  "tags": ["store", "commerce", "cart", "checkout", "orders"],
+  "owner": {"team": "platform-core", "maintainers": ["frontend@technoring"], "channel": "#techno-platform"},
+  "location": {
+    "repo_root": "/Users/insight/code/technoring",
+    "path": "ring",
+    "related_paths": [
+      "ring/features/store",
+      "ring/app/[locale]/store",
+      "ring/constants/routes.ts",
+      "ring/features/evm",
+      "ring/services/wallet"
+    ]
+  },
+  "purpose": "Provide catalog, cart, and checkout flows via an adapter-driven store service. Support DAAR/DAARION token pricing and progressive integration with Firebase or ConnectPlatform.",
+  "responsibilities": [
+    "List products using pluggable StoreAdapter",
+    "Manage cart state (add/remove/update, totals, persistence)",
+    "Collect CheckoutInfo and initiate checkout via adapter",
+    "Prepare for future orders API and payment integration (Stripe/crypto)",
+    "Expose typed service API (RingStoreService) for UI and server actions"
+  ],
+  "non_goals": [
+    "Fiat payment processing",
+    "Production-grade inventory and fulfillment",
+    "Shipping provider integrations",
+    "Tax calculation beyond placeholders"
+  ],
+  "dependencies": {
+    "runtime": ["next", "react", "typescript"],
+    "intra_repo": ["ring/features/evm", "ring/services/wallet"],
+    "external_services": []
+  },
+  "interfaces": {
+    "public_apis": [
+      "TS: ring/features/store: class RingStoreService",
+      "TS: ring/features/store: interface StoreAdapter",
+      "TS: ring/features/store: types StoreProduct, CartItem, CheckoutInfo, Order*",
+      "UI: /[locale]/store (catalog with filtering, infinite scroll, favorites)",
+      "UI: /[locale]/store/[id] (product details)",
+      "UI: /[locale]/store/cart (cart)",
+      "UI: /[locale]/store/checkout (checkout)",
+      "GET /api/store/products (search,currency,sortKey,sortDir,limit,afterId) → {items,lastVisible,totalCount}",
+      "POST /api/store/checkout",
+      "GET/POST /api/store/orders (limit,afterId) → {items,lastVisible}",
+      "GET /api/store/orders/[id]",
+      "POST /api/admin/orders/[id]/status"
+    ],
+    "cli": [],
+    "events": [
+      "cart_item_added",
+      "cart_item_removed",
+      "checkout_initiated",
+      "order_created"
+    ]
+  },
+  "configuration": {
+    "env": ["RING_STORE_ADAPTER"],
+    "files": [
+      "ring/constants/routes.ts",
+      "ring/features/store/types.ts",
+      "ring/features/store/service.ts",
+      "ring/features/store/mock-adapter.ts",
+      "ring/features/store/context.tsx",
+      "ring/features/store/config.ts",
+      "ring/features/store/adapters/firebase-adapter.ts",
+      "ring/app/api/store/products/route.ts",
+      "ring/app/api/store/checkout/route.ts",
+      "ring/app/api/store/orders/route.ts",
+      "ring/app/api/store/orders/[id]/route.ts",
+      "ring/app/api/admin/orders/[id]/status/route.ts",
+      "ring/services/store/orders-service.ts",
+      "ring/services/store/payments-service.ts",
+      "ring/app/api/shipping/novapost/cities/route.ts",
+      "ring/app/api/shipping/novapost/warehouses/route.ts",
+      "ring/app/[locale]/store/[id]/page.tsx",
+      "ring/app/[locale]/store/orders/page.tsx",
+      "ring/app/[locale]/store/orders/[id]/page.tsx",
+      "ring/app/[locale]/admin/store/orders/page.tsx",
+      "ring/components/store/ProductCard.tsx",
+      "ring/components/store/FavoritesMenu.tsx",
+      "ring/components/store/FilterBar.tsx",
+      "ring/components/store/MiniCart.tsx",
+      "ring/components/shipping/NovaPostSelector.tsx",
+      "ring/components/store/checkout/*"
+    ],
+    "feature_flags": ["store.mockAdapter", "store.firebaseAdapter"]
+  },
+  "data_models": [
+    {"name": "StoreProduct", "storage": "adapter", "collections_or_tables": []},
+    {"name": "CartItem", "storage": "client_state", "collections_or_tables": []},
+    {"name": "CheckoutInfo", "storage": "transient", "collections_or_tables": []},
+    {"name": "Order", "storage": "firestore|connect-platform", "collections_or_tables": ["orders"]},
+    {"name": "FavoriteIds", "storage": "local_storage", "collections_or_tables": ["ring_favorites"]}
+  ],
+  "operations": {
+    "start": "npm run dev",
+    "stop": "CTRL+C",
+    "health_check": "GET /[locale]/store returns 200 and renders product list",
+    "run_commands": ["npm run dev"],
+    "health_signals": ["store_products_loaded"],
+    "smoke_tests": ["curl -s http://localhost:3000/en/store | grep 'Store'"]
+  },
+  "logging": {
+    "files": [],
+    "events": ["cart_item_added", "cart_item_removed", "checkout_initiated", "order_created"],
+    "metrics": ["store_page_lcp", "cart_items_count", "checkout_conversion_rate"]
+  },
+  "errors": {
+    "common": [
+      {"message": "Adapter unavailable", "cause": "No StoreAdapter configured", "fix": "Provide adapter (mock or backend)"},
+      {"message": "Invalid checkout info", "cause": "Missing first/last name", "fix": "Validate CheckoutInfo before submit"}
+    ],
+    "troubleshooting": [
+      "Ensure mock adapter is exported and imported correctly",
+      "Check locale routes for /[locale]/store"
+    ]
+  },
+  "security": {
+    "authn": "Anonymous browsing; checkout may require Auth.js v5 (planned)",
+    "authz_model": "Public catalog; order access per user (planned)",
+    "secrets": [],
+    "data_privacy": "No PII stored in mock; production orders must comply with privacy rules"
+  },
+  "performance": {
+    "budget": "Fast first paint for catalog grid",
+    "benchmarks": [],
+    "latency_expectations_ms": {"p50": 150, "p95": 350},
+    "throughput_targets": {"rps": 0}
+  },
+  "recent_changes": [
+    { "date": "2025-08-15", "description": "Added React 19 native metadata (<title>, <meta>) for store pages and centralized preload helper integration in layouts", "impact": "SEO + Performance" },
+    { "date": "2025-08-15", "description": "Implemented localized SEO metadata via generateMetadata() for all store pages (list, product, cart, checkout)", "impact": "SEO + i18n" }
+  ],
+  "tests": {
+    "unit": ["ring/features/store/*"],
+    "integration": ["ring/app/[locale]/store/*"],
+    "how_to_run": "npm run test"
+  },
+  "observability": {"dashboards": [], "alerts": []},
+  "recent_changes": [
+    {"date": "2025-08-12", "description": "Initial store MVP (mock adapter, context, catalog/cart/checkout routes)", "impact": "User-visible"},
+    {"date": "2025-08-13", "description": "Added Firebase adapter, API routes for products and checkout, product details page, adapter config switch", "impact": "User-visible+API"},
+    {"date": "2025-08-13", "description": "Ported Opportunities-style filtering + infinite scroll to Store; added orders pagination; introduced services/store (orders, payments)", "impact": "User-visible+API"}
+  ],
+  "related_context_files": [
+    "ring/AI-CONTEXT/AI-CONTEXT-INDEX.json",
+    "ring/integrations/daarion/AI-CONTEXT-store.json"
+  ],
+  "links": {
+    "docs": ["ring/docs/SYSTEM-ARCHITECTURE.md"],
+    "code": [
+      "ring/features/store",
+      "ring/app/[locale]/store",
+      "ring/constants/routes.ts"
+    ],
+    "diagrams": [],
+    "tickets": []
+  }
+}
+
+

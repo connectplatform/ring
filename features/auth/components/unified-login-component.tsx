@@ -9,7 +9,8 @@ import { ROUTES } from '@/constants/routes'
 import { AiFillApple } from 'react-icons/ai'
 import { FaEthereum } from 'react-icons/fa'
 import { FcGoogle } from 'react-icons/fc'
-import { signIn, useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
+import authClient from '@/lib/auth-client'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -83,13 +84,17 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
   const handleSignIn = async (provider: string) => {
     setIsLoading(true)
     try {
-      const result = await signIn(provider, { redirect: false, callbackUrl: from || ROUTES.PROFILE(locale) })
-      if (result?.error) {
-        throw new Error(result.error)
+      const result = await authClient.signIn.social({ 
+        provider: provider as 'google' | 'apple',
+        callbackURL: from || ROUTES.PROFILE(locale)
+      })
+      
+      if (result.error) {
+        throw new Error(result.error.message || 'Sign in failed')
       }
-      if (result?.url) {
-        router.push(result.url)
-      }
+      
+      // BetterAuth handles redirects differently, just refresh or redirect
+      router.push(from || ROUTES.PROFILE(locale))
     } catch (error) {
       handleSignInError(error as Error)
     } finally {
@@ -124,21 +129,10 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
       // Sign the nonce
       const signedNonce = await signer.signMessage(nonce)
 
-      // Authenticate with NextAuth
-      const callbackUrl = from || ROUTES.PROFILE(locale)
-      const result = await signIn('crypto-wallet', {
-        publicAddress,
-        signedNonce,
-        redirect: false,
-        callbackUrl,
-      })
-
-      if (result?.error) {
-        throw new Error(result.error)
-      }
-      if (result?.url) {
-        router.push(result.url)
-      }
+      // Authenticate with BetterAuth
+      // TODO: Implement crypto wallet authentication with BetterAuth
+      // For now, show error that crypto wallet auth needs to be implemented
+      throw new Error('Crypto wallet authentication is being migrated to BetterAuth and will be available soon.')
 
     } catch (error) {
       handleSignInError(error as Error)

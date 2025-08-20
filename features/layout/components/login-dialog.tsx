@@ -3,7 +3,7 @@
 import React from 'react'
 import { useTranslations } from 'next-intl'
 import { FcGoogle } from 'react-icons/fc'
-import { signIn } from 'next-auth/react'
+import authClient from '@/lib/auth-client'
 import { ROUTES } from '@/constants/routes'
 import { useLocale } from 'next-intl'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -47,7 +47,7 @@ export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
    */
   const handleGoogleSignIn = async () => {
     try {
-      await signIn('google', { callbackUrl: ROUTES.PROFILE(locale) })
+      await authClient.signIn.social({ provider: 'google', callbackURL: ROUTES.PROFILE(locale) })
     } catch (error) {
       console.error('Sign in error:', error)
     } finally {

@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "module": "staking",
+  "title": "White-label Staking Module for Ring",
+  "owner": {"team": "platform-core", "channel": "#ring-staking"},
+  "status": "READY",
+  "summary": "Implement a white-label staking module with EVM adapter, supporting DAAR and DAARION pools, wallet-based signing, optional server reads, and profile integration.",
+  "assumptions": [
+    "React 19 / Next 15.4 / Auth.js 5",
+    "ethers v6 BrowserProvider for client signing",
+    "Public profiles at /[locale]/u/[username] exist (from nft-market P0)",
+    "ABIs available for APR staking and fee distributor",
+    "Addresses provided per environment"
+  ],
+  "acceptance": [
+    "Users can stake, unstake, and claim on supported pools",
+    "Wrong-network guard blocks actions with clear UX",
+    "Allowances handled incl. zero-reset fallback",
+    "Optional server read caches positions",
+    "Public profile shows staking summary (optional)"
+  ],
+  "dependencies": {
+    "prerequisites": [
+      "nft-market P0-T1 (username types)",
+      "nft-market P0-T2 (public profile route)",
+      "nft-market P1-T1 (shared wallet/types ok)"
+    ]
+  },
+  "phases": [
+    {
+      "id": "P0",
+      "name": "ABIs and config",
+      "status": "DONE",
+      "tasks": [
+        {"id": "P0-T1", "title": "Provide ABIs", "files": ["ring/features/staking/abi/aprstaking.json", "ring/features/staking/abi/fee-distributor.json"], "done_when": ["ABIs placed and validated"], "status": "DONE"},
+        {"id": "P0-T2", "title": "Addresses + config builder", "files": ["ring/features/staking/staking.config.ts"], "done_when": ["Config exposes addresses per env and getter for signer"], "status": "DONE"}
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Core adapter and service",
+      "status": "DONE",
+      "tasks": [
+        {"id": "P1-T1", "title": "EVM adapter (stake/unstake/claim)", "files": ["ring/features/staking/adapters/evm.ts"], "done_when": ["Implements approve, stakeByPool, unstakeByPool, claimByPool", "Handles chainId guard and allowance flows"], "status": "DONE"},
+        {"id": "P1-T2", "title": "Service facade", "files": ["ring/features/staking/service.ts"], "done_when": ["RingStakingService wraps adapter with ergonomic API"], "status": "DONE"}
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "UI and routes",
+      "status": "DONE",
+      "tasks": [
+        {"id": "P2-T1", "title": "Staking panel component", "files": ["ring/features/staking/components/StakingPanel.tsx"], "done_when": ["Panel renders pools, balances, and controls with disabled-until-ready pattern"], "status": "DONE"},
+        {"id": "P2-T2", "title": "Route page", "files": ["ring/app/[locale]/staking/page.tsx"], "done_when": ["Server component renders panel and SSR metadata"], "status": "DONE"}
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Server reads (optional)",
+      "status": "READY",
+      "tasks": [
+        {"id": "P3-T1", "title": "Positions reader", "files": ["ring/features/staking/server/read-positions.ts"], "done_when": ["Reads cached positions per user/pool; safe server-only"]}
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Profile integration (optional)",
+      "status": "READY",
+      "tasks": [
+        {"id": "P4-T1", "title": "Profile staking summary", "files": ["ring/components/profile/PublicProfile.tsx", "ring/features/staking/components/ProfileStakingSummary.tsx"], "done_when": ["Public profile can show basic staking stats when enabled"]}
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Testing and docs",
+      "status": "READY",
+      "tasks": [
+        {"id": "P5-T1", "title": "Unit/integration tests", "files": ["ring/features/staking/__tests__/*.test.ts"], "done_when": ["Core flows covered (approve, stake, network guard)"]},
+        {"id": "P5-T2", "title": "Docs", "files": ["ring/features/staking/DEVELOPER-GUIDE.md"], "done_when": ["Guide updated with config and usage examples"]}
+      ]
+    }
+  ]
+}
+
+

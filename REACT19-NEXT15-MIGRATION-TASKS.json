@@ -1,0 +1,678 @@
+{
+  "schema_version": "1.0",
+  "name": "React 19 / Next.js 15 Migration Tasks",
+  "created": "2025-07-15",
+  "status": "in_progress",
+  "summary": {
+    "total_tasks": 54,
+    "completed_tasks": 21,
+    "completion_percentage": "39%",
+    "categories": {
+      "foundation": 12,
+      "structure": 12,
+      "react19": 15,
+      "nextjs15": 10,
+      "testing": 5
+    },
+    "category_completion": {
+      "foundation": "10/12 completed (83%)",
+      "structure": "0/12 completed (0%)", 
+      "react19": "1/15 completed (7%)",
+      "nextjs15": "1/10 completed (10%)",
+      "testing": "0/5 completed (0%)"
+    }
+  },
+  "phases": {
+    "phase_0_foundation": {
+      "name": "Foundation Structure Migration",
+      "duration": "2 weeks",
+      "priority": "critical",
+      "description": "Address existing architectural debt before implementing React 19/Next.js 15 features",
+      "tasks": [
+        {
+          "id": "FND-001",
+          "title": "Move auth components to features/auth/components/",
+          "status": "completed",
+          "effort": "4h",
+          "files_affected": [
+            "features/auth/components/"
+          ],
+          "description": "Move all authentication-related components to feature directory"
+        },
+        {
+          "id": "FND-002",
+          "title": "Move messaging components to features/chat/components/",
+          "status": "completed",
+          "effort": "3h",
+          "files_affected": [
+            "features/chat/components/"
+          ],
+          "description": "Move messaging components to chat feature directory"
+        },
+        {
+          "id": "FND-003",
+          "title": "Move notification components to features/notifications/components/",
+          "status": "completed",
+          "effort": "3h",
+          "files_affected": [
+            "features/notifications/components/"
+          ],
+          "description": "Move notification components to notifications feature directory"
+        },
+        {
+          "id": "FND-004",
+          "title": "Move store components to features/store/components/",
+          "status": "completed",
+          "effort": "4h",
+          "files_affected": [
+            "features/store/components/"
+          ],
+          "description": "Move store components to store feature directory"
+        },
+        {
+          "id": "FND-005",
+          "title": "Create new feature directories",
+          "status": "completed",
+          "effort": "2h",
+          "files_affected": [
+            "features/reviews/",
+            "features/comments/",
+            "features/interactions/",
+            "features/search/"
+          ],
+          "description": "Create new feature directories for reviews, comments, interactions, and search"
+        },
+        {
+          "id": "FND-006",
+          "title": "Move reviews components to features/reviews/components/",
+          "status": "completed",
+          "effort": "2h",
+          "files_affected": [
+            "features/reviews/components/"
+          ],
+          "description": "Move review components to reviews feature directory"
+        },
+        {
+          "id": "FND-007",
+          "title": "Move comments components to features/comments/components/",
+          "status": "completed",
+          "effort": "2h",
+          "files_affected": [
+            "features/comments/components/"
+          ],
+          "description": "Move comment components to comments feature directory"
+        },
+        {
+          "id": "FND-008",
+          "title": "Move interaction components to features/interactions/components/",
+          "status": "completed",
+          "effort": "2h",
+          "files_affected": [
+            "features/interactions/components/"
+          ],
+          "description": "Move action components to interactions feature directory"
+        },
+        {
+          "id": "FND-009",
+          "title": "Move search components to features/search/components/",
+          "status": "completed",
+          "effort": "2h",
+          "files_affected": [
+            "features/search/components/"
+          ],
+          "description": "Move search and filter components to search feature directory"
+        },
+        {
+          "id": "FND-010",
+          "title": "Reorganize shared components structure",
+          "status": "completed",
+          "effort": "4h",
+          "files_affected": [
+            "components/ui/",
+            "components/wrappers/",
+            "components/common/",
+            "components/providers/",
+            "components/error-boundaries/",
+            "components/suspense/",
+            "components/streaming/",
+            "components/server/",
+            "components/seo/"
+          ],
+          "description": "Organize shared components into clear categories"
+        },
+        {
+          "id": "FND-011",
+          "title": "Update all import paths",
+          "status": "completed",
+          "effort": "6h",
+          "files_affected": ["all"],
+          "description": "Update all import statements after restructuring"
+        },
+        {
+          "id": "FND-012",
+          "title": "Validate and test restructured codebase",
+          "status": "completed",
+          "effort": "4h",
+          "files_affected": ["all"],
+          "description": "Ensure all components load correctly and no broken references"
+        }
+      ]
+    },
+    "phase_1_structure": {
+      "name": "File Structure Reorganization",
+      "duration": "2 weeks",
+      "priority": "high",
+      "tasks": [
+        {
+          "id": "STR-001",
+          "title": "Create route groups for public/authenticated/admin",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "app/(public)/",
+            "app/(authenticated)/",
+            "app/(admin)/"
+          ],
+          "description": "Organize routes by authentication requirements"
+        },
+        {
+          "id": "STR-002",
+          "title": "Separate client and server components",
+          "status": "pending",
+          "effort": "8h",
+          "files_affected": [
+            "components/client/",
+            "components/server/",
+            "components/ui/"
+          ],
+          "description": "Move components to appropriate directories with clear naming"
+        },
+        {
+          "id": "STR-003",
+          "title": "Consolidate Server Actions",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "app/_actions/",
+            "features/*/actions/"
+          ],
+          "description": "Move all server actions to dedicated directories"
+        },
+        {
+          "id": "STR-004",
+          "title": "Reorganize features directory",
+          "status": "pending",
+          "effort": "6h",
+          "files_affected": [
+            "features/*/components/client/",
+            "features/*/components/server/",
+            "features/*/hooks/",
+            "features/*/actions/"
+          ],
+          "description": "Standardize feature module structure"
+        },
+        {
+          "id": "STR-005",
+          "title": "Move tests to centralized directory",
+          "status": "pending",
+          "effort": "2h",
+          "files_affected": [
+            "tests/unit/",
+            "tests/integration/",
+            "tests/e2e/"
+          ],
+          "description": "Consolidate all test files in dedicated test directory"
+        },
+        {
+          "id": "STR-006",
+          "title": "Update import paths",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": ["all"],
+          "description": "Update all import statements after restructuring"
+        }
+      ]
+    },
+    "phase_2_react19": {
+      "name": "React 19 Features Implementation",
+      "duration": "2 weeks",
+      "priority": "high",
+      "tasks": [
+        {
+          "id": "R19-001",
+          "title": "Implement native document metadata",
+          "status": "pending",
+          "effort": "6h",
+          "files_affected": [
+            "app/**/page.tsx",
+            "app/**/layout.tsx"
+          ],
+          "description": "Replace Next.js metadata with React 19 native <title> and <meta> tags"
+        },
+        {
+          "id": "R19-002",
+          "title": "Add resource preloading APIs",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "lib/client/resource-hints.ts",
+            "app/layout.tsx"
+          ],
+          "description": "Implement prefetchDNS, preconnect, preload, and preinit"
+        },
+        {
+          "id": "R19-003",
+          "title": "Replace forwardRef with ref as prop",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "components/ui/*.tsx"
+          ],
+          "description": "Update all components using forwardRef to use ref as prop pattern"
+        },
+        {
+          "id": "R19-004",
+          "title": "Implement use() hook for async data",
+          "status": "pending",
+          "effort": "5h",
+          "files_affected": [
+            "features/*/hooks/use-*.ts"
+          ],
+          "description": "Create data fetching hooks using the new use() API"
+        },
+        {
+          "id": "R19-005",
+          "title": "Standardize form handling with useActionState",
+          "status": "pending",
+          "effort": "8h",
+          "files_affected": [
+            "components/*/form*.tsx",
+            "features/*/components/*form*.tsx"
+          ],
+          "description": "Update all forms to use useActionState and useOptimistic"
+        },
+        {
+          "id": "R19-006",
+          "title": "Implement Custom Elements support",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "components/custom-elements/*.ts"
+          ],
+          "description": "Update custom elements to work with React 19"
+        },
+        {
+          "id": "R19-007",
+          "title": "Add React Compiler configuration",
+          "status": "pending",
+          "effort": "2h",
+          "files_affected": [
+            "next.config.js",
+            "tsconfig.json"
+          ],
+          "description": "Configure React Compiler for automatic memoization"
+        }
+      ]
+    },
+    "phase_3_nextjs15": {
+      "name": "Next.js 15 Optimizations",
+      "duration": "2 weeks",
+      "priority": "medium",
+      "tasks": [
+        {
+          "id": "NX15-001",
+          "title": "Verify async API usage",
+          "status": "completed",
+          "effort": "2h",
+          "files_affected": [
+            "app/**/*.tsx"
+          ],
+          "description": "Ensure all cookies(), headers(), params are properly awaited"
+        },
+        {
+          "id": "NX15-002",
+          "title": "Implement route group layouts",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "app/(public)/layout.tsx",
+            "app/(authenticated)/layout.tsx",
+            "app/(admin)/layout.tsx"
+          ],
+          "description": "Add authentication and authorization checks in group layouts"
+        },
+        {
+          "id": "NX15-003",
+          "title": "Add streaming with Suspense",
+          "status": "pending",
+          "effort": "6h",
+          "files_affected": [
+            "app/**/page.tsx"
+          ],
+          "description": "Implement streaming for better perceived performance"
+        },
+        {
+          "id": "NX15-004",
+          "title": "Optimize data fetching with cache()",
+          "status": "pending",
+          "effort": "5h",
+          "files_affected": [
+            "lib/server/data-fetchers.ts",
+            "features/*/services/*.ts"
+          ],
+          "description": "Use React cache() for request deduplication"
+        },
+        {
+          "id": "NX15-005",
+          "title": "Configure fetch caching strategy",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "app/**/*.tsx",
+            "lib/api-client.ts"
+          ],
+          "description": "Set appropriate cache and revalidate options"
+        },
+        {
+          "id": "NX15-006",
+          "title": "Implement partial prerendering",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "next.config.js",
+            "app/**/page.tsx"
+          ],
+          "description": "Enable PPR for static + dynamic content"
+        },
+        {
+          "id": "NX15-007",
+          "title": "Add instrumentation.ts",
+          "status": "pending",
+          "effort": "2h",
+          "files_affected": [
+            "instrumentation.ts"
+          ],
+          "description": "Set up Next.js instrumentation for monitoring"
+        }
+      ]
+    },
+    "phase_4_components": {
+      "name": "Component Optimization",
+      "duration": "1 week",
+      "priority": "medium",
+      "tasks": [
+        {
+          "id": "CMP-001",
+          "title": "Convert eligible components to Server Components",
+          "status": "pending",
+          "effort": "8h",
+          "files_affected": [
+            "components/**/*.tsx"
+          ],
+          "description": "Remove unnecessary 'use client' directives"
+        },
+        {
+          "id": "CMP-002",
+          "title": "Implement component naming convention",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "components/client/client-*.tsx",
+            "components/server/server-*.tsx"
+          ],
+          "description": "Rename components to follow naming convention"
+        },
+        {
+          "id": "CMP-003",
+          "title": "Add loading.tsx files",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "app/**/loading.tsx"
+          ],
+          "description": "Create loading UI for route segments"
+        },
+        {
+          "id": "CMP-004",
+          "title": "Implement error.tsx boundaries",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "app/**/error.tsx"
+          ],
+          "description": "Add error boundaries for all route segments"
+        },
+        {
+          "id": "CMP-005",
+          "title": "Create not-found.tsx pages",
+          "status": "pending",
+          "effort": "2h",
+          "files_affected": [
+            "app/**/not-found.tsx"
+          ],
+          "description": "Add custom 404 pages for route segments"
+        }
+      ]
+    },
+    "phase_5_features": {
+      "name": "Feature-Specific Updates",
+      "duration": "1 week",
+      "priority": "high",
+      "tasks": [
+        {
+          "id": "FTR-001",
+          "title": "Update Auth module for Auth.js v5",
+          "status": "completed",
+          "effort": "4h",
+          "files_affected": [
+            "auth.ts",
+            "auth.config.ts",
+            "features/auth/**"
+          ],
+          "description": "Ensure full Auth.js v5 compliance"
+        },
+        {
+          "id": "FTR-002",
+          "title": "Optimize Store module",
+          "status": "pending",
+          "effort": "6h",
+          "files_affected": [
+            "features/store/**"
+          ],
+          "description": "Apply React 19 patterns to store components"
+        },
+        {
+          "id": "FTR-003",
+          "title": "Update Messaging with streaming",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "features/messaging/**"
+          ],
+          "description": "Implement real-time streaming for messages"
+        },
+        {
+          "id": "FTR-004",
+          "title": "Optimize Entities module",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "features/entities/**"
+          ],
+          "description": "Convert to Server Components where possible"
+        },
+        {
+          "id": "FTR-005",
+          "title": "Update Wallet integration",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "features/wallet/**"
+          ],
+          "description": "Optimize wallet components and actions"
+        }
+      ]
+    },
+    "phase_6_testing": {
+      "name": "Testing and Quality Assurance",
+      "duration": "1 week",
+      "priority": "high",
+      "tasks": [
+        {
+          "id": "TST-001",
+          "title": "Update test imports for React 19",
+          "status": "pending",
+          "effort": "2h",
+          "files_affected": [
+            "tests/**/*.test.ts",
+            "tests/**/*.test.tsx"
+          ],
+          "description": "Update React test utilities imports"
+        },
+        {
+          "id": "TST-002",
+          "title": "Add Server Component tests",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "tests/unit/server-components/"
+          ],
+          "description": "Create test suite for Server Components"
+        },
+        {
+          "id": "TST-003",
+          "title": "Update E2E tests",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": [
+            "tests/e2e/**"
+          ],
+          "description": "Update E2E tests for new structure"
+        },
+        {
+          "id": "TST-004",
+          "title": "Performance testing",
+          "status": "pending",
+          "effort": "3h",
+          "files_affected": [
+            "tests/performance/"
+          ],
+          "description": "Add Core Web Vitals monitoring"
+        },
+        {
+          "id": "TST-005",
+          "title": "Regression testing",
+          "status": "pending",
+          "effort": "4h",
+          "files_affected": ["all"],
+          "description": "Full regression test suite execution"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "upgrade_required": {
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0",
+      "next": "^15.1.0",
+      "@types/react": "^19.0.0",
+      "@types/react-dom": "^19.0.0",
+      "next-auth": "^5.0.0-beta.25",
+      "@auth/firebase-adapter": "^2.11.1"
+    },
+    "new_packages": {
+      "@react/compiler": "latest",
+      "server-only": "^0.0.1",
+      "client-only": "^0.0.1"
+    },
+    "remove": [
+      "react-intersection-observer",
+      "react-lazy-load-image-component"
+    ]
+  },
+  "risks": {
+    "high": [
+      "Breaking changes in third-party libraries",
+      "Performance regression in complex forms",
+      "Auth flow disruption"
+    ],
+    "medium": [
+      "Learning curve for team members",
+      "Increased initial bundle size",
+      "SEO impact during migration"
+    ],
+    "low": [
+      "Minor UI inconsistencies",
+      "Development environment issues"
+    ]
+  },
+  "success_criteria": {
+    "performance": {
+      "lcp": "< 2.5s",
+      "fid": "< 100ms",
+      "cls": "< 0.1",
+      "ttfb": "< 600ms",
+      "bundle_size_reduction": "30%"
+    },
+    "quality": {
+      "test_coverage": "> 80%",
+      "type_coverage": "100%",
+      "zero_console_errors": true,
+      "lighthouse_score": "> 95"
+    },
+    "developer_experience": {
+      "build_time_reduction": "40%",
+      "hot_reload_time": "< 500ms",
+      "type_check_time": "< 10s"
+    }
+  },
+  "rollback_checkpoints": [
+    {
+      "phase": "phase_0_foundation",
+      "git_tag": "pre-foundation-v1",
+      "description": "Before foundation structure migration"
+    },
+    {
+      "phase": "phase_1_structure",
+      "git_tag": "pre-restructure-v1",
+      "description": "Before file structure changes"
+    },
+    {
+      "phase": "phase_2_react19",
+      "git_tag": "pre-react19-v1",
+      "description": "Before React 19 features"
+    },
+    {
+      "phase": "phase_3_nextjs15",
+      "git_tag": "pre-next15-opt-v1",
+      "description": "Before Next.js 15 optimizations"
+    }
+  ],
+  "team_assignments": {
+    "lead": "frontend@technoring",
+    "reviewers": ["senior-dev-1", "senior-dev-2"],
+    "contributors": ["dev-1", "dev-2", "dev-3"]
+  },
+  "timeline": {
+    "start_date": "2025-07-20",
+    "end_date": "2025-09-17",
+    "milestones": [
+      {
+        "date": "2025-08-19",
+        "deliverable": "Foundation structure migration complete"
+      },
+      {
+        "date": "2025-08-20",
+        "deliverable": "Route groups and React 19 features implemented"
+      },
+      {
+        "date": "2025-08-25",
+        "deliverable": "Next.js 15 optimizations complete"
+      },
+      {
+        "date": "2025-09-01",
+        "deliverable": "Full migration complete with testing"
+      }
+    ]
+  }
+}

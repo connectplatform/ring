@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "context_version": 2,
+  "domain": "opportunities",
+  "updated": "2025-08-20",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "Dual-nature opportunities (offers/requests) with tiered access and confidential visibility.",
+  "storage": {
+    "firestore_collections": ["opportunities"]
+  },
+  "endpoints": [
+    { "method": "GET", "path": "/api/opportunities", "query": "{ limit?, startAfter? }", "returns": "{ opportunities, lastVisible }", "auth": "required", "note": "Used by client components for infinite scroll" },
+    { "method": "GET", "path": "/api/opportunities/[id]", "returns": "Opportunity", "auth": "required", "note": "Used by client components" },
+    { "method": "POST", "path": "/api/opportunities/create", "body": "Opportunity (without id/date fields)", "returns": "Opportunity", "auth": "required (member|confidential|admin)" },
+    { "method": "PATCH", "path": "/api/opportunities/update/[id]", "body": "Partial<Opportunity>", "returns": "{ message }", "auth": "required (owner|admin|confidential if confidential)" },
+    { "method": "DELETE", "path": "/api/opportunities/delete/[id]", "returns": "{ message }", "auth": "required (owner|admin|confidential if confidential)" },
+    { "method": "GET", "path": "/api/confidential/opportunities", "returns": "{ success, data: Opportunity[] }", "auth": "required (confidential|admin)" }
+  ],
+  "services": {
+    "createOpportunity": {
+      "file": "features/opportunities/services/create-opportunity.ts",
+      "sig": "(data: Omit<Opportunity,'id'|'dateCreated'|'dateUpdated'>) => Promise<Opportunity>",
+      "validation": ["getServerAuthSession() required", "role MEMBER|CONFIDENTIAL|ADMIN", "if isConfidential ⇒ CONFIDENTIAL|ADMIN"],
+      "defaults": ["tags/requiredSkills/requiredDocuments/attachments/applicants := []", "isActive := true", "isConfidential := false"],
+      "errors": ["OpportunityAuthError", "OpportunityPermissionError", "OpportunityDatabaseError", "OpportunityQueryError"]
+    },
+    "getOpportunities": {
+      "file": "features/opportunities/services/get-opportunities.ts",
+      "sig": "(limit=20, startAfter?) => Promise<{opportunities: SerializedOpportunity[]; lastVisible: string|null}>",
+      "role_filtering": "non-admin/confidential: visibility in ['public','subscriber', role]",
+      "note": "Returns SerializedOpportunity with ISO string dates for client component compatibility"
+    },
+    "getOpportunityById": {
+      "file": "features/opportunities/services/get-opportunity-by-id.ts",
+      "sig": "(id: string) => Promise<Opportunity|null>",
+      "authz": "deny if isConfidential and role !∈ {CONFIDENTIAL, ADMIN}"
+    },
+    "updateOpportunity": {
+      "file": "features/opportunities/services/update-opportunity.ts",
+      "sig": "(id: string, data: Partial<Opportunity>) => Promise<boolean>",
+      "authz": "owner or ADMIN; confidential update requires CONFIDENTIAL if not owner/admin",
+      "notes": "merge set; bumps dateUpdated"
+    },
+    "deleteOpportunity": {
+      "file": "features/opportunities/services/delete-opportunity.ts",
+      "sig": "(id: string) => Promise<boolean>",
+      "authz": "ADMIN or owner; confidential delete requires CONFIDENTIAL|ADMIN",
+      "side_effects": ["delete Firestore doc", "clear RTDB /opportunities/{id}"]
+    }
+  },
+  "types": {
+    "Opportunity": "features/opportunities/types",
+    "SerializedOpportunity": "features/opportunities/types (for client components)",
+    "UserRole": "features/auth/types"
+  },
+  "permissions": {
+    "tiers": ["public", "subscriber", "member", "confidential"],
+    "roles": ["visitor", "subscriber", "member", "confidential", "admin"]
+  },
+  "env": ["AUTH_FIREBASE_PROJECT_ID", "AUTH_FIREBASE_CLIENT_EMAIL", "AUTH_FIREBASE_PRIVATE_KEY"],
+  "indexes": ["visibility+type+dateAdded (see firestore.indexes.json)"],
+  "errors": [
+    { "code": "unauthorized", "when": "Missing session" },
+    { "code": "forbidden", "when": "Insufficient role or not owner" },
+    { "code": "invalid_data", "when": "Budget fields missing or invalid types" }
+  ],
+  "examples": {
+    "create": { "POST /api/opportunities/create": { "title": "Senior Engineer", "briefDescription": "...", "budget": { "min": 1000, "max": 2000, "currency": "USD" }, "expirationDate": "2025-09-01" } },
+    "server_component": { "Direct service call": "import { getOpportunitiesForRole } from '@/features/opportunities/services/get-opportunities'; const data = await getOpportunitiesForRole({ userRole, limit, startAfter });" },
+    "serialization": { "Timestamp to ISO": "const timestampToISO = (timestamp) => timestamp?.toDate?.()?.toISOString() || new Date().toISOString();" }
+  }
+  ,
+  "runbooks": {
+    "seed_sample_data": {
+      "command": "npm run seed:opportunities",
+      "requires_env": ["AUTH_FIREBASE_PROJECT_ID", "AUTH_FIREBASE_CLIENT_EMAIL", "AUTH_FIREBASE_PRIVATE_KEY"],
+      "notes": "Seeds two sample opportunities for development validation."
+    }
+  }
+}
+
+

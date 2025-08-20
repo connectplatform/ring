@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import AboutContent from '@/components/common/pages/about'
 
 /**

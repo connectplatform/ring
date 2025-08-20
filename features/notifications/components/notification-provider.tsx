@@ -6,7 +6,7 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/components/providers/session-provider';
 import { Notification } from '@/features/notifications/types';
 import { ToastContainer, useToastNotifications } from './toast-notification';
 import { NotificationType, NotificationPriority, NotificationStatus, NotificationChannel, NotificationTrigger } from '@/features/notifications/types';

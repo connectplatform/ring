@@ -1,0 +1,230 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "React 19 / Next.js 15 Updates",
+  "updated": "2025-07-15",
+  "object_type": "migration_log",
+  "summary": "Documentation of React 19 and Next.js 15 features implemented in the Ring platform",
+  
+  "implemented_features": {
+    "react_19": {
+      "resource_preloading": {
+        "status": "completed",
+        "location": "lib/preload/setup.ts",
+        "usage": "Called in app/layout.tsx root layout",
+        "apis": ["prefetchDNS", "preconnect", "preload", "preinit"],
+        "resources": [
+          "Firebase services",
+          "Google Fonts",
+          "Web3Auth services",
+          "Custom fonts (Inter variations)",
+          "Critical scripts (firebase-messaging-sw.js)"
+        ]
+      },
+      "native_metadata": {
+        "status": "completed",
+        "converted_pages": [
+          "app/[locale]/page.tsx (home)",
+          "app/[locale]/entities/page.tsx",
+          "app/[locale]/opportunities/page.tsx",
+          "app/[locale]/profile/page.tsx",
+          "app/[locale]/store/page.tsx"
+        ],
+        "pattern": "React 19 native <title>, <meta>, <link> tags with i18n support (next-intl)",
+        "utilities": [
+          "i18n-config.ts - defineRouting(), locales/defaultLocale, loadTranslations(), generateHreflangAlternates()",
+          "lib/i18n.ts - buildMessages() (split locale files)",
+          "utils/seo-metadata.ts - getSEOMetadata()"
+        ]
+      },
+      "hooks_usage": {
+        "useActionState": {
+          "status": "active",
+          "usage": "Form state management",
+          "examples": [
+            "components/users/user-profile-form.tsx",
+            "features/entities/components/add-entity.tsx",
+            "features/opportunities/components/add-opportunity.tsx"
+          ]
+        },
+        "useOptimistic": {
+          "status": "active",
+          "usage": "Optimistic UI updates",
+          "examples": [
+            "components/comments/comment-form.tsx",
+            "features/entities/components/entity-list.tsx",
+            "features/opportunities/components/opportunity-list.tsx"
+          ]
+        },
+        "useFormStatus": {
+          "status": "active",
+          "usage": "Automatic form loading states",
+          "examples": [
+            "features/forms/components/SubmitButton.tsx",
+            "features/forms/hooks/use-form-status.ts"
+          ]
+        },
+        "use": {
+          "status": "planned",
+          "usage": "Async data handling in components",
+          "note": "To be implemented for promise handling"
+        }
+      },
+      "server_actions": {
+        "status": "active",
+        "location": "app/actions/",
+        "files": [
+          "auth.ts",
+          "contact.ts",
+          "crypto.ts",
+          "entities.ts",
+          "filters.ts",
+          "news.ts",
+          "opportunities.ts",
+          "profile.ts",
+          "settings.ts",
+          "users.ts"
+        ],
+        "pattern": "'use server' directive with form action handlers"
+      },
+      "ref_as_prop": {
+        "status": "partially_implemented",
+        "implemented": ["components/ui/button.tsx"],
+        "todo": "Convert remaining components from forwardRef pattern"
+      }
+    },
+    
+    "nextjs_15": {
+      "async_apis": {
+        "status": "completed",
+        "apis": ["cookies()", "headers()", "params"],
+        "pattern": "All properly awaited with 'await' keyword",
+        "examples": [
+          "const cookieStore = await cookies()",
+          "const headersList = await headers()",
+          "const { locale } = await params"
+        ]
+      },
+      "auth_js_v5": {
+        "status": "completed",
+        "config": "auth.ts and auth.config.ts",
+        "universal_method": "auth() replaces getServerSession()",
+        "features": [
+          "Edge-compatible configuration",
+          "Unified auth() function",
+          "Provider configurations",
+          "JWT session strategy"
+        ]
+      },
+      "app_router": {
+        "status": "active",
+        "structure": "app/[locale]/ dynamic segments",
+        "features": [
+          "Server Components by default",
+          "Loading and error boundaries",
+          "Route groups (planned)",
+          "Streaming with Suspense"
+        ]
+      },
+      "fetch_caching": {
+        "status": "configured",
+        "default": "no-cache",
+        "pattern": "Explicit cache configuration per fetch"
+      }
+    }
+  },
+  
+  "component_classification": {
+    "server_components": {
+      "default": true,
+      "examples": [
+        "app pages (unless interactive)",
+        "layout components",
+        "data fetching components"
+      ]
+    },
+    "client_components": {
+      "marked_with": "'use client'",
+      "criteria": [
+        "Uses React hooks",
+        "Has event handlers",
+        "Uses browser APIs",
+        "Uses client-only libraries (framer-motion)"
+      ],
+      "optimization": "Removed unnecessary 'use client' from components/ui/button.tsx"
+    }
+  },
+  
+  "migration_artifacts": {
+    "documentation": [
+      "REACT19-NEXT15-RESTRUCTURING-PLAN.md",
+      "REACT19-NEXT15-MIGRATION-TASKS.json",
+      "REACT19-QUICK-WINS.md"
+    ],
+    "key_improvements": [
+      "Resource preloading for better performance",
+      "Native metadata with full i18n support",
+      "Proper async API usage throughout",
+      "Server Components by default pattern",
+      "Auth.js v5 fully configured"
+    ]
+  },
+  
+  "performance_optimizations": {
+    "preloading": {
+      "dns_prefetch": ["Firebase", "Google APIs", "Web3Auth"],
+      "preconnect": ["Critical service origins"],
+      "preload": ["Fonts", "Critical images"],
+      "preinit": ["Service workers", "Analytics"]
+    },
+    "expected_improvements": {
+      "bundle_size": "-30% (more Server Components)",
+      "lcp": "< 2.5s",
+      "ttfb": "< 600ms",
+      "build_time": "-40%"
+    }
+  },
+  
+  "next_steps": {
+    "immediate": [
+      "Continue converting components to Server Components where possible",
+      "Implement use() hook for async data",
+      "Add route groups for authentication boundaries",
+      "Remove legacy i18n references (i18next, public/locales) from docs and code; standardize on next-intl"
+    ],
+    "short_term": [
+      "Complete ref as prop migration",
+      "Add streaming to more pages",
+      "Implement React cache() for deduplication"
+    ],
+    "long_term": [
+      "Full file structure reorganization per plan",
+      "React Compiler integration",
+      "Complete test suite updates"
+    ]
+  },
+  
+  "breaking_changes_addressed": {
+    "removed_apis": [],
+    "updated_patterns": [
+      "Metadata export → Native metadata tags",
+      "Sync APIs → Async APIs",
+      "forwardRef → ref as prop (in progress)"
+    ]
+  },
+  
+  "team_guidelines": {
+    "naming_conventions": {
+      "server_components": "component-name.tsx",
+      "client_components": "client-component-name.tsx or component.client.tsx",
+      "server_actions": "action-name.ts in app/actions/"
+    },
+    "best_practices": [
+      "Default to Server Components",
+      "Use native metadata with i18n",
+      "Leverage resource preloading",
+      "Proper async/await usage",
+      "Optimize bundle with dynamic imports"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { AuthUser } from '@/features/auth/types'
 import { ProfileWrapperProps } from '@/types/profile'
 import { updateProfile } from '@/app/_actions/profile'

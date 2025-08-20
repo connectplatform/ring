@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "domain": "auth",
+  "updated": "2025-08-08",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "Authentication and session management via Auth.js v5 with Firebase Adapter, Google/Apple/Credentials (crypto-wallet).",
+  "providers": [
+    { "id": "google", "env": ["AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET"] },
+    { "id": "apple", "env": ["AUTH_APPLE_ID", "AUTH_APPLE_SECRET"] },
+    { "id": "crypto-wallet", "env": [], "notes": "Edge minimal check in auth.config.ts; full validation in server-side auth.ts" }
+  ],
+  "endpoints": [
+    { "method": "GET|POST", "path": "/api/auth/[...nextauth]", "notes": "handled by next-auth" }
+  ],
+  "files": {
+    "edge_config": "ring/auth.config.ts",
+    "server_auth": "ring/auth.ts",
+    "middleware": "ring/middleware.ts"
+  },
+  "session": {
+    "strategy": "jwt",
+    "jwt_fields": ["userId", "role", "isVerified", "accessToken", "refreshToken", "provider", "needsOnboarding"],
+    "session_fields": ["user.id", "user.role", "user.isVerified", "user.needsOnboarding", "user.provider", "accessToken", "refreshToken"]
+  },
+  "notes": [
+    "React 19 resource preloading is configured in server layouts via lib/preload/setup.setupResourcePreloading()",
+    "App pages may include native <title> and <meta> tags for SEO"
+  ],
+  "callbacks": [
+    { "name": "jwt", "location": "auth.ts", "adds": ["userId", "role", "isVerified", "accessToken", "refreshToken", "provider", "needsOnboarding"] },
+    { "name": "session", "location": "auth.ts", "maps": ["token → session.user fields"] },
+    { "name": "authorized", "location": "auth.config.ts (edge)", "guards": ["/dashboard", "/admin (ADMIN only)", "/profile", "/settings"] }
+  ],
+  "adapter": {
+    "name": "@auth/firebase-adapter",
+    "db": "getAdminDb() (Firestore Admin)"
+  },
+  "types": {
+    "UserRole": "features/auth/types",
+    "AuthUser": "features/auth/types",
+    "UserSettings": "features/auth/types",
+    "NotificationPreferences": "features/auth/types"
+  },
+  "events": ["signIn", "signOut", "createUser"],
+  "env": [
+    "AUTH_SECRET", "NEXTAUTH_URL",
+    "AUTH_FIREBASE_PROJECT_ID", "AUTH_FIREBASE_CLIENT_EMAIL", "AUTH_FIREBASE_PRIVATE_KEY", "FIREBASE_DATABASE_URL",
+    "AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET", "AUTH_APPLE_ID", "AUTH_APPLE_SECRET"
+  ],
+  "errors": [
+    { "code": "missing_env", "when": "Required AUTH_* not set" },
+    { "code": "invalid_wallet_signature", "when": "crypto-wallet authorize fails in auth.ts" }
+  ],
+  "examples": {
+    "get_session_server": {
+      "snippet": "import { auth } from '@/auth'; const session = await auth(); if (!session) throw new Error('Unauthorized');"
+    }
+  }
+}
+
+

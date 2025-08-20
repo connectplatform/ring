@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/components/providers/session-provider';
 import { saveArticle, publishArticle, ArticleFormState } from '@/app/_actions/news';
 import { RichTextEditor } from '@/features/news/components/editor/rich-text-editor';
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useSession, SessionProvider } from 'next-auth/react'
+import { useSession, SessionProvider } from '@/components/providers/session-provider'
 import { SerializedOpportunity, OpportunityVisibility } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 

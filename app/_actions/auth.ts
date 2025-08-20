@@ -56,7 +56,7 @@ export async function signInWithCredentials(
   try {
     // For now, redirect to the API route to handle authentication
     // This avoids circular dependency issues
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/signin/credentials`, {
+    const response = await fetch(`${process.env.BETTER_AUTH_URL || process.env.NEXTAUTH_URL}/api/auth/signin/email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

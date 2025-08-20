@@ -27,11 +27,18 @@ jest.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
-// Mock translation hook
-jest.mock('@/node_modules/react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
+// Mock next-intl translation hook used in components
+jest.mock('next-intl', () => ({
+  useTranslations: () => {
+    const t = (key: string, values?: Record<string, any>) => {
+      if (values) {
+        return Object.keys(values).reduce((acc, k) => acc.replace(new RegExp(`{{${k}}}`, 'g'), String(values[k])), key)
+      }
+      return key
+    }
+    return t
+  },
+  useLocale: () => 'en'
 }))
 
 // Mock search action

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { useSearchParams } from 'next/navigation'
 import type { Opportunity } from '@/types'
 import { UserRole } from '@/features/auth/types'

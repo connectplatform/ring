@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { wsClient, WebSocketEvents } from '@/lib/websocket-client'
 import { Message, TypingIndicator } from '@/features/chat/types'
 

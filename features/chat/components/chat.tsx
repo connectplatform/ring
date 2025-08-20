@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Send, Users, Loader2, ArrowLeft, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'

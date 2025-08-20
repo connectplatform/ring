@@ -1,0 +1,475 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "Ring Store Module Action Plan",
+  "updated": "2025-08-13",
+  "status": "active",
+  "object_type": "plan",
+  "owner": {
+    "team": "platform-core",
+    "maintainers": ["frontend@technoring"],
+    "channel": "#techno-platform"
+  },
+  "current_state": {
+    "implemented": [
+      "UI: /[locale]/store (catalog) with add-to-cart",
+      "UI: /[locale]/store/[id] (product detail) with add-to-cart",
+      "UI: /[locale]/store/cart (cart) with qty +/- and totals per currency",
+      "UI: /[locale]/store/checkout (multistep UI with Contact/Shipping/Payment/Review)",
+      "UI: /[locale]/store/orders and /[locale]/store/orders/[id] (My Orders + Details)",
+      "UI: /[locale]/admin/store/orders (basic dashboard with status update, filter, refresh)",
+      "Components: FilterBar, ProductCard, MiniCart",
+      "Shipping: Nova Poshta integration via NOVAPOST_API_KEY with real API calls",
+      "API: /api/store/products, /api/store/orders (POST create, GET list), /api/store/orders/[id] (GET)",
+      "API: /api/admin/orders/[id]/status (POST) with role-based guard",
+      "Validation: Server-side Zod for order creation payloads",
+      "Context: features/store/context.tsx (StoreProvider with localStorage cart)",
+      "Service: RingStoreService + StoreAdapter types (adapter-driven)",
+      "Adapters: Mock adapter; Firebase adapter for list + checkout",
+      "Docs: AI-CONTEXT-INDEX updated; AI-CONTEXT-store updated; Knowledge Base env docs updated"
+    ],
+    "gaps": [
+      "Catalog pagination (filters/sort exist; paging pending)",
+      "Client-side Zod validation in checkout steps",
+      "Admin UI route gating (restrict page to admins in UI)",
+      "ConnectPlatform adapter to real endpoints (currently delegates to mock)",
+      "Payment integrations (Stripe test, crypto DAAR/DAARION)",
+      "Analytics events/SEO/i18n expansion",
+      "Unit/integration/E2E tests",
+      "Author Store domain docs (README + AI-INSTRUCTION-PROMPT)"
+    ]
+  },
+  "phases": {
+    "P0_foundation": {
+      "objective": "Stabilize MVP, prepare types/config for expansion",
+      "tasks": [
+        {
+          "id": "P0-01",
+          "title": "Extend store types to include Order",
+      "status": "done",
+          "files": [
+            "ring/features/store/types.ts"
+          ],
+          "actions": [
+            "Add Order, OrderItem, PaymentInfo, ShippingInfo interfaces",
+            "Keep backward compatibility with existing types"
+          ],
+          "acceptance": [
+            "Types compile; no breaking changes in current UI"
+          ]
+        },
+        {
+          "id": "P0-02",
+          "title": "Adapter selection via config",
+      "status": "done",
+          "files": [
+            "ring/features/store/config.ts",
+            "ring/features/store/index.ts"
+          ],
+          "actions": [
+            "Create getStoreAdapter() that reads env/instance-config (RING_STORE_ADAPTER=mock|firebase|connect)",
+            "Export helper getStoreService() returning RingStoreService(getStoreAdapter())"
+          ],
+          "acceptance": [
+            "Switching env selects adapter without code changes"
+          ]
+        }
+      ],
+      "deliverables": ["Updated types", "Adapter selector scaffolding"]
+    },
+    "P1_data_adapters": {
+      "objective": "Back store by real data sources (Firebase and ConnectPlatform)",
+      "tasks": [
+        {
+          "id": "P1-01",
+          "title": "Firebase adapter for products and checkout",
+          "status": "done",
+          "files": [
+            "ring/features/store/adapters/firebase-adapter.ts",
+            "ring/features/store/repos/firebase-orders.ts",
+            "ring/lib/firebase-admin.server.ts"
+          ],
+          "actions": [
+            "Implement StoreAdapter.listProducts() from Firestore collection 'products' (id, name, description, price, currency, inStock)",
+            "Implement checkout() → create order doc in 'orders' with items/totals/status=pending",
+            "Use Admin SDK on server actions or API routes to persist"
+          ],
+          "acceptance": [
+            "Catalog lists products from Firestore when RING_STORE_ADAPTER=firebase",
+            "checkout() returns persisted orderId"
+          ]
+        },
+        {
+          "id": "P1-02",
+          "title": "ConnectPlatform adapter",
+          "status": "in_progress",
+          "files": [
+            "ring/features/store/adapters/connect-adapter.ts",
+            "ring/lib/connect-platform-sdk/index.ts"
+          ],
+          "actions": [
+            "Map StoreAdapter methods to ConnectPlatform SDK endpoints",
+            "Provide graceful fallbacks for unimplemented endpoints"
+          ],
+          "acceptance": [
+            "Adapter compiles; mockable for tests; can list seed products"
+          ]
+        }
+      ],
+      "deliverables": ["Firebase adapter", "ConnectPlatform adapter", "Orders repo for Firestore"]
+    },
+    "P2_catalog_ux": {
+      "objective": "Improve browsing UX: details, filters, sort, pagination, mini-cart",
+      "tasks": [
+        {
+          "id": "P2-01",
+          "title": "Product detail route",
+          "status": "done",
+          "files": [
+            "ring/app/[locale]/store/[id]/page.tsx",
+            "ring/components/store/ProductCard.tsx"
+          ],
+          "actions": [
+            "Display product info with add-to-cart, price, stock, SEO metadata",
+            "Link from catalog grid"
+          ],
+          "acceptance": [
+            "Visiting /en/store/p1 shows details and can add to cart"
+          ]
+        },
+        {
+          "id": "P2-02",
+          "title": "Filters/sort/pagination on catalog",
+          "status": "in_progress",
+          "files": [
+            "ring/components/store/FilterBar.tsx",
+            "ring/app/[locale]/store/page.tsx"
+          ],
+          "actions": [
+            "Support category, search, currency, sort (price/name)",
+            "Persist state in URL query params; add skeleton states"
+          ],
+          "acceptance": [
+            "URL reflects filters; results update without reload"
+          ]
+        },
+        {
+          "id": "P2-03",
+          "title": "Mini-cart header widget",
+          "status": "done",
+          "files": [
+            "ring/components/store/MiniCart.tsx",
+            "ring/features/layout/components/navigation.tsx"
+          ],
+          "actions": [
+            "Show item count and quick list; open/close interactions; clear and checkout links"
+          ],
+          "acceptance": [
+            "Mini-cart updates reactively when adding/removing items"
+          ]
+        }
+      ],
+      "deliverables": ["Details page", "FilterBar", "MiniCart"]
+    },
+    "P3_checkout_shipping": {
+      "objective": "Multistep checkout with shipping selector and validation",
+      "tasks": [
+        {
+          "id": "P3-01",
+          "title": "Multistep checkout UI (contact → shipping → payment → review)",
+          "status": "in_progress",
+          "files": [
+            "ring/components/store/checkout/ContactStep.tsx",
+            "ring/components/store/checkout/ShippingStep.tsx",
+            "ring/components/store/checkout/PaymentStep.tsx",
+            "ring/components/store/checkout/ReviewStep.tsx",
+            "ring/app/[locale]/store/checkout/page.tsx"
+          ],
+          "actions": [
+            "Refactor checkout page into steps; client+server validation",
+            "Show running totals per currency"
+          ],
+          "acceptance": [
+            "User can navigate steps; invalid inputs show errors"
+          ]
+        },
+        {
+          "id": "P3-02",
+          "title": "NovaPost selector integration (shipping)",
+          "status": "done",
+          "files": [
+            "ring/components/shipping/NovaPostSelector.tsx",
+            "ring/features/store/types.ts"
+          ],
+          "actions": [
+            "Implement location picker component (city/warehouse) with typed result",
+            "Store result in ShippingInfo; add to order payload"
+          ],
+          "acceptance": [
+            "Selected location appears in review; included in order payload"
+          ]
+        }
+      ],
+      "deliverables": ["Multistep checkout", "Shipping selector"]
+    },
+    "P4_orders_backend": {
+      "objective": "Persist and expose orders for users and admins",
+      "tasks": [
+        {
+          "id": "P4-01",
+          "title": "Orders API routes (create/list/get)",
+          "status": "done",
+          "files": [
+            "ring/app/api/store/orders/route.ts",
+            "ring/app/api/store/orders/[id]/route.ts"
+          ],
+          "actions": [
+            "Define POST (create), GET (list) with pagination; GET /[id] for details",
+            "Validate payloads with zod; enforce auth for user-owned reads"
+          ],
+          "acceptance": [
+            "POST returns orderId; GET lists only current user orders; 401/403 on invalid access"
+          ]
+        },
+        {
+          "id": "P4-02",
+          "title": "My Orders + Order Details pages",
+          "status": "done",
+          "files": [
+            "ring/app/[locale]/store/orders/page.tsx",
+            "ring/app/[locale]/store/orders/[id]/page.tsx"
+          ],
+          "actions": [
+            "List user orders with status filter; link to details with items and payment/shipping info"
+          ],
+          "acceptance": [
+            "Authenticated user sees own orders; unauthenticated redirected to login"
+          ]
+        },
+        {
+          "id": "P4-03",
+          "title": "Admin orders dashboard",
+          "status": "in_progress",
+          "files": [
+            "ring/app/[locale]/admin/store/orders/page.tsx"
+          ],
+          "actions": [
+            "Basic table with status transitions (new, paid, processing, shipped, completed, canceled)",
+            "Role-gated to Admin"
+          ],
+          "acceptance": [
+            "Only admins can access; status updates persist"
+          ]
+        }
+      ],
+      "deliverables": ["Orders API", "User/Admin orders UI"]
+    },
+    "P5_payments": {
+      "objective": "Enable Stripe (test) and crypto payments",
+      "tasks": [
+        {
+          "id": "P5-01",
+          "title": "Stripe (test mode) payment option",
+          "status": "planned",
+          "files": [
+            "ring/app/api/store/stripe/checkout/route.ts",
+            "ring/components/store/checkout/PaymentStep.tsx"
+          ],
+          "actions": [
+            "Create test checkout session; on success update order.status=paid",
+            "Feature-flag via RING_STORE_STRIPE_ENABLED"
+          ],
+          "acceptance": [
+            "Stripe test flow completes and marks order paid in store"
+          ]
+        },
+        {
+          "id": "P5-02",
+          "title": "Crypto payment flow (DAAR/DAARION)",
+          "status": "planned",
+          "files": [
+            "ring/features/store/crypto/checkout.ts",
+            "ring/features/evm/transactions.ts",
+            "ring/services/wallet/ensure-wallet.ts"
+          ],
+          "actions": [
+            "Add helper to send tokens to treasury (RING_TREASURY_ADDRESS) and return tx hash",
+            "After tx mined, update order with txHash and status=paid"
+          ],
+          "acceptance": [
+            "Sufficient wallet balance triggers successful transfer; order reflects tx hash"
+          ]
+        }
+      ],
+      "deliverables": ["Stripe test payment", "Crypto payment via wallet"]
+    },
+    "P6_analytics_seo_i18n": {
+      "objective": "Track funnel, improve discoverability, localize",
+      "tasks": [
+        {
+          "id": "P6-01",
+          "title": "Analytics events for store funnel",
+          "status": "planned",
+          "files": [
+            "ring/public/scripts/store-analytics.js",
+            "ring/app/[locale]/store/**/*.tsx"
+          ],
+          "actions": [
+            "Emit view_item, add_to_cart, begin_checkout, purchase with metadata",
+            "Hook into existing analytics pipeline"
+          ],
+          "acceptance": [
+            "Events appear in dev logger and can be toggled off in dev"
+          ]
+        },
+        {
+          "id": "P6-02",
+          "title": "SEO + JSON-LD for products",
+          "status": "planned",
+          "files": [
+            "ring/app/[locale]/store/[id]/page.tsx",
+            "ring/lib/metadata.ts"
+          ],
+          "actions": [
+            "Add product schema.org JSON-LD; set dynamic metadata(title/description)"
+          ],
+          "acceptance": [
+            "Pages render valid JSON-LD (checked with linter)"
+          ]
+        },
+        {
+          "id": "P6-03",
+          "title": "i18n coverage for new strings (en/uk)",
+          "status": "planned",
+          "files": [
+            "ring/locales/en.json",
+            "ring/locales/uk.json"
+          ],
+          "actions": [
+            "Add store/cart/checkout/orders/admin texts; avoid duplication"
+          ],
+          "acceptance": [
+            "All new UI shows localized strings in en/uk"
+          ]
+        }
+      ],
+      "deliverables": ["Event tracking", "SEO metadata", "i18n keys"]
+    },
+    "P7_tests_docs": {
+      "objective": "Ensure quality and documentation",
+      "tasks": [
+        {
+          "id": "P7-01",
+          "title": "Unit + integration tests for store",
+          "status": "planned",
+          "files": [
+            "ring/__tests__/features/store/store-context.test.ts",
+            "ring/__tests__/api/store/orders.test.ts"
+          ],
+          "actions": [
+            "Mock adapters; test add/remove/update cart; test orders API validations"
+          ],
+          "acceptance": [
+            "All tests pass locally and in CI"
+          ]
+        },
+        {
+          "id": "P7-02",
+          "title": "E2E happy path (catalog → cart → checkout → order)",
+          "status": "planned",
+          "files": [
+            "ring/__tests__/e2e/store-flow.test.ts"
+          ],
+          "actions": [
+            "Script full user flow using mock adapter and Stripe test flag"
+          ],
+          "acceptance": [
+            "Green E2E with screenshots and artifacts"
+          ]
+        },
+        {
+          "id": "P7-03",
+          "title": "Docs: Store domain overview + AI instruction",
+          "status": "planned",
+          "files": [
+            "ring/docs/domains/store/README.md",
+            "ring/docs/domains/store/AI-INSTRUCTION-PROMPT.md",
+            "ring/AI-CONTEXT-store.json"
+          ],
+          "actions": [
+            "Author domain docs mirroring entities format; include adapter patterns and APIs"
+          ],
+          "acceptance": [
+            "Docs present and linked from AI-CONTEXT-INDEX"
+          ]
+        }
+      ],
+      "deliverables": ["Unit/integration/E2E tests", "Store domain docs"]
+    }
+  },
+  "concrete_edits": {
+    "add": [
+      "ring/features/store/adapters/firebase-adapter.ts",
+      "ring/features/store/adapters/connect-adapter.ts",
+      "ring/features/store/repos/firebase-orders.ts",
+      "ring/features/store/config.ts",
+      "ring/components/store/ProductCard.tsx",
+      "ring/components/store/FilterBar.tsx",
+      "ring/components/store/MiniCart.tsx",
+      "ring/components/store/checkout/ContactStep.tsx",
+      "ring/components/store/checkout/ShippingStep.tsx",
+      "ring/components/store/checkout/PaymentStep.tsx",
+      "ring/components/store/checkout/ReviewStep.tsx",
+      "ring/components/shipping/NovaPostSelector.tsx",
+      "ring/features/store/crypto/checkout.ts",
+      "ring/app/[locale]/store/[id]/page.tsx",
+      "ring/app/[locale]/store/orders/page.tsx",
+      "ring/app/[locale]/store/orders/[id]/page.tsx",
+      "ring/app/[locale]/admin/store/orders/page.tsx",
+      "ring/app/api/store/orders/route.ts",
+      "ring/app/api/store/orders/[id]/route.ts",
+      "ring/app/api/store/stripe/checkout/route.ts",
+      "ring/public/scripts/store-analytics.js",
+      "ring/__tests__/features/store/store-context.test.ts",
+      "ring/__tests__/api/store/orders.test.ts",
+      "ring/__tests__/e2e/store-flow.test.ts",
+      "ring/docs/domains/store/README.md",
+      "ring/docs/domains/store/AI-INSTRUCTION-PROMPT.md"
+    ],
+    "modify": [
+      "ring/features/store/types.ts",
+      "ring/features/store/index.ts",
+      "ring/app/[locale]/store/page.tsx",
+      "ring/app/[locale]/store/checkout/page.tsx",
+      "ring/features/layout/components/navigation.tsx",
+      "ring/locales/en.json",
+      "ring/locales/uk.json"
+    ]
+  },
+  "acceptance_criteria": {
+    "phase_exit": {
+      "P1": ["Adapter switch works; Firebase adapter lists products; checkout persists order"],
+      "P2": ["Details/filters/mini-cart functional across locales"],
+      "P3": ["Multistep checkout with shipping and validation"],
+      "P4": ["Orders API + User/Admin orders pages functional with auth"],
+      "P5": ["Stripe test and crypto payments mark orders as paid"],
+      "P6": ["Analytics events emitted; SEO and i18n updated"],
+      "P7": ["Unit/integration/E2E tests passing; docs published"]
+    }
+  },
+  "commands": {
+    "dev": ["npm run dev"],
+    "lint_test": ["npm run lint", "npm run type-check", "npm run test"]
+  },
+  "traceability": {
+    "references": [
+      "ring/AI-CONTEXT-store.json",
+      "ring/AI-CONTEXT-INDEX.json",
+      "ring/features/store/*",
+      "ring/features/evm/*",
+      "ring/services/wallet/*"
+    ]
+  }
+}
+
+

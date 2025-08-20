@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { useFCM, useFCMMessages } from '@/hooks/useFCM'
 import { toast } from '@/hooks/use-toast'
 

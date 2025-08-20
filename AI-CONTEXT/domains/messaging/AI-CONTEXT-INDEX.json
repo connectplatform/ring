@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-messaging",
+  "object_type": "domain",
+  "aliases": ["Messaging", "Realtime", "WebSocket"],
+  "updated": "2025-08-08",
+  "generated_at": "2025-08-08T00:00:00Z",
+  "status": "PRODUCTION_READY",
+  "maturity": "ga",
+  "criticality": "P2",
+  "lifecycle": "active",
+  "tags": ["realtime", "websocket", "messaging"],
+  "owner": {"team": "platform-core", "maintainers": ["frontend@technoring"], "channel": "#techno-platform"},
+  "location": {
+    "repo_root": "/Users/insight/code/technoring",
+    "path": "ring",
+    "related_paths": ["ring/server.js", "ring/services/messaging", "ring/app/api/conversations", "ring/app/api/messages"]
+  },
+  "purpose": "Provide realtime messaging (conversations, typing, presence) over WebSocket with authenticated sessions.",
+  "responsibilities": [
+    "Manage WebSocket lifecycle and authentication",
+    "Broadcast conversation events and presence",
+    "Expose REST APIs for messages and conversations"
+  ],
+  "non_goals": ["Long-term message persistence beyond Firestore", "Push notification delivery (handled by notifications domain)"]
+  ,
+  "dependencies": {
+    "runtime": ["socket.io", "next", "next-auth"],
+    "intra_repo": ["ring/auth.ts", "ring/services/messaging/*"],
+    "external_services": ["Firestore"]
+  },
+  "interfaces": {
+    "public_apis": [
+      "WebSocket events: connected, conversation_joined, conversation_left, message_received, user_typing, presence_update",
+      "REST: /api/conversations, /api/conversations/[id]/messages, /api/messages/[id]"
+    ],
+    "cli": [],
+    "events": ["send_message", "typing_start", "typing_stop", "join_conversation", "leave_conversation"]
+  },
+  "configuration": {
+    "env": ["AUTH_SECRET", "NEXTAUTH_URL"],
+    "files": ["ring/server.js"],
+    "feature_flags": []
+  },
+  "data_models": [
+    {"name": "Conversation", "storage": "firestore", "collections_or_tables": ["conversations"]},
+    {"name": "Message", "storage": "firestore", "collections_or_tables": ["messages"]}
+  ],
+  "operations": {
+    "start": "npm run dev",
+    "stop": "CTRL+C",
+    "health_check": "Console shows '📡 WebSocket server ready' and client 'connected' event",
+    "run_commands": ["npm run dev"],
+    "health_signals": ["websocket_server_ready", "connected"],
+    "smoke_tests": ["Connect with Bearer token and receive 'connected' payload", "Join/leave conversation events"]
+  },
+  "logging": {
+    "files": [],
+    "events": ["User connected", "conversation_joined", "message sent"],
+    "metrics": []
+  },
+  "errors": {
+    "common": [
+      {"message": "No authentication token provided", "cause": "Missing Bearer token in handshake", "fix": "Pass token in auth or Authorization header"},
+      {"message": "Invalid session", "cause": "JWT cannot be verified", "fix": "Use correct AUTH_SECRET and token from valid login"}
+    ],
+    "troubleshooting": [
+      "Check server logs for authentication errors",
+      "Validate origin and transports configuration"
+    ]
+  },
+  "security": {
+    "authn": "JWT via Auth.js v5 getToken() in WebSocket handshake",
+    "authz_model": "Room-based join authorization (future extension)",
+    "secrets": ["AUTH_SECRET"],
+    "data_privacy": "Only authenticated users can exchange messages; consider encryption for sensitive data"
+  },
+  "performance": {
+    "budget": "Low-latency broadcast under load",
+    "benchmarks": [],
+    "latency_expectations_ms": {"p50": 50, "p95": 150},
+    "throughput_targets": {"rps": 0}
+  },
+  "tests": {
+    "unit": ["ring/__tests__/services"],
+    "integration": ["ring/__tests__/api"],
+    "how_to_run": "npm run test"
+  },
+  "observability": {"dashboards": [], "alerts": []},
+  "recent_changes": [
+    {"date": "2025-08-08", "description": "Added AI context for messaging domain", "impact": "AI-first documentation"}
+  ],
+  "related_context_files": ["ring/AI-CONTEXT/AI-CONTEXT-INDEX.json", "ring/docs/AI-ASSISTANT-ONBOARDING.md"],
+  "links": {
+    "docs": ["ring/docs/SYSTEM-ARCHITECTURE.md"],
+    "code": ["ring/server.js", "ring/services/messaging", "ring/app/api/conversations", "ring/app/api/messages"],
+    "diagrams": [],
+    "tickets": []
+  }
+}
+
+

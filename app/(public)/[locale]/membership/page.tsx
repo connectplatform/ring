@@ -28,7 +28,43 @@ export default async function MembershipPage(props: MembershipPageProps) {
     redirect(ROUTES.LOGIN(locale))
   }
   
-  const user = session.user as AuthUser
+  // Helper to safely parse JSON fields
+  const safeJsonParse = (jsonString: string | undefined | null, fallback: any) => {
+    if (!jsonString || typeof jsonString !== 'string') return fallback
+    try {
+      return JSON.parse(jsonString)
+    } catch {
+      return fallback
+    }
+  }
+
+  const user = {
+    ...session.user,
+    emailVerified: typeof session.user.emailVerified === 'boolean' 
+      ? (session.user.emailVerified ? new Date() : null) 
+      : session.user.emailVerified,
+    wallets: Array.isArray(session.user.wallets) 
+      ? session.user.wallets 
+      : safeJsonParse(session.user.wallets as string, []),
+    postedopportunities: Array.isArray(session.user.postedopportunities) 
+      ? session.user.postedopportunities 
+      : safeJsonParse(session.user.postedopportunities as string, []),
+    savedopportunities: Array.isArray(session.user.savedopportunities) 
+      ? session.user.savedopportunities 
+      : safeJsonParse(session.user.savedopportunities as string, []),
+    settings: typeof session.user.settings === 'object' 
+      ? session.user.settings 
+      : safeJsonParse(session.user.settings as string, {}),
+    notificationPreferences: typeof session.user.notificationPreferences === 'object' 
+      ? session.user.notificationPreferences 
+      : safeJsonParse(session.user.notificationPreferences as string, { email: true, inApp: true, sms: false }),
+    kycVerification: typeof session.user.kycVerification === 'object'
+      ? session.user.kycVerification
+      : safeJsonParse(session.user.kycVerification as string, null),
+    pendingUpgradeRequest: typeof session.user.pendingUpgradeRequest === 'object'
+      ? session.user.pendingUpgradeRequest
+      : safeJsonParse(session.user.pendingUpgradeRequest as string, null)
+  } as AuthUser
   
   // If user is already a member or higher, redirect to profile
   if (user.role === UserRole.MEMBER || 

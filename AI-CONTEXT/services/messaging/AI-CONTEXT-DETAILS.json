@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "domain": "messaging",
+  "updated": "2025-08-08",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "Realtime conversations, messages, typing indicators, and presence over WebSocket + Firebase (Firestore + RTDB).",
+  "storage": {
+    "firestore_collections": ["conversations", "messages"],
+    "realtime_db_paths": [
+      "presence/conversations/{conversationId}/{userId}",
+      "typing/{conversationId}/{userId}",
+      "conversations/{conversationId}/messages/{messageId}"
+    ]
+  },
+  "events": {
+    "websocket_inbound": [
+      "join_conversation(conversationId)",
+      "leave_conversation(conversationId)",
+      "send_message({ conversationId, content, type })",
+      "typing_start(conversationId)",
+      "typing_stop(conversationId)",
+      "update_presence(status)"
+    ],
+    "websocket_outbound": [
+      "connected({ userId, userEmail })",
+      "conversation_joined({ conversationId })",
+      "conversation_left({ conversationId })",
+      "message_received(message)",
+      "user_typing({ userId, userEmail, isTyping })",
+      "presence_update({ userId, isOnline, lastSeen })",
+      "error({ message })"
+    ]
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/conversations",
+      "query": { "type": "direct|entity|opportunity", "isActive": "boolean", "entityId": "string", "opportunityId": "string", "limit": "number<=100", "cursor": "docId" },
+      "returns": "{ success, data: Conversation[], pagination }",
+      "auth": "required"
+    },
+    { "method": "POST", "path": "/api/conversations", "body": "{ type, participantIds[], metadata? }", "returns": "{ success, data: Conversation }", "auth": "required" },
+    { "method": "GET", "path": "/api/conversations/[id]", "returns": "{ success, data: Conversation }", "auth": "required" },
+    { "method": "PUT", "path": "/api/conversations/[id]", "body": "{ action: 'mark_read'|'add_participant'|'remove_participant'|'archive', ... }", "returns": "{ success }", "auth": "required" },
+    { "method": "DELETE", "path": "/api/conversations/[id]", "returns": "{ success }", "auth": "required" },
+    { "method": "GET", "path": "/api/conversations/[id]/messages", "query": "{ limit?, cursor?, direction? }", "returns": "{ success, data: Message[], pagination }", "auth": "required" },
+    { "method": "POST", "path": "/api/conversations/[id]/messages", "body": "{ content, type?, replyTo?, attachments? }", "returns": "{ success, data: Message }", "auth": "required" },
+    { "method": "POST", "path": "/api/conversations/[id]/typing", "body": "{ isTyping: boolean }", "returns": "{ success }", "auth": "required" },
+    { "method": "GET", "path": "/api/conversations/[id]/typing", "returns": "{ success, data: { typingUsers[] } }", "auth": "required" },
+    { "method": "GET", "path": "/api/messages/[id]", "returns": "{ success, data: Message }", "auth": "required" },
+    { "method": "PUT", "path": "/api/messages/[id]", "body": "{ content }", "returns": "{ success, data: Message }", "auth": "required (owner)" },
+    { "method": "DELETE", "path": "/api/messages/[id]", "returns": "{ success }", "auth": "required (owner)" },
+    { "method": "POST", "path": "/api/conversations/upload", "returns": "{ success, data }", "auth": "required" },
+    { "method": "POST|DELETE|GET", "path": "/api/messages/[id]/reactions", "returns": "{ success }", "auth": "required" }
+  ],
+  "services": {
+    "ConversationService": {
+      "file": "ring/services/messaging/conversation-service.ts",
+      "methods": [
+        { "name": "createConversation", "args": ["CreateConversationRequest"], "returns": "Promise<Conversation>", "side_effects": ["Firestore: conversations/*", "RTDB: presence/conversations/*" ] },
+        { "name": "getConversations", "args": ["userId: string", "filters?: ConversationFilters", "pagination?: PaginationOptions"], "returns": "Promise<Conversation[]>" },
+        { "name": "getConversationById", "args": ["id: string", "userId: string"], "returns": "Promise<Conversation|null>", "throws": ["Access denied if not participant"] },
+        { "name": "addParticipant", "args": ["conversationId: string", "userId: string", "role?"], "returns": "Promise<void>" },
+        { "name": "removeParticipant", "args": ["conversationId: string", "userId: string"], "returns": "Promise<void>" },
+        { "name": "updateLastRead", "args": ["conversationId: string", "userId: string"], "returns": "Promise<void>" }
+      ]
+    },
+    "MessageService": {
+      "file": "ring/services/messaging/message-service.ts",
+      "methods": [
+        { "name": "sendMessage", "args": ["SendMessageRequest", "senderId: string", "senderName: string", "senderAvatar?: string"], "returns": "Promise<Message>", "side_effects": ["Firestore: messages/*", "RTDB: conversations/*/messages/*", "Update conversation last message"], "errors": ["ValidationError", "EntityDatabaseError", "FetchError"] },
+        { "name": "getMessages", "args": ["conversationId: string", "userId: string", "pagination?: PaginationOptions"], "returns": "Promise<Message[]>", "side_effects": ["Marks delivered"] },
+        { "name": "getMessage", "args": ["messageId: string"], "returns": "Promise<Message|null>" },
+        { "name": "updateMessage", "args": ["messageId: string", "updates: Partial<Message>"], "returns": "Promise<Message>" },
+        { "name": "deleteMessage", "args": ["messageId: string"], "returns": "Promise<void>", "notes": "Soft delete" }
+      ]
+    },
+    "TypingService": {
+      "file": "ring/services/messaging/typing-service.ts",
+      "methods": [
+        { "name": "updateTypingStatus", "args": ["conversationId: string", "userId: string", "userName: string", "isTyping: boolean"], "returns": "Promise<void>" },
+        { "name": "getTypingUsers", "args": ["conversationId: string"], "returns": "Promise<TypingIndicator[]>" },
+        { "name": "cleanupTypingIndicators", "args": ["conversationId: string"], "returns": "Promise<void>" },
+        { "name": "stopTyping", "args": ["conversationId: string", "userId: string"], "returns": "Promise<void>" },
+        { "name": "setupTypingListener", "args": ["conversationId: string", "callback: (typingUsers: TypingIndicator[]) => void"], "returns": "() => void" }
+      ]
+    }
+  },
+  "types": {
+    "Conversation": "features/chat/types",
+    "Message": "features/chat/types",
+    "TypingIndicator": "features/chat/types",
+    "PaginationOptions": "features/chat/types"
+  },
+  "permissions": {
+    "auth_required": true,
+    "message_edit_window_ms": 900000,
+    "ownership_required_for_edit_delete": true
+  },
+  "env": ["AUTH_SECRET", "NEXTAUTH_URL"],
+  "notes": [
+    "JWTs for socket auth are verified with jose (see ring/lib/auth/jwt.ts)",
+    "Use Authorization: Bearer <jwt> or handshake auth.token"
+  ],
+  "performance": {
+    "bundle": [
+      "Dynamic import ethers in client contexts to avoid baseline bloat",
+      "Keep browser polyfills minimal in next.config.mjs"
+    ]
+  },
+  "indexes": [],
+  "errors": [
+    { "code": "unauthorized", "when": "Missing session" },
+    { "code": "access_denied", "when": "User not participant" },
+    { "code": "validation_error", "when": "Missing content or attachments" }
+  ],
+  "examples": {
+    "send_message": {
+      "request": { "path": "/api/conversations/{id}/messages", "method": "POST", "body": { "content": "Hello" } },
+      "response": { "success": true, "data": { "id": "msg_*" } }
+    }
+  },
+  "related": {
+    "server": "ring/server.js",
+    "auth": "ring/auth.ts"
+  }
+}
+
+

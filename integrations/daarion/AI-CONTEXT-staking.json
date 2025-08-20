@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "daarion-staking",
+  "object_type": "domain",
+  "status": "PLANNING",
+  "tags": ["staking","web3"],
+  "purpose": "Import staking mechanisms (stake/unstake, rewards, claims).",
+  "interfaces": {
+    "public_apis": [
+      "ring/features/staking: RingStakingService"
+    ],
+    "events": []
+  },
+  "dependencies": {
+    "intra_repo": ["ring/features/evm"],
+    "external_services": ["EVM RPC"]
+  }
+}

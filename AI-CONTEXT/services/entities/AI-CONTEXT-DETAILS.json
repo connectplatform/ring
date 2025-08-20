@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "context_version": 2,
+  "domain": "entities",
+  "updated": "2025-08-20",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "CRUD, visibility tiers, verification, and presence for professional organization entities.",
+  "storage": {
+    "firestore_collections": ["entities"],
+    "realtime_db_paths": ["entities/{entityId}/online", "entities/{entityId}/lastOnline"]
+  },
+  "endpoints": [
+    { "method": "GET", "path": "/api/entities", "query": "{ limit?, startAfter? }", "returns": "{ entities, lastVisible }", "auth": "required", "note": "Used by client components for infinite scroll" },
+    { "method": "GET", "path": "/api/entities/[id]", "returns": "Entity", "auth": "required", "note": "Used by client components" },
+    { "method": "POST", "path": "/api/entities/create", "body": "Entity (without id/online fields)", "returns": "Entity", "auth": "required" },
+    { "method": "PATCH", "path": "/api/entities/update/[id]", "body": "Partial<Entity>", "returns": "{ message }", "auth": "required (owner|admin)" },
+    { "method": "DELETE", "path": "/api/entities/delete/[id]", "returns": "{ message }", "auth": "required (owner|admin)" }
+  ],
+  "services": {
+    "createEntity": {
+      "file": "features/entities/services/create-entity.ts",
+      "sig": "(data: Omit<Entity,'id'|'dateCreated'|'dateUpdated'>) => Promise<Entity>",
+      "validation": ["auth() required", "role MEMBER|CONFIDENTIAL|ADMIN", "if isConfidential ⇒ CONFIDENTIAL|ADMIN"],
+      "defaults": ["tags/services/certifications/industries/members/opportunities/partnerships := []", "visibility := 'public'", "isConfidential := false"],
+      "side_effects": ["RTDB presence setup for privileged roles"],
+      "errors": ["EntityAuthError", "EntityPermissionError", "EntityDatabaseError", "EntityQueryError"]
+    },
+    "getEntities": {
+      "file": "features/entities/services/get-entities.ts",
+      "sig": "(limit=20, startAfter?) => Promise<{entities: Entity[]; lastVisible: string|null}>",
+      "role_filtering": "non-admin/confidential: visibility in ['public','subscriber', role]",
+      "notes": "additional in-memory filter for non-admin roles"
+    },
+    "getEntityById": {
+      "file": "features/entities/services/get-entity-by-id.ts",
+      "sig": "(id: string) => Promise<Entity|null>",
+      "authz": "deny if isConfidential and role !∈ {CONFIDENTIAL, ADMIN}"
+    },
+    "updateEntity": {
+      "file": "features/entities/services/update-entity.ts",
+      "sig": "(id: string, data: Partial<Entity>) => Promise<boolean>",
+      "authz": "owner or ADMIN",
+      "notes": "uses merge set"
+    },
+    "deleteEntity": {
+      "file": "features/entities/services/delete-entity.ts",
+      "sig": "(id: string) => Promise<boolean>",
+      "authz": "ADMIN or owner; confidential delete requires CONFIDENTIAL|ADMIN",
+      "side_effects": ["delete Firestore doc", "clear RTDB presence paths"]
+    }
+  },
+  "types": {
+    "Entity": "features/entities/types",
+    "UserRole": "features/auth/types"
+  },
+  "permissions": {
+    "tiers": ["public", "subscriber", "member", "confidential"],
+    "roles": ["visitor", "subscriber", "member", "confidential", "admin"]
+  },
+  "env": ["AUTH_FIREBASE_PROJECT_ID", "AUTH_FIREBASE_CLIENT_EMAIL", "AUTH_FIREBASE_PRIVATE_KEY"],
+  "indexes": ["visibility+type+name (see firestore.indexes.json)"],
+  "errors": [
+    { "code": "unauthorized", "when": "Missing session" },
+    { "code": "forbidden", "when": "Not owner/admin or lacks confidential permissions" },
+    { "code": "invalid_data", "when": "Validation of required fields fails" }
+  ],
+  "examples": {
+    "create": { "POST /api/entities/create": { "name": "Acme", "type": "technology", "shortDescription": "..." } },
+    "server_component": { "Direct service call": "import { getEntityById } from '@/features/entities/services/get-entity-by-id'; const entity = await getEntityById(id);" }
+  },
+  "runbooks": {
+    "seed_sample_data": {
+      "command": "npm run seed:opportunities",
+      "notes": "Optional: Seed opportunities to validate entity-opportunity mapping in development."
+    }
+  }
+}
+
+

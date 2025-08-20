@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "daarion-store",
+  "object_type": "domain",
+  "status": "PLANNING",
+  "tags": ["store","commerce"],
+  "purpose": "Import store (catalog, checkout, orders).",
+  "interfaces": {
+    "public_apis": [
+      "ring/features/store: RingStoreService"
+    ],
+    "events": []
+  },
+  "dependencies": {
+    "intra_repo": ["ring/features/evm"],
+    "external_services": ["EVM RPC"]
+  }
+}

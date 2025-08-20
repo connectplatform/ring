@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-services-messaging",
+  "object_type": "service",
+  "$ref": "./AI-CONTEXT-DETAILS.json"
+}
+
+

@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { ThemeProvider } from 'next-themes'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import { AppProvider } from '@/contexts/app-context'

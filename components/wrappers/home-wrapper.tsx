@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react'
 import Script from 'next/script'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { useTranslations } from 'next-intl'
 import HomeContent from '@/components/common/pages/home'
 import { User } from 'next-auth'

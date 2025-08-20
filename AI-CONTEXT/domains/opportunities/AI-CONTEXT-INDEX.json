@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-opportunities",
+  "object_type": "domain",
+  "aliases": ["Opportunities", "Jobs", "Requests"],
+  "updated": "2025-08-13",
+  "generated_at": "2025-08-13T00:00:00Z",
+  "status": "PRODUCTION_READY",
+  "maturity": "ga",
+  "criticality": "P2",
+  "lifecycle": "active",
+  "tags": ["opportunities", "jobs", "requests"],
+  "owner": {"team": "platform-core", "maintainers": ["frontend@technoring"], "channel": "#techno-platform"},
+  "location": {
+    "repo_root": "/Users/insight/code/technoring",
+    "path": "ring",
+    "related_paths": ["ring/services/opportunities", "ring/app/api/opportunities", "ring/app/api/confidential/opportunities"]
+  },
+  "purpose": "Manage dual-nature opportunities (offers/requests) with tiered access including confidential content.",
+  "responsibilities": [
+    "CRUD for opportunities",
+    "Filtering and search with indexes",
+    "Confidential access enforcement"
+  ],
+  "non_goals": ["Entity management", "User account management"],
+  "dependencies": {
+    "runtime": ["firebase-admin", "zod"],
+    "intra_repo": ["ring/lib/firestore-collections", "ring/middleware.ts", "ring/lib/events/event-log.ts", "ring/lib/ai/neural-matcher.ts"],
+    "external_services": ["Firestore"]
+  },
+  "interfaces": {
+    "public_apis": [
+      "GET/POST /api/opportunities",
+      "GET/PUT/DELETE /api/opportunities/[id]",
+      "GET /api/confidential/opportunities (restricted)"
+    ],
+    "cli": [],
+    "events": ["opportunity_created", "opportunity_updated", "opportunity_deleted", "opportunity_matched"]
+  },
+  "configuration": {
+    "env": ["AUTH_FIREBASE_PROJECT_ID", "AUTH_FIREBASE_CLIENT_EMAIL", "AUTH_FIREBASE_PRIVATE_KEY"],
+    "files": ["ring/env.local.template", "ring/lib/firestore-collections.ts"],
+    "feature_flags": []
+  },
+  "data_models": [
+    {"name": "Opportunity", "storage": "firestore", "collections_or_tables": ["opportunities"]},
+    {"name": "Indexes", "storage": "firestore", "collections_or_tables": ["visibility+type+dateAdded (see firestore.indexes.json)"]}
+  ],
+  "operations": {
+    "start": "npm run dev",
+    "stop": "CTRL+C",
+    "health_check": "GET /api/opportunities responds 200",
+    "run_commands": ["npm run dev"],
+    "health_signals": ["opportunities_list_loaded"],
+    "smoke_tests": ["curl -s http://localhost:3000/api/opportunities"]
+  },
+  "logging": {"files": [], "events": ["opportunity_created", "opportunity_updated", "opportunity_deleted"], "metrics": []},
+  "errors": {
+    "common": [
+      {"message": "Permission denied", "cause": "Insufficient role/tier", "fix": "Authenticate and ensure role meets access tier"},
+      {"message": "Invalid filter/index", "cause": "Missing composite index", "fix": "Deploy indexes from firestore.indexes.json"}
+    ],
+    "troubleshooting": ["Verify middleware role logs", "Check Firestore index deployment"]
+  },
+  "security": {
+    "authn": "Auth.js v5 JWT",
+    "authz_model": "Tiered access per opportunity.visibility; confidential routes guarded in middleware",
+    "secrets": ["AUTH_SECRET"],
+    "data_privacy": "Confidential details visible only to confidential/admin roles"
+  },
+  "performance": {
+    "budget": "Indexed queries with pagination",
+    "benchmarks": [],
+    "latency_expectations_ms": {"p50": 200, "p95": 500},
+    "throughput_targets": {"rps": 0}
+  },
+  "tests": {
+    "unit": ["ring/__tests__/api/opportunities"],
+    "integration": ["ring/__tests__/api"],
+    "how_to_run": "npm run test"
+  },
+  "observability": {"dashboards": [], "alerts": []},
+  "recent_changes": [
+    {"date": "2025-08-13", "description": "Added event-log + baseline AI matcher references", "impact": "AI features"}
+  ],
+  "related_context_files": ["ring/AI-CONTEXT/AI-CONTEXT-INDEX.json", "ring/docs/AI-ASSISTANT-ONBOARDING.md"],
+  "links": {
+    "docs": ["ring/docs/SYSTEM-ARCHITECTURE.md"],
+    "code": ["ring/services/opportunities", "ring/app/api/opportunities", "ring/app/api/confidential/opportunities"],
+    "diagrams": [],
+    "tickets": []
+  }
+}
+
+

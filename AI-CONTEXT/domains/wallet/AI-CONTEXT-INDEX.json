@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "ring-wallet",
+  "object_type": "domain",
+  "aliases": ["Wallet", "Crypto Wallet", "EVM"],
+  "updated": "2025-08-12",
+  "generated_at": "2025-08-13T00:00:00Z",
+  "status": "BETA",
+  "maturity": "beta",
+  "criticality": "P2",
+  "lifecycle": "active",
+  "tags": ["wallet", "evm", "crypto", "payment"],
+  "owner": {"team": "platform-core", "maintainers": ["frontend@technoring"], "channel": "#techno-platform"},
+  "location": {
+    "repo_root": "/Users/insight/code/technoring",
+    "path": "ring",
+    "related_paths": [
+      "ring/services/wallet",
+      "ring/features/evm",
+      "ring/app/api/wallet"
+    ]
+  },
+  "purpose": "Manage user crypto wallets (creation, balance, transfers) and provide lightweight EVM helpers for DAAR/DAARION token flows.",
+  "responsibilities": [
+    "Ensure wallet for authenticated users (ensure-wallet)",
+    "Fetch balances via EVM provider",
+    "Prepare transactions (placeholder) and perform transfers (API)",
+    "Expose wallet UI helpers (connect popup)"
+  ],
+  "non_goals": [
+    "Custodial key management",
+    "On-chain order settlement",
+    "Complex DeFi operations"
+  ],
+  "dependencies": {
+    "runtime": ["ethers"],
+    "intra_repo": ["ring/auth.ts", "ring/lib/firebase-admin.server", "ring/features/evm"],
+    "external_services": ["Polygon RPC"]
+  },
+  "interfaces": {
+    "public_apis": [
+      "POST /api/wallet/ensure",
+      "POST /api/wallet/transfer",
+      "TS: services/wallet/get-wallet-balance.ts",
+      "TS: features/evm/transactions.ts (prepareTokenTransfer)",
+      "TS: features/evm/addresses.ts (DEFAULT_TOKEN_ADDRESSES)"
+    ],
+    "cli": [],
+    "events": ["wallet_created", "wallet_balance_fetched", "wallet_transfer_initiated", "wallet_transfer_completed"]
+  },
+  "configuration": {
+    "env": ["POLYGON_RPC_URL", "WALLET_ENCRYPTION_KEY"],
+    "files": [
+      "ring/services/wallet/ensure-wallet.ts",
+      "ring/services/wallet/get-wallet-balance.ts",
+      "ring/app/api/wallet/ensure/route.ts",
+      "ring/app/api/wallet/transfer/route.ts",
+      "ring/features/evm/transactions.ts",
+      "ring/features/evm/addresses.ts"
+    ],
+    "feature_flags": []
+  },
+  "data_models": [
+    {"name": "Wallet", "storage": "firestore", "collections_or_tables": ["users.wallets[]"]}
+  ],
+  "operations": {
+    "start": "npm run dev",
+    "stop": "CTRL+C",
+    "health_check": "POST /api/wallet/ensure returns 200 for authenticated user",
+    "run_commands": ["npm run dev"],
+    "health_signals": ["wallet_ensured"],
+    "smoke_tests": ["curl -s -X POST http://localhost:3000/api/wallet/ensure"]
+  },
+  "logging": {
+    "files": [],
+    "events": ["wallet_created", "wallet_transfer_initiated", "wallet_transfer_completed"],
+    "metrics": ["wallet_balance_fetch_ms", "transfer_request_rate"]
+  },
+  "errors": {
+    "common": [
+      {"message": "Unauthorized", "cause": "Missing session", "fix": "Authenticate via Auth.js v5"},
+      {"message": "Decryption not implemented", "cause": "Placeholder decrypt function", "fix": "Integrate secure KMS/HSM"}
+    ],
+    "troubleshooting": [
+      "Check POLYGON_RPC_URL",
+      "Verify Firestore user document exists"
+    ]
+  },
+  "security": {
+    "authn": "Auth.js v5 JWT",
+    "authz_model": "User owns wallets under their user doc",
+    "secrets": ["WALLET_ENCRYPTION_KEY"],
+    "data_privacy": "Encrypted private keys stored; decryption path must be secured"
+  },
+  "performance": {
+    "budget": "Balance fetch < 500ms p95",
+    "benchmarks": [],
+    "latency_expectations_ms": {"p50": 200, "p95": 500},
+    "throughput_targets": {"rps": 0}
+  },
+  "tests": {
+    "unit": ["ring/services/wallet/*", "ring/features/evm/*"],
+    "integration": ["ring/app/api/wallet/*"],
+    "how_to_run": "npm run test"
+  },
+  "observability": {"dashboards": [], "alerts": []},
+  "recent_changes": [
+    {"date": "2025-08-12", "description": "Wallet APIs and EVM helpers stabilized for store flows", "impact": "Backend/API"},
+    {"date": "2025-08-13", "description": "Added onchain init hook post wallet ensure", "impact": "Wallet ensure"}
+  ],
+  "related_context_files": ["ring/AI-CONTEXT/AI-CONTEXT-INDEX.json"],
+  "links": {
+    "docs": ["ring/docs/SYSTEM-ARCHITECTURE.md"],
+    "code": [
+      "ring/services/wallet",
+      "ring/app/api/wallet",
+      "ring/features/evm"
+    ],
+    "diagrams": [],
+    "tickets": []
+  }
+}
+
+

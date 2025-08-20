@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "domain": "auth",
+  "updated": "2025-08-09",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "Authentication via Auth.js v5 with Firebase Adapter; providers: Google, Apple, crypto-wallet.",
+  "files": {
+    "edge_config": "ring/auth.config.ts",
+    "server_auth": "ring/auth.ts",
+    "middleware": "ring/middleware.ts"
+  },
+  "providers": [
+    { "id": "google", "env": ["AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET"] },
+    { "id": "apple", "env": ["AUTH_APPLE_ID", "AUTH_APPLE_SECRET"] },
+    { "id": "crypto-wallet", "env": [], "notes": "Edge authorize light; server verify in auth.ts" }
+  ],
+  "endpoints": [
+    { "method": "GET|POST", "path": "/api/auth/[...nextauth]", "notes": "handled by next-auth" }
+  ],
+  "session": {
+    "strategy": "jwt",
+    "jwt_fields": ["userId", "role", "isVerified", "accessToken", "refreshToken", "provider", "needsOnboarding"],
+    "session_fields": ["user.id", "user.role", "user.isVerified", "user.needsOnboarding", "user.provider", "accessToken", "refreshToken"]
+  },
+  "adapter": { "name": "@auth/firebase-adapter", "db": "getAdminDb() (Firestore Admin)" },
+  "types": { "UserRole": "features/auth/types", "AuthUser": "features/auth/types" },
+  "env": ["AUTH_SECRET", "NEXTAUTH_URL", "AUTH_FIREBASE_PROJECT_ID", "AUTH_FIREBASE_CLIENT_EMAIL", "AUTH_FIREBASE_PRIVATE_KEY", "FIREBASE_DATABASE_URL", "AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET", "AUTH_APPLE_ID", "AUTH_APPLE_SECRET"],
+  "errors": [ { "code": "missing_env", "when": "Required AUTH_* not set" }, { "code": "invalid_wallet_signature", "when": "crypto-wallet authorize fails" } ]
+}
+
+

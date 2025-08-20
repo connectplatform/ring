@@ -1,7 +1,7 @@
 'use client'
 
 import React, { Suspense } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { useTranslations } from 'next-intl'
 import EntityDetails from '@/features/entities/components/entity-details'
 import { SerializedEntity } from '@/features/entities/types'

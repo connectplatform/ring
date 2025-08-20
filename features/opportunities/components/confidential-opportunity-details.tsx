@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
-import { useSession, SessionProvider } from 'next-auth/react'
+import { useSession, SessionProvider } from '@/components/providers/session-provider'
 import { SlidingPopup } from '@/components/common/widgets/modal'
 import { Button } from '@/components/ui/button'
 import { ContactForm } from '@/components/common/widgets/contact-form'

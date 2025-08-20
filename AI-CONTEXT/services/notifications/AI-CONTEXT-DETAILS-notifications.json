@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "domain": "notifications",
+  "updated": "2025-08-09",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "In-app and push notifications with FCM, preferences, and domain triggers.",
+  "files": {
+    "service": "ring/services/notifications/notification-service.ts",
+    "fcm": "ring/services/notifications/fcm-service.ts",
+    "triggers": "ring/services/notifications/notification-triggers.ts"
+  },
+  "endpoints": [
+    { "method": "GET", "path": "/api/notifications" },
+    { "method": "POST", "path": "/api/notifications/read-all" },
+    { "method": "POST", "path": "/api/notifications/[id]/read" },
+    { "method": "GET", "path": "/api/notifications/preferences" },
+    { "method": "POST", "path": "/api/notifications/preferences" },
+    { "method": "POST", "path": "/api/notifications/fcm/register" },
+    { "method": "GET", "path": "/api/notifications/fcm/tokens/count" },
+    { "method": "GET", "path": "/api/notifications/fcm/test" }
+  ],
+  "services": {
+    "NotificationService": {
+      "file": "ring/services/notifications/notification-service.ts",
+      "methods": [
+        { "name": "createNotification", "args": ["CreateNotificationRequest"], "returns": "Promise<string>" },
+        { "name": "getUserNotifications", "args": ["userId: string", "filters?"], "returns": "Promise<Notification[]>" },
+        { "name": "markNotificationAsRead", "args": ["notificationId: string", "userId: string"], "returns": "Promise<boolean>" },
+        { "name": "markAllNotificationsAsRead", "args": ["userId: string"], "returns": "Promise<number>" },
+        { "name": "deleteNotification", "args": ["notificationId: string", "userId: string"], "returns": "Promise<boolean>" },
+        { "name": "getNotificationStats", "args": ["userId: string"], "returns": "Promise<NotificationStats>" },
+        { "name": "getUserNotificationPreferences", "args": ["userId: string"], "returns": "Promise<NotificationPreferences>" },
+        { "name": "updateUserNotificationPreferences", "args": ["userId: string", "prefs: Partial<NotificationPreferences>"], "returns": "Promise<void>" }
+      ]
+    },
+    "FCMService": { "file": "ring/services/notifications/fcm-service.ts" },
+    "NotificationTriggers": { "file": "ring/services/notifications/notification-triggers.ts" }
+  },
+  "dependencies": { "intra_repo": ["ring/lib/firebase-admin.server.ts"], "env": ["FIREBASE_DATABASE_URL", "FIREBASE_CONFIG_*"], "external": ["Firebase Cloud Messaging"] },
+  "errors": [
+    { "code": "unauthorized", "when": "Missing session in protected endpoints" },
+    { "code": "fcm_error", "when": "FCM send failures" }
+  ]
+}
+
+

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "name": "daarion-wallet",
+  "object_type": "domain",
+  "status": "PLANNING",
+  "tags": ["wallet","web3"],
+  "purpose": "Import Daarion wallet core (keys, balances, transfers).",
+  "interfaces": {
+    "public_apis": [
+      "ring/features/wallet: RingWalletService",
+      "ring/features/evm: getDefaultNetwork, prepareTokenTransfer"
+    ],
+    "events": []
+  },
+  "dependencies": {
+    "intra_repo": ["ring/features/evm"],
+    "external_services": ["EVM RPC"]
+  }
+}

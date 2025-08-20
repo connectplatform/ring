@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "domain": "store",
+  "updated": "2025-08-13",
+  "status": "ALPHA",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "Server-side services for Store domain (orders, payments) used by Next.js API routes.",
+  "services": {
+    "StoreOrdersService": {
+      "file": "ring/services/store/orders-service.ts",
+      "methods": [
+        { "name": "listOrdersForUser", "args": ["userId: string", "opts?: { limit?: number; startAfter?: string }"] , "returns": "Promise<{items:any[], lastVisible:string|null}>" },
+        { "name": "getOrderById", "args": ["id: string"], "returns": "Promise<any|null>" },
+        { "name": "createOrder", "args": ["userId: string", "data: orderCreateSchema"], "returns": "Promise<{orderId:string}>" },
+        { "name": "adminUpdateOrderStatus", "args": ["id: string", "status: 'new'|'paid'|'processing'|'shipped'|'completed'|'canceled'"], "returns": "Promise<boolean>" }
+      ]
+    },
+    
+    "StorePaymentsService": {
+      "file": "ring/services/store/payments-service.ts",
+      "methods": [
+        { "name": "createStripeTestSession", "args": ["{ orderId, amountUsd, metadata? }"], "returns": "Promise<{url:string}>" },
+        { "name": "markOrderPaidStripe", "args": ["orderId: string", "stripeSessionId: string"], "returns": "Promise<{ok:true, orderId:string}>" },
+        { "name": "markOrderFailedStripe", "args": ["orderId: string", "stripeSessionId: string"], "returns": "Promise<{ok:true, orderId:string}>" },
+        { "name": "recordCryptoPayment", "args": ["orderId: string", "txHash: string"], "returns": "Promise<{ok:true, orderId:string, txHash:string}>" }
+      ]
+    }
+  },
+  "endpoints": [
+    { "method": "GET", "path": "/api/store/orders", "notes": "Uses StoreOrdersService.listOrdersForUser with limit & afterId" },
+    { "method": "POST", "path": "/api/store/orders", "notes": "Validates with orderCreateSchema; StoreOrdersService.createOrder" },
+    { "method": "GET", "path": "/api/store/orders/[id]", "notes": "StoreOrdersService.getOrderById with authZ" },
+    { "method": "POST", "path": "/api/admin/orders/[id]/status", "notes": "Role admin; StoreOrdersService.adminUpdateOrderStatus" }
+  ],
+  "dependencies": { "intra_repo": ["ring/lib/zod.ts", "ring/lib/firebase-admin.server.ts"], "env": ["AUTH_FIREBASE_*"] },
+  "errors": [ { "code": "unauthorized", "when": "Missing session" }, { "code": "forbidden", "when": "Non-admin admin endpoint" } ]
+}
+
+

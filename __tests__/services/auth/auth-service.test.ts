@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals'
-import { signIn, signOut, getSession } from 'next-auth/react'
+import { signIn, signOut, getSession } from '@/components/providers/session-provider'
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,

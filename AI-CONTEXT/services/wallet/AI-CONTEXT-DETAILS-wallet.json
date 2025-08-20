@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "context_version": 1,
+  "domain": "wallet",
+  "updated": "2025-08-09",
+  "status": "PRODUCTION_READY",
+  "owner": { "team": "platform-core", "maintainers": ["frontend@technoring"] },
+  "purpose": "Wallet creation, ensuring default wallet, on-chain balance retrieval, history, and transfers on Polygon.",
+  "files": {
+    "ensure": "ring/services/wallet/ensure-wallet.ts",
+    "create": "ring/services/wallet/create-wallet.ts",
+    "balance": "ring/services/wallet/get-wallet-balance.ts",
+    "history": "ring/services/wallet/wallet-history.ts",
+    "transfer_api": "ring/app/api/wallet/transfer/route.ts",
+    "utils": "ring/services/wallet/utils.ts",
+    "feature_utils": "ring/features/wallet/utils.ts"
+  },
+  "public_apis": [
+    { "fn": "ensureWallet()", "returns": "Wallet", "notes": "Creates default wallet when missing, encrypts private key." },
+    { "fn": "createWallet(label?)", "returns": "Wallet", "notes": "Adds a labeled wallet; first wallet becomes default." },
+    { "fn": "getWalletBalance()", "returns": "string", "notes": "Reads Polygon balance for default wallet." },
+    { "fn": "getWalletHistory(addr, filter)", "returns": "Array<Tx>", "notes": "Reads recent transactions with filters." },
+    { "fn": "selectDefaultWallet(wallets)", "returns": "Wallet|null", "notes": "Shared selection logic used across services/UI." }
+  ],
+  "endpoints": [
+    { "method": "POST", "path": "/api/wallet/create" },
+    { "method": "POST", "path": "/api/wallet/ensure" },
+    { "method": "GET", "path": "/api/wallet/balance" },
+    { "method": "POST", "path": "/api/wallet/transfer" }
+  ],
+  "dependencies": {
+    "intra_repo": [
+      "ring/features/auth/types",
+      "ring/lib/firebase-admin.server.ts",
+      "ring/features/evm/utils.ts"
+    ],
+    "external_services": ["Polygon RPC"],
+    "env": ["POLYGON_RPC_URL", "WALLET_ENCRYPTION_KEY"]
+  },
+  "errors": [
+    { "code": "unauthorized", "when": "Auth required for wallet ops" },
+    { "code": "missing_encryption_key", "when": "WALLET_ENCRYPTION_KEY not set" },
+    { "code": "wallet_not_found", "when": "User has no wallets" },
+    { "code": "invalid_address", "when": "Transfer target address invalid" }
+  ],
+  "security": {
+    "keys": "Private keys stored encrypted (ethers keystore JSON). Decrypt only for signing. Prefer KMS in production.",
+    "access": "Only authenticated users access their own wallets via server-side services."
+  }
+}
+
+

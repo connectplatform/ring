@@ -1,0 +1,285 @@
+{
+  "schema_version": "1.0",
+  "module": "nft-market",
+  "title": "White-label NFT Marketplace for Ring",
+  "owner": {
+    "team": "platform-core",
+    "channel": "#ring-nft-market"
+  },
+  "status": "IN_PROGRESS",
+  "summary": "Implement a white-label NFT marketplace where members and confidential members can list, search, buy and sell NFTs via Web3 contracts. Add public user profiles at /u/$username and display NFTs for sale on the profile.",
+  "assumptions": [
+    "React 19 / Next 15.4 / Auth.js 5",
+    "Wallets via ethers v6 BrowserProvider; server reads optional",
+    "EVM-compatible chain (Polygon by default)",
+    "Ring i18n routes under app/[locale]/",
+    "Firestore used for search indices and listing metadata",
+    "Users have a unique username field exposed in session"
+  ],
+  "acceptance": [
+    "Public profile route /[locale]/u/[username] renders, SSG+dynamic fallback, SEO meta",
+    "Members+Confidential can create listings mapped to on-chain tokenId/contract",
+    "Marketplace shows collection and item browsing, with filters and search",
+    "Buy flow signs tx in browser, shows pending/confirmed states",
+    "Profile page shows an 'NFTs for sale' block when listings exist",
+    "Admin config supports contract allowlist/denylist and royalty/fee settings",
+    "White-label theming: uses Tailwind tokens and brand config overrides"
+  ],
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Core user profile enhancement (username + public page)",
+      "impact": "enables public profile pages and marketplace seller identity",
+      "status": "DONE",
+      "tasks": [
+        {
+          "id": "P0-T1",
+          "title": "Add username to user types and session",
+          "files": [
+            "ring/features/auth/types.ts",
+            "ring/types/next-auth.d.ts",
+            "ring/types/profile.ts"
+          ],
+          "done_when": [
+            "Types include optional username",
+            "Profile form accepts username",
+            "JWT/session exposes username"
+          ],
+          "status": "DONE"
+        },
+        {
+          "id": "P0-T2",
+          "title": "Public profile route /[locale]/u/[username]",
+          "files": [
+            "ring/app/[locale]/u/[username]/page.tsx",
+            "ring/components/profile/PublicProfile.tsx"
+          ],
+          "done_when": [
+            "Route renders public user info (name, username, photo, bio)",
+            "SEO tags present; 404 for unknown username",
+            "Server component fetches by username"
+          ],
+          "status": "DONE"
+        },
+        {
+          "id": "P0-T3",
+          "title": "User settings/profile update to set username",
+          "files": [
+            "ring/app/actions/users.ts",
+            "ring/components/users/user-profile-form.tsx"
+          ],
+          "done_when": [
+            "Username can be set/updated once; uniqueness validated",
+            "Reserved names and min/max length validation",
+            "Migration note for backfilling existing users"
+          ],
+          "status": "DONE"
+        }
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Marketplace data model and read adapters",
+      "status": "PARTIAL",
+      "tasks": [
+        {
+          "id": "P1-T1",
+          "title": "Define listing and collection types",
+          "files": [
+            "ring/features/nft-market/types.ts"
+          ],
+          "done_when": [
+            "Types cover Listing, Collection, NFTItem, ChainId, Money",
+            "Listing state: draft/active/sold/cancelled"
+          ],
+          "status": "DONE"
+        },
+        {
+          "id": "P1-T2",
+          "title": "Firestore collections and security rules plan",
+          "files": [
+            "ring/features/nft-market/DATA_MODEL.md"
+          ],
+          "done_when": [
+            "Collections: nft_collections, nft_items, nft_listings, user_usernames",
+            "Indexes for searches and filters documented"
+          ]
+        },
+        {
+          "id": "P1-T3",
+          "title": "Read adapters (client+server)",
+          "files": [
+            "ring/features/nft-market/adapters/read.server.ts",
+            "ring/features/nft-market/adapters/read.client.ts"
+          ],
+          "done_when": [
+            "Server adapter can fetch by username, contract, collection",
+            "Client adapter fetches lightweight lists with pagination"
+          ],
+          "status": "DONE"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Write flows: list, buy, cancel",
+      "status": "PARTIAL",
+      "tasks": [
+        {
+          "id": "P2-T1",
+          "title": "EVM adapter for marketplace",
+          "files": [
+            "ring/features/nft-market/adapters/evm.ts"
+          ],
+          "done_when": [
+            "Implements approve/list/buy/cancel for ERC721/1155",
+            "Supports fee recipient and optional royalties passthrough"
+          ]
+        },
+        {
+          "id": "P2-T2",
+          "title": "Route handlers for listing lifecycle",
+          "files": [
+            "ring/app/api/nft-market/listings/route.ts",
+            "ring/app/api/nft-market/listings/[id]/route.ts"
+          ],
+          "done_when": [
+            "Creates listing doc on draft; activates after on-chain tx hash",
+            "Webhook/tx watcher updates status to sold/cancelled"
+          ],
+          "status": "PARTIAL"
+        },
+        {
+          "id": "P2-T3",
+          "title": "Public pages: collections, item, search",
+          "files": [
+            "ring/app/[locale]/nft/collections/page.tsx",
+            "ring/app/[locale]/nft/collections/[slug]/page.tsx",
+            "ring/app/[locale]/nft/items/[chain]/[contract]/[tokenId]/page.tsx",
+            "ring/app/[locale]/nft/search/page.tsx"
+          ],
+          "done_when": [
+            "SSR lists with pagination and filters",
+            "Item page shows on-chain metadata and active listings"
+          ],
+          "status": "DONE"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Profile integration and white-label UI",
+      "status": "IN_PROGRESS",
+      "tasks": [
+        {
+          "id": "P3-T1",
+          "title": "Profile: NFTs for sale block",
+          "files": [
+            "ring/app/[locale]/u/[username]/page.tsx",
+            "ring/features/nft-market/components/ProfileListings.tsx"
+          ],
+          "done_when": [
+            "If user has active listings, a block is rendered",
+            "Empty state and CTA to create listing for owners"
+          ],
+          "status": "IN_PROGRESS"
+        },
+        {
+          "id": "P3-T2",
+          "title": "White-label theming",
+          "files": [
+            "ring/features/nft-market/theme.config.ts",
+            "ring/styles/tokens.css"
+          ],
+          "done_when": [
+            "Supports brand color/typography overrides",
+            "Docs describe how to rebrand"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Compliance, roles, and fees",
+      "tasks": [
+        {
+          "id": "P4-T1",
+          "title": "Role gating (member/confidential)",
+          "files": ["ring/app/api/nft-market/middleware.ts"],
+          "done_when": [
+            "Only members+confidential can list/sell",
+            "Visitors/subscribers can browse"
+          ]
+        },
+        {
+          "id": "P4-T2",
+          "title": "Fee/royalty config",
+          "files": ["ring/features/nft-market/market.config.ts"],
+          "done_when": [
+            "Marketplace fee recipient configurable per env",
+            "Royalty info surfaced on item page"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Ops: indexing, watchers, tests",
+      "tasks": [
+        {
+          "id": "P5-T1",
+          "title": "Tx watcher + status updates",
+          "files": ["ring/features/nft-market/workers/tx-watcher.ts"],
+          "done_when": [
+            "On-chain events update Firestore listing status",
+            "Retries and backoff covered"
+          ]
+        },
+        {
+          "id": "P5-T2",
+          "title": "Tests and docs",
+          "files": [
+            "ring/features/nft-market/__tests__/*.test.ts",
+            "ring-docs/docs/features/nft-market/overview.md"
+          ],
+          "done_when": [
+            "Unit tests for adapters and route handlers",
+            "Docs updated with flows and configuration"
+          ]
+        }
+      ]
+    }
+  ],
+  "follow_up_module": {
+    "name": "staking",
+    "depends_on": ["P0-T1", "P0-T2", "P1-T1", "P2-T1"],
+    "plan": [
+      {
+        "id": "S-P0",
+        "title": "Finalize ABIs and addresses",
+        "files": [
+          "ring/features/staking/staking.config.ts",
+          "ring/features/staking/abi/*.json"
+        ]
+      },
+      {
+        "id": "S-P1",
+        "title": "EVM staking adapter and service",
+        "files": [
+          "ring/features/staking/adapters/evm.ts",
+          "ring/features/staking/service.ts"
+        ]
+      },
+      {
+        "id": "S-P2",
+        "title": "UI panel and profile integration",
+        "files": [
+          "ring/features/staking/components/StakingPanel.tsx",
+          "ring/app/[locale]/staking/page.tsx"
+        ]
+      }
+    ]
+  }
+}
+
+

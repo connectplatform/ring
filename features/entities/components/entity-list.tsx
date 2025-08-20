@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { useTranslations } from 'next-intl'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
 

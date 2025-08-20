@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { UserSettings } from '@/features/auth/types'
 import { useSearchParams } from 'next/navigation'
 import type { Locale } from '@/i18n-config'

@@ -56,7 +56,7 @@ export default async function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className="font-inter antialiased">
-        <SessionProvider session={session}>
+        <SessionProvider>
           <WebVitalsProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
               <InstanceConfigProvider>

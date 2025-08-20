@@ -1,0 +1,173 @@
+{
+  "schema_version": "2.0",
+  "context_version": 3,
+  "name": "ring",
+  "object_type": "service",
+  "updated": "2025-07-16",
+  "ingestion": {
+    "read_first": [
+      "AI-CONTEXT-INDEX.json"
+    ],
+    "include": [
+      "docs/AI-*.md",
+      "docs/domains/**/AI-INSTRUCTION-PROMPT.md",
+      "services/**/AI-CONTEXT-DETAILS*.json",
+      "features/**/AI-CONTEXT-DETAILS*.json",
+      "integrations/**/AI-CONTEXT*.json"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/.next/**"
+    ]
+  },
+  "index": {
+    "domains": [
+      { "key": "auth", "index_file": "domains/auth/AI-CONTEXT-INDEX.json", "details": ["domains/auth/AI-CONTEXT-DETAILS.json", "services/auth/AI-CONTEXT-DETAILS-auth.json"], "docs": ["docs/domains/auth/AI-INSTRUCTION-PROMPT.md"] },
+      { "key": "entities", "index_file": "domains/entities/AI-CONTEXT-INDEX.json", "details": ["services/entities/AI-CONTEXT-DETAILS.json", "services/entities/AI-CONTEXT-DETAILS-entities.json"], "docs": ["docs/domains/entities/AI-INSTRUCTION-PROMPT.md"] },
+      { "key": "opportunities", "index_file": "domains/opportunities/AI-CONTEXT-INDEX.json", "details": ["services/opportunities/AI-CONTEXT-DETAILS.json", "services/opportunities/AI-CONTEXT-DETAILS-opportunities.json"], "docs": ["docs/AI-CODER-KNOWLEDGE-BASE.md"] },
+      { "key": "messaging", "index_file": "domains/messaging/AI-CONTEXT-INDEX.json", "details": ["services/messaging/AI-CONTEXT-DETAILS.json", "services/messaging/AI-CONTEXT-DETAILS-messaging.json"], "docs": ["docs/AI-AGENT-PROMPT-TEMPLATE.md"] },
+      { "key": "notifications", "index_file": null, "details": ["services/notifications/AI-CONTEXT-DETAILS-notifications.json"], "docs": [] },
+      { "key": "wallet", "index_file": "domains/wallet/AI-CONTEXT-INDEX.json", "details": ["services/wallet/AI-CONTEXT-DETAILS-wallet.json"], "docs": [] },
+      { "key": "store", "index_file": "domains/store/AI-CONTEXT-INDEX.json", "details": ["integrations/daarion/AI-CONTEXT-store.json", "services/store/AI-CONTEXT-DETAILS-store.json"], "docs": ["docs/AI-CODER-KNOWLEDGE-BASE.md", "docs/SYSTEM-ARCHITECTURE.md"] },
+      { "key": "staking", "index_file": "domains/staking/AI-CONTEXT-INDEX.json", "details": ["domains/staking/AI-ROADMAP.json"], "docs": [] },
+      { "key": "nft-market", "index_file": "domains/nft-market/AI-CONTEXT-INDEX.json", "details": ["domains/nft-market/AI-ROADMAP.json"], "docs": ["docs/features/nft-market/overview.md"] }
+    ],
+    "global_docs": [
+      "docs/AI-ASSISTANT-ONBOARDING.md",
+      "docs/AI-AGENT-PROMPT-TEMPLATE.md",
+      "docs/AI-CODER-KNOWLEDGE-BASE.md",
+      "docs/SYSTEM-ARCHITECTURE.md",
+      "docs/PLATFORM-PHILOSOPHY.md"
+    ],
+    "related_external": [
+      {"name": "ring-docs", "path": "../ring-docs", "pattern": "docs/**/*.md"}
+    ]
+  },
+  "events": {
+    "implementation": "lib/events/event-log.ts",
+    "collections": ["events"],
+    "supports": ["append", "appendBatch", "getEvents", "replay"],
+    "examples": ["docs/AI-CODER-KNOWLEDGE-BASE.md#6-event-log--ai-training-pipeline-production"]
+  },
+  "ai": {
+    "training_pipeline": "lib/ai/training-pipeline.ts",
+    "neural_matcher": "lib/ai/neural-matcher.ts",
+    "status": "baseline-heuristics",
+    "notes": "Collects examples from event log; matcher uses tag overlap baseline"
+  },
+  "standards": {
+    "frameworks": {
+      "react": "19.x",
+      "next": "15.x",
+      "authjs": "5.x",
+      "typescript": ">=5.9",
+      "tailwindcss": "4.x"
+    },
+    "patterns": [
+      "Prefer Server Components; mark interactive components with \"use client\"",
+      "Place server logic in Route Handlers or Server Components; no Node APIs in Client Components",
+      "Use dynamic import for server-only adapters; never bundle firebase-admin in client",
+      "Server Components should call services directly; avoid HTTP requests to own API routes",
+      "Server Actions should call services directly; avoid HTTP requests to own API routes",
+      "Client Components use API routes via fetch; never call server services directly",
+      "Wallet signing happens on client; server actions may create drafts and transition state via API",
+      "Server actions live in app/actions; feature client utils live in features/<feature>/client/",
+      "Adopt React 19 features (useActionState, useOptimistic, server actions) where appropriate",
+      "Resource preloading implemented via lib/preload/setup.ts in root layout using React 19 APIs",
+      "Use React 19 native document metadata (<title>, <meta>, <link>) in app pages with i18n support",
+      "Components are Server Components by default; only add 'use client' when needed for interactivity",
+      "Use ref as prop pattern instead of forwardRef for React 19 compatibility",
+      "Serialize Firestore Timestamps to ISO strings when passing data to Client Components"
+    ],
+    "auth": [
+      "Use Auth.js v5 Route Handler pattern",
+      "Prefer server-side session/authorization checks in server handlers and components"
+    ],
+    "i18n": [
+      "Use i18n-config.ts Locale type for route params and ROUTES helpers (next-intl)",
+      "All app routes live under app/[locale]/",
+      "UI strings live under locales/<locale>/ split into common.json, pages.json, emails.json, seo.json, config.json, and modules/*.json",
+      "SEO metadata defined under 'seo' key with nested page structure",
+      "Use React 19 native metadata in pages with getSEOMetadata(); loadTranslations() is exported from i18n-config.ts",
+      "Support dynamic interpolation with {{variable}} placeholders",
+      "Native metadata tags include OpenGraph, Twitter Cards, and hreflang alternates via generateHreflangAlternates() in i18n-config.ts",
+      "Wrap localized UI with I18nProvider (NextIntlClientProvider) in app/[locale]/layout.tsx",
+      "Middleware uses next-intl createMiddleware() with routing from i18n-config.ts"
+    ],
+    "error_handling": [
+      "Wrap UI with error boundaries where failure is expected",
+      "Do not leak server errors; respond with NextResponse.json and status codes"
+    ],
+    "performance": [
+      "Use Edge runtime when feasible; stream where it improves TTFB"
+    ]
+  },
+  
+  "compliance": {
+    "enforcement": {
+      "lint_command": "npm run lint",
+      "typecheck_command": "npm run type-check",
+      "build_command": "npm run build:skip-types"
+    },
+    "rules": [
+      "Client components must not import Node.js core or server-only modules",
+      "Never re-export server-only modules through files imported by client code",
+      "Use explicit Locale types for params and routes",
+      "Fix react-hooks/exhaustive-deps by stabilizing callbacks or moving logic server-side",
+      "All <img> elements must include alt text"
+    ],
+    "file_structure": {
+      "app_router": "UI under app/, localized routes under app/[locale]/",
+      "features": "Feature modules under features/*; adapters split by runtime (client/server)",
+      "services": "Server-only services under features/*/services/; direct calls from server components/actions",
+      "server_file_suffix": ".server.ts files host server-only utilities",
+      "adapters": "Provide Http adapters for client; server adapters use server SDKs",
+      "types": "Serialized types (e.g., SerializedOpportunity) for client component compatibility"
+    }
+  },
+  "schema": {
+    "common_fields": [
+      "schema_version",
+      "context_version",
+      "name",
+      "object_type",
+      "updated",
+      "status",
+      "owner",
+      "purpose",
+      "tags"
+    ],
+    "sections": [
+      "purpose",
+      "responsibilities",
+      "dependencies",
+      "interfaces",
+      "configuration",
+      "data_models",
+      "endpoints",
+      "services",
+      "events",
+      "types",
+      "permissions",
+      "errors",
+      "performance",
+      "tests",
+      "observability",
+      "recent_changes",
+      "links"
+    ]
+  }
+  ,
+  "recent_changes": [
+    { "date": "2025-07-16", "description": "Fixed authentication issues by converting server components/actions to use direct service calls instead of API routes", "impact": "Security + Performance" },
+    { "date": "2025-07-16", "description": "Added SerializedOpportunity type and timestamp serialization for client component compatibility", "impact": "Type Safety + UX" },
+    { "date": "2025-07-16", "description": "Updated opportunities and entities detail pages to use direct service calls", "impact": "Architecture + Performance" },
+    { "date": "2025-07-16", "description": "Converted profile and settings server actions to use direct service calls", "impact": "Security + Performance" },
+    { "date": "2025-08-15", "description": "Added centralized React 19 preloading helper, page-level metadata for store pages, and form helpers (useFormAction, SubmitButton)", "impact": "Performance + DX" },
+    { "date": "2025-08-15", "description": "Consolidated i18n to single location (/locales), removed unused /public/locales directory", "impact": "Architecture" },
+    { "date": "2025-08-15", "description": "Implemented comprehensive SEO metadata system with i18n support via utils/seo-metadata.ts", "impact": "SEO + i18n" },
+    { "date": "2025-08-15", "description": "Applied localized metadata via generateMetadata() to all major pages (entities, opportunities, news, store, profile)", "impact": "SEO + UX" }
+  ]
+}
+
+

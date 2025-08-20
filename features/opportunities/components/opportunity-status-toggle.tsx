@@ -4,7 +4,7 @@ import React from 'react'
 import { useOptimistic, useActionState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/session-provider'
 import { 
   CheckCircle2, 
   Clock, 

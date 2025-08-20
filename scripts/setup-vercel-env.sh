@@ -183,7 +183,7 @@ if [[ $auto_import =~ ^[Yy]$ ]] || [[ -z $auto_import ]]; then
         echo "⚠️  Skipping NEXTAUTH_URL (empty value)"
     fi
     echo ""
-    set_env_from_local "NEXTAUTH_SECRET" "NextAuth Secret (generate with: openssl rand -base64 32)" true
+    set_env_from_local "AUTH_SECRET" "Auth.js v5 Secret (generate with: openssl rand -base64 32)" true
 else
     set_env_var "NEXT_PUBLIC_FIREBASE_API_KEY" "Firebase API Key from web app config" false
     set_env_var "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" "Firebase Auth Domain (project-id.firebaseapp.com)" false
@@ -206,7 +206,7 @@ else
     echo ""
 
     set_env_var "NEXTAUTH_URL" "Production URL (https://your-app.vercel.app)" false
-    set_env_var "NEXTAUTH_SECRET" "NextAuth Secret (generate with: openssl rand -base64 32)" true
+    set_env_var "AUTH_SECRET" "Auth.js v5 Secret (generate with: openssl rand -base64 32)" true
 fi
 
 echo "🎉 Environment variables setup completed!"
