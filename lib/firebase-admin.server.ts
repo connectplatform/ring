@@ -53,24 +53,42 @@ function getFirebaseAdminApp(): App {
         throw new Error('AUTH_FIREBASE_PRIVATE_KEY environment variable is required');
       }
 
-      // Clean and validate project ID (remove any illegal characters like newlines)
-      const projectId = process.env.AUTH_FIREBASE_PROJECT_ID.trim().replace(/[\n\r]/g, '');
-      if (!projectId || projectId !== process.env.AUTH_FIREBASE_PROJECT_ID.trim()) {
-        console.error('AUTH_FIREBASE_PROJECT_ID contains illegal characters:', JSON.stringify(process.env.AUTH_FIREBASE_PROJECT_ID));
-        throw new Error('AUTH_FIREBASE_PROJECT_ID contains illegal characters (newlines, etc.). Please check your environment variable.');
+      // Clean and validate project ID (remove any illegal characters like newlines and quotes)
+      const projectId = process.env.AUTH_FIREBASE_PROJECT_ID
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\\n/g, '') // Remove escaped newlines
+        .replace(/[\n\r]/g, '') // Remove actual newlines
+        .trim();
+      
+      if (!projectId) {
+        console.error('AUTH_FIREBASE_PROJECT_ID is empty after cleaning:', JSON.stringify(process.env.AUTH_FIREBASE_PROJECT_ID));
+        throw new Error('AUTH_FIREBASE_PROJECT_ID is invalid. Please check your environment variable.');
       }
 
       // Clean and validate client email
-      const clientEmail = process.env.AUTH_FIREBASE_CLIENT_EMAIL.trim();
+      const clientEmail = process.env.AUTH_FIREBASE_CLIENT_EMAIL
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\\n/g, '') // Remove escaped newlines
+        .replace(/[\n\r]/g, '') // Remove actual newlines
+        .trim();
+      
       if (!clientEmail.includes('@') || !clientEmail.includes('.')) {
+        console.error('AUTH_FIREBASE_CLIENT_EMAIL is invalid:', JSON.stringify(process.env.AUTH_FIREBASE_CLIENT_EMAIL));
         throw new Error('AUTH_FIREBASE_CLIENT_EMAIL must be a valid email address');
       }
 
       // Clean and validate private key
-      const privateKey = process.env.AUTH_FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n').trim();
+      const privateKey = process.env.AUTH_FIREBASE_PRIVATE_KEY
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\\n/g, '\n') // Convert escaped newlines to actual newlines
+        .trim();
+      
       if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
+        console.error('AUTH_FIREBASE_PRIVATE_KEY format is invalid');
         throw new Error('AUTH_FIREBASE_PRIVATE_KEY must be a valid private key in PEM format');
       }
+      
+      console.log('Firebase Admin SDK initializing with project:', projectId);
 
       adminApp = initializeApp({
         credential: cert({

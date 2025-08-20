@@ -15,7 +15,6 @@ import { UserRole } from '@/features/auth/types'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
 import SlidingPopup from '@/components/common/widgets/modal'
-import UpgradeRequestModal from '@/features/auth/components/upgrade-request-modal'
 import { EntityLogo } from '@/components/ui/safe-image'
 import LoginForm from '@/features/auth/components/login-form'
 
