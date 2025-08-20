@@ -244,31 +244,33 @@ export default function Navigation() {
             )}
           </div>
           
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
-                aria-label={tCommon('labels.toggleMenu')}
-              >
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <MobileMenu
-                navigationLinks={navigationItems}
-                theme={currentTheme || 'light'}
-                toggleTheme={toggleTheme}
-                locale={locale}
-                user={mounted && session?.user ? session.user : null}
-                loading={!mounted || status === 'loading'}
-                handleGoogleSignIn={handleOpenLoginSelector}
-                handleSignOut={handleSignOut}
-                onClose={() => setIsOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>
+          {mounted && (
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  aria-label={tCommon('labels.toggleMenu')}
+                >
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right">
+                <MobileMenu
+                  navigationLinks={navigationItems}
+                  theme={currentTheme || 'light'}
+                  toggleTheme={toggleTheme}
+                  locale={locale}
+                  user={session?.user ? session.user : null}
+                  loading={status === 'loading'}
+                  handleGoogleSignIn={handleOpenLoginSelector}
+                  handleSignOut={handleSignOut}
+                  onClose={() => setIsOpen(false)}
+                />
+              </SheetContent>
+            </Sheet>
+          )}
         </div>
       </nav>
       {/* Unified login selector (Google, Apple, Crypto) */}

@@ -358,12 +358,16 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     };
   }, [autoRefresh, session, refreshInterval, fetchNotifications]);
 
-  // Initial data fetch
+  // Initial data fetch (with debounce to prevent multiple rapid calls)
   useEffect(() => {
     if (session) {
-      refresh();
+      const timeoutId = setTimeout(() => {
+        refresh();
+      }, 100); // Small debounce to prevent multiple rapid calls
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [session, refresh]);
+  }, [session?.user?.id]); // Use stable user ID instead of full session object
 
   // Cleanup on unmount
   useEffect(() => {

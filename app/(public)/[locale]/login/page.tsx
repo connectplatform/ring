@@ -69,6 +69,8 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
       }
       const target = callbackUrl || from || ROUTES.PROFILE(locale)
       console.log('LoginPage: User already logged in, redirecting to', target)
+      
+      // Don't catch redirect errors - let them propagate naturally
       redirect(target)
     }
 
@@ -108,6 +110,12 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
       </>
     );
   } catch (e) {
+    // Don't log NEXT_REDIRECT errors as they are expected behavior
+    if (e && typeof e === 'object' && 'digest' in e && typeof e.digest === 'string' && e.digest.includes('NEXT_REDIRECT')) {
+      // Re-throw redirect errors to let Next.js handle them
+      throw e
+    }
+    
     console.error("LoginPage: Error checking authentication or resolving request data:", e)
     
     // Fallback return with minimal metadata

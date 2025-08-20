@@ -88,7 +88,10 @@ function getFirebaseAdminApp(): App {
         throw new Error('AUTH_FIREBASE_PRIVATE_KEY must be a valid private key in PEM format');
       }
       
-      console.log('Firebase Admin SDK initializing with project:', projectId);
+      // Only log initialization in production or when explicitly debugging
+      if (process.env.NODE_ENV === 'production' || process.env.FIREBASE_DEBUG_LOGS === 'true') {
+        console.log('Firebase Admin SDK initializing with project:', projectId);
+      }
 
       adminApp = initializeApp({
         credential: cert({

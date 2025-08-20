@@ -37,12 +37,38 @@ export interface WebVitalsData {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth()
-    const data: WebVitalsData = await request.json()
+    const rawData = await request.json()
 
-    // Validate required fields
+    // Handle different data formats from the client
+    let data: WebVitalsData
+    
+    if (rawData.type === 'single-metric' && rawData.metric) {
+      // Convert single metric format to expected format
+      data = {
+        sessionId: rawData.metric.sessionId || `session_${Date.now()}`,
+        metrics: [rawData.metric],
+        url: rawData.metric.url || '',
+        userAgent: rawData.metric.userAgent || '',
+        timestamp: rawData.timestamp || Date.now()
+      }
+    } else if (rawData.type === 'batch-report' && rawData.report) {
+      // Convert batch report format to expected format
+      data = {
+        sessionId: rawData.report.sessionId || `session_${Date.now()}`,
+        metrics: rawData.report.metrics || [],
+        url: rawData.report.url || '',
+        userAgent: rawData.report.userAgent || '',
+        timestamp: rawData.timestamp || Date.now()
+      }
+    } else {
+      // Direct format (already in expected structure)
+      data = rawData as WebVitalsData
+    }
+
+    // Validate required fields after format conversion
     if (!data.sessionId || !data.metrics || !Array.isArray(data.metrics)) {
       return NextResponse.json(
-        { error: 'Invalid Web Vitals data' },
+        { error: 'Invalid Web Vitals data format' },
         { status: 400 }
       )
     }

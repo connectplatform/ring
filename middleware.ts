@@ -20,7 +20,7 @@ const intlMiddleware = createMiddleware(routing)
  * @param {NextRequest} req - The incoming request object
  * @returns {NextResponse} The response object, either allowing the request or redirecting
  */
-export default auth((req) => {
+export default auth(async (req) => {
   try {
     const { pathname } = req.nextUrl
 
@@ -49,10 +49,16 @@ export default auth((req) => {
     const locale = (localeFromPath === 'en' || localeFromPath === 'uk') ? localeFromPath : routing.defaultLocale
     const pathnameWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/'
 
-    // Get auth info from Auth.js v5
+    // Get auth info from Auth.js v5 (middleware version)
+    // Note: Middleware uses edge-compatible auth, may have different session state than server components
     const session = req.auth
     const isLoggedIn = !!session?.user
     const userRole = session?.user?.role || UserRole.VISITOR
+    
+    // Debug session state in development
+    if (process.env.NODE_ENV === 'development' && session) {
+      console.log(`Middleware: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
+    }
 
     console.log(`Middleware: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
 
@@ -77,11 +83,17 @@ export default auth((req) => {
 
     // If trying to access protected route without auth, redirect to localized login
     // Skip redirect if this is just a language switch (user is already on the page)
-    if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && !isLanguageSwitch) {
-      console.log(`Middleware: Redirecting to login, from: ${pathname}`);
+    // Also check for session cookies as fallback since middleware auth might be inconsistent
+    const hasSessionCookie = req.cookies.has('next-auth.session-token') || req.cookies.has('__Secure-next-auth.session-token');
+    
+    if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && !hasSessionCookie && !isLanguageSwitch) {
+      console.log(`Middleware: Redirecting to login, from: ${pathname} (no session found)`);
       const url = new URL(ROUTES.LOGIN(locale), req.nextUrl.origin);
       url.searchParams.set('from', pathname);
       return NextResponse.redirect(url);
+    } else if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && hasSessionCookie) {
+      console.log(`Middleware: Session cookie found but auth session missing, allowing request to proceed for server-side validation`);
+      // Let the server component handle the actual session validation
     }
 
     // If trying to access confidential route without proper role, redirect to localized home
@@ -91,8 +103,9 @@ export default auth((req) => {
     }
 
     // If authenticated user tries to access login page, redirect to localized profile
-    if (pathnameWithoutLocale === '/login' && isLoggedIn) {
-      console.log(`Middleware: Redirecting to profile, from: ${pathname}`);
+    // Only redirect if we have a clear session to avoid redirect loops
+    if (pathnameWithoutLocale === '/login' && isLoggedIn && session?.user?.id) {
+      console.log(`Middleware: Redirecting authenticated user to profile, from: ${pathname}`);
       // Preserve locale when redirecting to profile
       return NextResponse.redirect(new URL(`/${locale}/profile`, req.nextUrl.origin));
     }

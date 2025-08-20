@@ -46,7 +46,7 @@ const mockEntities = [
     name: 'TechnoSoft Solutions',
     type: 'softwareDevelopment',
     shortDescription: 'Innovative software solutions for businesses',
-    logo: 'https://example.com/technosoft-logo.png',
+    logo: '/placeholder.svg',
     location: 'Cherkasy, Ukraine',
     fullDescription: 'TechnoSoft Solutions is a leading software development company specializing in custom enterprise solutions, mobile applications, and cloud services.',
     tags: ['software', 'enterprise', 'mobile', 'cloud'],
