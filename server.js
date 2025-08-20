@@ -40,7 +40,7 @@ class WebSocketService {
         throw new Error('Invalid token format')
       }
 
-      const session = await verifyJwtToken(token, process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET)
+      const session = await verifyJwtToken(token, process.env.AUTH_SECRET)
 
       if (!session || !session.sub) {
         console.warn('WebSocket authentication failed: Invalid session')

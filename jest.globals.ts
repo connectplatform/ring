@@ -85,7 +85,7 @@ jest.mock('next/server', () => ({
 }))
 
 // Mock environment variables
-process.env.NEXTAUTH_SECRET = 'test-secret'
+process.env.AUTH_SECRET = 'test-secret'
 process.env.NEXTAUTH_URL = 'http://localhost:3000'
 process.env.FIREBASE_PROJECT_ID = 'test-project'
 process.env.FIREBASE_CLIENT_EMAIL = 'test@test.com'

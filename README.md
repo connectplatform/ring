@@ -190,7 +190,7 @@ npm run dev
 ### **Environment Configuration**
 ```env
 # Authentication
-NEXTAUTH_SECRET=your-secret-key
+AUTH_SECRET=your-secret-key
 NEXTAUTH_URL=http://localhost:3000
 
 # Firebase Configuration

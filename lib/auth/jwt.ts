@@ -9,9 +9,9 @@ export type VerifiedToken = JWTPayload & {
 }
 
 export async function verifyJwtToken(token: string, secret?: string): Promise<VerifiedToken> {
-  const secretKey = secret || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  const secretKey = secret || process.env.AUTH_SECRET
   if (!secretKey) {
-    throw new Error('AUTH_SECRET/NEXTAUTH_SECRET not configured')
+    throw new Error('AUTH_SECRET not configured')
   }
 
   const encoder = new TextEncoder()

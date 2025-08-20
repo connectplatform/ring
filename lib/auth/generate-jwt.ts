@@ -5,9 +5,9 @@ import { SignJWT } from 'jose'
  * This token is signed with AUTH_SECRET and can be verified by our services
  */
 export async function generateInternalJWT(userId: string, email?: string, role?: string): Promise<string> {
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  const secret = process.env.AUTH_SECRET
   if (!secret) {
-    throw new Error('AUTH_SECRET/NEXTAUTH_SECRET not configured')
+    throw new Error('AUTH_SECRET not configured')
   }
 
   const encoder = new TextEncoder()
