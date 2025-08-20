@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect } from 'react'
 import { useOptimistic, useActionState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
 import { useInView } from '@/hooks/use-intersection-observer'
@@ -26,16 +26,16 @@ import {
 } from 'lucide-react'
 
 import { Opportunity } from '@/features/opportunities/types'
-import { Entity } from '@/types'
+import { Entity } from '@/features/entities/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { createOpportunity, OpportunityFormState } from '@/app/actions/opportunities'
+import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 import { formatTimestampOrFieldValue, truncateDescription, formatBudget } from '@/lib/utils'
-import LoginForm from '@/components/auth/login-form'
+import LoginForm from '@/features/auth/components/login-form'
 
 interface OpportunityListProps {
   initialOpportunities: Opportunity[]
@@ -76,7 +76,7 @@ export default function OpportunityList({
   limit,
   totalCount = 0
 }: OpportunityListProps) {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const { ref, inView } = useInView()
@@ -453,7 +453,7 @@ function OpportunityCard({
   isOptimistic = false, 
   isPending = false 
 }: OpportunityCardProps) {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
 
   return (
     <motion.div

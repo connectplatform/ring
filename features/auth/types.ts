@@ -44,6 +44,7 @@ export interface AuthUser {
   email: string;
   emailVerified: Date | null;
   name?: string | null;
+  username?: string;
   role: UserRole;
   photoURL?: string | null;
   wallets: Wallet[];
@@ -113,6 +114,7 @@ export type VerificationDocument = {
  * Defines the structure of the profile form data
  */
 export type ProfileFormData = Partial<ExtendedProfile> & Pick<AuthUser, 'name' | 'email' | 'role'> & {
+  username?: string;
   wallets?: Wallet[];
   photoURL?: string;
   lastLogin?: Date;

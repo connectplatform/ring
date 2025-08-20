@@ -1,9 +1,7 @@
-'use client'
-
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
-import { defaultLocale } from '@/utils/i18n-server'
+import { defaultLocale } from '@/i18n-config'
 
 export default function NotFound() {
   return (

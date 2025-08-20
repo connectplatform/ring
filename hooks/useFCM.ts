@@ -139,7 +139,7 @@ export function useFCM(): FCMHookReturn {
           setState(prev => ({ 
             ...prev, 
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to initialize FCM'
+            error: process.env.NODE_ENV === 'development' ? 'FCM disabled in development' : (error instanceof Error ? error.message : 'Failed to initialize FCM')
           }))
         }
       }

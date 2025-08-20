@@ -13,3 +13,35 @@ export const signUpSchema = z.object({
 });
 
 export type SignUpData = z.infer<typeof signUpSchema>;
+
+// Store schemas
+export const orderItemSchema = z.object({
+  productId: z.string(),
+  name: z.string(),
+  price: z.string().regex(/^\d+(\.\d+)?$/),
+  currency: z.enum(['DAAR', 'DAARION']),
+  quantity: z.number().int().positive(),
+})
+
+export const checkoutInfoSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email().optional().or(z.literal('')).optional(),
+  notes: z.string().max(500).optional().or(z.literal('')).optional(),
+})
+
+export const shippingLocationSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string(),
+  address: z.string(),
+  settlement: z.object({ name: z.string() }).partial().optional(),
+}).partial().passthrough()
+
+export const orderCreateSchema = z.object({
+  items: z.array(orderItemSchema).min(1),
+  totals: z.object({ DAAR: z.number().nonnegative().optional(), DAARION: z.number().nonnegative().optional() }),
+  checkoutInfo: checkoutInfoSchema,
+  shipping: z.object({ provider: z.enum(['nova-post', 'manual', 'pickup']), location: shippingLocationSchema.nullable().optional() }).optional(),
+  payment: z.object({ method: z.enum(['stripe', 'crypto']), status: z.enum(['pending', 'paid', 'failed']) }),
+  status: z.enum(['new', 'paid', 'processing', 'shipped', 'completed', 'canceled'])
+})

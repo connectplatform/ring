@@ -2,12 +2,12 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent } from "@/components/ui/card"
 import { Typography } from "@/components/ui/typography"
 
 export default function TermsOfService() {
-  const { t } = useTranslation()
+  const t = useTranslations('termsOfServiceText')
 
   return (
     <motion.div

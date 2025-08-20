@@ -1,0 +1,51 @@
+{
+  "title": "Магазин",
+  "searchPlaceholder": "Пошук товарів...",
+  "allCurrencies": "Всі валюти",
+  "sortByName": "Назва",
+  "sortByPrice": "Ціна",
+  "sortAsc": "За зростанням",
+  "sortDesc": "За спаданням",
+  "cart": {
+    "title": "Кошик",
+    "empty": "Ваш кошик порожній.",
+    "total": "Разом",
+    "backToCart": "Назад до кошика",
+    "clear": "Очистити кошик",
+    "clearing": "Очищення...",
+    "goToCheckout": "Перейти до оформлення"
+  },
+  "checkout": {
+    "title": "Оформлення замовлення",
+    "continue": "Продовжити",
+    "backToCart": "Назад до кошика"
+  },
+  "product": {
+    "loading": "Завантаження…",
+    "inStockYes": "Так",
+    "inStockNo": "Ні",
+    "price": "Ціна",
+    "category": "Категорія",
+    "tags": "Теги",
+    "goesWellWith": "Добре поєднується",
+    "addToCart": "Додати до кошика",
+    "adding": "Додаємо…",
+    "goToCart": "Перейти до кошика",
+    "backToStore": "Назад до магазину",
+    "notFound": "Товар не знайдено",
+    "addedToCart": "{name} додано до кошика"
+  },
+  "favorites": {
+    "button": "Вподобані",
+    "empty": "Ще немає вподобаних",
+    "browseStore": "Переглянути магазин",
+    "save": "Зберегти до вподобаних",
+    "remove": "Видалити з вподобаних"
+  },
+  "aiConsultant": {
+    "title": "AI консультант товару",
+    "ask": "Поставте будь-яке питання про цей товар."
+  }
+}
+
+

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { motion } from 'framer-motion'
 import { useSession } from 'next-auth/react'
@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { ArrowRight, Leaf, Coins, Globe, Users, Zap } from 'lucide-react'
 
 const AgroLandingPage = () => {
-  const { t } = useTranslation()
+  const t = useTranslations('landing')
   const { theme } = useTheme()
   const { data: session } = useSession()
 

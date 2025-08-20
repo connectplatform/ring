@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
@@ -38,7 +38,7 @@ interface EntityListProps {
 }
 
 export function EntityList({ initialEntities, onCreateEntityAction, className }: EntityListProps) {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.entities')
   const { data: session } = useSession()
   const [optimisticEntities, addOptimisticEntity] = useOptimistic(
     initialEntities,

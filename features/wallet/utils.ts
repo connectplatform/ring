@@ -1,8 +1,12 @@
-import { ethers } from 'ethers'
-import { getServerAuthSession } from '@/auth'
+// Client-safe wallet utilities. Avoid importing server-only modules here.
 import { Wallet } from '@/features/auth/types'
-import { ensureWallet } from '@/services/wallet/ensure-wallet'
-import { getWalletBalance as getWalletBalanceService } from '@/services/wallet/get-wallet-balance'
+import { 
+  formatTokenAmount,
+  parseTokenAmount,
+  isValidAddress,
+  shortenAddress,
+  formatAddress as formatEvmAddress
+} from '@/features/evm/utils'
 
 /**
  * Ensures that the authenticated user has a wallet
@@ -17,19 +21,16 @@ import { getWalletBalance as getWalletBalanceService } from '@/services/wallet/g
  * @throws {Error} If the user is not authenticated or if wallet creation fails
  */
 export async function ensureUserWallet(): Promise<string> {
-  const session = await getServerAuthSession()
-  if (!session || !session.user) {
-    throw new Error('User not authenticated')
+  const response = await fetch('/api/wallet/ensure', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!response.ok) {
+    const data = await safeJson(response)
+    throw new Error(data?.error || 'Failed to ensure wallet')
   }
-
-  // Check if the user already has a wallet
-  if (session.user.wallets && session.user.wallets.length > 0) {
-    return session.user.wallets[0].address
-  }
-
-  // If no wallet exists, create a new one using the service directly
-  const wallet = await ensureWallet()
-  return wallet.address
+  const data = await response.json()
+  return data.address as string
 }
 
 /**
@@ -78,22 +79,37 @@ export async function createWallet(): Promise<{ address: string }> {
  * @throws {Error} If the user is not authenticated, has no wallet, or if balance fetching fails
  */
 export async function getWalletBalance(): Promise<string> {
-  const session = await getServerAuthSession()
-  if (!session || !session.user || !session.user.wallets || session.user.wallets.length === 0) {
+  const response = await fetch('/api/wallet/balance', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!response.ok) {
     return '0'
   }
-
-  // Use the service directly instead of making an API call
-  return await getWalletBalanceService()
+  const data = await response.json()
+  return String(data.balance ?? '0')
 }
 
 /**
- * Formats the wallet balance from wei to ether
- * 
- * @param {string} balance - The balance in wei
- * @returns {string} The formatted balance in ether
+ * Formats the wallet balance from wei to ether using BigInt-safe math
+ *
+ * @param balance - The balance in wei (as decimal string)
+ * @returns The formatted balance in ether
  */
 export function formatBalance(balance: string): string {
-  return ethers.formatEther(balance)
+  return formatTokenAmount(balance, 18, 4)
+}
+
+/** Re-exports of helpful EVM address utilities for wallet consumers */
+export const isValidWalletAddress = isValidAddress
+export const formatAddress = formatEvmAddress
+export { shortenAddress, parseTokenAmount }
+
+async function safeJson(res: Response) {
+  try {
+    return await res.json()
+  } catch {
+    return null
+  }
 }
 

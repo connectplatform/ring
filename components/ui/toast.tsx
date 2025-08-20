@@ -47,13 +47,15 @@ const toastVariants = cva(
 const Toast = React.forwardRef<
   React.ComponentRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
-    VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+    VariantProps<typeof toastVariants> & { dismissible?: boolean }
+>(({ className, variant, dismissible: _dismissible, ...props }, ref) => {
+  // Explicitly strip non-DOM props to avoid React warnings
+  const { dismissible: _omit, ...rest } = props as any
   return (
     <ToastPrimitives.Root
       ref={ref}
       className={cn(toastVariants({ variant }), className)}
-      {...props}
+      {...rest}
     />
   )
 })

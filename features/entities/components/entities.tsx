@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
 import { Entity } from '@/types'
@@ -13,10 +13,11 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserRole } from '@/features/auth/types'
 import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/utils/i18n-server'
-import SlidingPopup from '@/components/widgets/modal'
-import UpgradeRequestModal from '@/components/modals/upgrade-request-modal'
-import Image from 'next/image'
+import { defaultLocale } from '@/i18n-config'
+import SlidingPopup from '@/components/common/widgets/modal'
+import UpgradeRequestModal from '@/features/auth/components/upgrade-request-modal'
+import { EntityLogo } from '@/components/ui/safe-image'
+import LoginForm from '@/features/auth/components/login-form'
 
 interface EntitiesContentProps {
   initialEntities: Entity[];
@@ -41,9 +42,10 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   sort,
   filter
 }) => {
-  const { t } = useTranslation()
+  const tEntities = useTranslations('modules.entities')
+  const tCommon = useTranslations('common')
   const { theme } = useTheme()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [entities, setentities] = useState<Entity[]>(initialEntities)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
@@ -51,6 +53,9 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   const fetchEntities = useCallback(async () => {
+    if (!session) {
+      return
+    }
     if (initialError || initialEntities.length > 0) {
       return
     }
@@ -62,19 +67,58 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
       if (!response.ok) {
         throw new Error('Failed to fetch entities')
       }
-      const fetchedEntities = await response.json()
-      setentities(fetchedEntities)
+      const json = await response.json()
+      const apiEntities = Array.isArray(json?.entities) ? json.entities : []
+      setentities(apiEntities)
     } catch (error) {
       console.error('Error fetching entities:', error)
-      setError(t('errorFetchingentities'))
+      setError(tCommon('status.error'))
     } finally {
       setLoading(false)
     }
-  }, [initialEntities, initialError, t, page, lastVisible, limit, sort, filter])
+  }, [session, initialEntities, initialError, tCommon, page, lastVisible, limit, sort, filter])
 
   useEffect(() => {
     fetchEntities()
   }, [fetchEntities])
+
+  // Intro gating for unauthenticated users
+  if (status === 'loading') {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center text-xl">
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+          {tCommon('status.loading')}
+        </motion.p>
+      </div>
+    )
+  }
+
+  if (!session) {
+    const from = typeof window !== 'undefined' ? (window.location.pathname + window.location.search) : undefined
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-4xl font-bold mb-4"
+        >
+          {tEntities('introTitle')}
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="max-w-2xl text-muted-foreground mb-8"
+        >
+          {tEntities('introDescription')}
+        </motion.p>
+        <div className="w-full max-w-sm">
+          <LoginForm from={from} />
+        </div>
+      </div>
+    )
+  }
 
   // Check if user can create entities (MEMBER and above)
   const canCreateEntity = session?.user?.role && [
@@ -116,7 +160,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          {t('loadingMessage')}
+          {tEntities('loadingMessage')}
         </motion.p>
       </div>
     )
@@ -141,7 +185,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl font-bold mb-6">{t('entitiesTitle')}</h1>
+          <h1 className="text-4xl font-bold mb-6">{tEntities('title')}</h1>
           
           {/* Action Buttons Section */}
           <div className="flex justify-center gap-4 mb-8">
@@ -149,7 +193,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
               <Link href={ROUTES.ADD_ENTITY(defaultLocale)}>
                 <Button size="lg" className="gap-2">
                   <Plus className="h-5 w-5" />
-                  {t('addMyEntity') || 'Add my Entity'}
+                  {tEntities('addMyEntity')}
                 </Button>
               </Link>
             ) : needsUpgrade ? (
@@ -160,7 +204,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
                 onClick={() => setShowUpgradeModal(true)}
               >
                 <ArrowUp className="h-5 w-5" />
-                {t('upgradeToBeMember') || 'Upgrade to Member'}
+                {tEntities('upgradeToBeMember')}
               </Button>
             ) : null}
           </div>
@@ -187,31 +231,31 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
         >
           <div className="p-6">
             <h2 className="text-2xl font-bold mb-4 text-center">
-              {t('upgradeToBeMember') || 'Upgrade to Member'}
+              {tEntities('upgradeToBeMember')}
             </h2>
             <div className="space-y-4 text-center">
               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">
-                  {t('memberBenefits') || 'Member Benefits'}
+                  {tEntities('memberBenefits')}
                 </h3>
                 <ul className="text-sm space-y-2 text-left">
                   <li className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-blue-500" />
-                    {t('createEntities') || 'Create and manage entities'}
+                    {tEntities('createEntities')}
                   </li>
                   <li className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-blue-500" />
-                    {t('postOpportunities') || 'Post business opportunities'}
+                    {tEntities('postOpportunities')}
                   </li>
                   <li className="flex items-center gap-2">
                     <Award className="h-4 w-4 text-blue-500" />
-                    {t('accessMemberContent') || 'Access member-only content'}
+                    {tEntities('accessMemberContent')}
                   </li>
                 </ul>
               </div>
               
               <div className="text-sm text-muted-foreground">
-                {t('upgradeDescription') || 'To add entities and access full platform features, upgrade your account to Member status.'}
+                {tEntities('upgradeDescription')}
               </div>
               
               <div className="flex gap-3 justify-center">
@@ -219,7 +263,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
                   variant="outline"
                   onClick={() => setShowUpgradeModal(false)}
                 >
-                  {t('cancel') || 'Cancel'}
+                  {tCommon('actions.cancel')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -228,7 +272,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
                     window.open('mailto:support@ring.ck.ua?subject=Member%20Upgrade%20Request', '_blank')
                   }}
                 >
-                  {t('requestUpgrade') || 'Request Upgrade'}
+                  {tEntities('requestUpgrade')}
                 </Button>
               </div>
             </div>
@@ -240,7 +284,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 }
 
 const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
-  const { t } = useTranslation()
+  const tEntities = useTranslations('modules.entities')
 
   return (
     <motion.div
@@ -252,24 +296,21 @@ const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
         {/* Members Only Badge */}
         {entity.visibility === 'member' && (
           <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded z-10">
-            {t('membersOnly')}
+            {tEntities('membersOnly')}
           </div>
         )}
         
         <CardContent className="flex-grow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">{entity.name}</h2>
-            {entity.logo && (
-              <div className="w-12 h-12 flex-shrink-0">
-                <Image 
-                  src={entity.logo} 
-                  alt={`${entity.name} logo`} 
-                  width={48}
-                  height={48}
-                  className="w-full h-full object-contain" 
-                />
-              </div>
-            )}
+            <div className="w-12 h-12 flex-shrink-0">
+              <EntityLogo
+                src={entity.logo}
+                entityName={entity.name}
+                size="sm"
+                className="w-full h-full object-contain"
+              />
+            </div>
           </div>
           <p className="text-sm text-muted-foreground mb-4">{entity.shortDescription}</p>
           <EntityDetails entity={entity} />
@@ -278,7 +319,7 @@ const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
         <CardFooter className="bg-muted/50 p-4">
           <Button asChild className="w-full">
             <Link href={`/entities/${entity.id}`}>
-              {t('viewDetails')}
+              {tEntities('viewDetails')}
             </Link>
           </Button>
         </CardFooter>
@@ -288,7 +329,7 @@ const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
 }
 
 const EntityDetails: React.FC<{ entity: Entity }> = ({ entity }) => {
-  const { t } = useTranslation()
+  const tEntities = useTranslations('modules.entities')
 
   return (
     <>
@@ -298,25 +339,25 @@ const EntityDetails: React.FC<{ entity: Entity }> = ({ entity }) => {
         {entity.website && (
           <DetailItem 
             icon={Globe} 
-            text={t('visitWebsite')} 
+            text={tEntities('visitWebsite')} 
             link={entity.website} 
           />
         )}
         {entity.foundedYear && (
           <DetailItem 
             icon={Calendar} 
-            text={t('foundedIn', { year: entity.foundedYear })} 
+            text={tEntities('foundedIn', { year: entity.foundedYear })} 
           />
         )}
         {entity.employeeCount && (
           <DetailItem 
             icon={Users} 
-            text={t('employees', { count: entity.employeeCount })} 
+            text={tEntities('employees', { count: entity.employeeCount })} 
           />
         )}
       </div>
-      <TagList title={t('tags')} items={entity.tags} icon={Tag} className="mt-4" />
-      <TagList title={t('certifications')} items={entity.certifications} icon={Award} className="mt-4" />
+      <TagList title={tEntities('tags')} items={entity.tags} icon={Tag} className="mt-4" />
+      <TagList title={tEntities('certifications')} items={entity.certifications} icon={Award} className="mt-4" />
     </>
   )
 }
@@ -368,7 +409,7 @@ const Pagination: React.FC<{
   totalPages: number;
   totalEntities: number;
 }> = ({ page, totalPages, totalEntities }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.entities')
 
   return (
     <div className="mt-8 flex justify-between items-center">

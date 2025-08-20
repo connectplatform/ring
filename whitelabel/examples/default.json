@@ -1,0 +1,38 @@
+{
+  "name": "Ring Default",
+  "brand": {
+    "colors": {
+      "primary": "#3b82f6",
+      "background": "#0b0f1a",
+      "foreground": "#e5e7eb",
+      "accent": "#22c55e"
+    },
+    "logoUrl": "/images/logo.svg",
+    "faviconUrl": "/favicon.ico",
+    "ogImageUrl": "/images/logo.svg"
+  },
+  "seo": {
+    "titleSuffix": " · Ring Platform",
+    "defaultDescription": "Open white-label professional network."
+  },
+  "navigation": {
+    "links": [
+      { "label": "Home", "href": "/" },
+      { "label": "Entities", "href": "/entities" },
+      { "label": "Opportunities", "href": "/opportunities" }
+    ]
+  },
+  "hero": {
+    "title": "Connect talent and opportunity",
+    "subtitle": "A modular, open, white‑label platform.",
+    "ctaText": "Get started",
+    "ctaHref": "/login",
+    "showOnHome": true
+  },
+  "features": {
+    "entities": true,
+    "opportunities": true,
+    "messaging": true,
+    "admin": true
+  }
+}

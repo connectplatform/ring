@@ -16,11 +16,11 @@ const Navigation = dynamic(() => import('@/features/layout/components/navigation
   ssr: false
 })
 
-const NotificationCenter = dynamic(() => import('@/components/notifications').then(mod => ({ default: mod.NotificationCenter })), {
+const NotificationCenter = dynamic(() => import('@/features/notifications/components/notification-center').then(mod => ({ default: mod.NotificationCenter })), {
   ssr: false
 })
 
-const PerformanceDashboard = dynamic(() => import('@/components/performance/performance-dashboard'), {
+const PerformanceDashboard = dynamic(() => import('@/components/common/performance/performance-dashboard'), {
   ssr: false
 })
 
@@ -167,7 +167,7 @@ export default function OptimizedLayout({
       <AppErrorBoundary level="app">
         {/* Provider Setup */}
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <I18nProvider locale={locale}>
+          <I18nProvider locale={locale} messages={{}}>
             <AppProvider>
               {/* Streaming SSR Layout */}
               <StreamingPageWrapper

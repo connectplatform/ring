@@ -17,7 +17,10 @@
       'Non-Error promise rejection captured',
       'ResizeObserver loop limit exceeded',
       'Script error',
-      'Network request failed'
+      'Network request failed',
+      // React Dev + Next DevTools noisy style warnings
+      'setValueForStyles',
+      'react-dom-client.development.js'
     ]
   };
 
@@ -327,17 +330,24 @@
         this.trackPromiseRejection(event);
       });
 
-      // Console error override
-      const originalConsoleError = console.error;
-      console.error = (...args) => {
-        // Track console.error calls
-        this.trackCustomError('console_error', args.join(' '), {
-          arguments: args.map(arg => String(arg)).join(', ')
-        });
-        
-        // Call original console.error
-        originalConsoleError.apply(console, args);
-      };
+      // Console error override (disabled in dev to avoid noisy React/Next warnings)
+      const isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      if (!isDev) {
+        const originalConsoleError = console.error;
+        console.error = (...args) => {
+          // Track console.error calls
+          try {
+            const msg = args.map(arg => String(arg)).join(' ');
+            if (!this.shouldIgnoreError(msg)) {
+              this.trackCustomError('console_error', msg, {
+                arguments: args.map(arg => String(arg)).join(', ')
+              });
+            }
+          } catch (_) {}
+          // Call original console.error
+          originalConsoleError.apply(console, args);
+        };
+      }
 
       // Page unload handler
       window.addEventListener('beforeunload', () => {

@@ -1,0 +1,60 @@
+{
+  "profile": "Профіль",
+  "noProfileFound": "Профіль не знайдено.",
+  "uploadAvatar": "Завантажити аватар",
+  "role": "Роль",
+  "memberSince": "З нами з",
+  "primaryAuthMethod": "Основний метод входу",
+  "verificationLevel": "Рівень верифікації",
+  "getVerified": "Пройти верифікацію",
+  "kycVerification": {
+    "title": "KYC Верифікація",
+    "description": "Підтвердьте особу, щоб відкрити більше функцій.",
+    "verifyWithDiia": "Верифікувати через Дію",
+    "verifyWithBankId": "Верифікувати через BankID",
+    "status": {
+      "not_started": "Не розпочато",
+      "pending": "В очікуванні",
+      "under_review": "На розгляді",
+      "approved": "Підтверджено",
+      "rejected": "Відхилено",
+      "expired": "Прострочено"
+    },
+    "levels": {
+      "none": "Відсутній",
+      "basic": "Базовий",
+      "standard": "Стандартний",
+      "enhanced": "Розширений"
+    }
+  },
+  "roleUpgrade": {
+    "title": "Оновлення облікового запису",
+    "description": "Оновіть обліковий запис, щоб отримати більше можливостей.",
+    "requestSubmitted": "Запит на оновлення надіслано.",
+    "currentRole": "Поточна роль",
+    "requestedRole": "Бажана роль",
+    "reason": "Причина",
+    "organization": "Організація",
+    "position": "Посада",
+    "linkedinProfile": "Профіль LinkedIn",
+    "portfolioUrl": "Портфоліо URL",
+    "submitRequest": "Надіслати запит",
+    "status": {
+      "pending": "В очікуванні",
+      "under_review": "На розгляді",
+      "approved": "Підтверджено",
+      "rejected": "Відхилено"
+    }
+  },
+  "authMethods": {
+    "google": "Google",
+    "apple": "Apple",
+    "crypto-wallet": "Криптогаманець",
+    "metamask": "MetaMask",
+    "credentials": "Email та пароль"
+  },
+  "cancel": "Скасувати",
+  "saving": "Збереження…"
+}
+
+

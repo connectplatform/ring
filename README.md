@@ -140,6 +140,8 @@ ring/
 ### **API Architecture**
 - **RESTful Design**: Standard HTTP methods and status codes
 - **Authentication**: Bearer token and session-based auth
+- **Direct Service Calls**: Server components and actions use services directly for better performance and security
+- **Client-Server Separation**: Client components use API routes, server components use direct service calls
 - **Rate Limiting**: Configurable limits per endpoint
 - **Error Handling**: Consistent error response format
 - **Documentation**: Comprehensive API documentation

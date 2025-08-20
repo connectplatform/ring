@@ -5,7 +5,7 @@ import {
   Timestamp,
   FieldValue,
 } from 'firebase-admin/firestore';
-import { Opportunity, OpportunityType, OpportunityVisibility, Attachment } from '@/types';
+import { Opportunity, OpportunityType, OpportunityVisibility, Attachment } from '@/features/opportunities/types';
 
 export const opportunityConverter: FirestoreDataConverter<Opportunity> = {
   toFirestore(opportunity: Opportunity): DocumentData {

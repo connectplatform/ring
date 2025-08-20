@@ -49,23 +49,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     preconnect('https://storage.googleapis.com')
     
     // Preload common entity and opportunity assets
-    preload('/images/entity-placeholder.svg', { as: 'image' })
-    preload('/images/opportunity-placeholder.svg', { as: 'image' })
-    preload('/images/user-avatar-placeholder.svg', { as: 'image' })
+    // preload('/images/entity-placeholder.svg', { as: 'image' })
+    // preload('/images/opportunity-placeholder.svg', { as: 'image' })
+    // preload('/images/user-avatar-placeholder.svg', { as: 'image' })
     
     // Preload common icons and UI assets
-    preload('/icons/building.svg', { as: 'image' })
-    preload('/icons/briefcase.svg', { as: 'image' })
-    preload('/icons/map-pin.svg', { as: 'image' })
-    preload('/icons/calendar.svg', { as: 'image' })
+    // preload('/icons/building.svg', { as: 'image' })
+    // preload('/icons/briefcase.svg', { as: 'image' })
+    // preload('/icons/map-pin.svg', { as: 'image' })
+    // preload('/icons/calendar.svg', { as: 'image' })
     
     // Preinit app-level scripts
     preinit('/scripts/app-analytics.js', { as: 'script' })
     preinit('/scripts/error-tracking.js', { as: 'script' })
     
     // Preload API endpoints for faster data fetching
-    preload('/api/entities', { as: 'fetch' })
-    preload('/api/opportunities', { as: 'fetch' })
+    // preload('/api/entities', { as: 'fetch' })
+    // preload('/api/opportunities', { as: 'fetch' })
   }, [])
 
   const value = {

@@ -12,9 +12,11 @@ declare module "next-auth" {
       id: string
       email: string
       name?: string | null
+      username?: string
       image?: string | null
       photoURL?: string | null
       role: UserRole
+      isSuperAdmin?: boolean
       isVerified: boolean
       needsOnboarding?: boolean
       provider?: string
@@ -39,6 +41,7 @@ declare module "next-auth" {
     id: string
     email: string
     name?: string | null
+    username?: string
     image?: string | null
     photoURL?: string | null
     role?: UserRole
@@ -55,7 +58,9 @@ declare module "next-auth/jwt" {
   /** Returned by the `jwt` callback and `getToken`, when using JWT sessions */
   interface JWT {
     userId?: string
+    username?: string
     role?: UserRole
+    isSuperAdmin?: boolean
     accessToken?: string
     refreshToken?: string
     wallets?: Wallet[]

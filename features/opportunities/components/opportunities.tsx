@@ -2,23 +2,23 @@
 
 import React, { useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
-import { Opportunity } from '@/features/opportunities/types'
-import { Entity } from '@/types'
+import { SerializedOpportunity } from '@/features/opportunities/types'
+import { Entity } from '@/features/entities/types'
 import Link from 'next/link'
 import { Calendar, MapPin, Tag, Building, User, DollarSign, Clock } from 'lucide-react'
 import Image from 'next/image'
 import { useSession } from "next-auth/react"
-import LoginForm from '@/components/auth/login-form'
+import LoginForm from '@/features/auth/components/login-form'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useInView } from '@/hooks/use-intersection-observer'
-import { formatTimestampOrFieldValue, truncateDescription, fetchOpportunities, formatBudget } from '@/lib/utils'
+import { formatDateValue, truncateDescription, fetchOpportunities, formatBudget } from '@/lib/utils'
 import { useAppContext } from '@/contexts/app-context'
 
 interface OpportunitiesProps {
-  initialOpportunities: Opportunity[]
+  initialOpportunities: SerializedOpportunity[]
   initialError: string | null
   lastVisible: string | null
   limit: number
@@ -30,11 +30,11 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   lastVisible: initialLastVisible,
   limit 
 }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const { error, setError } = useAppContext()
-  const [opportunities, setOpportunities] = React.useState<Opportunity[]>(initialOpportunities)
+  const [opportunities, setOpportunities] = React.useState<SerializedOpportunity[]>(initialOpportunities)
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
@@ -101,7 +101,30 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   }
 
   if (!session) {
-    return <LoginForm />
+    const from = typeof window !== 'undefined' ? (window.location.pathname + window.location.search) : undefined
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-4xl font-bold mb-4"
+        >
+          {t('introTitle') || 'Discover Opportunities'}
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="max-w-2xl text-muted-foreground mb-8"
+        >
+          {t('introDescription') || 'The Opportunities page curates jobs, partnerships, grants, and collaborations from entities in our ecosystem. Sign in to browse and apply.'}
+        </motion.p>
+        <div className="w-full max-w-sm">
+          <LoginForm from={from} />
+        </div>
+      </div>
+    )
   }
 
   if (error) {
@@ -157,7 +180,7 @@ const PageTitle: React.FC<{ title: string }> = ({ title }) => (
   </motion.h1>
 )
 
-const OpportunityList: React.FC<{ opportunities: Opportunity[], entities: { [key: string]: Entity } }> = ({ opportunities, entities }) => (
+const OpportunityList: React.FC<{ opportunities: SerializedOpportunity[], entities: { [key: string]: Entity } }> = ({ opportunities, entities }) => (
   <div className="max-w-2xl mx-auto">
     <AnimatePresence>
       {opportunities.map((opportunity) => (
@@ -167,8 +190,8 @@ const OpportunityList: React.FC<{ opportunities: Opportunity[], entities: { [key
   </div>
 )
 
-const OpportunityCard: React.FC<{ opportunity: Opportunity, entity: Entity | undefined }> = ({ opportunity, entity }) => {
-  const { t } = useTranslation()
+const OpportunityCard: React.FC<{ opportunity: SerializedOpportunity, entity: Entity | undefined }> = ({ opportunity, entity }) => {
+  const t = useTranslations('modules.opportunities')
 
   return (
     <motion.div
@@ -208,11 +231,11 @@ const OpportunityCard: React.FC<{ opportunity: Opportunity, entity: Entity | und
             </div>
             <div className="flex items-center text-sm">
               <Calendar className="w-4 h-4 mr-2" />
-              <span>{formatTimestampOrFieldValue(opportunity.expirationDate)}</span>
+              <span>{formatDateValue(opportunity.expirationDate)}</span>
             </div>
             <div className="flex items-center text-sm">
               <Clock className="w-4 h-4 mr-2" />
-              <span>{formatTimestampOrFieldValue(opportunity.dateCreated)}</span>
+              <span>{formatDateValue(opportunity.dateCreated)}</span>
             </div>
           </div>
           {opportunity.budget && (

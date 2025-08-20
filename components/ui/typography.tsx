@@ -19,7 +19,7 @@ export function Typography({ variant, children, className }: TypographyProps) {
           'scroll-m-20 text-xl font-semibold tracking-tight': variant === 'h4',
           'scroll-m-20 text-lg font-semibold tracking-tight': variant === 'h5',
           'scroll-m-20 text-base font-semibold tracking-tight': variant === 'h6',
-          'leading-7 [&:not(:first-child)]:mt-6': variant === 'p',
+          'leading-7 [&:not(:first-child)]:mt-6 text-foreground': variant === 'p',
         },
         className
       )}

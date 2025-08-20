@@ -1,4 +1,4 @@
-import { Locale } from './i18n-server'
+import type { Locale } from '@/i18n-config'
 
 // Updated types for locale-based routing
 export interface LocalePageProps<T = {}> {

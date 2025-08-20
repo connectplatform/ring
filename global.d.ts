@@ -10,3 +10,9 @@ declare module "framer-motion" {
   }
 }
 
+// Ambient module declarations for optional deps used in SDK/build
+declare module 'bert-js' {
+  const bert: any
+  export default bert
+}
+

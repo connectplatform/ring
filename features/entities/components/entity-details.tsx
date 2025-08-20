@@ -1,18 +1,18 @@
 'use client'
 
 import React, { useState } from 'react'
-import Image from 'next/image'
+import { EntityLogo } from '@/components/ui/safe-image'
 import { motion } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
-import { SlidingPopup } from '@/components/widgets/modal'
-import { ContactForm } from '@/components/widgets/contact-form'
-import { Entity } from '@/types'
+import { useTranslations } from 'next-intl'
+import { SlidingPopup } from '@/components/common/widgets/modal'
+import { ContactForm } from '@/components/common/widgets/contact-form'
+import { SerializedEntity } from '@/features/entities/types'
 import { Building, Users, Calendar, MapPin, Phone, Mail, Globe, MessageCircle } from 'lucide-react'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 interface EntityDetailsProps {
-  initialEntity: Entity | null
+  initialEntity: SerializedEntity | null
   initialError: string | null
   chatComponent: React.ReactNode
 }
@@ -25,8 +25,8 @@ interface EntityDetailsProps {
  * @returns {React.ReactElement} Rendered EntityDetails component
  */
 export default function EntityDetails({ initialEntity, initialError, chatComponent }: EntityDetailsProps) {
-  const { t } = useTranslation()
-  const [entity] = useState<Entity | null>(initialEntity)
+  const t = useTranslations('modules.entities')
+  const [entity] = useState<SerializedEntity | null>(initialEntity)
   const [error] = useState<string | null>(initialError)
   const [isWebsitePopupOpen, setIsWebsitePopupOpen] = useState(false)
   const [isContactPopupOpen, setIsContactPopupOpen] = useState(false)
@@ -110,21 +110,18 @@ export default function EntityDetails({ initialEntity, initialError, chatCompone
 }
 
 interface EntityHeaderProps {
-  entity: Entity
+  entity: SerializedEntity
 }
 
 const EntityHeader: React.FC<EntityHeaderProps> = ({ entity }) => (
   <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
     <h1 className="text-3xl font-bold mb-2 md:mb-0">{entity.name}</h1>
-    {entity.logo && (
-      <Image
-        src={entity.logo}
-        alt={`${entity.name} logo`}
-        width={100}
-        height={100}
-        className="rounded-full"
-      />
-    )}
+    <EntityLogo
+      src={entity.logo}
+      entityName={entity.name}
+      size="md"
+      className="rounded-full"
+    />
   </div>
 )
 
@@ -137,8 +134,8 @@ const EntityDescription: React.FC<EntityDescriptionProps> = ({ description }) =>
 )
 
 interface EntityDetailsGridProps {
-  entity: Entity
-  t: (key: string, options?: object) => string
+  entity: SerializedEntity
+  t: any // Use any to match useTranslations return type
   onWebsiteClick: () => void
 }
 
@@ -286,8 +283,8 @@ const WebsitePopup: React.FC<WebsitePopupProps> = ({ isOpen, onCloseAction, webs
 interface ContactPopupProps {
   isOpen: boolean
   onCloseAction: () => Promise<void>
-  entity: Entity
-  t: (key: string, options?: object) => string
+  entity: SerializedEntity
+  t: any // Use any to match useTranslations return type
 }
 
 const ContactPopup: React.FC<ContactPopupProps> = ({ isOpen, onCloseAction, entity, t }) => (
@@ -311,7 +308,7 @@ interface ChatPopupProps {
   onCloseAction: () => Promise<void>
   entityName: string
   chatComponent: React.ReactNode
-  t: (key: string, options?: object) => string
+  t: any // Use any to match useTranslations return type
 }
 
 const ChatPopup: React.FC<ChatPopupProps> = ({ isOpen, onCloseAction, entityName, chatComponent, t }) => (

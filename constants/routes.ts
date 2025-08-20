@@ -1,4 +1,5 @@
-import { Locale, defaultLocale } from '@/utils/i18n-server'
+import type { Locale } from '@/i18n-config'
+import { defaultLocale } from '@/i18n-config'
 
 // Base routes without locale
 const BASE_ROUTES = {
@@ -8,6 +9,9 @@ const BASE_ROUTES = {
   ENTITY: (id: string) => `/entities/${id}`,
   ADD_ENTITY: '/entities/add',
   OPPORTUNITIES: '/opportunities',
+  STORE: '/store',
+  CART: '/store/cart',
+  CHECKOUT: '/store/checkout',
   ADD_OPPORTUNITY: '/opportunities/add',
   ABOUT: '/about',
   TERMS: '/terms',
@@ -15,6 +19,7 @@ const BASE_ROUTES = {
   CONTACT: '/contact',
   SETTINGS: '/settings',
   PROFILE: '/profile',
+  MEMBERSHIP: '/membership',
   CONFIDENTIAL_ENTITIES: '/confidential/entities',
   CONFIDENTIAL_OPPORTUNITIES: '/confidential/opportunities',
   UNAUTHORIZED: '/unauthorized',
@@ -29,6 +34,9 @@ export const ROUTES = {
   ENTITY: (id: string, locale: Locale = defaultLocale) => `/${locale}/entities/${id}`,
   ADD_ENTITY: (locale: Locale = defaultLocale) => `/${locale}/entities/add`,
   OPPORTUNITIES: (locale: Locale = defaultLocale) => `/${locale}/opportunities`,
+  STORE: (locale: Locale = defaultLocale) => `/${locale}/store`,
+  CART: (locale: Locale = defaultLocale) => `/${locale}/store/cart`,
+  CHECKOUT: (locale: Locale = defaultLocale) => `/${locale}/store/checkout`,
   ADD_OPPORTUNITY: (locale: Locale = defaultLocale) => `/${locale}/opportunities/add`,
   ABOUT: (locale: Locale = defaultLocale) => `/${locale}/about`,
   TERMS: (locale: Locale = defaultLocale) => `/${locale}/terms`,
@@ -36,6 +44,7 @@ export const ROUTES = {
   CONTACT: (locale: Locale = defaultLocale) => `/${locale}/contact`,
   SETTINGS: (locale: Locale = defaultLocale) => `/${locale}/settings`,
   PROFILE: (locale: Locale = defaultLocale) => `/${locale}/profile`,
+  MEMBERSHIP: (locale: Locale = defaultLocale) => `/${locale}/membership`,
   CONFIDENTIAL_ENTITIES: (locale: Locale = defaultLocale) => `/${locale}/confidential/entities`,
   CONFIDENTIAL_OPPORTUNITIES: (locale: Locale = defaultLocale) => `/${locale}/confidential/opportunities`,
   UNAUTHORIZED: (locale: Locale = defaultLocale) => `/${locale}/unauthorized`,

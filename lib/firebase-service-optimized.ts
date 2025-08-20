@@ -34,8 +34,8 @@ import { entityConverter } from '@/lib/converters/entity-converter';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { ethers } from 'ethers';
 import { getAuth } from 'firebase/auth';
-import { getUserByWalletAddress } from '@/services/users/get-user-by-wallet-address';
-import { createNewUserWithWallet } from '@/services/users/create-new-user-with-wallet';
+import { getUserByWalletAddress } from '@/features/auth/services/get-user-by-wallet-address';
+import { createNewUserWithWallet } from '@/features/auth/services/create-new-user-with-wallet';
 import { cache } from 'react';
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore';
 

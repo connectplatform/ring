@@ -1,5 +1,6 @@
 import { UserRole } from '../types';
-import i18next from 'i18next';
+// NOTE: These constants are used on the client; use plain strings as defaults.
+// Components should localize their UI with next-intl at render time.
 
 export const AUTH_ROUTES = {
   LOGIN: '/login',
@@ -10,24 +11,24 @@ export const AUTH_ROUTES = {
 };
 
 export const ERROR_MESSAGES = {
-  INVALID_EMAIL: i18next.t('invalidEmail'),
-  INVALID_PASSWORD: i18next.t('errors.invalidPassword'),
-  EMAIL_ALREADY_IN_USE: i18next.t('errors.emailAlreadyInUse'),
-  USER_NOT_FOUND: i18next.t('errors.userNotFound'),
-  WRONG_PASSWORD: i18next.t('errors.wrongPassword'),
-  WEAK_PASSWORD: i18next.t('errors.weakPassword'),
-  NETWORK_ERROR: i18next.t('errors.networkError'),
-  UNKNOWN_ERROR: i18next.t('errors.unknownError'),
+  INVALID_EMAIL: 'Invalid email',
+  INVALID_PASSWORD: 'Invalid password',
+  EMAIL_ALREADY_IN_USE: 'Email already in use',
+  USER_NOT_FOUND: 'User not found',
+  WRONG_PASSWORD: 'Wrong password',
+  WEAK_PASSWORD: 'Weak password',
+  NETWORK_ERROR: 'Network error',
+  UNKNOWN_ERROR: 'Unknown error',
 };
 
 export const SUCCESS_MESSAGES = {
-  SIGNUP_SUCCESS: i18next.t('accountCreated'),
-  LOGIN_SUCCESS: i18next.t('success'),
-  LOGOUT_SUCCESS: i18next.t('success'),
-  PASSWORD_RESET_EMAIL_SENT: i18next.t('passwordResetEmailSent'),
-  PASSWORD_RESET_SUCCESS: i18next.t('passwordResetSuccess'),
-  EMAIL_VERIFICATION_SENT: i18next.t('emailVerificationSent'),
-  EMAIL_VERIFIED: i18next.t('emailVerified'),
+  SIGNUP_SUCCESS: 'Account created',
+  LOGIN_SUCCESS: 'Success',
+  LOGOUT_SUCCESS: 'Success',
+  PASSWORD_RESET_EMAIL_SENT: 'Password reset email sent',
+  PASSWORD_RESET_SUCCESS: 'Password reset successful',
+  EMAIL_VERIFICATION_SENT: 'Email verification sent',
+  EMAIL_VERIFIED: 'Email verified',
 };
 
 export const AUTH_PERSISTENCE_KEY = 'auth_state';
@@ -43,36 +44,36 @@ export const USER_ROLES: UserRole[] = [UserRole.SUBSCRIBER, UserRole.MEMBER, Use
 export const CONFIDENTIAL_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.CONFIDENTIAL];
 
 export const AUTH_FORM_LABELS = {
-  EMAIL: i18next.t('emailAddress'),
-  PASSWORD: i18next.t('password'),
-  CONFIRM_PASSWORD: i18next.t('confirmPassword'),
-  NAME: i18next.t('name'),
-  SIGN_IN: i18next.t('signIn'),
-  SIGN_UP: i18next.t('signUp'),
-  FORGOT_PASSWORD: i18next.t('forgotPassword'),
-  RESET_PASSWORD: i18next.t('resetPassword'),
+  EMAIL: 'Email address',
+  PASSWORD: 'Password',
+  CONFIRM_PASSWORD: 'Confirm password',
+  NAME: 'Name',
+  SIGN_IN: 'Sign in',
+  SIGN_UP: 'Sign up',
+  FORGOT_PASSWORD: 'Forgot password',
+  RESET_PASSWORD: 'Reset password',
 };
 
 export const AUTH_BUTTON_LABELS = {
-  SIGN_IN: i18next.t('signIn'),
-  SIGN_UP: i18next.t('signUp'),
-  SIGN_OUT: i18next.t('signOut'),
-  SIGN_IN_WITH_GOOGLE: i18next.t('signInWithGoogle'),
-  FORGOT_PASSWORD: i18next.t('forgotPassword'),
-  RESET_PASSWORD: i18next.t('resetPassword'),
-  SEND_RESET_EMAIL: i18next.t('sendResetEmail'),
+  SIGN_IN: 'Sign in',
+  SIGN_UP: 'Sign up',
+  SIGN_OUT: 'Sign out',
+  SIGN_IN_WITH_GOOGLE: 'Sign in with Google',
+  FORGOT_PASSWORD: 'Forgot password',
+  RESET_PASSWORD: 'Reset password',
+  SEND_RESET_EMAIL: 'Send reset email',
 };
 
 export const AUTH_FORM_PLACEHOLDERS = {
-  EMAIL: i18next.t('emailPlaceholder'),
-  PASSWORD: i18next.t('passwordPlaceholder'),
-  CONFIRM_PASSWORD: i18next.t('confirmPasswordPlaceholder'),
-  NAME: i18next.t('namePlaceholder'),
+  EMAIL: 'Enter your email',
+  PASSWORD: 'Enter your password',
+  CONFIRM_PASSWORD: 'Confirm your password',
+  NAME: 'Enter your name',
 };
 
 export const AUTH_VALIDATION_MESSAGES = {
-  REQUIRED_FIELD: i18next.t('fieldRequired'),
-  INVALID_EMAIL: i18next.t('invalidEmail'),
-  PASSWORD_MISMATCH: i18next.t('passwordsDoNotMatch'),
-  PASSWORD_TOO_SHORT: i18next.t('errors.weakPassword'),
+  REQUIRED_FIELD: 'This field is required',
+  INVALID_EMAIL: 'Invalid email',
+  PASSWORD_MISMATCH: 'Passwords do not match',
+  PASSWORD_TOO_SHORT: 'Weak password',
 };

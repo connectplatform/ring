@@ -13,7 +13,8 @@ function Card({ className, ref, ...props }: CardProps) {
     <div
       ref={ref}
       className={cn(
-        "rounded-lg border bg-card text-card-foreground shadow-sm",
+        // Use theme tokens directly to ensure correct light/dark rendering
+        "rounded-lg border bg-background text-foreground shadow-sm",
         className
       )}
       {...props}

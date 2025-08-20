@@ -2,13 +2,14 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { Moon, Sun, X, LogIn, Globe, User } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { LanguageSwitcher } from '@/components/common/language-switcher'
 
 // Import the Session type from next-auth
 import { Session } from 'next-auth'
@@ -33,7 +34,7 @@ interface MobileMenuProps {
   navigationLinks: Array<{ href: string; label: string }>
   theme: string
   toggleTheme: () => void
-  toggleLanguage: () => void
+  locale: string
   user: Session['user'] | null
   loading: boolean
   handleGoogleSignIn: () => void
@@ -63,14 +64,14 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   navigationLinks,
   theme,
   toggleTheme,
-  toggleLanguage,
+  locale,
   user,
   loading,
   handleGoogleSignIn,
   handleSignOut,
   onClose,
 }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('Navigation')
 
   return (
     <Card className="p-4 h-full w-full max-w-sm bg-background text-foreground">
@@ -121,10 +122,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         </div>
 
         {/* Language toggle */}
-        <Button variant="outline" className="w-full justify-between" onClick={toggleLanguage}>
-          <span>{t('toggleLanguage')}</span>
-          <Globe className="h-5 w-5" />
-        </Button>
+        <div className="w-full flex justify-center">
+          <LanguageSwitcher />
+        </div>
 
         {/* Authentication actions */}
         {loading ? (
@@ -132,7 +132,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         ) : user ? (
           <>
             {/* User profile link when authenticated */}
-            <Link href={ROUTES.PROFILE(DEFAULT_LOCALE)} passHref legacyBehavior>
+            <Link href={ROUTES.PROFILE(locale as 'en' | 'uk')} passHref legacyBehavior>
               <Button variant="outline" className="w-full justify-between" onClick={onClose}>
                 <span>{t('profile')}</span>
                 <User className="h-5 w-5" />
@@ -140,7 +140,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             </Link>
             {/* Sign out button when authenticated */}
             <Button variant="outline" className="w-full" onClick={handleSignOut}>
-              {t('signOut')}
+              {t('logout')}
             </Button>
           </>
         ) : (

@@ -3,7 +3,7 @@
 import type React from "react"
 import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useTranslation } from "@/node_modules/react-i18next"
+import { useTranslations } from "next-intl"
 import { useTheme } from "next-themes"
 import type { Opportunity } from "@/types"
 import Link from "next/link"
@@ -44,7 +44,7 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
   sort,
   filter,
 }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const { opportunities, setOpportunities, error, setError } = useAppContext()
@@ -183,7 +183,7 @@ const OpportunityGrid: React.FC<{ opportunities: Opportunity[] }> = ({ opportuni
  * Displays a card for a single opportunity
  */
 const OpportunityCard: React.FC<{ opportunity: Opportunity }> = ({ opportunity }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
@@ -235,7 +235,7 @@ const DetailItem: React.FC<{ icon: React.ElementType; text: string }> = ({ icon:
  * Displays the tags for an opportunity
  */
 const OpportunityTags: React.FC<{ tags: string[] }> = ({ tags }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
 
   if (!tags || tags.length === 0) return null
 
@@ -261,7 +261,7 @@ const OpportunityTags: React.FC<{ tags: string[] }> = ({ tags }) => {
  * Displays a confidential badge on the opportunity card
  */
 const ConfidentialBadge: React.FC = () => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
 
   return (
     <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs px-2 py-1 rounded flex items-center">

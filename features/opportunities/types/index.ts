@@ -40,6 +40,38 @@ export interface Opportunity {
   };
 }
 
+// Serialized version for client components (dates as ISO strings)
+export interface SerializedOpportunity {
+  id: string;
+  type: OpportunityType;
+  title: string;
+  isConfidential: boolean;
+  briefDescription: string;
+  fullDescription?: string;
+  createdBy: string;
+  organizationId: string;
+  dateCreated: string;
+  dateUpdated: string;
+  expirationDate: string;
+  status: 'active' | 'closed' | 'expired';
+  category: string;
+  tags: string[];
+  location: string;
+  budget?: {
+    min: number;
+    max: number;
+    currency: string;
+  };
+  requiredSkills: string[];
+  requiredDocuments: string[];
+  attachments: Attachment[];
+  visibility: OpportunityVisibility;
+  contactInfo: {
+    linkedEntity: string;
+    contactAccount: string;
+  };
+}
+
 export interface OpportunityFormData {
   type: OpportunityType;
   title: string;

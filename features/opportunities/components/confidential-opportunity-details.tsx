@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useSession, SessionProvider } from 'next-auth/react'
-import { SlidingPopup } from '@/components/widgets/modal'
+import { SlidingPopup } from '@/components/common/widgets/modal'
 import { Button } from '@/components/ui/button'
-import { ContactForm } from '@/components/widgets/contact-form'
+import { ContactForm } from '@/components/common/widgets/contact-form'
 import { Opportunity } from '@/types'
 import { Lock, Building, Calendar, MapPin, DollarSign, Clock, Tag, FileText, User } from 'lucide-react'
 import { Timestamp, FieldValue } from 'firebase/firestore'
@@ -20,7 +20,7 @@ const formatDate = (date: Timestamp | FieldValue | undefined) => {
 
 function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initialOpportunity: Opportunity }) {
   const { data: session } = useSession()
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const [opportunity, setOpportunity] = useState<Opportunity>(initialOpportunity)
   const [isContactPopupOpen, setIsContactPopupOpen] = useState(false)
 
@@ -59,7 +59,7 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
         className="flex items-center justify-center mb-8"
       >
         <Lock className="w-8 h-8 text-destructive mr-2" />
-        <h1 className="text-4xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-purple-500">
+        <h1 className="text-4xl font-bold text-center text-primary">
           {opportunity.title}
         </h1>
       </motion.div>
@@ -69,7 +69,7 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
           {opportunity.tags && (
             <div className="flex flex-wrap gap-2 mb-4">
               {opportunity.tags.map((tag: string) => (
-                <span key={tag} className="bg-gradient-to-r from-red-500 to-purple-500 text-white px-3 py-1 rounded-full text-sm shadow">
+                <span key={tag} className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm shadow">
                   {tag}
                 </span>
               ))}
@@ -79,14 +79,14 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
           <div className="flex gap-4">
             <Button
               onClick={() => setIsContactPopupOpen(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-full font-semibold hover:from-purple-600 hover:to-pink-600 transition-colors shadow-lg"
+            className="bg-primary text-primary-foreground px-6 py-2 rounded-md font-semibold hover:opacity-90 transition-colors shadow"
             >
               {t('opportunity.applyNow')}
             </Button>
           </div>
         </div>
         <div>
-          <h2 className="text-2xl font-semibold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">
+          <h2 className="text-2xl font-semibold mb-4 text-primary">
             {t('opportunity.confidentialDetails')}
           </h2>
           <div className="space-y-4">
@@ -127,7 +127,7 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
       </div>
       {opportunity.attachments && opportunity.attachments.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-2xl font-semibold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">
+          <h2 className="text-2xl font-semibold mb-4 text-primary">
             {t('opportunity.attachments')}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

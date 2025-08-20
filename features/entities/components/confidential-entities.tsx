@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useSession } from "next-auth/react"
 import { Entity } from '@/types'
 import Link from 'next/link'
 import { Building2, MapPin, Tag, Globe, Calendar, Users, Award, Lock } from 'lucide-react'
+import { EntityLogo } from '@/components/ui/safe-image'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import LoginForm from '@/components/auth/login-form'
+import LoginForm from '@/features/auth/components/login-form'
 
 /**
  * Props for the ConfidentialEntitiesContent component
@@ -63,7 +64,7 @@ export const ConfidentialEntitiesContent: React.FC<ConfidentialEntitiesContentPr
   sort,
   filter
 }) => {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.entities')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const [entities, setEntities] = useState<Entity[]>(initialEntities)
@@ -165,9 +166,12 @@ export const ConfidentialEntitiesContent: React.FC<ConfidentialEntitiesContentPr
                 <CardContent className="flex-grow p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-2xl font-semibold">{entity.name}</h2>
-                    {entity.logo && (
-                      <img src={entity.logo} alt={`${entity.name} logo`} className="w-12 h-12 object-contain" />
-                    )}
+                    <EntityLogo
+                      src={entity.logo}
+                      entityName={entity.name}
+                      size="sm"
+                      className="w-12 h-12 object-contain"
+                    />
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">{entity.shortDescription}</p>
                   <div className="space-y-2">

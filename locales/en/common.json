@@ -1,0 +1,70 @@
+{
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "close": "Close",
+    "continue": "Continue",
+    "retry": "Retry",
+    "download": "Download",
+    "upload": "Upload",
+    "share": "Share",
+    "remove": "Remove",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signUp": "Sign Up"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "success": "Success",
+    "error": "Error"
+  },
+  "loading": "Loading...",
+  "labels": {
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "title": "Title",
+    "category": "Category",
+    "tags": "Tags",
+    "language": "Language",
+    "theme": "Theme",
+    "profile": "Profile",
+    "settings": "Settings",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "userMenu": "User menu",
+    "homeLink": "Home",
+    "toggleTheme": "Toggle theme",
+    "toggleMenu": "Toggle menu"
+  },
+  "footer": {
+    "aboutUs": "About Us",
+    "aboutUsDescription": "About our platform and services",
+    "quickLinks": "Quick Links",
+    "catalog": "Catalog",
+    "opportunities": "Opportunities",
+    "contacts": "Contact",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "addressFull": "195 Shevhenko Blvd, Cherkasy, Ukraine",
+    "emailFull": "contact@ring.ck.ua",
+    "phoneFull": "+38 097 532 8801",
+    "followUs": "Follow Us",
+    "toggleTheme": "Toggle theme",
+    "copyright": "© {year} Ring"
+  },
+  "messages": {
+    "welcome": "Welcome, {name}!"
+  }
+}
+
+

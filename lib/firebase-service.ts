@@ -7,10 +7,9 @@ import { Opportunity, OpportunityType, OpportunityVisibility } from '@/types';
 import { AuthUser, UserRole, ProfileFormData, UserSettings } from '@/features/auth/types';
 import { entityConverter } from '@/lib/converters/entity-converter';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
-import { ethers } from 'ethers';
 import { getAuth } from 'firebase/auth';
-import { getUserByWalletAddress } from '@/services/users/get-user-by-wallet-address';
-import { createNewUserWithWallet } from '@/services/users/create-new-user-with-wallet';
+import { getUserByWalletAddress } from '@/features/auth/services/get-user-by-wallet-address';
+import { createNewUserWithWallet } from '@/features/auth/services/create-new-user-with-wallet';
 
 /**
  * FirebaseService object
@@ -76,6 +75,7 @@ const FirebaseService = {
   
     try {
       await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+      const { ethers } = await import('ethers')
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();

@@ -1,0 +1,70 @@
+{
+  "actions": {
+    "add": "Додати",
+    "edit": "Редагувати",
+    "delete": "Видалити",
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "submit": "Надіслати",
+    "search": "Пошук",
+    "filter": "Фільтр",
+    "sort": "Сортувати",
+    "close": "Закрити",
+    "continue": "Продовжити",
+    "retry": "Спробувати знову",
+    "download": "Завантажити",
+    "upload": "Вивантажити",
+    "share": "Поділитися",
+    "remove": "Видалити",
+    "signIn": "Увійти",
+    "signOut": "Вийти",
+    "signUp": "Зареєструватися"
+  },
+  "status": {
+    "loading": "Завантаження...",
+    "saving": "Збереження...",
+    "success": "Успішно",
+    "error": "Помилка"
+  },
+  "loading": "Завантаження...",
+  "labels": {
+    "name": "Ім'я",
+    "email": "Email",
+    "phone": "Телефон",
+    "address": "Адреса",
+    "title": "Назва",
+    "category": "Категорія",
+    "tags": "Теги",
+    "language": "Мова",
+    "theme": "Тема",
+    "profile": "Профіль",
+    "settings": "Налаштування",
+    "privacy": "Приватність",
+    "terms": "Умови",
+    "userMenu": "Меню користувача",
+    "homeLink": "Головна",
+    "toggleTheme": "Змінити тему",
+    "toggleMenu": "Відкрити/закрити меню"
+  },
+  "footer": {
+    "aboutUs": "Про нас",
+    "aboutUsDescription": "Про нашу платформу та сервіси",
+    "quickLinks": "Швидкі посилання",
+    "catalog": "Каталог",
+    "opportunities": "Можливості",
+    "contacts": "Контакти",
+    "privacyPolicy": "Політика конфіденційності",
+    "termsOfService": "Умови використання",
+    "addressFull": "б-р Шевченка 195, Черкаси, Україна",
+    "emailFull": "contact@ring.ck.ua",
+    "phoneFull": "+38 097 532 8801",
+    "followUs": "Ми в мережах",
+    "toggleTheme": "Змінити тему",
+    "copyright": "© {year} Ring"
+  },
+  "messages": {
+    "welcome": "Вітаємо, {name}!"
+  }
+}
+
+

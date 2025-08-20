@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ring White-Label Instance Config",
+  "type": "object",
+  "required": ["name", "brand", "features"],
+  "properties": {
+    "name": { "type": "string" },
+    "brand": {
+      "type": "object",
+      "required": ["colors"],
+      "properties": {
+        "colors": {
+          "type": "object",
+          "required": ["primary", "background", "foreground", "accent"],
+          "properties": {
+            "primary": { "type": "string" },
+            "background": { "type": "string" },
+            "foreground": { "type": "string" },
+            "accent": { "type": "string" }
+          }
+        },
+        "logoUrl": { "type": "string" },
+        "faviconUrl": { "type": "string" },
+        "ogImageUrl": { "type": "string" }
+      }
+    },
+    "seo": {
+      "type": "object",
+      "properties": {
+        "titleSuffix": { "type": "string" },
+        "defaultDescription": { "type": "string" }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "properties": {
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "href"],
+            "properties": {
+              "label": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "hero": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "ctaText": { "type": "string" },
+        "ctaHref": { "type": "string" },
+        "showOnHome": { "type": "boolean" }
+      }
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "entities": { "type": "boolean" },
+        "opportunities": { "type": "boolean" },
+        "messaging": { "type": "boolean" },
+        "admin": { "type": "boolean" }
+      },
+      "additionalProperties": { "type": "boolean" }
+    }
+  },
+  "additionalProperties": true
+}

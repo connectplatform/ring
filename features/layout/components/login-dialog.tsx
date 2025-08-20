@@ -1,10 +1,11 @@
 'use client'
 
 import React from 'react'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { FcGoogle } from 'react-icons/fc'
 import { signIn } from 'next-auth/react'
 import { ROUTES } from '@/constants/routes'
+import { useLocale } from 'next-intl'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
@@ -36,7 +37,9 @@ const DEFAULT_LOCALE = 'en' as const
  * @returns {JSX.Element} The rendered LoginDialog component
  */
 export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
-  const { t } = useTranslation()
+  const tCommon = useTranslations('common')
+  const tAuth = useTranslations('modules.auth')
+  const locale = useLocale() as 'en' | 'uk'
 
   /**
    * Handles the Google Sign-In process
@@ -44,7 +47,7 @@ export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
    */
   const handleGoogleSignIn = async () => {
     try {
-      await signIn('google', { callbackUrl: ROUTES.PROFILE(DEFAULT_LOCALE) })
+      await signIn('google', { callbackUrl: ROUTES.PROFILE(locale) })
     } catch (error) {
       console.error('Sign in error:', error)
     } finally {
@@ -60,7 +63,7 @@ export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
     }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{t('signIn')}</DialogTitle>
+          <DialogTitle>{tAuth('signIn.title')}</DialogTitle>
         </DialogHeader>
         <div className="flex items-center justify-center">
           <Button
@@ -69,7 +72,7 @@ export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
             className="w-full max-w-sm"
           >
             <FcGoogle className="mr-2 h-4 w-4" />
-            {t('signInWithGoogle')}
+            {tAuth('signIn.providers.google')}
           </Button>
         </div>
       </DialogContent>

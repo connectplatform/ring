@@ -1,7 +1,7 @@
 import { createServer } from 'http'
 import next from 'next'
 import { Server } from 'socket.io'
-import { getToken } from 'next-auth/jwt'
+import { verifyJwtToken } from './lib/auth/jwt.js'
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
@@ -26,9 +26,8 @@ class WebSocketService {
 
   async authenticateSocket(socket) {
     try {
-      const token = socket.handshake.auth.token || 
-                   socket.handshake.headers.authorization?.replace('Bearer ', '') ||
-                   socket.request.headers.authorization?.replace('Bearer ', '')
+      const token = socket.handshake.auth.token ||
+                    (socket.handshake.headers.authorization || socket.request.headers.authorization || '').replace('Bearer ', '')
       
       if (!token) {
         console.warn('WebSocket authentication failed: No token provided')
@@ -41,17 +40,14 @@ class WebSocketService {
         throw new Error('Invalid token format')
       }
 
-      const session = await getToken({ 
-        token, 
-        secret: process.env.NEXTAUTH_SECRET 
-      })
+      const session = await verifyJwtToken(token, process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET)
 
       if (!session || !session.sub) {
         console.warn('WebSocket authentication failed: Invalid session')
         throw new Error('Invalid authentication token')
       }
 
-      console.log(`WebSocket authentication successful for user: ${session.email || session.sub}`)
+      console.log(`WebSocket authentication successful for user: ${(session.email) || session.sub}`)
       return session
     } catch (error) {
       console.error('Socket authentication failed:', error.message)

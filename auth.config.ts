@@ -13,10 +13,12 @@ export default {
     GoogleProvider({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
     }),
     AppleProvider({
       clientId: process.env.AUTH_APPLE_ID!,
       clientSecret: process.env.AUTH_APPLE_SECRET!,
+      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
     }),
     CredentialsProvider({
       id: "crypto-wallet",

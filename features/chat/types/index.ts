@@ -1,6 +1,6 @@
 // /features/chat/types/index.ts
-import { Timestamp } from 'firebase/firestore';
-import { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
+import type { Timestamp } from 'firebase/firestore';
+import type { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 
 // Legacy interface - keeping for backward compatibility
 export interface chat {

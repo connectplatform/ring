@@ -1,0 +1,60 @@
+{
+  "profile": "Profile",
+  "noProfileFound": "No profile found.",
+  "uploadAvatar": "Upload Avatar",
+  "role": "Role",
+  "memberSince": "Member since",
+  "primaryAuthMethod": "Primary auth method",
+  "verificationLevel": "Verification Level",
+  "getVerified": "Get Verified",
+  "kycVerification": {
+    "title": "KYC Verification",
+    "description": "Verify your identity to unlock more features.",
+    "verifyWithDiia": "Verify with Diia",
+    "verifyWithBankId": "Verify with BankID",
+    "status": {
+      "not_started": "Not started",
+      "pending": "Pending",
+      "under_review": "Under review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "levels": {
+      "none": "None",
+      "basic": "Basic",
+      "standard": "Standard",
+      "enhanced": "Enhanced"
+    }
+  },
+  "roleUpgrade": {
+    "title": "Upgrade Account",
+    "description": "Upgrade your account to access more features.",
+    "requestSubmitted": "Upgrade request submitted.",
+    "currentRole": "Current role",
+    "requestedRole": "Requested role",
+    "reason": "Reason",
+    "organization": "Organization",
+    "position": "Position",
+    "linkedinProfile": "LinkedIn Profile",
+    "portfolioUrl": "Portfolio URL",
+    "submitRequest": "Submit Request",
+    "status": {
+      "pending": "Pending",
+      "under_review": "Under review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "authMethods": {
+    "google": "Google",
+    "apple": "Apple",
+    "crypto-wallet": "Crypto Wallet",
+    "metamask": "MetaMask",
+    "credentials": "Email & Password"
+  },
+  "cancel": "Cancel",
+  "saving": "Saving…"
+}
+
+

@@ -2,16 +2,19 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations, useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
-import { Moon, Sun, Facebook, Twitter, Linkedin, Instagram, BookOpen } from 'lucide-react'
+import type { Locale } from '@/i18n-config'
+import { Moon, Sun, Facebook, Twitter, Linkedin, Instagram, BookOpen, Wifi } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import packageInfo from '@/package.json'
 
-export default function footer() {
-  const { t, i18n } = useTranslation()
+export default function Footer() {
+  const t = useTranslations('common.footer')
+  const locale = useLocale() as Locale
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [wsConnected, setWsConnected] = useState(false)
   const currentYear = new Date().getFullYear()
 
   // Fix hydration mismatch by only rendering dynamic content after mount
@@ -19,14 +22,49 @@ export default function footer() {
     setMounted(true)
   }, [])
 
+  // WebSocket connection status monitoring
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const checkWebSocketStatus = () => {
+      // Check if WebSocket connection exists in global scope (set by websocket provider)
+      const ws = (window as any).ringWebSocket
+      setWsConnected(ws && ws.readyState === WebSocket.OPEN)
+    }
+
+    // Initial check
+    checkWebSocketStatus()
+
+    // Check periodically
+    const interval = setInterval(checkWebSocketStatus, 2000)
+
+    // Listen for WebSocket events if available
+    const ws = (window as any).ringWebSocket
+    if (ws) {
+      const handleOpen = () => setWsConnected(true)
+      const handleClose = () => setWsConnected(false)
+      const handleError = () => setWsConnected(false)
+
+      ws.addEventListener('open', handleOpen)
+      ws.addEventListener('close', handleClose)
+      ws.addEventListener('error', handleError)
+
+      return () => {
+        clearInterval(interval)
+        ws.removeEventListener('open', handleOpen)
+        ws.removeEventListener('close', handleClose)
+        ws.removeEventListener('error', handleError)
+      }
+    }
+
+    return () => clearInterval(interval)
+  }, [mounted])
+
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark')
   }
 
-  const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'uk' : 'en'
-    i18n.changeLanguage(newLang)
-  }
+  // Language switching is now handled by LanguageSwitcher component
 
   return (
     <footer className="bg-background text-foreground border-t">
@@ -111,12 +149,20 @@ export default function footer() {
             <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               {mounted ? t('privacyPolicy') : 'Privacy Policy'}
             </Link>
+            {/* WebSocket Status Indicator */}
+            {mounted && (
+              <div className="flex items-center space-x-2 text-xs">
+                <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-muted-foreground">
+                  Secure Socket: {wsConnected ? 'UP' : 'DOWN'}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-4 mt-4 md:mt-0">
             {mounted ? (
-              <Button variant="ghost" size="sm" onClick={toggleLanguage} className="h-8 px-2">
-                {i18n.language === 'en' ? 'EN' : 'UK'}
-                <span className="sr-only">{t('toggleLanguage')}</span>
+              <Button variant="ghost" size="sm" className="h-8 px-2">
+                {locale === 'en' ? 'EN' : 'UK'}
               </Button>
             ) : (
               <div className="w-12 h-8 animate-pulse bg-gray-200 dark:bg-gray-700 rounded"></div>

@@ -1,0 +1,51 @@
+{
+  "title": "Store",
+  "searchPlaceholder": "Search products...",
+  "allCurrencies": "All currencies",
+  "sortByName": "Name",
+  "sortByPrice": "Price",
+  "sortAsc": "Ascending",
+  "sortDesc": "Descending",
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty.",
+    "total": "Total",
+    "backToCart": "Back to cart",
+    "clear": "Clear cart",
+    "clearing": "Removing all items from cart...",
+    "goToCheckout": "Checkout"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "continue": "Continue",
+    "backToCart": "Back to cart"
+  },
+  "product": {
+    "loading": "Loading…",
+    "inStockYes": "Yes",
+    "inStockNo": "No",
+    "price": "Price",
+    "category": "Category",
+    "tags": "Tags",
+    "goesWellWith": "Goes well with",
+    "addToCart": "Add to cart",
+    "adding": "Adding…",
+    "goToCart": "Go to cart",
+    "backToStore": "Back to store",
+    "notFound": "Product not found",
+    "addedToCart": "{name} added to cart"
+  },
+  "favorites": {
+    "button": "Favorites",
+    "empty": "No favorites yet",
+    "browseStore": "Browse store",
+    "save": "Save to favorites",
+    "remove": "Remove from favorites"
+  },
+  "aiConsultant": {
+    "title": "AI Product Consultant",
+    "ask": "Ask anything about this product."
+  }
+}
+
+

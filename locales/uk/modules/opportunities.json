@@ -1,0 +1,31 @@
+{
+  "title": "Можливості",
+  "introTitle": "Відкрийте можливості",
+  "introDescription": "Сторінка Можливості збирає вакансії, партнерства, гранти та співпраці від учасників нашої екосистеми. Увійдіть, щоб переглядати й подаватися.",
+  "loadingMessage": "Завантаження можливостей...",
+  "loadingMoreOpportunities": "Завантаження додаткових можливостей...",
+  "opportunities": "Можливості",
+  "errorFetchingMoreOpportunities": "Не вдалося завантажити більше можливостей.",
+  "errorFetchingEntities": "Не вдалося завантажити повʼязані організації.",
+  "viewDetails": "Детальніше",
+  "upgradeToBeMember": "Оновити до Учасника",
+  "upgradeToMemberToPostOpportunities": "Оновіть до Учасника, щоб публікувати можливості",
+  "subscriberUpgradeMessage": "Як підписник, ви можете переглядати можливості, але для публікації власних потрібно оновити обліковий запис до статусу Учасника.",
+  "backToOpportunities": "Назад до можливостей",
+  "loading": "Завантаження...",
+  "organizationDetails": "Деталі організації",
+  "name": "Назва",
+  "type": "Тип",
+  "opportunityDetails": "Деталі можливості",
+  "location": "Місцезнаходження",
+  "expirationDate": "Дата закінчення",
+  "attachments": "Вкладення",
+  "confidentialOpportunity": "Конфіденційна можливість",
+  "confidentialOpportunityDescription": "Ця можливість містить конфіденційну інформацію і доступна лише авторизованим користувачам.",
+  "confidentialInformation": "Конфіденційна інформація",
+  "confidentialInformationDescription": "Додаткові конфіденційні деталі доступні для авторизованих користувачів.",
+  "noPermission": "У вас немає дозволу на перегляд цієї можливості.",
+  "noDataAvailable": "Немає доступних даних для цієї можливості."
+}
+
+

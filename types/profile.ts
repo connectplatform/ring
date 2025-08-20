@@ -4,6 +4,7 @@ import { Session } from 'next-auth'
 export interface ProfileFormData {
   name?: string;
   email?: string;
+  username?: string;
   bio?: string;
   walletAddress?: string;
 }

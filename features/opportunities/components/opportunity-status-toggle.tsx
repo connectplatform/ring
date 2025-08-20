@@ -3,7 +3,7 @@
 import React from 'react'
 import { useOptimistic, useActionState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { 
   CheckCircle2, 
@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { updateOpportunity, OpportunityFormState } from '@/app/actions/opportunities'
+import { updateOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 
 type OpportunityStatus = 'active' | 'closed' | 'expired' | 'draft' | 'archived'
 type OpportunityVisibility = 'public' | 'confidential' | 'private'
@@ -78,7 +78,7 @@ export default function OpportunityStatusToggle({
   showDropdown = true,
   className = ''
 }: OpportunityStatusToggleProps) {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const { data: session } = useSession()
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
 

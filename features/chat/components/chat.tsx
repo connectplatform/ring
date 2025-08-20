@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useTranslation } from 'react-i18next'
+import { useTranslations } from 'next-intl'
 import { useConversations, useConversation, useMessages } from '@/hooks/use-messaging'
 import { useWebSocket } from '@/hooks/use-websocket'
-import { ConversationList } from '@/components/messaging/conversation-list'
-import { MessageThread } from '@/components/messaging/message-thread'
-import { ConversationHeader } from '@/components/messaging/conversation-header'
+import { ConversationList } from '@/features/chat/components/conversation-list'
+import { MessageThread } from '@/features/chat/components/message-thread'
+import { ConversationHeader } from '@/features/chat/components/conversation-header'
 import { Conversation, CreateConversationRequest } from '@/features/chat/types'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -51,7 +51,7 @@ function ChatContent({
   showConversationList = true,
   initialConversationId
 }: ChatProps) {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.messenger')
   const { data: session, status } = useSession()
   const { isConnected } = useWebSocket()
   

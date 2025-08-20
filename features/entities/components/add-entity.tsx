@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
-import { createEntity, EntityFormState } from '@/app/actions/entities'
+import { createEntity, EntityFormState } from '@/app/_actions/entities'
 import { Button } from '@/components/ui/button'
+import { UserRole } from '@/features/auth/types'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -34,7 +35,7 @@ import { ROUTES } from '@/constants/routes'
 const DEFAULT_LOCALE = 'en' as const
 
 function SubmitButton() {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.entities')
   const { pending } = useFormStatus()
   
   return (
@@ -45,11 +46,12 @@ function SubmitButton() {
 }
 
 function AddEntityFormContent() {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.entities')
   const { data: session, status } = useSession()
   const router = useRouter()
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
+  const locale = DEFAULT_LOCALE
 
   const [state, formAction] = useActionState<EntityFormState | null, FormData>(
     createEntity,
@@ -80,6 +82,33 @@ function AddEntityFormContent() {
 
   if (status === 'unauthenticated') {
     return <div>{t('redirecting')}</div>
+  }
+  
+  // Check if user is a subscriber (needs to upgrade)
+  if (session?.user?.role === UserRole.SUBSCRIBER) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('addEntity')}</CardTitle>
+            <CardDescription>Upgrade to Member to Create Entities</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-muted-foreground">
+              As a subscriber, you can view entities but need to upgrade to member status to create your own.
+            </p>
+            <div className="flex justify-center gap-4">
+              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale))}>
+                Upgrade to Member
+              </Button>
+              <Button variant="outline" onClick={() => router.push(ROUTES.ENTITIES(locale))}>
+                Back to Entities
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

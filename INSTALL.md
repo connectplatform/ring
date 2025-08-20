@@ -152,6 +152,15 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123456789"
 NEXT_PUBLIC_FIREBASE_APP_ID="1:123456789:web:abcdef"
 ```
 
+### Optional: Seed Sample Opportunities
+
+After your Firebase Admin credentials are set in `.env.local`, you can seed demo opportunities for quick validation:
+
+```bash
+cd ring
+npm run seed:opportunities
+```
+
 ---
 
 ## 🔐 **OAuth Provider Setup**
@@ -167,11 +176,46 @@ NEXT_PUBLIC_FIREBASE_APP_ID="1:123456789:web:abcdef"
    - Authorized redirect URIs:
      - `http://localhost:3000/api/auth/callback/google` (development)
      - `https://your-domain.com/api/auth/callback/google` (production)
+   - Authorized JavaScript origins:
+     - `http://localhost:3000`
+     - `https://your-domain.com`
 
 3. **Environment Variables**
    ```bash
    AUTH_GOOGLE_ID="your-google-client-id"
    AUTH_GOOGLE_SECRET="your-google-client-secret"
+   ```
+
+4. **Restrict the Firebase Web API Key (Prevent 403 on Installations)**
+   - In Google Cloud Console → APIs & Services → Credentials → select your Web API key (the one from Firebase Web config)
+   - Application restrictions: HTTP referrers (web sites)
+   - Add:
+     - `http://localhost:3000/*`
+     - `http://127.0.0.1:3000/*` (optional)
+     - `https://your-domain.com/*`
+   - Save.
+
+5. **Enable Required Google APIs**
+   - In Google Cloud Console → APIs & Services → Library, enable:
+     - Firebase Installations API
+     - Firebase Cloud Messaging API
+     - Identity Toolkit API (Firebase Auth)
+
+6. **Firebase Console Checks**
+   - Authentication → Sign-in method → enable Google; add `localhost` and your domain under Authorized domains
+   - Project Settings → Cloud Messaging → generate Web Push certificate (VAPID) and set `NEXT_PUBLIC_FIREBASE_VAPID_KEY`
+
+7. **Map Firebase Web SDK Config to `.env.local`**
+   ```bash
+   NEXT_PUBLIC_FIREBASE_API_KEY=...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+   NEXT_PUBLIC_FIREBASE_APP_ID=...
+   NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
+   NEXT_PUBLIC_FIREBASE_VAPID_KEY=...
+   NEXTAUTH_URL=http://localhost:3000
    ```
 
 ### Apple OAuth

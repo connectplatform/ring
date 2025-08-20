@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { useSession, SessionProvider } from 'next-auth/react'
-import { Opportunity, Entity, OpportunityVisibility } from '@/types'
-import { Timestamp } from 'firebase/firestore'
-import LoginForm from '@/components/auth/login-form'
-import { useTranslation } from '@/node_modules/react-i18next'
-import { getOpportunityById } from '@/services/opportunities'
+import { SerializedOpportunity, OpportunityVisibility } from '@/features/opportunities/types'
+import { SerializedEntity } from '@/features/entities/types'
+
+import LoginForm from '@/features/auth/components/login-form'
+import { useTranslations } from 'next-intl'
+import { getOpportunityById } from '@/features/opportunities/services'
 
 /**
  * Represents an attachment for an opportunity
@@ -27,12 +28,12 @@ interface Attachment {
  * @property {string | null} initialError - Any initial error message (can be null)
  */
 export interface OpportunityDetailsProps {
-  initialOpportunity: Opportunity & {
+  initialOpportunity: SerializedOpportunity & {
     attachments?: Attachment[];
     visibility: OpportunityVisibility;
-    expirationDate: Timestamp;
+    expirationDate: string;
   };
-  initialEntity: Entity | null;
+  initialEntity: SerializedEntity | null;
   initialError: string | null;
 }
 
@@ -51,7 +52,7 @@ export interface OpportunityDetailsProps {
  */
 const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({ initialOpportunity, initialEntity, initialError }) => {
   const { data: session, status } = useSession()
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const isConfidential = initialOpportunity.visibility === 'confidential' as OpportunityVisibility;
 
   if (status === 'loading') {
@@ -98,7 +99,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({ initialO
         <h2 className="text-xl font-semibold mb-2">{t('opportunityDetails')}</h2>
         <p><strong>{t('type')}:</strong> {initialOpportunity.type}</p>
         <p><strong>{t('location')}:</strong> {initialOpportunity.location}</p>
-        <p><strong>{t('expirationDate')}:</strong> {initialOpportunity.expirationDate.toDate().toLocaleDateString()}</p>
+        <p><strong>{t('expirationDate')}:</strong> {new Date(initialOpportunity.expirationDate).toLocaleDateString()}</p>
       </div>
       
       <div className="whitespace-pre-wrap mb-4">{initialOpportunity.fullDescription}</div>

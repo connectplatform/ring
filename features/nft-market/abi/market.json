@@ -1,0 +1,43 @@
+[
+  {
+    "type": "function",
+    "name": "list721",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {"name": "nft", "type": "address"},
+      {"name": "tokenId", "type": "uint256"},
+      {"name": "price", "type": "uint256"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "list1155",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {"name": "nft", "type": "address"},
+      {"name": "tokenId", "type": "uint256"},
+      {"name": "price", "type": "uint256"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "buy",
+    "stateMutability": "payable",
+    "inputs": [
+      {"name": "listingId", "type": "uint256"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "cancel",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {"name": "listingId", "type": "uint256"}
+    ],
+    "outputs": []
+  }
+]
+

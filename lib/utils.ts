@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp, FieldValue } from 'firebase/firestore'
-import { Opportunity } from '@/types'
+import { SerializedOpportunity } from '@/features/opportunities/types'
 import { UtilityError, FetchError, ValidationError, logRingError } from '@/lib/errors'
 
 /**
@@ -270,7 +270,7 @@ export const fetchOpportunities = async (
   url: string,
   limit: number,
   lastVisible: string | null
-): Promise<{ opportunities: Opportunity[]; lastVisible: string | null }> => {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   const context = {
     timestamp: Date.now(),
     url,
@@ -359,6 +359,30 @@ export const fetchOpportunities = async (
  * const formattedDate = formatTimestampOrFieldValue(opportunity.dateCreated)
  */
 export function formatTimestampOrFieldValue(value: Timestamp | FieldValue): string {
+  if (value instanceof Timestamp) {
+    return formatDate(value)
+  }
+  // Handle FieldValue or return a default value
+  return 'N/A'
+}
+
+/**
+ * Formats a string date (ISO format) or Timestamp for display
+ * @param value - The string date, Timestamp, or FieldValue to format
+ * @returns Formatted date string or 'N/A' for invalid values
+ * 
+ * @example
+ * const formattedDate = formatDateValue(opportunity.dateCreated)
+ */
+export function formatDateValue(value: string | Timestamp | FieldValue): string {
+  if (typeof value === 'string') {
+    try {
+      const date = new Date(value)
+      return date.toLocaleDateString()
+    } catch {
+      return 'N/A'
+    }
+  }
   if (value instanceof Timestamp) {
     return formatDate(value)
   }

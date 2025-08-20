@@ -4,9 +4,9 @@ import React, { useState } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { useTranslation } from '@/node_modules/react-i18next'
+import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
-import { createOpportunity, OpportunityFormState } from '@/app/actions/opportunities'
+import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -35,7 +35,7 @@ import { UserRole } from '@/features/auth/types'
 const DEFAULT_LOCALE = 'en' as const
 
 function SubmitButton() {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const { pending } = useFormStatus()
   
   return (
@@ -46,9 +46,10 @@ function SubmitButton() {
 }
 
 function AddOpportunityFormContent() {
-  const { t } = useTranslation()
+  const t = useTranslations('modules.opportunities')
   const { data: session, status } = useSession()
   const router = useRouter()
+  const locale = DEFAULT_LOCALE
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
   const [requiredSkills, setRequiredSkills] = useState<string[]>([])
@@ -117,6 +118,27 @@ function AddOpportunityFormContent() {
 
   if (status === 'unauthenticated') {
     return <div>{t('redirecting')}</div>
+  }
+  
+  // Check if user is a subscriber (needs to upgrade)
+  if (session?.user?.role === UserRole.SUBSCRIBER) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('addOpportunity')}</CardTitle>
+            <CardDescription>{t('upgradeToMemberToPostOpportunities')}</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-muted-foreground">{t('subscriberUpgradeMessage')}</p>
+            <div className="flex justify-center gap-4">
+              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale))}>{t('upgradeToBeMember')}</Button>
+              <Button variant="outline" onClick={() => router.push(ROUTES.OPPORTUNITIES(locale))}>{t('backToOpportunities')}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

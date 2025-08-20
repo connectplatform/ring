@@ -210,25 +210,11 @@
  
 @layer components {
   .page-content {
-    @apply min-h-screen bg-gradient-to-br from-background via-muted to-accent text-foreground transition-colors duration-300;
-  }
-  .theme-transition-bg {
-    @apply fixed inset-0 z-[-1] opacity-0 transition-opacity duration-500 ease-in-out bg-gradient-to-br from-background to-muted;
-  }
-
-  .theme-transition .theme-transition-bg {
-    @apply opacity-100;
+    @apply min-h-screen bg-background text-foreground transition-colors duration-300;
   }
 }
 
-/* Gradient transition for theme switch */
-body.theme-transition::before {
-  @apply content-[''] fixed inset-0 z-[-1] bg-gradient-to-br from-background to-muted opacity-0 transition-opacity duration-500 ease-in-out;
-}
-
-.dark body::before {
-  @apply from-background to-muted;
-}
+/* Removed gradient overlay that caused banding during theme switch */
 
 /* Fix for framer-motion React DOM errors */
 @layer utilities {
