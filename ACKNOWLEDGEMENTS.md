@@ -92,7 +92,7 @@ The Ring platform stands as a testament to the power of collaboration between hu
 
 <sub>Made with ❤️ by the Ring Team</sub>
 
-[![Star on GitHub](https://img.shields.io/badge/Star_on-GitHub-yellow?style=social&logo=github)](https://github.com/your-org/ring)
-[![Follow on Twitter](https://img.shields.io/badge/Follow-@RingPlatform-blue?style=social&logo=twitter)](https://twitter.com/ringplatform)
+[![Star on GitHub](https://img.shields.io/badge/Star_on-GitHub-yellow?style=social&logo=github)](https://github.com/connectplatform/ring)
+[![Follow on Twitter](https://img.shields.io/badge/Follow-@RingPlatform-blue?style=social&logo=twitter)](https://twitter.com/sonoratek)
 
 </div>
