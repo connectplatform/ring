@@ -106,9 +106,19 @@ export default auth((req) => {
   }
 })
 
+/**
+ * Auth.js v5 Middleware Matcher Configuration
+ * Ensures middleware runs on all routes except API routes, static files, and Next.js internals
+ */
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ]
+  ],
 };
-

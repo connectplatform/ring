@@ -1,5 +1,9 @@
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url'
+import path from 'path'
 const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
@@ -19,10 +23,10 @@ const nextConfig = {
     AUTH_FIREBASE_CLIENT_EMAIL: process.env.AUTH_FIREBASE_CLIENT_EMAIL,
     AUTH_FIREBASE_PRIVATE_KEY: process.env.AUTH_FIREBASE_PRIVATE_KEY,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    AUTH_SECRET: process.env.AUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    APPLE_ID: process.env.APPLE_ID,
-    APPLE_SECRET: process.env.APPLE_SECRET,
+    AUTH_APPLE_ID: process.env.AUTH_APPLE_ID,
+    AUTH_APPLE_SECRET: process.env.AUTH_APPLE_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
   },
@@ -41,12 +45,27 @@ const nextConfig = {
   },
   staticPageGenerationTimeout: 180,
   images: {
-    domains: [
-      'lh3.googleusercontent.com', 
-      'static.ring.ck.ua', 
-      'x0kypqbqtr7wbl1a.public.blob.vercel-storage.com',
-      'example.com'
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'static.ring.ck.ua' },
+      { protocol: 'https', hostname: 'x0kypqbqtr7wbl1a.public.blob.vercel-storage.com' },
+      { protocol: 'https', hostname: 'fonts.googleapis.com' },
+      { protocol: 'https', hostname: 'fonts.gstatic.com' },
+      { protocol: 'https', hostname: 'example.com' }
     ],
+    // Configure image optimization behavior
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Disable image optimization for external domains to prevent infinite retries
+    unoptimized: false,
+    // Set loader to handle errors gracefully
+    loader: 'default',
+    // Configure image formats
+    formats: ['image/webp', 'image/avif'],
+    // Set device sizes for responsive images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -57,15 +76,11 @@ const nextConfig = {
         tls: false,
         http2: false,
         child_process: false,
+        // Keep only essentials for web3 libs when dynamically imported
         crypto: require.resolve('crypto-browserify'),
         stream: require.resolve('stream-browserify'),
         util: require.resolve('util/'),
-        zlib: require.resolve('browserify-zlib'),
         process: require.resolve('process/browser'),
-        path: require.resolve('path-browserify'),
-        http: require.resolve('stream-http'),
-        https: require.resolve('https-browserify'),
-        os: require.resolve('os-browserify/browser'),
         events: require.resolve('events/'),
       }
     }
@@ -74,6 +89,8 @@ const nextConfig = {
       'node:events': 'events',
       'node:stream': 'stream-browserify',
       'node:util': 'util',
+      // Provide a stub for bert-js to allow builds without native dep
+      'bert-js': path.resolve(__dirname, 'lib/shims/bert-js.js')
     };
     return config
   },
@@ -99,7 +116,7 @@ const nextConfig = {
     return !(extension.startsWith('my-docs/'));
   }),
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,

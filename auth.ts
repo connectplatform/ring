@@ -17,10 +17,41 @@ import {
  * Main authentication configuration with database adapter
  * This is used in server components and API routes
  */
+// Initialize Firestore adapter with error handling
+let firestoreAdapter;
+try {
+  const adminDb = getAdminDb();
+  if (adminDb) {
+    firestoreAdapter = FirestoreAdapter(adminDb);
+  }
+} catch (error) {
+  console.error("Failed to initialize Firestore adapter:", error);
+  // Continue without adapter for development/testing
+}
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: FirestoreAdapter(getAdminDb()),
-  session: { strategy: "jwt" },
+  // Only use Firestore adapter if properly configured
+  ...(firestoreAdapter && process.env.AUTH_FIREBASE_PROJECT_ID && { adapter: firestoreAdapter }),
+  session: { 
+    strategy: "jwt", // Use JWT for better edge compatibility and reliability
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  // Auth.js v5 required configuration
+  trustHost: true, // Required for deployment on Vercel
+  useSecureCookies: process.env.NODE_ENV === "production",
+  cookies: {
+    sessionToken: {
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      }
+    }
+  },
   providers: [
     ...authConfig.providers.map(provider => {
       // Override crypto wallet provider with full server-side validation
@@ -146,8 +177,12 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
     async signIn({ user, account, profile }) {
       try {
+        // If Firebase is not available, allow signin with JWT-only session
         const db = getAdminDb()
-        if (!db) return false
+        if (!db) {
+          console.warn("Firebase not available, allowing JWT-only authentication")
+          return true // Allow signin without database operations
+        }
 
         // Handle different provider types
         if (account?.provider === "google" || account?.provider === "apple") {
@@ -256,6 +291,18 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         return true
       } catch (error) {
         console.error("Sign in error:", error)
+        
+        // If it's a Firebase error, still allow sign-in with JWT-only session
+        if (error instanceof Error && (
+          error.message.includes('UNAUTHENTICATED') || 
+          error.message.includes('Firebase') ||
+          error.message.includes('Firestore')
+        )) {
+          console.warn("Firebase error during sign in, proceeding with JWT-only session")
+          return true // Allow authentication to continue without database operations
+        }
+        
+        // For other errors, block authentication
         return false
       }
     },

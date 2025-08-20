@@ -11,13 +11,22 @@ import { UserRole } from "@/features/auth/types"
 export default {
   providers: [
     GoogleProvider({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      // Auth.js v5 automatically uses AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET
       allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
+      // Auth.js v5 stricter OAuth compliance - ensure proper PKCE and state handling
+      checks: ["pkce", "state"],
+      // Explicitly set wellKnown endpoint for better reliability
+      wellKnown: "https://accounts.google.com/.well-known/openid-configuration",
     }),
     AppleProvider({
-      clientId: process.env.AUTH_APPLE_ID!,
-      clientSecret: process.env.AUTH_APPLE_SECRET!,
+      // Auth.js v5 automatically uses AUTH_APPLE_ID and AUTH_APPLE_SECRET
       allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
     }),
     CredentialsProvider({
@@ -46,7 +55,6 @@ export default {
   ],
   pages: {
     signIn: "/login",
-    error: "/login",
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
