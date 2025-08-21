@@ -116,7 +116,7 @@ function AddEntityFormContent() {
       <Card>
         <CardHeader>
           <CardTitle>{t('addMyEntity')}</CardTitle>
-          <CardDescription>{t('addEntityDescription')}</CardDescription>
+          <CardDescription>{t('addMyEntityDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={formAction} className="space-y-6">

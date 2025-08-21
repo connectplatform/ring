@@ -1,7 +1,7 @@
 # 🔐 Authentication Domain - AI Instruction Set
 
 > **NextAuth.js v5 + Crypto Wallet Authentication with Role-Based Access Control**  
-> *Complete authentication patterns for Ring Platform professional networking with unified status pages*
+> *Complete authentication patterns for Ring Platform professional networking with unified status pages and WebSocket authentication*
 
 ---
 
@@ -798,6 +798,54 @@ export async function apiCall(url: string, options: RequestInit = {}) {
       ...options.headers
     }
   })
+}
+
+### **WebSocket Authentication**
+
+```typescript
+// WebSocket authentication endpoint
+// /app/api/websocket/auth/route.ts
+export async function GET(req: NextRequest) {
+  const session = await auth()
+  
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Generate short-lived JWT for WebSocket authentication
+  const token = await new SignJWT({
+    sub: session.user.id,
+    email: session.user.email,
+    role: session.user.role,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(new TextEncoder().encode(process.env.AUTH_SECRET))
+
+  return NextResponse.json({ token, expiresIn: 3600 })
+}
+
+// WebSocket connection with authentication
+import { websocketManager } from '@/lib/websocket/modern-websocket-manager'
+
+export function useWebSocketConnection() {
+  const { isConnected, connect, disconnect } = useModernWebSocket()
+  
+  useEffect(() => {
+    // Connect when authenticated
+    if (session?.user) {
+      connect()
+    } else {
+      disconnect()
+    }
+  }, [session, connect, disconnect])
+  
+  return { isConnected }
+}
+```
 }
 ```
 

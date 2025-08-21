@@ -22,42 +22,38 @@ export default function Footer() {
     setMounted(true)
   }, [])
 
-  // WebSocket connection status monitoring
+  // Modern WebSocket connection status monitoring
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !mounted) return
 
-    const checkWebSocketStatus = () => {
-      // Check if WebSocket connection exists in global scope (set by websocket provider)
-      const ws = (window as any).ringWebSocket
-      setWsConnected(ws && ws.readyState === WebSocket.OPEN)
-    }
+    // Import the modern WebSocket manager
+    import('@/lib/websocket/modern-websocket-manager').then(({ websocketManager }) => {
+      const checkStatus = () => {
+        const state = websocketManager.getState()
+        setWsConnected(state.status === 'connected')
+      }
 
-    // Initial check
-    checkWebSocketStatus()
+      // Initial check
+      checkStatus()
 
-    // Check periodically
-    const interval = setInterval(checkWebSocketStatus, 2000)
+      // Listen for state changes
+      const handleStateChange = (state: any) => {
+        setWsConnected(state.status === 'connected')
+      }
 
-    // Listen for WebSocket events if available
-    const ws = (window as any).ringWebSocket
-    if (ws) {
-      const handleOpen = () => setWsConnected(true)
-      const handleClose = () => setWsConnected(false)
-      const handleError = () => setWsConnected(false)
-
-      ws.addEventListener('open', handleOpen)
-      ws.addEventListener('close', handleClose)
-      ws.addEventListener('error', handleError)
+      websocketManager.on('stateChange', handleStateChange)
+      
+      // Also check periodically as fallback
+      const interval = setInterval(checkStatus, 5000)
 
       return () => {
+        websocketManager.off('stateChange', handleStateChange)
         clearInterval(interval)
-        ws.removeEventListener('open', handleOpen)
-        ws.removeEventListener('close', handleClose)
-        ws.removeEventListener('error', handleError)
       }
-    }
-
-    return () => clearInterval(interval)
+    }).catch(err => {
+      console.error('Failed to load WebSocket manager:', err)
+      setWsConnected(false)
+    })
   }, [mounted])
 
   const toggleTheme = () => {

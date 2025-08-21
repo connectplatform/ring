@@ -95,29 +95,12 @@ export function NotificationProvider({
     }
   }, [removeToast]);
 
-  // Fetch unread count periodically
+  // DEPRECATED: Old polling code - disabled in favor of WebSocket push
+  // WebSocket now handles real-time notification updates
   useEffect(() => {
-    if (!session) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await fetch('/api/notifications?unreadOnly=true&limit=1&stats=true');
-        if (response.ok) {
-          const data = await response.json();
-          setUnreadCount(data.unreadCount || 0);
-        }
-      } catch (error) {
-        console.error('Failed to fetch unread count:', error);
-      }
-    };
-
-    // Initial fetch
-    fetchUnreadCount();
-
-    // Set up polling for unread count (reduced frequency)
-    const interval = setInterval(fetchUnreadCount, 120000); // Every 2 minutes
-
-    return () => clearInterval(interval);
+    // Polling disabled - using WebSocket push notifications
+    // The unreadCount is now updated via WebSocketProvider
+    console.log('Notification polling disabled - using WebSocket push');
   }, [session]);
 
   // Listen for new notifications via Server-Sent Events (when implemented)

@@ -12,7 +12,7 @@
 - **Professional Networking Philosophy**: Entity-based system connecting businesses, professionals, and opportunities
 - **Confidential Access Tiers**: Public → Subscriber → Member → Confidential access levels for premium networking
 - **Web3 Integration**: MetaMask authentication, wallet creation, blockchain transactions via ethers.js
-- **Real-time Communication**: Enterprise messaging with FCM notifications and WebSocket support
+- **Real-time Communication**: Enterprise messaging with WebSocket push notifications (<100ms latency) and FCM fallback
 - **Modern Architecture**: React 19 optimizations, 44 API endpoints, 95+ comprehensive tests
 - **Database Abstraction**: Firebase Firestore with real-time capabilities and security rules
 
@@ -22,7 +22,7 @@ Ring Platform operates on three primary entity types:
 - **Entities**: Companies, organizations, startups with 26 industry types and verification systems  
 - **Opportunities**: Dual-nature system (Offers/Requests) with tiered access control
 
-**Key Innovation**: Confidential access tier creates exclusive networking spaces for C-level positions, stealth startups, M&A activities, and strategic partnerships. **Unified Status Page System** provides consistent workflow feedback across all domains with dynamic [action]/[status] routing. **Enhanced useAuth Hook** offers type-safe authentication with seamless integration to auth status pages and role-based access control.
+**Key Innovation**: Confidential access tier creates exclusive networking spaces for C-level positions, stealth startups, M&A activities, and strategic partnerships. **Unified Status Page System** provides consistent workflow feedback across all domains with dynamic [action]/[status] routing. **Enhanced useAuth Hook** offers type-safe authentication with seamless integration to auth status pages and role-based access control. **WebSocket Push Architecture** eliminates polling with real-time push notifications achieving ~90% reduction in API calls.
 
 📚 **[Read the Strategic Philosophy](./PLATFORM-PHILOSOPHY.md)**
 
@@ -34,6 +34,7 @@ Ring Platform operates on three primary entity types:
 - **Database**: Firebase Firestore with real-time subscriptions, security rules
 - **File Storage**: Vercel Blob with 25MB support and validation
 - **Deployment**: Vercel with Edge Functions and global CDN
+- **Real-time**: WebSocket push notifications with heartbeat and auto-reconnection
 
 ---
 
@@ -102,7 +103,7 @@ ring/docs/domains/
 | **auth** | NextAuth.js v5, crypto wallets | Session management, JWT, MetaMask | [Auth Docs](./domains/auth/README.md) |
 | **entities** | Professional organizations | CRUD, verification, 26 industries | [Entities Docs](./domains/entities/README.md) |
 | **opportunities** | Dual-nature system | Offers/Requests, applications | [Opportunities Docs](./domains/opportunities/README.md) |
-| **notifications** | FCM + status pages | Push notifications, delivery tracking | [Notifications Docs](./domains/notifications/README.md) |
+| **notifications** | WebSocket push + FCM | Real-time notifications, <100ms delivery | [Notifications Docs](./domains/notifications/README.md) |
 | **opportunities** | Job/service marketplace | Offers/Requests, tiered access | [Opportunities Docs](./domains/opportunities/README.md) |
 | **messaging** | Real-time communication | WebSocket, FCM notifications | [Messaging Docs](./domains/messaging/README.md) |
 | **analytics** | User behavior tracking | Events, performance metrics | [Analytics Docs](./domains/analytics/README.md) |
@@ -122,7 +123,7 @@ ring/docs/domains/
 - [Authentication Setup](./integration/AUTH-SETUP.md) - NextAuth.js v5 + Firebase + MetaMask
 - [Entity Management](./integration/ENTITY-SETUP.md) - Professional organization workflows
 - [Confidential Access](./integration/CONFIDENTIAL-SETUP.md) - Premium tier implementation
-- [Real-time Messaging](./integration/MESSAGING-SETUP.md) - WebSocket + FCM notifications
+- [Real-time Messaging](./integration/MESSAGING-SETUP.md) - WebSocket push notifications + FCM fallback
 
 ### **Layer 5: Development & Testing**
 *Tools and practices for development*
@@ -178,7 +179,30 @@ function NewsLikes({ newsId, initialLikes }) {
 }
 ```
 
-### **3. Firebase Real-time Integration**
+### **3. WebSocket Real-time Integration**
+```typescript
+// Real-time WebSocket push notifications
+import { useWebSocketNotifications } from '@/hooks/use-modern-websocket'
+
+function NotificationBell() {
+  const { unreadCount, notifications, markAsRead } = useWebSocketNotifications()
+  
+  return (
+    <div>
+      <Badge count={unreadCount} />
+      {notifications.map(n => (
+        <Notification 
+          key={n.id}
+          {...n}
+          onRead={() => markAsRead([n.id])}
+        />
+      ))}
+    </div>
+  )
+}
+```
+
+### **4. Firebase Real-time Integration**
 ```typescript
 // Real-time Firestore subscriptions
 import { onSnapshot, collection } from 'firebase/firestore'

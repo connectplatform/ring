@@ -61,7 +61,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     unreadOnly = false,
     types,
     autoRefresh = false, // Disable auto-refresh by default
-    refreshInterval = 300000 // 5 minutes when enabled
+    refreshInterval = 600000 // Increased to 10 minutes when enabled (was 5 minutes)
   } = options;
 
   // State

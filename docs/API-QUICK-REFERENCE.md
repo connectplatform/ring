@@ -56,6 +56,9 @@ GET  /api/auth/session              # Get current session
 POST /api/auth/signin               # User authentication  
 POST /api/auth/signout              # User logout
 GET  /api/auth/providers            # Available auth providers
+
+# WebSocket Authentication
+GET  /api/websocket/auth            # Generate WebSocket JWT token
 ```
 
 ### **Crypto Wallet Authentication**
@@ -191,30 +194,63 @@ DELETE /api/messages/[id]             # Delete message
 
 ### **Real-time WebSocket Events**
 ```typescript
-// WebSocket connection with Socket.IO
-import { io } from 'socket.io-client'
+// Modern WebSocket hooks for messaging
+import { useWebSocketMessages } from '@/hooks/use-modern-websocket'
 
-const socket = io()
-
-// Join conversation for real-time updates
-socket.emit('join-conversation', conversationId)
-
-// Listen for new messages
-socket.on('new-message', (message) => {
-  setMessages(prev => [...prev, message])
-})
-
-// Send message
-socket.emit('send-message', {
-  conversationId,
-  content: 'Hello world!',
-  type: 'text'
-})
+function ChatRoom({ conversationId }) {
+  const { 
+    messages, 
+    typingUsers, 
+    sendMessage, 
+    startTyping, 
+    stopTyping 
+  } = useWebSocketMessages(conversationId)
+  
+  return (
+    <div>
+      {messages.map(msg => <Message key={msg.id} {...msg} />)}
+      {typingUsers.length > 0 && <TypingIndicator users={typingUsers} />}
+      <MessageInput 
+        onType={startTyping}
+        onSend={sendMessage}
+      />
+    </div>
+  )
+}
 ```
 
 ---
 
 ## 🔔 **Notification APIs**
+
+### **WebSocket Push Notifications**
+```typescript
+// Real-time notification hooks
+import { useWebSocketNotifications } from '@/hooks/use-modern-websocket'
+
+function NotificationCenter() {
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead,
+    refresh 
+  } = useWebSocketNotifications()
+  
+  return (
+    <div>
+      <Badge count={unreadCount} />
+      {notifications.map(n => (
+        <Notification 
+          key={n.id}
+          {...n}
+          onRead={() => markAsRead([n.id])}
+        />
+      ))}
+    </div>
+  )
+}
+```
 
 ### **Notification Management**
 ```bash

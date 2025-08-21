@@ -1,16 +1,45 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
-import { wsClient } from '@/lib/websocket-client'
+import { useModernWebSocket, useWebSocketNotifications, useWebSocketPresence, useWebSocketSystem } from '@/hooks/use-modern-websocket'
 import { toast } from '@/hooks/use-toast'
 
 interface WebSocketContextType {
   isConnected: boolean
-  connectionError: string | null
+  isConnecting: boolean
+  isReconnecting: boolean
   reconnecting: boolean
+  connectionError: string | null
+  status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error'
+  reconnectAttempts: number
+  lastConnected?: Date
   connect: () => Promise<void>
   disconnect: () => void
+  send: (event: string, data: any) => boolean
+  // Notification features
+  notifications: {
+    items: any[]
+    unreadCount: number
+    lastNotification: any | null
+    markAsRead: (ids: string[]) => void
+    markAllAsRead: () => void
+    clear: () => void
+    refresh: () => void
+  }
+  // Presence features
+  presence: {
+    onlineUsers: string[]
+    onlineCount: number
+    isUserOnline: (userId: string) => boolean
+    getUserPresence: (userId: string) => { isOnline: boolean; lastSeen?: Date }
+  }
+  // System features
+  system: {
+    maintenanceMode: boolean
+    systemUpdate: any | null
+    connectionQuality: 'excellent' | 'good' | 'poor'
+  }
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null)
@@ -27,112 +56,132 @@ interface WebSocketProviderProps {
   children: React.ReactNode
 }
 
+/**
+ * Modern WebSocket Provider with React 19 optimizations
+ * Replaces polling with real-time push notifications
+ */
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
-  const { data: session, status } = useSession()
-  const [isConnected, setIsConnected] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [reconnecting, setReconnecting] = useState(false)
+  const { status: sessionStatus } = useSession()
+  
+  // Use our modern WebSocket hooks
+  const connection = useModernWebSocket()
+  const notifications = useWebSocketNotifications()
+  const presence = useWebSocketPresence()
+  const system = useWebSocketSystem()
 
-  const connect = useCallback(async () => {
-    if (!session?.accessToken || status !== 'authenticated') return
-
-    try {
-      setReconnecting(true)
-      setConnectionError(null)
-      await wsClient.connect(session.accessToken)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Connection failed'
-      setConnectionError(errorMessage)
+  // Show toast notifications for important events
+  useEffect(() => {
+    if (connection.status === 'connected' && connection.reconnectAttempts > 0) {
       toast({
-        title: 'Connection Error',
-        description: 'Failed to connect to real-time services',
+        title: '✅ Real-time connection restored',
+        description: 'You are back online',
+      })
+    } else if (connection.status === 'error' && connection.error) {
+      toast({
+        title: '⚠️ Connection issue',
+        description: connection.error,
         variant: 'destructive'
       })
-    } finally {
-      setReconnecting(false)
     }
-  }, [session?.accessToken, status])
+  }, [connection.status, connection.reconnectAttempts, connection.error])
 
-  const disconnect = useCallback(() => {
-    wsClient.disconnect()
-    setIsConnected(false)
-    setConnectionError(null)
-  }, [])
-
+  // Show new notifications as toasts
   useEffect(() => {
-    if (status === 'authenticated' && session?.accessToken) {
-      connect()
-    } else if (status === 'unauthenticated') {
-      disconnect()
-    }
-
-    // Event handlers with error boundary
-    const handleConnected = () => {
-      try {
-        setIsConnected(true)
-        setConnectionError(null)
-        setReconnecting(false)
-        console.log('WebSocket connected successfully')
-      } catch (error) {
-        console.error('Error in connected handler:', error)
+    if (notifications.lastNotification) {
+      const notification = notifications.lastNotification
+      
+      // Determine toast variant based on priority
+      let variant: 'default' | 'destructive' = 'default'
+      if (notification.priority === 'urgent' || notification.priority === 'high') {
+        variant = 'destructive'
+      }
+      
+      toast({
+        title: notification.title,
+        description: notification.body,
+        variant,
+      })
+      
+      // If there's an action URL, show it in the description
+      if (notification.data?.actionUrl) {
+        setTimeout(() => {
+          window.open(notification.data.actionUrl, '_blank')
+        }, 2000) // Auto-open after 2 seconds
       }
     }
+  }, [notifications.lastNotification])
 
-    const handleDisconnected = (reason: string) => {
-      try {
-        setIsConnected(false)
-        console.log('WebSocket disconnected:', reason)
-        
-        // Only show toast for unexpected disconnections
-        if (reason !== 'io client disconnect' && reason !== 'transport close') {
-          toast({
-            title: 'Connection Lost',
-            description: 'Attempting to reconnect...',
-            variant: 'destructive'
-          })
-        }
-      } catch (error) {
-        console.error('Error in disconnected handler:', error)
-      }
+  // Handle system maintenance
+  useEffect(() => {
+    if (system.maintenanceMode) {
+      toast({
+        title: '🔧 System Maintenance',
+        description: 'The system will undergo maintenance soon. Please save your work.',
+        variant: 'destructive',
+      })
     }
+  }, [system.maintenanceMode])
 
-    const handleConnectionError = (error: any) => {
-      try {
-        const errorMessage = error?.message || 'Connection failed'
-        setConnectionError(errorMessage)
-        setIsConnected(false)
-        console.error('WebSocket connection error:', errorMessage)
-      } catch (handlerError) {
-        console.error('Error in connection error handler:', handlerError)
-      }
+  // Monitor connection quality
+  useEffect(() => {
+    if (system.connectionQuality === 'poor' && connection.isConnected) {
+      toast({
+        title: '📶 Poor Connection',
+        description: 'Your connection quality is degraded. Some features may be slow.',
+      })
     }
+  }, [system.connectionQuality, connection.isConnected])
 
-    wsClient.on('connected', handleConnected)
-    wsClient.on('disconnected', handleDisconnected)
-    wsClient.on('connection_error', handleConnectionError)
-
-    return () => {
-      try {
-        wsClient.off('connected', handleConnected)
-        wsClient.off('disconnected', handleDisconnected)
-        wsClient.off('connection_error', handleConnectionError)
-      } catch (error) {
-        console.error('Error cleaning up WebSocket event handlers:', error)
-      }
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo<WebSocketContextType>(() => ({
+    isConnected: connection.isConnected,
+    isConnecting: connection.isConnecting,
+    isReconnecting: connection.isReconnecting,
+    reconnecting: connection.isReconnecting,
+    connectionError: connection.error,
+    status: connection.status,
+    reconnectAttempts: connection.reconnectAttempts,
+    lastConnected: connection.lastConnected,
+    connect: connection.reconnect,
+    disconnect: connection.disconnect,
+    send: connection.send,
+    notifications: {
+      items: notifications.notifications,
+      unreadCount: notifications.unreadCount,
+      lastNotification: notifications.lastNotification,
+      markAsRead: notifications.markAsRead,
+      markAllAsRead: notifications.markAllAsRead,
+      clear: notifications.clearNotifications,
+      refresh: notifications.refresh,
+    },
+    presence: {
+      onlineUsers: presence.onlineUsers,
+      onlineCount: presence.onlineCount,
+      isUserOnline: presence.isUserOnline,
+      getUserPresence: presence.getUserPresence,
+    },
+    system: {
+      maintenanceMode: system.maintenanceMode,
+      systemUpdate: system.systemUpdate,
+      connectionQuality: system.connectionQuality,
     }
-  }, [session?.accessToken, status, connect, disconnect])
-
-  const contextValue: WebSocketContextType = {
-    isConnected,
-    connectionError,
-    reconnecting,
-    connect,
-    disconnect
-  }
+  }), [
+    connection,
+    notifications,
+    presence,
+    system
+  ])
 
   return (
     <WebSocketContext.Provider value={contextValue}>
       {children}
     </WebSocketContext.Provider>
   )
-} 
+}
+
+/**
+ * Helper hook for easy WebSocket usage
+ */
+export function useWebSocket() {
+  return useWebSocketContext()
+}

@@ -80,20 +80,24 @@ function NewsLikes({ newsId, initialLikes }) {
 ```
 
 ### **3. Real-time Data Synchronization**
-Firebase Firestore provides real-time updates across all connected clients.
+WebSocket push notifications provide instant updates with <100ms latency, while Firebase Firestore serves as the data source.
 
 ```typescript
-// Real-time opportunity updates
-useEffect(() => {
-  const unsubscribe = onSnapshot(
-    collection(db, 'opportunities'),
-    (snapshot) => {
-      const updates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setOpportunities(updates)
-    }
+// Real-time WebSocket notifications
+import { useWebSocketNotifications } from '@/hooks/use-modern-websocket'
+
+function NotificationCenter() {
+  const { notifications, unreadCount, markAsRead } = useWebSocketNotifications()
+  
+  return (
+    <div>
+      <Badge count={unreadCount} />
+      {notifications.map(n => (
+        <Notification key={n.id} {...n} onRead={() => markAsRead([n.id])} />
+      ))}
+    </div>
   )
-  return unsubscribe
-}, [])
+}
 ```
 
 ---
@@ -309,7 +313,7 @@ export const config = {
 
 **WebSocket Integration**:
 ```typescript
-// Custom server with WebSocket support
+// Modern WebSocket service with push notifications
 import { createServer } from 'http'
 import next from 'next'
 import { Server } from 'socket.io'
@@ -322,7 +326,7 @@ class WebSocketService {
         methods: ['GET', 'POST'],
         credentials: true
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket'] // Prefer WebSocket over polling
     })
     
     this.userSockets = new Map()
@@ -330,21 +334,41 @@ class WebSocketService {
   }
   
   setupEventHandlers() {
-    this.io.on('connection', async (socket) => {
-      // Authenticate socket connection
+    // Authentication middleware
+    this.io.use(async (socket, next) => {
       const session = await this.authenticateSocket(socket)
       if (!session) {
-        socket.disconnect()
-        return
+        return next(new Error('Authentication failed'))
       }
+      socket.userId = session.sub
+      next()
+    })
+    
+    this.io.on('connection', (socket) => {
+      // Heartbeat mechanism
+      socket.on('ping', () => socket.emit('pong'))
       
-      // Handle real-time messaging
+      // Notification subscription
+      socket.on('subscribe', ({ topic }) => {
+        socket.join(topic)
+        if (topic === 'user:notifications') {
+          socket.join(`user:${socket.userId}:notifications`)
+        }
+      })
+      
+      // Push notification handling
+      socket.on('notification:get_count', async () => {
+        const count = await this.getUnreadCount(socket.userId)
+        socket.emit('notification:unread_count', count)
+      })
+      
+      // Real-time messaging
       socket.on('join-conversation', (conversationId) => {
         socket.join(`conversation:${conversationId}`)
       })
       
       socket.on('send-message', async (data) => {
-        const message = await this.createMessage(data, session.userId)
+        const message = await this.createMessage(data, socket.userId)
         this.io.to(`conversation:${data.conversationId}`).emit('new-message', message)
       })
     })

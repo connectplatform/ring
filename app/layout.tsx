@@ -12,6 +12,7 @@ import { AppProvider } from '@/contexts/app-context'
 import { getServerAuthSession } from '@/auth'
 import InstanceConfigProvider from '@/components/providers/instance-config-provider'
 import { StoreProvider } from '@/features/store/context'
+import { WebSocketDiagnosticsProvider } from '@/components/providers/websocket-diagnostics-provider'
 
 // React 19 Resource Preloading APIs
 import { setupResourcePreloading } from '@/lib/preload/setup'
@@ -71,6 +72,8 @@ export default async function RootLayout({
                     {/* Removed transition overlay to prevent color banding/stripes during theme switch */}
                     <FCMPermissionPrompt />
                     <Toaster />
+                    {/* WebSocket Diagnostics Panel (Development Only) */}
+                    <WebSocketDiagnosticsProvider />
                   </WebSocketProvider>
                 </FCMProvider>
               </AppProvider>

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import EntityDetails from '@/features/entities/components/entity-details'
 import { SerializedEntity } from '@/features/entities/types'
-import Chat from '@/features/chat/components/chat'
+import ModernChat from '@/features/chat/components/modern-chat'
 
 interface EntityDetailsWrapperProps {
   initialEntity: SerializedEntity | null
@@ -32,10 +32,12 @@ export default function EntityDetailsWrapper({
   }
 
   const chatComponent = initialEntity ? (
-    <Chat 
+    <ModernChat 
       entityId={initialEntity.id} 
       entityName={initialEntity.name} 
-      entityCreatorId={initialEntity.addedBy} 
+      entityCreatorId={initialEntity.addedBy}
+      showConversationList={false}
+      className="border-0 shadow-none"
     />
   ) : null;
 
