@@ -132,7 +132,7 @@ export function EntityList({ initialEntities, onCreateEntityAction, className }:
           <Button asChild>
             <Link href={ROUTES.ADD_ENTITY(DEFAULT_LOCALE)}>
               <Plus className="h-4 w-4 mr-2" />
-              {t('addEntity') || 'Add Entity'}
+              {t('addMyEntity') || 'Add My Entity'}
             </Link>
           </Button>
         )}

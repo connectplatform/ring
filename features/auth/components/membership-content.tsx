@@ -21,7 +21,8 @@ interface MembershipContentProps {
 }
 
 export default function MembershipContent({ user, locale }: MembershipContentProps) {
-  const t = useTranslations('modules.profile')
+  const t = useTranslations('modules.membership')
+  const tProfile = useTranslations('modules.profile')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
@@ -35,45 +36,45 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
   const benefits = [
     {
       icon: Building2,
-      title: 'Create Entities',
-      description: 'Register your organization and showcase your services'
+      title: t('benefits.entity_management.title'),
+      description: t('benefits.entity_management.description')
     },
     {
       icon: Briefcase,
-      title: 'Post Opportunities',
-      description: 'Share job openings, partnerships, and collaboration requests'
+      title: t('benefits.premium_features.title'),
+      description: t('benefits.premium_features.description')
     },
     {
       icon: Users,
-      title: 'Join Communities',
-      description: 'Connect with other professionals in your industry'
+      title: t('benefits.advanced_networking.title'),
+      description: t('benefits.advanced_networking.description')
     },
     {
       icon: Globe,
-      title: 'Enhanced Visibility',
-      description: 'Get discovered by potential partners and clients'
+      title: t('benefits.enhanced_visibility.title'),
+      description: t('benefits.enhanced_visibility.description')
     },
     {
       icon: Shield,
-      title: 'Verified Profile',
-      description: 'Build trust with a verified member badge'
+      title: t('benefits.verified_profile.title'),
+      description: t('benefits.verified_profile.description')
     },
     {
       icon: Star,
-      title: 'Priority Support',
-      description: 'Get faster responses from our support team'
+      title: t('benefits.priority_support.title'),
+      description: t('benefits.priority_support.description')
     }
   ]
 
   const comparisonFeatures = [
-    { feature: 'View public entities', subscriber: true, member: true },
-    { feature: 'View opportunities', subscriber: true, member: true },
-    { feature: 'Basic messaging', subscriber: true, member: true },
-    { feature: 'Create entities', subscriber: false, member: true },
-    { feature: 'Post opportunities', subscriber: false, member: true },
-    { feature: 'Advanced analytics', subscriber: false, member: true },
-    { feature: 'Priority in search results', subscriber: false, member: true },
-    { feature: 'Custom branding', subscriber: false, member: true },
+    { feature: t('features.view_entities'), subscriber: true, member: true },
+    { feature: t('features.view_opportunities'), subscriber: true, member: true },
+    { feature: t('features.basic_messaging'), subscriber: true, member: true },
+    { feature: t('features.create_entities'), subscriber: false, member: true },
+    { feature: t('features.post_opportunities'), subscriber: false, member: true },
+    { feature: t('features.advanced_analytics'), subscriber: false, member: true },
+    { feature: t('features.priority_search'), subscriber: false, member: true },
+    { feature: t('features.custom_branding'), subscriber: false, member: true },
   ]
 
   return (
@@ -87,10 +88,10 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold mb-4">
-            Upgrade to Member
+            {t('page.title')}
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Unlock the full potential of Ring Platform. Create entities, post opportunities, and grow your professional network.
+            {t('page.subtitle')}
           </p>
         </motion.div>
 
@@ -103,9 +104,9 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
           >
             <Alert>
               <CheckCircle className="h-4 w-4" />
-              <AlertTitle>Request Submitted Successfully!</AlertTitle>
+              <AlertTitle>{t('page.success_title')}</AlertTitle>
               <AlertDescription>
-                {submitState.message} We'll review your request and notify you within 24-48 hours.
+                {submitState.message} {t('page.success_description')}
               </AlertDescription>
             </Alert>
           </motion.div>
@@ -119,11 +120,12 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
             className="max-w-2xl mx-auto mb-8"
           >
             <Alert>
-              <AlertTitle>Upgrade Request Pending</AlertTitle>
+              <AlertTitle>{t('page.pending_title')}</AlertTitle>
               <AlertDescription>
-                You have already submitted an upgrade request on{' '}
-                {new Date(user.pendingUpgradeRequest.submittedAt).toLocaleDateString()}.
-                Status: <Badge variant="outline">{t(`roleUpgrade.status.${user.pendingUpgradeRequest.status}`)}</Badge>
+                {t('page.pending_description', { 
+                  date: new Date(user.pendingUpgradeRequest.submittedAt).toLocaleDateString(),
+                  status: tProfile(`roleUpgrade.status.${user.pendingUpgradeRequest.status}`)
+                })}
               </AlertDescription>
             </Alert>
           </motion.div>
@@ -160,9 +162,9 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
         >
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-center">Feature Comparison</CardTitle>
+              <CardTitle className="text-2xl text-center">{t('page.comparison_title')}</CardTitle>
               <CardDescription className="text-center">
-                See what you'll unlock as a member
+                {t('page.comparison_subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -170,15 +172,15 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-3 px-4">Feature</th>
+                      <th className="text-left py-3 px-4">{t('comparison.feature')}</th>
                       <th className="text-center py-3 px-4">
                         <div>
-                          <Badge variant="secondary">Subscriber</Badge>
-                          <div className="text-xs text-muted-foreground mt-1">(Current)</div>
+                          <Badge variant="secondary">{t('comparison.subscriber')}</Badge>
+                          <div className="text-xs text-muted-foreground mt-1">{t('page.current_plan')}</div>
                         </div>
                       </th>
                       <th className="text-center py-3 px-4">
-                        <Badge className="bg-primary">Member</Badge>
+                        <Badge className="bg-primary">{t('comparison.member')}</Badge>
                       </th>
                     </tr>
                   </thead>
@@ -214,9 +216,9 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
         >
           <Card className="border-primary">
             <CardHeader>
-              <CardTitle className="text-2xl">Ready to Upgrade?</CardTitle>
+              <CardTitle className="text-2xl">{t('page.cta_title')}</CardTitle>
               <CardDescription>
-                Join hundreds of professionals who are already using Ring Platform to grow their business
+                {t('page.cta_subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -227,20 +229,20 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
                   disabled={!!user.pendingUpgradeRequest}
                   className="gap-2"
                 >
-                  Upgrade Now <ArrowRight className="h-4 w-4" />
+                  {t('page.upgrade_now')} <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   onClick={() => router.push(ROUTES.PROFILE(locale))}
                 >
-                  Back to Profile
+                  {t('page.back_to_profile')}
                 </Button>
               </div>
               
               {!user.pendingUpgradeRequest && (
                 <p className="text-sm text-muted-foreground">
-                  Upgrade requests are typically reviewed within 24-48 hours
+                  {t('page.upgrade_notice')}
                 </p>
               )}
             </CardContent>
@@ -254,37 +256,37 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
           transition={{ delay: 0.4, duration: 0.5 }}
           className="max-w-3xl mx-auto mt-12"
         >
-          <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
+          <h2 className="text-2xl font-bold text-center mb-8">{t('page.faq_title')}</h2>
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">How long does the upgrade process take?</CardTitle>
+                <CardTitle className="text-lg">{t('page.faq_time_question')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Most upgrade requests are reviewed within 24-48 hours. You'll receive an email notification once your request has been processed.
+                  {t('page.faq_time_answer')}
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">What information do I need to provide?</CardTitle>
+                <CardTitle className="text-lg">{t('page.faq_info_question')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  We'll ask for basic information about your organization, your role, and why you'd like to upgrade. LinkedIn profile or portfolio links can help speed up the review process.
+                  {t('page.faq_info_answer')}
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Can I downgrade later?</CardTitle>
+                <CardTitle className="text-lg">{t('page.faq_downgrade_question')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Yes, you can request to change your account type at any time through your profile settings. Note that downgrading may affect your access to certain features.
+                  {t('page.faq_downgrade_answer')}
                 </p>
               </CardContent>
             </Card>

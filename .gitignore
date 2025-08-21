@@ -8,3 +8,4 @@ tsconfig.tsbuildinfo
 .env*.local
 svc.json
 .DS_Store
+env.production

@@ -103,7 +103,7 @@ export default function Navigation() {
 
   const navigationItems = [
     { href: ROUTES.ENTITIES(locale), label: tEntities('title') },
-    { href: ROUTES.OPPORTUNITIES(locale), label: tOpp('title') },
+    { href: ROUTES.OPPORTUNITIES(locale), label: tOpp('opportunities') },
     { href: ROUTES.STORE(locale), label: tStore('title') },
   ]
 

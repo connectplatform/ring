@@ -28,7 +28,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
       <Button asChild className={className}>
         <Link href={`/${locale}/auth/login?returnTo=${encodeURIComponent(pathname)}`}>
           <Plus className="h-4 w-4 mr-2" />
-          {t('addEntity')}
+          {t('addMyEntity')}
         </Link>
       </Button>
     )
@@ -40,7 +40,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
       <Button asChild className={className}>
         <Link href={`/${locale}/entities/add`}>
           <Plus className="h-4 w-4 mr-2" />
-          {t('addEntity')}
+          {t('addMyEntity')}
         </Link>
       </Button>
     )
@@ -56,7 +56,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
           variant="outline"
         >
           <Crown className="h-4 w-4 mr-2" />
-          {t('addEntity')}
+          {t('addMyEntity')}
         </Button>
         
         {showUpgradeModal && (
@@ -74,7 +74,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
     <Button asChild className={className}>
       <Link href={`/${locale}/auth/register?returnTo=${encodeURIComponent(pathname)}`}>
         <Plus className="h-4 w-4 mr-2" />
-        {t('addEntity')}
+        {t('addMyEntity')}
       </Link>
     </Button>
   )

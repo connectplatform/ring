@@ -20,6 +20,14 @@
     "premium_features": {
       "title": "Premium Features",
       "description": "Access exclusive tools and advanced platform features"
+    },
+    "enhanced_visibility": {
+      "title": "Enhanced Visibility",
+      "description": "Get discovered by potential partners and clients"
+    },
+    "verified_profile": {
+      "title": "Verified Profile",
+      "description": "Build trust with a verified member badge"
     }
   },
   "comparison": {
@@ -65,5 +73,38 @@
     "membership_fee": "One-time membership upgrade fee",
     "proceed": "Proceed to Payment (Coming Soon)",
     "cancel": "Cancel"
+  },
+  "page": {
+    "title": "Upgrade to Member",
+    "subtitle": "Unlock the full potential of Ring Platform. Create entities, post opportunities, and grow your professional network.",
+    "success_title": "Request Submitted Successfully!",
+    "success_description": "We'll review your request and notify you within 24-48 hours.",
+    "pending_title": "Upgrade Request Pending",
+    "pending_description": "You have already submitted an upgrade request on {date}. Status: {status}",
+    "comparison_title": "Feature Comparison",
+    "comparison_subtitle": "See what you'll unlock as a member",
+    "current_plan": "(Current)",
+    "cta_title": "Ready to Upgrade?",
+    "cta_subtitle": "Join hundreds of professionals who are already using Ring Platform to grow their business",
+    "upgrade_now": "Upgrade Now",
+    "back_to_profile": "Back to Profile",
+    "upgrade_notice": "Upgrade requests are typically reviewed within 24-48 hours",
+    "faq_title": "Frequently Asked Questions",
+    "faq_time_question": "How long does the upgrade process take?",
+    "faq_time_answer": "Most upgrade requests are reviewed within 24-48 hours. You'll receive an email notification once your request has been processed.",
+    "faq_info_question": "What information do I need to provide?",
+    "faq_info_answer": "We'll ask for basic information about your organization, your role, and why you'd like to upgrade. LinkedIn profile or portfolio links can help speed up the review process.",
+    "faq_downgrade_question": "Can I downgrade later?",
+    "faq_downgrade_answer": "Yes, you can request to change your account type at any time through your profile settings. Note that downgrading may affect your access to certain features."
+  },
+  "features": {
+    "view_entities": "View public entities",
+    "view_opportunities": "View opportunities",
+    "basic_messaging": "Basic messaging",
+    "create_entities": "Create entities",
+    "post_opportunities": "Post opportunities",
+    "advanced_analytics": "Advanced analytics",
+    "priority_search": "Priority in search results",
+    "custom_branding": "Custom branding"
   }
 }

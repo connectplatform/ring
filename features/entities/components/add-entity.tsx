@@ -90,7 +90,7 @@ function AddEntityFormContent() {
       <div className="container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>{t('addEntity')}</CardTitle>
+            <CardTitle>{t('addMyEntity')}</CardTitle>
             <CardDescription>Upgrade to Member to Create Entities</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
@@ -115,7 +115,7 @@ function AddEntityFormContent() {
     <div className="container mx-auto px-4 py-8">
       <Card>
         <CardHeader>
-          <CardTitle>{t('addEntity')}</CardTitle>
+          <CardTitle>{t('addMyEntity')}</CardTitle>
           <CardDescription>{t('addEntityDescription')}</CardDescription>
         </CardHeader>
         <CardContent>

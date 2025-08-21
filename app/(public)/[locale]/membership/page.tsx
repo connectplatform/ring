@@ -38,9 +38,10 @@ export default async function MembershipPage(props: MembershipPageProps) {
   }
   
   // React 19 metadata preparation
-  const translations = loadTranslations(locale)
-  const title = 'Upgrade to Member | Ring Platform'
-  const description = 'Upgrade your account to member status and unlock the ability to create entities and opportunities'
+  const translations = await loadTranslations(locale)
+  const membershipTranslations = translations.modules?.membership || {}
+  const title = `${membershipTranslations.page?.title || 'Upgrade to Member'} | Ring Platform`
+  const description = membershipTranslations.page?.subtitle || 'Upgrade your account to member status and unlock the ability to create entities and opportunities'
   const canonicalUrl = `https://ring.ck.ua/${locale}/membership`
   const alternates = generateHreflangAlternates('/membership')
   
