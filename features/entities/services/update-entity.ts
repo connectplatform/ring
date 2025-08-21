@@ -1,10 +1,20 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { Entity } from '@/features/entities/types';
 import { auth } from '@/auth';
 import { entityConverter } from '@/lib/converters/entity-converter';
 import { UserRole } from '@/features/auth/types';
 import { checkEntityOwnership } from '../utils/entity-utils';
 import { invalidateEntitiesCache } from '@/lib/cached-data'
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Updates an entity by its ID in Firestore, enforcing role-based access control.
@@ -52,7 +62,10 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
     }
 
     // Step 3: Access Firestore and update the entity
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const docRef = adminDb.collection('entities').doc(id).withConverter(entityConverter);
     
     await docRef.set(data, { merge: true });

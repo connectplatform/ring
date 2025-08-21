@@ -22,7 +22,7 @@ Ring Platform operates on three primary entity types:
 - **Entities**: Companies, organizations, startups with 26 industry types and verification systems  
 - **Opportunities**: Dual-nature system (Offers/Requests) with tiered access control
 
-**Key Innovation**: Confidential access tier creates exclusive networking spaces for C-level positions, stealth startups, M&A activities, and strategic partnerships.
+**Key Innovation**: Confidential access tier creates exclusive networking spaces for C-level positions, stealth startups, M&A activities, and strategic partnerships. **Unified Status Page System** provides consistent workflow feedback across all domains with dynamic [action]/[status] routing. **Enhanced useAuth Hook** offers type-safe authentication with seamless integration to auth status pages and role-based access control.
 
 📚 **[Read the Strategic Philosophy](./PLATFORM-PHILOSOPHY.md)**
 
@@ -73,6 +73,9 @@ ring/docs/domains/
 ├── analytics/              # ✅ Performance tracking + user behavior
 │   ├── README.md
 │   └── AI-INSTRUCTION-PROMPT.md
+├── notifications/          # ✅ FCM push notifications + status pages
+│   ├── README.md
+│   └── AI-INSTRUCTION-PROMPT.md
 └── confidential/           # ✅ Premium tier access control
     ├── README.md
     └── AI-INSTRUCTION-PROMPT.md
@@ -98,6 +101,8 @@ ring/docs/domains/
 |--------|---------|----------|---------------|
 | **auth** | NextAuth.js v5, crypto wallets | Session management, JWT, MetaMask | [Auth Docs](./domains/auth/README.md) |
 | **entities** | Professional organizations | CRUD, verification, 26 industries | [Entities Docs](./domains/entities/README.md) |
+| **opportunities** | Dual-nature system | Offers/Requests, applications | [Opportunities Docs](./domains/opportunities/README.md) |
+| **notifications** | FCM + status pages | Push notifications, delivery tracking | [Notifications Docs](./domains/notifications/README.md) |
 | **opportunities** | Job/service marketplace | Offers/Requests, tiered access | [Opportunities Docs](./domains/opportunities/README.md) |
 | **messaging** | Real-time communication | WebSocket, FCM notifications | [Messaging Docs](./domains/messaging/README.md) |
 | **analytics** | User behavior tracking | Events, performance metrics | [Analytics Docs](./domains/analytics/README.md) |

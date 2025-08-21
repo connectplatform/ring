@@ -38,7 +38,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       modStore,
       modProfile,
       modAdmin,
-      modSettings
+      modSettings,
+      modMembership
     ] = await Promise.all([
       import(`@/locales/${targetLocale}/common.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/pages.json`).then(m => m.default),
@@ -61,7 +62,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       import(`@/locales/${targetLocale}/modules/store.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/profile.json`).then(m => m.default),
       import(`@/locales/${targetLocale}/modules/admin.json`).then(m => m.default),
-      import(`@/locales/${targetLocale}/modules/settings.json`).then(m => m.default)
+      import(`@/locales/${targetLocale}/modules/settings.json`).then(m => m.default),
+      import(`@/locales/${targetLocale}/modules/membership.json`).then(m => m.default)
     ])
 
     return {
@@ -87,7 +89,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
         store: modStore,
         profile: modProfile,
         admin: modAdmin,
-        settings: modSettings
+        settings: modSettings,
+        membership: modMembership
       }
     }
   }

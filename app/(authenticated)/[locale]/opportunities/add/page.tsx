@@ -7,22 +7,33 @@ import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import { PageProps } from '@/types/next-page'
 import { resolvePageProps } from '@/utils/page-props'
+import type { Locale } from '@/i18n-config'
 
 export const dynamic = 'force-dynamic'
+
+// Role hierarchy for access control
+const ROLE_HIERARCHY = {
+  [UserRole.VISITOR]: 0,
+  [UserRole.SUBSCRIBER]: 1,
+  [UserRole.MEMBER]: 2,
+  [UserRole.CONFIDENTIAL]: 3,
+  [UserRole.ADMIN]: 4,
+} as const
 
 /**
  * AddOpportunityPage component for adding new opportunities.
  * This component handles user authentication, permission checks, and renders the add opportunity form.
+ * Now supports type-based routing for requests vs offers with proper role validation.
  * 
  * @param props - The page properties including params and searchParams.
  * 
  * User flow:
- * 1. User navigates to the add opportunity page
+ * 1. User navigates to the add opportunity page with ?type=request or ?type=offer
  * 2. System checks for user authentication
  * 3. If not authenticated, user is redirected to login page
- * 4. If authenticated, system checks user permissions
- * 5. If user has permission, the add opportunity form is displayed
- * 6. If user doesn't have permission, an error message is shown
+ * 4. If authenticated, system validates permissions for the opportunity type
+ * 5. SUBSCRIBER users can create requests; MEMBER+ users can create both
+ * 6. If user lacks permission, they're redirected to upgrade page
  */
 export default async function AddOpportunityPage(props: PageProps) {
   let error: string | null = null
@@ -31,9 +42,13 @@ export default async function AddOpportunityPage(props: PageProps) {
 
   // Step 1: Resolve params and searchParams using our utility function
   const { params, searchParams } = await resolvePageProps(props);
+  
+  const locale = params.locale as Locale
+  const type = searchParams.type as 'request' | 'offer' | undefined
 
   console.log('Params:', params);
   console.log('Search Params:', searchParams);
+  console.log('Opportunity Type:', type);
 
   // Step 2: Retrieve cookies and headers
   const cookieStore = await cookies()
@@ -41,10 +56,18 @@ export default async function AddOpportunityPage(props: PageProps) {
   const token = cookieStore.get("token");
   const userAgent = headersList.get('user-agent')
 
-  // React 19 metadata for form pages
-  const title = 'Add Opportunity | Ring App';
-  const description = 'Add a new opportunity to the Ring App. Share job postings, collaboration requests, and partnership opportunities with the community.';
-  const canonicalUrl = 'https://ring.ck.ua/opportunities/add';
+  // React 19 metadata for form pages - dynamically generated based on type
+  const title = type === 'request' 
+    ? 'Create Request | Ring App'
+    : type === 'offer'
+    ? 'Create Offer | Ring App'
+    : 'Add Opportunity | Ring App';
+  const description = type === 'request'
+    ? 'Create a request to find services, advice, or collaboration from the Ring community.'
+    : type === 'offer'
+    ? 'Post an official opportunity from your organization on the Ring platform.'
+    : 'Add a new opportunity to the Ring App. Share job postings, collaboration requests, and partnership opportunities with the community.';
+  const canonicalUrl = `https://ring.ck.ua/${locale}/opportunities/add${type ? `?type=${type}` : ''}`;
 
   try {
     // Step 3: Authenticate user
@@ -53,20 +76,29 @@ export default async function AddOpportunityPage(props: PageProps) {
     
     if (!session) {
       console.log('AddOpportunityPage: No session, redirecting to login');
-      redirect(`${ROUTES.LOGIN}?callbackUrl=${ROUTES.ADD_OPPORTUNITY}`)
+      const returnTo = `/${locale}/opportunities/add${type ? `?type=${type}` : ''}`
+      redirect(`/${locale}/auth/login?returnTo=${encodeURIComponent(returnTo)}`)
     }
 
     // Step 4: Check user role and permissions
     const userRole = session.user?.role as UserRole
 
-    if (![UserRole.MEMBER, UserRole.CONFIDENTIAL, UserRole.ADMIN].includes(userRole)) {
-      console.log('AddOpportunityPage: User lacks permission', { userRole });
-      error = "You don't have permission to add opportunities."
+    // Basic permission check - must be at least SUBSCRIBER
+    if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
+      console.log('AddOpportunityPage: User lacks basic permission', { userRole });
+      redirect(`/${locale}/auth/register?returnTo=${encodeURIComponent(`/${locale}/opportunities/add${type ? `?type=${type}` : ''}`)}`)
+    }
+
+    // Type-specific permission checks
+    if (type === 'offer' && ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+      console.log('AddOpportunityPage: User lacks permission for offers', { userRole });
+      redirect(`/${locale}/membership?returnTo=${encodeURIComponent(`/${locale}/opportunities/add?type=offer`)}`)
     }
 
     // Step 5: Log authentication and request details
     console.log('AddOpportunityPage: User authenticated', {
       userRole,
+      type,
       params,
       searchParams,
       userAgent,
@@ -159,7 +191,7 @@ export default async function AddOpportunityPage(props: PageProps) {
         {error ? (
           <div className="text-center text-red-600 p-4">{error}</div>
         ) : (
-          <AddOpportunityForm />
+          <AddOpportunityForm opportunityType={type} locale={locale} />
         )}
       </Suspense>
     </>

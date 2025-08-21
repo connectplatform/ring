@@ -2,6 +2,16 @@
 
 import { redirect } from 'next/navigation'
 import { getServerAuthSession } from '@/auth'
+import { UserRole } from '@/features/auth/types'
+
+// Role hierarchy for access control
+const ROLE_HIERARCHY = {
+  [UserRole.VISITOR]: 0,
+  [UserRole.SUBSCRIBER]: 1,
+  [UserRole.MEMBER]: 2,
+  [UserRole.CONFIDENTIAL]: 3,
+  [UserRole.ADMIN]: 4,
+} as const
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
 
@@ -24,28 +34,56 @@ export async function createOpportunity(
     }
   }
 
+  const userRole = (session.user as any)?.role as UserRole
+  
   // Extract form data
   const title = formData.get('title') as string
-  const type = formData.get('type') as string // 'offer' or 'request'
+  const type = formData.get('type') as 'offer' | 'request'
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
   const budget = formData.get('budget') as string
   const deadline = formData.get('deadline') as string
   const contactEmail = formData.get('contactEmail') as string
-  const entityId = formData.get('entityId') as string
+  let entityId = formData.get('entityId') as string
   const isConfidential = formData.get('isConfidential') === 'true'
   const tagsString = formData.get('tags') as string
+
+  // Role-based validation
+  if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
+    return { error: 'Only SUBSCRIBER users and above can create opportunities' }
+  }
+
+  // Type-specific validation
+  if (type === 'offer') {
+    // Offers require MEMBER role and entity
+    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+      return { 
+        error: 'Only MEMBER users and above can create offers. Upgrade your membership to create offers.' 
+      }
+    }
+    
+    if (!entityId?.trim()) {
+      return { error: 'Entity is required for offers' }
+    }
+  } else if (type === 'request') {
+    // Requests can be created by SUBSCRIBER+, no entity required
+    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
+      return { 
+        error: 'Only SUBSCRIBER users and above can create requests' 
+      }
+    }
+    // For requests, we set organizationId to null to indicate it's from an individual
+    entityId = null
+  } else {
+    return { error: 'Valid opportunity type is required' }
+  }
 
   // Validation
   const fieldErrors: Record<string, string> = {}
   
   if (!title?.trim()) {
     fieldErrors.title = 'Title is required'
-  }
-  
-  if (!type || !['offer', 'request'].includes(type)) {
-    fieldErrors.type = 'Valid type is required'
   }
   
   if (!category?.trim()) {
@@ -56,8 +94,9 @@ export async function createOpportunity(
     fieldErrors.description = 'Description is required'
   }
   
-  if (!entityId?.trim()) {
-    fieldErrors.entityId = 'Entity is required'
+  // Entity validation only for offers
+  if (type === 'offer' && !entityId?.trim()) {
+    fieldErrors.entityId = 'Entity is required for offers'
   }
   
   if (contactEmail && !/\S+@\S+\.\S+/.test(contactEmail)) {
@@ -119,7 +158,8 @@ export async function createOpportunity(
       briefDescription: description.trim(),
       fullDescription: requirements?.trim() || '',
       createdBy: session.user.id,
-      organizationId: entityId.trim(),
+      // For requests: null (individual), for offers: entityId (organization)
+      organizationId: type === 'request' ? null : entityId?.trim() || null,
       expirationDate,
       status: 'active' as const,
       category: category.trim(),
@@ -131,7 +171,7 @@ export async function createOpportunity(
       attachments: [],
       visibility: isConfidential ? 'confidential' as const : 'public' as const,
       contactInfo: {
-        linkedEntity: entityId.trim(),
+        linkedEntity: type === 'request' ? '' : entityId?.trim() || '',
         contactAccount: contactEmail?.trim() || session.user.email || ''
       }
     }
@@ -142,10 +182,15 @@ export async function createOpportunity(
     // Create the opportunity using the service
     const newOpportunity = await createOpportunityService(opportunityData)
     
-    console.log('Opportunity created successfully:', { id: newOpportunity.id, title: newOpportunity.title })
+    console.log('Opportunity created successfully:', { 
+      id: newOpportunity.id, 
+      title: newOpportunity.title, 
+      type: newOpportunity.type,
+      organizationId: newOpportunity.organizationId 
+    })
     
-    // Success - redirect to opportunities page
-    redirect(ROUTES.OPPORTUNITIES(defaultLocale))
+    // Redirect to success status page
+    redirect(`/${defaultLocale}/opportunities/status/create/success?id=${newOpportunity.id}&type=${type}`)
   } catch (error) {
     console.error('Error creating opportunity:', error)
     return {

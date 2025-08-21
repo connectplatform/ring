@@ -17,6 +17,7 @@ import { defaultLocale } from '@/i18n-config'
 import SlidingPopup from '@/components/common/widgets/modal'
 import { EntityLogo } from '@/components/ui/safe-image'
 import LoginForm from '@/features/auth/components/login-form'
+import { AddEntityButton } from '@/components/entities/add-entity-button'
 
 interface EntitiesContentProps {
   initialEntities: Entity[];
@@ -49,7 +50,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
 
   const fetchEntities = useCallback(async () => {
     if (!session) {
@@ -120,36 +121,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   }
 
   // Check if user can create entities (MEMBER and above)
-  const canCreateEntity = session?.user?.role && [
-    UserRole.MEMBER, 
-    UserRole.CONFIDENTIAL, 
-    UserRole.ADMIN
-  ].includes(session.user.role as UserRole)
 
-  // Check if user needs upgrade (VISITOR or SUBSCRIBER)
-  const needsUpgrade = !session?.user || [
-    UserRole.VISITOR, 
-    UserRole.SUBSCRIBER
-  ].includes(session?.user?.role as UserRole)
-
-  const handleUpgradeRequest = async (requestData: any) => {
-    try {
-      // Here you would typically call an API to submit the upgrade request
-      console.log('Submitting upgrade request:', requestData)
-      
-      // For now, show success message
-      // In a real implementation, you'd call the upgrade request API
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
-      
-    } catch (error) {
-      console.error('Error submitting upgrade request:', error)
-      throw error
-    }
-  }
-
-  const handleCloseUpgradeModal = async () => {
-    setShowUpgradeModal(false)
-  }
 
   if (loading) {
     return (
@@ -188,24 +160,10 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
           
           {/* Action Buttons Section */}
           <div className="flex justify-center gap-4 mb-8">
-            {canCreateEntity ? (
-              <Link href={ROUTES.ADD_ENTITY(defaultLocale)}>
-                <Button size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  {tEntities('addMyEntity')}
-                </Button>
-              </Link>
-            ) : needsUpgrade ? (
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="gap-2"
-                onClick={() => setShowUpgradeModal(true)}
-              >
-                <ArrowUp className="h-5 w-5" />
-                {tEntities('upgradeToBeMember')}
-              </Button>
-            ) : null}
+            <AddEntityButton 
+              locale={defaultLocale}
+              className="size-lg"
+            />
           </div>
         </motion.div>
 
@@ -222,62 +180,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
         />
       </div>
 
-      {/* Upgrade Modal for Visitors/Subscribers */}
-      {needsUpgrade && session?.user && (
-        <SlidingPopup
-          isOpen={showUpgradeModal}
-          onCloseAction={handleCloseUpgradeModal}
-        >
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4 text-center">
-              {tEntities('upgradeToBeMember')}
-            </h2>
-            <div className="space-y-4 text-center">
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">
-                  {tEntities('memberBenefits')}
-                </h3>
-                <ul className="text-sm space-y-2 text-left">
-                  <li className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-blue-500" />
-                    {tEntities('createEntities')}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-blue-500" />
-                    {tEntities('postOpportunities')}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Award className="h-4 w-4 text-blue-500" />
-                    {tEntities('accessMemberContent')}
-                  </li>
-                </ul>
-              </div>
-              
-              <div className="text-sm text-muted-foreground">
-                {tEntities('upgradeDescription')}
-              </div>
-              
-              <div className="flex gap-3 justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowUpgradeModal(false)}
-                >
-                  {tCommon('actions.cancel')}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowUpgradeModal(false)
-                    // Redirect to contact or upgrade page
-                    window.open('mailto:support@ring.ck.ua?subject=Member%20Upgrade%20Request', '_blank')
-                  }}
-                >
-                  {tEntities('requestUpgrade')}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </SlidingPopup>
-      )}
+
     </div>
   )
 }

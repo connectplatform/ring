@@ -2,6 +2,42 @@
   "meta": {
     "title": "{page} | {platform}",
     "description": "{description}"
+  },
+  "store": {
+    "title": "Ring Store",
+    "description": "Відкрийте та придбайте інноваційні продукти на платформі Ring.",
+    "checkout": {
+      "title": "Оформлення замовлення - Ring Store",
+      "description": "Безпечно завершіть покупку на платформі Ring.",
+      "status": {
+        "title": "Статус замовлення: {{status}} - Ring Store",
+        "description": "Стан вашого замовлення: {{status}}. Переглядайте статус замовлення та наступні кроки."
+      }
+    }
+  },
+  "auth": {
+    "title": "Авторизація - Ring Platform",
+    "description": "Безпечна авторизація та управління аккаунтом для користувачів платформи Ring.",
+    "status": {
+      "title": "{{action}} {{status}} - Ring Platform",
+      "description": "Стан вашої операції {{action}}: {{status}}. Керуйте своїм статусом авторизації та наступними кроками."
+    }
+  },
+  "entities": {
+    "title": "Організації - Ring Platform",
+    "description": "Каталог та система управління професійними організаціями на платформі Ring.",
+    "status": {
+      "title": "Організації {{action}} {{status}} - Ring Platform",
+      "description": "Стан вашої організації {{action}}: {{status}}. Керуйте статусом своєї організації та наступними кроками на платформі Ring."
+    }
+  },
+  "opportunities": {
+    "title": "Можливості - Ring Platform",
+    "description": "Відкривайте та керуйте бізнес-можливостями, партнерствами та співпрацею на платформі Ring.",
+    "status": {
+      "title": "Можливості {{action}} {{status}} - Ring Platform",
+      "description": "Стан вашої можливості {{action}}: {{status}}. Керуйте статусом можливості та наступними кроками."
+    }
   }
 }
 

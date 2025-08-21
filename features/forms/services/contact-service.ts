@@ -1,4 +1,9 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
 
 /**
  * ContactService: Handles contact form submissions
@@ -31,7 +36,8 @@ export const ContactService = {
    */
   async submitContactForm(data: { name: string; email: string; message: string }): Promise<void> {
     // Initialize adminDb outside the try block
-    const adminDb = await getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
 
     try {
       console.log('Admin Firestore instance obtained');
@@ -93,7 +99,8 @@ export const ContactService = {
   async getContactFormSubmissions(limit: number, startAfter?: string): Promise<Array<{id: string, data: any}>> {
     try {
       // Step 1: Get the admin Firestore instance
-      const adminDb = await getAdminDb();
+      const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
       console.log('Admin Firestore instance obtained for retrieving submissions');
 
       // Step 2: Prepare the query

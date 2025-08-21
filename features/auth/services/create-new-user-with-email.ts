@@ -1,6 +1,18 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin.server';
 import { AuthUser, UserRole, UserSettings, Wallet } from '@/features/auth/types';
 import { ZodError } from 'zod';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+
 import { signUpSchema } from '@/lib/zod'; // Assume we have a signup schema defined
 import { randomBytes, createHash } from 'crypto';
 
@@ -60,7 +72,8 @@ export async function createNewUserWithEmail(email: string, password: string, na
     console.log(`Services: createNewUserWithEmail - Default wallet created with address: ${defaultWallet.address}`);
 
     // Step 4: Create or update the user profile in the database
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const usersCollection = adminDb.collection('users');
 
     const userSettings: UserSettings = {

@@ -1,149 +1,213 @@
-// import { useState, useEffect } from 'react'
-// import { useRouter } from 'next/navigation'
-// import { useSession, signIn, signOut } from 'next-auth/react'
-// import { ROUTES } from '@/constants/routes'
-// import { AuthUser, UserRole, UserSettings } from '@/features/auth/types'
+'use client'
 
-// interface AuthState {
-//   user: AuthUser | null
-//   loading: boolean
-//   role: UserRole | null
-// }
+import { useSession } from 'next-auth/react'
+import { useRouter, usePathname } from 'next/navigation'
+import { AuthUser, UserRole } from '@/features/auth/types'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n-config'
 
-// export function useAuth() {
-//   const [authState, setAuthState] = useState<AuthState>({ user: null, loading: true, role: null })
-//   const router = useRouter()
-//   const { data: session, status } = useSession()
+/**
+ * Auth status navigation types
+ */
+type AuthAction = 'login' | 'register' | 'verify' | 'reset-password' | 'kyc'
+type AuthStatus = string
 
-//   useEffect(() => {
-//     if (status === 'loading') {
-//       setAuthState({ user: null, loading: true, role: null })
-//     } else if (status === 'authenticated' && session?.user) {
-//       const user: AuthUser = {
-//         id: session.user.id,
-//         email: session.user.email || '',
-//         emailVerified: session.user.emailVerified || null,
-//         name: session.user.name || null,
-//         role: (session.user as any).role || UserRole.SUBSCRIBER,
-//         photoURL: session.user.image || undefined,
-//         walletAddress: (session.user as any).walletAddress,
-//         authProvider: (session.user as any).provider || 'credentials',
-//         authProviderId: session.user.id,
-//         walletBalance: (session.user as any).walletBalance,
-//         isVerified: (session.user as any).isVerified || false,
-//         createdAt: (session.user as any).createdAt ? new Date((session.user as any).createdAt) : new Date(),
-//         lastLogin: (session.user as any).lastLogin ? new Date((session.user as any).lastLogin) : new Date(),
-//         settings: {
-//           language: 'en',
-//           theme: 'light',
-//           notifications: true,
-//           notificationPreferences: {
-//             email: true,
-//             inApp: true,
-//             sms: false,
-//           },
-//         },
-//         bio: '',
-//         canPostconfidentialOpportunities: false,
-//         canViewconfidentialOpportunities: false,
-//         postedopportunities: [],
-//         savedopportunities: [],
-//         notificationPreferences: {
-//           email: true,
-//           inApp: true,
-//         },
-//         getIdTokenResult: async (forceRefresh?: boolean) => {
-//           // This is a placeholder implementation
-//           return {
-//             claims: {},
-//             token: '',
-//             authTime: '',
-//             issuedAtTime: '',
-//             expirationTime: '',
-//             signInProvider: null,
-//             signInSecondFactor: null,
-//           }
-//         },
-//       }
-//       setAuthState({ user, loading: false, role: user.role })
-//     } else {
-//       setAuthState({ user: null, loading: false, role: null })
-//     }
-//   }, [session, status])
+/**
+ * Auth hook return interface
+ */
+interface UseAuthReturn {
+  user: AuthUser | null
+  role: UserRole | null
+  loading: boolean
+  hasRole: (requiredRole: UserRole) => boolean
+  isAuthenticated: boolean
+  navigateToAuthStatus: (action: AuthAction, status: AuthStatus, options?: {
+    email?: string
+    requestId?: string
+    returnTo?: string
+  }) => void
+  getKycStatus: () => 'not_started' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'expired' | null
+  refreshSession: () => Promise<void>
+}
 
-//   const refreshUserRole = async () => {
-//     try {
-//       const response = await fetch('/api/auth/refresh-role')
-//       if (response.ok) {
-//         const { role } = await response.json()
-//         setAuthState(prevState => ({
-//           ...prevState,
-//           role: role as UserRole,
-//           user: prevState.user ? { ...prevState.user, role: role as UserRole } : null
-//         }))
-//         return role as UserRole
-//       }
-//     } catch (error) {
-//       console.error('Error refreshing user role:', error)
-//     }
-//     return null
-//   }
+/**
+ * Role hierarchy for access control
+ */
+const ROLE_HIERARCHY = {
+  [UserRole.VISITOR]: 0,
+  [UserRole.SUBSCRIBER]: 1,
+  [UserRole.MEMBER]: 2,
+  [UserRole.CONFIDENTIAL]: 3,
+  [UserRole.ADMIN]: 4,
+} as const
 
-//   const signInWithGoogle = async () => {
-//     try {
-//       const result = await signIn('google', { callbackUrl: ROUTES.PROFILE })
-//       if (result?.error) {
-//         console.error('Error signing in with Google:', result.error)
-//         throw new Error(result.error)
-//       }
-//     } catch (error) {
-//       console.error('Error signing in with Google:', error)
-//       throw error
-//     }
-//   }
+/**
+ * Auth hook with type-safe role checking and status page integration
+ * 
+ * Provides user state, loading status, role validation, and auth flow navigation.
+ * Works with Auth.js v5, React 19/Next 15, and unified auth status pages.
+ * 
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { user, hasRole, navigateToAuthStatus, getKycStatus } = useAuth()
+ *   
+ *   // Check user permissions
+ *   if (!hasRole(UserRole.MEMBER)) return <AccessDenied />
+ *   
+ *   // Navigate to KYC flow
+ *   const handleKyc = () => {
+ *     const status = getKycStatus()
+ *     if (status === 'not_started') {
+ *       navigateToAuthStatus('kyc', 'not_started', { 
+ *         returnTo: '/profile' 
+ *       })
+ *     }
+ *   }
+ * }
+ * ```
+ * 
+ * @returns Auth state with helper methods
+ */
+export function useAuth(): UseAuthReturn {
+  const { data: session, status, update } = useSession()
+  const router = useRouter()
+  const pathname = usePathname()
 
-//   const handleSignOut = async () => {
-//     try {
-//       await signOut({ callbackUrl: ROUTES.HOME })
-//       setAuthState({ user: null, loading: false, role: null })
-//     } catch (error) {
-//       console.error('Error signing out:', error)
-//       throw error
-//     }
-//   }
+  // Loading state
+  const loading = status === 'loading'
+  
+  // Authentication state
+  const isAuthenticated = status === 'authenticated' && !!session?.user
+  
+  // Extract user role from session
+  const role = (session?.user as any)?.role as UserRole || null
+  
+  // Map Auth.js session to AuthUser type
+  const user: AuthUser | null = isAuthenticated && session?.user ? {
+    id: session.user.id || '',
+    email: session.user.email || '',
+    emailVerified: (session.user as any).emailVerified || null,
+    name: session.user.name || null,
+    role: role || UserRole.SUBSCRIBER,
+    photoURL: session.user.image || null,
+    wallets: [], // Will be populated from server/database
+    authProvider: (session.user as any).provider || 'credentials',
+    authProviderId: session.user.id || '',
+    isVerified: (session.user as any).isVerified || false,
+    createdAt: new Date((session.user as any).createdAt || Date.now()),
+    lastLogin: new Date((session.user as any).lastLogin || Date.now()),
+    bio: (session.user as any).bio || '',
+    canPostconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
+    canViewconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
+    postedopportunities: (session.user as any).postedopportunities || [],
+    savedopportunities: (session.user as any).savedopportunities || [],
+    notificationPreferences: {
+      email: (session.user as any).notificationPreferences?.email ?? true,
+      inApp: (session.user as any).notificationPreferences?.inApp ?? true,
+      sms: (session.user as any).notificationPreferences?.sms ?? false,
+    },
+    settings: {
+      language: (session.user as any).settings?.language || 'en',
+      theme: (session.user as any).settings?.theme || 'light',
+      notifications: (session.user as any).settings?.notifications ?? true,
+      notificationPreferences: {
+        email: (session.user as any).settings?.notificationPreferences?.email ?? true,
+        inApp: (session.user as any).settings?.notificationPreferences?.inApp ?? true,
+        sms: (session.user as any).settings?.notificationPreferences?.sms ?? false,
+      },
+    },
+    nonce: (session.user as any).nonce,
+    nonceExpires: (session.user as any).nonceExpires,
+    kycVerification: (session.user as any).kycVerification,
+    pendingUpgradeRequest: (session.user as any).pendingUpgradeRequest,
+  } : null
 
-//   const updateUserProfile = async (data: Partial<AuthUser>) => {
-//     if (authState.user) {
-//       try {
-//         const response = await fetch('/api/auth/update-profile', {
-//           method: 'POST',
-//           headers: { 'Content-Type': 'application/json' },
-//           body: JSON.stringify(data),
-//         })
-//         if (response.ok) {
-//           const updatedUser = await response.json()
-//           setAuthState(prevState => ({
-//             ...prevState,
-//             user: { ...prevState.user!, ...updatedUser }
-//           }))
-//         } else {
-//           throw new Error('Failed to update profile')
-//         }
-//       } catch (error) {
-//         console.error('Error updating user profile:', error)
-//         throw error
-//       }
-//     }
-//   }
+  /**
+   * Check if user has required role or higher
+   */
+  const hasRole = (requiredRole: UserRole): boolean => {
+    if (!isAuthenticated || !role) return false
+    return ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[requiredRole]
+  }
 
-//   return {
-//     user: authState.user,
-//     loading: authState.loading,
-//     role: authState.role,
-//     refreshUserRole,
-//     signInWithGoogle,
-//     signOut: handleSignOut,
-//     updateUserProfile,
-//   }
-// }
+  /**
+   * Navigate to auth status page
+   */
+  const navigateToAuthStatus = (
+    action: AuthAction,
+    status: AuthStatus,
+    options?: {
+      email?: string
+      requestId?: string
+      returnTo?: string
+    }
+  ) => {
+    // Extract locale from current pathname
+    const locale = pathname.split('/')[1] as Locale || 'en'
+    
+    // Build URL with query parameters
+    const searchParams = new URLSearchParams()
+    if (options?.email) searchParams.set('email', options.email)
+    if (options?.requestId) searchParams.set('requestId', options.requestId)
+    if (options?.returnTo) searchParams.set('returnTo', options.returnTo)
+    
+    const statusUrl = `/${locale}/auth/${action}/${status}`
+    const finalUrl = searchParams.toString() 
+      ? `${statusUrl}?${searchParams.toString()}`
+      : statusUrl
+    
+    router.push(finalUrl)
+  }
+
+  /**
+   * Get user's KYC verification status
+   */
+  const getKycStatus = (): 'not_started' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'expired' | null => {
+    if (!user?.kycVerification) return 'not_started'
+    
+    const kyc = user.kycVerification
+    
+    // Check if expired
+    if (kyc.expiresAt && new Date(kyc.expiresAt) < new Date()) {
+      return 'expired'
+    }
+    
+    // Return current status
+    switch (kyc.status) {
+      case 'pending':
+        return 'pending'
+      case 'under_review':
+        return 'under_review'
+      case 'approved':
+        return 'approved'
+      case 'rejected':
+        return 'rejected'
+      default:
+        return 'not_started'
+    }
+  }
+
+  /**
+   * Refresh session data from server
+   */
+  const refreshSession = async (): Promise<void> => {
+    try {
+      await update()
+    } catch (error) {
+      console.error('Failed to refresh session:', error)
+    }
+  }
+
+  return {
+    user,
+    role,
+    loading,
+    hasRole,
+    isAuthenticated,
+    navigateToAuthStatus,
+    getKycStatus,
+    refreshSession,
+  }
+}
 

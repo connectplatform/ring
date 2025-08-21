@@ -10,6 +10,11 @@ import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/utils/seo-metadata'
 
+// 🚀 Firebase Optimization Imports
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { prefetchPublicEntities, prefetchFeaturedEntities, prefetchPageData } from '@/lib/build-cache/prefetch-manager'
+import { getCachedEntities } from '@/lib/build-cache/static-data-cache'
+
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = "force-dynamic"
 
@@ -18,7 +23,7 @@ type EntitiesParams = {}
 // Metadata will be rendered inline using React 19 native approach
 
 /**
- * Fetches a paginated list of entities from the API.
+ * 🚀 OPTIMIZED: Fetches entities with intelligent build-time caching
  *
  * @param session - The authenticated user session.
  * @param searchParams - The query parameters for fetching entities.
@@ -28,13 +33,65 @@ async function getEntities(
   session: any,
   searchParams: URLSearchParams,
 ): Promise<{ entities: Entity[]; lastVisible: string | null; totalPages: number; totalEntities: number }> {
+  const phase = getCurrentPhase();
+  
+  // 🔥 BUILD-TIME OPTIMIZATION: Use cached/mock data during static generation
+  if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
+    console.log(`[Entities Optimization] Using ${phase.strategy} data for build-time generation`);
+    
+    const limit = Number.parseInt(searchParams.get('limit') || '20', 10);
+    const page = Number.parseInt(searchParams.get('page') || '1', 10);
+    
+    try {
+      // Use prefetched data during build
+      let entities: any[] = [];
+      
+      if (limit <= 20 && page === 1) {
+        // First page with standard limit - use prefetched data
+        entities = await prefetchPublicEntities();
+      } else {
+        // Other pages - use cached data
+        entities = await getCachedEntities({ 
+          limit: Math.min(limit, 50), // Cap at 50 for build time
+          isPublic: true 
+        });
+      }
+      
+      // Simulate pagination for build time
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedEntities = entities.slice(startIndex, endIndex);
+      
+      return {
+        entities: paginatedEntities,
+        lastVisible: paginatedEntities.length > 0 ? `build-cursor-${endIndex}` : null,
+        totalPages: Math.ceil(entities.length / limit),
+        totalEntities: entities.length
+      };
+      
+    } catch (error) {
+      console.warn('[Entities Optimization] Cache fallback failed, using empty data for build:', error);
+      return {
+        entities: [],
+        lastVisible: null,
+        totalPages: 1,
+        totalEntities: 0
+      };
+    }
+  }
+  
+  // 🔥 RUNTIME OPTIMIZATION: Use live data with authentication
   // Validate session first
   if (!session || !session.user) {
     console.log("getEntities: No valid session provided");
     throw new Error("UNAUTHORIZED");
   }
 
-  console.log("getEntities: Starting fetch", { sessionUserId: session.user.id, role: session.user.role })
+  console.log("getEntities: Starting live fetch", { 
+    sessionUserId: session.user.id, 
+    role: session.user.role,
+    phase: phase.description
+  });
 
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/entities`)
   url.search = searchParams.toString()
@@ -42,13 +99,13 @@ async function getEntities(
   try {
     const cookieStore = await cookies();
     const res = await fetch(url, {
-      cache: "no-store",
+      cache: shouldUseCache() ? "default" : "no-store", // 🚀 Allow caching in production
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         Cookie: cookieStore.toString(),
       },
       next: {
-        revalidate: 0, // Ensure fresh data on every request
+        revalidate: shouldUseCache() ? 300 : 0, // 🚀 5min revalidation when caching enabled
       },
     })
 
@@ -59,7 +116,10 @@ async function getEntities(
     }
 
     const data = await res.json()
+    
+    console.log(`[Entities Optimization] Live data fetched successfully: ${data.entities?.length || 0} entities`);
     return data
+    
   } catch (error) {
     console.error("getEntities: Error during fetch:", error)
     throw error
@@ -117,6 +177,15 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   // Authenticate user (optional for intro gating)
   const session = await getServerAuthSession()
 
+  // 🚀 PREFETCH OPTIMIZATION: Load page-specific data during build
+  const phase = getCurrentPhase();
+  if (phase.isBuildTime) {
+    console.log('[Entities Page] Prefetching entities data for build optimization');
+    
+    // Trigger prefetch for this page type during build
+    await prefetchPageData('entities');
+  }
+
   // Initialize variables for entities and error handling
   let entities: Entity[] = []
   let lastVisible: string | null = null
@@ -126,12 +195,15 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
 
   if (session) {
     try {
-      // Fetch entities only when authenticated
+      // 🚀 OPTIMIZED: Fetch entities with intelligent caching
       const data = await getEntities(session, apiSearchParams)
       entities = data.entities
       lastVisible = data.lastVisible
       totalPages = data.totalPages
       totalEntities = data.totalEntities
+      
+      console.log(`[Entities Page] Loaded ${entities.length} entities using ${phase.strategy} strategy`);
+      
     } catch (e) {
       console.error("EntitiesPage: Error fetching entities:", e)
       if (e instanceof Error) {
@@ -149,6 +221,19 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   } else {
     // Not logged in: show intro; no fetch
     error = null
+    
+    // 🚀 BUILD-TIME: Provide sample data for static generation even without auth
+    if (phase.isBuildTime && shouldUseMockData()) {
+      console.log('[Entities Page] Using mock data for unauthenticated build-time generation');
+      try {
+        const mockData = await getCachedEntities({ limit: 10, isPublic: true });
+        entities = mockData.slice(0, 5); // Show fewer entities for intro
+        totalEntities = 5;
+        totalPages = 1;
+      } catch (mockError) {
+        console.warn('[Entities Page] Mock data fallback failed:', mockError);
+      }
+    }
   }
 
   return (

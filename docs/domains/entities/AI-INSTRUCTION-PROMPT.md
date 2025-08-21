@@ -981,5 +981,43 @@ export const getCachedEntitiesByType = cache(async (entityType: EntityType) => {
 8. **Validate industry types** - only allow predefined EntityType values
 9. **Use pagination** for large entity lists
 10. **Implement search functionality** across multiple entity fields
+11. **Use unified status pages** for entity lifecycle management
+12. **Implement dynamic [action]/[status] routing** for entity workflows
 
-This entity management system provides comprehensive professional organization management with sophisticated access control, perfect for Ring Platform's business networking requirements.
+## 🔄 **Unified Status Page Integration**
+
+### **Entity Status Pages**
+
+```typescript
+// Dynamic status page routing
+// app/(public)/[locale]/entities/status/[action]/[status]/page.tsx
+
+// Supported actions: create, verify, approve, publish
+// Supported statuses: draft, pending_review, published, failed, rejected, etc.
+
+// Status page component with i18n support
+<EntityStatusPage 
+  action="create" 
+  status="published" 
+  locale="en"
+  entityId="ent-12345"
+  entityName="Tech Innovation Corp"
+/>
+```
+
+### **Entity Workflow Statuses**
+
+- **Create**: draft → pending_review → published/failed/rejected
+- **Verify**: pending → under_review → verified/rejected/expired
+- **Approve**: pending → approved/rejected/needs_revision
+- **Publish**: scheduled → published/failed/unpublished/archived
+
+### **Status Page Benefits**
+
+- **Consistent UX** across all entity workflows
+- **Centralized i18n** for status messages
+- **SEO-friendly** with dynamic metadata
+- **Workflow tracking** with contextual guidance
+- **Error handling** with actionable next steps
+
+This entity management system provides comprehensive professional organization management with sophisticated access control and unified status page patterns, perfect for Ring Platform's business networking requirements.

@@ -1,6 +1,16 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { getServerAuthSession } from "@/auth"
 import { UserRole } from '@/features/auth/types'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Interface for wallet information returned by the service
@@ -42,7 +52,10 @@ export async function listWallets(): Promise<WalletInfo[]> {
   console.log(`Services: listWallets - User authenticated with ID: ${userId} and role: ${userRole}`)
 
   // Step 2: Retrieve user data from Firestore
-  const adminDb = await getAdminDb()
+  // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
   if (!adminDb) {
     throw new Error('Firestore instance is null')
   }

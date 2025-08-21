@@ -1,7 +1,7 @@
 # 🔐 Authentication Domain - AI Instruction Set
 
 > **NextAuth.js v5 + Crypto Wallet Authentication with Role-Based Access Control**  
-> *Complete authentication patterns for Ring Platform professional networking*
+> *Complete authentication patterns for Ring Platform professional networking with unified status pages*
 
 ---
 
@@ -551,22 +551,173 @@ function isValidUpgradePath(fromRole: UserRole, toRole: UserRole): boolean {
 
 ## 🔄 **Authentication Hooks and Utilities**
 
-### **React Hooks for Authentication**
+### **Enhanced useAuth Hook with Status Page Integration**
 
 ```typescript
-// Custom authentication hooks
+// Robust authentication hook with React 19/Next 15 compatibility
 import { useSession } from 'next-auth/react'
+import { useRouter, usePathname } from 'next/navigation'
+import { AuthUser, UserRole } from '@/features/auth/types'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n-config'
 
-export function useAuth() {
-  const { data: session, status } = useSession()
+type AuthAction = 'login' | 'register' | 'verify' | 'reset-password' | 'kyc'
+type AuthStatus = string
+
+interface UseAuthReturn {
+  user: AuthUser | null
+  role: UserRole | null
+  loading: boolean
+  hasRole: (requiredRole: UserRole) => boolean
+  isAuthenticated: boolean
+  navigateToAuthStatus: (action: AuthAction, status: AuthStatus, options?: {
+    email?: string
+    requestId?: string
+    returnTo?: string
+  }) => void
+  getKycStatus: () => 'not_started' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'expired' | null
+  refreshSession: () => Promise<void>
+}
+
+export function useAuth(): UseAuthReturn {
+  const { data: session, status, update } = useSession()
+  const router = useRouter()
+  const pathname = usePathname()
   
+  // Loading state
+  const loading = status === 'loading'
+  
+  // Authentication state
+  const isAuthenticated = status === 'authenticated' && !!session?.user
+  
+  // Extract user role from session
+  const role = (session?.user as any)?.role as UserRole || null
+  
+  // Map Auth.js session to AuthUser type
+  const user: AuthUser | null = isAuthenticated && session?.user ? {
+    id: session.user.id || '',
+    email: session.user.email || '',
+    emailVerified: (session.user as any).emailVerified || null,
+    name: session.user.name || null,
+    role: role || UserRole.SUBSCRIBER,
+    photoURL: session.user.image || null,
+    wallets: [], // Will be populated from server/database
+    authProvider: (session.user as any).provider || 'credentials',
+    authProviderId: session.user.id || '',
+    isVerified: (session.user as any).isVerified || false,
+    createdAt: new Date((session.user as any).createdAt || Date.now()),
+    lastLogin: new Date((session.user as any).lastLogin || Date.now()),
+    bio: (session.user as any).bio || '',
+    canPostconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
+    canViewconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
+    postedopportunities: (session.user as any).postedopportunities || [],
+    savedopportunities: (session.user as any).savedopportunities || [],
+    notificationPreferences: {
+      email: (session.user as any).notificationPreferences?.email ?? true,
+      inApp: (session.user as any).notificationPreferences?.inApp ?? true,
+      sms: (session.user as any).notificationPreferences?.sms ?? false,
+    },
+    settings: {
+      language: (session.user as any).settings?.language || 'en',
+      theme: (session.user as any).settings?.theme || 'light',
+      notifications: (session.user as any).settings?.notifications ?? true,
+      notificationPreferences: {
+        email: (session.user as any).settings?.notificationPreferences?.email ?? true,
+        inApp: (session.user as any).settings?.notificationPreferences?.inApp ?? true,
+        sms: (session.user as any).settings?.notificationPreferences?.sms ?? false,
+      },
+    },
+    nonce: (session.user as any).nonce,
+    nonceExpires: (session.user as any).nonceExpires,
+    kycVerification: (session.user as any).kycVerification,
+    pendingUpgradeRequest: (session.user as any).pendingUpgradeRequest,
+  } : null
+  
+  /**
+   * Check if user has required role or higher
+   */
+  const hasRole = (requiredRole: UserRole): boolean => {
+    if (!isAuthenticated || !role) return false
+    return ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[requiredRole]
+  }
+
+  /**
+   * Navigate to auth status page
+   */
+  const navigateToAuthStatus = (
+    action: AuthAction,
+    status: AuthStatus,
+    options?: {
+      email?: string
+      requestId?: string
+      returnTo?: string
+    }
+  ) => {
+    // Extract locale from current pathname
+    const locale = pathname.split('/')[1] as Locale || 'en'
+    
+    // Build URL with query parameters
+    const searchParams = new URLSearchParams()
+    if (options?.email) searchParams.set('email', options.email)
+    if (options?.requestId) searchParams.set('requestId', options.requestId)
+    if (options?.returnTo) searchParams.set('returnTo', options.returnTo)
+    
+    const statusUrl = `/${locale}/auth/${action}/${status}`
+    const finalUrl = searchParams.toString() 
+      ? `${statusUrl}?${searchParams.toString()}`
+      : statusUrl
+    
+    router.push(finalUrl)
+  }
+
+  /**
+   * Get user's KYC verification status
+   */
+  const getKycStatus = (): 'not_started' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'expired' | null => {
+    if (!user?.kycVerification) return 'not_started'
+    
+    const kyc = user.kycVerification
+    
+    // Check if expired
+    if (kyc.expiresAt && new Date(kyc.expiresAt) < new Date()) {
+      return 'expired'
+    }
+    
+    // Return current status
+    switch (kyc.status) {
+      case 'pending':
+        return 'pending'
+      case 'under_review':
+        return 'under_review'
+      case 'approved':
+        return 'approved'
+      case 'rejected':
+        return 'rejected'
+      default:
+        return 'not_started'
+    }
+  }
+
+  /**
+   * Refresh session data from server
+   */
+  const refreshSession = async (): Promise<void> => {
+    try {
+      await update()
+    } catch (error) {
+      console.error('Failed to refresh session:', error)
+    }
+  }
+
   return {
-    user: session?.user as AuthUser | undefined,
-    isAuthenticated: status === 'authenticated',
-    isLoading: status === 'loading',
-    role: session?.user?.role as UserRole,
-    hasRole: (requiredRole: UserRole) => 
-      hasAccess(session?.user?.role as UserRole, requiredRole)
+    user,
+    role,
+    loading,
+    hasRole,
+    isAuthenticated,
+    navigateToAuthStatus,
+    getKycStatus,
+    refreshSession,
   }
 }
 
@@ -756,12 +907,25 @@ export default function LoginPage() {
   )
 }
 
-// Protected dashboard component
+// Protected dashboard component with auth status integration
 export default function Dashboard() {
-  const { user, isAuthenticated, hasRole } = useAuth()
+  const { user, isAuthenticated, hasRole, navigateToAuthStatus, getKycStatus } = useAuth()
   
   if (!isAuthenticated) {
     return <LoginRequired />
+  }
+  
+  const handleKycFlow = () => {
+    const kycStatus = getKycStatus()
+    if (kycStatus === 'not_started') {
+      navigateToAuthStatus('kyc', 'not_started', { 
+        returnTo: '/profile' 
+      })
+    } else if (kycStatus === 'pending') {
+      navigateToAuthStatus('kyc', 'pending', { 
+        requestId: user?.kycVerification?.id 
+      })
+    }
   }
   
   return (
@@ -776,6 +940,15 @@ export default function Dashboard() {
       {hasRole(UserRole.CONFIDENTIAL) && (
         <Link href="/confidential">Confidential Content</Link>
       )}
+      
+      {/* KYC Status Management */}
+      <div className="kyc-section">
+        <h3>Identity Verification</h3>
+        <p>Status: {getKycStatus()}</p>
+        <button onClick={handleKycFlow}>
+          Manage KYC
+        </button>
+      </div>
     </div>
   )
 }
@@ -793,5 +966,141 @@ export default function Dashboard() {
 6. **Store sensitive data server-side only** - never expose in client components
 7. **Implement proper error boundaries** for authentication failures
 8. **Use TypeScript strictly** - all auth functions are fully typed
+9. **Use unified status pages** for consistent authentication flow feedback
+10. **Implement dynamic [action]/[status] routing** for all authentication workflows
+11. **Use enhanced useAuth hook** for type-safe authentication with status page integration
+12. **Implement KYC status management** through getKycStatus() helper method
+13. **Use navigateToAuthStatus()** for seamless auth flow navigation to unified status pages
 
-This authentication system provides enterprise-grade security with Web3 integration, perfect for Ring Platform's professional networking requirements.
+## 🔄 **Unified Status Page Integration**
+
+### **Auth Status Page Navigation**
+
+```typescript
+// Using useAuth hook for auth status page navigation
+export function AuthFlowManager() {
+  const { navigateToAuthStatus, getKycStatus, user } = useAuth()
+  
+  const handleLoginSuccess = () => {
+    navigateToAuthStatus('login', 'success', {
+      returnTo: '/dashboard'
+    })
+  }
+  
+  const handleRegistrationPending = (email: string) => {
+    navigateToAuthStatus('register', 'pending_verification', {
+      email,
+      returnTo: '/profile'
+    })
+  }
+  
+  const handleKycSubmission = () => {
+    navigateToAuthStatus('kyc', 'pending', {
+      requestId: user?.kycVerification?.id,
+      returnTo: '/profile'
+    })
+  }
+  
+  const handlePasswordResetEmail = (email: string) => {
+    navigateToAuthStatus('reset-password', 'email_sent', {
+      email
+    })
+  }
+  
+  return (
+    <div>
+      <button onClick={handleLoginSuccess}>Simulate Login Success</button>
+      <button onClick={() => handleRegistrationPending('user@example.com')}>
+        Simulate Registration Pending
+      </button>
+      <button onClick={handleKycSubmission}>Simulate KYC Submission</button>
+      <button onClick={() => handlePasswordResetEmail('user@example.com')}>
+        Simulate Password Reset Email
+      </button>
+    </div>
+  )
+}
+```
+
+### **KYC Status Management**
+
+```typescript
+// KYC workflow with status page integration
+export function KYCWorkflow() {
+  const { getKycStatus, navigateToAuthStatus, user } = useAuth()
+  
+  const handleKycFlow = () => {
+    const status = getKycStatus()
+    
+    switch (status) {
+      case 'not_started':
+        navigateToAuthStatus('kyc', 'not_started', {
+          returnTo: '/profile'
+        })
+        break
+      case 'pending':
+        navigateToAuthStatus('kyc', 'pending', {
+          requestId: user?.kycVerification?.id
+        })
+        break
+      case 'under_review':
+        navigateToAuthStatus('kyc', 'under_review', {
+          requestId: user?.kycVerification?.id
+        })
+        break
+      case 'approved':
+        navigateToAuthStatus('kyc', 'approved', {
+          returnTo: '/profile'
+        })
+        break
+      case 'rejected':
+        navigateToAuthStatus('kyc', 'rejected', {
+          requestId: user?.kycVerification?.id
+        })
+        break
+      case 'expired':
+        navigateToAuthStatus('kyc', 'expired', {
+          returnTo: '/profile'
+        })
+        break
+    }
+  }
+  
+  return (
+    <div>
+      <h3>KYC Status: {getKycStatus()}</h3>
+      <button onClick={handleKycFlow}>
+        Manage KYC Process
+      </button>
+    </div>
+  )
+}
+```
+
+### **Authentication Status Pages**
+
+```typescript
+// Dynamic status page routing
+// app/(public)/[locale]/auth/status/[action]/[status]/page.tsx
+
+// Supported actions: login, register, verify, reset-password, kyc
+// Supported statuses: success, failure, pending, expired, etc.
+
+// Status page component with i18n support
+<AuthStatusPage 
+  action="login" 
+  status="success" 
+  locale="en"
+  returnTo="/dashboard"
+/>
+```
+
+### **Status Page Benefits**
+
+- **Consistent UX** across all authentication flows
+- **Centralized i18n** for status messages
+- **SEO-friendly** with dynamic metadata
+- **Accessibility** with proper ARIA labels
+- **Error handling** with contextual guidance
+
+This authentication system provides enterprise-grade security with Web3 integration and unified status page patterns, perfect for Ring Platform's professional networking requirements.

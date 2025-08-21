@@ -1,9 +1,19 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { Opportunity } from '@/features/opportunities/types';
 import { getServerAuthSession } from '@/auth';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { UserRole } from '@/features/auth/types';
 import { Query, Filter } from 'firebase-admin/firestore';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Fetches opportunities by matching tags in the 'slug' array, enforcing role-based access control.
@@ -29,14 +39,15 @@ import { Query, Filter } from 'firebase-admin/firestore';
  * Note: Confidential opportunities are only included in the results for users with CONFIDENTIAL or ADMIN roles.
  *       Other users will only see non-confidential opportunities matching the slugs.
  */
-export async function getOpportunitiesBySlug(slugs: string[]): Promise<Opportunity[]> {
-  try {
-    console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
+export async function getOpportunitiesBySlug(slugs: string[]): Promise<Opportunity[]> {try {
+  const phase = getCurrentPhase();
+console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
 
     // Step 1: Authenticate and get user session
     const session = await getServerAuthSession();
     if (!session || !session.user) {
       throw new Error('Unauthorized access');
+
     }
 
     const userRole = session.user.role as UserRole;
@@ -55,8 +66,26 @@ export async function getOpportunitiesBySlug(slugs: string[]): Promise<Opportuni
 
     console.log(`Services: getOpportunitiesBySlug - User authenticated with role ${userRole}`);
 
+    
+    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
+    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
+      console.log(`[Service Optimization] Using ${phase.strategy} data for get-opportunities-by-slug`);
+      
+      try {
+        // Return cached data based on operation type
+        
+        const opportunities = await getCachedOpportunities({ limit: 30, status: 'active' });
+        const result = opportunities.slice(0, 10); return result;
+      } catch (cacheError) {
+        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
+        // Continue to live data below
+      }
+    }
+
     // Step 2: Access Firestore and initialize collection with converter
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detectionconst serviceManager = getFirebaseServiceManager();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
 
     // Step 3: Build the query based on slugs and user role

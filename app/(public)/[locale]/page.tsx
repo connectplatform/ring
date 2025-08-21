@@ -67,7 +67,7 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
         <meta property="og:title" content={`${title} | Ring Platform`} />
         <meta property="og:description" content={description} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={`https://ring.platform${ROUTES.HOME(locale)}`} />
+        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`} />
         <meta property="og:image" content="/images/og-home.jpg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -81,7 +81,7 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
         <meta name="twitter:image" content="/images/twitter-home.jpg" />
         
         {/* Canonical URL */}
-        <link rel="canonical" href={`https://ring.platform${ROUTES.HOME(locale)}`} />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`} />
         
         {/* Hreflang alternates */}
         {Object.entries(alternates).map(([hreflang, href]) => (
@@ -95,22 +95,22 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
             "@type": "WebSite",
             "name": "Ring Platform",
             "description": description,
-            "url": `https://ring.platform${ROUTES.HOME(locale)}`,
+            "url": `${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`,
             "potentialAction": {
               "@type": "SearchAction",
               "target": {
                 "@type": "EntryPoint",
-                "urlTemplate": `https://ring.platform${ROUTES.ENTITIES(locale)}?search={search_term_string}`
+                "urlTemplate": `${process.env.NEXT_PUBLIC_API_URL}${ROUTES.ENTITIES(locale)}?search={search_term_string}`
               },
               "query-input": "required name=search_term_string"
             },
             "publisher": {
               "@type": "Organization",
               "name": "Ring Platform",
-              "url": "https://ring.platform",
+              "url": "${process.env.NEXT_PUBLIC_API_URL}",
               "logo": {
                 "@type": "ImageObject",
-                "url": "https://ring.platform/images/logo.png"
+                "url": "${process.env.NEXT_PUBLIC_API_URL}/images/logo.png"
               }
             },
             "inLanguage": locale

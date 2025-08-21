@@ -10,8 +10,7 @@
     "links": {
       "entities": "Explore Entities",
       "entitiesDescription": "Browse companies, startups, communities, and institutions shaping the ecosystem.",
-      "opportunities": "Find Opportunities",
-      "opportunitiesDescription": "See jobs, partnerships, grants, and collaborations posted by entities."
+      "opportunities": "Find Opportunities"
     }
   }
 }

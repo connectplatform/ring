@@ -31,8 +31,10 @@ import { X } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 
-// Client-side constant for default locale
-const DEFAULT_LOCALE = 'en' as const
+interface AddOpportunityFormProps {
+  opportunityType?: 'request' | 'offer'
+  locale: string
+}
 
 function SubmitButton() {
   const t = useTranslations('modules.opportunities')
@@ -40,16 +42,15 @@ function SubmitButton() {
   
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? t('saving') : t('save')}
+      {pending ? t('saving', { defaultValue: 'Saving...' }) : t('save', { defaultValue: 'Save' })}
     </Button>
   )
 }
 
-function AddOpportunityFormContent() {
+function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFormProps) {
   const t = useTranslations('modules.opportunities')
   const { data: session, status } = useSession()
   const router = useRouter()
-  const locale = DEFAULT_LOCALE
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
   const [requiredSkills, setRequiredSkills] = useState<string[]>([])
@@ -63,6 +64,9 @@ function AddOpportunityFormContent() {
 
   const userRole = session?.user?.role as UserRole || UserRole.SUBSCRIBER
   const isConfidentialAllowed = userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN
+  
+  // Determine the opportunity type - use prop if provided, otherwise default based on role
+  const currentType = opportunityType || (userRole === UserRole.MEMBER || userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN ? 'offer' : 'request')
 
   // Load entities when component mounts
   React.useEffect(() => {
@@ -86,9 +90,9 @@ function AddOpportunityFormContent() {
   // Use effect to handle redirect on client-side only
   React.useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(DEFAULT_LOCALE))
+      router.push(`/${locale}/auth/login`)
     }
-  }, [status, router])
+  }, [status, router, locale])
 
   const handleAddTag = () => {
     if (newTag && !tags.includes(newTag)) {
@@ -113,40 +117,29 @@ function AddOpportunityFormContent() {
   }
 
   if (status === 'loading') {
-    return <div>{t('loading')}</div>
+    return <div>{t('loading', { defaultValue: 'Loading...' })}</div>
   }
 
   if (status === 'unauthenticated') {
-    return <div>{t('redirecting')}</div>
-  }
-  
-  // Check if user is a subscriber (needs to upgrade)
-  if (session?.user?.role === UserRole.SUBSCRIBER) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('addOpportunity')}</CardTitle>
-            <CardDescription>{t('upgradeToMemberToPostOpportunities')}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">{t('subscriberUpgradeMessage')}</p>
-            <div className="flex justify-center gap-4">
-              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale))}>{t('upgradeToBeMember')}</Button>
-              <Button variant="outline" onClick={() => router.push(ROUTES.OPPORTUNITIES(locale))}>{t('backToOpportunities')}</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return <div>{t('redirecting', { defaultValue: 'Redirecting...' })}</div>
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <Card>
         <CardHeader>
-          <CardTitle>{t('addOpportunity')}</CardTitle>
-          <CardDescription>{t('addOpportunityDescription')}</CardDescription>
+          <CardTitle>
+            {currentType === 'request' 
+              ? t('addRequest', { defaultValue: 'Create Request' })
+              : t('addOffer', { defaultValue: 'Create Offer' })
+            }
+          </CardTitle>
+          <CardDescription>
+            {currentType === 'request'
+              ? t('addRequestDescription', { defaultValue: 'Looking for services, advice, or collaboration from the community.' })
+              : t('addOfferDescription', { defaultValue: 'Post an official opportunity from your organization.' })
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form action={formAction} className="space-y-6">
@@ -154,6 +147,8 @@ function AddOpportunityFormContent() {
             <input type="hidden" name="tags" value={tags.join(',')} />
             {/* Hidden field for required skills */}
             <input type="hidden" name="requiredSkills" value={requiredSkills.join(',')} />
+            {/* Hidden field for opportunity type */}
+            <input type="hidden" name="type" value={currentType} />
 
             {/* Global error message */}
             {state?.error && (
@@ -177,21 +172,7 @@ function AddOpportunityFormContent() {
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="type">{t('type')} *</Label>
-                <Select name="type" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('selectType')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="offer">{t('offer')}</SelectItem>
-                    <SelectItem value="request">{t('request')}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {state?.fieldErrors?.type && (
-                  <span className="text-destructive text-sm">{state.fieldErrors.type}</span>
-                )}
-              </div>
+              {/* Type field is now hidden and set automatically */}
 
               <div>
                 <Label htmlFor="description">{t('description')} *</Label>
@@ -241,24 +222,27 @@ function AddOpportunityFormContent() {
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="entityId">{t('entity')} *</Label>
-                <Select name="entityId" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('selectEntity')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {entities.map((entity) => (
-                      <SelectItem key={entity.id} value={entity.id}>
-                        {entity.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {state?.fieldErrors?.entityId && (
-                  <span className="text-destructive text-sm">{state.fieldErrors.entityId}</span>
-                )}
-              </div>
+              {/* Entity field only for offers */}
+              {currentType === 'offer' && (
+                <div>
+                  <Label htmlFor="entityId">{t('entity', { defaultValue: 'Entity' })} *</Label>
+                  <Select name="entityId" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectEntity', { defaultValue: 'Select entity' })} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {entities.map((entity) => (
+                        <SelectItem key={entity.id} value={entity.id}>
+                          {entity.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {state?.fieldErrors?.entityId && (
+                    <span className="text-destructive text-sm">{state.fieldErrors.entityId}</span>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="requirements">{t('requirements')}</Label>
@@ -423,11 +407,10 @@ function AddOpportunityFormContent() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    const opportunitiesRoute = ROUTES.OPPORTUNITIES(DEFAULT_LOCALE)
-                    router.push(opportunitiesRoute)
+                    router.push(`/${locale}/opportunities`)
                   }}
                 >
-                  {t('cancel')}
+                  {t('cancel', { defaultValue: 'Cancel' })}
                 </Button>
                 <SubmitButton />
               </div>
@@ -439,8 +422,8 @@ function AddOpportunityFormContent() {
   )
 }
 
-export default function AddOpportunityForm() {
+export default function AddOpportunityForm({ opportunityType, locale }: AddOpportunityFormProps) {
   return (
-    <AddOpportunityFormContent />
+    <AddOpportunityFormContent opportunityType={opportunityType} locale={locale} />
   )
 } 

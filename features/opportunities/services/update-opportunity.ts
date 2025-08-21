@@ -1,10 +1,20 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { Opportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { UserRole } from '@/features/auth/types';
 import { FieldValue } from 'firebase-admin/firestore';
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Updates an opportunity by its ID in Firestore, enforcing role-based access control.
@@ -46,7 +56,10 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
     console.log(`Services: updateOpportunity - User authenticated with role ${userRole} and ID ${userId}`);
 
     // Step 2: Access Firestore and get the current opportunity document
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const docRef = adminDb.collection('opportunities').doc(id).withConverter(opportunityConverter);
     const docSnap = await docRef.get();
 

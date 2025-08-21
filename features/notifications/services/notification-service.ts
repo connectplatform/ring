@@ -1,11 +1,22 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 /**
  * Notification Service
  * Server-side service for managing notifications in Ring platform
  * Follows Ring's established service patterns with Firebase Admin SDK
  */
 
-import { getAdminDb } from '@/lib/firebase-admin.server';
 import { FieldValue } from 'firebase-admin/firestore';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+
 import {
   Notification,
   NotificationType,
@@ -41,7 +52,8 @@ export async function createNotification(
   console.log('NotificationService: Creating notification', { type: request.type });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
 
     // Handle single user or multiple users
     const userIds = request.userIds || (request.userId ? [request.userId] : []);
@@ -136,7 +148,8 @@ export async function getUserNotifications(
   console.log('NotificationService: Getting user notifications', { userId, options });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     
     // Add timeout for network issues
     const timeout = new Promise((_, reject) => 
@@ -233,7 +246,8 @@ export async function markNotificationAsRead(
   console.log('NotificationService: Marking notification as read', { notificationId, userId });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const docRef = adminDb.collection('notifications').doc(notificationId);
     const docSnap = await docRef.get();
 
@@ -267,7 +281,8 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
   console.log('NotificationService: Marking all notifications as read', { userId });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const snapshot = await adminDb
       .collection('notifications')
       .where('userId', '==', userId)
@@ -307,7 +322,8 @@ export async function deleteNotification(
   console.log('NotificationService: Deleting notification', { notificationId, userId });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const docRef = adminDb.collection('notifications').doc(notificationId);
     const docSnap = await docRef.get();
 
@@ -340,7 +356,8 @@ export async function getNotificationStats(
   console.log('NotificationService: Getting notification stats', { userId });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     
     // Add timeout and better error handling for network issues
     const timeout = new Promise((_, reject) => 
@@ -435,7 +452,8 @@ export async function getUserNotificationPreferences(
   userId: string
 ): Promise<DetailedNotificationPreferences | null> {
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const docSnap = await adminDb.collection('notificationPreferences').doc(userId).get();
 
     if (!docSnap.exists) {
@@ -466,7 +484,8 @@ export async function updateUserNotificationPreferences(
   preferences: Partial<DetailedNotificationPreferences>
 ): Promise<void> {
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const docRef = adminDb.collection('notificationPreferences').doc(userId);
     
     await docRef.set({
@@ -530,7 +549,8 @@ async function processNotificationDelivery(notification: Notification): Promise<
   console.log('NotificationService: Processing notification delivery', { id: notification.id });
 
   try {
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const batch = adminDb.batch();
     const notificationRef = adminDb.collection('notifications').doc(notification.id);
 

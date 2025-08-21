@@ -10,7 +10,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { CheckCircle, Users, Building2, Briefcase, ArrowRight, Star, Shield, Globe } from 'lucide-react'
-import UpgradeRequestModal from '@/features/auth/components/upgrade-request-modal'
+import { MembershipUpgradeModal } from '@/components/membership/upgrade-modal'
 import type { AuthUser, RoleUpgradeRequest } from '@/features/auth/types'
 import type { Locale } from '@/i18n-config'
 import { ROUTES } from '@/constants/routes'
@@ -30,27 +30,7 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
     message: ''
   })
 
-  const handleUpgradeRequest = async (requestData: Partial<RoleUpgradeRequest>) => {
-    try {
-      // Here you would typically call an API to submit the upgrade request
-      console.log('Submitting upgrade request:', requestData)
-      
-      // For now, just simulate success
-      setSubmitState({
-        success: true,
-        message: t('roleUpgrade.requestSubmitted')
-      })
-      
-      // Redirect to profile after 3 seconds
-      setTimeout(() => {
-        router.push(ROUTES.PROFILE(locale))
-      }, 3000)
-      
-    } catch (error) {
-      console.error('Error submitting upgrade request:', error)
-      throw error
-    }
-  }
+
 
   const benefits = [
     {
@@ -247,7 +227,7 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
                   disabled={!!user.pendingUpgradeRequest}
                   className="gap-2"
                 >
-                  Request Upgrade <ArrowRight className="h-4 w-4" />
+                  Upgrade Now <ArrowRight className="h-4 w-4" />
                 </Button>
                 <Button
                   size="lg"
@@ -312,12 +292,12 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
         </motion.div>
 
         {/* Upgrade Request Modal */}
-        <UpgradeRequestModal
-          isOpen={showUpgradeModal}
-          onClose={() => setShowUpgradeModal(false)}
-          user={user}
-          onSubmit={handleUpgradeRequest}
-        />
+        {showUpgradeModal && (
+          <MembershipUpgradeModal
+            onClose={() => setShowUpgradeModal(false)}
+            returnTo={`/${locale}/profile`}
+          />
+        )}
       </div>
     </div>
   )

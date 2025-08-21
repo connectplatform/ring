@@ -1,7 +1,8 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import '@testing-library/jest-dom'
 import SearchForm from '../../../features/search/components/search-form'
 
 // Mock React 19 hooks for testing

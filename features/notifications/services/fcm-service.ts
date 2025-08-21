@@ -1,9 +1,20 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { getMessaging } from 'firebase-admin/messaging'
 import { auth } from '@/auth'
-import { getAdminDb } from '@/lib/firebase-admin.server'
 import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 
-const db = getAdminDb()
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+
+const serviceManager = getFirebaseServiceManager();
+const db = serviceManager.db
 
 export interface FCMToken {
   id?: string

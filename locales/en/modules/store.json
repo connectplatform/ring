@@ -15,11 +15,6 @@
     "clearing": "Removing all items from cart...",
     "goToCheckout": "Checkout"
   },
-  "checkout": {
-    "title": "Checkout",
-    "continue": "Continue",
-    "backToCart": "Back to cart"
-  },
   "product": {
     "loading": "Loading…",
     "inStockYes": "Yes",
@@ -45,6 +40,55 @@
   "aiConsultant": {
     "title": "AI Product Consultant",
     "ask": "Ask anything about this product."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "continue": "Continue",
+    "backToCart": "Back to cart",
+    "orderConfirmed": "Order Confirmed!",
+    "yourOrderId": "Your order ID",
+    "continueShopping": "Continue Shopping",
+    "back": "Back",
+    "review": "Review Order",
+    "status": {
+      "orderId": "Order ID",
+      "needHelp": "Need help? Contact our support team",
+      "success": {
+        "title": "Payment Successful!",
+        "description": "Your order has been successfully placed and payment confirmed. You will receive a confirmation email shortly."
+      },
+      "complete": {
+        "title": "Order Complete!",
+        "description": "Your order has been completed successfully. Thank you for your purchase!"
+      },
+      "failure": {
+        "title": "Payment Failed",
+        "description": "Unfortunately, your payment could not be processed. Please check your payment details and try again."
+      },
+      "error": {
+        "title": "An Error Occurred",
+        "description": "We encountered an unexpected error while processing your order. Please try again or contact support."
+      },
+      "cancel": {
+        "title": "Order Cancelled",
+        "description": "Your order has been cancelled. No charges have been made to your payment method."
+      },
+      "pending": {
+        "title": "Payment Pending",
+        "description": "Your payment is being processed. This may take a few minutes. Please do not refresh or close this page.",
+        "waitMessage": "Processing your payment..."
+      },
+      "processing": {
+        "title": "Processing Order",
+        "description": "We're currently processing your order. You will be notified once it's complete.",
+        "timeEstimate": "Estimated completion: 2-5 minutes"
+      },
+      "actions": {
+        "viewOrder": "View Order Details",
+        "tryAgain": "Try Again",
+        "checkStatus": "Check Order Status"
+      }
+    }
   }
 }
 

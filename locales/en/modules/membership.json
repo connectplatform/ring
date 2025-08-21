@@ -1,0 +1,69 @@
+{
+  "upgrade_to_member": "Upgrade to Member",
+  "hero": {
+    "title": "Unlock Full Platform Access",
+    "subtitle": "Create entities, post opportunities, and connect with professionals worldwide"
+  },
+  "benefits": {
+    "entity_management": {
+      "title": "Entity Management",
+      "description": "Create, manage, and showcase your organization or services"
+    },
+    "advanced_networking": {
+      "title": "Advanced Networking",
+      "description": "Connect with industry professionals and potential partners"
+    },
+    "priority_support": {
+      "title": "Priority Support",
+      "description": "Get faster responses and dedicated assistance"
+    },
+    "premium_features": {
+      "title": "Premium Features",
+      "description": "Access exclusive tools and advanced platform features"
+    }
+  },
+  "comparison": {
+    "title": "What You'll Get",
+    "feature": "Feature",
+    "subscriber": "Subscriber",
+    "member": "Member"
+  },
+  "features": {
+    "browse_entities": "Browse entities",
+    "view_opportunities": "View opportunities",
+    "basic_messaging": "Basic messaging",
+    "create_entities": "Create entities",
+    "manage_entities": "Manage entities",
+    "confidential_access": "Access confidential content",
+    "priority_support": "Priority support"
+  },
+  "cta": {
+    "title": "Ready to Upgrade?",
+    "subtitle": "Join professionals who are growing their business with Ring Platform"
+  },
+  "pricing": {
+    "amount": "₴299",
+    "period": "UAH",
+    "features_included": "All member features included"
+  },
+  "modal": {
+    "title": "Upgrade to Member",
+    "description": "You need member status to create entities and unlock premium features.",
+    "upgrade_required": "Member Status Required",
+    "benefits_title": "What you'll get:",
+    "benefits": {
+      "entity_creation": "Create and manage entities",
+      "entity_management": "Full entity management tools",
+      "premium_access": "Access to premium features"
+    },
+    "upgrade_now": "Upgrade Now",
+    "learn_more": "Learn More"
+  },
+  "payment": {
+    "title": "Complete Payment",
+    "placeholder": "WayForPay integration will be implemented in Phase 3. For now, this is a placeholder.",
+    "membership_fee": "One-time membership upgrade fee",
+    "proceed": "Proceed to Payment (Coming Soon)",
+    "cancel": "Cancel"
+  }
+}

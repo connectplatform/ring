@@ -2,6 +2,42 @@
   "meta": {
     "title": "{page} | {platform}",
     "description": "{description}"
+  },
+  "store": {
+    "title": "Ring Store",
+    "description": "Discover and purchase innovative products on Ring platform.",
+    "checkout": {
+      "title": "Checkout - Ring Store",
+      "description": "Complete your purchase securely on Ring platform.",
+      "status": {
+        "title": "Checkout {{status}} - Ring Store",
+        "description": "Your checkout is {{status}}. View your order status and next steps."
+      }
+    }
+  },
+  "auth": {
+    "title": "Authentication - Ring Platform",
+    "description": "Secure authentication and account management for Ring platform users.",
+    "status": {
+      "title": "{{action}} {{status}} - Ring Platform",
+      "description": "Your {{action}} is {{status}}. Manage your authentication status and next steps."
+    }
+  },
+  "entities": {
+    "title": "Entities - Ring Platform",
+    "description": "Professional entities directory and management system for organizations on Ring platform.",
+    "status": {
+      "title": "Entity {{action}} {{status}} - Ring Platform",
+      "description": "Your entity {{action}} is {{status}}. Manage your entity status and next steps on Ring platform."
+    }
+  },
+  "opportunities": {
+    "title": "Opportunities - Ring Platform",
+    "description": "Discover and manage business opportunities, partnerships, and collaborations on Ring platform.",
+    "status": {
+      "title": "Opportunity {{action}} {{status}} - Ring Platform",
+      "description": "Your opportunity {{action}} is {{status}}. Manage your opportunity status and next steps."
+    }
   }
 }
 

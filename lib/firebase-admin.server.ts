@@ -1,15 +1,33 @@
 import { cert, getApps, initializeApp, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
-import { getDatabase, Database, Reference, ServerValue, OnDisconnect } from 'firebase-admin/database'; // Import OnDisconnect
+import { getDatabase, type Database, type Reference, ServerValue, type OnDisconnect } from 'firebase-admin/database';
+import { isBuildTime, getMockFirebaseServices, logBuildOptimization } from './firebase/build-mock.server';
 
 /**
- * Global variables to hold Firebase Admin instances.
+ * Global variables to hold Firebase Admin instances with singleton optimization.
  */
 let adminApp: App;
 let adminDb: Firestore;
 let adminAuth: Auth;
 let adminRtdb: Database;
+
+/**
+ * Global initialization flag to prevent multiple initialization logs
+ * and track singleton state across all imports during build process
+ */
+declare global {
+  var __FIREBASE_ADMIN_INITIALIZED: boolean | undefined;
+  var __FIREBASE_ADMIN_BUILD_METRICS: { initCount: number; firstInit: number } | undefined;
+}
+
+// Initialize build metrics tracking
+if (typeof global !== 'undefined' && !global.__FIREBASE_ADMIN_BUILD_METRICS) {
+  global.__FIREBASE_ADMIN_BUILD_METRICS = {
+    initCount: 0,
+    firstInit: Date.now()
+  };
+}
 
 /**
  * Initializes and returns the Firebase Admin app instance.
@@ -26,6 +44,18 @@ function getFirebaseAdminApp(): App {
     throw new Error('Firebase Admin SDK should not be initialized on client-side');
   }
   
+  // TRUE SINGLETON: Return existing app immediately if available
+  if (adminApp) {
+    return adminApp;
+  }
+  
+  // Check existing apps and reuse if available (prevents multiple Firebase instances)
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    adminApp = existingApps[0];
+    return adminApp;
+  }
+  
   // Check if this is a build-time environment and skip if environment variables are missing
   if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
     if (process.env.NEXT_PHASE === 'phase-production-build') {
@@ -38,78 +68,87 @@ function getFirebaseAdminApp(): App {
       throw new Error('Firebase configuration missing');
     }
   }
-  
-  if (!adminApp) {
-    const apps = getApps();
-    if (!apps.length) {
-      // Validate required environment variables
-      if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
-        throw new Error('AUTH_FIREBASE_PROJECT_ID environment variable is required');
-      }
-      if (!process.env.AUTH_FIREBASE_CLIENT_EMAIL) {
-        throw new Error('AUTH_FIREBASE_CLIENT_EMAIL environment variable is required');
-      }
-      if (!process.env.AUTH_FIREBASE_PRIVATE_KEY) {
-        throw new Error('AUTH_FIREBASE_PRIVATE_KEY environment variable is required');
-      }
 
-      // Clean and validate project ID (remove any illegal characters like newlines and quotes)
-      const projectId = process.env.AUTH_FIREBASE_PROJECT_ID
-        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-        .replace(/\\n/g, '') // Remove escaped newlines
-        .replace(/[\n\r]/g, '') // Remove actual newlines
-        .trim();
-      
-      if (!projectId) {
-        console.error('AUTH_FIREBASE_PROJECT_ID is empty after cleaning:', JSON.stringify(process.env.AUTH_FIREBASE_PROJECT_ID));
-        throw new Error('AUTH_FIREBASE_PROJECT_ID is invalid. Please check your environment variable.');
-      }
-
-      // Clean and validate client email
-      const clientEmail = process.env.AUTH_FIREBASE_CLIENT_EMAIL
-        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-        .replace(/\\n/g, '') // Remove escaped newlines
-        .replace(/[\n\r]/g, '') // Remove actual newlines
-        .trim();
-      
-      if (!clientEmail.includes('@') || !clientEmail.includes('.')) {
-        console.error('AUTH_FIREBASE_CLIENT_EMAIL is invalid:', JSON.stringify(process.env.AUTH_FIREBASE_CLIENT_EMAIL));
-        throw new Error('AUTH_FIREBASE_CLIENT_EMAIL must be a valid email address');
-      }
-
-      // Clean and validate private key
-      const privateKey = process.env.AUTH_FIREBASE_PRIVATE_KEY
-        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-        .replace(/\\n/g, '\n') // Convert escaped newlines to actual newlines
-        .trim();
-      
-      if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
-        console.error('AUTH_FIREBASE_PRIVATE_KEY format is invalid');
-        throw new Error('AUTH_FIREBASE_PRIVATE_KEY must be a valid private key in PEM format');
-      }
-      
-      // Only log initialization in production or when explicitly debugging
-      if (process.env.NODE_ENV === 'production' || process.env.FIREBASE_DEBUG_LOGS === 'true') {
-        console.log('Firebase Admin SDK initializing with project:', projectId);
-      }
-
-      adminApp = initializeApp({
-        credential: cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-        databaseURL: process.env.FIREBASE_DATABASE_URL,
-      });
-    } else {
-      adminApp = apps[0];
-    }
+  // Track initialization attempts for debugging
+  if (global.__FIREBASE_ADMIN_BUILD_METRICS) {
+    global.__FIREBASE_ADMIN_BUILD_METRICS.initCount++;
   }
+  
+  // Validate required environment variables
+  if (!process.env.AUTH_FIREBASE_PROJECT_ID) {
+    throw new Error('AUTH_FIREBASE_PROJECT_ID environment variable is required');
+  }
+  if (!process.env.AUTH_FIREBASE_CLIENT_EMAIL) {
+    throw new Error('AUTH_FIREBASE_CLIENT_EMAIL environment variable is required');
+  }
+  if (!process.env.AUTH_FIREBASE_PRIVATE_KEY) {
+    throw new Error('AUTH_FIREBASE_PRIVATE_KEY environment variable is required');
+  }
+
+  // Clean and validate project ID (remove any illegal characters like newlines and quotes)
+  const projectId = process.env.AUTH_FIREBASE_PROJECT_ID
+    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+    .replace(/\\n/g, '') // Remove escaped newlines
+    .replace(/[\n\r]/g, '') // Remove actual newlines
+    .trim();
+  
+  if (!projectId) {
+    console.error('AUTH_FIREBASE_PROJECT_ID is empty after cleaning:', JSON.stringify(process.env.AUTH_FIREBASE_PROJECT_ID));
+    throw new Error('AUTH_FIREBASE_PROJECT_ID is invalid. Please check your environment variable.');
+  }
+
+  // Clean and validate client email
+  const clientEmail = process.env.AUTH_FIREBASE_CLIENT_EMAIL
+    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+    .replace(/\\n/g, '') // Remove escaped newlines
+    .replace(/[\n\r]/g, '') // Remove actual newlines
+    .trim();
+  
+  if (!clientEmail.includes('@') || !clientEmail.includes('.')) {
+    console.error('AUTH_FIREBASE_CLIENT_EMAIL is invalid:', JSON.stringify(process.env.AUTH_FIREBASE_CLIENT_EMAIL));
+    throw new Error('AUTH_FIREBASE_CLIENT_EMAIL must be a valid email address');
+  }
+
+  // Clean and validate private key
+  const privateKey = process.env.AUTH_FIREBASE_PRIVATE_KEY
+    .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+    .replace(/\\n/g, '\n') // Convert escaped newlines to actual newlines
+    .trim();
+  
+  if (!privateKey.includes('BEGIN PRIVATE KEY') || !privateKey.includes('END PRIVATE KEY')) {
+    console.error('AUTH_FIREBASE_PRIVATE_KEY format is invalid');
+    throw new Error('AUTH_FIREBASE_PRIVATE_KEY must be a valid private key in PEM format');
+  }
+  
+  // OPTIMIZED LOGGING: Only log ONCE during entire build process using global flag
+  if (!global.__FIREBASE_ADMIN_INITIALIZED) {
+    if (process.env.NODE_ENV === 'production' || process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log('Firebase Admin SDK initializing with project:', projectId);
+      
+      // Development metrics
+      if (process.env.NODE_ENV === 'development' && global.__FIREBASE_ADMIN_BUILD_METRICS) {
+        console.log(`Firebase initialization attempt #${global.__FIREBASE_ADMIN_BUILD_METRICS.initCount}`);
+      }
+    }
+    global.__FIREBASE_ADMIN_INITIALIZED = true;
+  }
+
+  // Initialize Firebase Admin SDK
+  adminApp = initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+  });
+  
   return adminApp;
 }
 
 /**
  * Returns the Firestore instance for the admin app.
+ * Optimized with lazy initialization, singleton pattern, and build-time mocking.
  *
  * User steps:
  * 1. Call this function to get the Firestore instance.
@@ -118,15 +157,31 @@ function getFirebaseAdminApp(): App {
  * @returns {Firestore} The Firestore instance.
  */
 export function getAdminDb(): Firestore {
-  if (typeof window === 'undefined' && !adminDb) {
+  // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
+  if (isBuildTime()) {
+    logBuildOptimization('Using mock Firestore during build-time');
+    const { mockDb } = getMockFirebaseServices();
+    return mockDb;
+  }
+  
+  // Early return if already initialized (TRUE SINGLETON)
+  if (adminDb) {
+    return adminDb;
+  }
+  
+  if (typeof window === 'undefined') {
     const app = getFirebaseAdminApp();
     adminDb = getFirestore(app);
+  } else {
+    throw new Error('Firebase Admin Firestore should not be accessed on client-side');
   }
+  
   return adminDb;
 }
 
 /**
  * Returns the Auth instance for the admin app.
+ * Optimized with lazy initialization, singleton pattern, and build-time mocking.
  *
  * User steps:
  * 1. Call this function to get the Auth instance.
@@ -135,15 +190,31 @@ export function getAdminDb(): Firestore {
  * @returns {Auth} The Auth instance.
  */
 export function getAdminAuth(): Auth {
-  if (typeof window === 'undefined' && !adminAuth) {
+  // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
+  if (isBuildTime()) {
+    logBuildOptimization('Using mock Auth during build-time');
+    const { mockAuth } = getMockFirebaseServices();
+    return mockAuth;
+  }
+  
+  // Early return if already initialized (TRUE SINGLETON)
+  if (adminAuth) {
+    return adminAuth;
+  }
+  
+  if (typeof window === 'undefined') {
     const app = getFirebaseAdminApp();
     adminAuth = getAuth(app);
+  } else {
+    throw new Error('Firebase Admin Auth should not be accessed on client-side');
   }
+  
   return adminAuth;
 }
 
 /**
  * Returns the Realtime Database instance for the admin app.
+ * Optimized with lazy initialization, singleton pattern, and build-time mocking.
  *
  * User steps:
  * 1. Call this function to get the Realtime Database instance.
@@ -152,10 +223,25 @@ export function getAdminAuth(): Auth {
  * @returns {Database} The Realtime Database instance.
  */
 export function getAdminRtdb(): Database {
-  if (typeof window === 'undefined' && !adminRtdb) {
+  // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
+  if (isBuildTime()) {
+    logBuildOptimization('Using mock Realtime Database during build-time');
+    const { mockRtdb } = getMockFirebaseServices();
+    return mockRtdb;
+  }
+  
+  // Early return if already initialized (TRUE SINGLETON)
+  if (adminRtdb) {
+    return adminRtdb;
+  }
+  
+  if (typeof window === 'undefined') {
     const app = getFirebaseAdminApp();
     adminRtdb = getDatabase(app);
+  } else {
+    throw new Error('Firebase Admin Realtime Database should not be accessed on client-side');
   }
+  
   return adminRtdb;
 }
 

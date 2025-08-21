@@ -39,7 +39,113 @@
   "externalWebsiteWarning": "You are about to visit an external website. Please be cautious and verify the authenticity of the site.",
   "continueToWebsite": "Continue to Website",
   "contactEntity": "Contact Entity",
-  "chatWith": "Chat with"
+  "chatWith": "Chat with",
+  "status": {
+    "entityName": "Entity Name",
+    "entityId": "Entity ID",
+    "reviewId": "Review ID",
+    "rejectionReason": "Rejection Reason",
+    "needHelp": "Need help? Contact our support team",
+    "actions": {
+      "viewEntity": "View Entity",
+      "backToEntities": "Back to Entities",
+      "continueEditing": "Continue Editing",
+      "createNew": "Create New Entity",
+      "contactSupport": "Contact Support",
+      "reviseEntity": "Revise Entity",
+      "checkStatus": "Check Status",
+      "viewScheduled": "View Scheduled",
+      "manageEntity": "Manage Entity",
+      "resubmit": "Resubmit"
+    },
+    "create": {
+      "draft": {
+        "title": "Entity Draft Saved",
+        "description": "Your entity has been saved as a draft. You can continue editing it anytime before submitting for review.",
+        "instruction": "Complete all required fields and submit your entity for review when ready."
+      },
+      "pending_review": {
+        "title": "Entity Pending Review",
+        "description": "Your entity has been submitted and is awaiting review by our moderation team. We'll notify you once the review is complete."
+      },
+      "published": {
+        "title": "Entity Published!",
+        "description": "Your entity has been successfully published and is now visible to other users on the platform."
+      },
+      "failed": {
+        "title": "Entity Creation Failed",
+        "description": "We couldn't create your entity due to a technical issue. Please try again or contact support for assistance."
+      },
+      "rejected": {
+        "title": "Entity Rejected",
+        "description": "Your entity submission was rejected during the review process. Please review the feedback and make necessary corrections."
+      }
+    },
+    "verify": {
+      "pending": {
+        "title": "Verification Pending",
+        "description": "Your entity verification request has been submitted. Our team will review the provided documentation shortly."
+      },
+      "under_review": {
+        "title": "Under Verification Review",
+        "description": "Our verification team is currently reviewing your entity's documentation and credentials. This process typically takes 2-5 business days.",
+        "reviewing": "Reviewing verification documents..."
+      },
+      "verified": {
+        "title": "Entity Verified!",
+        "description": "Your entity has been successfully verified. It now displays a verification badge and has access to premium features."
+      },
+      "rejected": {
+        "title": "Verification Rejected",
+        "description": "Your entity verification was rejected due to insufficient or invalid documentation. Please review the requirements and resubmit."
+      },
+      "expired": {
+        "title": "Verification Expired",
+        "description": "Your entity verification has expired. Please submit updated documentation to maintain your verified status."
+      }
+    },
+    "approve": {
+      "pending": {
+        "title": "Approval Pending",
+        "description": "Your entity is pending administrative approval. This additional review ensures compliance with our platform standards."
+      },
+      "approved": {
+        "title": "Entity Approved!",
+        "description": "Your entity has been approved by our administrative team and is now fully active on the platform."
+      },
+      "rejected": {
+        "title": "Approval Rejected",
+        "description": "Your entity was not approved during the administrative review. Please review the feedback and address any issues."
+      },
+      "needs_revision": {
+        "title": "Revision Required",
+        "description": "Your entity requires revisions before it can be approved. Please review the feedback and make the necessary changes."
+      }
+    },
+    "publish": {
+      "scheduled": {
+        "title": "Publication Scheduled",
+        "description": "Your entity is scheduled for publication. It will become visible to users at the specified time.",
+        "scheduleInfo": "Your entity will be automatically published according to the schedule."
+      },
+      "published": {
+        "title": "Entity Published!",
+        "description": "Your entity is now live and visible to all platform users. It can be found in search results and directory listings."
+      },
+      "failed": {
+        "title": "Publication Failed",
+        "description": "We encountered an error while publishing your entity. Please try again or contact support for assistance."
+      },
+      "unpublished": {
+        "title": "Entity Unpublished",
+        "description": "Your entity has been unpublished and is no longer visible to other users. You can republish it anytime from your dashboard."
+      },
+      "archived": {
+        "title": "Entity Archived",
+        "description": "Your entity has been archived and moved to storage. It's no longer active but can be restored if needed."
+      }
+    }
+  }
 }
 
 

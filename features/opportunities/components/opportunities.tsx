@@ -16,6 +16,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useInView } from '@/hooks/use-intersection-observer'
 import { formatDateValue, truncateDescription, fetchOpportunities, formatBudget } from '@/lib/utils'
 import { useAppContext } from '@/contexts/app-context'
+import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
+import { usePathname } from 'next/navigation'
+import OpportunityList from './opportunity-list'
 
 interface OpportunitiesProps {
   initialOpportunities: SerializedOpportunity[]
@@ -34,11 +37,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const { error, setError } = useAppContext()
+  const pathname = usePathname()
   const [opportunities, setOpportunities] = React.useState<SerializedOpportunity[]>(initialOpportunities)
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
   const { ref, inView } = useInView()
+
+  // Extract locale from pathname
+  const locale = pathname.split('/')[1] || 'en'
 
   useEffect(() => {
     setOpportunities(initialOpportunities)
@@ -133,12 +140,17 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
 
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
-      <div className="container mx-auto px-4 py-12">
-        <PageTitle title={t('opportunities')} />
-        <OpportunityList opportunities={opportunities} entities={entities} />
-        {loading && <LoadingMessage message={t('loadingMoreOpportunities')} />}
-        {!loading && lastVisible && <div ref={ref} className="h-10" />}
-      </div>
+      <OpportunityList 
+        initialOpportunities={opportunities as any}
+        initialEntities={entities}
+        initialError={error}
+        lastVisible={lastVisible}
+        limit={limit}
+        totalCount={opportunities.length}
+        locale={locale}
+      />
+      {loading && <LoadingMessage message={t('loadingMoreOpportunities')} />}
+      {!loading && lastVisible && <div ref={ref} className="h-10" />}
     </div>
   )
 }
@@ -180,15 +192,7 @@ const PageTitle: React.FC<{ title: string }> = ({ title }) => (
   </motion.h1>
 )
 
-const OpportunityList: React.FC<{ opportunities: SerializedOpportunity[], entities: { [key: string]: Entity } }> = ({ opportunities, entities }) => (
-  <div className="max-w-2xl mx-auto">
-    <AnimatePresence>
-      {opportunities.map((opportunity) => (
-        <OpportunityCard key={opportunity.id} opportunity={opportunity} entity={entities[opportunity.organizationId]} />
-      ))}
-    </AnimatePresence>
-  </div>
-)
+// (Removed local OpportunityList to avoid conflict with imported one)
 
 const OpportunityCard: React.FC<{ opportunity: SerializedOpportunity, entity: Entity | undefined }> = ({ opportunity, entity }) => {
   const t = useTranslations('modules.opportunities')

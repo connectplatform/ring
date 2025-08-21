@@ -1,3 +1,9 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { getAdminDb, getAdminRtdb, getAdminRtdbRef, setAdminRtdbData, setAdminRtdbOnDisconnect, getAdminRtdbServerTimestamp } from '@/lib/firebase-admin.server';
 import { Entity } from '@/features/entities/types';
 import { auth } from '@/auth';
@@ -7,6 +13,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors';
 import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
 import { invalidateEntitiesCache } from '@/lib/cached-data'
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Type definition for the data required to create a new entity.
@@ -139,7 +150,8 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     const dbContext = { ...validationContext, operation: 'getAdminDb' };
     
     try {
-      adminDb = await getAdminDb();
+      const serviceManager = getFirebaseServiceManager();
+      adminDb = serviceManager.db;
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to initialize database connection',

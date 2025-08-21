@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 import { formatTimestampOrFieldValue, truncateDescription, formatBudget } from '@/lib/utils'
 import LoginForm from '@/features/auth/components/login-form'
+import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 
 interface OpportunityListProps {
   initialOpportunities: Opportunity[]
@@ -44,6 +45,7 @@ interface OpportunityListProps {
   lastVisible: string | null
   limit: number
   totalCount?: number
+  locale: string
 }
 
 interface OptimisticOpportunity extends Opportunity {
@@ -74,7 +76,8 @@ export default function OpportunityList({
   initialError,
   lastVisible: initialLastVisible,
   limit,
-  totalCount = 0
+  totalCount = 0,
+  locale
 }: OpportunityListProps) {
   const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
@@ -100,6 +103,11 @@ export default function OpportunityList({
   const [error, setError] = React.useState<string | null>(initialError)
   const [filters, setFilters] = React.useState<OpportunityFilters>(defaultFilters)
   const [showFilters, setShowFilters] = React.useState(false)
+
+  // Sync entities when parent-provided initialEntities change
+  useEffect(() => {
+    setEntities(initialEntities)
+  }, [initialEntities])
 
   // Server action state for opportunity creation
   const [createState, createAction] = useActionState<OpportunityFormState | null, FormData>(
@@ -276,12 +284,7 @@ export default function OpportunityList({
               {t('filters')}
             </Button>
             
-            <Link href="/opportunities/add">
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                {t('addOpportunity')}
-              </Button>
-            </Link>
+            <AddOpportunityButton locale={locale as any} />
           </div>
         </div>
 
@@ -454,6 +457,8 @@ function OpportunityCard({
   isPending = false 
 }: OpportunityCardProps) {
   const t = useTranslations('modules.opportunities')
+  // Ensure we always pass a defined translation key
+  const typeKey = opportunity?.type === 'request' ? 'request' : 'offer'
 
   return (
     <motion.div
@@ -521,7 +526,7 @@ function OpportunityCard({
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={opportunity.type === 'offer' ? 'default' : 'secondary'}>
-                {t(opportunity.type)}
+                {t(typeKey)}
               </Badge>
               {opportunity.isConfidential && (
                 <Badge variant="destructive">{t('confidential')}</Badge>

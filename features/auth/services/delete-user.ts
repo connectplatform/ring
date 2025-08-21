@@ -1,6 +1,17 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin.server';
 import { UserRole } from '@/features/auth/types';
 import { auth } from '@/auth';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Delete a user from Firestore and Firebase Authentication, with authentication and role-based access control.
@@ -46,7 +57,10 @@ export async function deleteUser(userIdToDelete: string): Promise<boolean> {
     console.log(`Services: deleteUser - Admin authenticated with ID ${currentUserId}`);
 
     // Step 3: Firestore setup
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
 
     // Step 4: Delete user from Firestore
     await adminDb.collection('users').doc(userIdToDelete).delete();

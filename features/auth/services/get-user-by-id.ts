@@ -1,6 +1,17 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { AuthUser, UserRole, Wallet } from '@/features/auth/types';
 import { FirebaseError } from 'firebase/app';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
 /**
@@ -34,7 +45,10 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     console.log(`Services: getUserById - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
     // Step 2: Firestore setup
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const userRef = adminDb.collection('users').doc(userId);
 
     // Step 3: Check authorization

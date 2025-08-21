@@ -1,7 +1,13 @@
+import { getAdminDb } from '@/lib/firebase-admin.server';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 // Payment orchestration service for Store domain
 // Future: integrate real Stripe sessions and on-chain flows
-
-import { getAdminDb } from '@/lib/firebase-admin.server'
 
 export interface CreateStripeSessionInput {
   orderId: string
@@ -16,7 +22,8 @@ export const StorePaymentsService = {
   },
 
   async markOrderPaidStripe(orderId: string, stripeSessionId: string) {
-    const db = await getAdminDb()
+    const serviceManager = getFirebaseServiceManager();
+    const db = serviceManager.db
     await db.collection('orders').doc(orderId).set({
       payment: { method: 'stripe', status: 'paid', stripeSessionId },
       status: 'paid',
@@ -26,7 +33,8 @@ export const StorePaymentsService = {
   },
 
   async markOrderFailedStripe(orderId: string, stripeSessionId: string) {
-    const db = await getAdminDb()
+    const serviceManager = getFirebaseServiceManager();
+    const db = serviceManager.db
     await db.collection('orders').doc(orderId).set({
       payment: { method: 'stripe', status: 'failed', stripeSessionId },
       updatedAt: new Date().toISOString()
@@ -35,7 +43,8 @@ export const StorePaymentsService = {
   },
 
   async recordCryptoPayment(orderId: string, txHash: string) {
-    const db = await getAdminDb()
+    const serviceManager = getFirebaseServiceManager();
+    const db = serviceManager.db
     await db.collection('orders').doc(orderId).set({
       payment: { method: 'crypto', status: 'paid', txHash },
       status: 'paid',
@@ -44,5 +53,4 @@ export const StorePaymentsService = {
     return { ok: true, orderId, txHash }
   }
 }
-
 

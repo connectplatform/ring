@@ -1,8 +1,18 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { getServerAuthSession } from '@/auth';
 import { UserRole, Wallet, AuthUser } from '@/features/auth/types';
 import { ethers } from 'ethers';
-import { getAdminDb } from '@/lib/firebase-admin.server';
 import { FieldValue } from 'firebase-admin/firestore';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Ensures that the authenticated user has at least one wallet.
@@ -38,7 +48,10 @@ export async function ensureWallet(): Promise<Wallet> {
     }
 
     // Step 3: Retrieve user document from Firestore
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const userDoc = adminDb.collection('users').doc(userId);
     const userData = (await userDoc.get()).data() as AuthUser | undefined;
 
@@ -123,5 +136,4 @@ async function decryptPrivateKey(encryptedPrivateKey: string): Promise<string> {
   // This is a placeholder and should be replaced with actual secure decryption
   throw new Error('Decryption not implemented');
 }
-
 

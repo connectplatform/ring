@@ -1,14 +1,24 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 /**
  * @fileoverview Service for handling confidential opportunities in the Firebase database.
  * This module provides functionality to fetch and paginate confidential opportunities
  * with filtering and sorting capabilities.
  */
 
-import { getAdminDb } from '@/lib/firebase-admin.server';
 import { Opportunity } from '@/features/opportunities/types';
 import { UserRole } from '@/features/auth/types';
 import { FirestoreDataConverter, DocumentData, Query } from 'firebase-admin/firestore';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Interface defining the parameters required to fetch confidential opportunities
@@ -85,7 +95,8 @@ export async function getConfidentialOpportunities(
 
     // Step 1: Initialize Firestore using admin SDK
     // Uses admin SDK to ensure proper access controls and server-side execution
-    const adminDb = getAdminDb();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const opportunitiesCol = adminDb
       .collection('opportunities')
       .withConverter(opportunityConverter as FirestoreDataConverter<Opportunity>);

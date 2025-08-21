@@ -7,6 +7,48 @@
 
 ## 🔐 **Authentication APIs**
 
+### **useAuth Hook Usage**
+```typescript
+// Enhanced authentication hook with status page integration
+import { useAuth } from '@/hooks/use-auth'
+
+function MyComponent() {
+  const { 
+    user, 
+    role, 
+    loading, 
+    hasRole, 
+    isAuthenticated,
+    navigateToAuthStatus,
+    getKycStatus,
+    refreshSession 
+  } = useAuth()
+
+  // Role-based access control
+  if (!hasRole(UserRole.MEMBER)) {
+    return <AccessDenied />
+  }
+
+  // KYC status management
+  const handleKycFlow = () => {
+    const status = getKycStatus()
+    if (status === 'not_started') {
+      navigateToAuthStatus('kyc', 'not_started', { 
+        returnTo: '/profile' 
+      })
+    }
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {user?.name}</h1>
+      <p>Role: {role}</p>
+      <button onClick={handleKycFlow}>Manage KYC</button>
+    </div>
+  )
+}
+```
+
 ### **Session Management**
 ```bash
 # NextAuth.js v5 Session
@@ -34,6 +76,12 @@ const { nonce } = await response.json()
 // Sign and authenticate
 const signature = await signer.signMessage(`Sign: ${nonce}`)
 await signIn('crypto-wallet', { walletAddress, signedNonce: signature })
+
+// Navigate to auth status page after authentication
+const { navigateToAuthStatus } = useAuth()
+navigateToAuthStatus('login', 'success', { 
+  returnTo: '/dashboard' 
+})
 ```
 
 ---

@@ -1,6 +1,14 @@
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { ethers } from 'ethers'
-import { cache } from 'react'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 // Cache the provider to avoid creating a new instance on every request
 export const getProvider = cache(() => new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL))
@@ -26,7 +34,11 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
  * @returns The user's wallet address or null if not found
  */
 export async function getUserWalletAddress(userId: string): Promise<string | null> {
-  const adminDb = await getAdminDb()
+  const phase = getCurrentPhase();
+
+  // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
   const userDoc = await adminDb.collection('users').doc(userId).get()
   const userData = userDoc.data()
   

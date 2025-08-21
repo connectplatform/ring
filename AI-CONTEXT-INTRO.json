@@ -1,0 +1,138 @@
+{
+  "project": {
+    "name": "Ring Platform",
+    "one_liner": "React 19 + Next 15 professional networking with entities, opportunities, messaging, and a confidential tier; Firebase-first, ConnectPlatform-compatible, Web3-ready.",
+    "access_tiers": ["visitor", "subscriber", "member", "confidential", "admin"],
+    "domains": ["auth", "entities", "opportunities", "messaging", "notifications", "wallet", "store"]
+  },
+  "stack": {
+    "frontend": { "framework": "Next.js", "version": "15", "react": "19" },
+    "backend_default": { "name": "Firebase", "services": ["Firestore", "Auth", "FCM", "Vercel Blob"] },
+    "backend_compatible": { "name": "ConnectPlatform", "note": "Optional, API-compatible layer" },
+    "auth": { "library": "Auth.js", "version": "5", "session": "JWT" },
+    "realtime": { "websocket": true, "push": "FCM" }
+  },
+  "core_paths": {
+    "auth": {
+      "entry": "ring/auth.ts",
+      "config": "ring/auth.config.ts",
+      "middleware": "ring/middleware.ts"
+    },
+    "apis": {
+      "entities": "ring/app/api/entities",
+      "opportunities": "ring/app/api/opportunities",
+      "store": "ring/app/api/store"
+    },
+    "services": {
+      "entities": "ring/services/entities",
+      "opportunities": "ring/services/opportunities",
+      "messaging": "ring/services/messaging",
+      "notifications": "ring/services/notifications"
+    },
+    "integrations": {
+      "wallet_web3": "ring/integrations/daarion/"
+    },
+    "lib": {
+      "firebase_service": "ring/lib/firebase-service.ts",
+      "firebase_service_optimized": "ring/lib/firebase-service-optimized.ts",
+      "converters": "ring/lib/converters/*",
+      "zod_schemas": "ring/lib/zod.ts",
+      "websocket_client": "ring/lib/websocket-client.ts",
+      "api_client": "ring/lib/api-client.ts",
+      "cache": "ring/lib/cached-data.ts",
+      "filter": "ring/lib/filter-manager.ts"
+    },
+    "docs": {
+      "index": "ring/AI-CONTEXT-INDEX.json",
+      "kb": "ring/docs/AI-CODER-KNOWLEDGE-BASE.md",
+      "architecture": "ring/docs/SYSTEM-ARCHITECTURE.md",
+      "philosophy": "ring/docs/PLATFORM-PHILOSOPHY.md"
+    }
+  },
+  "domains": {
+    "auth": {
+      "providers": ["google", "apple", "email", "wallet_optional"],
+      "server_usage": "auth() on server components and API handlers",
+      "route_protection": "enforce via middleware.ts and server-side checks"
+    },
+    "entities": {
+      "description": "Organization profiles with verification and tiered visibility",
+      "api_dir": "app/api/entities",
+      "service": "services/entities",
+      "visibility": "respect access_tiers"
+    },
+    "opportunities": {
+      "description": "Offers and requests with tiered access",
+      "api_dir": "app/api/opportunities",
+      "service": "services/opportunities",
+      "types": ["offer", "request"]
+    },
+    "messaging_notifications": {
+      "messaging_service": "services/messaging",
+      "notifications_service": "services/notifications",
+      "realtime": ["websocket", "FCM"]
+    },
+    "wallet_web3": {
+      "integration": "integrations/daarion/",
+      "features": ["wallet", "staking", "NFT"],
+      "optional": true
+    },
+    "store": {
+      "description": "Adapter-driven catalog, cart, checkout, orders with Firebase-first backend and ConnectPlatform compatibility",
+      "api_dir": "app/api/store",
+      "ui": ["/[locale]/store", "/[locale]/store/cart", "/[locale]/store/checkout", "/[locale]/store/[id]"],
+      "orders_ui": ["/[locale]/store/orders", "/[locale]/store/orders/[id]", "/[locale]/admin/store/orders"],
+      "adapters": ["mock", "firebase", "connect (planned)"],
+      "env": ["RING_STORE_ADAPTER"],
+      "shipping": ["NovaPost selector (proxy endpoints)"]
+    }
+  },
+  "data_access": {
+    "read_write": "use services/* and lib/api-client.ts; avoid ad-hoc Firestore/Auth calls",
+    "persistence": "Firestore via lib/firebase-service.ts (or firebase-service-optimized.ts)",
+    "validation": "Zod via lib/zod.ts",
+    "converters": "typed Firestore converters in lib/converters/*"
+  },
+  "realtime_files": {
+    "websocket_client": "lib/websocket-client.ts",
+    "push_notifications": "FCM"
+  },
+  "files_uploads": {
+    "provider": "Vercel Blob",
+    "pattern": "perform uploads via API routes (server-side)"
+  },
+  "performance": {
+    "react_19": ["optimistic_updates", "Suspense"],
+    "helpers": ["lib/cached-data.ts", "lib/filter-manager.ts"]
+  },
+  "conventions": {
+    "do": [
+      "use services/* facades and lib/* helpers",
+      "enforce access tiers in handlers/services",
+      "validate with Zod",
+      "use converters for Firestore I/O",
+      "prefer server-side auth() and middleware enforcement"
+    ],
+    "dont": [
+      "bypass auth() or middleware",
+      "introduce new global state",
+      "perform ad-hoc Firestore/Auth calls from components"
+    ]
+  },
+  "quickstart": {
+    "dev_command": "npm run dev",
+    "read_first": "ring/AI-CONTEXT-INDEX.json",
+    "references": [
+      "ring/docs/AI-CODER-KNOWLEDGE-BASE.md",
+      "ring/docs/SYSTEM-ARCHITECTURE.md",
+      "ring/docs/PLATFORM-PHILOSOPHY.md"
+    ]
+  },
+  "ai_hints": {
+    "access_enforcement": "always compute user tier and filter data accordingly",
+    "ssr_auth": "call auth() in server actions, route handlers, and server components",
+    "client_data": "fetch via services/* -> lib/api-client.ts; cache where appropriate",
+    "schema_first": "define/extend Zod schemas and converters before data ops",
+    "compatibility_note": "code against service facades to keep Firebase/ConnectPlatform compatible"
+  }
+}

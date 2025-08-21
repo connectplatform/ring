@@ -1,6 +1,17 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { AuthUser } from '@/features/auth/types';
 import { FirebaseError } from 'firebase/app';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
 /**
@@ -34,7 +45,10 @@ export async function getUserByWalletAddress(walletAddress: string): Promise<Aut
     console.log(`Services: getUserByWalletAddress - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
     // Step 2: Firestore setup
-    const adminDb = await getAdminDb();
+    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    const phase = getCurrentPhase();
+    const serviceManager = getFirebaseServiceManager();
+    const adminDb = serviceManager.db;
     const usersRef = adminDb.collection('users');
 
     // Step 3: Query for user with the given wallet address

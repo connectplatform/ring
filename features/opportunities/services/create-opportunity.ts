@@ -1,4 +1,9 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { Opportunity } from '@/features/opportunities/types';
 import { getServerAuthSession } from '@/auth';
@@ -9,6 +14,11 @@ import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from 
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { appendEvent } from '@/lib/events/event-log'
 import { NeuralMatcher } from '@/lib/ai/neural-matcher'
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Type definition for the data required to create a new opportunity.
@@ -183,7 +193,8 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     const dbContext = { ...validationContext, operation: 'getAdminDb' };
     
     try {
-      adminDb = await getAdminDb();
+      const serviceManager = getFirebaseServiceManager();
+      adminDb = serviceManager.db;
     } catch (error) {
       throw new OpportunityDatabaseError(
         'Failed to initialize database connection',

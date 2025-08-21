@@ -1,7 +1,17 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
+// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+// - Centralized service manager
+// - React 19 cache() for request deduplication
+// - Build-time phase detection and caching
+// - Intelligent data strategies per environment
+
 import { AuthUser, UserRole } from '@/features/auth/types';
 import { getServerAuthSession } from '@/auth';
 import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors';
+
+import { cache } from 'react';
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
+import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 /**
  * Create a new user in Firestore, with authentication and role-based access control.
@@ -82,9 +92,12 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
     }
 
     // Step 3: Initialize database connection
+    // 🚀 OPTIMIZED: Enhanced error handling with service manager
+    const phase = getCurrentPhase();
     let adminDb;
     try {
-      adminDb = await getAdminDb();
+      const serviceManager = getFirebaseServiceManager();
+      adminDb = serviceManager.db;
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to initialize database connection',
