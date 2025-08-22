@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+
+// Lazy load heavy dependencies only when needed
+const getAuth = async () => (await import('@/auth')).auth
+const getFirebaseAdmin = async () => (await import('@/lib/firebase-admin.server')).getAdminDb
 
 export interface WebVitalsData {
   url: string
@@ -35,7 +37,13 @@ export interface WebVitalsData {
  * @returns Response with success status
  */
 export async function POST(request: NextRequest) {
+  // Quick return in development to avoid heavy imports
+  if (process.env.NODE_ENV === 'development') {
+    return NextResponse.json({ success: true, message: 'Dev mode - metrics not stored' })
+  }
+  
   try {
+    const auth = await getAuth()
     const session = await auth()
     const rawData = await request.json()
 
@@ -98,7 +106,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Store in Firestore
-    const db = getAdminDb()
+    const getDb = await getFirebaseAdmin()
+    const db = getDb()
     await db.collection('webVitals').add(webVitalsDoc)
 
     // Calculate performance score
@@ -139,7 +148,13 @@ export async function POST(request: NextRequest) {
  * @returns Analytics data and insights
  */
 export async function GET(request: NextRequest) {
+  // Quick return in development to avoid heavy imports
+  if (process.env.NODE_ENV === 'development') {
+    return NextResponse.json({ success: true, data: { aggregates: {}, totalSessions: 0 } })
+  }
+  
   try {
+    const auth = await getAuth()
     const session = await auth()
     const { searchParams } = new URL(request.url)
     
@@ -165,7 +180,8 @@ export async function GET(request: NextRequest) {
     const startTime = new Date(Date.now() - timeRange)
 
     // Query Firestore
-    const db = getAdminDb()
+    const getDb = await getFirebaseAdmin()
+    const db = getDb()
     let query = db.collection('webVitals')
       .where('userId', '==', userId)
       .where('createdAt', '>=', startTime)
@@ -274,7 +290,8 @@ async function updateUserPerformanceStats(
   metrics: any[]
 ): Promise<void> {
   try {
-    const db = getAdminDb()
+    const getDb = await getFirebaseAdmin()
+    const db = getDb()
     const userRef = db.collection('users').doc(userId)
     const userDoc = await userRef.get()
 

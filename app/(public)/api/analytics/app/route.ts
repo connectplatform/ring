@@ -1,11 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export async function POST(request: NextRequest) {
-  // Accept and discard payload in dev; stub for production analytics
-  // TODO: Implement app analytics API
+// Minimal analytics endpoint - avoid heavy imports to reduce compilation time
+export async function POST() {
+  // In development, just acknowledge the request
+  // In production, this would forward to analytics service
+  if (process.env.NODE_ENV === 'development') {
+    return NextResponse.json({ ok: true })
+  }
+  
+  // TODO: Implement production analytics forwarding
   return NextResponse.json({ ok: true })
 }
 
-export const dynamic = 'force-dynamic'
+// Use edge runtime for faster cold starts and lower compilation overhead
+export const runtime = 'edge'
 
 

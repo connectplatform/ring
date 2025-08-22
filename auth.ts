@@ -318,7 +318,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       console.log(`New user created: ${user.email}`)
     },
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: process.env.AUTH_DEBUG === "true", // Disabled by default to reduce log noise
 })
 
 /**

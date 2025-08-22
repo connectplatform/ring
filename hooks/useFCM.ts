@@ -19,6 +19,11 @@ interface FCMHookReturn extends FCMState {
   onMessageReceived: (callback: (payload: MessagePayload) => void) => () => void
 }
 
+// Track if FCM initialization is in progress to prevent duplicates
+let fcmInitializationInProgress = false;
+let lastRegistrationTime = 0;
+const REGISTRATION_DEBOUNCE_MS = 5000; // 5 seconds debounce
+
 export function useFCM(): FCMHookReturn {
   const { data: session, status } = useSession()
   const [state, setState] = useState<FCMState>({
@@ -96,6 +101,21 @@ export function useFCM(): FCMHookReturn {
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id && state.isSupported) {
       const initializeFCM = async () => {
+        // Prevent duplicate initialization
+        if (fcmInitializationInProgress) {
+          console.log('FCM initialization already in progress, skipping...')
+          return
+        }
+        
+        // Debounce registration to prevent rapid successive calls
+        const now = Date.now()
+        if (now - lastRegistrationTime < REGISTRATION_DEBOUNCE_MS) {
+          console.log('FCM registration debounced, too soon after last registration')
+          return
+        }
+        
+        fcmInitializationInProgress = true
+        
         try {
           setState(prev => ({ ...prev, isLoading: true, error: null }))
 
@@ -141,6 +161,8 @@ export function useFCM(): FCMHookReturn {
             isLoading: false,
             error: process.env.NODE_ENV === 'development' ? 'FCM disabled in development' : (error instanceof Error ? error.message : 'Failed to initialize FCM')
           }))
+        } finally {
+          fcmInitializationInProgress = false
         }
       }
 
@@ -206,6 +228,9 @@ export function useFCM(): FCMHookReturn {
   const registerTokenWithServer = async (token: string): Promise<void> => {
     try {
       if (!session?.user?.id) return
+
+      // Update last registration time
+      lastRegistrationTime = Date.now()
 
       const deviceInfo = {
         platform: navigator.platform,
