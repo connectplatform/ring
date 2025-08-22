@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 import { 
   Conversation, 
   Message, 
@@ -33,22 +34,40 @@ export function useConversations(filters?: ConversationFilters, pagination?: Pag
       if (pagination?.limit) params.set('limit', pagination.limit.toString())
       if (pagination?.cursor && !reset) params.set('cursor', pagination.cursor)
 
-      const response = await fetch(`${API_BASE}/conversations?${params}`)
-      const data = await response.json()
+      // Use API client with optimized timeout for conversation fetching
+      const response: ApiResponse<{ data: Conversation[], pagination?: { hasMore: boolean } }> = await apiClient.get(
+        `${API_BASE}/conversations?${params}`,
+        {
+          timeout: 8000, // 8 second timeout for conversation listing
+          retries: 1 // Retry once for conversation loading
+        }
+      )
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch conversations')
-      }
+      if (response.success && response.data) {
+        const data = response.data;
 
-      if (reset) {
-        setConversations(data.data)
+        if (reset) {
+          setConversations(data.data)
+        } else {
+          setConversations(prev => [...prev, ...data.data])
+        }
+        
+        setHasMore(data.pagination?.hasMore || false)
       } else {
-        setConversations(prev => [...prev, ...data.data])
+        throw new Error(response.error || 'Failed to fetch conversations')
       }
-      
-      setHasMore(data.pagination?.hasMore || false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Conversations fetch failed:', {
+          endpoint: '/conversations',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+        console.error('Unexpected error fetching conversations:', err)
+      }
     } finally {
       setLoading(false)
     }
@@ -62,22 +81,36 @@ export function useConversations(filters?: ConversationFilters, pagination?: Pag
     if (!session?.user?.id) return null
 
     try {
-      const response = await fetch(`${API_BASE}/conversations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
+      // Use API client with optimized timeout for conversation creation
+      const response: ApiResponse<{ data: Conversation }> = await apiClient.post(
+        `${API_BASE}/conversations`, 
+        data,
+        {
+          timeout: 12000, // 12 second timeout for conversation creation
+          retries: 2 // Retry twice for conversation creation (important for UX)
+        }
+      )
 
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create conversation')
+      if (response.success && response.data) {
+        // Add the new conversation to the beginning of the list
+        setConversations(prev => [response.data.data, ...prev])
+        return response.data.data
+      } else {
+        throw new Error(response.error || 'Failed to create conversation')
       }
-
-      // Add the new conversation to the beginning of the list
-      setConversations(prev => [result.data, ...prev])
-      return result.data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create conversation')
+      if (err instanceof ApiClientError) {
+        const errorMessage = err.message || 'Failed to create conversation';
+        setError(errorMessage);
+        console.error('Conversation creation failed:', {
+          endpoint: '/conversations',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to create conversation')
+        console.error('Unexpected error creating conversation:', err)
+      }
       return null
     }
   }, [session?.user?.id])
@@ -178,22 +211,41 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
       if (pagination?.cursor && !reset) params.set('cursor', pagination.cursor)
       if (pagination?.direction) params.set('direction', pagination.direction)
 
-      const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages?${params}`)
-      const data = await response.json()
+      // Use API client with optimized timeout for chat operations
+      const response: ApiResponse<{ data: Message[], pagination?: { hasMore: boolean } }> = await apiClient.get(
+        `${API_BASE}/conversations/${conversationId}/messages?${params}`, 
+        {
+          timeout: 8000, // 8 second timeout for chat message fetching
+          retries: 1 // Retry once for message loading
+        }
+      )
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch messages')
-      }
+      if (response.success && response.data) {
+        const data = response.data;
 
-      if (reset) {
-        setMessages(data.data)
+        if (reset) {
+          setMessages(data.data)
+        } else {
+          setMessages(prev => [...data.data, ...prev])
+        }
+        
+        setHasMore(data.pagination?.hasMore || false)
       } else {
-        setMessages(prev => [...data.data, ...prev])
+        throw new Error(response.error || 'Failed to fetch messages')
       }
-      
-      setHasMore(data.pagination?.hasMore || false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Messages fetch failed:', {
+          endpoint: `/conversations/${conversationId}/messages`,
+          statusCode: err.statusCode,
+          conversationId,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred')
+        console.error('Unexpected error fetching messages:', err)
+      }
     } finally {
       setLoading(false)
     }
@@ -214,22 +266,38 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
         attachments: options?.attachments
       }
 
-      const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messageData)
-      })
+      // Use API client with optimized timeout for message sending
+      const response: ApiResponse<{ data: Message }> = await apiClient.post(
+        `${API_BASE}/conversations/${conversationId}/messages`, 
+        messageData,
+        {
+          timeout: 10000, // 10 second timeout for message sending (includes processing)
+          retries: 2 // Retry twice for message sending (important for UX)
+        }
+      )
 
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to send message')
+      if (response.success && response.data) {
+        // Add the new message to the end of the list
+        setMessages(prev => [...prev, response.data.data])
+        return response.data.data
+      } else {
+        throw new Error(response.error || 'Failed to send message')
       }
-
-      // Add the new message to the end of the list
-      setMessages(prev => [...prev, result.data])
-      return result.data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message')
+      if (err instanceof ApiClientError) {
+        const errorMessage = err.message || 'Failed to send message';
+        setError(errorMessage);
+        console.error('Message send failed:', {
+          endpoint: `/conversations/${conversationId}/messages`,
+          statusCode: err.statusCode,
+          conversationId,
+          messageType: options?.type || 'text',
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to send message')
+        console.error('Unexpected error sending message:', err)
+      }
       return null
     }
   }, [session?.user?.id, conversationId])

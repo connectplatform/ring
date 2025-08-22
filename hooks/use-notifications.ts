@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client';
 import { 
   Notification, 
   NotificationListResponse, 
@@ -108,7 +109,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     return params.toString();
   }, []);
 
-  // Fetch notifications
+  // Fetch notifications with Ring API Client
   const fetchNotifications = useCallback(async (fetchOptions: { reset?: boolean } = {}) => {
     if (!session) return;
 
@@ -137,32 +138,58 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
         types
       });
 
-      const response = await fetch(`/api/notifications?${queryParams}`, {
-        signal: abortControllerRef.current.signal
+      // Use API client with built-in timeout and retry logic
+      const response: ApiResponse<NotificationListResponse> = await apiClient.get(`/api/notifications?${queryParams}`, {
+        timeout: 8000, // 8 second timeout for list operations
+        retries: 1, // Retry once for transient failures
+        headers: {
+          ...apiClient['defaultHeaders'], // Access default headers
+          // Note: AbortController signal needs custom handling with API client
+          // We'll let the API client handle timeouts, but still track abort for user cancellation
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch notifications');
+      // Check if request was aborted by user
+      if (abortControllerRef.current?.signal.aborted) {
+        return; // Exit silently for user-initiated cancellation
       }
 
-      const data: NotificationListResponse = await response.json();
+      if (response.success && response.data) {
+        const data = response.data;
 
-      if (fetchOptions.reset) {
-        setNotifications(data.notifications);
+        if (fetchOptions.reset) {
+          setNotifications(data.notifications);
+        } else {
+          setNotifications(prev => [...prev, ...data.notifications]);
+        }
+        
+        setUnreadCount(data.unreadCount);
+        setTotalCount(data.totalCount);
+        setHasMore(data.hasMore);
+        setLastVisible(data.lastVisible);
       } else {
-        setNotifications(prev => [...prev, ...data.notifications]);
+        throw new Error(response.error || 'Failed to fetch notifications');
       }
-      
-      setUnreadCount(data.unreadCount);
-      setTotalCount(data.totalCount);
-      setHasMore(data.hasMore);
-      setLastVisible(data.lastVisible);
 
     } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      // Check if request was aborted by user before setting error
+      if (abortControllerRef.current?.signal.aborted) {
+        return; // Exit silently for user-initiated cancellation
+      }
+
+      if (err instanceof ApiClientError) {
         setError(err.message);
-        console.error('Error fetching notifications:', err);
+        console.error('Notifications fetch failed:', {
+          endpoint: '/api/notifications',
+          statusCode: err.statusCode,
+          message: err.message,
+          context: err.context,
+          cause: err.cause
+        });
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch notifications';
+        setError(errorMessage);
+        console.error('Unexpected error fetching notifications:', err);
       }
     } finally {
       setLoading(false);
@@ -176,7 +203,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     await fetchNotifications({ reset: false });
   }, [hasMore, loading, refreshing, fetchNotifications]);
 
-  // Mark notification as read
+  // Mark notification as read with Ring API Client
   const markAsRead = useCallback(async (notificationId: string): Promise<boolean> => {
     if (!session || markingAsRead) return false;
 
@@ -184,37 +211,48 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     setError(null);
 
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'POST'
+      const response: ApiResponse = await apiClient.post(`/api/notifications/${notificationId}/read`, undefined, {
+        timeout: 5000, // 5 second timeout for quick actions
+        retries: 1 // Retry once for network issues
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to mark notification as read');
+      if (response.success) {
+        // Update local state optimistically
+        setNotifications(prev => 
+          prev.map(notification => 
+            notification.id === notificationId 
+              ? { ...notification, readAt: new Date(), status: NotificationStatus.READ }
+              : notification
+          )
+        );
+        
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        
+        return true;
+      } else {
+        throw new Error(response.error || 'Failed to mark notification as read');
       }
 
-      // Update local state optimistically
-      setNotifications(prev => 
-        prev.map(notification => 
-          notification.id === notificationId 
-            ? { ...notification, readAt: new Date(), status: NotificationStatus.READ }
-            : notification
-        )
-      );
-      
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      
-      return true;
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark notification as read');
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Mark as read failed:', {
+          endpoint: `/api/notifications/${notificationId}/read`,
+          statusCode: err.statusCode,
+          notificationId,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to mark notification as read');
+        console.error('Unexpected error marking notification as read:', err);
+      }
       return false;
     } finally {
       setMarkingAsRead(null);
     }
   }, [session, markingAsRead]);
 
-  // Mark all notifications as read
+  // Mark all notifications as read with Ring API Client
   const markAllAsRead = useCallback(async (): Promise<boolean> => {
     if (!session || markingAllAsRead) return false;
 
@@ -222,78 +260,106 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     setError(null);
 
     try {
-      const response = await fetch('/api/notifications/read-all', {
-        method: 'POST'
+      const response: ApiResponse = await apiClient.post('/api/notifications/read-all', undefined, {
+        timeout: 10000, // 10 second timeout for bulk operations
+        retries: 2 // Retry twice for bulk operations
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to mark all notifications as read');
+      if (response.success) {
+        // Update local state optimistically
+        setNotifications(prev => 
+          prev.map(notification => ({ 
+            ...notification, 
+            readAt: new Date(), 
+            status: NotificationStatus.READ 
+          }))
+        );
+        
+        setUnreadCount(0);
+        
+        return true;
+      } else {
+        throw new Error(response.error || 'Failed to mark all notifications as read');
       }
 
-      const result = await response.json();
-
-      // Update local state optimistically
-      setNotifications(prev => 
-        prev.map(notification => ({ 
-          ...notification, 
-          readAt: new Date(), 
-          status: NotificationStatus.READ 
-        }))
-      );
-      
-      setUnreadCount(0);
-      
-      return true;
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark all notifications as read');
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Mark all as read failed:', {
+          endpoint: '/api/notifications/read-all',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to mark all notifications as read');
+        console.error('Unexpected error marking all notifications as read:', err);
+      }
       return false;
     } finally {
       setMarkingAllAsRead(false);
     }
   }, [session, markingAllAsRead]);
 
-  // Fetch notification stats
+  // Fetch notification stats with Ring API Client
   const fetchStats = useCallback(async () => {
     if (!session) return;
 
     try {
       const queryParams = buildQueryParams({ stats: true });
-      const response = await fetch(`/api/notifications?${queryParams}`);
+      const response: ApiResponse<NotificationStatsResponse> = await apiClient.get(`/api/notifications?${queryParams}`, {
+        timeout: 6000, // 6 second timeout for stats
+        retries: 1 // Retry once for stats
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch notification stats');
+      if (response.success && response.data) {
+        setStats(response.data);
+      } else {
+        throw new Error(response.error || 'Failed to fetch notification stats');
       }
 
-      const data: NotificationStatsResponse = await response.json();
-      setStats(data);
-
     } catch (err) {
-      console.error('Error fetching notification stats:', err);
+      if (err instanceof ApiClientError) {
+        console.error('Notification stats fetch failed:', {
+          endpoint: '/api/notifications (stats)',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        console.error('Unexpected error fetching notification stats:', err);
+      }
     }
   }, [session, buildQueryParams]);
 
-  // Fetch user preferences
+  // Fetch user preferences with Ring API Client
   const fetchPreferences = useCallback(async () => {
     if (!session) return;
 
     try {
-      const response = await fetch('/api/notifications/preferences');
+      const response: ApiResponse<DetailedNotificationPreferences> = await apiClient.get('/api/notifications/preferences', {
+        timeout: 5000, // 5 second timeout for preferences
+        retries: 1 // Retry once for preferences
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch notification preferences');
+      if (response.success && response.data) {
+        setPreferences(response.data);
+      } else {
+        throw new Error(response.error || 'Failed to fetch notification preferences');
       }
 
-      const data: DetailedNotificationPreferences = await response.json();
-      setPreferences(data);
-
     } catch (err) {
-      console.error('Error fetching notification preferences:', err);
+      if (err instanceof ApiClientError) {
+        console.error('Notification preferences fetch failed:', {
+          endpoint: '/api/notifications/preferences',
+          statusCode: err.statusCode,
+          context: err.context
+        });
+      } else {
+        console.error('Unexpected error fetching notification preferences:', err);
+      }
     }
   }, [session]);
 
-  // Update user preferences
+  // Update user preferences with Ring API Client
   const updatePreferences = useCallback(async (
     newPreferences: Partial<DetailedNotificationPreferences>
   ): Promise<boolean> => {
@@ -303,26 +369,33 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     setError(null);
 
     try {
-      const response = await fetch('/api/notifications/preferences', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newPreferences)
+      const response: ApiResponse = await apiClient.put('/api/notifications/preferences', newPreferences, {
+        timeout: 8000, // 8 second timeout for preference updates
+        retries: 2 // Retry twice for important preference updates
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update preferences');
+      if (response.success) {
+        // Update local state optimistically
+        setPreferences(prev => prev ? { ...prev, ...newPreferences } : null);
+        
+        return true;
+      } else {
+        throw new Error(response.error || 'Failed to update preferences');
       }
 
-      // Update local state optimistically
-      setPreferences(prev => prev ? { ...prev, ...newPreferences } : null);
-      
-      return true;
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update preferences');
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+        console.error('Notification preferences update failed:', {
+          endpoint: '/api/notifications/preferences',
+          statusCode: err.statusCode,
+          context: err.context,
+          preferences: newPreferences
+        });
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to update preferences');
+        console.error('Unexpected error updating notification preferences:', err);
+      }
       return false;
     } finally {
       setUpdatingPreferences(false);

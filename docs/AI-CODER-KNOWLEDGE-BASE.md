@@ -22,7 +22,7 @@ Ring Platform operates on three primary entity types:
 - **Entities**: Companies, organizations, startups with 26 industry types and verification systems  
 - **Opportunities**: Dual-nature system (Offers/Requests) with tiered access control
 
-**Key Innovation**: Confidential access tier creates exclusive networking spaces for C-level positions, stealth startups, M&A activities, and strategic partnerships. **Unified Status Page System** provides consistent workflow feedback across all domains with dynamic [action]/[status] routing. **Enhanced useAuth Hook** offers type-safe authentication with seamless integration to auth status pages and role-based access control. **WebSocket Push Architecture** eliminates polling with real-time push notifications achieving ~90% reduction in API calls.
+**Key Innovation**: Confidential access tier creates exclusive networking spaces for C-level positions, stealth startups, M&A activities, and strategic partnerships. **Unified Status Page System** provides consistent workflow feedback across all domains with dynamic [action]/[status] routing. **Enhanced useAuth Hook** offers type-safe authentication with seamless integration to auth status pages and role-based access control. **WebSocket Push Architecture** eliminates polling with real-time push notifications achieving ~90% reduction in API calls. **RingApiClient Integration** provides standardized API communication with built-in timeout handling, retry logic, and structured error handling across all client-side operations.
 
 📚 **[Read the Strategic Philosophy](./PLATFORM-PHILOSOPHY.md)**
 
@@ -179,7 +179,37 @@ function NewsLikes({ newsId, initialLikes }) {
 }
 ```
 
-### **3. WebSocket Real-time Integration**
+### **3. RingApiClient Standardized API Communication**
+```typescript
+// Standardized API calls with timeout and retry handling
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
+
+async function fetchWalletBalance() {
+  try {
+    const response: ApiResponse<WalletBalanceResponse> = await apiClient.get('/api/wallet/balance', {
+      timeout: 15000, // 15 second timeout for blockchain calls
+      retries: 2 // Retry twice for network resilience
+    })
+
+    if (response.success && response.data) {
+      return response.data.balance
+    } else {
+      throw new Error(response.error || 'Failed to fetch balance')
+    }
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      console.error('API call failed:', {
+        endpoint: '/api/wallet/balance',
+        statusCode: err.statusCode,
+        context: err.context
+      })
+    }
+    throw err
+  }
+}
+```
+
+### **4. WebSocket Real-time Integration**
 ```typescript
 // Real-time WebSocket push notifications
 import { useWebSocketNotifications } from '@/hooks/use-websocket'

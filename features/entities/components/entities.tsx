@@ -63,12 +63,20 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/entities?page=${page}&limit=${limit}&sort=${sort}&filter=${filter}`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch entities')
+      const { apiClient } = await import('@/lib/api-client')
+      const response = await apiClient.get(
+        `/api/entities?page=${page}&limit=${limit}&sort=${sort}&filter=${filter}`,
+        {
+          timeout: 8000,
+          retries: 1
+        }
+      )
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch entities')
       }
-      const json = await response.json()
-      const apiEntities = Array.isArray(json?.entities) ? json.entities : []
+      
+      const apiEntities = Array.isArray(response.data?.entities) ? response.data.entities : []
       setentities(apiEntities)
     } catch (error) {
       console.error('Error fetching entities:', error)

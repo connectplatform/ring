@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale, isValidLocale, type Locale } from '@/i18n-config'
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 export interface AuthFormState {
   success?: boolean
@@ -54,33 +55,47 @@ export async function signInWithCredentials(
   }
 
   try {
-    // For now, redirect to the API route to handle authentication
-    // This avoids circular dependency issues
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/signin/credentials`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        redirectTo,
-      }),
+    // Use API client for auth with timeout and retry protection
+    const response: ApiResponse = await apiClient.post(`${process.env.NEXTAUTH_URL}/api/auth/signin/credentials`, {
+      email: email.trim(),
+      password,
+      redirectTo,
+    }, {
+      timeout: 15000, // 15 second timeout for auth operations
+      retries: 1 // Retry once for critical auth flow
     })
 
-    if (!response.ok) {
+    if (response.success) {
+      // Redirect on success
+      redirect(redirectTo)
+    } else {
       return {
-        error: 'Invalid email or password'
+        error: response.error || 'Invalid email or password'
       }
     }
-
-    // Redirect on success
-    redirect(redirectTo)
     
   } catch (error: any) {
     if (error.message?.includes('NEXT_REDIRECT')) {
       // Re-throw redirect errors
       throw error
+    }
+    
+    if (error instanceof ApiClientError) {
+      console.error('Sign-in API call failed:', {
+        endpoint: '/api/auth/signin/credentials',
+        statusCode: error.statusCode,
+        context: error.context,
+        email: email.trim() // Log email for debugging (not password)
+      })
+      
+      // Return user-friendly error based on status code
+      if (error.statusCode === 401 || error.statusCode === 403) {
+        return { error: 'Invalid email or password' }
+      } else if (error.statusCode === 429) {
+        return { error: 'Too many login attempts. Please try again later.' }
+      } else {
+        return { error: 'Authentication service unavailable. Please try again.' }
+      }
     }
     
     return {
@@ -198,43 +213,56 @@ export async function registerUser(
   }
 
   try {
-    // Create user account
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: name.trim(),
-        email: email.trim(),
-        password,
-      }),
+    // Create user account with API client timeout and retry protection
+    const response: ApiResponse = await apiClient.post(`${process.env.NEXTAUTH_URL}/api/auth/register`, {
+      name: name.trim(),
+      email: email.trim(),
+      password,
+    }, {
+      timeout: 20000, // 20 second timeout for user creation
+      retries: 1 // Retry once for account creation
     })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+    if (response.success) {
+      return {
+        success: true,
+        message: response.message || 'Account created successfully! Please sign in.'
+      }
+    } else {
+      return {
+        error: response.error || 'Failed to create account. Please try again.'
+      }
+    }
+    
+  } catch (error) {
+    if (error instanceof ApiClientError) {
+      console.error('Registration API call failed:', {
+        endpoint: '/api/auth/register',
+        statusCode: error.statusCode,
+        context: error.context,
+        email: email.trim() // Log email for debugging (not password)
+      })
       
-      if (response.status === 409) {
+      // Handle specific error cases
+      if (error.statusCode === 409) {
         return {
           fieldErrors: {
             email: 'An account with this email already exists'
           }
         }
+      } else if (error.statusCode === 429) {
+        return {
+          error: 'Too many registration attempts. Please try again later.'
+        }
+      } else {
+        return {
+          error: error.message || 'Registration service unavailable. Please try again.'
+        }
       }
-      
-      return {
-        error: errorData.message || 'Failed to create account. Please try again.'
-      }
-    }
-
-    return {
-      success: true,
-      message: 'Account created successfully! Please sign in.'
     }
     
-  } catch (error) {
-    console.error('Error registering user:', error)
-        return {
+    console.error('Unexpected error registering user:', error)
+    return {
       error: 'An unexpected error occurred. Please try again.'
     }
   }
@@ -290,33 +318,54 @@ export async function completeUserProfile(
   }
 
   try {
-    // Update user profile via API
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/profile`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: userId.trim(),
-        name: name.trim(),
-        email: email.trim(),
-      }),
+    // Update user profile with API client timeout and retry protection
+    const response: ApiResponse = await apiClient.put(`${process.env.NEXTAUTH_URL}/api/profile`, {
+      userId: userId.trim(),
+      name: name.trim(),
+      email: email.trim(),
+    }, {
+      timeout: 10000, // 10 second timeout for profile updates
+      retries: 2 // Retry twice for profile operations
     })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+    if (response.success) {
       return {
-        error: errorData.message || 'Failed to update profile. Please try again.'
+        success: true,
+        message: response.message || 'Profile completed successfully!'
       }
-    }
-
-    return {
-      success: true,
-      message: 'Profile completed successfully!'
+    } else {
+      return {
+        error: response.error || 'Failed to update profile. Please try again.'
+      }
     }
     
   } catch (error) {
-    console.error('Error completing user profile:', error)
+    if (error instanceof ApiClientError) {
+      console.error('Profile update API call failed:', {
+        endpoint: '/api/profile',
+        statusCode: error.statusCode,
+        context: error.context,
+        userId: userId.trim(),
+        email: email.trim()
+      })
+      
+      // Handle specific error cases
+      if (error.statusCode === 404) {
+        return {
+          error: 'User profile not found. Please sign in again.'
+        }
+      } else if (error.statusCode === 429) {
+        return {
+          error: 'Too many profile update attempts. Please try again later.'
+        }
+      } else {
+        return {
+          error: error.message || 'Profile service unavailable. Please try again.'
+        }
+      }
+    }
+    
+    console.error('Unexpected error completing user profile:', error)
     return {
       error: 'An unexpected error occurred. Please try again.'
     }
@@ -374,30 +423,51 @@ export async function requestPasswordReset(
   }
 
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/reset-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.trim(),
-      }),
+    // Send password reset with API client timeout and retry protection
+    const response: ApiResponse = await apiClient.post(`${process.env.NEXTAUTH_URL}/api/auth/reset-password`, {
+      email: email.trim(),
+    }, {
+      timeout: 15000, // 15 second timeout for email operations
+      retries: 2 // Retry twice for password reset (important for UX)
     })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+    if (response.success) {
       return {
-        error: errorData.message || 'Failed to send reset email. Please try again.'
+        success: true,
+        message: response.message || 'Password reset email sent! Check your inbox.'
       }
-    }
-
-    return {
-      success: true,
-      message: 'Password reset email sent! Check your inbox.'
+    } else {
+      return {
+        error: response.error || 'Failed to send reset email. Please try again.'
+      }
     }
     
   } catch (error) {
-    console.error('Error requesting password reset:', error)
+    if (error instanceof ApiClientError) {
+      console.error('Password reset API call failed:', {
+        endpoint: '/api/auth/reset-password',
+        statusCode: error.statusCode,
+        context: error.context,
+        email: email.trim()
+      })
+      
+      // Handle specific error cases
+      if (error.statusCode === 404) {
+        return {
+          error: 'No account found with this email address.'
+        }
+      } else if (error.statusCode === 429) {
+        return {
+          error: 'Too many reset requests. Please wait before trying again.'
+        }
+      } else {
+        return {
+          error: error.message || 'Password reset service unavailable. Please try again.'
+        }
+      }
+    }
+    
+    console.error('Unexpected error requesting password reset:', error)
     return {
       error: 'An unexpected error occurred. Please try again.'
     }

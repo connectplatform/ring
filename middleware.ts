@@ -52,12 +52,21 @@ export default auth(async (req) => {
     // Get auth info from Auth.js v5 (middleware version)
     // Note: Middleware uses edge-compatible auth, may have different session state than server components
     const session = req.auth
-    const isLoggedIn = !!session?.user
-    const userRole = session?.user?.role || UserRole.VISITOR
+    
+    // Check for session cookies as fallback since middleware auth might be inconsistent
+    const hasSessionCookie = req.cookies.has('next-auth.session-token') || req.cookies.has('__Secure-next-auth.session-token');
+    
+    // Consider user logged in if either session exists OR session cookie is present
+    // This prevents false negatives where middleware doesn't see the session but server does
+    const isLoggedIn = !!session?.user || hasSessionCookie
+    const userRole = session?.user?.role || (hasSessionCookie ? UserRole.SUBSCRIBER : UserRole.VISITOR)
     
     // Debug session state in development
-    if (process.env.NODE_ENV === 'development' && session) {
-      console.log(`Middleware: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Middleware: Auth check - Session: ${!!session?.user}, Cookie: ${hasSessionCookie}, Final IsLoggedIn: ${isLoggedIn}`);
+      if (session) {
+        console.log(`Middleware: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
+      }
     }
 
     console.log(`Middleware: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
@@ -83,17 +92,11 @@ export default auth(async (req) => {
 
     // If trying to access protected route without auth, redirect to localized login
     // Skip redirect if this is just a language switch (user is already on the page)
-    // Also check for session cookies as fallback since middleware auth might be inconsistent
-    const hasSessionCookie = req.cookies.has('next-auth.session-token') || req.cookies.has('__Secure-next-auth.session-token');
-    
-    if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && !hasSessionCookie && !isLanguageSwitch) {
+    if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && !isLanguageSwitch) {
       console.log(`Middleware: Redirecting to login, from: ${pathname} (no session found)`);
       const url = new URL(ROUTES.LOGIN(locale), req.nextUrl.origin);
       url.searchParams.set('from', pathname);
       return NextResponse.redirect(url);
-    } else if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && hasSessionCookie) {
-      console.log(`Middleware: Session cookie found but auth session missing, allowing request to proceed for server-side validation`);
-      // Let the server component handle the actual session validation
     }
 
     // If trying to access confidential route without proper role, redirect to localized home

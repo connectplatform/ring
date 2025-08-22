@@ -53,11 +53,13 @@ export class ApiClientError extends Error {
  * Ring Platform API Client
  * 
  * Centralized API client with ES2022 enhancements for consistent API route communication
+ * Includes request deduplication to prevent duplicate concurrent requests
  */
 export class RingApiClient {
   private readonly baseUrl: string;
   private readonly defaultHeaders: Record<string, string>;
   private readonly defaultTimeout: number;
+  private readonly pendingRequests: Map<string, Promise<ApiResponse<any>>>;
 
   constructor(baseUrl?: string) {
     // ES2022 logical assignment for configuration
@@ -66,6 +68,7 @@ export class RingApiClient {
       'Content-Type': 'application/json',
     };
     this.defaultTimeout = 10000; // 10 seconds
+    this.pendingRequests = new Map(); // For request deduplication
   }
 
   /**
@@ -84,10 +87,46 @@ export class RingApiClient {
       ...config
     } as Required<ApiRequestConfig>;
 
+    // Generate request key for deduplication (only for GET requests)
+    const requestKey = requestConfig.method === 'GET' 
+      ? `${requestConfig.method}:${endpoint}` 
+      : null;
+
+    // Check if there's already a pending request for the same endpoint (GET only)
+    if (requestKey && this.pendingRequests.has(requestKey)) {
+      console.log(`RingApiClient: Deduplicating request to ${endpoint} - returning existing promise`);
+      return this.pendingRequests.get(requestKey) as Promise<ApiResponse<T>>;
+    }
+
+    // Create the request promise
+    const requestPromise = this.executeRequest<T>(endpoint, requestConfig, config.headers);
+
+    // Store the promise for deduplication (GET only)
+    if (requestKey) {
+      this.pendingRequests.set(requestKey, requestPromise);
+      
+      // Clean up the pending request when it completes
+      requestPromise.finally(() => {
+        this.pendingRequests.delete(requestKey);
+      });
+    }
+
+    return requestPromise;
+  }
+
+  /**
+   * Execute the actual request with retry logic
+   * Separated from request() to enable deduplication
+   */
+  private async executeRequest<T = any>(
+    endpoint: string, 
+    requestConfig: Required<ApiRequestConfig>,
+    additionalHeaders?: Record<string, string>
+  ): Promise<ApiResponse<T>> {
     // ES2022 logical assignment for headers
     const headers = {
       ...this.defaultHeaders,
-      ...config.headers
+      ...additionalHeaders
     };
 
     // Request context with ES2022 logical assignment

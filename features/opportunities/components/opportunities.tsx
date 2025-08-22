@@ -78,19 +78,37 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
 
   useEffect(() => {
     const fetchEntities = async () => {
-      if (!session) return
+      if (!session || opportunities.length === 0) return
 
       setLoading(true)
       setError(null)
       try {
-        const entityPromises = opportunities.map(opp => 
-          fetch(`/api/entities/${opp.organizationId}`).then(res => res.json())
+        // Deduplicate entity IDs before fetching
+        const uniqueEntityIds = [...new Set(opportunities.map(opp => opp.organizationId))]
+        const missingEntityIds = uniqueEntityIds.filter(id => !entities[id])
+        
+        if (missingEntityIds.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const { apiClient } = await import('@/lib/api-client')
+        const entityPromises = missingEntityIds.map(id => 
+          apiClient.get(`/api/entities/${id}`, {
+            timeout: 5000,
+            retries: 1
+          })
         )
-        const fetchedEntities = await Promise.all(entityPromises)
-        const entityMap = fetchedEntities.reduce((acc, entity) => {
-          if (entity) acc[entity.id] = entity
-          return acc
-        }, {} as { [key: string]: Entity })
+        
+        const fetchResponses = await Promise.allSettled(entityPromises)
+        const entityMap: { [key: string]: Entity } = {}
+        
+        fetchResponses.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.success && result.value.data) {
+            entityMap[missingEntityIds[index]] = result.value.data
+          }
+        })
+        
         setEntities(prev => ({ ...prev, ...entityMap }))
       } catch (error) {
         console.error('Error fetching entities:', error)

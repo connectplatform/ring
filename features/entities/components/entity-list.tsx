@@ -75,12 +75,11 @@ export function EntityList({ initialEntities, onCreateEntityAction, className }:
     // Preinit entity list analytics
     preinit('/scripts/entity-list-analytics.js', { as: 'script' })
     
-    // Preload entity logos for visible entities
-    optimisticEntities.slice(0, 10).forEach(entity => {
-      if (entity.id) {
-        preload(`/api/entities/${entity.id}`, { as: 'fetch' })
-        preload(`/images/entities/${entity.id}/logo.webp`, { as: 'image' })
-      }
+    // Preload entity logos for visible entities - deduplicate IDs
+    const uniqueEntityIds = [...new Set(optimisticEntities.slice(0, 10).map(e => e.id).filter(Boolean))]
+    uniqueEntityIds.forEach(entityId => {
+      preload(`/api/entities/${entityId}`, { as: 'fetch' })
+      preload(`/images/entities/${entityId}/logo.webp`, { as: 'image' })
     })
   }, [session, optimisticEntities])
 

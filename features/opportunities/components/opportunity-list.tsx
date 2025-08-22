@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react'
 import { useInView } from '@/hooks/use-intersection-observer'
 import Link from 'next/link'
 import Image from 'next/image'
+import { apiClient } from '@/lib/api-client'
 import { 
   Calendar, 
   MapPin, 
@@ -163,13 +164,16 @@ export default function OpportunityList({
         sort: filters.sortBy
       })
 
-      const response = await fetch(`/api/opportunities?${queryParams}`)
+      const response = await apiClient.get(`/api/opportunities?${queryParams}`, {
+        timeout: 10000,
+        retries: 1
+      })
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch opportunities')
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch opportunities')
       }
 
-      const data = await response.json()
+      const data = response.data
       
       // Update opportunities without affecting optimistic ones
       const newOpportunities = data.opportunities.filter((opp: Opportunity) => 
@@ -179,19 +183,27 @@ export default function OpportunityList({
       newOpportunities.forEach((opp: Opportunity) => addOptimisticOpportunity(opp))
       setLastVisible(data.lastVisible)
 
-      // Fetch entities for new opportunities
-      const entityPromises = newOpportunities
-        .filter((opp: Opportunity) => !entities[opp.organizationId])
-        .map((opp: Opportunity) => 
-          fetch(`/api/entities/${opp.organizationId}`).then(res => res.json())
+      // Fetch entities for new opportunities - with deduplication
+      const uniqueEntityIds = [...new Set(newOpportunities
+        .map((opp: Opportunity) => opp.organizationId)
+        .filter(id => !entities[id]))]
+
+      if (uniqueEntityIds.length > 0) {
+        const entityPromises = uniqueEntityIds.map(id => 
+          apiClient.get(`/api/entities/${id}`, {
+            timeout: 5000,
+            retries: 1
+          })
         )
 
-      if (entityPromises.length > 0) {
-        const fetchedEntities = await Promise.all(entityPromises)
-        const entityMap = fetchedEntities.reduce((acc, entity) => {
-          if (entity) acc[entity.id] = entity
-          return acc
-        }, {} as { [key: string]: Entity })
+        const fetchResponses = await Promise.allSettled(entityPromises)
+        const entityMap: { [key: string]: Entity } = {}
+        
+        fetchResponses.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.success && result.value.data) {
+            entityMap[uniqueEntityIds[index] as string] = result.value.data
+          }
+        })
         
         setEntities(prev => ({ ...prev, ...entityMap }))
       }
