@@ -7,6 +7,9 @@
   "opportunities": "Можливості",
   "opportunitiesDescription": "Відкрийте можливості в спільноті Ring",
   "opportunitiesSubtitle": "Доступно {count} можливостей",
+  "add": "Додати",
+  "cancel": "Скасувати",
+  "tags": "Теги",
   "addOpportunity": "Додати можливість",
   "createFirstOpportunity": "Створити першу можливість",
   "errorFetchingMoreOpportunities": "Не вдалося завантажити більше можливостей.",
@@ -103,6 +106,7 @@
   "addTag": "Додати тег",
   "markAsConfidential": "Позначити як конфіденційне",
   "learnMoreaboutConfidential": "Дізнатися більше про конфіденційні можливості",
+  "save": "Зберегти",
   "saving": "Збереження...",
   "redirecting": "Перенаправлення...",
   "status": {

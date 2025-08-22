@@ -832,7 +832,7 @@ export async function GET(req: NextRequest) {
 import { websocketManager } from '@/lib/websocket/modern-websocket-manager'
 
 export function useWebSocketConnection() {
-  const { isConnected, connect, disconnect } = useModernWebSocket()
+  const { isConnected, connect, disconnect } = useWebSocket()
   
   useEffect(() => {
     // Connect when authenticated

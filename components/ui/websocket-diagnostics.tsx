@@ -6,7 +6,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useWebSocket } from '@/components/providers/websocket-provider'
+import { useWebSocket } from '@/hooks/use-websocket'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -166,7 +166,7 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <span>Total Received:</span>
                 <span className="font-mono">
-                  {ws.notifications.items.length}
+                  {ws.notifications.notifications.length}
                 </span>
               </div>
             </div>
@@ -191,10 +191,10 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
             )}
 
             {/* Connection Error */}
-            {ws.connectionError && (
+            {ws.error && (
               <div className="border-t pt-2">
                 <div className="text-red-500 text-xs break-words">
-                  Error: {ws.connectionError}
+                  Error: {ws.error}
                 </div>
               </div>
             )}
@@ -204,7 +204,7 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => ws.connect()}
+                onClick={() => ws.reconnect()}
                 disabled={ws.isConnected || ws.isConnecting}
                 className="flex-1 text-xs"
               >

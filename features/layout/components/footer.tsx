@@ -27,7 +27,7 @@ export default function Footer() {
     if (typeof window === 'undefined' || !mounted) return
 
     // Import the modern WebSocket manager
-    import('@/lib/websocket/modern-websocket-manager').then(({ websocketManager }) => {
+    import('@/lib/websocket/websocket-manager').then(({ websocketManager }) => {
       const checkStatus = () => {
         const state = websocketManager.getState()
         setWsConnected(state.status === 'connected')

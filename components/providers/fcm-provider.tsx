@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, use, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useFCM, useFCMMessages } from '@/hooks/useFCM'
 import { toast } from '@/hooks/use-toast'
@@ -17,8 +17,12 @@ interface FCMContextType {
 
 const FCMContext = createContext<FCMContextType | undefined>(undefined)
 
+/**
+ * Modern React 19 hook to access FCM context
+ * Uses the use() hook for better performance and conditional access
+ */
 export function useFCMContext() {
-  const context = useContext(FCMContext)
+  const context = use(FCMContext)
   if (context === undefined) {
     throw new Error('useFCMContext must be used within a FCMProvider')
   }

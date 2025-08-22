@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { use } from "react"
 import type { Entity, Opportunity } from "@/types"
 
 // React 19 Resource Preloading APIs
@@ -82,9 +82,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 /**
  * Custom hook to use the app context
+ * Uses React 19's use() hook for better performance and error handling
  */
 export function useAppContext() {
-  const context = React.useContext(AppContext)
+  const context = use(AppContext)
   if (!context) {
     throw new Error("useAppContext must be used within an AppProvider")
   }

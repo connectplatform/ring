@@ -15,7 +15,7 @@
         "enabled": true,
         "auth": "/api/websocket/auth",
         "manager": "/lib/websocket/modern-websocket-manager.ts",
-        "hooks": "/hooks/use-modern-websocket.ts",
+        "hooks": "/hooks/use-websocket.ts",
         "provider": "/components/providers/websocket-provider.tsx",
         "features": ["heartbeat", "auto-reconnection", "push-notifications", "presence"]
       },
@@ -47,9 +47,9 @@
       "firebase_service_optimized": "ring/lib/firebase-service-optimized.ts",
       "converters": "ring/lib/converters/*",
       "zod_schemas": "ring/lib/zod.ts",
-      "websocket_client": "ring/lib/websocket-client.ts",
+      "websocket_compatibility": "ring/hooks/use-websocket.ts",
       "websocket_manager": "ring/lib/websocket/modern-websocket-manager.ts",
-      "websocket_hooks": "ring/hooks/use-modern-websocket.ts",
+      "websocket_hooks": "ring/hooks/use-websocket.ts",
       "websocket_auth": "ring/app/api/websocket/auth/route.ts",
       "api_client": "ring/lib/api-client.ts",
       "cache": "ring/lib/cached-data.ts",
@@ -115,12 +115,13 @@
     "converters": "typed Firestore converters in lib/converters/*"
   },
   "realtime_files": {
-    "websocket_client": "lib/websocket-client.ts",
     "websocket_manager": "lib/websocket/modern-websocket-manager.ts",
-    "websocket_hooks": "hooks/use-modern-websocket.ts",
+    "websocket_hooks": "hooks/use-websocket.ts",
+    "websocket_compatibility": "hooks/use-websocket.ts (backward compatibility)",
     "websocket_auth": "app/api/websocket/auth/route.ts",
     "websocket_provider": "components/providers/websocket-provider.tsx",
-    "push_notifications": "FCM + WebSocket push"
+    "push_notifications": "FCM + WebSocket push with React 19 optimizations",
+    "migration_status": "✅ WebSocket migration completed - modern React 19 architecture"
   },
   "files_uploads": {
     "provider": "Vercel Blob",

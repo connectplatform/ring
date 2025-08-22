@@ -1,5 +1,4 @@
 {
-  "title": "Opportunities",
   "introTitle": "Discover Opportunities",
   "introDescription": "The Opportunities page curates jobs, partnerships, grants, and collaborations from entities in our ecosystem. Sign in to browse and apply.",
   "loadingMessage": "Loading opportunities...",
@@ -8,6 +7,9 @@
   "opportunities": "Opportunities",
   "opportunitiesDescription": "Discover opportunities in the Ring community",
   "opportunitiesSubtitle": "{count} opportunities available",
+  "add": "Add",
+  "cancel": "Cancel",
+  "tags": "Tags",
   "addOpportunity": "Add Opportunity",
   "errorFetchingMoreOpportunities": "Failed to load more opportunities.",
   "errorFetchingEntities": "Failed to load related entities.",
@@ -104,6 +106,7 @@
   "addTag": "Add tag",
   "markAsConfidential": "Mark as confidential",
   "learnMoreaboutConfidential": "Learn more about confidential opportunities",
+  "save": "Save",
   "saving": "Saving...",
   "redirecting": "Redirecting...",
   "status": {

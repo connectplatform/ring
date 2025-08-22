@@ -84,7 +84,7 @@ WebSocket push notifications provide instant updates with <100ms latency, while 
 
 ```typescript
 // Real-time WebSocket notifications
-import { useWebSocketNotifications } from '@/hooks/use-modern-websocket'
+import { useWebSocketNotifications } from '@/hooks/use-websocket'
 
 function NotificationCenter() {
   const { notifications, unreadCount, markAsRead } = useWebSocketNotifications()

@@ -195,7 +195,7 @@ DELETE /api/messages/[id]             # Delete message
 ### **Real-time WebSocket Events**
 ```typescript
 // Modern WebSocket hooks for messaging
-import { useWebSocketMessages } from '@/hooks/use-modern-websocket'
+import { useWebSocketMessages } from '@/hooks/use-websocket'
 
 function ChatRoom({ conversationId }) {
   const { 
@@ -226,7 +226,7 @@ function ChatRoom({ conversationId }) {
 ### **WebSocket Push Notifications**
 ```typescript
 // Real-time notification hooks
-import { useWebSocketNotifications } from '@/hooks/use-modern-websocket'
+import { useWebSocketNotifications } from '@/hooks/use-websocket'
 
 function NotificationCenter() {
   const { 

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { use } from 'react'
 import type { Entity } from '@/types'
 
 // Define the context type
@@ -49,9 +49,9 @@ export function ConfidentialEntitiesProvider({
   )
 }
 
-// Custom hook to use the context
+// Custom hook to use the context with React 19's use() hook
 export function useConfidentialEntities() {
-  const context = React.useContext(ConfidentialEntitiesContext)
+  const context = use(ConfidentialEntitiesContext)
   if (!context) {
     throw new Error('useConfidentialEntities must be used within a ConfidentialEntitiesProvider')
   }

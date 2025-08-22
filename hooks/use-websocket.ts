@@ -1,323 +1,511 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+/**
+ * Modern WebSocket Hooks for React 19
+ * Optimized for performance with automatic cleanup and subscription management
+ */
+
+'use client'
+
+import { useEffect, useState, useCallback, useRef, useSyncExternalStore, use, useOptimistic } from 'react'
 import { useSession } from 'next-auth/react'
-import { wsClient, WebSocketEvents } from '@/lib/websocket-client'
-import { Message, TypingIndicator } from '@/features/chat/types'
+import { websocketManager, WebSocketState } from '@/lib/websocket/websocket-manager'
 
-export function useWebSocket() {
-  const { data: session } = useSession()
-  const [isConnected, setIsConnected] = useState(false)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Stable server snapshot for SSR to prevent infinite loops
+ * This needs to be a constant reference, not created on each render
+ */
+const SERVER_SNAPSHOT: WebSocketState = {
+  status: 'disconnected',
+  reconnectAttempts: 0,
+  isAuthenticated: false,
+  lastError: null,
+  lastConnected: null
+}
 
-  const connect = useCallback(async () => {
-    if (!session?.accessToken || isConnected || isConnecting) return
+/**
+ * Core WebSocket hook with React 19 optimizations using useSyncExternalStore
+ */
+export function useWebSocketConnection() {
+  const { status: sessionStatus } = useSession()
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const mountedRef = useRef(true)
 
-    try {
-      setIsConnecting(true)
-      setError(null)
-      await wsClient.connect(session.accessToken)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Connection failed'
-      setError(errorMessage)
-    } finally {
-      setIsConnecting(false)
+  // Use React 19 useSyncExternalStore for better external state management
+  const state = useSyncExternalStore(
+    // Subscribe function
+    (callback) => {
+      const handleStateChange = (newState: WebSocketState) => {
+        callback()
+        if (newState.status === 'connected') {
+          setConnectionError(null)
+        }
+      }
+
+      websocketManager.on('stateChange', handleStateChange)
+      return () => {
+        websocketManager.off('stateChange', handleStateChange)
+      }
+    },
+    // Get snapshot function
+    () => websocketManager.getState(),
+    // Server snapshot function (for SSR) - must return stable reference
+    () => SERVER_SNAPSHOT
+  )
+
+  // Connect when authenticated
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && !websocketManager.isConnected) {
+      websocketManager.connect().catch(error => {
+        if (mountedRef.current) {
+          setConnectionError(error.message)
+        }
+      })
+    } else if (sessionStatus === 'unauthenticated' && websocketManager.isConnected) {
+      websocketManager.disconnect()
     }
-  }, [session?.accessToken, isConnected, isConnecting])
 
-  const disconnect = useCallback(() => {
-    wsClient.disconnect()
-    setIsConnected(false)
-    setIsConnecting(false)
-    setError(null)
+    return () => {
+      mountedRef.current = false
+    }
+  }, [sessionStatus])
+
+  // Handle connection errors
+  useEffect(() => {
+    const handleError = (error: any) => {
+      if (mountedRef.current) {
+        setConnectionError(error.message || 'Connection error')
+      }
+    }
+
+    websocketManager.on('error', handleError)
+
+    return () => {
+      websocketManager.off('error', handleError)
+    }
   }, [])
 
-  useEffect(() => {
-    if (session?.accessToken) {
-      connect()
-    } else {
-      disconnect()
+  const reconnect = useCallback(async () => {
+    try {
+      await websocketManager.connect()
+    } catch (error) {
+      setConnectionError((error as Error).message)
     }
+  }, [])
 
-    // Event handlers
-    const handleConnected = () => {
-      setIsConnected(true)
-      setIsConnecting(false)
-      setError(null)
-    }
+  const disconnect = useCallback(() => {
+    websocketManager.disconnect()
+  }, [])
 
-    const handleDisconnected = () => {
-      setIsConnected(false)
-      setIsConnecting(false)
-    }
+  const send = useCallback((event: string, data: any) => {
+    return websocketManager.send(event, data)
+  }, [])
 
-    const handleError = (error: any) => {
-      setError(error.message || 'Connection error')
-      setIsConnected(false)
-      setIsConnecting(false)
-    }
-
-    wsClient.on('connected', handleConnected)
-    wsClient.on('disconnected', handleDisconnected)
-    wsClient.on('connection_error', handleError)
-
-    return () => {
-      wsClient.off('connected', handleConnected)
-      wsClient.off('disconnected', handleDisconnected)
-      wsClient.off('connection_error', handleError)
-    }
-  }, [session?.accessToken, connect, disconnect])
-
-  return { 
-    isConnected, 
-    isConnecting, 
-    error, 
-    wsClient, 
-    connect, 
-    disconnect 
+  return {
+    isConnected: state.status === 'connected',
+    isConnecting: state.status === 'connecting',
+    isReconnecting: state.status === 'reconnecting',
+    status: state.status,
+    error: connectionError || state.lastError,
+    reconnectAttempts: state.reconnectAttempts,
+    lastConnected: state.lastConnected,
+    reconnect,
+    disconnect,
+    send,
   }
 }
 
-export function useRealTimeMessages(conversationId: string) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const { wsClient, isConnected } = useWebSocket()
-  const previousConversationId = useRef<string | undefined>(undefined)
-
-  useEffect(() => {
-    if (!conversationId || !isConnected) return
-
-    // Handle conversation change
-    if (previousConversationId.current && previousConversationId.current !== conversationId) {
-      wsClient.leaveConversation(previousConversationId.current)
-    }
-
-    // Join new conversation
-    wsClient.joinConversation(conversationId)
-    previousConversationId.current = conversationId
-
-    // Message event handlers
-    const handleMessageReceived = (message: Message) => {
-      if (message.conversationId === conversationId) {
-        setMessages(prev => {
-          // Avoid duplicates
-          const exists = prev.some(m => m.id === message.id)
-          if (exists) return prev
-                     return [...prev, message].sort((a, b) => {
-             const getTimestamp = (timestamp: any): number => {
-               if (!timestamp) return Date.now()
-               if (typeof timestamp === 'number') return timestamp
-               if (timestamp.toMillis && typeof timestamp.toMillis === 'function') {
-                 return timestamp.toMillis()
-               }
-               if (timestamp.seconds) return timestamp.seconds * 1000
-               return Date.now()
-             }
-             return getTimestamp(a.timestamp) - getTimestamp(b.timestamp)
-           })
-        })
-      }
-    }
-
-    const handleMessageUpdated = (updatedMessage: Message) => {
-      if (updatedMessage.conversationId === conversationId) {
-        setMessages(prev => prev.map(msg => 
-          msg.id === updatedMessage.id ? updatedMessage : msg
-        ))
-      }
-    }
-
-    const handleMessageDeleted = (messageId: string) => {
-      setMessages(prev => prev.filter(msg => msg.id !== messageId))
-    }
-
-    wsClient.on('message_received', handleMessageReceived)
-    wsClient.on('message_updated', handleMessageUpdated)
-    wsClient.on('message_deleted', handleMessageDeleted)
-
-    return () => {
-      if (conversationId) {
-        wsClient.leaveConversation(conversationId)
-      }
-      wsClient.off('message_received', handleMessageReceived)
-      wsClient.off('message_updated', handleMessageUpdated)
-      wsClient.off('message_deleted', handleMessageDeleted)
-    }
-  }, [conversationId, isConnected, wsClient])
-
-  const sendMessage = useCallback((content: string, type: 'text' | 'image' | 'file' = 'text') => {
-    if (!conversationId || !isConnected) return
-
-    const messageData = {
-      conversationId,
-      senderId: '', // Will be set by server based on auth
-      senderName: '', // Will be set by server based on auth
-      content,
-      type
-    }
-
-    wsClient.sendMessage(messageData)
-  }, [conversationId, isConnected, wsClient])
-
-  return { 
-    messages, 
-    setMessages, 
-    sendMessage,
-    isConnected 
-  }
+/**
+ * Hook for WebSocket notifications with automatic subscription management
+ */
+interface NotificationData {
+  id: string
+  type: string
+  title: string
+  body: string
+  timestamp: Date
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  data?: any
 }
 
-export function useTypingIndicators(conversationId: string) {
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
-  const { wsClient, isConnected } = useWebSocket()
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null)
-  const isTypingRef = useRef(false)
+export function useWebSocketNotifications() {
+  const [notifications, setNotifications] = useState<NotificationData[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [lastNotification, setLastNotification] = useState<NotificationData | null>(null)
+  const maxNotifications = useRef(100)
+
+  // React 19 useOptimistic for optimistic notification reads
+  const [optimisticNotifications, addOptimisticUpdate] = useOptimistic(
+    notifications,
+    (currentNotifications, action: { type: 'markRead', ids: string[] }) => {
+      if (action.type === 'markRead') {
+        return currentNotifications.map(n => 
+          action.ids.includes(n.id) 
+            ? { ...n, read: true } 
+            : n
+        ) as NotificationData[]
+      }
+      return currentNotifications
+    }
+  )
 
   useEffect(() => {
-    if (!conversationId || !isConnected) return
-
-    const handleUserTyping = ({ userId, isTyping }: { userId: string; isTyping: boolean }) => {
-      setTypingUsers(prev => {
-        const next = new Set(prev)
-        if (isTyping) {
-          next.add(userId)
-        } else {
-          next.delete(userId)
-        }
-        return next
+    // Handle single notification
+    const handleNotification = (notification: NotificationData) => {
+      setNotifications(prev => {
+        const updated = [notification, ...prev]
+        // Keep only the latest N notifications
+        return updated.slice(0, maxNotifications.current)
       })
-
-      // Auto-remove typing indicator after 3 seconds
-      if (isTyping) {
-        if (typingTimeout.current) clearTimeout(typingTimeout.current)
-        typingTimeout.current = setTimeout(() => {
-          setTypingUsers(prev => {
-            const next = new Set(prev)
-            next.delete(userId)
-            return next
-          })
-        }, 3000)
-      }
+      setLastNotification(notification)
+      setUnreadCount(prev => prev + 1)
     }
 
-    wsClient.on('user_typing', handleUserTyping)
-
-    return () => {
-      wsClient.off('user_typing', handleUserTyping)
-      clearTimeout(typingTimeout.current)
-    }
-  }, [conversationId, isConnected, wsClient])
-
-  const stopTyping = useCallback(() => {
-    if (!conversationId || !isConnected || !isTypingRef.current) return
-    
-    isTypingRef.current = false
-    wsClient.stopTyping(conversationId)
-    clearTimeout(typingTimeout.current)
-  }, [conversationId, isConnected, wsClient])
-
-  const startTyping = useCallback(() => {
-    if (!conversationId || !isConnected || isTypingRef.current) return
-    
-    isTypingRef.current = true
-    wsClient.startTyping(conversationId)
-    
-    // Auto-stop typing after 3 seconds of inactivity
-    clearTimeout(typingTimeout.current)
-    typingTimeout.current = setTimeout(() => {
-      if (isTypingRef.current) {
-        stopTyping()
-      }
-    }, 3000)
-  }, [conversationId, isConnected, wsClient, stopTyping])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (isTypingRef.current) {
-        stopTyping()
-      }
-    }
-  }, [stopTyping])
-
-  return { 
-    typingUsers: Array.from(typingUsers), 
-    startTyping, 
-    stopTyping,
-    isConnected 
-  }
-}
-
-export function usePresence() {
-  const [onlineUsers, setOnlineUsers] = useState<Map<string, Date>>(new Map())
-  const { wsClient, isConnected } = useWebSocket()
-
-  useEffect(() => {
-    if (!isConnected) return
-
-    const handlePresenceUpdate = ({ userId, isOnline, lastSeen }: {
-      userId: string
-      isOnline: boolean
-      lastSeen: Date
-    }) => {
-      setOnlineUsers(prev => {
-        const next = new Map(prev)
-        if (isOnline) {
-          next.set(userId, new Date())
-        } else {
-          next.set(userId, new Date(lastSeen))
-        }
-        return next
+    // Handle batch notifications
+    const handleBatchNotifications = (batch: NotificationData[]) => {
+      setNotifications(prev => {
+        const updated = [...batch, ...prev]
+        return updated.slice(0, maxNotifications.current)
       })
+      if (batch.length > 0) {
+        setLastNotification(batch[0])
+      }
+      setUnreadCount(prev => prev + batch.length)
     }
 
-    wsClient.on('presence_update', handlePresenceUpdate)
+    // Handle unread count updates from server
+    const handleUnreadCount = (count: number) => {
+      setUnreadCount(count)
+    }
+
+    // Subscribe to notification events
+    websocketManager.on('notification', handleNotification)
+    websocketManager.on('notifications', handleBatchNotifications)
+    websocketManager.on('unreadCount', handleUnreadCount)
+
+    // Subscribe to notification channel
+    websocketManager.subscribe('user:notifications')
+
+    // Request initial unread count
+    if (websocketManager.isConnected) {
+      websocketManager.requestNotificationCount()
+    }
 
     return () => {
-      wsClient.off('presence_update', handlePresenceUpdate)
+      websocketManager.off('notification', handleNotification)
+      websocketManager.off('notifications', handleBatchNotifications)
+      websocketManager.off('unreadCount', handleUnreadCount)
+      websocketManager.unsubscribe('user:notifications')
     }
-  }, [isConnected, wsClient])
+  }, [])
 
-  const isUserOnline = useCallback((userId: string): boolean => {
-    const lastSeen = onlineUsers.get(userId)
-    if (!lastSeen) return false
+  const markAsRead = useCallback((notificationIds: string[]) => {
+    // React 19 optimistic update - update UI immediately
+    addOptimisticUpdate({ type: 'markRead', ids: notificationIds })
+    setUnreadCount(prev => Math.max(0, prev - notificationIds.length))
     
-    // Consider user online if last seen within 30 seconds
-    return Date.now() - lastSeen.getTime() < 30000
-  }, [onlineUsers])
+    // Send to server (may fail, causing rollback)
+    websocketManager.markNotificationsRead(notificationIds)
+  }, [addOptimisticUpdate])
 
-  const getUserLastSeen = useCallback((userId: string): Date | null => {
-    return onlineUsers.get(userId) || null
-  }, [onlineUsers])
-
-  return { 
-    onlineUsers, 
-    isUserOnline, 
-    getUserLastSeen,
-    isConnected 
-  }
-}
-
-export function useMessageStatus(conversationId: string) {
-  const { wsClient, isConnected } = useWebSocket()
-
-  const markAsRead = useCallback((messageIds: string[]) => {
-    if (!conversationId || !isConnected || messageIds.length === 0) return
-    
-    wsClient.markAsRead(conversationId, messageIds)
-  }, [conversationId, isConnected, wsClient])
-
-  const markAllAsRead = useCallback((messages: Message[]) => {
-    const unreadIds = messages
-      .filter(msg => msg.status !== 'read')
-      .map(msg => msg.id)
+  const markAllAsRead = useCallback(() => {
+    const unreadIds = notifications
+      .filter(n => !(n as any).read)
+      .map(n => n.id)
     
     if (unreadIds.length > 0) {
       markAsRead(unreadIds)
     }
-  }, [markAsRead])
+  }, [notifications, markAsRead])
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([])
+    setLastNotification(null)
+  }, [])
+
+  const refresh = useCallback(() => {
+    websocketManager.requestNotificationCount()
+  }, [])
 
   return {
+    notifications: optimisticNotifications, // Use optimistic state for better UX
+    unreadCount,
+    lastNotification,
     markAsRead,
     markAllAsRead,
-    isConnected
+    clearNotifications,
+    refresh,
   }
-} 
+}
+
+/**
+ * Hook for WebSocket messages with typing indicators
+ */
+export function useWebSocketMessages(conversationId?: string) {
+  const [messages, setMessages] = useState<any[]>([])
+  const [typingUsers, setTypingUsers] = useState<Map<string, boolean>>(new Map())
+  const typingTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // React 19 useOptimistic for optimistic message sending
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic(
+    messages,
+    (currentMessages, newMessage: any) => [...currentMessages, newMessage]
+  )
+
+  useEffect(() => {
+    if (!conversationId) return
+
+    const handleMessage = (message: any) => {
+      if (message.conversationId === conversationId) {
+        setMessages(prev => [...prev, message])
+      }
+    }
+
+    const handleTyping = (data: { userId: string; conversationId: string; isTyping: boolean }) => {
+      if (data.conversationId !== conversationId) return
+
+      setTypingUsers(prev => {
+        const updated = new Map(prev)
+        if (data.isTyping) {
+          updated.set(data.userId, true)
+          
+          // Clear existing timeout
+          const existingTimeout = typingTimeouts.current.get(data.userId)
+          if (existingTimeout) {
+            clearTimeout(existingTimeout)
+          }
+          
+          // Set timeout to remove typing indicator after 5 seconds
+          const timeout = setTimeout(() => {
+            setTypingUsers(p => {
+              const u = new Map(p)
+              u.delete(data.userId)
+              return u
+            })
+          }, 5000)
+          
+          typingTimeouts.current.set(data.userId, timeout)
+        } else {
+          updated.delete(data.userId)
+          const timeout = typingTimeouts.current.get(data.userId)
+          if (timeout) {
+            clearTimeout(timeout)
+            typingTimeouts.current.delete(data.userId)
+          }
+        }
+        return updated
+      })
+    }
+
+    websocketManager.on('message', handleMessage)
+    websocketManager.on('typing', handleTyping)
+    websocketManager.subscribe(`conversation:${conversationId}`)
+
+    return () => {
+      websocketManager.off('message', handleMessage)
+      websocketManager.off('typing', handleTyping)
+      websocketManager.unsubscribe(`conversation:${conversationId}`)
+      
+      // Clear all typing timeouts
+      typingTimeouts.current.forEach(timeout => clearTimeout(timeout))
+      typingTimeouts.current.clear()
+    }
+  }, [conversationId])
+
+  const sendMessage = useCallback((content: string, metadata?: any) => {
+    if (!conversationId) return false
+    
+    // React 19 optimistic update - show message immediately
+    const tempMessage = {
+      id: `temp-${Date.now()}`,
+      conversationId,
+      content,
+      metadata,
+      timestamp: new Date().toISOString(),
+      status: 'sending',
+      isOptimistic: true
+    }
+    
+    addOptimisticMessage(tempMessage)
+    
+    // Send to server (will replace temp message when confirmed)
+    return websocketManager.send('message:send', {
+      conversationId,
+      content,
+      metadata,
+      timestamp: tempMessage.timestamp,
+      tempId: tempMessage.id // Server uses this to replace temp message
+    })
+  }, [conversationId, addOptimisticMessage])
+
+  const startTyping = useCallback(() => {
+    if (!conversationId) return
+    websocketManager.send('typing:start', { conversationId })
+  }, [conversationId])
+
+  const stopTyping = useCallback(() => {
+    if (!conversationId) return
+    websocketManager.send('typing:stop', { conversationId })
+  }, [conversationId])
+
+  return {
+    messages: optimisticMessages, // Use optimistic state for better UX
+    typingUsers: Array.from(typingUsers.keys()),  
+    sendMessage,
+    startTyping,
+    stopTyping,
+  }
+}
+
+/**
+ * Hook for WebSocket presence/online status
+ */
+export function useWebSocketPresence() {
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  const [userPresence, setUserPresence] = useState<Map<string, { isOnline: boolean; lastSeen?: Date }>>(new Map())
+
+  useEffect(() => {
+    const handlePresence = (data: { userId: string; isOnline: boolean; lastSeen?: string }) => {
+      setUserPresence(prev => {
+        const updated = new Map(prev)
+        updated.set(data.userId, {
+          isOnline: data.isOnline,
+          lastSeen: data.lastSeen ? new Date(data.lastSeen) : undefined,
+        })
+        return updated
+      })
+
+      setOnlineUsers(prev => {
+        const updated = new Set(prev)
+        if (data.isOnline) {
+          updated.add(data.userId)
+        } else {
+          updated.delete(data.userId)
+        }
+        return updated
+      })
+    }
+
+    websocketManager.on('presence', handlePresence)
+    websocketManager.subscribe('presence:updates')
+
+    return () => {
+      websocketManager.off('presence', handlePresence)
+      websocketManager.unsubscribe('presence:updates')
+    }
+  }, [])
+
+  const isUserOnline = useCallback((userId: string): boolean => {
+    return onlineUsers.has(userId)
+  }, [onlineUsers])
+
+  const getUserPresence = useCallback((userId: string) => {
+    return userPresence.get(userId) || { isOnline: false }
+  }, [userPresence])
+
+  return {
+    onlineUsers: Array.from(onlineUsers),
+    onlineCount: onlineUsers.size,
+    isUserOnline,
+    getUserPresence,
+  }
+}
+
+/**
+ * Hook for system events (maintenance, updates, etc.)
+ */
+export function useWebSocketSystem() {
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [systemUpdate, setSystemUpdate] = useState<any>(null)
+  const [connectionQuality, setConnectionQuality] = useState<'excellent' | 'good' | 'poor'>('good')
+  const pingCount = useRef(0)
+  const pongCount = useRef(0)
+
+  useEffect(() => {
+    const handleMaintenance = (data: { enabled: boolean; message?: string; estimatedTime?: number }) => {
+      setMaintenanceMode(data.enabled)
+      if (data.enabled && data.message) {
+        console.warn('System maintenance:', data.message)
+      }
+    }
+
+    const handleSystemUpdate = (data: any) => {
+      setSystemUpdate(data)
+    }
+
+      const handlePing = () => {
+    pingCount.current++
+    // Don't update quality immediately on ping - wait for pong
+  }
+
+  const handleHeartbeat = () => {
+    pongCount.current++
+    // Only update quality when we receive a pong response
+    updateConnectionQuality()
+  }
+
+    const updateConnectionQuality = () => {
+      const ratio = pongCount.current / Math.max(pingCount.current, 1)
+      
+      // More lenient thresholds for local development
+      // Local networks can have minor fluctuations
+      if (ratio > 0.85) {
+        setConnectionQuality('excellent')
+      } else if (ratio > 0.60) {
+        setConnectionQuality('good')
+      } else {
+        setConnectionQuality('poor')
+      }
+      
+      // Log quality metrics in development
+      if (process.env.NODE_ENV === 'development' && pingCount.current > 0) {
+        console.log(`WebSocket Quality: ${(ratio * 100).toFixed(1)}% (${pongCount.current}/${pingCount.current} pongs) - ${connectionQuality}`)
+      }
+    }
+
+    websocketManager.on('maintenance', handleMaintenance)
+    websocketManager.on('systemUpdate', handleSystemUpdate)
+    websocketManager.on('ping', handlePing)
+    websocketManager.on('heartbeat', handleHeartbeat)
+
+    // Reset counters periodically and recalculate quality
+    const resetInterval = setInterval(() => {
+      // Only reset if we have enough data points
+      if (pingCount.current >= 5) {
+        pingCount.current = 0
+        pongCount.current = 0
+        // Start with excellent quality after reset
+        setConnectionQuality('excellent')
+      }
+    }, 60000) // Every minute
+
+    return () => {
+      websocketManager.off('maintenance', handleMaintenance)
+      websocketManager.off('systemUpdate', handleSystemUpdate)
+      websocketManager.off('ping', handlePing)
+      websocketManager.off('heartbeat', handleHeartbeat)
+      clearInterval(resetInterval)
+    }
+  }, [])
+
+  return {
+    maintenanceMode,
+    systemUpdate,
+    connectionQuality,
+  }
+}
+
+/**
+ * Combined hook for all WebSocket features
+ */
+export function useWebSocket() {
+  const connection = useWebSocketConnection()
+  const notifications = useWebSocketNotifications()
+  const presence = useWebSocketPresence()
+  const system = useWebSocketSystem()
+
+  return {
+    ...connection,
+    notifications,
+    presence,
+    system,
+  }
+}

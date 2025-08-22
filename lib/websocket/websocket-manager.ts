@@ -36,7 +36,7 @@ interface NotificationData {
   data?: any
 }
 
-export class ModernWebSocketManager extends EventEmitter {
+export class WebSocketManager extends EventEmitter {
   private socket: Socket | null = null
   private config: Required<WebSocketConfig>
   private state: WebSocketState
@@ -500,9 +500,10 @@ export class ModernWebSocketManager extends EventEmitter {
 
   /**
    * Get current state
+   * Returns the actual state object for stable reference in useSyncExternalStore
    */
   getState(): WebSocketState {
-    return { ...this.state }
+    return this.state
   }
 
   /**
@@ -514,12 +515,12 @@ export class ModernWebSocketManager extends EventEmitter {
 }
 
 // Singleton instance
-let managerInstance: ModernWebSocketManager | null = null
+let managerInstance: WebSocketManager | null = null
 
 export const websocketManager = {
-  getInstance(): ModernWebSocketManager {
+  getInstance(): WebSocketManager {
     if (!managerInstance) {
-      managerInstance = new ModernWebSocketManager()
+      managerInstance = new WebSocketManager()
     }
     return managerInstance
   },

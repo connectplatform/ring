@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { use } from 'react'
 import type { Opportunity } from '@/types'
 
 // Define the context type
@@ -49,9 +49,9 @@ export function ConfidentialOpportunitiesProvider({
   )
 }
 
-// Custom hook to use the context
+// Custom hook to use the context with React 19's use() hook
 export function useConfidentialOpportunities() {
-  const context = React.useContext(ConfidentialOpportunitiesContext)
+  const context = use(ConfidentialOpportunitiesContext)
   if (!context) {
     throw new Error('useConfidentialOpportunities must be used within a ConfidentialOpportunitiesProvider')
   }

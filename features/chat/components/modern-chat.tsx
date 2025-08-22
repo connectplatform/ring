@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useTranslations } from 'next-intl'
-import { useWebSocketMessages, useModernWebSocket } from '@/hooks/use-modern-websocket'
+import { useWebSocketMessages, useWebSocket } from '@/hooks/use-websocket'
 import { ConversationList } from '@/features/chat/components/conversation-list'
 import { MessageThread } from '@/features/chat/components/message-thread'
 import { ConversationHeader } from '@/features/chat/components/conversation-header'
@@ -60,7 +60,7 @@ function ModernChatContent({
   const { data: session, status } = useSession()
   
   // Use modern WebSocket hooks
-  const { isConnected, status: wsStatus } = useModernWebSocket()
+  const { isConnected, status: wsStatus } = useWebSocket()
   
   // Component state
   const [state, setState] = useState<MessagingState>({

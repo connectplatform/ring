@@ -1,8 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useMemo } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { useModernWebSocket, useWebSocketNotifications, useWebSocketPresence, useWebSocketSystem } from '@/hooks/use-modern-websocket'
+import { useWebSocketConnection, useWebSocketNotifications, useWebSocketPresence, useWebSocketSystem } from '@/hooks/use-websocket'
 import { toast } from '@/hooks/use-toast'
 
 interface WebSocketContextType {
@@ -64,7 +64,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const { status: sessionStatus } = useSession()
   
   // Use our modern WebSocket hooks
-  const connection = useModernWebSocket()
+  const connection = useWebSocketConnection()
   const notifications = useWebSocketNotifications()
   const presence = useWebSocketPresence()
   const system = useWebSocketSystem()
@@ -132,6 +132,19 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
   }, [system.connectionQuality, connection.isConnected])
 
+  // React 19 optimization: Stable callback references with proper dependencies
+  const stableConnect = useCallback(async () => {
+    return connection.reconnect()
+  }, [connection])
+  
+  const stableDisconnect = useCallback(() => {
+    connection.disconnect()
+  }, [connection])
+  
+  const stableSend = useCallback((event: string, data: any) => {
+    return connection.send(event, data)
+  }, [connection])
+
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo<WebSocketContextType>(() => ({
     isConnected: connection.isConnected,
@@ -142,9 +155,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     status: connection.status,
     reconnectAttempts: connection.reconnectAttempts,
     lastConnected: connection.lastConnected,
-    connect: connection.reconnect,
-    disconnect: connection.disconnect,
-    send: connection.send,
+    connect: stableConnect,
+    disconnect: stableDisconnect,
+    send: stableSend,
     notifications: {
       items: notifications.notifications,
       unreadCount: notifications.unreadCount,
@@ -166,10 +179,34 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       connectionQuality: system.connectionQuality,
     }
   }), [
-    connection,
-    notifications,
-    presence,
-    system
+    // Connection state
+    connection.isConnected,
+    connection.isConnecting,
+    connection.isReconnecting,
+    connection.error,
+    connection.status,
+    connection.reconnectAttempts,
+    connection.lastConnected,
+    stableConnect,
+    stableDisconnect,
+    stableSend,
+    // Notification state  
+    notifications.notifications,
+    notifications.unreadCount,
+    notifications.lastNotification,
+    notifications.markAsRead,
+    notifications.markAllAsRead,
+    notifications.clearNotifications,
+    notifications.refresh,
+    // Presence state
+    presence.onlineUsers,
+    presence.onlineCount,
+    presence.isUserOnline,
+    presence.getUserPresence,
+    // System state
+    system.maintenanceMode,
+    system.systemUpdate,
+    system.connectionQuality
   ])
 
   return (
@@ -181,7 +218,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
 /**
  * Helper hook for easy WebSocket usage
+ * @deprecated Use specific hooks from @/hooks/use-websocket instead
+ * This will be removed in a future version
  */
 export function useWebSocket() {
+  console.warn('useWebSocket from websocket-provider is deprecated. Use hooks from @/hooks/use-websocket instead.')
   return useWebSocketContext()
 }

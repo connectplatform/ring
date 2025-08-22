@@ -10,13 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useWebSocketContext } from '@/components/providers/websocket-provider'
-import { useWebSocket, useRealTimeMessages } from '@/hooks/use-websocket'
+import { useWebSocketMessages } from '@/hooks/use-websocket'
 
 export default function TestWebSocketPage() {
   const { data: session } = useSession()
   const { isConnected, connectionError, reconnecting, connect, disconnect } = useWebSocketContext()
-  const { isConnected: wsConnected, isConnecting, error, wsClient } = useWebSocket()
-  const { messages, sendMessage } = useRealTimeMessages('test-conversation')
+  const { messages, sendMessage } = useWebSocketMessages('test-conversation')
   
   const [testMessage, setTestMessage] = useState('')
   const [connectionLog, setConnectionLog] = useState<string[]>([])
@@ -35,18 +34,18 @@ export default function TestWebSocketPage() {
       setConnectionLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
     }
 
-    if (isConnected || wsConnected) {
+    if (isConnected) {
       log('✅ WebSocket connected successfully')
       setTestResults(prev => ({ ...prev, connectionTest: true }))
-    } else if (connectionError || error) {
-      log(`❌ Connection error: ${connectionError || error}`)
+    } else if (connectionError) {
+      log(`❌ Connection error: ${connectionError}`)
       setTestResults(prev => ({ ...prev, connectionTest: false }))
     }
 
-    if (reconnecting || isConnecting) {
+    if (reconnecting) {
       log('🔄 Reconnecting...')
     }
-  }, [isConnected, wsConnected, connectionError, error, reconnecting, isConnecting])
+  }, [isConnected, connectionError, reconnecting])
 
   const handleTestConnection = async () => {
     setConnectionLog([])
@@ -85,8 +84,8 @@ export default function TestWebSocketPage() {
     }, 1000)
   }
 
-  const actualConnectionStatus = isConnected || wsConnected
-  const actualConnectionError = connectionError || error
+  const actualConnectionStatus = isConnected
+  const actualConnectionError = connectionError
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -136,8 +135,8 @@ export default function TestWebSocketPage() {
 
               {/* Test Controls */}
               <div className="flex gap-2">
-                <Button onClick={handleTestConnection} disabled={reconnecting || isConnecting}>
-                  {(reconnecting || isConnecting) ? 'Connecting...' : 'Test Connection'}
+                <Button onClick={handleTestConnection} disabled={reconnecting}>
+                  {reconnecting ? 'Connecting...' : 'Test Connection'}
                 </Button>
                 <Button onClick={handleTestReconnection} disabled={!actualConnectionStatus}>
                   Test Reconnection

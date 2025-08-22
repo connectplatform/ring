@@ -182,7 +182,7 @@ function NewsLikes({ newsId, initialLikes }) {
 ### **3. WebSocket Real-time Integration**
 ```typescript
 // Real-time WebSocket push notifications
-import { useWebSocketNotifications } from '@/hooks/use-modern-websocket'
+import { useWebSocketNotifications } from '@/hooks/use-websocket'
 
 function NotificationBell() {
   const { unreadCount, notifications, markAsRead } = useWebSocketNotifications()
