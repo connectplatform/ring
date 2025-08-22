@@ -433,36 +433,112 @@ class FirebaseServiceOptimized {
     }
   }
 
+
+
   /**
-   * Update user profile and entities in transaction - ES2022 optimized
+   * Update user role and permissions - Atomic operation
    * 
-   * Performs atomic updates to user profile and related entities.
-   * Ensures data consistency across multiple collections.
+   * Updates user role and related permissions in a single transaction.
+   * This is a real-world use case where user changes affect multiple collections.
    * 
    * @param userId - User ID to update
-   * @param profileData - Profile data to update
-   * @param entityUpdates - Related entity updates
-   * @throws Error if transaction fails
+   * @param newRole - New role to assign
+   * @param permissions - Updated permissions object
+   * @throws Error if role update fails
+   * 
+   * @example
+   * ```typescript
+   * await firebaseService.updateUserRoleAndPermissions('user123', 'admin', {
+   *   canPostconfidentialOpportunities: true,
+   *   canViewconfidentialOpportunities: true
+   * });
+   * ```
    */
-  async updateUserProfileAndEntities(
-    userId: string, 
-    profileData: Partial<ProfileFormData>, 
-    entityUpdates: Array<{ id: string, data: PartialWithFieldValue<Entity> }>
+  async updateUserRoleAndPermissions(
+    userId: string,
+    newRole: string,
+    permissions: {
+      canPostconfidentialOpportunities?: boolean;
+      canViewconfidentialOpportunities?: boolean;
+    }
   ): Promise<void> {
     const adminDb = await this.#getAdminDb();
     
     await adminDb.runTransaction(async (transaction) => {
-      // Update user profile
+      // Update user profile with new role and permissions
       const userRef = adminDb.collection('userProfiles').doc(userId);
-      transaction.update(userRef, profileData);
+      transaction.update(userRef, {
+        role: newRole,
+        ...permissions,
+        updatedAt: new Date()
+      });
       
-      // Update related entities
-      const entitiesCol = adminDb.collection('entities').withConverter(entityConverter);
-      for (const { id, data } of entityUpdates) {
-        const entityRef = entitiesCol.doc(id);
-        transaction.update(entityRef, data);
-      }
+      // Update any entities owned by this user to reflect new permissions
+      const entitiesSnapshot = await adminDb
+        .collection('entities')
+        .where('userId', '==', userId)
+        .get();
+      
+      entitiesSnapshot.docs.forEach(doc => {
+        transaction.update(doc.ref, {
+          ownerRole: newRole,
+          updatedAt: new Date()
+        });
+      });
     });
+  }
+
+  /**
+   * Delete user account with complete cleanup - Atomic operation
+   * 
+   * Performs complete user account deletion including all related data.
+   * This is a real-world use case where multiple collections need atomic updates.
+   * 
+   * @param userId - User ID to delete
+   * @throws Error if account deletion fails
+   * 
+   * @example
+   * ```typescript
+   * await firebaseService.deleteUserAccountWithCleanup('user123');
+   * ```
+   */
+  async deleteUserAccountWithCleanup(userId: string): Promise<void> {
+    const firebaseAuth = await this.#getFirebaseAuth();
+    
+    if (!firebaseAuth.currentUser) {
+      throw this.#createError('auth.errors.noUserSignedIn');
+    }
+
+    const adminDb = await this.#getAdminDb();
+    
+    await adminDb.runTransaction(async (transaction) => {
+      // Delete user profile
+      const userRef = adminDb.collection('userProfiles').doc(userId);
+      transaction.delete(userRef);
+      
+      // Delete user's entities
+      const entitiesSnapshot = await adminDb
+        .collection('entities')
+        .where('userId', '==', userId)
+        .get();
+      
+      entitiesSnapshot.docs.forEach(doc => {
+        transaction.delete(doc.ref);
+      });
+      
+      // Delete user's opportunities
+      const opportunitiesSnapshot = await adminDb
+        .collection('opportunities')
+        .where('userId', '==', userId)
+        .get();
+      
+      opportunitiesSnapshot.docs.forEach(doc => {
+        transaction.delete(doc.ref);
+      });
+    });
+    
+    // Finally delete auth account (outside transaction as it's not Firestore)
+    await deleteUser(firebaseAuth.currentUser);
   }
 
   /**
@@ -515,13 +591,20 @@ class FirebaseServiceOptimized {
   /**
    * Delete user account with cleanup
    * 
-   * Performs complete user account deletion including:
-   * - User profile data
-   * - Related entities
-   * - Firebase Auth account
+   * Performs user account deletion including profile and entities.
+   * For complete cleanup including opportunities, use deleteUserAccountWithCleanup().
    * 
    * @param userId - User ID to delete
    * @throws Error if account deletion fails
+   * 
+   * @example
+   * ```typescript
+   * // Basic deletion (profile + entities)
+   * await firebaseService.deleteUserAccount('user123');
+   * 
+   * // Complete deletion (profile + entities + opportunities)
+   * await firebaseService.deleteUserAccountWithCleanup('user123');
+   * ```
    */
   async deleteUserAccount(userId: string): Promise<void> {
     const firebaseAuth = await this.#getFirebaseAuth();
