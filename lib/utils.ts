@@ -204,17 +204,26 @@ export function validateOpportunityData(data: any): boolean {
     return false
   }
   
-  const requiredFields = ['title', 'briefDescription', 'budget', 'expirationDate'] as const
-  const hasAllRequired = requiredFields.every(field => Object.hasOwn(data, field))
+  // Only require title and briefDescription - budget and expirationDate are optional
+  const requiredFields = ['title', 'briefDescription'] as const
+  const hasAllRequired = requiredFields.every(field => 
+    Object.hasOwn(data, field) && 
+    data[field] !== null && 
+    data[field] !== undefined && 
+    (typeof data[field] !== 'string' || data[field].trim() !== '')
+  )
   
   if (!hasAllRequired) {
     return false
   }
   
-  // Additional validation for nested objects
+  // Optional validation for budget if provided
   if (Object.hasOwn(data, 'budget') && data.budget && typeof data.budget === 'object') {
     const budgetFields = ['min', 'max', 'currency'] as const
-    return budgetFields.every(field => Object.hasOwn(data.budget, field))
+    const budgetValid = budgetFields.every(field => Object.hasOwn(data.budget, field))
+    if (!budgetValid) {
+      return false
+    }
   }
   
   return true

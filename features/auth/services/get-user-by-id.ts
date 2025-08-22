@@ -65,30 +65,53 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       return null;
     }
 
-    const userData = userDoc.data() as AuthUser;
+    const userData = userDoc.data();
+
+    // Convert Firebase Timestamps to Date objects consistently
+    const convertTimestamp = (timestamp: any): Date => {
+      if (timestamp && timestamp._seconds) {
+        return new Date(timestamp._seconds * 1000);
+      }
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      if (typeof timestamp === 'string') {
+        return new Date(timestamp);
+      }
+      return new Date();
+    };
 
     // Step 5: Return appropriate data based on user role
     if (requestingUserRole === UserRole.ADMIN) {
       console.log(`Services: getUserById - Admin user retrieved full profile for ID: ${userId}`);
-      return userData;
+      return {
+        ...userData,
+        id: userId, // Ensure ID is set
+        createdAt: convertTimestamp(userData?.createdAt),
+        lastLogin: convertTimestamp(userData?.lastLogin),
+      } as AuthUser;
     } else {
       // For non-admin users, return a subset of the user data
       const safeUserData: Partial<AuthUser> = {
-        id: userData.id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        photoURL: userData.photoURL,
-        wallets: userData.wallets,
-        isVerified: userData.isVerified,
-        createdAt: userData.createdAt,
-        lastLogin: userData.lastLogin,
-        bio: userData.bio,
-        canPostconfidentialOpportunities: userData.canPostconfidentialOpportunities,
-        canViewconfidentialOpportunities: userData.canViewconfidentialOpportunities,
-        postedopportunities: userData.postedopportunities,
-        savedopportunities: userData.savedopportunities,
-        notificationPreferences: userData.notificationPreferences,
+        id: userId, // Use the userId parameter, not userData.id which might be undefined
+        name: userData?.name,
+        username: userData?.username,
+        email: userData?.email,
+        role: userData?.role,
+        photoURL: userData?.photoURL,
+        phoneNumber: userData?.phoneNumber,
+        organization: userData?.organization,
+        position: userData?.position,
+        wallets: userData?.wallets,
+        isVerified: userData?.isVerified,
+        createdAt: convertTimestamp(userData?.createdAt),
+        lastLogin: convertTimestamp(userData?.lastLogin),
+        bio: userData?.bio,
+        canPostconfidentialOpportunities: userData?.canPostconfidentialOpportunities,
+        canViewconfidentialOpportunities: userData?.canViewconfidentialOpportunities,
+        postedopportunities: userData?.postedopportunities,
+        savedopportunities: userData?.savedopportunities,
+        notificationPreferences: userData?.notificationPreferences,
       };
 
       console.log(`Services: getUserById - Non-admin user retrieved safe profile data for ID: ${userId}`);

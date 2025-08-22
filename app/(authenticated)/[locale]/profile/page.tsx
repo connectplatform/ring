@@ -5,6 +5,7 @@ import { AuthUser } from '@/features/auth/types'
 // Use server-side services for wallet operations
 import { ensureWallet } from '@/features/wallet/services/ensure-wallet'
 import { getWalletBalance as getUserWalletBalance } from '@/features/wallet/services/get-wallet-balance'
+import { getUserById } from '@/features/auth/services/get-user-by-id'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { updateProfile } from '@/app/_actions/profile'
@@ -74,40 +75,68 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
     }
 
     if (session.user) {
-      console.log('ProfilePage: Ensuring user wallet');
-      let walletAddress = ''
-      try {
-        const wallet = await ensureWallet();
-        walletAddress = wallet.address;
-      } catch (walletError) {
-        console.error('ProfilePage: ensureUserWallet failed:', walletError)
-        walletAddress = ''
-      }
+      // Fetch complete user data from Firebase including username
+      console.log('ProfilePage: Fetching complete user profile from Firebase');
+      const fullUserData = await getUserById(session.user.id);
       
-      console.log('ProfilePage: Fetching wallet balance');
-      let userWalletBalance = '0';
-      try {
-        userWalletBalance = await getUserWalletBalance();
-      } catch (balanceError) {
-        console.error('Error fetching wallet balance:', balanceError);
-        userWalletBalance = '0';
-      }
+      if (!fullUserData) {
+        console.error('ProfilePage: Failed to fetch user data from Firebase');
+        error = 'Failed to load complete user profile'
+      } else {
+        console.log('ProfilePage: Ensuring user wallet');
+        let walletAddress = ''
+        try {
+          const wallet = await ensureWallet();
+          walletAddress = wallet.address;
+        } catch (walletError) {
+          console.error('ProfilePage: ensureUserWallet failed:', walletError)
+          walletAddress = ''
+        }
+        
+        console.log('ProfilePage: Fetching wallet balance');
+        let userWalletBalance = '0';
+        try {
+          userWalletBalance = await getUserWalletBalance();
+        } catch (balanceError) {
+          console.error('Error fetching wallet balance:', balanceError);
+          userWalletBalance = '0';
+        }
 
-      initialUser = {
-        ...session.user,
-        wallets: walletAddress ? [
-          ...(session.user.wallets || []),
-          {
-            address: walletAddress,
-            balance: userWalletBalance,
-            isDefault: true,
-            createdAt: new Date().toISOString(),
-            encryptedPrivateKey: '',
-            label: 'Default Wallet'
-          }
-        ] : (session.user.wallets || [])
-      } as AuthUser
-      console.log('ProfilePage: User data prepared', { userId: initialUser.id, hasWallet: (initialUser.wallets?.length || 0) > 0 });
+        // Merge session data with complete Firebase data
+        // Ensure all date fields are proper Date objects
+        initialUser = {
+          ...session.user,
+          ...fullUserData,
+          id: fullUserData.id || session.user.id, // Ensure ID is always set
+          wallets: walletAddress ? [
+            ...(fullUserData.wallets || session.user.wallets || []),
+            {
+              address: walletAddress,
+              balance: userWalletBalance,
+              isDefault: true,
+              createdAt: new Date().toISOString(),
+              encryptedPrivateKey: '',
+              label: 'Default Wallet'
+            }
+          ] : (fullUserData.wallets || session.user.wallets || []),
+          // Ensure dates are proper Date objects for AuthUser type
+          createdAt: fullUserData.createdAt instanceof Date 
+            ? fullUserData.createdAt 
+            : typeof fullUserData.createdAt === 'string'
+              ? new Date(fullUserData.createdAt)
+              : new Date(),
+          lastLogin: fullUserData.lastLogin instanceof Date
+            ? fullUserData.lastLogin
+            : typeof fullUserData.lastLogin === 'string'
+              ? new Date(fullUserData.lastLogin)
+              : new Date(),
+        } as AuthUser
+        console.log('ProfilePage: User data prepared', { 
+          userId: initialUser.id, 
+          username: initialUser.username,
+          hasWallet: (initialUser.wallets?.length || 0) > 0 
+        });
+      }
     }
 
   } catch (e) {

@@ -98,38 +98,62 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
         );
       }
     } else {
-      // Use logical OR for multiple role checking
-      const hasOpportunityAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
+      // Type-based permission checking: different rules for offers vs requests
+      const opportunityType = data.type || 'offer'; // Default to offer if not specified
       
-      if (!hasOpportunityAccess) {
-        validationContext.requiredRoles ??= [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
-        throw new OpportunityPermissionError(
-          'Only MEMBER, ADMIN, or CONFIDENTIAL users can create opportunities',
-          undefined,
-          validationContext
-        );
+      if (opportunityType === 'request') {
+        // Requests can be created by SUBSCRIBER and above
+        const hasRequestAccess = [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
+        
+        if (!hasRequestAccess) {
+          validationContext.requiredRoles ??= [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
+          validationContext.opportunityType = opportunityType;
+          throw new OpportunityPermissionError(
+            'Only SUBSCRIBER, MEMBER, ADMIN, or CONFIDENTIAL users can create requests',
+            undefined,
+            validationContext
+          );
+        }
+      } else {
+        // Offers require MEMBER and above
+        const hasOfferAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
+        
+        if (!hasOfferAccess) {
+          validationContext.requiredRoles ??= [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
+          validationContext.opportunityType = opportunityType;
+          throw new OpportunityPermissionError(
+            'Only MEMBER, ADMIN, or CONFIDENTIAL users can create offers',
+            undefined,
+            validationContext
+          );
+        }
       }
     }
 
-    console.log(`Services: createOpportunity - User authenticated: ${userId} with role: ${userRole}`);
+    console.log(`Services: createOpportunity - User authenticated: ${userId} with role: ${userRole}, creating ${data.type || 'offer'} opportunity`);
 
     // Step 2.5: Enhanced data validation using ES2022 utilities
     if (!validateOpportunityData(data)) {
       throw new OpportunityQueryError('Invalid opportunity data provided', undefined, {
         ...validationContext,
         providedData: data,
-        requiredFields: ['title', 'briefDescription', 'budget', 'expirationDate']
+        requiredFields: ['title', 'briefDescription']
       });
     }
 
     // Additional validation using validateRequiredFields and hasOwnProperty
-    const requiredFields: (keyof NewOpportunityData)[] = ['title', 'briefDescription', 'budget', 'expirationDate'];
+    const requiredFields: (keyof NewOpportunityData)[] = ['title', 'briefDescription'];
     if (!validateRequiredFields(data, requiredFields)) {
+      // Fix the missing fields calculation to properly identify undefined/null values
+      const missingFields = requiredFields.filter(field => 
+        !hasOwnProperty(data, field) || data[field] === null || data[field] === undefined || (typeof data[field] === 'string' && data[field].trim() === '')
+      );
+      
       throw new OpportunityQueryError('Missing required fields for opportunity creation', undefined, {
         ...validationContext,
         providedData: data,
         requiredFields,
-        missingFields: requiredFields.filter(field => !hasOwnProperty(data, field))
+        missingFields
       });
     }
 
@@ -206,8 +230,16 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
 
     // Step 4: Create the new opportunity document with ES2022 logical assignment
+    // Filter out undefined values to prevent Firestore errors
+    const cleanedData = Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+
     const newOpportunityData: any = {
-      ...data,
+      ...cleanedData,
       createdBy: userId,
       dateCreated: FieldValue.serverTimestamp(),
       dateUpdated: FieldValue.serverTimestamp(),

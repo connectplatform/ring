@@ -151,6 +151,7 @@ export async function createOpportunity(
     const expirationDate = Timestamp.fromDate(deadlineDate)
 
     // Create opportunity data matching the Opportunity interface
+    // Only include budget if it's defined to prevent Firestore undefined errors
     const opportunityData = {
       type: type as 'offer' | 'request',
       title: title.trim(),
@@ -164,8 +165,8 @@ export async function createOpportunity(
       status: 'active' as const,
       category: category.trim(),
       tags,
-      location: '', // Not provided in form, could be added later
-      budget: budgetObj,
+      location: formData.get('location')?.toString().trim() || '',
+      ...(budgetObj ? { budget: budgetObj } : {}), // Only include budget if defined
       requiredSkills: requirements ? requirements.split(',').map(s => s.trim()).filter(Boolean) : [],
       requiredDocuments: [],
       attachments: [],

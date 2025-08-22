@@ -11,6 +11,7 @@ import {
   NotificationPriority,
   CreateNotificationRequest 
 } from '@/features/notifications/types';
+import { apiRateLimiter } from '@/lib/security/rate-limiter';
 
 /**
  * GET handler for /api/notifications
@@ -20,6 +21,35 @@ export async function GET(req: NextRequest) {
   console.log('API: /api/notifications - Starting GET request');
 
   try {
+    // SECURITY: Apply rate limiting to prevent abuse
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown'
+    
+    if (apiRateLimiter.isRateLimited(clientIp)) {
+      const resetTime = apiRateLimiter.getResetTime(clientIp)
+      const retryAfter = Math.ceil((resetTime - Date.now()) / 1000)
+      
+      console.warn(`⚠️ Rate limit exceeded for notifications API: ${clientIp}`)
+      
+      return NextResponse.json(
+        { 
+          error: 'Too many requests',
+          message: 'Rate limit exceeded. Please try again later.',
+          retryAfter
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '100',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': new Date(resetTime).toISOString(),
+            'Retry-After': retryAfter.toString()
+          }
+        }
+      )
+    }
+    
     // Step 1: Authenticate the session
     const session = await getServerAuthSession();
     if (!session || !session.user) {

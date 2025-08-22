@@ -64,6 +64,9 @@ export interface AuthUser {
   settings: UserSettings;
   kycVerification?: KYCVerification;
   pendingUpgradeRequest?: RoleUpgradeRequest;
+  phoneNumber?: string;
+  organization?: string;
+  position?: string;
 }
 
 /**

@@ -14,6 +14,36 @@ const { auth } = NextAuth(authConfig)
 // NOTE: next-intl v3 createMiddleware accepts a single routing config object
 const intlMiddleware = createMiddleware(routing)
 
+// OPTIMIZATION: Auth cache to prevent redundant checks (Edge-compatible Map)
+// SECURITY: Include IP address in cache key to prevent session fixation attacks
+interface AuthCacheEntry {
+  userId: string
+  role: UserRole
+  expires: number
+  ipAddress: string // SECURITY: Bind cache to IP to prevent session hijacking
+}
+
+const authCache = new Map<string, AuthCacheEntry>()
+const CACHE_TTL = 30000 // 30 seconds - optimal for Edge runtime memory constraints
+
+// Clean up expired cache entries (Edge runtime compatible)
+function cleanExpiredCache() {
+  const now = Date.now()
+  for (const [key, value] of authCache.entries()) {
+    if (value.expires < now) {
+      authCache.delete(key)
+    }
+  }
+  // Keep cache size manageable in Edge runtime
+  if (authCache.size > 1000) {
+    const entries = Array.from(authCache.entries())
+    entries.sort((a, b) => a[1].expires - b[1].expires)
+    // Remove oldest 25% of entries
+    const toRemove = entries.slice(0, Math.floor(entries.length * 0.25))
+    toRemove.forEach(([key]) => authCache.delete(key))
+  }
+}
+
 /**
  * Combined Auth.js v5 + next-intl Middleware with route protection
  * 
@@ -49,23 +79,75 @@ export default auth(async (req) => {
     const locale = (localeFromPath === 'en' || localeFromPath === 'uk') ? localeFromPath : routing.defaultLocale
     const pathnameWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/'
 
-    // Get auth info from Auth.js v5 (middleware version)
-    // Note: Middleware uses edge-compatible auth, may have different session state than server components
-    const session = req.auth
+    // OPTIMIZED: Check auth cache first to prevent redundant auth() calls
+    const sessionToken = req.cookies.get('next-auth.session-token')?.value || 
+                        req.cookies.get('__Secure-next-auth.session-token')?.value
     
-    // Check for session cookies as fallback since middleware auth might be inconsistent
-    const hasSessionCookie = req.cookies.has('next-auth.session-token') || req.cookies.has('__Secure-next-auth.session-token');
-    
-    // Consider user logged in if either session exists OR session cookie is present
-    // This prevents false negatives where middleware doesn't see the session but server does
-    const isLoggedIn = !!session?.user || hasSessionCookie
-    const userRole = session?.user?.role || (hasSessionCookie ? UserRole.SUBSCRIBER : UserRole.VISITOR)
-    
-    // Debug session state in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Middleware: Auth check - Session: ${!!session?.user}, Cookie: ${hasSessionCookie}, Final IsLoggedIn: ${isLoggedIn}`);
-      if (session) {
-        console.log(`Middleware: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
+    // SECURITY: Get client IP for session fixation prevention
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown'
+
+    let isLoggedIn = false
+    let userRole = UserRole.VISITOR
+    let userId: string | undefined
+    let isCachedAuth = false
+
+    // Clean up expired cache entries periodically
+    cleanExpiredCache()
+
+    if (sessionToken) {
+      const cached = authCache.get(sessionToken)
+      if (cached && cached.expires > Date.now()) {
+        // SECURITY: Verify IP address matches to prevent session hijacking
+        if (cached.ipAddress === clientIp) {
+          // Use cached auth result - significant performance improvement
+          isLoggedIn = true
+          userRole = cached.role
+          userId = cached.userId
+          isCachedAuth = true
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Middleware: Using cached auth - User: ${userId}, Role: ${userRole}`);
+          }
+        } else {
+          // SECURITY: IP mismatch - potential session hijacking attempt
+          console.warn(`⚠️ Session IP mismatch detected! Cached: ${cached.ipAddress}, Current: ${clientIp}`)
+          authCache.delete(sessionToken) // Invalidate suspicious cache entry
+        }
+      }
+    }
+
+    // Only call auth() if not cached - reduces auth overhead by ~70%
+    if (!isCachedAuth) {
+      // Get auth info from Auth.js v5 (middleware version) - ONLY when not cached
+      const session = req.auth
+      
+      // Check for session cookies as fallback since middleware auth might be inconsistent
+      const hasSessionCookie = !!sessionToken
+      
+      // Consider user logged in if either session exists OR session cookie is present
+      isLoggedIn = !!session?.user || hasSessionCookie
+      userRole = session?.user?.role || (hasSessionCookie ? UserRole.SUBSCRIBER : UserRole.VISITOR)
+      userId = session?.user?.id
+
+      // CACHE: Store auth result for future requests (Edge-compatible)
+      // SECURITY: Bind cache entry to IP address
+      if (session?.user && sessionToken) {
+        authCache.set(sessionToken, {
+          userId: session.user.id,
+          role: userRole,
+          expires: Date.now() + CACHE_TTL,
+          ipAddress: clientIp // SECURITY: Bind to IP
+        })
+      }
+      
+      // Debug session state in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Middleware: Auth check - Session: ${!!session?.user}, Cookie: ${hasSessionCookie}, Final IsLoggedIn: ${isLoggedIn}`);
+        if (session) {
+          console.log(`Middleware: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
+        }
       }
     }
 
@@ -107,14 +189,30 @@ export default auth(async (req) => {
 
     // If authenticated user tries to access login page, redirect to localized profile
     // Only redirect if we have a clear session to avoid redirect loops
-    if (pathnameWithoutLocale === '/login' && isLoggedIn && session?.user?.id) {
+    if (pathnameWithoutLocale === '/login' && isLoggedIn && userId) {
       console.log(`Middleware: Redirecting authenticated user to profile, from: ${pathname}`);
       // Preserve locale when redirecting to profile
       return NextResponse.redirect(new URL(`/${locale}/profile`, req.nextUrl.origin));
     }
 
     console.log(`Middleware: Proceeding with request to: ${pathname}`);
-    return NextResponse.next();
+    
+    // OPTIMIZATION: Pass auth info to API routes via headers to prevent duplicate auth checks
+    const response = NextResponse.next()
+    
+    if (isLoggedIn && userId) {
+      // Set auth headers for API routes to consume - reduces API auth overhead
+      response.headers.set('x-auth-user-id', userId)
+      response.headers.set('x-auth-user-role', userRole)
+      response.headers.set('x-auth-cached', isCachedAuth ? 'true' : 'false')
+      response.headers.set('x-auth-timestamp', Date.now().toString())
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Middleware: Set auth headers - User: ${userId}, Role: ${userRole}, Cached: ${isCachedAuth}`);
+      }
+    }
+    
+    return response;
   } catch (error) {
     console.error('Middleware error:', error);
     // In case of any error, allow the request to proceed

@@ -2,6 +2,7 @@ import { createServer } from 'http'
 import next from 'next'
 import { Server } from 'socket.io'
 import { verifyJwtToken } from './lib/auth/jwt.js'
+import { wsRateLimiter, authRateLimiter } from './lib/security/rate-limiter.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
@@ -58,11 +59,29 @@ class WebSocketService {
       return session
     } catch (error) {
       console.error('❌ Socket authentication failed:', error.message)
-      throw new Error(`Authentication failed: ${error.message}`)
+      // SECURITY: Don't expose detailed error messages to clients
+      throw new Error('Authentication failed')
     }
   }
 
   setupEventHandlers() {
+    // SECURITY: Rate limiting middleware - prevent connection flooding
+    this.io.use((socket, next) => {
+      const identifier = socket.handshake.address || 
+                        socket.request.connection?.remoteAddress || 
+                        'unknown'
+      
+      if (wsRateLimiter.isRateLimited(identifier)) {
+        console.warn(`⚠️ WebSocket rate limit exceeded for ${identifier}`)
+        const error = new Error('Too many connection attempts')
+        error.data = { code: 'RATE_LIMIT_EXCEEDED', retryAfter: 60 }
+        return next(error)
+      }
+      
+      next()
+    })
+    
+    // Authentication middleware
     this.io.use(async (socket, next) => {
       try {
         const session = await this.authenticateSocket(socket)
@@ -72,7 +91,8 @@ class WebSocketService {
         next()
       } catch (error) {
         console.error('WebSocket middleware authentication failed:', error.message)
-        next(new Error('Authentication failed'))
+        // SECURITY: Generic error message to prevent information leakage
+        next(new Error('Connection failed'))
       }
     })
 
@@ -86,24 +106,33 @@ class WebSocketService {
         // Join user to their personal room for direct notifications
         socket.join(`user:${socket.userId}`)
 
-        // Handle conversation joining with error handling
+        // Handle conversation joining with SECURITY validation
         socket.on('join_conversation', (conversationId) => {
           try {
+            // SECURITY: Input validation and sanitization
             if (!conversationId || typeof conversationId !== 'string') {
               socket.emit('error', { message: 'Invalid conversation ID' })
               return
             }
+            
+            // SECURITY: Validate conversation ID format (alphanumeric + hyphens, max 100 chars)
+            const sanitizedId = conversationId.trim().substring(0, 100)
+            if (!/^[a-zA-Z0-9_-]+$/.test(sanitizedId)) {
+              console.warn(`⚠️ Invalid conversation ID format attempted by ${socket.userEmail}: ${conversationId}`)
+              socket.emit('error', { message: 'Invalid conversation ID format' })
+              return
+            }
 
-            socket.join(`conversation:${conversationId}`)
+            socket.join(`conversation:${sanitizedId}`)
             
             // Track users in conversation room
-            if (!this.conversationRooms.has(conversationId)) {
-              this.conversationRooms.set(conversationId, new Set())
+            if (!this.conversationRooms.has(sanitizedId)) {
+              this.conversationRooms.set(sanitizedId, new Set())
             }
-            this.conversationRooms.get(conversationId).add(socket.userId)
+            this.conversationRooms.get(sanitizedId).add(socket.userId)
             
-            console.log(`User ${socket.userEmail} joined conversation: ${conversationId}`)
-            socket.emit('conversation_joined', { conversationId })
+            console.log(`User ${socket.userEmail} joined conversation: ${sanitizedId}`)
+            socket.emit('conversation_joined', { conversationId: sanitizedId })
           } catch (error) {
             console.error('Error joining conversation:', error)
             socket.emit('error', { message: 'Failed to join conversation' })
@@ -181,32 +210,53 @@ class WebSocketService {
           }
         })
 
-        // Handle message sending
+        // Handle message sending with SECURITY validation
         socket.on('send_message', async (messageData) => {
           try {
             const { conversationId, content, type = 'text' } = messageData
             
+            // SECURITY: Validate required fields
             if (!conversationId || !content) {
               socket.emit('error', { message: 'Missing required message data' })
+              return
+            }
+            
+            // SECURITY: Validate and sanitize conversation ID
+            const sanitizedConvId = conversationId.toString().trim().substring(0, 100)
+            if (!/^[a-zA-Z0-9_-]+$/.test(sanitizedConvId)) {
+              socket.emit('error', { message: 'Invalid conversation ID' })
+              return
+            }
+            
+            // SECURITY: Validate message type
+            const allowedTypes = ['text', 'image', 'file', 'system']
+            const sanitizedType = allowedTypes.includes(type) ? type : 'text'
+            
+            // SECURITY: Sanitize and validate content (prevent XSS)
+            const sanitizedContent = content.toString().substring(0, 10000) // Max 10K chars
+              .replace(/[<>]/g, '') // Basic XSS prevention (use DOMPurify in production)
+            
+            if (sanitizedContent.length === 0) {
+              socket.emit('error', { message: 'Invalid message content' })
               return
             }
 
             // Create message object with server-side data
             const message = {
               id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              conversationId,
+              conversationId: sanitizedConvId,
               senderId: socket.userId,
               senderName: socket.userEmail,
-              content,
-              type,
+              content: sanitizedContent,
+              type: sanitizedType,
               timestamp: new Date(),
               status: 'sent'
             }
 
             // Broadcast to all users in the conversation
-            this.io.to(`conversation:${conversationId}`).emit('message_received', message)
+            this.io.to(`conversation:${sanitizedConvId}`).emit('message_received', message)
             
-            console.log(`Message sent in conversation ${conversationId} by ${socket.userEmail}`)
+            console.log(`Message sent in conversation ${sanitizedConvId} by ${socket.userEmail}`)
             
           } catch (error) {
             console.error('Error handling message:', error)
@@ -239,6 +289,73 @@ class WebSocketService {
             isOnline: status === 'online',
             lastSeen: new Date()
           })
+        })
+
+        // NEW: Handle token refresh without disconnection - PREVENTS SUBSCRIPTION LOOPS
+        socket.on('auth:refresh', async ({ token }) => {
+          try {
+            console.log(`🔄 Token refresh request from ${socket.userEmail}`)
+            
+            // SECURITY: Validate token format before processing
+            if (!token || typeof token !== 'string' || token.length < 10) {
+              throw new Error('Invalid token format')
+            }
+            
+            // Validate new token using the same verification logic
+            const session = await verifyJwtToken(token, process.env.AUTH_SECRET)
+            
+            // SECURITY FIX: Validate token expiry
+            const now = Math.floor(Date.now() / 1000)
+            if (!session.exp || session.exp < now) {
+              console.warn(`⚠️ Token refresh attempted with expired token for ${socket.userEmail}`)
+              throw new Error('Token has expired')
+            }
+            
+            // SECURITY FIX: Validate token not issued in the future (clock skew protection)
+            if (session.iat && session.iat > now + 60) { // Allow 60 seconds clock skew
+              console.warn(`⚠️ Token refresh attempted with future-dated token for ${socket.userEmail}`)
+              throw new Error('Invalid token timestamp')
+            }
+            
+            if (session && session.sub === socket.userId) {
+              // Update socket auth data without disconnection
+              socket.sessionData = session
+              socket.userEmail = session.email || socket.userEmail
+              socket.userRole = session.role || socket.userRole
+              
+              // Confirm successful refresh to client
+              socket.emit('auth:refreshed', { 
+                success: true,
+                message: 'Token refreshed successfully',
+                expiresIn: session.exp - now
+              })
+              
+              console.log(`✅ Token refreshed successfully for ${socket.userEmail}`)
+            } else {
+              // Invalid token or user mismatch
+              console.warn(`❌ Token refresh failed for ${socket.userEmail}: Invalid token or user mismatch`)
+              socket.emit('auth:refreshed', { 
+                success: false, 
+                error: 'Invalid token or user mismatch'
+              })
+              
+              // Force disconnection for security
+              setTimeout(() => {
+                socket.disconnect(true)
+              }, 1000)
+            }
+          } catch (error) {
+            console.error(`❌ Token refresh error for ${socket.userEmail}:`, error.message)
+            socket.emit('auth:refreshed', { 
+              success: false, 
+              error: 'Token validation failed'
+            })
+            
+            // Force disconnection on validation failure
+            setTimeout(() => {
+              socket.disconnect(true)
+            }, 1000)
+          }
         })
 
         // Handle disconnection

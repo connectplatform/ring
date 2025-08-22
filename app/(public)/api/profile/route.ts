@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
     // Filter valid profile fields using Object.hasOwn() for security
     const validProfileFields = [
       'firstName', 'lastName', 'bio', 'location', 'website', 
-      'phoneNumber', 'avatar', 'skills', 'interests'
+      'phoneNumber', 'avatar', 'skills', 'interests', 'username'
     ];
     
     const profileData = filterObjectProperties(requestData, (key, value) => {
@@ -234,6 +234,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ 
           error: "Website must be a valid URL",
           context: { timestamp: requestContext.timestamp, field: 'website' }
+        }, { status: 400 });
+      }
+    }
+
+    // Username validation
+    if (hasOwnProperty(profileData, 'username') && profileData.username) {
+      const username = profileData.username;
+      
+      if (username.length < 3) {
+        return NextResponse.json({ 
+          error: "Username must be at least 3 characters long",
+          context: { timestamp: requestContext.timestamp, field: 'username' }
+        }, { status: 400 });
+      }
+
+      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+        return NextResponse.json({ 
+          error: "Username can only contain letters, numbers, hyphens, and underscores",
+          context: { timestamp: requestContext.timestamp, field: 'username' }
         }, { status: 400 });
       }
     }

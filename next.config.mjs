@@ -31,14 +31,25 @@ const nextConfig = {
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
   },
   async headers() {
+    // SECURITY FIX: Restrict CORS to specific origins only
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [process.env.NEXTAUTH_URL || 'https://ring.example.com'] // Replace with your production domain
+      : ['http://localhost:3000', 'http://localhost:3001']
+    
     return [
       {
         source: '/api/:path*',
         headers: [
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT' },
+          // SECURITY: Dynamic origin based on environment - no wildcards!
+          { key: 'Access-Control-Allow-Origin', value: allowedOrigins[0] }, // Next.js doesn't support dynamic headers, use middleware for multiple origins
+          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
+          // Additional security headers
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],
       },
     ]

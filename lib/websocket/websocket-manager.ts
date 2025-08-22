@@ -301,7 +301,7 @@ export class WebSocketManager extends EventEmitter {
   }
 
   /**
-   * Token refresh mechanism
+   * Token refresh mechanism - OPTIMIZED to prevent reconnection loops
    */
   private startTokenRefresh() {
     this.stopTokenRefresh()
@@ -313,15 +313,39 @@ export class WebSocketManager extends EventEmitter {
         if (timeUntilExpiry < 10 * 60 * 1000) { // Less than 10 minutes
           const newToken = await this.fetchAuthToken()
           
-          // Update socket auth
+          // FIXED: Update socket auth WITHOUT disconnection to prevent subscription loops
           if (this.socket?.connected) {
+            // Send auth update event instead of reconnecting
+            this.socket.emit('auth:refresh', { token: newToken })
             this.socket.auth = { token: newToken }
-            this.socket.disconnect()
-            this.socket.connect()
+            
+            console.log('🔄 WebSocket token refreshed')
+            
+            // Listen for confirmation from server
+            this.socket.once('auth:refreshed', (response) => {
+              if (response.success) {
+                console.log('✅ Server confirmed token refresh')
+              } else {
+                console.warn('❌ Token refresh rejected by server, reconnecting...')
+                // Only reconnect if server explicitly rejects the refresh
+                this.scheduleReconnect()
+              }
+            })
+            
+            // Set timeout for server response - reconnect if no response
+            setTimeout(() => {
+              if (this.socket?.connected) {
+                console.log('⚠️ Token refresh timeout - server didn\'t respond')
+              }
+            }, 5000)
           }
         }
       } catch (error) {
         console.error('Token refresh failed:', error)
+        // Only reconnect on auth failure, not on successful refresh
+        if (error.message.includes('auth') || error.message.includes('401')) {
+          this.scheduleReconnect()
+        }
       }
     }, this.config.tokenRefreshInterval)
   }

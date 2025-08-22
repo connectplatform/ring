@@ -112,12 +112,42 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
+      // Fetch fresh user data from Firebase if needed
+      if (trigger === 'update' || (user && account)) {
+        try {
+          const db = getAdminDb()
+          if (db && token.userId) {
+            const userDoc = await db.collection("users").doc(token.userId as string).get()
+            if (userDoc.exists) {
+              const userData = userDoc.data()
+              token.username = userData?.username
+              token.phoneNumber = userData?.phoneNumber
+              token.bio = userData?.bio
+              token.organization = userData?.organization
+              token.position = userData?.position
+              token.photoURL = userData?.photoURL
+              token.role = userData?.role ?? UserRole.SUBSCRIBER
+              token.isSuperAdmin = userData?.isSuperAdmin ?? false
+              token.isVerified = userData?.isVerified ?? false
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch user data in JWT callback:', error)
+        }
+      }
+
       if (user) {
         token.userId = user.id
         token.role = (user as any).role ?? UserRole.SUBSCRIBER
         token.isSuperAdmin = (user as any).isSuperAdmin ?? false
         token.isVerified = (user as any).isVerified ?? false
+        token.username = (user as any).username
+        token.phoneNumber = (user as any).phoneNumber
+        token.bio = (user as any).bio
+        token.organization = (user as any).organization
+        token.position = (user as any).position
+        token.photoURL = user.image || (user as any).photoURL
 
         if (account) {
           // Generate internal JWT for WebSocket authentication
@@ -168,6 +198,16 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
+        // Add custom fields from Firebase
+        ;(session.user as any).username = token.username as string
+        ;(session.user as any).phoneNumber = token.phoneNumber as string
+        ;(session.user as any).bio = token.bio as string
+        ;(session.user as any).organization = token.organization as string
+        ;(session.user as any).position = token.position as string
+        // Update photo URL with stored version if available
+        if (token.photoURL) {
+          session.user.image = token.photoURL as string
+        }
         // Use the generated internal JWT token for WebSocket authentication
         session.accessToken = token.accessToken as string
         session.refreshToken = token.refreshToken as string
@@ -227,6 +267,39 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               notificationPreferences: defaultNotificationPreferences,
             }
 
+            // Handle Google profile photo storage
+            let storedPhotoURL = user.image
+            if (account?.provider === "google" && user.image) {
+              try {
+                // Store Google profile photo in our storage system
+                console.log('Storing Google profile photo for:', user.email)
+                
+                const response = await fetch(user.image)
+                const imageBlob = await response.blob()
+                const file = new File([imageBlob], `${user.id}-google-avatar.jpg`, { type: 'image/jpeg' })
+                
+                const formData = new FormData()
+                formData.append('file', file)
+                formData.append('type', 'avatar')
+                
+                const uploadResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/profile/upload`, {
+                  method: 'POST',
+                  body: formData,
+                })
+                
+                if (uploadResponse.ok) {
+                  const uploadResult = await uploadResponse.json()
+                  if (uploadResult.success) {
+                    storedPhotoURL = uploadResult.url
+                    console.log('Google profile photo stored successfully:', storedPhotoURL)
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to store Google profile photo:', error)
+                // Keep original Google photo URL as fallback
+              }
+            }
+
             // Create wallet for new user (if encryption key is available)
             let wallets: Wallet[] = []
             const encryptionKey = process.env.WALLET_ENCRYPTION_KEY
@@ -258,7 +331,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             await userDoc.ref.set({
               email: user.email,
               name: user.name,
-              photoURL: user.image,
+              photoURL: storedPhotoURL,
               role: UserRole.SUBSCRIBER,
               authProvider: account.provider,
               authProviderId: account.providerAccountId,

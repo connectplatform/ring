@@ -126,11 +126,19 @@ interface NotificationData {
   data?: any
 }
 
+// Global subscription state to prevent multiple hook instances from subscribing
+let globalSubscriptionState = {
+  isSubscribed: false,
+  handlersRegistered: false,
+  instanceCount: 0
+}
+
 export function useWebSocketNotifications() {
   const [notifications, setNotifications] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [lastNotification, setLastNotification] = useState<NotificationData | null>(null)
   const maxNotifications = useRef(100)
+  const instanceId = useRef(Math.random().toString(36).substr(2, 9)) // Unique ID for this hook instance
 
   // React 19 useOptimistic for optimistic notification reads
   const [optimisticNotifications, addOptimisticUpdate] = useOptimistic(
@@ -147,55 +155,98 @@ export function useWebSocketNotifications() {
     }
   )
 
-  useEffect(() => {
-    // Handle single notification
-    const handleNotification = (notification: NotificationData) => {
-      setNotifications(prev => {
-        const updated = [notification, ...prev]
-        // Keep only the latest N notifications
-        return updated.slice(0, maxNotifications.current)
-      })
-      setLastNotification(notification)
-      setUnreadCount(prev => prev + 1)
+  // FIXED: Stable event handlers using useCallback to prevent re-registration
+  const handleNotification = useCallback((notification: NotificationData) => {
+    setNotifications(prev => {
+      const updated = [notification, ...prev]
+      // Keep only the latest N notifications
+      return updated.slice(0, maxNotifications.current)
+    })
+    setLastNotification(notification)
+    setUnreadCount(prev => prev + 1)
+  }, [])
+
+  const handleBatchNotifications = useCallback((batch: NotificationData[]) => {
+    setNotifications(prev => {
+      const updated = [...batch, ...prev]
+      return updated.slice(0, maxNotifications.current)
+    })
+    if (batch.length > 0) {
+      setLastNotification(batch[0])
     }
+    setUnreadCount(prev => prev + batch.length)
+  }, [])
 
-    // Handle batch notifications
-    const handleBatchNotifications = (batch: NotificationData[]) => {
-      setNotifications(prev => {
-        const updated = [...batch, ...prev]
-        return updated.slice(0, maxNotifications.current)
-      })
-      if (batch.length > 0) {
-        setLastNotification(batch[0])
-      }
-      setUnreadCount(prev => prev + batch.length)
-    }
+  const handleUnreadCount = useCallback((count: number) => {
+    setUnreadCount(count)
+  }, [])
 
-    // Handle unread count updates from server
-    const handleUnreadCount = (count: number) => {
-      setUnreadCount(count)
-    }
-
-    // Subscribe to notification events
-    websocketManager.on('notification', handleNotification)
-    websocketManager.on('notifications', handleBatchNotifications)
-    websocketManager.on('unreadCount', handleUnreadCount)
-
-    // Subscribe to notification channel
-    websocketManager.subscribe('user:notifications')
-
-    // Request initial unread count
-    if (websocketManager.isConnected) {
+  // FIXED: Connection state handler to manage subscriptions properly
+  const handleConnectionChange = useCallback((state: any) => {
+    if (state.status === 'connected' && !globalSubscriptionState.isSubscribed) {
+      // Subscribe only when connected and not already subscribed globally
+      websocketManager.subscribe('user:notifications')
+      globalSubscriptionState.isSubscribed = true
+      
+      // Request initial unread count
       websocketManager.requestNotificationCount()
+      console.log(`🔔 [${instanceId.current}] Subscribed to WebSocket notifications`)
+    } else if (state.status === 'disconnected') {
+      // Reset subscription state on disconnection
+      globalSubscriptionState.isSubscribed = false
+      console.log(`🔕 [${instanceId.current}] WebSocket disconnected - subscription reset`)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Track instance count
+    globalSubscriptionState.instanceCount++
+    console.log(`🎯 [${instanceId.current}] WebSocket hook mounted (instance #${globalSubscriptionState.instanceCount})`)
+
+    // FIXED: Register event handlers only once globally
+    if (!globalSubscriptionState.handlersRegistered) {
+      websocketManager.on('notification', handleNotification)
+      websocketManager.on('notifications', handleBatchNotifications)
+      websocketManager.on('unreadCount', handleUnreadCount)
+      websocketManager.on('stateChange', handleConnectionChange)
+      globalSubscriptionState.handlersRegistered = true
+      
+      console.log(`🎧 [${instanceId.current}] WebSocket notification handlers registered globally`)
+    }
+
+    // FIXED: Initial subscription check - only subscribe if connected and not subscribed globally
+    if (websocketManager.isConnected && !globalSubscriptionState.isSubscribed) {
+      websocketManager.subscribe('user:notifications')
+      globalSubscriptionState.isSubscribed = true
+      websocketManager.requestNotificationCount()
+      console.log(`🔔 [${instanceId.current}] Initial WebSocket notification subscription`)
     }
 
     return () => {
-      websocketManager.off('notification', handleNotification)
-      websocketManager.off('notifications', handleBatchNotifications)
-      websocketManager.off('unreadCount', handleUnreadCount)
-      websocketManager.unsubscribe('user:notifications')
+      // Track instance count
+      globalSubscriptionState.instanceCount--
+      console.log(`🗑️ [${instanceId.current}] WebSocket hook unmounting (${globalSubscriptionState.instanceCount} instances remaining)`)
+      
+      // Only clean up if this is the last instance
+      if (globalSubscriptionState.instanceCount === 0) {
+        // Clean up event handlers
+        websocketManager.off('notification', handleNotification)
+        websocketManager.off('notifications', handleBatchNotifications)
+        websocketManager.off('unreadCount', handleUnreadCount)
+        websocketManager.off('stateChange', handleConnectionChange)
+        
+        // Clean up subscription
+        if (globalSubscriptionState.isSubscribed) {
+          websocketManager.unsubscribe('user:notifications')
+          console.log(`🔕 [${instanceId.current}] Unsubscribed from WebSocket notifications (last instance)`)
+        }
+        
+        // Reset global state
+        globalSubscriptionState.isSubscribed = false
+        globalSubscriptionState.handlersRegistered = false
+      }
     }
-  }, [])
+  }, [handleNotification, handleBatchNotifications, handleUnreadCount, handleConnectionChange]) // FIXED: Stable dependencies
 
   const markAsRead = useCallback((notificationIds: string[]) => {
     // React 19 optimistic update - update UI immediately
