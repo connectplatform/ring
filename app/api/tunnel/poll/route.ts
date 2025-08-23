@@ -22,17 +22,18 @@ const lastMessageIds = new Map<string, string>();
  * GET handler for long-polling
  */
 export async function GET(request: NextRequest) {
-  // Authenticate the request
+  // Try to authenticate the request (optional for public polling)
   const authResult = await verifyAuth(request);
   
-  if (!authResult) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  // Allow anonymous polling with a generated ID
+  let userId: string;
+  
+  if (authResult) {
+    userId = authResult.userId;
+  } else {
+    // Generate anonymous user ID for this poll session
+    userId = `anon-${Math.random().toString(36).substr(2, 9)}`;
   }
-
-  const { userId } = authResult;
   const url = new URL(request.url);
   
   // Get parameters
@@ -48,7 +49,8 @@ export async function GET(request: NextRequest) {
   // Get messages for user
   const messages: any[] = [];
   const startTime = Date.now();
-  const maxWaitTime = Math.min(timeout, 30000); // Max 30 seconds
+  // Vercel Edge functions have a 25s timeout, so we limit to 20s to be safe
+  const maxWaitTime = Math.min(timeout, 20000); // Max 20 seconds for Vercel
 
   // Check for immediate messages
   const userQueue = messageQueues.get(userId) || [];

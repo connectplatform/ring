@@ -102,7 +102,7 @@ export class SSETransport implements TunnelTransport {
     }
   }
 
-  private async fetchAuthToken(): Promise<string> {
+  private async fetchAuthToken(): Promise<string | undefined> {
     try {
       const response = await fetch('/api/tunnel/token', {
         method: 'POST',
@@ -113,14 +113,19 @@ export class SSETransport implements TunnelTransport {
       });
 
       if (!response.ok) {
+        // Don't throw for 401, just return undefined for anonymous users
+        if (response.status === 401) {
+          return undefined;
+        }
         throw new Error(`Auth failed: ${response.status}`);
       }
 
       const data = await response.json();
       return data.token;
     } catch (error) {
-      console.error('Failed to fetch SSE auth token:', error);
-      throw error;
+      // For anonymous users, auth failure is expected
+      console.log('[SSETransport] Auth token not available, continuing as anonymous');
+      return undefined;
     }
   }
 
@@ -260,19 +265,28 @@ export class SSETransport implements TunnelTransport {
 
   private async sendHeartbeatResponse(): Promise<void> {
     try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Only add auth header if we have a token
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+
       await fetch('/api/tunnel/heartbeat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}`,
-        },
+        headers,
         body: JSON.stringify({
           timestamp: Date.now(),
           provider: TunnelProvider.SSE,
         }),
       });
     } catch (error) {
-      console.error('Failed to send heartbeat response:', error);
+      // Don't log errors for anonymous users
+      if (this.authToken) {
+        console.error('Failed to send heartbeat response:', error);
+      }
     }
   }
 
