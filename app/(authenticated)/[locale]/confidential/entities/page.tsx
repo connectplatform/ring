@@ -198,7 +198,7 @@ export default async function ConfidentialEntitiesPage(props: LocalePageProps<Co
             "url": canonicalUrl,
             "mainEntity": {
               "@type": "WebPageElement",
-              "name": "Confidential Entity Directory",
+              "name": "Confidential Entities",
               "description": "Secure directory of confidential entities with restricted access"
             },
             "breadcrumb": {
@@ -208,13 +208,13 @@ export default async function ConfidentialEntitiesPage(props: LocalePageProps<Co
                   "@type": "ListItem",
                   "position": 1,
                   "name": "Home",
-                  "item": "https://ring.ck.ua"
+                  "item": process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
                   "name": "Confidential",
-                  "item": `https://ring.ck.ua/${locale}/confidential`
+                  "item": `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/confidential/entities`
                 },
                 {
                   "@type": "ListItem",

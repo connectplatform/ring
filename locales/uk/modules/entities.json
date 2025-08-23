@@ -1,6 +1,7 @@
 {
   "title": "Організації",
   "entitiesTitle": "Каталог організацій",
+  "confidentialEntitiesTitle": "Конфіденційні організації",
   "loadingMessage": "Завантаження організацій...",
   "visitWebsite": "Відвідати сайт",
   "foundedIn": "Засновано у {year}",

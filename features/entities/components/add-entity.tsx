@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { Locale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { createEntity, EntityFormState } from '@/app/_actions/entities'
 import { Button } from '@/components/ui/button'
@@ -45,13 +45,12 @@ function SubmitButton() {
   )
 }
 
-function AddEntityFormContent() {
+function AddEntityFormContent({ locale, translations }: { locale: Locale; translations: any } = { locale: DEFAULT_LOCALE, translations: {} }) {
   const t = useTranslations('modules.entities')
   const { data: session, status } = useSession()
   const router = useRouter()
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
-  const locale = DEFAULT_LOCALE
 
   const [state, formAction] = useActionState<EntityFormState | null, FormData>(
     createEntity,
@@ -98,10 +97,10 @@ function AddEntityFormContent() {
               As a subscriber, you can view entities but need to upgrade to member status to create your own.
             </p>
             <div className="flex justify-center gap-4">
-              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale))}>
+              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale as 'en' | 'uk'))}>
                 Upgrade to Member
               </Button>
-              <Button variant="outline" onClick={() => router.push(ROUTES.ENTITIES(locale))}>
+              <Button variant="outline" onClick={() => router.push(ROUTES.ENTITIES(locale as 'en' | 'uk'))}>
                 Back to Entities
               </Button>
             </div>
@@ -325,8 +324,8 @@ function AddEntityFormContent() {
   )
 }
 
-export default function AddEntityForm() {
+export default function AddEntityForm({ locale, translations }: { locale: Locale; translations: any } = { locale: DEFAULT_LOCALE, translations: {} }) {
   return (
-    <AddEntityFormContent />
+    <AddEntityFormContent locale={locale} translations={translations} />
   )
 } 

@@ -34,7 +34,7 @@ const nextConfig = {
   async headers() {
     // SECURITY FIX: Restrict CORS to specific origins only
     const allowedOrigins = process.env.NODE_ENV === 'production' 
-      ? [process.env.NEXT_PUBLIC_API_URL || 'https://ring.example.com'] // Replace with your production domain
+      ? [process.env.NEXT_PUBLIC_API_URL || 'https://myri.ng'] // Replace with your production domain
       : ['http://localhost:3000', 'http://localhost:3001']
     
     return [

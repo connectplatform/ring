@@ -110,7 +110,7 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
               "url": "${process.env.NEXT_PUBLIC_API_URL}",
               "logo": {
                 "@type": "ImageObject",
-                "url": "${process.env.NEXT_PUBLIC_API_URL}/images/logo.png"
+                "url": "${process.env.NEXT_PUBLIC_API_URL}/logo.svg"
               }
             },
             "inLanguage": locale

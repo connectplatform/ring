@@ -24,7 +24,7 @@ interface HomeContentProps {
  * User steps:
  * 1. User arrives at the home page
  * 2. The component animates in the welcome message and description
- * 3. Two main navigation links (Directory and opportunities) are displayed
+ * 3. Two main navigation links (entities and opportunities) are displayed
  * 4. If the user is logged in, a personalized welcome message is shown
  * 
  * @param {HomeContentProps} props - The component props
@@ -117,7 +117,7 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
     transition: 'background 0.3s ease'
   }
 
-  const directoryLinkStyle: React.CSSProperties = {
+  const entitiesLinkStyle: React.CSSProperties = {
     ...linkStyle,
     background: currentTheme === 'dark'
       ? 'linear-gradient(to right, #2563EB, #16A34A)'
@@ -173,7 +173,7 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
         animate="visible"
         className="motion-safe motion-element"
       >
-        <Link href="/entities" style={directoryLinkStyle}>
+        <Link href="/entities" style={entitiesLinkStyle}>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{tPages('links.entities')}</h2>
           <p style={{ fontSize: '0.875rem' }}>{tPages('links.entitiesDescription')}</p>
         </Link>

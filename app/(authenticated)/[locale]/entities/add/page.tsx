@@ -4,8 +4,8 @@ import AddEntityForm from '@/features/entities/components/add-entity'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
-import { PageProps } from '@/types/next-page'
-import { resolvePageProps } from '@/utils/page-props'
+import { resolvePageProps, LocalePageProps } from '@/utils/page-props'
+import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = 'force-dynamic'
@@ -25,11 +25,20 @@ type AddEntityParams = { id?: string };
  * @param props - The page properties including params and searchParams as Promises.
  * @returns JSX.Element - The rendered page content.
  */
-export default async function AddEntityPage(props: PageProps<AddEntityParams>) {
+export default async function AddEntityPage(props: LocalePageProps<AddEntityParams>) {
   console.log('AddEntityPage: Starting');
 
   // Resolve params and searchParams using our utility function
   const { params, searchParams } = await resolvePageProps<AddEntityParams>(props);
+
+  // i18n: Extract and validate locale
+  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
+
+  // i18n: Load translations for this locale
+  const translations = await loadTranslations(locale);
+
+  // i18n: Generate hreflang alternates for SEO
+  const alternates = generateHreflangAlternates('/entities/add');
 
   console.log('Params:', params);
   console.log('Search Params:', searchParams);
@@ -64,10 +73,10 @@ export default async function AddEntityPage(props: PageProps<AddEntityParams>) {
 
   console.log('AddEntityPage: Rendering Add Entity form');
 
-  // React 19 metadata for form pages
-  const title = 'Add Entity - Ring App';
-  const description = 'Add a new entity to the Ring App directory. Contribute to the growing ecosystem of technology companies and organizations.';
-  const canonicalUrl = 'https://ring.ck.ua/entities/add';
+  // i18n: Use translated title/description if available, fallback to English
+  const title = (translations as any)?.metadata?.addEntity || 'Add Entity - Ring App';
+  const description = (translations as any)?.metaDescription?.addEntity || 'Add a new entity to the Ring App directory. Contribute to the growing ecosystem of technology companies and organizations.';
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/entities/add`;
 
   // Render the page content
   return (
@@ -76,24 +85,29 @@ export default async function AddEntityPage(props: PageProps<AddEntityParams>) {
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
-      
+
+      {/* Hreflang alternates for i18n SEO */}
+      {Object.entries(alternates).map(([lang, url]) => (
+        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
+      ))}
+
       {/* OpenGraph metadata */}
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
-      <meta property="og:locale" content="en_US" />
-      <meta property="og:alternate_locale" content="uk_UA" />
-      
+      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
+      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary" />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
-      
+
       {/* Form page specific meta tags */}
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
-      
+
       {/* Form-specific structured data */}
       <script
         type="application/ld+json"
@@ -101,13 +115,13 @@ export default async function AddEntityPage(props: PageProps<AddEntityParams>) {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Add Entity - Ring Platform",
+            "name": title,
             "description": description,
             "url": canonicalUrl,
             "mainEntity": {
               "@type": "WebPageElement",
-              "name": "Entity Submission Form",
-              "description": "Form for adding new entities to the Ring platform directory"
+              "name": (translations as any)?.formTitle?.addEntity || "Entity Submission Form",
+              "description": (translations as any)?.formDescription?.addEntity || "Form for adding new entities to the Ring platform directory"
             },
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -115,19 +129,19 @@ export default async function AddEntityPage(props: PageProps<AddEntityParams>) {
                 {
                   "@type": "ListItem",
                   "position": 1,
-                  "name": "Home",
-                  "item": "https://ring.ck.ua"
+                  "name": (translations as any)?.breadcrumb?.home || "Home",
+                  "item": process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
-                  "name": "Entities",
-                  "item": "https://ring.ck.ua/entities"
+                  "name": (translations as any)?.breadcrumb?.entities || "Entities",
+                  "item": `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/entities`
                 },
                 {
                   "@type": "ListItem",
                   "position": 3,
-                  "name": "Add Entity",
+                  "name": (translations as any)?.breadcrumb?.addEntity || "Add Entity",
                   "item": canonicalUrl
                 }
               ]
@@ -141,7 +155,7 @@ export default async function AddEntityPage(props: PageProps<AddEntityParams>) {
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       }>
-        <AddEntityForm />
+        <AddEntityForm locale={locale} translations={translations} />
       </Suspense>
     </>
   )

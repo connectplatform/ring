@@ -201,7 +201,7 @@ export default async function ConfidentialOpportunitiesPage(props: LocalePagePro
             "url": canonicalUrl,
             "mainEntity": {
               "@type": "WebPageElement",
-              "name": "Confidential Opportunity Directory",
+              "name": "Confidential Opportunities",
               "description": "Secure directory of confidential opportunities with restricted access"
             },
             "breadcrumb": {
@@ -211,13 +211,13 @@ export default async function ConfidentialOpportunitiesPage(props: LocalePagePro
                   "@type": "ListItem",
                   "position": 1,
                   "name": "Home",
-                  "item": "https://ring.ck.ua"
+                  "item": process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
                   "name": "Confidential",
-                  "item": `https://ring.ck.ua/${locale}/confidential`
+                  "item": `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/confidential/opportunities`
                 },
                 {
                   "@type": "ListItem",

@@ -71,19 +71,19 @@ export default function Footer() {
               {mounted ? t('quickLinks') : 'Quick Links'}
             </h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/directory" className="hover:text-primary transition-colors">
-                {mounted ? t('catalog') : 'Catalog'}
+              <li><Link href={`/${locale}/entities`} className="hover:text-primary transition-colors">
+                {mounted ? t('entities') : 'Entities'}
               </Link></li>
-              <li><Link href="/opportunities" className="hover:text-primary transition-colors">
+              <li><Link href={`/${locale}/opportunities`} className="hover:text-primary transition-colors">
                 {mounted ? t('opportunities') : 'Opportunities'}
               </Link></li>
-              <li><Link href="/contact" className="hover:text-primary transition-colors">
+              <li><Link href={`/${locale}/contact`} className="hover:text-primary transition-colors">
                 {mounted ? t('contacts') : 'Contact'}
               </Link></li>
-              <li><Link href="/privacy" className="hover:text-primary transition-colors">
+              <li><Link href={`/${locale}/privacy`} className="hover:text-primary transition-colors">
                 {mounted ? t('privacyPolicy') : 'Privacy Policy'}
               </Link></li>
-              <li><Link href="/terms" className="hover:text-primary transition-colors">
+              <li><Link href={`/${locale}/terms`} className="hover:text-primary transition-colors">
                 {mounted ? t('termsOfService') : 'Terms of Service'}
               </Link></li>
             </ul>

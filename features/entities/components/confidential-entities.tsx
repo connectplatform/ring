@@ -152,7 +152,7 @@ export const ConfidentialEntitiesContent: React.FC<ConfidentialEntitiesContentPr
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="text-4xl font-bold text-center mb-8">{t('confidentialDirectoryTitle')}</div>
+          <div className="text-4xl font-bold text-center mb-8">{t('confidentialEntitiesTitle')}</div>
         </motion.h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {entities.map((entity) => (

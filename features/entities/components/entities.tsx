@@ -164,7 +164,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl font-bold mb-6">{tEntities('title')}</h1>
+          <h1 className="text-4xl font-bold mb-6">{tEntities('entitiesTitle')}</h1>
           
           {/* Action Buttons Section */}
           <div className="flex justify-center gap-4 mb-8">

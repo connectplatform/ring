@@ -1,6 +1,7 @@
 {
   "title": "Entities",
   "entitiesTitle": "Entities Directory",
+  "confidentialEntitiesTitle": "Confidential Entities",
   "loadingMessage": "Loading entities...",
   "visitWebsite": "Visit website",
   "foundedIn": "Founded in {year}",

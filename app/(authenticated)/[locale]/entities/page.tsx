@@ -155,7 +155,7 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   const translations = loadTranslations(locale);
   const title = (translations as any).metadata?.entities || 'Entities | Ring App';
   const description = (translations as any).metaDescription?.entities || 'Browse and discover tech companies, startups, and organizations in the Cherkasy region ecosystem.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/entities`;
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/entities`;
   const alternates = generateHreflangAlternates('/entities');
 
   // Parse and set default values for query parameters
