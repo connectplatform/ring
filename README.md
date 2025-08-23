@@ -70,6 +70,7 @@ Ring Platform implements a tiered access model for professional networking:
 - **Real-time**: WebSocket push notifications with heartbeat and auto-reconnection
 - **Performance**: ~90% reduction in API calls via WebSocket optimization
 - **API Client**: RingApiClient with standardized timeout, retry, and error handling
+- **Security**: Enterprise-grade security with rate limiting, CORS protection, and input validation
 
 ### **Platform Statistics**
 
@@ -200,7 +201,7 @@ cd ring
 npm install
 
 # Set up environment variables
-cp .env.example .env.local
+cp env.local.template .env.local
 # Configure Firebase, NextAuth, and other services
 
 # Run development server
@@ -247,10 +248,32 @@ npm run setup        # Set up environment configuration
 npm run analyze      # Analyze bundle size (skips type validation for speed)
 ```
 
+## 🔒 **Security**
+
+### **Enterprise-Grade Security Features**
+- **Rate Limiting**: 5 auth/min, 100 API/min, 10 WebSocket/min per IP
+- **CORS Protection**: Environment-specific origins, no wildcards
+- **Input Validation**: XSS prevention and sanitization
+- **Session Security**: IP-bound auth cache with hijacking prevention
+- **Token Validation**: JWT expiry checks with clock skew protection
+- **Error Handling**: Generic messages prevent information leakage
+
+### **Security Testing**
+```bash
+# Test rate limiting
+for i in {1..10}; do curl http://localhost:3000/api/websocket/auth; done
+
+# Test CORS protection
+curl -H "Origin: https://evil.com" http://localhost:3000/api/notifications
+
+# Check security headers
+curl -I http://localhost:3000/api/notifications
+```
+
 ## 📚 **Documentation**
 
 ### **API Documentation**
-- **Interactive Docs**: [docs.ring.ck.ua](https://docs.ring.ck.ua)
+- **Interactive Docs**: [connectplatform.github.io/ring](https://connectplatform.github.io/ring)
 - **API Reference**: Comprehensive endpoint documentation
 - **Code Examples**: Multiple language examples
 - **Postman Collection**: Ready-to-use API collection
@@ -259,6 +282,7 @@ npm run analyze      # Analyze bundle size (skips type validation for speed)
 - **Setup Guides**: Environment configuration and deployment
 - **Architecture Docs**: System design and patterns
 - **API Client Guide**: RingApiClient integration and best practices
+- **Security Guide**: [Security Implementation Guide](docs/SECURITY-IMPLEMENTATION-GUIDE.md)
 - **Contributing Guide**: Development workflow and standards
 - **Security Guidelines**: Best practices and compliance
 
@@ -279,7 +303,7 @@ Ring Platform is proprietary software. All rights reserved.
 ## 🔗 **Links**
 
 - **Platform**: [ring.ck.ua](https://ring.ck.ua)
-- **Documentation**: [docs.ring.ck.ua](https://docs.ring.ck.ua)
+- **Documentation**: [connectplatform.github.io/ring](https://connectplatform.github.io/ring)
 - **Admin Console**: [ring.ck.ua/admin](https://ring.ck.ua/admin)
 - **Support**: [support@ring.ck.ua](mailto:support@ring.ck.ua)
 

@@ -97,7 +97,7 @@ async authenticateSocket(socket) {
 ### **1. Modern WebSocket Manager**
 
 ```typescript
-// /lib/websocket/modern-websocket-manager.ts
+// /lib/websocket/websocket-manager.ts
 export class WebSocketManager extends EventEmitter {
   private socket: Socket | null = null
   private heartbeatTimer?: NodeJS.Timeout

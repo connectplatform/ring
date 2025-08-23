@@ -829,7 +829,7 @@ export async function GET(req: NextRequest) {
 }
 
 // WebSocket connection with authentication
-import { websocketManager } from '@/lib/websocket/modern-websocket-manager'
+import { websocketManager } from '@/lib/websocket/websocket-manager'
 
 export function useWebSocketConnection() {
   const { isConnected, connect, disconnect } = useWebSocket()
