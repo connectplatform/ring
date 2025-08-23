@@ -227,8 +227,17 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
           subscriptionsRef.current.set(channel, subscription);
         })
         .catch(err => {
-          console.error(`Failed to subscribe to ${channel}:`, err);
-          setError(err);
+          // Don't log errors for system/presence channels on anonymous connections
+          const isSystemChannel = channel === 'system' || channel === 'presence';
+          const isAuthError = err.message?.includes('401') || err.message?.includes('Unauthorized');
+          
+          if (isSystemChannel && isAuthError) {
+            // Silently ignore - anonymous users can't subscribe to these channels
+            console.log(`[Tunnel] Anonymous user cannot subscribe to ${channel} channel`);
+          } else {
+            console.error(`Failed to subscribe to ${channel}:`, err);
+            setError(err);
+          }
         });
     }
     

@@ -17,17 +17,18 @@ const channelSubscribers = new Map<string, Set<string>>();
  * POST handler to subscribe to channels
  */
 export async function POST(request: NextRequest) {
-  // Authenticate the request
+  // Try to authenticate the request (optional for public subscriptions)
   const authResult = await verifyAuth(request);
   
-  if (!authResult) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  // Allow anonymous subscriptions with a generated ID
+  let userId: string;
+  
+  if (authResult) {
+    userId = authResult.userId;
+  } else {
+    // Generate anonymous user ID for this subscription
+    userId = `anon-${Math.random().toString(36).substr(2, 9)}`;
   }
-
-  const { userId } = authResult;
 
   try {
     const body = await request.json();

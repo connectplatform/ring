@@ -14,17 +14,19 @@ export const runtime = 'edge';
  * POST handler to unsubscribe from channels
  */
 export async function POST(request: NextRequest) {
-  // Authenticate the request
+  // Try to authenticate the request (optional for public unsubscriptions)
   const authResult = await verifyAuth(request);
   
-  if (!authResult) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  // Allow anonymous unsubscriptions
+  let userId: string;
+  
+  if (authResult) {
+    userId = authResult.userId;
+  } else {
+    // For anonymous users, we need some identifier
+    // In production, this would be tracked via session or connection ID
+    userId = `anon-${request.headers.get('x-client-id') || 'unknown'}`;
   }
-
-  const { userId } = authResult;
 
   try {
     const body = await request.json();

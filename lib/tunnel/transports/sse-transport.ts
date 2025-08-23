@@ -342,6 +342,12 @@ export class SSETransport implements TunnelTransport {
 
   async publish(channel: string, event: string, data: any): Promise<void> {
     // SSE is unidirectional - use HTTP POST for publishing
+    // Anonymous users can't publish
+    if (!this.authToken) {
+      console.log('[SSETransport] Anonymous users cannot publish messages');
+      return;
+    }
+
     const message = createTunnelMessage(
       TunnelMessageType.DATA,
       data,
@@ -380,12 +386,18 @@ export class SSETransport implements TunnelTransport {
 
     // Send subscription request to server
     try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Only add auth header if we have a token
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+
       const response = await fetch('/api/tunnel/subscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}`,
-        },
+        headers,
         body: JSON.stringify({
           channel: options.channel,
           events: options.events,
@@ -395,11 +407,21 @@ export class SSETransport implements TunnelTransport {
       });
 
       if (!response.ok) {
-        throw new Error(`Subscribe failed: ${response.status}`);
+        // Don't throw for anonymous users, just log
+        if (!this.authToken && response.status === 401) {
+          console.log('[SSETransport] Anonymous subscription to', options.channel);
+        } else {
+          throw new Error(`Subscribe failed: ${response.status}`);
+        }
       }
     } catch (error) {
-      console.error('Failed to subscribe:', error);
-      throw error;
+      // Don't retry subscription errors for anonymous users
+      if (!this.authToken) {
+        console.log('[SSETransport] Anonymous subscription skipped:', error);
+      } else {
+        console.error('Failed to subscribe:', error);
+        throw error;
+      }
     }
 
     const subscription: TunnelSubscription = {
@@ -419,18 +441,27 @@ export class SSETransport implements TunnelTransport {
     if (!subscription) return;
 
     try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Only add auth header if we have a token
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+
       await fetch('/api/tunnel/unsubscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}`,
-        },
+        headers,
         body: JSON.stringify({
           channel: subscription.channel,
         }),
       });
     } catch (error) {
-      console.error('Failed to unsubscribe:', error);
+      // Don't log errors for anonymous users
+      if (this.authToken) {
+        console.error('Failed to unsubscribe:', error);
+      }
     }
 
     this.subscriptions.delete(subscriptionId);
