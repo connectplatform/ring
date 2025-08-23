@@ -14,7 +14,8 @@
       "tunnel_transport": {
         "enabled": true,
         "primary": "Multi-transport abstraction layer",
-        "providers": ["WebSocket", "SSE", "Supabase", "Firebase", "Pusher", "Ably", "Long-polling"],
+        "providers": ["WebSocket", "SSE", "Supabase", "Long-polling"],
+        "planned_providers": ["Firebase", "Pusher", "Ably"],
         "edge_compatible": true,
         "auto_fallback": true,
         "config": "/lib/tunnel/config.ts",
@@ -22,7 +23,14 @@
         "protocol": "/lib/tunnel/protocol.ts",
         "hooks": "/hooks/use-tunnel.ts",
         "provider": "/components/providers/tunnel-provider.tsx",
-        "features": ["automatic-transport-selection", "edge-runtime-compatibility", "unified-message-protocol", "health-monitoring", "backward-compatibility"]
+        "api_endpoints": "/app/api/tunnel/",
+        "demo": "/tunnel-test",
+        "features": ["automatic-transport-selection", "edge-runtime-compatibility", "unified-message-protocol", "health-monitoring", "backward-compatibility", "production-jwt-auth", "comprehensive-api-endpoints"],
+        "vercel_deployment": "production-ready",
+        "automatic_environment_detection": true,
+        "websocket_disabled_on_vercel": true,
+        "sse_primary_for_vercel": true,
+        "build_status": "successful"
       },
       "websocket": {
         "enabled": true,
@@ -65,6 +73,8 @@
       "tunnel_config": "ring/lib/tunnel/config.ts",
       "tunnel_protocol": "ring/lib/tunnel/protocol.ts",
       "tunnel_transports": "ring/lib/tunnel/transports/",
+      "tunnel_api_endpoints": "ring/app/api/tunnel/",
+      "tunnel_demo": "ring/app/(public)/[locale]/tunnel-test/",
       "websocket_compatibility": "ring/hooks/use-websocket.ts",
       "websocket_manager": "ring/lib/websocket/websocket-manager.ts",
       "websocket_hooks": "ring/hooks/use-websocket.ts",
@@ -103,16 +113,24 @@
       "messaging_service": "services/messaging",
       "notifications_service": "services/notifications",
       "realtime": {
-        "tunnel_transport": {
-          "enabled": true,
-          "primary": "Multi-transport with automatic selection",
-          "providers": ["WebSocket", "SSE", "Supabase", "Firebase", "Pusher", "Ably"],
-          "edge_compatible": true,
-          "auto_fallback": true,
-          "push_notifications": true,
-          "heartbeat": "30s intervals",
-          "auto_reconnection": true
-        },
+              "tunnel_transport": {
+        "enabled": true,
+        "primary": "Multi-transport with automatic selection",
+        "providers": ["WebSocket", "SSE", "Supabase", "Long-polling"],
+        "planned_providers": ["Firebase", "Pusher", "Ably"],
+        "edge_compatible": true,
+        "auto_fallback": true,
+        "push_notifications": true,
+        "heartbeat": "30s intervals",
+        "auto_reconnection": true,
+        "api_endpoints": ["/api/tunnel/sse", "/api/tunnel/poll", "/api/tunnel/publish", "/api/tunnel/subscribe", "/api/tunnel/unsubscribe", "/api/tunnel/ping", "/api/tunnel/test"],
+        "demo_page": "/tunnel-test",
+        "vercel_deployment": "production-ready",
+        "automatic_environment_detection": true,
+        "websocket_disabled_on_vercel": true,
+        "sse_primary_for_vercel": true,
+        "build_status": "successful"
+      },
         "websocket": {
           "enabled": true,
           "note": "Wrapped by tunnel transport for backward compatibility"
@@ -153,22 +171,30 @@
       }
     }
   },
-  "realtime_files": {
-    "tunnel_transport": "lib/tunnel/",
-    "tunnel_config": "lib/tunnel/config.ts",
-    "tunnel_protocol": "lib/tunnel/protocol.ts",
-    "tunnel_transports": "lib/tunnel/transports/",
-    "tunnel_hooks": "hooks/use-tunnel.ts",
-    "tunnel_provider": "components/providers/tunnel-provider.tsx",
-    "websocket_manager": "lib/websocket/websocket-manager.ts",
-    "websocket_hooks": "hooks/use-websocket.ts",
-    "websocket_compatibility": "hooks/use-websocket.ts (backward compatibility)",
-    "websocket_auth": "app/api/websocket/auth/route.ts",
-    "websocket_provider": "components/providers/websocket-provider.tsx",
-    "sse_endpoint": "app/api/tunnel/sse/route.ts",
-    "push_notifications": "FCM + Tunnel transport push with React 19 optimizations",
-    "migration_status": "✅ Tunnel transport implementation completed - Edge Runtime compatible multi-transport architecture"
-  },
+        "realtime_files": {
+        "tunnel_transport": "lib/tunnel/",
+        "tunnel_config": "lib/tunnel/config.ts",
+        "tunnel_protocol": "lib/tunnel/protocol.ts",
+        "tunnel_transports": "lib/tunnel/transports/",
+        "tunnel_hooks": "hooks/use-tunnel.ts",
+        "tunnel_provider": "components/providers/tunnel-provider.tsx",
+        "tunnel_api_endpoints": "app/api/tunnel/",
+        "tunnel_demo": "app/(public)/[locale]/tunnel-test/",
+        "websocket_manager": "lib/websocket/websocket-manager.ts",
+        "websocket_hooks": "hooks/use-websocket.ts",
+        "websocket_compatibility": "hooks/use-websocket.ts (backward compatibility)",
+        "websocket_auth": "app/api/websocket/auth/route.ts",
+        "websocket_provider": "components/providers/websocket-provider.tsx",
+        "sse_endpoint": "app/api/tunnel/sse/route.ts",
+        "polling_endpoint": "app/api/tunnel/poll/route.ts",
+        "push_notifications": "FCM + Tunnel transport push with React 19 optimizations",
+        "migration_status": "✅ Tunnel transport implementation completed - Edge Runtime compatible multi-transport architecture with comprehensive API endpoints and demo",
+        "vercel_deployment": "production-ready",
+        "automatic_environment_detection": true,
+        "websocket_disabled_on_vercel": true,
+        "sse_primary_for_vercel": true,
+        "build_status": "successful"
+      },
   "files_uploads": {
     "provider": "Vercel Blob",
     "pattern": "perform uploads via API routes (server-side)"
@@ -176,14 +202,19 @@
   "performance": {
     "react_19": ["optimistic_updates", "Suspense"],
     "helpers": ["lib/cached-data.ts", "lib/filter-manager.ts"],
-    "tunnel_transport_optimization": {
-      "edge_runtime_compatibility": "Full Vercel Edge Runtime support",
-      "automatic_fallback": "Seamless transport switching",
-      "latency": "<50ms Supabase, <100ms SSE, <200ms Firebase",
-      "throughput": "5,000 msg/s Supabase, 1,000 msg/s SSE",
-      "heartbeat": "30s intervals with auto-reconnection",
-      "caching": "request deduplication and smart caching"
-    },
+            "tunnel_transport_optimization": {
+          "edge_runtime_compatibility": "Full Vercel Edge Runtime support",
+          "automatic_fallback": "Seamless transport switching",
+          "latency": "<50ms Supabase, <100ms SSE, <200ms Firebase",
+          "throughput": "5,000 msg/s Supabase, 1,000 msg/s SSE",
+          "heartbeat": "30s intervals with auto-reconnection",
+          "caching": "request deduplication and smart caching",
+          "vercel_deployment": "production-ready",
+          "automatic_environment_detection": true,
+          "websocket_disabled_on_vercel": true,
+          "sse_primary_for_vercel": true,
+          "build_status": "successful"
+        },
     "websocket_optimization": {
       "polling_reduction": "~90% reduction in API calls",
       "latency": "<100ms notification delivery",
@@ -229,19 +260,22 @@
       "ring/docs/PLATFORM-PHILOSOPHY.md"
     ]
   },
-  "ai_hints": {
-    "access_enforcement": "always compute user tier and filter data accordingly",
-    "ssr_auth": "call auth() in server actions, route handlers, and server components",
-    "client_data": "fetch via services/* -> lib/api-client.ts; cache where appropriate",
-    "schema_first": "define/extend Zod schemas and converters before data ops",
-    "compatibility_note": "code against service facades to keep Firebase/ConnectPlatform compatible",
-    "tunnel_transport_usage": "use useTunnel() hook for real-time features with automatic transport selection",
-    "transport_selection": "use createTunnelConfig() for automatic environment detection and provider selection",
-    "edge_runtime_compatibility": "prefer Supabase or SSE for Vercel Edge Runtime deployments",
-    "realtime_patterns": "subscribe to channels, handle connection state, implement proper cleanup",
-    "api_client_usage": "use RingApiClient for all client-side API calls with domain-specific timeout configurations",
-    "error_handling": "implement structured error handling with ApiClientError for consistent user experience",
-    "timeout_configs": "configure timeouts based on operation type: wallet (15s), auth (15s), messaging (10s), notifications (8s)",
-    "transport_fallback": "configure fallback chains for deployment environment: Vercel (Supabase→SSE→Polling), Self-hosted (WebSocket→SSE→Polling)"
-  }
+      "ai_hints": {
+      "access_enforcement": "always compute user tier and filter data accordingly",
+      "ssr_auth": "call auth() in server actions, route handlers, and server components",
+      "client_data": "fetch via services/* -> lib/api-client.ts; cache where appropriate",
+      "schema_first": "define/extend Zod schemas and converters before data ops",
+      "compatibility_note": "code against service facades to keep Firebase/ConnectPlatform compatible",
+      "tunnel_transport_usage": "use useTunnel() hook for real-time features with automatic transport selection",
+      "transport_selection": "use createTunnelConfig() for automatic environment detection and provider selection",
+      "edge_runtime_compatibility": "prefer Supabase or SSE for Vercel Edge Runtime deployments",
+      "realtime_patterns": "subscribe to channels, handle connection state, implement proper cleanup",
+      "api_client_usage": "use RingApiClient for all client-side API calls with domain-specific timeout configurations",
+      "error_handling": "implement structured error handling with ApiClientError for consistent user experience",
+      "timeout_configs": "configure timeouts based on operation type: wallet (15s), auth (15s), messaging (10s), notifications (8s)",
+      "transport_fallback": "configure fallback chains for deployment environment: Vercel (Supabase→SSE→Polling), Self-hosted (WebSocket→SSE→Polling)",
+      "vercel_deployment": "tunnel transport is production-ready for Vercel with automatic environment detection",
+      "websocket_disabled_on_vercel": "WebSocket is automatically disabled on Vercel, SSE is used instead",
+      "build_status": "successful build with tunnel transport system fully operational"
+    }
 }

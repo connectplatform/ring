@@ -85,7 +85,9 @@ export function detectProviderCredentials(): Set<TunnelProvider> {
 
   // WebSocket available in non-Vercel environments
   const env = detectEnvironment();
-  if (!env.isVercel && env.hasWebSocketSupport) {
+  const websocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false';
+  
+  if (!env.isVercel && !websocketDisabled && env.hasWebSocketSupport) {
     available.add(TunnelProvider.WEBSOCKET);
   }
 
@@ -99,8 +101,14 @@ export function getRecommendedTransport(): TunnelProvider {
   const env = detectEnvironment();
   const available = detectProviderCredentials();
 
-  // Vercel Edge Runtime - prefer Supabase
-  if (env.isVercel && env.isEdgeRuntime) {
+  // Check if WebSocket is explicitly disabled
+  const websocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false';
+
+  // Vercel environment - NEVER use WebSocket
+  if (env.isVercel || websocketDisabled) {
+    // Remove WebSocket from available if on Vercel
+    available.delete(TunnelProvider.WEBSOCKET);
+    
     if (available.has(TunnelProvider.SUPABASE)) {
       return TunnelProvider.SUPABASE;
     }

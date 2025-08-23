@@ -24,6 +24,7 @@ import {
 import { createWebSocketTransport } from './transports/websocket-transport';
 import { createSSETransport } from './transports/sse-transport';
 import { createSupabaseTransport } from './transports/supabase-transport';
+import { createPollingTransport } from './transports/polling-transport';
 
 /**
  * Transport factory registry
@@ -53,10 +54,13 @@ const transportFactories: Record<TunnelProvider, (options?: TunnelConnectionOpti
       return null;
     }
   },
-  // Placeholder for future transports
-  [TunnelProvider.LONG_POLLING]: () => {
-    console.warn('Long-polling transport not yet implemented');
-    return null;
+  [TunnelProvider.LONG_POLLING]: (options) => {
+    try {
+      return createPollingTransport(options);
+    } catch (error) {
+      console.warn('Long-polling transport not available:', error);
+      return null;
+    }
   },
   [TunnelProvider.FIREBASE]: () => {
     console.warn('Firebase transport not yet implemented');

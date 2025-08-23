@@ -239,7 +239,7 @@ export function NotificationCenter({
     if (connectionError) {
       toast({
         title: 'Connection Error',
-        description: connectionError,
+        description: connectionError?.message || String(connectionError),
         variant: 'destructive',
         duration: 5000,
       });

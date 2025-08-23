@@ -1,19 +1,27 @@
 /**
  * WebSocket Diagnostics Component
- * Shows real-time WebSocket connection stats and debugging info
+ * Shoconnection real-time WebSocket connection stats and debugging info
  */
 
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useWebSocket } from '@/hooks/use-websocket'
+import { 
+  useRealtimeConnection,
+  useRealtimeNotifications,
+  useRealtimePresence,
+  useRealtimeSystemStatus 
+} from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Activity, Wifi, WifiOff, Clock, Server, AlertCircle, CheckCircle } from 'lucide-react'
 
 export function WebSocketDiagnostics({ className = '' }: { className?: string }) {
-  const ws = useWebSocket()
+  const connection = useRealtimeConnection()
+  const notifications = useRealtimeNotifications()
+  const presence = useRealtimePresence()
+  const system = useRealtimeSystemStatus()
   const [showDetails, setShowDetails] = useState(false)
   const [localUptime, setLocalUptime] = useState(0)
 
@@ -77,7 +85,7 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
         variant="outline"
         className="mb-2 shadow-lg"
       >
-        {ws.isConnected ? (
+        {connection.isConnected ? (
           <Wifi className="h-4 w-4 mr-2 text-green-500" />
         ) : (
           <WifiOff className="h-4 w-4 mr-2 text-red-500" />
@@ -94,8 +102,8 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
                 <Activity className="h-4 w-4 mr-2" />
                 WebSocket Diagnostics
               </span>
-              <Badge className={getStatusColor(ws.status)}>
-                {ws.status.toUpperCase()}
+              <Badge className={getStatusColor(connection.status)}>
+                {connection.status.toUpperCase()}
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -104,23 +112,23 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
             {/* Connection Status */}
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center">
-                {ws.isConnected ? (
+                {connection.isConnected ? (
                   <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
                 ) : (
                   <AlertCircle className="h-3 w-3 mr-1 text-red-500" />
                 )}
                 <span>Connection:</span>
               </div>
-              <span className={`font-mono ${getStatusColor(ws.status)}`}>
-                {ws.status}
+              <span className={`font-mono ${getStatusColor(connection.status)}`}>
+                {connection.status}
               </span>
             </div>
 
             {/* Connection Quality */}
             <div className="grid grid-cols-2 gap-2">
               <span>Quality:</span>
-              <Badge variant={getQualityVariant(ws.system.connectionQuality)} className="text-xs">
-                {ws.system.connectionQuality}
+              <Badge variant={getQualityVariant(system.connectionQuality)} className="text-xs">
+                {system.connectionQuality}
               </Badge>
             </div>
 
@@ -136,21 +144,21 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
             </div>
 
             {/* Reconnect Attempts */}
-            {ws.reconnectAttempts > 0 && (
+            {connection.reconnectAttempts > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 <span>Reconnect Attempts:</span>
                 <span className="font-mono text-orange-500">
-                  {ws.reconnectAttempts}
+                  {connection.reconnectAttempts}
                 </span>
               </div>
             )}
 
             {/* Last Connected */}
-            {ws.lastConnected && (
+            {connection.lastConnected && (
               <div className="grid grid-cols-2 gap-2">
                 <span>Last Connected:</span>
                 <span className="font-mono text-xs">
-                  {new Date(ws.lastConnected).toLocaleTimeString()}
+                  {new Date(connection.lastConnected).toLocaleTimeString()}
                 </span>
               </div>
             )}
@@ -160,13 +168,13 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <div className="grid grid-cols-2 gap-2">
                 <span>Unread Notifications:</span>
                 <Badge variant="secondary" className="text-xs">
-                  {ws.notifications.unreadCount}
+                  {notifications.unreadCount}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <span>Total Received:</span>
                 <span className="font-mono">
-                  {ws.notifications.notifications.length}
+                  {notifications.notifications.length}
                 </span>
               </div>
             </div>
@@ -176,13 +184,13 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <div className="grid grid-cols-2 gap-2">
                 <span>Online Users:</span>
                 <Badge variant="default" className="text-xs">
-                  {ws.presence.onlineCount}
+                  {presence.onlineCount}
                 </Badge>
               </div>
             </div>
 
             {/* System Status */}
-            {ws.system.maintenanceMode && (
+            {system.maintenanceMode && (
               <div className="border-t pt-2">
                 <Badge variant="destructive" className="w-full">
                   ⚠️ Maintenance Mode Active
@@ -191,10 +199,10 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
             )}
 
             {/* Connection Error */}
-            {ws.error && (
+            {connection.error && (
               <div className="border-t pt-2">
                 <div className="text-red-500 text-xs break-words">
-                  Error: {ws.error}
+                  Error: {connection.error?.message || String(connection.error)}
                 </div>
               </div>
             )}
@@ -204,17 +212,17 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => ws.reconnect()}
-                disabled={ws.isConnected || ws.isConnecting}
+                onClick={() => connection.reconnect()}
+                disabled={connection.isConnected || connection.isConnecting}
                 className="flex-1 text-xs"
               >
-                {ws.isConnecting ? 'Connecting...' : 'Connect'}
+                {connection.isConnecting ? 'Connecting...' : 'Connect'}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => ws.disconnect()}
-                disabled={!ws.isConnected}
+                onClick={() => connection.disconnect()}
+                disabled={!connection.isConnected}
                 className="flex-1 text-xs"
               >
                 Disconnect
@@ -222,8 +230,8 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => ws.notifications.refresh()}
-                disabled={!ws.isConnected}
+                onClick={() => notifications.refresh()}
+                disabled={!connection.isConnected}
                 className="text-xs"
               >
                 Refresh

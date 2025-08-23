@@ -17,15 +17,21 @@ type RealtimePostgresChangesPayload<T = any> = {
 };
 
 // Dynamic import for optional dependency
-let createClient: any;
+let createClient: any = null;
 
-try {
-  const supabaseModule = require('@supabase/supabase-js');
-  createClient = supabaseModule.createClient;
-} catch (error) {
-  // Supabase not installed - will throw error if transport is used
-  console.warn('Supabase transport requires @supabase/supabase-js to be installed');
-}
+// Only load Supabase if available - deferred to runtime
+const loadSupabase = () => {
+  if (!createClient) {
+    try {
+      const supabaseModule = require('@supabase/supabase-js');
+      createClient = supabaseModule.createClient;
+    } catch (error) {
+      // Supabase not installed
+      return false;
+    }
+  }
+  return true;
+};
 import {
   TunnelTransport,
   TunnelProvider,
@@ -56,8 +62,8 @@ export class SupabaseTransport implements TunnelTransport {
   private reconnectAttempts = 0;
 
   constructor(options?: TunnelConnectionOptions) {
-    // Check if Supabase is available
-    if (!createClient) {
+    // Try to load Supabase
+    if (!loadSupabase()) {
       throw new Error('Supabase transport requires @supabase/supabase-js to be installed. Run: npm install @supabase/supabase-js');
     }
 

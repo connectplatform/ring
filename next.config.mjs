@@ -79,6 +79,24 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   webpack: (config, { isServer }) => {
+    // Suppress Supabase module resolution warnings
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      /Module not found: Can't resolve '@supabase\/supabase-js'/,
+      /Can't resolve '@supabase\/supabase-js'/,
+      /@supabase\/supabase-js/,
+    ];
+
+    // Suppress module resolution warnings for optional dependencies
+    config.stats = {
+      ...config.stats,
+      warningsFilter: [
+        /Module not found: Can't resolve '@supabase\/supabase-js'/,
+        /Can't resolve '@supabase\/supabase-js'/,
+        /@supabase\/supabase-js/,
+      ],
+    };
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

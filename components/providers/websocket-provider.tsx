@@ -16,7 +16,7 @@ interface WebSocketContextType {
   lastConnected?: Date
   connect: () => Promise<void>
   disconnect: () => void
-  send: (event: string, data: any) => boolean
+  send: (event: string, data: any) => Promise<void>
   // Notification features
   notifications: {
     items: any[]
@@ -79,7 +79,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     } else if (connection.status === 'error' && connection.error) {
       toast({
         title: '⚠️ Connection issue',
-        description: connection.error,
+        description: connection.error?.message || 'Connection error',
         variant: 'destructive'
       })
     }
@@ -151,7 +151,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     isConnecting: connection.isConnecting,
     isReconnecting: connection.isReconnecting,
     reconnecting: connection.isReconnecting,
-    connectionError: connection.error,
+    connectionError: connection.error?.message || null,
     status: connection.status,
     reconnectAttempts: connection.reconnectAttempts,
     lastConnected: connection.lastConnected,
@@ -168,15 +168,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       refresh: notifications.refresh,
     },
     presence: {
-      onlineUsers: presence.onlineUsers,
+      onlineUsers: presence.onlineUsers.map(u => u.userId),
       onlineCount: presence.onlineCount,
       isUserOnline: presence.isUserOnline,
       getUserPresence: presence.getUserPresence,
     },
     system: {
       maintenanceMode: system.maintenanceMode,
-      systemUpdate: system.systemUpdate,
-      connectionQuality: system.connectionQuality,
+      systemUpdate: null, // Not available in new system
+      connectionQuality: system.connectionQuality as 'excellent' | 'good' | 'poor',
     }
   }), [
     // Connection state
@@ -205,7 +205,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     presence.getUserPresence,
     // System state
     system.maintenanceMode,
-    system.systemUpdate,
+    // system.systemUpdate, // Not available in new system
     system.connectionQuality
   ])
 

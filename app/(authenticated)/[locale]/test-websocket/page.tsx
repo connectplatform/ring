@@ -66,7 +66,7 @@ export default function TestWebSocketPage() {
     if (!testMessage.trim()) return
 
     try {
-      sendMessage(testMessage, 'text')
+      sendMessage(testMessage)
       setTestMessage('')
       setTestResults(prev => ({ ...prev, messageTest: true }))
       setConnectionLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ✅ Message sent successfully`])
