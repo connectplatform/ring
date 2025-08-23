@@ -13,6 +13,7 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 const nextConfig = {
   reactStrictMode: true,
   env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
@@ -33,7 +34,7 @@ const nextConfig = {
   async headers() {
     // SECURITY FIX: Restrict CORS to specific origins only
     const allowedOrigins = process.env.NODE_ENV === 'production' 
-      ? [process.env.NEXTAUTH_URL || 'https://ring.example.com'] // Replace with your production domain
+      ? [process.env.NEXT_PUBLIC_API_URL || 'https://ring.example.com'] // Replace with your production domain
       : ['http://localhost:3000', 'http://localhost:3001']
     
     return [
