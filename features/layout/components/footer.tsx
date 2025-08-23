@@ -22,36 +22,28 @@ export default function Footer() {
     setMounted(true)
   }, [])
 
-  // Modern WebSocket connection status monitoring
+  // Modern real-time connection status monitoring using tunnel transport
   useEffect(() => {
     if (typeof window === 'undefined' || !mounted) return
 
-    // Import the modern WebSocket manager
-    import('@/lib/websocket/websocket-manager').then(({ websocketManager }) => {
+    // Use the tunnel transport manager for connection status
+    import('@/lib/tunnel/transport-manager').then(({ getTunnelTransportManager }) => {
       const checkStatus = () => {
-        const state = websocketManager.getState()
-        setWsConnected(state.status === 'connected')
+        const manager = getTunnelTransportManager()
+        setWsConnected(manager.isConnected())
       }
 
       // Initial check
       checkStatus()
-
-      // Listen for state changes
-      const handleStateChange = (state: any) => {
-        setWsConnected(state.status === 'connected')
-      }
-
-      websocketManager.on('stateChange', handleStateChange)
       
-      // Also check periodically as fallback
+      // Check periodically for status updates
       const interval = setInterval(checkStatus, 5000)
 
       return () => {
-        websocketManager.off('stateChange', handleStateChange)
         clearInterval(interval)
       }
     }).catch(err => {
-      console.error('Failed to load WebSocket manager:', err)
+      console.error('Failed to load tunnel transport manager:', err)
       setWsConnected(false)
     })
   }, [mounted])

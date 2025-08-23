@@ -54,6 +54,24 @@ export class WebSocketManager extends EventEmitter {
   constructor(config: WebSocketConfig = {}) {
     super()
     
+    // Check if WebSocket is disabled (e.g., on Vercel)
+    const isWebSocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false' ||
+                                process.env.NEXT_PUBLIC_TUNNEL_TRANSPORT === 'sse' ||
+                                process.env.NEXT_PUBLIC_TUNNEL_TRANSPORT === 'supabase';
+    
+    if (isWebSocketDisabled) {
+      console.log('[WebSocketManager] WebSocket disabled by configuration, using tunnel transport instead');
+      this.state = {
+        status: 'disconnected',
+        reconnectAttempts: 0,
+        isAuthenticated: false,
+        totalConnections: 0,
+        totalDisconnections: 0,
+      }
+      // Don't initialize anything else if WebSocket is disabled
+      return;
+    }
+    
     this.config = {
       url: config.url || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'),
       reconnectDelay: config.reconnectDelay || 1000,
@@ -103,6 +121,16 @@ export class WebSocketManager extends EventEmitter {
    * Connect to WebSocket server with authentication
    */
   async connect(): Promise<void> {
+    // Check if WebSocket is disabled
+    const isWebSocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false' ||
+                                process.env.NEXT_PUBLIC_TUNNEL_TRANSPORT === 'sse' ||
+                                process.env.NEXT_PUBLIC_TUNNEL_TRANSPORT === 'supabase';
+    
+    if (isWebSocketDisabled) {
+      console.log('[WebSocketManager] WebSocket disabled, skipping connection');
+      return Promise.resolve();
+    }
+
     if (this.state.status === 'connected') return
     if (this.connectionPromise) return this.connectionPromise
 

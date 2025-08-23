@@ -5,9 +5,9 @@
  */
 
 import { NextRequest } from 'next/server';
+import { verifyAuth } from '@/lib/auth/edge-jwt';
 import { createTunnelMessage, TunnelMessageType, MessageConverter } from '@/lib/tunnel/protocol';
 import { TunnelProvider } from '@/lib/tunnel/types';
-import { verifyAuth } from '@/lib/auth/edge-jwt';
 
 // Edge Runtime configuration
 export const runtime = 'edge';
@@ -21,19 +21,21 @@ const activeConnections = new Map<string, Set<ReadableStreamDefaultController>>(
  * GET handler for SSE connections
  */
 export async function GET(request: NextRequest) {
-  // Authenticate the request with proper JWT verification
+  // Try to authenticate the request (optional for public SSE)
   const authResult = await verifyAuth(request);
   
-  if (!authResult) {
-    return new Response('Unauthorized', { 
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Bearer realm="tunnel"',
-      },
-    });
+  // Allow anonymous connections with a generated ID
+  let userId: string;
+  let email: string | undefined;
+  
+  if (authResult) {
+    userId = authResult.userId;
+    email = authResult.email;
+  } else {
+    // Generate anonymous user ID for this connection
+    userId = `anon-${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[SSE] Anonymous connection:', userId);
   }
-
-  const { userId, email } = authResult;
 
   // Create SSE stream
   const encoder = new TextEncoder();

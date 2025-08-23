@@ -59,14 +59,20 @@ export class SSETransport implements TunnelTransport {
     this.connectionState = TunnelConnectionState.CONNECTING;
     
     try {
-      // Get auth token if needed
+      // Get auth token if available (optional for public connections)
       if (this.options.auth?.token) {
         this.authToken = this.options.auth.token;
       } else {
-        this.authToken = await this.fetchAuthToken();
+        // Try to get auth token, but don't fail if unavailable
+        try {
+          this.authToken = await this.fetchAuthToken();
+        } catch (error) {
+          console.log('[SSETransport] No auth token available, connecting as anonymous');
+          this.authToken = undefined;
+        }
       }
 
-      // Create EventSource with auth
+      // Create EventSource with optional auth
       const url = new URL(this.options.url!, window.location.origin);
       if (this.authToken) {
         url.searchParams.set('token', this.authToken);
