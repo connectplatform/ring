@@ -72,7 +72,25 @@
     "placeholder": "WayForPay integration will be implemented in Phase 3. For now, this is a placeholder.",
     "membership_fee": "One-time membership upgrade fee",
     "proceed": "Proceed to Payment (Coming Soon)",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "ring_tokens": "RING Tokens",
+    "fiat": "Fiat Currency",
+    "recommended": "Recommended",
+    "cost": "Cost",
+    "your_balance": "Your Balance",
+    "ring": {
+      "title": "Pay with RING Tokens",
+      "sufficient": "Sufficient Balance",
+      "instant": "Instant upgrade with no transaction fees",
+      "insufficient": "Insufficient RING Balance",
+      "need_more": "You need {amount} more RING tokens to upgrade your account",
+      "pay_now": "Pay with RING",
+      "top_up": "Top Up RING Balance"
+    },
+    "fiat_details": {
+      "placeholder": "Traditional payment methods will be available soon. For now, please use RING tokens or contact support.",
+      "proceed": "Proceed to Payment (Coming Soon)"
+    }
   },
   "page": {
     "title": "Upgrade to Member",
