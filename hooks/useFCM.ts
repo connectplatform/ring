@@ -98,20 +98,49 @@ export function useFCM(): FCMHookReturn {
     checkSupport()
   }, [])
 
-  // Initialize FCM token when user is authenticated
+  // Initialize FCM service worker when user is authenticated (but don't request permission yet)
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id && state.isSupported) {
-      const initializeFCM = async () => {
+      const initializeFCMServiceWorker = async () => {
+        // Only register service worker, don't request permission
+        if ('serviceWorker' in navigator) {
+          try {
+            // Check if service worker is already registered
+            const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+            
+            if (!existingRegistration) {
+              const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                scope: '/'
+              });
+              console.log('Service Worker registered:', registration);
+            } else {
+              console.log('Service Worker already registered:', existingRegistration);
+            }
+          } catch (swError) {
+            console.warn('Service Worker registration failed:', swError);
+            // Continue without service worker for background notifications
+          }
+        }
+      }
+
+      initializeFCMServiceWorker()
+    }
+  }, [status, session, state.isSupported])
+
+  // Separate effect for checking existing permission (without requesting new permission)
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id && state.isSupported && state.permission === 'granted') {
+      const initializeFCMToken = async () => {
         // Prevent duplicate initialization
         if (fcmInitializationInProgress) {
-          console.log('FCM initialization already in progress, skipping...')
+          console.log('FCM token initialization already in progress, skipping...')
           return
         }
         
         // Debounce registration to prevent rapid successive calls
         const now = Date.now()
         if (now - lastRegistrationTime < REGISTRATION_DEBOUNCE_MS) {
-          console.log('FCM registration debounced, too soon after last registration')
+          console.log('FCM token registration debounced, too soon after last registration')
           return
         }
         
@@ -119,27 +148,6 @@ export function useFCM(): FCMHookReturn {
         
         try {
           setState(prev => ({ ...prev, isLoading: true, error: null }))
-
-          // Register service worker with error handling
-          if ('serviceWorker' in navigator) {
-            try {
-              // Check if service worker is already registered
-              const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-              
-              if (!existingRegistration) {
-                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-                  scope: '/'
-                });
-                console.log('Service Worker registered:', registration);
-              } else {
-                console.log('Service Worker already registered:', existingRegistration);
-              }
-            } catch (swError) {
-              console.warn('Service Worker registration failed:', swError);
-              // Continue without service worker for background notifications
-              // Foreground notifications will still work
-            }
-          }
 
           // Get messaging instance with error handling
           let messaging;
@@ -156,7 +164,7 @@ export function useFCM(): FCMHookReturn {
             return
           }
 
-          // Get existing token
+          // Only get token if permission is already granted
           const currentToken = await getToken(messaging, {
             vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
           })
@@ -183,9 +191,9 @@ export function useFCM(): FCMHookReturn {
         }
       }
 
-      initializeFCM()
+      initializeFCMToken()
     }
-  }, [status, session, state.isSupported])
+  }, [status, session, state.isSupported, state.permission])
 
   const requestPermission = async (): Promise<boolean> => {
     try {
