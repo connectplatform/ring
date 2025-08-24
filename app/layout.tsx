@@ -15,6 +15,9 @@ import InstanceConfigProvider from '@/components/providers/instance-config-provi
 import { StoreProvider } from '@/features/store/context'
 import { WebSocketDiagnosticsProvider } from '@/components/providers/websocket-diagnostics-provider'
 
+// Suppress known third-party library warnings
+import '@/lib/suppress-warnings'
+
 // React 19 Resource Preloading APIs
 import { setupResourcePreloading } from '@/lib/preload/setup'
 
