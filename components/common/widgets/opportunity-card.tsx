@@ -7,7 +7,7 @@ import { Opportunity, Entity } from '@/types'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Tag, FileText, Building } from 'lucide-react'
+import { Calendar, MapPin, Tag, FileText, Building, User } from 'lucide-react'
 import Link from 'next/link'
 import { Timestamp, FieldValue } from 'firebase/firestore'
 
@@ -18,11 +18,18 @@ import { preload } from 'react-dom'
  * Props for the Opportunitycard component
  * @interface OpportunitycardProps
  * @property {Opportunity} opportunity - The opportunity data to display
- * @property {Entity} entity - The entity associated with the opportunity
+ * @property {Entity | null} entity - The entity associated with the opportunity (null for private requests)
+ * @property {any} creator - The creator/user info for private requests
  */
 interface OpportunitycardProps {
   opportunity: Opportunity
-  entity: Entity
+  entity: Entity | null
+  creator?: {
+    id: string
+    nickname?: string
+    name?: string
+    photoURL?: string
+  }
 }
 
 /**
@@ -37,39 +44,58 @@ interface OpportunitycardProps {
  * @param {OpportunitycardProps} props - The component props
  * @returns {React.ReactElement} The rendered OpportunityCardContent
  */
-const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportunity, entity }) => {
+const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportunity, entity, creator }) => {
   const t = useTranslations('modules.opportunities')
   const { data: session } = useSession()
 
+  // Determine display name and avatar for the card
+  const isPrivateRequest = !entity && opportunity.type === 'request'
+  const displayName = isPrivateRequest 
+    ? (creator?.nickname || creator?.name?.split(' ')[0] || 'Private User')
+    : (entity?.name || 'Unknown Entity')
+  const displayAvatar = isPrivateRequest
+    ? (creator?.photoURL || '/placeholder-user.svg')
+    : (entity?.logo || '/placeholder.svg')
+  const displayIcon = isPrivateRequest ? User : Building
+
   // React 19 Resource Preloading - Opportunity-specific Performance Optimization
   useEffect(() => {
-    // Preload entity logo if it exists and is not a placeholder
-    if (entity.logo && entity.logo !== '/placeholder.svg') {
-      preload(entity.logo, { as: 'image' })
+    // Preload avatar/logo if it exists and is not a placeholder
+    if (displayAvatar && !displayAvatar.includes('placeholder')) {
+      preload(displayAvatar, { as: 'image' })
     }
     
-    // Preload opportunity-related icons and assets
-    preload('/icons/calendar-outline.svg', { as: 'image' })
-    preload('/icons/map-pin-outline.svg', { as: 'image' })
-    preload('/icons/briefcase-outline.svg', { as: 'image' })
-    preload('/icons/building-outline.svg', { as: 'image' })
     
     // Preload opportunity detail page resources for faster navigation
     preload(`/api/opportunities/${opportunity.id}`, { as: 'fetch' })
-    preload(`/api/entities/${entity.id}`, { as: 'fetch' })
+    if (entity?.id) {
+      preload(`/api/entities/${entity.id}`, { as: 'fetch' })
+    }
     
-    // Preload opportunity-specific images if they follow a pattern
+    // Preload opportunity-specific images only if they exist (HEAD request check)
     if (opportunity.id) {
-      preload(`/images/opportunities/${opportunity.id}/banner.webp`, { as: 'image' })
-      preload(`/images/opportunities/${opportunity.id}/preview.webp`, { as: 'image' })
+      const bannerUrl = `/images/opportunities/${opportunity.id}/banner.webp`
+      const previewUrl = `/images/opportunities/${opportunity.id}/preview.webp`
+
+      // Helper to check if image exists before preloading
+      const checkAndPreload = (url: string) => {
+        fetch(url, { method: 'HEAD' })
+          .then(res => {
+            if (res.ok) preload(url, { as: 'image' })
+          })
+          .catch(() => { /* Ignore missing images */ })
+      }
+
+      checkAndPreload(bannerUrl)
+      checkAndPreload(previewUrl)
     }
     
     // Preload entity-specific images
-    if (entity.id) {
+    if (entity?.id) {
       preload(`/images/entities/${entity.id}/logo.webp`, { as: 'image' })
       preload(`/images/entities/${entity.id}/banner-small.webp`, { as: 'image' })
     }
-  }, [opportunity.id, entity.id, entity.logo])
+  }, [opportunity.id, entity?.id, displayAvatar])
 
   /**
    * Formats a Timestamp or FieldValue to a localized date string
@@ -91,13 +117,16 @@ const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportuni
       <CardHeader>
         <div className="flex items-center space-x-4">
           <Avatar
-            src={entity.logo || "/placeholder.svg"}
-            alt={`${entity.name} logo`}
-            fallback={entity.name.charAt(0)}
+            src={displayAvatar}
+            alt={`${displayName} avatar`}
+            fallback={displayName.charAt(0)}
           />
           <div>
             <CardTitle className="text-lg">{opportunity.title}</CardTitle>
-            <p className="text-sm text-muted-foreground">{entity.name}</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              {isPrivateRequest && <User className="w-3 h-3" />}
+              {displayName}
+            </p>
           </div>
         </div>
       </CardHeader>
@@ -130,9 +159,9 @@ const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportuni
             <dd>{t('type')}: {opportunity.type === 'offer' ? t('offer') : t('request')}</dd>
           </div>
           <div className="flex items-center">
-            <dt className="sr-only">{t('entity.name')}</dt>
-            <Building className="w-4 h-4 mr-2" aria-hidden="true" />
-            <dd>{t('entity.name')}: {entity.name}</dd>
+            <dt className="sr-only">{isPrivateRequest ? t('creator') : t('entity.name')}</dt>
+            {React.createElement(displayIcon, { className: "w-4 h-4 mr-2", 'aria-hidden': true })}
+            <dd>{isPrivateRequest ? t('creator') : t('entity.name')}: {displayName}</dd>
           </div>
         </dl>
       </CardContent>
