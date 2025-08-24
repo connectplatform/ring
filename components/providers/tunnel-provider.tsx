@@ -1,43 +1,27 @@
 /**
- * React Hook for Tunnel Transport
- * Primary hook for real-time communication with automatic transport selection
+ * Tunnel Provider Context
+ * Provides a shared tunnel instance and subscription management across the app
+ * Prevents duplicate subscriptions by centralizing tunnel management
  */
 
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { getTunnelTransportManager, TunnelTransportManager } from '@/lib/tunnel/transport-manager';
 import {
   TunnelConnectionState,
-  TunnelProvider,
+  TunnelProvider as TunnelProviderType,
   TunnelMessage,
   TunnelHealth,
-  TunnelSubscription,
   TunnelConfig,
 } from '@/lib/tunnel/types';
 
-// Optional import - provider may not be in use
-let TunnelContext: React.Context<any> | undefined;
-try {
-  // Try to import the context if provider is available
-  const provider = require('@/components/providers/tunnel-provider');
-  TunnelContext = provider.TunnelContext;
-} catch {
-  // Provider not available, will use standalone mode
-  TunnelContext = undefined;
-}
-
-export interface UseTunnelOptions {
-  config?: Partial<TunnelConfig>;
-  autoConnect?: boolean;
-  debug?: boolean;
-}
-
-export interface UseTunnelReturn {
+interface TunnelContextType {
   // Connection state
   isConnected: boolean;
   connectionState: TunnelConnectionState;
-  provider: TunnelProvider | null;
+  provider: TunnelProviderType | null;
   
   // Connection management
   connect: () => Promise<void>;
@@ -52,46 +36,57 @@ export interface UseTunnelReturn {
   latency: number;
   
   // Transport management
-  switchProvider: (provider: TunnelProvider) => Promise<void>;
-  availableProviders: TunnelProvider[];
+  switchProvider: (provider: TunnelProviderType) => Promise<void>;
+  availableProviders: TunnelProviderType[];
   
   // Error state
   error: Error | null;
 }
 
-/**
- * Main hook for tunnel transport
- * Uses TunnelContext if available, otherwise creates standalone instance
- */
-export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
-  const { config, autoConnect = true, debug = false } = options;
-  
-  // Try to use context if available
-  const contextValue = TunnelContext ? useContext(TunnelContext) : null;
-  
-  // If context is available and initialized, return it directly
-  if (contextValue) {
-    if (debug) {
-      console.log('[useTunnel] Using shared TunnelContext instance');
-    }
-    return contextValue as UseTunnelReturn;
+export const TunnelContext = createContext<TunnelContextType | null>(null);
+
+export function useTunnelContext() {
+  const context = useContext(TunnelContext);
+  if (!context) {
+    throw new Error('useTunnelContext must be used within TunnelProvider');
   }
+  return context;
+}
+
+interface TunnelProviderProps {
+  children: React.ReactNode;
+  config?: Partial<TunnelConfig>;
+  autoConnect?: boolean;
+  debug?: boolean;
+}
+
+/**
+ * Tunnel Provider Component
+ * Manages a single shared tunnel instance for the entire app
+ */
+export function TunnelProvider({ 
+  children, 
+  config,
+  autoConnect = true,
+  debug = false 
+}: TunnelProviderProps) {
+  const { status: sessionStatus } = useSession();
   
   // State
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<TunnelConnectionState>(TunnelConnectionState.DISCONNECTED);
-  const [provider, setProvider] = useState<TunnelProvider | null>(null);
+  const [provider, setProvider] = useState<TunnelProviderType | null>(null);
   const [health, setHealth] = useState<TunnelHealth | null>(null);
   const [latency, setLatency] = useState(0);
   const [error, setError] = useState<Error | null>(null);
-  const [availableProviders, setAvailableProviders] = useState<TunnelProvider[]>([]);
+  const [availableProviders, setAvailableProviders] = useState<TunnelProviderType[]>([]);
   
   // Refs
   const managerRef = useRef<TunnelTransportManager | null>(null);
-  const subscriptionsRef = useRef<Map<string, TunnelSubscription>>(new Map());
-  const handlersRef = useRef<Map<string, Set<(message: TunnelMessage) => void>>>(new Map());
+  const subscriptionsRef = useRef<Map<string, Map<symbol, (message: TunnelMessage) => void>>>(new Map());
+  const channelSubscriptionsRef = useRef<Map<string, any>>(new Map());
 
-  // Get or create manager
+  // Initialize manager once
   useEffect(() => {
     const manager = getTunnelTransportManager({
       ...config,
@@ -99,6 +94,10 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
     });
     
     managerRef.current = manager;
+    
+    // Capture ref values for cleanup
+    const currentSubscriptions = subscriptionsRef.current;
+    const currentChannelSubscriptions = channelSubscriptionsRef.current;
     
     // Set initial state
     setIsConnected(manager.isConnected());
@@ -136,15 +135,17 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
       setLatency(value);
     };
     
-    const handleTransportSwitch = ({ from, to }: { from: TunnelProvider; to: TunnelProvider }) => {
+    const handleTransportSwitch = ({ from, to }: { from: TunnelProviderType; to: TunnelProviderType }) => {
       setProvider(to);
-      console.log(`Transport switched from ${from} to ${to}`);
+      if (debug) {
+        console.log(`[TunnelProvider] Transport switched from ${from} to ${to}`);
+      }
     };
     
     const handleMessage = (message: TunnelMessage) => {
       // Route message to channel handlers
       if (message.channel) {
-        const handlers = handlersRef.current.get(message.channel);
+        const handlers = subscriptionsRef.current.get(message.channel);
         if (handlers) {
           handlers.forEach(handler => handler(message));
         }
@@ -161,10 +162,10 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
     manager.on('transport:switch', handleTransportSwitch);
     manager.on('message', handleMessage);
     
-    // Auto-connect if enabled
-    if (autoConnect && !manager.isConnected()) {
+    // Auto-connect if enabled and authenticated
+    if (autoConnect && sessionStatus === 'authenticated' && !manager.isConnected()) {
       manager.connect().catch(err => {
-        console.error('Failed to auto-connect:', err);
+        console.error('[TunnelProvider] Failed to auto-connect:', err);
         setError(err);
       });
     }
@@ -179,8 +180,17 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
       manager.off('latency', handleLatency);
       manager.off('transport:switch', handleTransportSwitch);
       manager.off('message', handleMessage);
+      
+      // Clean up all subscriptions using captured variables
+      for (const [channel, subscription] of currentChannelSubscriptions) {
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+          subscription.unsubscribe();
+        }
+      }
+      currentSubscriptions.clear();
+      currentChannelSubscriptions.clear();
     };
-  }, [config, autoConnect, debug]);
+  }, [config, autoConnect, debug, sessionStatus]);
 
   // Connect method
   const connect = useCallback(async () => {
@@ -203,15 +213,17 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
     
     try {
       // Clean up subscriptions
-      for (const [channel, subscription] of subscriptionsRef.current) {
-        await subscription.unsubscribe();
+      for (const [channel, subscription] of channelSubscriptionsRef.current) {
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+          await subscription.unsubscribe();
+        }
       }
       subscriptionsRef.current.clear();
-      handlersRef.current.clear();
+      channelSubscriptionsRef.current.clear();
       
       await managerRef.current.disconnect();
     } catch (err) {
-      console.error('Failed to disconnect:', err);
+      console.error('[TunnelProvider] Failed to disconnect:', err);
       setError(err as Error);
     }
   }, []);
@@ -229,25 +241,32 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
     await managerRef.current.publish(channel, event, data);
   }, []);
 
-  // Subscribe method
+  // Subscribe method with deduplication
   const subscribe = useCallback((channel: string, handler: (message: TunnelMessage) => void) => {
     if (!managerRef.current) {
-      console.error('Transport manager not initialized');
+      console.error('[TunnelProvider] Transport manager not initialized');
       return () => {};
     }
     
-    // Add handler to local registry
-    if (!handlersRef.current.has(channel)) {
-      handlersRef.current.set(channel, new Set());
-    }
-    handlersRef.current.get(channel)!.add(handler);
+    // Create a unique symbol for this handler
+    const handlerKey = Symbol('handler');
     
-    // Subscribe if not already subscribed
+    // Add handler to local registry
     if (!subscriptionsRef.current.has(channel)) {
+      subscriptionsRef.current.set(channel, new Map());
+    }
+    subscriptionsRef.current.get(channel)!.set(handlerKey, handler);
+    
+    // Subscribe to channel if not already subscribed
+    if (!channelSubscriptionsRef.current.has(channel)) {
+      if (debug) {
+        console.log(`[TunnelProvider] Creating new subscription for channel: ${channel}`);
+      }
+      
       managerRef.current
         .subscribe({ channel })
         .then(subscription => {
-          subscriptionsRef.current.set(channel, subscription);
+          channelSubscriptionsRef.current.set(channel, subscription);
         })
         .catch(err => {
           // Don't log errors for system/presence channels on anonymous connections
@@ -255,37 +274,44 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
           const isAuthError = err.message?.includes('401') || err.message?.includes('Unauthorized');
           
           if (isSystemChannel && isAuthError) {
-            // Silently ignore - anonymous users can't subscribe to these channels
-            console.log(`[Tunnel] Anonymous user cannot subscribe to ${channel} channel`);
+            if (debug) {
+              console.log(`[TunnelProvider] Anonymous user cannot subscribe to ${channel} channel`);
+            }
           } else {
-            console.error(`Failed to subscribe to ${channel}:`, err);
+            console.error(`[TunnelProvider] Failed to subscribe to ${channel}:`, err);
             setError(err);
           }
         });
+    } else if (debug) {
+      console.log(`[TunnelProvider] Reusing existing subscription for channel: ${channel}`);
     }
     
     // Return unsubscribe function
     return () => {
-      const handlers = handlersRef.current.get(channel);
+      const handlers = subscriptionsRef.current.get(channel);
       if (handlers) {
-        handlers.delete(handler);
+        handlers.delete(handlerKey);
         
         // If no more handlers, unsubscribe from channel
         if (handlers.size === 0) {
-          handlersRef.current.delete(channel);
+          if (debug) {
+            console.log(`[TunnelProvider] Unsubscribing from channel: ${channel}`);
+          }
           
-          const subscription = subscriptionsRef.current.get(channel);
-          if (subscription) {
+          subscriptionsRef.current.delete(channel);
+          
+          const subscription = channelSubscriptionsRef.current.get(channel);
+          if (subscription && typeof subscription.unsubscribe === 'function') {
             subscription.unsubscribe();
-            subscriptionsRef.current.delete(channel);
+            channelSubscriptionsRef.current.delete(channel);
           }
         }
       }
     };
-  }, []);
+  }, [debug]);
 
   // Switch provider method
-  const switchProvider = useCallback(async (newProvider: TunnelProvider) => {
+  const switchProvider = useCallback(async (newProvider: TunnelProviderType) => {
     if (!managerRef.current) {
       throw new Error('Transport manager not initialized');
     }
@@ -295,13 +321,14 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
       await managerRef.current.switchProvider(newProvider);
       setProvider(newProvider);
     } catch (err) {
-      console.error(`Failed to switch to ${newProvider}:`, err);
+      console.error(`[TunnelProvider] Failed to switch to ${newProvider}:`, err);
       setError(err as Error);
       throw err;
     }
   }, []);
 
-  return {
+  // Memoize context value
+  const contextValue = useMemo<TunnelContextType>(() => ({
     // Connection state
     isConnected,
     connectionState,
@@ -325,116 +352,24 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
     
     // Error state
     error,
-  };
-}
+  }), [
+    isConnected,
+    connectionState,
+    provider,
+    connect,
+    disconnect,
+    publish,
+    subscribe,
+    health,
+    latency,
+    switchProvider,
+    availableProviders,
+    error,
+  ]);
 
-/**
- * Hook for subscribing to tunnel notifications
- */
-export function useTunnelNotifications(options: UseTunnelOptions = {}) {
-  const tunnel = useTunnel(options);
-  const [notifications, setNotifications] = useState<TunnelMessage[]>([]);
-  
-  // Stable references to avoid re-subscriptions
-  const isConnected = tunnel.isConnected;
-  const subscribe = tunnel.subscribe;
-
-  useEffect(() => {
-    if (!isConnected) return;
-
-    const unsubscribe = subscribe('notifications', (message) => {
-      setNotifications(prev => [...prev, message]);
-    });
-
-    return unsubscribe;
-  }, [isConnected, subscribe]);
-
-  return {
-    ...tunnel,
-    notifications,
-    clearNotifications: () => setNotifications([]),
-  };
-}
-
-/**
- * Hook for subscribing to tunnel messages
- */
-export function useTunnelMessages(channel: string, options: UseTunnelOptions = {}) {
-  const tunnel = useTunnel(options);
-  const [messages, setMessages] = useState<TunnelMessage[]>([]);
-  
-  // Stable references to avoid re-subscriptions
-  const isConnected = tunnel.isConnected;
-  const subscribe = tunnel.subscribe;
-  const publish = tunnel.publish;
-
-  useEffect(() => {
-    if (!isConnected || !channel) return;
-
-    const unsubscribe = subscribe(channel, (message) => {
-      setMessages(prev => [...prev, message]);
-    });
-
-    return unsubscribe;
-  }, [isConnected, subscribe, channel]);
-
-  const sendMessage = useCallback(
-    async (data: any) => {
-      await publish(channel, 'message', data);
-    },
-    [publish, channel]
+  return (
+    <TunnelContext.Provider value={contextValue}>
+      {children}
+    </TunnelContext.Provider>
   );
-
-  return {
-    ...tunnel,
-    messages,
-    sendMessage,
-    clearMessages: () => setMessages([]),
-  };
-}
-
-/**
- * Hook for tunnel presence tracking
- */
-export function useTunnelPresence(channel: string, options: UseTunnelOptions = {}) {
-  const tunnel = useTunnel(options);
-  const [presence, setPresence] = useState<Map<string, any>>(new Map());
-  
-  // Stable references to avoid re-subscriptions
-  const isConnected = tunnel.isConnected;
-  const subscribe = tunnel.subscribe;
-
-  useEffect(() => {
-    if (!isConnected || !channel) return;
-
-    const unsubscribe = subscribe(channel, (message) => {
-      if (message.type === 'presence') {
-        const { event, payload } = message;
-        
-        if (event === 'join') {
-          setPresence(prev => {
-            const next = new Map(prev);
-            next.set(payload.userId, payload);
-            return next;
-          });
-        } else if (event === 'leave') {
-          setPresence(prev => {
-            const next = new Map(prev);
-            next.delete(payload.userId);
-            return next;
-          });
-        } else if (event === 'sync') {
-          setPresence(new Map(Object.entries(payload)));
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, [isConnected, subscribe, channel]);
-
-  return {
-    ...tunnel,
-    presence: Array.from(presence.values()),
-    presenceMap: presence,
-  };
 }

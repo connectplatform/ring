@@ -69,6 +69,7 @@ Ring Platform implements a tiered access model for professional networking:
 - **Authentication**: Enhanced useAuth hook with type-safe role checking and status page integration
 - **Real-time**: WebSocket push notifications with heartbeat and auto-reconnection
 - **Performance**: ~90% reduction in API calls via WebSocket optimization
+- **Subscription Management**: Centralized TunnelProvider context with deduplication
 - **API Client**: RingApiClient with standardized timeout, retry, and error handling
 - **Security**: Enterprise-grade security with rate limiting, CORS protection, and input validation
 
@@ -103,6 +104,7 @@ Ring Platform implements a tiered access model for professional networking:
 - **Smart Recommendations**: AI-powered matching algorithms
 - **Real-time Updates**: Live notifications for new opportunities
 - **WebSocket Push**: Instant notification delivery (<100ms latency)
+- **Stable Connections**: Centralized subscription management prevents loops
 - **Connection Reliability**: Heartbeat mechanism with auto-reconnection
 
 ### **Enhanced Authentication System**
@@ -256,6 +258,7 @@ npm run analyze      # Analyze bundle size (skips type validation for speed)
 - **Input Validation**: XSS prevention and sanitization
 - **Session Security**: IP-bound auth cache with hijacking prevention
 - **Token Validation**: JWT expiry checks with clock skew protection
+- **Subscription Security**: Centralized context prevents duplicate subscriptions
 - **Error Handling**: Generic messages prevent information leakage
 
 ### **Security Testing**

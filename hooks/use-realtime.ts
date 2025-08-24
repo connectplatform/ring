@@ -231,12 +231,17 @@ interface UserPresence {
 export function useRealtimePresence() {
   const [presence, setPresence] = useState<Map<string, UserPresence>>(new Map())
   const tunnel = useTunnel()
+  
+  // Stable references to avoid re-subscriptions
+  const isConnected = tunnel.isConnected
+  const subscribe = tunnel.subscribe
+  const publish = tunnel.publish
 
   useEffect(() => {
-    if (!tunnel.isConnected) return
+    if (!isConnected) return
 
     // Subscribe to presence channel
-    const unsubscribe = tunnel.subscribe('presence', (message) => {
+    const unsubscribe = subscribe('presence', (message) => {
       if (message.payload?.userId) {
         setPresence(prev => {
           const updated = new Map(prev)
@@ -251,11 +256,11 @@ export function useRealtimePresence() {
     })
 
     return unsubscribe
-  }, [tunnel.isConnected, tunnel])
+  }, [isConnected, subscribe])
 
   const updateStatus = useCallback(async (status: 'online' | 'away' | 'offline') => {
-    await tunnel.publish('presence', 'status', { status })
-  }, [tunnel])
+    await publish('presence', 'status', { status })
+  }, [publish])
 
   const onlineUsersList = Array.from(presence.values()).filter(u => u.status === 'online')
   
@@ -285,12 +290,19 @@ export function useRealtimeSystemStatus() {
     maintenanceMode: false,
     message: null as string | null,
   })
+  
+  // Stable references to avoid re-subscriptions
+  const isConnected = tunnel.isConnected
+  const subscribe = tunnel.subscribe
+  const latency = tunnel.latency
+  const provider = tunnel.provider
+  const health = tunnel.health
 
   useEffect(() => {
-    if (!tunnel.isConnected) return
+    if (!isConnected) return
 
     // Subscribe to system channel
-    const unsubscribe = tunnel.subscribe('system', (message) => {
+    const unsubscribe = subscribe('system', (message) => {
       if (message.payload?.type === 'maintenance') {
         setSystemStatus(prev => ({
           ...prev,
@@ -306,16 +318,16 @@ export function useRealtimeSystemStatus() {
     })
 
     return unsubscribe
-  }, [tunnel.isConnected, tunnel])
+  }, [isConnected, subscribe])
 
   return {
     ...systemStatus,
-    connectionQuality: tunnel.latency < 100 ? 'excellent' : 
-                      tunnel.latency < 300 ? 'good' : 
-                      tunnel.latency < 1000 ? 'fair' : 'poor',
-    latency: tunnel.latency,
-    provider: tunnel.provider,
-    health: tunnel.health,
+    connectionQuality: latency < 100 ? 'excellent' : 
+                      latency < 300 ? 'good' : 
+                      latency < 1000 ? 'fair' : 'poor',
+    latency,
+    provider,
+    health,
   }
 }
 

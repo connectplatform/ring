@@ -35,6 +35,7 @@ Ring Platform operates on three primary entity types:
 - **File Storage**: Vercel Blob with 25MB support and validation
 - **Deployment**: Vercel with Edge Functions and global CDN
 - **Real-time**: WebSocket push notifications with heartbeat and auto-reconnection
+- **Subscription Management**: Centralized TunnelProvider context prevents duplicate subscriptions
 
 ---
 
@@ -103,7 +104,7 @@ ring/docs/domains/
 | **auth** | NextAuth.js v5, crypto wallets | Session management, JWT, MetaMask | [Auth Docs](./domains/auth/README.md) |
 | **entities** | Professional organizations | CRUD, verification, 26 industries | [Entities Docs](./domains/entities/README.md) |
 | **opportunities** | Dual-nature system | Offers/Requests, applications | [Opportunities Docs](./domains/opportunities/README.md) |
-| **notifications** | WebSocket push + FCM | Real-time notifications, <100ms delivery | [Notifications Docs](./domains/notifications/README.md) |
+| **notifications** | WebSocket push + FCM | Real-time notifications, <100ms delivery, centralized subscription management | [Notifications Docs](./domains/notifications/README.md) |
 | **opportunities** | Job/service marketplace | Offers/Requests, tiered access | [Opportunities Docs](./domains/opportunities/README.md) |
 | **messaging** | Real-time communication | WebSocket, FCM notifications | [Messaging Docs](./domains/messaging/README.md) |
 | **analytics** | User behavior tracking | Events, performance metrics | [Analytics Docs](./domains/analytics/README.md) |
@@ -209,13 +210,14 @@ async function fetchWalletBalance() {
 }
 ```
 
-### **4. WebSocket Real-time Integration**
+### **4. WebSocket Real-time Integration (Centralized Subscription Management)**
 ```typescript
 // Real-time WebSocket push notifications
 import { useWebSocketNotifications } from '@/hooks/use-websocket'
 
 function NotificationBell() {
   const { unreadCount, notifications, markAsRead } = useWebSocketNotifications()
+// Uses centralized TunnelProvider context to prevent duplicate subscriptions
   
   return (
     <div>

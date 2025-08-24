@@ -1,6 +1,6 @@
 import React, { use } from 'react'
 import type { Locale } from '@/i18n-config'
-import CheckoutStatusPage from '@/components/store/CheckoutStatusPage'
+import CheckoutStatusPage from '@/components/store/checkout-status-page'
 import { generatePageMetadata } from '@/utils/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 import type { Metadata } from 'next'
