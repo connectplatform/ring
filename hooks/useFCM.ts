@@ -120,10 +120,25 @@ export function useFCM(): FCMHookReturn {
         try {
           setState(prev => ({ ...prev, isLoading: true, error: null }))
 
-          // Register service worker
+          // Register service worker with error handling
           if ('serviceWorker' in navigator) {
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
-            console.log('Service Worker registered:', registration)
+            try {
+              // Check if service worker is already registered
+              const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+              
+              if (!existingRegistration) {
+                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                  scope: '/'
+                });
+                console.log('Service Worker registered:', registration);
+              } else {
+                console.log('Service Worker already registered:', existingRegistration);
+              }
+            } catch (swError) {
+              console.warn('Service Worker registration failed:', swError);
+              // Continue without service worker for background notifications
+              // Foreground notifications will still work
+            }
           }
 
           // Get messaging instance with error handling
@@ -137,6 +152,7 @@ export function useFCM(): FCMHookReturn {
               isLoading: false,
               error: 'Failed to initialize messaging service' 
             }))
+            fcmInitializationInProgress = false
             return
           }
 
