@@ -153,7 +153,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
               <Alert>
                 <Construction className="h-4 w-4" />
                 <AlertDescription>
-                  {t('payment.fiat.placeholder', { 
+                  {t('payment.fiat_details.placeholder', { 
                     defaultValue: 'Fiat payment integration (WayForPay) will be implemented in Phase 3. For now, please use RING tokens.' 
                   })}
                 </AlertDescription>
@@ -176,7 +176,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                 className="w-full"
                 disabled
               >
-                {t('payment.fiat.proceed', { defaultValue: 'Proceed to Payment (Coming Soon)' })}
+                {t('payment.fiat_details.proceed', { defaultValue: 'Proceed to Payment (Coming Soon)' })}
               </Button>
             </TabsContent>
           </Tabs>
