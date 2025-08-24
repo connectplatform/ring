@@ -42,7 +42,12 @@ export async function createOpportunity(
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
-  const budget = formData.get('budget') as string
+  
+  // Extract budget fields (separate fields in form)
+  const budgetMin = formData.get('budgetMin') as string
+  const budgetMax = formData.get('budgetMax') as string
+  const budgetCurrency = formData.get('budgetCurrency') as string
+  
   const deadline = formData.get('deadline') as string
   const contactEmail = formData.get('contactEmail') as string
   let entityId = formData.get('entityId') as string
@@ -117,31 +122,24 @@ export async function createOpportunity(
     // Parse tags
     const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
 
-    // Parse budget if provided
+    // Parse budget from separate form fields
     let budgetObj = undefined
-    if (budget?.trim()) {
+    if (budgetMin?.trim() || budgetMax?.trim()) {
       try {
-        // Assume budget format like "1000-5000 USD" or just "1000 USD"
-        const budgetParts = budget.trim().split(' ')
-        const currency = budgetParts[budgetParts.length - 1] || 'USD'
-        const amounts = budgetParts[0].split('-')
+        const min = budgetMin?.trim() ? parseInt(budgetMin) : undefined
+        const max = budgetMax?.trim() ? parseInt(budgetMax) : undefined
+        const currency = budgetCurrency?.trim() || 'USD'
         
-        if (amounts.length === 2) {
+        // Only create budget object if we have at least min or max
+        if (min !== undefined || max !== undefined) {
           budgetObj = {
-            min: parseInt(amounts[0]),
-            max: parseInt(amounts[1]),
-            currency
-          }
-        } else if (amounts.length === 1) {
-          const amount = parseInt(amounts[0])
-          budgetObj = {
-            min: amount,
-            max: amount,
+            min: min || max || 0, // Use max if min is not provided, or 0 as fallback
+            max: max || min || 0, // Use min if max is not provided, or 0 as fallback
             currency
           }
         }
       } catch (e) {
-        console.warn('Could not parse budget:', budget)
+        console.warn('Could not parse budget from form fields:', { budgetMin, budgetMax, budgetCurrency })
       }
     }
 

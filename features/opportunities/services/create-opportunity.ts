@@ -230,16 +230,8 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
 
     // Step 4: Create the new opportunity document with ES2022 logical assignment
-    // Filter out undefined values to prevent Firestore errors
-    const cleanedData = Object.entries(data).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = value;
-      }
-      return acc;
-    }, {} as any);
-
     const newOpportunityData: any = {
-      ...cleanedData,
+      ...data,
       createdBy: userId,
       dateCreated: FieldValue.serverTimestamp(),
       dateUpdated: FieldValue.serverTimestamp(),

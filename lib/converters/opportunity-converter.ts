@@ -9,7 +9,7 @@ import { Opportunity, OpportunityType, OpportunityVisibility, Attachment } from 
 
 export const opportunityConverter: FirestoreDataConverter<Opportunity> = {
   toFirestore(opportunity: Opportunity): DocumentData {
-    return {
+    const data: DocumentData = {
       type: opportunity.type,
       title: opportunity.title,
       isConfidential: opportunity.isConfidential,
@@ -24,13 +24,19 @@ export const opportunityConverter: FirestoreDataConverter<Opportunity> = {
       category: opportunity.category,
       tags: opportunity.tags,
       location: opportunity.location,
-      budget: opportunity.budget,
       requiredSkills: opportunity.requiredSkills,
       requiredDocuments: opportunity.requiredDocuments,
       attachments: opportunity.attachments,
       visibility: opportunity.visibility,
       contactInfo: opportunity.contactInfo,
     };
+    
+    // Only include budget if it's defined to prevent Firestore undefined errors
+    if (opportunity.budget !== undefined) {
+      data.budget = opportunity.budget;
+    }
+    
+    return data;
   },
   fromFirestore(snapshot: QueryDocumentSnapshot): Opportunity {
     const data = snapshot.data();
@@ -50,7 +56,7 @@ export const opportunityConverter: FirestoreDataConverter<Opportunity> = {
       category: data.category,
       tags: data.tags,
       location: data.location,
-      budget: data.budget,
+      budget: data.budget || undefined, // Handle case where budget doesn't exist in Firestore
       requiredSkills: data.requiredSkills,
       requiredDocuments: data.requiredDocuments,
       attachments: data.attachments as Attachment[],
