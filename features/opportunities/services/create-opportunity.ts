@@ -309,6 +309,7 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     try {
       createdOpportunity = opportunityConverter.fromFirestore({
         ...docSnap,
+        id: docRef.id,
         data: () => opportunityData,
       } as any);
     } catch (error) {
