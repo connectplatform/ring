@@ -28,11 +28,15 @@ interface Opportunity {
   title: string
   description: string
   category: string
+  type?: 'offer' | 'request'
   amount?: number
   currency?: string
   deadline?: string
   entityName?: string
   entityLogo?: string
+  creatorName?: string
+  creatorNickname?: string
+  isPrivate?: boolean
 }
 
 // React 19 Opportunity Widget Component
@@ -139,7 +143,14 @@ function OpportunityWidgetComponent({
           React.createElement('div', { className: 'flex items-start justify-between mb-2' },
             React.createElement('div', { className: 'flex-1 min-w-0' },
               React.createElement('h4', { className: 'text-sm font-medium truncate' }, opportunity.title),
-              React.createElement('p', { className: 'text-xs opacity-75 mt-1' }, opportunity.entityName || 'Unknown Entity')
+              React.createElement('p', { className: 'text-xs opacity-75 mt-1 flex items-center gap-1' }, 
+                opportunity.isPrivate && opportunity.type === 'request' 
+                  ? React.createElement('span', null, 
+                      '👤 ', 
+                      opportunity.creatorNickname || opportunity.creatorName || 'Private User'
+                    )
+                  : (opportunity.entityName || 'Unknown Entity')
+              )
             ),
             opportunity.category && React.createElement('span', { 
               className: `ml-2 px-2 py-1 text-xs rounded-full ${theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}` 
