@@ -1,5 +1,7 @@
 'use server'
 
+import { getServerAuthSession } from '@/auth'
+
 export interface FilterFormState {
   success?: boolean
   message?: string
@@ -13,6 +15,10 @@ export async function applyFilters(
   formData: FormData
 ): Promise<FilterFormState> {
   try {
+    // Optional: Get session for personalized filters
+    const session = await getServerAuthSession()
+    const userRole = (session?.user as any)?.role
+    
     const filters: Record<string, any> = {}
     
     // Extract all filter values from FormData

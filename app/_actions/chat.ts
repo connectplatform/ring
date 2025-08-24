@@ -1,5 +1,8 @@
-import { addDoc, collection, Timestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase-client'
+'use server'
+
+import { getAdminDb } from '@/lib/firebase-admin.server'
+import { FieldValue } from 'firebase-admin/firestore'
+import { getServerAuthSession } from '@/auth'
 
 export interface MessageFormState {
   error?: string
@@ -33,13 +36,24 @@ export async function sendMessage(
   }
 
   try {
+    // Get current user session
+    const session = await getServerAuthSession()
+    if (!session?.user?.id) {
+      return {
+        error: 'Authentication required'
+      }
+    }
+
+    // Get admin database instance
+    const db = getAdminDb()
+
     // Create message document
-    await addDoc(collection(db, 'chats'), {
+    await db.collection('chats').add({
       chatId,
-      participants: [entityCreatorId], // Will be expanded based on user
-      senderId: 'current-user-id', // This should come from session
+      participants: [entityCreatorId, session.user.id],
+      senderId: session.user.id,
       content: messageContent.trim(),
-      timestamp: Timestamp.now(),
+      timestamp: FieldValue.serverTimestamp(),
       entityId,
       entityName,
       ...(opportunityId && { opportunityId }),

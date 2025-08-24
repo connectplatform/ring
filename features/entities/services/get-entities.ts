@@ -7,14 +7,17 @@
 import { Entity } from '@/features/entities/types'
 import { UserRole } from '@/features/auth/types'
 import { getServerAuthSession } from '@/auth'
-import { QuerySnapshot, Query } from 'firebase-admin/firestore'
-import { entityConverter } from '@/lib/converters/entity-converter'
+import { QuerySnapshot } from 'firebase-admin/firestore'
 import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced, 
+  getCachedDocumentBatch 
+} from '@/lib/services/firebase-service-manager'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedEntities } from '@/lib/build-cache/static-data-cache';
 
 /**
  * Fetch a paginated list of entities based on user role.
@@ -67,101 +70,44 @@ export async function getEntitiesForRole(
       });
     }
 
-    
     // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
     if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
       console.log(`[Service Optimization] Using ${phase.strategy} data for get-entities`);
       
       try {
         // Return cached data based on operation type
-        
-        if ('get-entities'.includes('confidential')) {
-          return { entities: [], lastVisible: null };  // No cached confidential data
-        }
-        const entities = await getCachedEntities({ limit: 50, isPublic: true });
-        const result = entities.slice(0, 10); return { entities: result, lastVisible: null };
+        const entities = await getCachedEntities({ limit: Math.min(limit, 50), isPublic: true });
+        const result = entities.slice(0, limit);
+        return { entities: result, lastVisible: null };
       } catch (cacheError) {
         console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
         // Continue to live data below
       }
     }
 
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-entities`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        if ('get-entities'.includes('confidential')) {
-          return { entities: [], lastVisible: null };  // No cached confidential data
-        }
-        const entities = await getCachedEntities({ limit: 50, isPublic: true });
-        const result = entities.slice(0, 10); return { entities: result, lastVisible: null };
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
-
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-entities`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        // Generic cache fallback for build time
-        return null;
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
-
-    // Step 2: Access Firestore and initialize collection with converter
-    // 🚀 OPTIMIZED: Enhanced error handling with service manager
-    let adminDb;
-    try {
-      const serviceManager = getFirebaseServiceManager();
-      adminDb = serviceManager.db
-    } catch (error) {
-      throw new EntityDatabaseError(
-        'Failed to initialize database connection',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userRole,
-          operation: 'getAdminDb'
-        }
-      );
-    }
-
-    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
-
-    // Step 3: Build query based on user role
-    let query: Query<Entity> = entitiesCollection
+    // Step 2: Build optimized query configuration based on user role
+    const queryConfig: any = {
+      limit,
+      orderBy: [{ field: 'dateAdded', direction: 'desc' }]
+    };
 
     // Apply role-based filtering for non-admin users
     // Visitors see only public. Subscribers see public + subscriber. Members see public + subscriber + member.
     if (userRole === UserRole.VISITOR) {
-      query = query.where('visibility', 'in', ['public'])
+      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public'] }];
     } else if (userRole === UserRole.SUBSCRIBER) {
-      query = query.where('visibility', 'in', ['public', 'subscriber'])
+      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }];
     } else if (userRole === UserRole.MEMBER) {
-      query = query.where('visibility', 'in', ['public', 'subscriber', 'member'])
+      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] }];
     }
     // ADMIN and CONFIDENTIAL users see all entities (no filter applied)
 
-    // Step 4: Apply pagination
-    query = query.limit(limit)
+    // Apply pagination if provided
     if (startAfter) {
       try {
-        const startAfterDoc = await entitiesCollection.doc(startAfter).get()
-        if (startAfterDoc.exists) {
-          query = query.startAfter(startAfterDoc)
+        const startAfterDoc = await getCachedDocument('entities', startAfter);
+        if (startAfterDoc && startAfterDoc.exists) {
+          queryConfig.startAfter = startAfterDoc;
         }
       } catch (error) {
         throw new EntityQueryError(
@@ -177,10 +123,10 @@ export async function getEntitiesForRole(
       }
     }
 
-    // Step 5: Execute query
-    let snapshot: QuerySnapshot<Entity>;
+    // Step 3: Execute optimized query
+    let snapshot: QuerySnapshot;
     try {
-      snapshot = await query.get()
+      snapshot = await getCachedCollectionAdvanced('entities', queryConfig);
     } catch (error) {
       throw new EntityQueryError(
         'Failed to execute entities query',
@@ -195,28 +141,16 @@ export async function getEntitiesForRole(
       );
     }
 
-    // Step 6: Map document snapshots to Entity objects
-    let entities = snapshot.docs.map(doc => ({
+    // Step 4: Map document snapshots to Entity objects
+    const entities = snapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
-    }))
+    })) as Entity[]
 
-    // For non-admin users, we need to filter in memory to include subscriber and role-specific entities
-    // This is a trade-off to avoid complex indexes while still providing role-based access
-    if (userRole === UserRole.VISITOR) {
-      entities = entities.filter(entity => entity.visibility === 'public')
-    } else if (userRole === UserRole.SUBSCRIBER) {
-      entities = entities.filter(entity => 
-        entity.visibility === 'public' || entity.visibility === 'subscriber'
-      )
-    } else if (userRole === UserRole.MEMBER) {
-      entities = entities.filter(entity => 
-        entity.visibility === 'public' || entity.visibility === 'subscriber' || entity.visibility === 'member'
-      )
-    }
-    // ADMIN and CONFIDENTIAL users see all entities (no additional filtering)
+    // Note: Role-based filtering is now handled by the query configuration above,
+    // eliminating the need for additional in-memory filtering
 
-    // Step 7: Get the ID of the last visible document for pagination
+    // Step 5: Get the ID of the last visible document for pagination
     const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
 
     console.log('Services: getEntitiesForRole - Total entities fetched:', entities.length)
@@ -318,31 +252,15 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
 
     console.log(`Services: getConfidentialEntities - User authenticated with role ${userRole}`)
 
-    // Step 3: Access Firestore and initialize collection with converter
-    // 🚀 OPTIMIZED: Enhanced error handling with service manager
-    let adminDb;
+    // Step 3: Build and execute optimized query for confidential entities
+    let snapshot: QuerySnapshot;
     try {
-      const serviceManager = getFirebaseServiceManager();
-      adminDb = serviceManager.db
-    } catch (error) {
-      throw new EntityDatabaseError(
-        'Failed to initialize database connection',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userRole,
-          operation: 'getAdminDb'
-        }
-      );
-    }
-
-    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
-
-    // Step 4: Build and execute query for confidential entities
-    let snapshot: QuerySnapshot<Entity>;
-    try {
-      const query = entitiesCollection.where('isConfidential', '==', true)
-      snapshot = await query.get()
+      const queryConfig = {
+        where: [{ field: 'isConfidential', operator: '==' as const, value: true }],
+        orderBy: [{ field: 'dateAdded', direction: 'desc' as const }]
+      };
+      
+      snapshot = await getCachedCollectionAdvanced('entities', queryConfig);
     } catch (error) {
       throw new EntityQueryError(
         'Failed to execute confidential entities query',
@@ -359,7 +277,7 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
     const confidentialEntities = snapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
-    }))
+    })) as Entity[]
 
     console.log('Services: getConfidentialEntities - Total confidential entities fetched:', confidentialEntities.length)
 
@@ -384,6 +302,156 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
         operation: 'getConfidentialEntities'
       }
     );
+  }
+}
+
+/**
+ * Batch fetch multiple entities by their IDs with role-based filtering.
+ * 
+ * This function is optimized for scenarios where you need to retrieve multiple
+ * specific entities at once (e.g., 20+ entities by ID) with automatic caching
+ * and request deduplication.
+ * 
+ * User steps:
+ * 1. User provides an array of entity IDs to fetch
+ * 2. Function authenticates the user and validates their role
+ * 3. Uses getCachedDocumentBatch for optimized batch retrieval
+ * 4. Applies role-based filtering to the results
+ * 5. Returns only the entities the user has permission to view
+ * 
+ * @param entityIds - Array of entity IDs to fetch
+ * @param userRole - The role of the requesting user
+ * @returns Promise<Entity[]> - Array of entities the user can access
+ * @throws {EntityAuthError} If the user is not authenticated
+ * @throws {EntityPermissionError} If the user lacks sufficient permissions
+ * @throws {EntityQueryError} If there's an error executing the batch query
+ */
+export async function getEntitiesByIds(
+  entityIds: string[],
+  userRole?: UserRole
+): Promise<Entity[]> {
+  try {
+    console.log('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole })
+
+    // If no userRole provided, get from session
+    let role = userRole;
+    if (!role) {
+      const session = await getServerAuthSession();
+      if (!session || !session.user) {
+        throw new EntityAuthError('Unauthorized access', undefined, {
+          timestamp: Date.now(),
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          operation: 'getEntitiesByIds'
+        });
+      }
+      role = session.user.role as UserRole;
+    }
+
+    if (!entityIds || entityIds.length === 0) {
+      return [];
+    }
+
+    // Limit batch size for performance (Firestore has limits)
+    const maxBatchSize = 100;
+    if (entityIds.length > maxBatchSize) {
+      console.warn(`Services: getEntitiesByIds - Batch size ${entityIds.length} exceeds maximum ${maxBatchSize}, truncating`);
+      entityIds = entityIds.slice(0, maxBatchSize);
+    }
+
+    // Step 1: Build batch request array
+    const batchRequests = entityIds.map(id => ({
+      collection: 'entities',
+      docId: id
+    }));
+
+    // Step 2: Execute optimized batch retrieval
+    let documents;
+    try {
+      documents = await getCachedDocumentBatch(batchRequests);
+    } catch (error) {
+      throw new EntityQueryError(
+        'Failed to execute batch entity retrieval',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          timestamp: Date.now(),
+          userRole: role,
+          batchSize: entityIds.length,
+          operation: 'batch_entity_retrieval'
+        }
+      );
+    }
+
+    // Step 3: Process documents and apply role-based filtering
+    const entities: Entity[] = [];
+    
+    documents.forEach((doc, index) => {
+      if (doc && doc.exists) {
+        const entityData = doc.data() as Entity;
+        const entity = { ...entityData, id: doc.id };
+        
+        // Apply role-based visibility filtering
+        const canView = canUserViewEntity(entity, role);
+        if (canView) {
+          entities.push(entity);
+        }
+      }
+    });
+
+    console.log('Services: getEntitiesByIds - Batch fetch completed:', {
+      requested: entityIds.length,
+      found: documents.filter(d => d && d.exists).length,
+      accessible: entities.length,
+      userRole: role
+    });
+
+    return entities;
+
+  } catch (error) {
+    logRingError(error, 'Services: getEntitiesByIds - Error')
+    
+    if (error instanceof EntityAuthError || 
+        error instanceof EntityPermissionError ||
+        error instanceof EntityQueryError) {
+      throw error;
+    }
+    
+    throw new EntityQueryError(
+      'Unknown error occurred while batch fetching entities',
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        timestamp: Date.now(),
+        operation: 'getEntitiesByIds'
+      }
+    );
+  }
+}
+
+/**
+ * Helper function to determine if a user can view a specific entity
+ * based on their role and the entity's visibility settings.
+ */
+function canUserViewEntity(entity: Entity, userRole: UserRole): boolean {
+  // ADMIN and CONFIDENTIAL users can see all entities
+  if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
+    return true;
+  }
+
+  // Check confidential entities
+  if (entity.isConfidential) {
+    return false; // Only ADMIN and CONFIDENTIAL can see these
+  }
+
+  // Check visibility based on role hierarchy
+  switch (userRole) {
+    case UserRole.VISITOR:
+      return entity.visibility === 'public';
+    case UserRole.SUBSCRIBER:
+      return ['public', 'subscriber'].includes(entity.visibility || 'public');
+    case UserRole.MEMBER:
+      return ['public', 'subscriber', 'member'].includes(entity.visibility || 'public');
+    default:
+      return false;
   }
 }
 

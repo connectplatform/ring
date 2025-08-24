@@ -3,40 +3,208 @@
     "title": "{page} | {platform}",
     "description": "{description}"
   },
+  "home": {
+    "title": "Ring Platform - Decentralized Opportunities & Professional Networking",
+    "description": "Connect, collaborate, and create value in the decentralized economy. Join Ring Platform for professional networking, opportunities, and blockchain-enabled collaboration.",
+    "keywords": ["decentralized", "opportunities", "blockchain", "collaboration", "web3", "professional networking", "Ring Platform"],
+    "ogTitle": "Ring Platform - Decentralized Professional Networking",
+    "ogDescription": "Discover and create opportunities in the decentralized economy",
+    "twitterTitle": "Ring Platform",
+    "twitterDescription": "Decentralized opportunities and collaboration platform"
+  },
   "store": {
-    "title": "Ring Store",
-    "description": "Discover and purchase innovative products on Ring platform.",
+    "title": "Ring Store - Innovative Products & Services",
+    "description": "Discover and purchase innovative products and services on Ring platform. Secure checkout with multiple payment options including RING tokens.",
+    "keywords": ["Ring Store", "products", "services", "blockchain", "RING tokens", "secure checkout"],
+    "list": {
+      "title": "Ring Store - Browse {{count}} Products",
+      "description": "Browse {{count}} innovative products and services. Find everything you need on Ring platform's decentralized marketplace."
+    },
+    "product": {
+      "title": "{{name}} - Ring Store",
+      "description": "{{description}}",
+      "keywords": ["{{name}}", "Ring Store", "product", "blockchain", "RING tokens"]
+    },
     "checkout": {
-      "title": "Checkout - Ring Store",
-      "description": "Complete your purchase securely on Ring platform.",
+      "title": "Secure Checkout - Ring Store",
+      "description": "Complete your purchase securely on Ring platform. Multiple payment options available including RING tokens and traditional methods.",
       "status": {
         "title": "Checkout {{status}} - Ring Store",
         "description": "Your checkout is {{status}}. View your order status and next steps."
+      }
+    },
+    "cart": {
+      "title": "Shopping Cart - Ring Store",
+      "description": "Review your selected items and proceed to secure checkout. Manage your cart on Ring platform."
+    },
+    "orders": {
+      "title": "My Orders - Ring Store",
+      "description": "View and manage your order history on Ring platform. Track shipments and manage returns.",
+      "list": {
+        "title": "Order History - {{count}} Orders",
+        "description": "View your complete order history with {{count}} orders. Track shipments and manage returns."
+      },
+      "detail": {
+        "title": "Order #{{orderId}} - Ring Store",
+        "description": "View details for order #{{orderId}}. Track shipment status and manage your order."
       }
     }
   },
   "auth": {
     "title": "Authentication - Ring Platform",
-    "description": "Secure authentication and account management for Ring platform users.",
+    "description": "Secure authentication and account management for Ring platform users. Multiple sign-in options available.",
+    "login": {
+      "title": "Sign In - Ring Platform",
+      "description": "Sign in to your Ring Platform account. Access your professional network, opportunities, and blockchain features."
+    },
     "status": {
       "title": "{{action}} {{status}} - Ring Platform",
       "description": "Your {{action}} is {{status}}. Manage your authentication status and next steps."
     }
   },
   "entities": {
-    "title": "Entities - Ring Platform",
-    "description": "Professional entities directory and management system for organizations on Ring platform.",
+    "title": "Professional Entities - Ring Platform",
+    "description": "Discover and connect with professional entities, organizations, and businesses on Ring platform. Comprehensive directory with verification system.",
+    "keywords": ["entities", "organizations", "businesses", "professional directory", "verification", "Ring Platform"],
+    "list": {
+      "title": "Professional Entities Directory - {{count}} Organizations",
+      "description": "Browse {{count}} verified professional entities and organizations. Connect with businesses and expand your professional network."
+    },
+    "detail": {
+      "title": "{{name}} - Professional Entity",
+      "description": "{{description}}",
+      "keywords": ["{{name}}", "professional entity", "organization", "Ring Platform", "{{type}}"]
+    },
+    "add": {
+      "title": "Add Your Entity - Ring Platform",
+      "description": "Register your organization or business entity on Ring platform. Get verified and connect with the professional community."
+    },
     "status": {
       "title": "Entity {{action}} {{status}} - Ring Platform",
       "description": "Your entity {{action}} is {{status}}. Manage your entity status and next steps on Ring platform."
     }
   },
   "opportunities": {
-    "title": "Opportunities - Ring Platform",
-    "description": "Discover and manage business opportunities, partnerships, and collaborations on Ring platform.",
+    "title": "Business Opportunities - Ring Platform",
+    "description": "Discover and create business opportunities, partnerships, and collaborations on Ring platform. Connect with professionals and grow your network.",
+    "keywords": ["opportunities", "business", "partnerships", "collaborations", "professional networking", "Ring Platform"],
+    "list": {
+      "title": "Business Opportunities - {{count}} Active Listings",
+      "description": "Browse {{count}} active business opportunities and partnerships. Find your next collaboration on Ring platform."
+    },
+    "detail": {
+      "title": "{{title}} - Business Opportunity",
+      "description": "{{description}}",
+      "keywords": ["{{title}}", "business opportunity", "partnership", "collaboration", "Ring Platform", "{{type}}"]
+    },
+    "add": {
+      "title": "Post Opportunity - Ring Platform",
+      "description": "Create and post a new business opportunity or partnership request. Connect with the right professionals on Ring platform."
+    },
     "status": {
       "title": "Opportunity {{action}} {{status}} - Ring Platform",
       "description": "Your opportunity {{action}} is {{status}}. Manage your opportunity status and next steps."
+    }
+  },
+  "news": {
+    "title": "Ring Platform News & Updates",
+    "description": "Stay updated with the latest news, announcements, and developments from Ring Platform and the decentralized ecosystem.",
+    "keywords": ["news", "updates", "announcements", "Ring Platform", "blockchain", "decentralized"],
+    "list": {
+      "title": "Latest News - {{count}} Articles",
+      "description": "Read the latest {{count}} news articles and updates from Ring Platform and the blockchain ecosystem."
+    },
+    "article": {
+      "title": "{{title}} - Ring News",
+      "description": "{{excerpt}}",
+      "keywords": ["{{title}}", "Ring News", "blockchain", "decentralized", "{{category}}"]
+    }
+  },
+  "profile": {
+    "title": "My Profile - Ring Platform",
+    "description": "Manage your Ring Platform profile, preferences, and account settings. Update your professional information and privacy settings.",
+    "user": {
+      "title": "{{username}}'s Profile - Ring Platform",
+      "description": "View {{username}}'s professional profile on Ring Platform. Connect and collaborate with verified professionals."
+    }
+  },
+  "settings": {
+    "title": "Account Settings - Ring Platform",
+    "description": "Manage your Ring Platform account settings, preferences, and security options. Control your privacy and notification preferences.",
+    "notifications": {
+      "title": "Notification Settings - Ring Platform",
+      "description": "Manage your notification preferences for Ring Platform. Control how you receive updates and alerts."
+    }
+  },
+  "notifications": {
+    "title": "Notifications - Ring Platform",
+    "description": "View and manage your Ring Platform notifications. Stay updated with important alerts and messages.",
+    "status": {
+      "title": "Notification {{action}} {{status}} - Ring Platform",
+      "description": "Your notification {{action}} is {{status}}. Manage your notification settings and preferences."
+    }
+  },
+  "about": {
+    "title": "About Ring Platform - Decentralized Professional Network",
+    "description": "Learn about Ring Platform's mission to create a decentralized professional networking and opportunities ecosystem. Discover our vision for the future of work.",
+    "keywords": ["about", "Ring Platform", "decentralized", "professional network", "blockchain", "mission", "vision"]
+  },
+  "contact": {
+    "title": "Contact Ring Platform - Get in Touch",
+    "description": "Get in touch with the Ring Platform team. Contact us for support, partnerships, or general inquiries about our decentralized platform.",
+    "keywords": ["contact", "support", "Ring Platform", "partnerships", "inquiries"]
+  },
+  "privacy": {
+    "title": "Privacy Policy - Ring Platform",
+    "description": "Read Ring Platform's comprehensive privacy policy. Learn how we protect your data and respect your privacy in the decentralized ecosystem.",
+    "keywords": ["privacy policy", "data protection", "Ring Platform", "privacy", "security"]
+  },
+  "terms": {
+    "title": "Terms of Service - Ring Platform",
+    "description": "Read Ring Platform's terms of service and user agreement. Understand your rights and responsibilities on our decentralized platform.",
+    "keywords": ["terms of service", "user agreement", "Ring Platform", "terms", "conditions"]
+  },
+  "membership": {
+    "title": "Ring Membership - Premium Features & Benefits",
+    "description": "Discover Ring Platform membership benefits and premium features. Upgrade to access exclusive opportunities and enhanced networking tools.",
+    "keywords": ["membership", "premium", "benefits", "Ring Platform", "upgrade", "exclusive"]
+  },
+  "wallet": {
+    "title": "Ring Wallet - Manage Your RING Tokens",
+    "description": "Manage your RING tokens, track your balance, and handle transactions securely on Ring Platform's integrated wallet.",
+    "keywords": ["wallet", "RING tokens", "balance", "transactions", "blockchain", "crypto"]
+  },
+  "nft": {
+    "title": "NFT Marketplace - Ring Platform",
+    "description": "Explore, buy, and sell NFTs on Ring Platform's decentralized marketplace. Discover unique digital assets and collections.",
+    "keywords": ["NFT", "marketplace", "digital assets", "collections", "Ring Platform", "blockchain"],
+    "collections": {
+      "title": "NFT Collections - Ring Platform",
+      "description": "Browse NFT collections on Ring Platform. Discover unique digital art and assets from verified creators."
+    },
+    "search": {
+      "title": "Search NFTs - Ring Platform",
+      "description": "Search for specific NFTs, collections, and digital assets on Ring Platform's decentralized marketplace."
+    }
+  },
+  "admin": {
+    "title": "Admin Dashboard - Ring Platform",
+    "description": "Administrative dashboard for Ring Platform management. Monitor users, content, and platform analytics.",
+    "analytics": {
+      "title": "Platform Analytics - Ring Admin",
+      "description": "View comprehensive analytics and insights about Ring Platform usage, engagement, and performance."
+    },
+    "users": {
+      "title": "User Management - Ring Admin",
+      "description": "Manage Ring Platform users, roles, and permissions. Monitor user activity and handle moderation."
+    },
+    "moderation": {
+      "title": "Content Moderation - Ring Admin",
+      "description": "Moderate Ring Platform content, handle reports, and maintain community standards."
+    },
+    "security": {
+      "title": "Security Dashboard - Ring Admin",
+      "description": "Monitor Ring Platform security, review logs, and manage security settings and protocols."
     }
   }
 }

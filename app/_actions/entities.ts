@@ -5,6 +5,7 @@ import { getServerAuthSession } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
 import { UserRole } from '@/features/auth/types'
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 export interface EntityFormState {
   success?: boolean
@@ -78,19 +79,22 @@ export async function createEntity(
       const uploadFormData = new FormData()
       uploadFormData.append('file', logoFile)
       
-      const uploadResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/upload`, {
-        method: 'POST',
-        body: uploadFormData,
+      // Use API client with optimized timeout for file uploads
+      const uploadResponse: ApiResponse<{ url: string }> = await apiClient.post(`${process.env.NEXTAUTH_URL}/api/upload`, uploadFormData, {
+        timeout: 30000, // 30 second timeout for file uploads
+        retries: 2, // Retry twice for file uploads
+        headers: {
+          // Don't set Content-Type for FormData, let the browser set it
+        }
       })
       
-      if (!uploadResponse.ok) {
+      if (uploadResponse.success && uploadResponse.data) {
+        logoUrl = uploadResponse.data.url
+      } else {
         return {
-          error: 'Failed to upload logo. Please try again.'
+          error: uploadResponse.error || 'Failed to upload logo. Please try again.'
         }
       }
-      
-      const result = await uploadResponse.json()
-      logoUrl = result.url
     }
 
     // Parse tags

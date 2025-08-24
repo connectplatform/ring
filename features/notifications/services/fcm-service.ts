@@ -8,13 +8,15 @@ import { getMessaging } from 'firebase-admin/messaging'
 import { auth } from '@/auth'
 import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
-
-const serviceManager = getFirebaseServiceManager();
-const db = serviceManager.db
+import { 
+  getCachedDocument, 
+  getCachedCollectionAdvanced, 
+  createDocument, 
+  updateDocument,
+  deleteDocument,
+  runTransaction
+} from '@/lib/services/firebase-service-manager';
+import { getAdminDb } from '@/lib/firebase-admin.server';
 
 export interface FCMToken {
   id?: string
@@ -44,7 +46,15 @@ export interface FCMNotification {
 
 export class FCMService {
   private messaging = getMessaging()
-  private tokensCollection = db.collection('fcm_tokens')
+
+  // Get database instance via optimized service manager when needed
+  private getDb() {
+    return getAdminDb();
+  }
+
+  private get tokensCollection() {
+    return this.getDb().collection('fcm_tokens');
+  }
 
   /**
    * Register a new FCM token for a user
@@ -253,7 +263,7 @@ export class FCMService {
         .where('deviceInfo.lastSeen', '<', Timestamp.fromDate(cutoffDate))
         .get()
 
-      const batch = db.batch()
+      const batch = this.getDb().batch()
       inactiveTokens.docs.forEach(doc => {
         batch.update(doc.ref, { isActive: false })
       })
@@ -290,7 +300,7 @@ export class FCMService {
 
     // Remove failed tokens
     if (failedTokens.length > 0) {
-      const batch = db.batch()
+      const batch = this.getDb().batch()
       
       for (const token of failedTokens) {
         const tokenDoc = await this.tokensCollection

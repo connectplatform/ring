@@ -1,3 +1,5 @@
+'use server'
+
 import { CommentActionState, CommentFormData } from '@/features/comments/types'
 
 export type { CommentActionState } from '@/features/comments/types'
@@ -32,30 +34,25 @@ export async function createComment(
       parentId
     }
 
-    const response = await fetch('/api/comments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(commentData)
-    })
+    // ✅ Use direct service call instead of HTTP request
+    const { createComment } = await import('@/features/comments/services/comment-service')
+    const result = await createComment(commentData)
 
-    if (!response.ok) {
-      const errorData = await response.json()
+    if (result.success && result.data) {
       return {
-        error: errorData.error || 'Failed to create comment'
+        success: true,
+        message: 'Comment posted successfully',
+        comment: result.data
+      }
+    } else {
+      return {
+        error: result.error || 'Failed to create comment'
       }
     }
-
-    const data = await response.json()
-    
-    return {
-      success: true,
-      message: 'Comment posted successfully',
-      comment: data.data
-    }
   } catch (error) {
-    console.error('Error creating comment:', error)
+    console.error('Comment creation service call failed:', {
+      error: error instanceof Error ? error.message : error
+    })
     return {
       error: 'Failed to post comment. Please try again.'
     }
@@ -75,26 +72,25 @@ export async function deleteComment(
   }
 
   try {
-    const response = await fetch(`/api/comments/${commentId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
+    // ✅ Use direct service call instead of HTTP request
+    const { deleteComment: deleteCommentService } = await import('@/features/comments/services/comment-service')
+    const result = await deleteCommentService(commentId)
 
-    if (!response.ok) {
-      const errorData = await response.json()
+    if (result.success) {
       return {
-        error: errorData.error || 'Failed to delete comment'
+        success: true,
+        message: 'Comment deleted successfully'
       }
-    }
-
-    return {
-      success: true,
-      message: 'Comment deleted successfully'
+    } else {
+      return {
+        error: result.error || 'Failed to delete comment'
+      }
     }
   } catch (error) {
-    console.error('Error deleting comment:', error)
+    console.error('Comment deletion service call failed:', {
+      commentId,
+      error: error instanceof Error ? error.message : error
+    })
     return {
       error: 'Failed to delete comment. Please try again.'
     }
@@ -121,30 +117,26 @@ export async function editComment(
   }
 
   try {
-    const response = await fetch(`/api/comments/${commentId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content: content.trim() })
-    })
+    // ✅ Use direct service call instead of HTTP request
+    const { updateComment } = await import('@/features/comments/services/comment-service')
+    const result = await updateComment(commentId, content.trim())
 
-    if (!response.ok) {
-      const errorData = await response.json()
+    if (result.success && result.data) {
       return {
-        error: errorData.error || 'Failed to update comment'
+        success: true,
+        message: 'Comment updated successfully',
+        comment: result.data
+      }
+    } else {
+      return {
+        error: result.error || 'Failed to update comment'
       }
     }
-
-    const data = await response.json()
-    
-    return {
-      success: true,
-      message: 'Comment updated successfully',
-      comment: data.data
-    }
   } catch (error) {
-    console.error('Error updating comment:', error)
+    console.error('Comment editing service call failed:', {
+      commentId,
+      error: error instanceof Error ? error.message : error
+    })
     return {
       error: 'Failed to update comment. Please try again.'
     }

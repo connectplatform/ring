@@ -6,7 +6,7 @@ import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
-import { getSEOMetadata } from '@/utils/seo-metadata'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = 'force-dynamic'
@@ -85,11 +85,12 @@ export default async function OpportunitiesPage(props: LocalePageProps<Opportuni
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('OpportunitiesPage: Using locale', locale);
 
-  // React 19 metadata preparation
-  const translations = loadTranslations(locale);
-  const title = (translations as any).metadata?.opportunities || 'Opportunities | Ring App';
-  const description = (translations as any).metaDescription?.opportunities || 'Discover tech opportunities, jobs, partnerships, and collaborations in the Cherkasy region ecosystem.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/opportunities`;
+  // Get localized SEO data using the enhanced helper
+  const seoData = await getSEOMetadata(locale, 'opportunities', {
+    count: '20' // Default count, will be updated with actual data later
+  })
+  
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}/${locale}/opportunities`;
   const alternates = generateHreflangAlternates('/opportunities');
 
   console.log('Params:', params);
@@ -120,23 +121,35 @@ export default async function OpportunitiesPage(props: LocalePageProps<Opportuni
 
   return (
     <>
-      {/* React 19 Native Document Metadata */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
+      {/* React 19 Native Document Metadata with Localized SEO */}
+      <title>{seoData?.title || 'Business Opportunities - Ring Platform'}</title>
+      <meta name="description" content={seoData?.description || 'Discover and create business opportunities, partnerships, and collaborations on Ring platform.'} />
+      {seoData?.keywords && (
+        <meta name="keywords" content={seoData.keywords.join(', ')} />
+      )}
+      <link rel="canonical" href={seoData?.canonical || canonicalUrl} />
       
       {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
+      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || 'Business Opportunities - Ring Platform'} />
+      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || 'Discover business opportunities and partnerships'} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
       <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
       <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+      <meta property="og:site_name" content="Ring Platform" />
+      <meta property="og:image" content={seoData?.ogImage || "/images/og-default.jpg"} />
       
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:site" content="@RingPlatform" />
+      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || 'Business Opportunities'} />
+      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || 'Discover opportunities on Ring Platform'} />
+      <meta name="twitter:image" content={seoData?.twitterImage || "/images/og-default.jpg"} />
+      
+      {/* Additional SEO metadata */}
+      <meta name="robots" content="index, follow" />
+      <meta name="author" content="Ring Platform" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       
       {/* Hreflang alternates */}
       {Object.entries(alternates).map(([lang, url]) => (

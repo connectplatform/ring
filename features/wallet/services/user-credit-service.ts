@@ -7,6 +7,12 @@ import {
   CreditHistoryRequest,
   CreditHistoryResponse,
 } from '@/lib/zod/credit-schemas';
+import { 
+  getCachedDocument,
+  getUserCreditTransactions,
+  runTransaction,
+  updateDocument
+} from '@/lib/services/firebase-service-manager';
 import { getAdminDb } from '@/lib/firebase-admin.server';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
@@ -16,7 +22,6 @@ import { logger } from '@/lib/logger';
  */
 export class UserCreditService {
   private static instance: UserCreditService;
-  private db = getAdminDb();
 
   private constructor() {}
 
@@ -32,11 +37,10 @@ export class UserCreditService {
    */
   async getUserCreditBalance(userId: string): Promise<UserCreditBalance | null> {
     try {
-      const userRef = this.db.collection('users').doc(userId);
-      const userDoc = await userRef.get();  // TODO: use getCachedDocument
-      // TODO: use getCachedCollection
+      // Use cached document for better performance
+      const userDoc = await getCachedDocument('users', userId);
       
-      if (!userDoc.exists) {
+      if (!userDoc || !userDoc.exists) {
         logger.warn('User not found', { userId });
         return null;
       }
@@ -61,8 +65,8 @@ export class UserCreditService {
         subscription_active: false,
       };
 
-      const userRef = this.db.collection('users').doc(userId);
-      await userRef.update({
+      // Use optimized update document
+      await updateDocument('users', userId, {
         credit_balance: initialBalance,
       });
 
@@ -84,9 +88,10 @@ export class UserCreditService {
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
-      const result = await this.db.runTransaction(async (transaction) => {
+      const result = await runTransaction(async (transaction) => {
         // Get current user data
-        const userRef = this.db.collection('users').doc(userId);
+        const db = getAdminDb();
+        const userRef = db.collection('users').doc(userId);
         const userDoc = await transaction.get(userRef);
         
         if (!userDoc.exists) {
@@ -133,7 +138,7 @@ export class UserCreditService {
         };
 
         // Save transaction
-        const transactionRef = this.db.collection('users').doc(userId).collection('credit_transactions').doc(transactionId);
+        const transactionRef = db.collection('users').doc(userId).collection('credit_transactions').doc(transactionId);
         transaction.set(transactionRef, creditTransaction);
 
         // Update user balance
@@ -168,9 +173,10 @@ export class UserCreditService {
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
-      const result = await this.db.runTransaction(async (transaction) => {
+      const result = await runTransaction(async (transaction) => {
         // Get current user data
-        const userRef = this.db.collection('users').doc(userId);
+        const db = getAdminDb();
+        const userRef = db.collection('users').doc(userId);
         const userDoc = await transaction.get(userRef);
         
         if (!userDoc.exists) {
@@ -223,7 +229,7 @@ export class UserCreditService {
         };
 
         // Save transaction
-        const transactionRef = this.db.collection('users').doc(userId).collection('credit_transactions').doc(transactionId);
+        const transactionRef = db.collection('users').doc(userId).collection('credit_transactions').doc(transactionId);
         transaction.set(transactionRef, creditTransaction);
 
         // Update user balance
@@ -256,35 +262,21 @@ export class UserCreditService {
     request: CreditHistoryRequest
   ): Promise<CreditHistoryResponse> {
     try {
-      const transactionsRef = this.db.collection('users').doc(userId).collection('credit_transactions');
-      
-      // Build query
-      let q = transactionsRef
-        .orderBy('timestamp', 'desc')
-        .limit(request.limit);
-
-      // Add type filter
-      if (request.type) {
-        q = q.where('type', '==', request.type);
-      }
-
-      // Add date range filters
-      if (request.start_date) {
-        q = q.where('timestamp', '>=', request.start_date);
-      }
-      if (request.end_date) {
-        q = q.where('timestamp', '<=', request.end_date);
-      }
-
-      // Add pagination
+      // Use optimized cached transaction query
+      let afterDoc = null;
       if (request.after_id) {
-        const afterDoc = await this.db.collection('users').doc(userId).collection('credit_transactions').doc(request.after_id).get();
-        if (afterDoc.exists) {
-          q = q.startAfter(afterDoc);
-        }
+        const db = getAdminDb();
+        afterDoc = await db.collection('users').doc(userId).collection('credit_transactions').doc(request.after_id).get();
       }
+      
+      const snapshot = await getUserCreditTransactions(userId, {
+        limit: request.limit,
+        type: request.type,
+        startDate: request.start_date,
+        endDate: request.end_date,
+        startAfter: afterDoc
+      });
 
-      const snapshot = await q.get();
       const transactions: CreditTransaction[] = [];
       
       snapshot.forEach((doc) => {

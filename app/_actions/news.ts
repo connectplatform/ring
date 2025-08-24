@@ -1,7 +1,9 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { getServerAuthSession } from '@/auth'
 import { NewsArticle, NewsCategory, NewsStatus, NewsVisibility, NewsSEO } from '@/features/news/types'
+import { UserRole } from '@/features/auth/types'
 
 export interface ArticleFormState {
   success?: boolean
@@ -15,9 +17,26 @@ export async function saveArticle(
   prevState: ArticleFormState | null,
   formData: FormData
 ): Promise<ArticleFormState> {
-  const mode = formData.get('mode') as 'create' | 'edit'
-  const articleId = formData.get('articleId') as string
-  const locale = formData.get('locale') as string
+  try {
+    // Get current user session - Admin only action
+    const session = await getServerAuthSession()
+    if (!session?.user?.id) {
+      return {
+        error: 'Authentication required'
+      }
+    }
+
+    // Check admin role
+    const userRole = (session.user as any)?.role as UserRole
+    if (!userRole || userRole !== UserRole.ADMIN) {
+      return {
+        error: 'Admin access required to manage news articles'
+      }
+    }
+
+    const mode = formData.get('mode') as 'create' | 'edit'
+    const articleId = formData.get('articleId') as string
+    const locale = formData.get('locale') as string
   
   // Extract form data
   const title = formData.get('title') as string
@@ -78,7 +97,6 @@ export async function saveArticle(
     }
   }
 
-  try {
     const articleData = {
       title: title.trim(),
       slug: slug.trim(),
@@ -101,28 +119,20 @@ export async function saveArticle(
       updatedAt: new Date(),
     }
 
-    const url = mode === 'create' 
-      ? '/api/news' 
-      : `/api/news/${articleId}`
+    // ✅ Use direct service call instead of HTTP request
+    const { createNewsArticle, updateNewsArticle } = await import('@/features/news/services/news-service')
     
-    const method = mode === 'create' ? 'POST' : 'PUT'
+    const result = mode === 'create' 
+      ? await createNewsArticle(articleData)
+      : await updateNewsArticle(articleId, articleData)
 
-    const response = await fetch(`${process.env.NEXTAUTH_URL}${url}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(articleData),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+    if (!result.success) {
       return {
-        error: errorData.error || 'Failed to save article'
+        error: result.error || 'Failed to save article'
       }
     }
 
-    const savedArticle = await response.json()
+    const savedArticle = result.data
     
     // Redirect to admin panel after successful save
     redirect(`/${locale}/admin/news`)

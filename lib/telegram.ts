@@ -7,6 +7,7 @@ interface TelegramMessage {
   name: string
   email: string
   message: string
+  userId?: string
 }
 
 export async function sendToTelegramBot(data: TelegramMessage): Promise<void> {

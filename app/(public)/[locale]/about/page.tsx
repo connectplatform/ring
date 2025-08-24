@@ -5,6 +5,7 @@ import AboutWrapper from '@/components/wrappers/about-wrapper'
 import { getServerAuthSession } from "@/auth"
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic'
@@ -27,14 +28,10 @@ export default async function AboutPage(props: LocalePageProps<AboutParams>) {
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('AboutPage: Using locale', locale);
 
-  // Load translations for the current locale
-  const translations = loadTranslations(locale);
-
-  // React 19 metadata preparation (replacing MetaTags component)
-  const title = (translations as any).metadata?.about || 'About Us - Ring App Tech Ecosystem';
-  const description = (translations as any).metaDescription?.about || 'Learn about the Ring App and the tech ecosystem in Cherkasy region';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/about`;
-  const ogImage = "https://ring.ck.ua/about-og-image.jpg";
+  // Get localized SEO data using the enhanced helper
+  const seoData = await getSEOMetadata(locale, 'about')
+  
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/about`;
   const alternates = generateHreflangAlternates('/about');
 
   // Step 2: Retrieve cookies and headers
@@ -64,39 +61,47 @@ export default async function AboutPage(props: LocalePageProps<AboutParams>) {
   });
 
   // Step 5: Prepare JsonLd data for SEO (now using React 19 native script tag)
-  const aboutTitle = (translations as any).metadata?.about || 'About Ring App';
-  const aboutDescription = (translations as any).metaDescription?.about || 'Learn about the Ring App and the tech ecosystem in Cherkasy region';
-  
   const jsonLdData = {
     "@context": "https://schema.org",
     "@type": "AboutPage",
-    "url": `https://ring.ck.ua/${locale}/about`,
-    "name": aboutTitle,
-    "description": aboutDescription,
+    "url": canonicalUrl,
+    "name": seoData?.title || 'About Ring Platform',
+    "description": seoData?.description || 'Learn about Ring Platform and the decentralized professional network',
     "inLanguage": locale
   }
 
   // Step 6: Render the about page
   return (
     <>
-      {/* React 19 Native Document Metadata (replaces MetaTags component) */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
+      {/* React 19 Native Document Metadata with Localized SEO */}
+      <title>{seoData?.title || 'About Ring Platform - Decentralized Professional Network'}</title>
+      <meta name="description" content={seoData?.description || 'Learn about Ring Platform\'s mission to create a decentralized professional networking ecosystem'} />
+      {seoData?.keywords && (
+        <meta name="keywords" content={seoData.keywords.join(', ')} />
+      )}
+      <link rel="canonical" href={seoData?.canonical || canonicalUrl} />
       
       {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
+      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || 'About Ring Platform'} />
+      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || 'Discover Ring Platform\'s vision for decentralized professional networking'} />
       <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:image" content={ogImage} />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content={seoData?.ogImage || "/images/og-default.jpg"} />
       <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
       <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+      <meta property="og:site_name" content="Ring Platform" />
       
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={ogImage} />
+      <meta name="twitter:site" content="@RingPlatform" />
+      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || 'About Ring Platform'} />
+      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || 'Learn about our decentralized platform'} />
+      <meta name="twitter:image" content={seoData?.twitterImage || "/images/og-default.jpg"} />
+      
+      {/* Additional SEO metadata */}
+      <meta name="robots" content="index, follow" />
+      <meta name="author" content="Ring Platform" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       
       {/* Hreflang alternates */}
       {Object.entries(alternates).map(([lang, url]) => (

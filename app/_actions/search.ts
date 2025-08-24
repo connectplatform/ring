@@ -1,5 +1,7 @@
 'use server'
 
+import { getServerAuthSession } from '@/auth'
+
 export interface SearchFormState {
   success?: boolean
   message?: string
@@ -24,6 +26,10 @@ export async function searchEntities(
   prevState: SearchFormState | null,
   formData: FormData
 ): Promise<SearchFormState> {
+  // Optional: Get session for personalized search results
+  const session = await getServerAuthSession()
+  const userRole = (session?.user as any)?.role
+  
   const query = formData.get('query') as string
   const category = formData.get('category') as string || 'all'
 

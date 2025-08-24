@@ -1,6 +1,13 @@
 import { SubscriptionStatusSchema, SubscriptionStatus } from '@/lib/zod/credit-schemas';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { priceOracleService } from '@/services/blockchain/price-oracle-service';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced,
+  runTransaction,
+  updateDocument,
+  getActiveSubscriptions
+} from '@/lib/services/firebase-service-manager';
 import { getAdminDb } from '@/lib/firebase-admin.server';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
@@ -31,7 +38,6 @@ interface PaymentResult {
  */
 export class SubscriptionService {
   private static instance: SubscriptionService;
-  private db = getAdminDb();
 
   private constructor() {}
 
@@ -90,9 +96,10 @@ export class SubscriptionService {
         payments_count: 1,
       };
 
-      // Save to database
-      await this.db.runTransaction(async (transaction) => {
-        const subscriptionRef = this.db.collection('ring_subscriptions').doc(subscriptionId);
+      // Save to database using optimized transaction
+      await runTransaction(async (transaction) => {
+        const db = getAdminDb();
+        const subscriptionRef = db.collection('ring_subscriptions').doc(subscriptionId);
         transaction.set(subscriptionRef, {
           ...subscription,
           created_at: now,
@@ -100,7 +107,7 @@ export class SubscriptionService {
         });
 
         // Update user profile with subscription info
-        const userRef = this.db.collection('users').doc(userId);
+        const userRef = db.collection('users').doc(userId);
         transaction.update(userRef, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
@@ -142,9 +149,10 @@ export class SubscriptionService {
 
       const now = Date.now();
 
-      // Update subscription status in database
-      await this.db.runTransaction(async (transaction) => {
-        const subscriptionsRef = this.db.collection('ring_subscriptions');
+      // Update subscription status in database using optimized transaction
+      await runTransaction(async (transaction) => {
+        const db = getAdminDb();
+        const subscriptionsRef = db.collection('ring_subscriptions');
         const querySnapshot = await subscriptionsRef.where('user_id', '==', userId).where('status', '==', 'ACTIVE').get();
 
         if (querySnapshot.empty) {
@@ -160,7 +168,7 @@ export class SubscriptionService {
         });
 
         // Update user profile
-        const userRef = this.db.collection('users').doc(userId);
+        const userRef = db.collection('users').doc(userId);
         transaction.update(userRef, {
           'credit_balance.subscription_active': false,
           'credit_balance.subscription_next_payment': null,
@@ -214,9 +222,10 @@ export class SubscriptionService {
       const now = Date.now();
       const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000);
 
-      // Update subscription in database
-      await this.db.runTransaction(async (transaction) => {
-        const subscriptionsRef = this.db.collection('ring_subscriptions');
+      // Update subscription in database using optimized transaction
+      await runTransaction(async (transaction) => {
+        const db = getAdminDb();
+        const subscriptionsRef = db.collection('ring_subscriptions');
         const querySnapshot = await subscriptionsRef.where('user_id', '==', userId).get();
 
         if (!querySnapshot.empty) {
@@ -234,7 +243,7 @@ export class SubscriptionService {
         }
 
         // Update user profile
-        const userRef = this.db.collection('users').doc(userId);
+        const userRef = db.collection('users').doc(userId);
         transaction.update(userRef, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
@@ -267,8 +276,10 @@ export class SubscriptionService {
    */
   async getSubscriptionStatus(userId: string): Promise<SubscriptionStatus | null> {
     try {
-      const subscriptionsRef = this.db.collection('ring_subscriptions');
-      const querySnapshot = await subscriptionsRef.where('user_id', '==', userId).get();
+      // Use cached collection query for better performance
+      const querySnapshot = await getCachedCollectionAdvanced('ring_subscriptions', {
+        where: [{ field: 'user_id', operator: '==', value: userId }]
+      });
 
       if (querySnapshot.empty) {
         return null;
@@ -330,16 +341,15 @@ export class SubscriptionService {
    */
   private async markSubscriptionExpired(userId: string, subscriptionId: string): Promise<void> {
     try {
-      const subscriptionRef = this.db.collection('ring_subscriptions').doc(subscriptionId);
-      await subscriptionRef.update({
+      // Update subscription document
+      await updateDocument('ring_subscriptions', subscriptionId, {
         status: 'EXPIRED',
         expired_at: Date.now(),
         updated_at: Date.now(),
       });
 
       // Update user profile
-      const userRef = this.db.collection('users').doc(userId);
-      await userRef.update({
+      await updateDocument('users', userId, {
         'credit_balance.subscription_active': false,
         'membership.tier': 'SUBSCRIBER', // Downgrade to subscriber
       });
@@ -362,27 +372,24 @@ export class SubscriptionService {
     total_revenue: string;
   }> {
     try {
-      const subscriptionsRef = this.db.collection('ring_subscriptions');
+      // Use cached collection query for all subscriptions
+      const allSubscriptions = await getCachedCollectionAdvanced('ring_subscriptions', {});
       
-      // Get all subscriptions
-      const allSubscriptions = await subscriptionsRef.get();
+      // Use optimized query for active subscriptions due for payment
+      const dueSubscriptions = await getActiveSubscriptions();
       
       let totalActive = 0;
       let totalExpired = 0;
       let totalCancelled = 0;
-      let dueForPayment = 0;
       let totalRevenue = 0;
-      const now = Date.now();
 
+      // Count subscriptions by status
       allSubscriptions.forEach(doc => {
         const data = doc.data() as SubscriptionStatus;
         
         switch (data.status) {
           case 'ACTIVE':
             totalActive++;
-            if (data.next_payment_due! <= now) {
-              dueForPayment++;
-            }
             break;
           case 'EXPIRED':
             totalExpired++;
@@ -394,6 +401,9 @@ export class SubscriptionService {
 
         totalRevenue += parseFloat(data.total_paid);
       });
+
+      // Get due payment count from pre-calculated query
+      const dueForPayment = dueSubscriptions.size;
 
       return {
         total_active: totalActive,

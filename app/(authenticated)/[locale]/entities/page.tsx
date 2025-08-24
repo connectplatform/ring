@@ -1,14 +1,12 @@
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { Suspense } from "react"
-import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 import { getServerAuthSession } from "@/auth"
-import { ROUTES } from "@/constants/routes"
 import type { Entity } from "@/types"
 import EntitiesWrapper from "@/components/wrappers/entities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
-import { getSEOMetadata } from '@/utils/seo-metadata'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 
 // 🚀 Firebase Optimization Imports
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
@@ -151,11 +149,12 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('EntitiesPage: Using locale', locale);
 
-  // React 19 metadata preparation
-  const translations = loadTranslations(locale);
-  const title = (translations as any).metadata?.entities || 'Entities | Ring App';
-  const description = (translations as any).metaDescription?.entities || 'Browse and discover tech companies, startups, and organizations in the Cherkasy region ecosystem.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/entities`;
+  // Get localized SEO data using the enhanced helper
+  const seoData = await getSEOMetadata(locale, 'entities', {
+    count: '20' // Default count, will be updated with actual data later
+  })
+  
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}/${locale}/entities`;
   const alternates = generateHreflangAlternates('/entities');
 
   // Parse and set default values for query parameters
@@ -236,25 +235,42 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
     }
   }
 
+  // Update SEO data with actual entity count if available  
+  const finalSeoData = totalEntities > 0 ? await getSEOMetadata(locale, 'entities.list', {
+    count: totalEntities.toString()
+  }) : seoData
+
   return (
     <>
-      {/* React 19 Native Document Metadata */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
+      {/* React 19 Native Document Metadata with Localized SEO */}
+      <title>{finalSeoData?.title || 'Professional Entities - Ring Platform'}</title>
+      <meta name="description" content={finalSeoData?.description || 'Discover and connect with professional entities, organizations, and businesses on Ring platform.'} />
+      {finalSeoData?.keywords && (
+        <meta name="keywords" content={finalSeoData.keywords.join(', ')} />
+      )}
+      <link rel="canonical" href={finalSeoData?.canonical || canonicalUrl} />
       
       {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
+      <meta property="og:title" content={finalSeoData?.ogTitle || finalSeoData?.title || 'Professional Entities - Ring Platform'} />
+      <meta property="og:description" content={finalSeoData?.ogDescription || finalSeoData?.description || 'Discover and connect with professional entities'} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
       <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
       <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+      <meta property="og:site_name" content="Ring Platform" />
+      <meta property="og:image" content={finalSeoData?.ogImage || "/images/og-default.jpg"} />
       
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:site" content="@RingPlatform" />
+      <meta name="twitter:title" content={finalSeoData?.twitterTitle || finalSeoData?.title || 'Professional Entities'} />
+      <meta name="twitter:description" content={finalSeoData?.twitterDescription || finalSeoData?.description || 'Discover professional entities on Ring Platform'} />
+      <meta name="twitter:image" content={finalSeoData?.twitterImage || "/images/og-default.jpg"} />
+      
+      {/* Additional SEO metadata */}
+      <meta name="robots" content="index, follow" />
+      <meta name="author" content="Ring Platform" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       
       {/* Hreflang alternates */}
       {Object.entries(alternates).map(([lang, url]) => (

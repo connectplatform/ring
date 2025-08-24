@@ -1,6 +1,6 @@
 {
     "name": "ring",
-    "version": "0.9.3",
+    "version": "0.9.4",
     "private": true,
     "type": "module",
     "scripts": {
@@ -27,6 +27,7 @@
         "analyze:server": "BUNDLE_ANALYZE=server npm run build:skip-types",
         "analyze:browser": "BUNDLE_ANALYZE=browser npm run build:skip-types",
         "seed:opportunities": "node --experimental-modules scripts/seed-opportunities.js",
+        "deploy:indexes": "firebase deploy --only firestore:indexes",
         "optimize:firebase": "node scripts/optimize-firebase-usage.js",
         "migrate:services": "node scripts/migrate-services-to-optimized.js",
         "fix:service-migration": "node scripts/fix-service-migration.js",

@@ -6,6 +6,7 @@ import { auth } from '@/auth'
 import { LocalePageProps } from '@/utils/page-props'
 import HomeWrapper from '@/components/wrappers/home-wrapper'
 import { ROUTES } from '@/constants/routes'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 
 // React 19 Resource Preloading APIs
 import { preload, preinit } from 'react-dom'
@@ -37,11 +38,11 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
     
     // Avoid preloading API calls; fetch on demand in components
 
-    // Load translations for React 19 metadata
-    const translations = await loadTranslations(locale)
-    const title = translations.ringName || 'Ring Platform'
-    const description = translations.homeDescription || 'Discover cutting-edge solutions, connect with innovators, and shape the future of technology.'
-    const keywords = 'Ring Platform, technology, innovation, opportunities, Cherkasy'
+    // Get localized SEO data using the enhanced helper
+    const seoData = await getSEOMetadata(locale, 'home', {
+      platform: 'Ring Platform'
+    })
+    
     const alternates = generateHreflangAlternates('/')
     
     // Get server-side data
@@ -58,35 +59,44 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
     
     return (
       <>
-        {/* React 19 Native Document Metadata */}
-        <title>{`${title} | Ring Platform`}</title>
-        <meta name="description" content={description} />
-        <meta name="keywords" content={keywords} />
+        {/* React 19 Native Document Metadata with Localized SEO */}
+        <title>{seoData?.title || 'Ring Platform - Decentralized Opportunities'}</title>
+        <meta name="description" content={seoData?.description || 'Connect, collaborate, and create value in the decentralized economy'} />
+        {seoData?.keywords && (
+          <meta name="keywords" content={seoData.keywords.join(', ')} />
+        )}
         
         {/* OpenGraph metadata */}
-        <meta property="og:title" content={`${title} | Ring Platform`} />
-        <meta property="og:description" content={description} />
+        <meta property="og:title" content={seoData?.ogTitle || seoData?.title || 'Ring Platform'} />
+        <meta property="og:description" content={seoData?.ogDescription || seoData?.description || 'Discover and create opportunities in the decentralized economy'} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`} />
-        <meta property="og:image" content="/images/og-home.jpg" />
+        <meta property="og:image" content={seoData?.ogImage || "/images/og-default.jpg"} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
         <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+        <meta property="og:site_name" content="Ring Platform" />
         
         {/* Twitter Card Metadata */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${title} | Ring Platform`} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content="/images/twitter-home.jpg" />
+        <meta name="twitter:site" content="@RingPlatform" />
+        <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || 'Ring Platform'} />
+        <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || 'Decentralized opportunities and collaboration platform'} />
+        <meta name="twitter:image" content={seoData?.twitterImage || "/images/og-default.jpg"} />
         
         {/* Canonical URL */}
-        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`} />
+        <link rel="canonical" href={seoData?.canonical || `${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`} />
         
         {/* Hreflang alternates */}
         {Object.entries(alternates).map(([hreflang, href]) => (
           <link key={hreflang} rel="alternate" hrefLang={hreflang} href={href as string} />
         ))}
+        
+        {/* Additional SEO metadata */}
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="Ring Platform" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         
         {/* Structured Data - WebSite Schema */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{
@@ -94,7 +104,7 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
             "@context": "https://schema.org",
             "@type": "WebSite",
             "name": "Ring Platform",
-            "description": description,
+            "description": seoData?.description || 'Connect, collaborate, and create value in the decentralized economy',
             "url": `${process.env.NEXT_PUBLIC_API_URL}${ROUTES.HOME(locale)}`,
             "potentialAction": {
               "@type": "SearchAction",
@@ -107,10 +117,10 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
             "publisher": {
               "@type": "Organization",
               "name": "Ring Platform",
-              "url": "${process.env.NEXT_PUBLIC_API_URL}",
+              "url": process.env.NEXT_PUBLIC_API_URL,
               "logo": {
                 "@type": "ImageObject",
-                "url": "${process.env.NEXT_PUBLIC_API_URL}/logo.svg"
+                "url": `${process.env.NEXT_PUBLIC_API_URL}/logo.svg`
               }
             },
             "inLanguage": locale
@@ -132,10 +142,12 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
     console.error("HomePage: Error loading page data:", e)
     
     // Fallback return with minimal metadata
+    const fallbackSEO = await getSEOMetadata(defaultLocale, 'home').catch(() => null)
+    
     return (
       <>
-        <title>Ring Platform | Connect with Tech Opportunities</title>
-        <meta name="description" content="Connect with tech opportunities in Cherkasy region" />
+        <title>{fallbackSEO?.title || 'Ring Platform - Connect with Tech Opportunities'}</title>
+        <meta name="description" content={fallbackSEO?.description || 'Connect with tech opportunities in Cherkasy region'} />
         
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md w-full space-y-8">

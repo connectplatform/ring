@@ -10,3 +10,12 @@ export { getUserSettings } from './get-user-settings';
 export { updateProfile } from './update-profile';
 export { updateUserRole } from './update-user-role';
 export { updateUserSettings } from './update-user-settings';
+
+// Account deletion services
+export { 
+  requestAccountDeletion,
+  cancelAccountDeletion, 
+  confirmAccountDeletion,
+  getAccountDeletionStatus,
+  processExpiredDeletions
+} from './account-deletion';

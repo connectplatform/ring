@@ -11,7 +11,7 @@ import { ROUTES } from '@/constants/routes'
 import { updateProfile } from '@/app/_actions/profile'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
-import { getSEOMetadata } from '@/utils/seo-metadata'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = 'force-dynamic'
@@ -47,13 +47,11 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
 
   // Extract and validate locale
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
+  const validLocale = locale;
   console.log('ProfilePage: Using locale', locale);
 
-  // React 19 metadata preparation
-  const translations = loadTranslations(locale);
-  const title = (translations as any).metadata?.profile || 'User Profile | Ring';
-  const description = (translations as any).metaDescription?.profile || 'View and manage your Ring user profile, wallet, and account settings.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/profile`;
+  // Get SEO metadata for the profile page (authenticated - no keywords)
+  const seoData = await getSEOMetadata(validLocale, 'profile');
   const alternates = generateHreflangAlternates('/profile');
 
   const cookieStore = await cookies()
@@ -149,25 +147,25 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
 
   return (
     <>
-      {/* React 19 Native Document Metadata */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
+      {/* React 19 Native Document Metadata - Authenticated Page (No Keywords) */}
+      <title>{seoData?.title || 'My Profile - Ring Platform'}</title>
+      <meta name="description" content={seoData?.description || 'Manage your Ring Platform profile, preferences, and account settings. Update your professional information and privacy settings.'} />
+      <link rel="canonical" href={`/${locale}/profile`} />
       
       {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || 'My Profile - Ring Platform'} />
+      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || 'Manage your Ring Platform profile, preferences, and account settings. Update your professional information and privacy settings.'} />
       <meta property="og:type" content="profile" />
       <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+      <meta property="og:site_name" content="Ring Platform" />
       
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:site" content="@RingPlatform" />
+      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || 'My Profile - Ring Platform'} />
+      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || 'Manage your Ring Platform profile, preferences, and account settings. Update your professional information and privacy settings.'} />
       
-      {/* Security meta tags for user profile */}
+      {/* Security meta tags for user profile - NO SEO FOR AUTHENTICATED PAGES */}
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
       

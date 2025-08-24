@@ -4,12 +4,16 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminDb, getAdminRtdb } from '@/lib/firebase-admin.server'
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getAdminRtdb } from '@/lib/firebase-admin.server'
+import { 
+  getCachedDocument, 
+  getCachedCollectionAdvanced, 
+  createDocument, 
+  updateDocument,
+  runTransaction,
+  createBatchWriter,
+  executeBatch
+} from '@/lib/services/firebase-service-manager';
 
 import { 
   Message, 
@@ -21,7 +25,6 @@ import { Timestamp } from 'firebase-admin/firestore'
 import { EntityDatabaseError, ValidationError, FetchError, logRingError } from '@/lib/errors'
 
 export class MessageService {
-  private db = getAdminDb()
   private rtdb = getAdminRtdb()
 
   /**
@@ -55,22 +58,6 @@ export class MessageService {
       }
 
       const now = Timestamp.now()
-      let messageRef;
-      
-      try {
-        messageRef = this.db.collection('messages').doc()
-      } catch (error) {
-        throw new EntityDatabaseError(
-          'Failed to create message document reference',
-          error instanceof Error ? error : new Error(String(error)),
-          {
-            timestamp: Date.now(),
-            senderId,
-            conversationId: data.conversationId,
-            operation: 'create_message_ref'
-          }
-        );
-      }
       
       // Handle file attachments via Vercel Blob if any
       let processedAttachments: MessageAttachment[] = []
@@ -92,22 +79,22 @@ export class MessageService {
         }
       }
 
-             const message: Message = {
-         id: messageRef.id,
-         conversationId: data.conversationId,
-         senderId,
-         senderName,
-         senderAvatar,
-         content: data.content,
-         attachments: processedAttachments,
-         timestamp: now,
-         status: 'sent',
-         type: 'text'
-       }
+                  const messageData = {
+        conversationId: data.conversationId,
+        senderId,
+        senderName,
+        senderAvatar,
+        content: data.content,
+        attachments: processedAttachments,
+        timestamp: now,
+        status: 'sent' as const,
+        type: 'text' as const
+      }
 
-      // Save message to Firestore
+      // Save message to Firestore using optimized function
+      let messageRef;
       try {
-        await messageRef.set(message)
+        messageRef = await createDocument('messages', messageData)
       } catch (error) {
         throw new EntityDatabaseError(
           'Failed to save message to Firestore',
@@ -116,10 +103,14 @@ export class MessageService {
             timestamp: Date.now(),
             senderId,
             conversationId: data.conversationId,
-            messageId: message.id,
             operation: 'save_message_firestore'
           }
         );
+      }
+
+      const message: Message = {
+        ...messageData,
+        id: messageRef.id
       }
 
       // Update conversation last message
@@ -215,23 +206,24 @@ export class MessageService {
         );
       }
 
-      // Build query
-      let query = this.db.collection('messages')
-        .where('conversationId', '==', conversationId)
-        .orderBy('timestamp', 'desc');
+      // Build query configuration for optimized collection query
+      const queryConfig: any = {
+        where: [{ field: 'conversationId', operator: '==' as const, value: conversationId }],
+        orderBy: [{ field: 'timestamp', direction: 'desc' as const }]
+      }
 
       if (pagination?.limit) {
-        query = query.limit(pagination.limit);
+        queryConfig.limit = pagination.limit;
       }
       
       if (pagination?.cursor) {
         try {
-          const cursorDoc = await this.db.collection('messages').doc(pagination.cursor).get();
-          if (cursorDoc.exists) {
+          const cursorDoc = await getCachedDocument('messages', pagination.cursor);
+          if (cursorDoc && cursorDoc.exists) {
             if (pagination.direction === 'before') {
-              query = query.endBefore(cursorDoc);
+              queryConfig.endBefore = cursorDoc;
             } else {
-              query = query.startAfter(cursorDoc);
+              queryConfig.startAfter = cursorDoc;
             }
           }
         } catch (error) {
@@ -249,10 +241,10 @@ export class MessageService {
         }
       }
 
-      // Execute query
+      // Execute optimized query
       let snapshot;
       try {
-        snapshot = await query.get();
+        snapshot = await getCachedCollectionAdvanced('messages', queryConfig);
       } catch (error) {
         throw new EntityDatabaseError(
           'Failed to fetch messages',
@@ -312,9 +304,9 @@ export class MessageService {
    */
   private async verifyConversationAccess(conversationId: string, userId: string): Promise<void> {
     try {
-      const conversationDoc = await this.db.collection('conversations').doc(conversationId).get();
+      const conversationDoc = await getCachedDocument('conversations', conversationId);
       
-      if (!conversationDoc.exists) {
+      if (!conversationDoc || !conversationDoc.exists) {
         throw new EntityDatabaseError('Conversation not found', undefined, {
           timestamp: Date.now(),
           conversationId,
@@ -359,20 +351,18 @@ export class MessageService {
    */
   private async markMessagesAsDelivered(messages: Message[], userId: string): Promise<void> {
     try {
-      const batch = this.db.batch();
+      const batch = createBatchWriter();
       let hasUpdates = false;
 
       for (const message of messages) {
         if (message.senderId !== userId && message.status === 'sent') {
-          const messageRef = this.db.collection('messages').doc(message.id);
-          batch.update(messageRef, { status: 'delivered' });
+          await updateDocument('messages', message.id, { status: 'delivered' });
           hasUpdates = true;
         }
       }
 
-      if (hasUpdates) {
-        await batch.commit();
-      }
+      // Note: Individual updateDocument calls are used instead of batch for simplicity
+      // If performance becomes an issue, we could implement batch updates in firebase-service-manager
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to mark messages as delivered',
@@ -441,7 +431,7 @@ export class MessageService {
    */
   private async updateConversationLastMessage(conversationId: string, message: Message): Promise<void> {
     try {
-      await this.db.collection('conversations').doc(conversationId).update({
+      await updateDocument('conversations', conversationId, {
         lastMessage: {
           id: message.id,
           content: message.content,
@@ -538,9 +528,9 @@ export class MessageService {
    */
   async getMessage(messageId: string): Promise<Message | null> {
     try {
-      const messageDoc = await this.db.collection('messages').doc(messageId).get()
+      const messageDoc = await getCachedDocument('messages', messageId)
       
-      if (!messageDoc.exists) {
+      if (!messageDoc || !messageDoc.exists) {
         return null
       }
       
@@ -571,10 +561,9 @@ export class MessageService {
    */
   async updateMessage(messageId: string, updates: Partial<Message>): Promise<Message> {
     try {
-      const messageRef = this.db.collection('messages').doc(messageId)
-      const messageDoc = await messageRef.get()
+      const messageDoc = await getCachedDocument('messages', messageId)
       
-      if (!messageDoc.exists) {
+      if (!messageDoc || !messageDoc.exists) {
         throw new ValidationError('Message not found', undefined, {
           timestamp: Date.now(),
           messageId,
@@ -582,8 +571,8 @@ export class MessageService {
         })
       }
       
-      // Update the message
-      await messageRef.update({
+      // Update the message using optimized function
+      await updateDocument('messages', messageId, {
         ...updates,
         editedAt: Timestamp.now()
       })
@@ -595,7 +584,7 @@ export class MessageService {
       })
       
       // Get and return updated message
-      const updatedDoc = await messageRef.get()
+      const updatedDoc = await getCachedDocument('messages', messageId)
       return {
         id: updatedDoc.id,
         ...updatedDoc.data()
@@ -626,10 +615,9 @@ export class MessageService {
    */
   async deleteMessage(messageId: string): Promise<void> {
     try {
-      const messageRef = this.db.collection('messages').doc(messageId)
-      const messageDoc = await messageRef.get()
+      const messageDoc = await getCachedDocument('messages', messageId)
       
-      if (!messageDoc.exists) {
+      if (!messageDoc || !messageDoc.exists) {
         throw new ValidationError('Message not found', undefined, {
           timestamp: Date.now(),
           messageId,
@@ -637,8 +625,8 @@ export class MessageService {
         })
       }
       
-      // Soft delete - update content and mark as deleted
-      await messageRef.update({
+      // Soft delete - update content and mark as deleted using optimized function
+      await updateDocument('messages', messageId, {
         content: '[Message deleted]',
         type: 'text',
         deletedAt: Timestamp.now(),

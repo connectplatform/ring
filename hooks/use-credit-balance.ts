@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { logger } from '@/lib/logger'
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 interface CreditBalanceData {
   balance: {
@@ -53,35 +54,44 @@ export function useCreditBalance(): UseCreditBalanceReturn {
       
       setError(null)
 
-      const response = await fetch('/api/wallet/credit/balance', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      // Use API client with wallet domain configuration (15s timeout, 2 retries)
+      const response: ApiResponse<CreditBalanceData> = await apiClient.get('/api/wallet/credit/balance', {
+        timeout: 15000, // 15 second timeout for wallet operations
+        retries: 2 // Retry twice for network resilience
       })
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication required')
-        }
-        throw new Error(`Failed to fetch balance: ${response.status}`)
+      if (response.success && response.data) {
+        setData(response.data)
+        setLastRefreshed(Date.now())
+        
+        logger.info('Credit balance fetched', { 
+          amount: response.data.balance.amount,
+          subscriptionActive: response.data.subscription.active,
+          isRefresh 
+        })
+      } else {
+        throw new Error(response.error || 'Failed to fetch balance')
       }
 
-      const balanceData: CreditBalanceData = await response.json()
-      setData(balanceData)
-      setLastRefreshed(Date.now())
-      
-      logger.info('Credit balance fetched', { 
-        amount: balanceData.balance.amount,
-        subscriptionActive: balanceData.subscription.active,
-        isRefresh 
-      })
-
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      setError(errorMessage)
-      
-      logger.error('Failed to fetch credit balance', { error: err, isRefresh })
+      if (err instanceof ApiClientError) {
+        setError(err.message)
+        
+        // Log with structured context
+        logger.error('Credit balance fetch failed:', {
+          endpoint: '/api/wallet/credit/balance',
+          statusCode: err.statusCode,
+          message: err.message,
+          context: err.context,
+          cause: err.cause,
+          isRefresh
+        })
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        setError(errorMessage)
+        
+        logger.error('Unexpected error fetching credit balance', { error: err, isRefresh })
+      }
       
       // Don't clear data on refresh errors, keep showing stale data
       if (!isRefresh) {

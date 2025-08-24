@@ -9,6 +9,7 @@ import { getServerAuthSession } from "@/auth"
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,14 +39,14 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('ContactPage: Using locale', locale);
 
-  // Load translations for the current locale (for React 19 metadata)
-  const translations = loadTranslations(locale);
+  // Get localized SEO data using the enhanced helper
+  const seoData = await getSEOMetadata(locale, 'contact')
   
-  // React 19 metadata preparation
-  const title = (translations as any).metadata?.contact || 'Contact Us - Ring App';
-  const description = (translations as any).metaDescription?.contact || 'Get in touch with the Ring App team. Contact us for partnerships, opportunities, and collaboration in the Cherkasy tech ecosystem.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/contact`;
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/contact`;
   const alternates = generateHreflangAlternates('/contact');
+  
+  // Load translations for the current locale (for UI elements)
+  const translations = loadTranslations(locale);
 
   // Authenticate user session
   console.log('ContactPage: Authenticating session');
@@ -88,23 +89,35 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
 
   return (
     <>
-      {/* React 19 Native Document Metadata */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
+      {/* React 19 Native Document Metadata with Localized SEO */}
+      <title>{seoData?.title || 'Contact Ring Platform - Get in Touch'}</title>
+      <meta name="description" content={seoData?.description || 'Get in touch with the Ring Platform team. Contact us for support, partnerships, or general inquiries'} />
+      {seoData?.keywords && (
+        <meta name="keywords" content={seoData.keywords.join(', ')} />
+      )}
+      <link rel="canonical" href={seoData?.canonical || canonicalUrl} />
       
       {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
+      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || 'Contact Ring Platform'} />
+      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || 'Get in touch with our team'} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
+      <meta property="og:image" content={seoData?.ogImage || "/images/og-default.jpg"} />
       <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
       <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+      <meta property="og:site_name" content="Ring Platform" />
       
       {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@RingPlatform" />
+      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || 'Contact Ring Platform'} />
+      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || 'Get in touch with us'} />
+      <meta name="twitter:image" content={seoData?.twitterImage || "/images/og-default.jpg"} />
+      
+      {/* Additional SEO metadata */}
+      <meta name="robots" content="index, follow" />
+      <meta name="author" content="Ring Platform" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       
       {/* Hreflang alternates */}
       {Object.entries(alternates).map(([lang, url]) => (

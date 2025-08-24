@@ -4,15 +4,10 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin.server';
+import { getAdminAuth } from '@/lib/firebase-admin.server';
+import { updateDocument } from '@/lib/services/firebase-service-manager';
 import { UserRole } from '@/features/auth/types';
 import { FirebaseError } from 'firebase/app';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
-
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
 /**
@@ -45,21 +40,14 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
 
     console.log(`Services: updateUserRole - Admin authenticated with ID ${session.user.id}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userRef = adminDb.collection('users').doc(userId);
-
-    // Step 3: Update role in Firestore
-    await userRef.update({
+    // Step 2: Update role in Firestore using optimized updateDocument
+    await updateDocument('users', userId, {
       role: newRole,
       updatedAt: new Date(),
     });
 
-    // Step 4: Update custom claims in Firebase Auth
-    const adminAuth = await getAdminAuth();
+    // Step 3: Update custom claims in Firebase Auth
+    const adminAuth = getAdminAuth();
     await adminAuth.setCustomUserClaims(userId, { role: newRole });
 
     console.log(`Services: updateUserRole - Role updated successfully for user ${userId} to ${newRole}`);

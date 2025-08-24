@@ -4,7 +4,13 @@ import type {
   DocumentSnapshot, 
   QuerySnapshot, 
   DocumentReference, 
-  CollectionReference 
+  CollectionReference,
+  Query,
+  WriteResult,
+  WriteBatch,
+  Transaction,
+  BulkWriter,
+  FieldValue
 } from 'firebase-admin/firestore';
 
 /**
@@ -217,6 +223,364 @@ export const getCachedUsers = cache(async (maxResults: number = 1000) => {
 });
 
 /**
+ * ADVANCED COLLECTION OPERATIONS WITH CACHING
+ * Enhanced operations for complex querying, real-time listeners, and batch operations
+ */
+
+/**
+ * Advanced collection query builder with caching
+ */
+export const getCachedCollectionAdvanced = cache(async (
+  collection: string,
+  queryConfig: {
+    where?: Array<{ field: string; operator: FirebaseFirestore.WhereFilterOp; value: any }>;
+    orderBy?: Array<{ field: string; direction?: 'asc' | 'desc' }>;
+    limit?: number;
+    startAfter?: any;
+    endBefore?: any;
+  } = {}
+): Promise<QuerySnapshot> => {
+  const signature = createRequestSignature('getCollectionAdvanced', collection, queryConfig);
+  
+  try {
+    const db = getAdminDb();
+    let query: Query = db.collection(collection);
+    
+    // Apply where clauses
+    if (queryConfig.where) {
+      queryConfig.where.forEach(({ field, operator, value }) => {
+        query = query.where(field, operator, value);
+      });
+    }
+    
+    // Apply ordering
+    if (queryConfig.orderBy) {
+      queryConfig.orderBy.forEach(({ field, direction = 'asc' }) => {
+        query = query.orderBy(field, direction);
+      });
+    }
+    
+    // Apply pagination
+    if (queryConfig.startAfter) {
+      query = query.startAfter(queryConfig.startAfter);
+    }
+    if (queryConfig.endBefore) {
+      query = query.endBefore(queryConfig.endBefore);
+    }
+    
+    // Apply limit
+    if (queryConfig.limit) {
+      query = query.limit(queryConfig.limit);
+    }
+    
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - Advanced Query: ${collection}, Results: ${snapshot.size}`);
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error(`[Firebase Manager] Error in advanced collection query ${collection}:`, error);
+    throw error;
+  }
+});
+
+/**
+ * Get subcollection documents with caching
+ * Useful for nested collections like users/{userId}/credit_transactions
+ */
+export const getCachedSubcollection = cache(async (
+  parentCollection: string,
+  parentDocId: string,
+  subcollection: string,
+  options: {
+    limit?: number;
+    orderBy?: { field: string; direction?: 'asc' | 'desc' };
+    where?: { field: string; operator: FirebaseFirestore.WhereFilterOp; value: any };
+    startAfter?: DocumentSnapshot;
+  } = {}
+): Promise<QuerySnapshot> => {
+  const signature = createRequestSignature('getSubcollection', `${parentCollection}/${parentDocId}/${subcollection}`, options);
+  
+  try {
+    const db = getAdminDb();
+    let query: Query = db.collection(parentCollection).doc(parentDocId).collection(subcollection);
+    
+    // Apply query constraints
+    if (options.where) {
+      query = query.where(options.where.field, options.where.operator, options.where.value);
+    }
+    
+    if (options.orderBy) {
+      query = query.orderBy(options.orderBy.field, options.orderBy.direction || 'asc');
+    }
+    
+    if (options.startAfter) {
+      query = query.startAfter(options.startAfter);
+    }
+    
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - Subcollection: ${parentCollection}/${parentDocId}/${subcollection}, Results: ${snapshot.size}`);
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error(`[Firebase Manager] Error fetching subcollection ${parentCollection}/${parentDocId}/${subcollection}:`, error);
+    throw error;
+  }
+});
+
+/**
+ * Get collection group query with caching
+ * Useful for querying across all subcollections of the same type
+ */
+export const getCachedCollectionGroup = cache(async (
+  collectionId: string,
+  options: {
+    where?: Array<{ field: string; operator: FirebaseFirestore.WhereFilterOp; value: any }>;
+    orderBy?: { field: string; direction?: 'asc' | 'desc' };
+    limit?: number;
+  } = {}
+): Promise<QuerySnapshot> => {
+  const signature = createRequestSignature('getCollectionGroup', collectionId, options);
+  
+  try {
+    const db = getAdminDb();
+    let query: Query = db.collectionGroup(collectionId);
+    
+    // Apply where clauses
+    if (options.where) {
+      options.where.forEach(({ field, operator, value }) => {
+        query = query.where(field, operator, value);
+      });
+    }
+    
+    if (options.orderBy) {
+      query = query.orderBy(options.orderBy.field, options.orderBy.direction || 'asc');
+    }
+    
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - Collection Group: ${collectionId}, Results: ${snapshot.size}`);
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error(`[Firebase Manager] Error in collection group query ${collectionId}:`, error);
+    throw error;
+  }
+});
+
+/**
+ * BATCH AND TRANSACTION OPERATIONS
+ */
+
+/**
+ * Create a batch writer for multiple operations
+ */
+export function createBatchWriter(): WriteBatch {
+  const db = getAdminDb();
+  return db.batch();
+}
+
+/**
+ * Execute batch write operations
+ */
+export async function executeBatch(batch: WriteBatch): Promise<WriteResult[]> {
+  try {
+    const results = await batch.commit();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Batch executed: ${results.length} operations`);
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('[Firebase Manager] Batch execution failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Run a Firestore transaction with optimized error handling
+ */
+export async function runTransaction<T>(
+  updateFunction: (transaction: Transaction) => Promise<T>
+): Promise<T> {
+  try {
+    const db = getAdminDb();
+    const result = await db.runTransaction(updateFunction);
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log('[Firebase Manager] Transaction completed successfully');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[Firebase Manager] Transaction failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a bulk writer for high-volume operations
+ */
+export function createBulkWriter(): BulkWriter {
+  const db = getAdminDb();
+  return db.bulkWriter();
+}
+
+/**
+ * REAL-TIME LISTENERS
+ * Note: These don't use cache() as they're for real-time updates
+ */
+
+/**
+ * Create a real-time listener for a document
+ */
+export function createDocumentListener(
+  collection: string,
+  docId: string,
+  callback: (snapshot: DocumentSnapshot) => void,
+  errorCallback?: (error: Error) => void
+): () => void {
+  try {
+    const db = getAdminDb();
+    const docRef = db.collection(collection).doc(docId);
+    
+    const unsubscribe = docRef.onSnapshot(callback, errorCallback);
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Document listener created: ${collection}/${docId}`);
+    }
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error(`[Firebase Manager] Error creating document listener ${collection}/${docId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Create a real-time listener for a collection query
+ */
+export function createCollectionListener(
+  collection: string,
+  queryConfig: {
+    where?: Array<{ field: string; operator: FirebaseFirestore.WhereFilterOp; value: any }>;
+    orderBy?: { field: string; direction?: 'asc' | 'desc' };
+    limit?: number;
+  },
+  callback: (snapshot: QuerySnapshot) => void,
+  errorCallback?: (error: Error) => void
+): () => void {
+  try {
+    const db = getAdminDb();
+    let query: Query = db.collection(collection);
+    
+    // Apply query constraints
+    if (queryConfig.where) {
+      queryConfig.where.forEach(({ field, operator, value }) => {
+        query = query.where(field, operator, value);
+      });
+    }
+    
+    if (queryConfig.orderBy) {
+      query = query.orderBy(queryConfig.orderBy.field, queryConfig.orderBy.direction || 'asc');
+    }
+    
+    if (queryConfig.limit) {
+      query = query.limit(queryConfig.limit);
+    }
+    
+    const unsubscribe = query.onSnapshot(callback, errorCallback);
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Collection listener created: ${collection}`);
+    }
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error(`[Firebase Manager] Error creating collection listener ${collection}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * SPECIALIZED PAYMENT & CREDIT OPERATIONS
+ * Optimized operations for RING token payment workflows
+ */
+
+/**
+ * Get user credit transactions with pagination
+ */
+export const getUserCreditTransactions = cache(async (
+  userId: string,
+  options: {
+    limit?: number;
+    startAfter?: DocumentSnapshot;
+    type?: string;
+    startDate?: number;
+    endDate?: number;
+  } = {}
+): Promise<QuerySnapshot> => {
+  return getCachedSubcollection('users', userId, 'credit_transactions', {
+    limit: options.limit || 50,
+    orderBy: { field: 'timestamp', direction: 'desc' },
+    startAfter: options.startAfter,
+    ...(options.type && { where: { field: 'type', operator: '==', value: options.type } })
+  });
+});
+
+/**
+ * Get active subscriptions for batch processing
+ */
+export const getActiveSubscriptions = cache(async (): Promise<QuerySnapshot> => {
+  return getCachedCollectionAdvanced('ring_subscriptions', {
+    where: [
+      { field: 'status', operator: '==', value: 'ACTIVE' },
+      { field: 'next_payment_due', operator: '<=', value: Date.now() }
+    ],
+    orderBy: [{ field: 'next_payment_due', direction: 'asc' }]
+  });
+});
+
+/**
+ * Get user orders with status filtering
+ */
+export const getUserOrders = cache(async (
+  userId: string,
+  status?: string,
+  limit: number = 20
+): Promise<QuerySnapshot> => {
+  return getCachedCollectionAdvanced('orders', {
+    where: status 
+      ? [{ field: 'userId', operator: '==', value: userId }, { field: 'status', operator: '==', value: status }]
+      : [{ field: 'userId', operator: '==', value: userId }],
+    orderBy: [{ field: 'createdAt', direction: 'desc' }],
+    limit
+  });
+});
+
+/**
  * WRITE OPERATIONS (NO CACHING)
  * Write operations bypass cache and invalidate related cached data
  */
@@ -336,16 +700,43 @@ Hit Rate: ${hitRate.toFixed(2)}%
  */
 export function getFirebaseServiceManager() {
   return {
+    // Core Firebase instances
     db: getAdminDb(),
     auth: getAdminAuth(),
+    
+    // Basic cached operations
     getCachedDocument,
     getCachedCollection,
     getCachedDocumentBatch,
     getCachedUser,
     getCachedUsers,
+    
+    // Advanced collection operations
+    getCachedCollectionAdvanced,
+    getCachedSubcollection,
+    getCachedCollectionGroup,
+    
+    // Specialized payment operations
+    getUserCreditTransactions,
+    getActiveSubscriptions,
+    getUserOrders,
+    
+    // Write operations
     createDocument,
     updateDocument,
     deleteDocument,
+    
+    // Batch and transaction operations
+    createBatchWriter,
+    executeBatch,
+    runTransaction,
+    createBulkWriter,
+    
+    // Real-time listeners
+    createDocumentListener,
+    createCollectionListener,
+    
+    // Performance utilities
     getCacheMetrics,
     resetCacheMetrics,
     logCachePerformance

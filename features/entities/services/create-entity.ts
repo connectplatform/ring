@@ -4,20 +4,16 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminDb, getAdminRtdb, getAdminRtdbRef, setAdminRtdbData, setAdminRtdbOnDisconnect, getAdminRtdbServerTimestamp } from '@/lib/firebase-admin.server';
+import { getAdminRtdb, getAdminRtdbRef, setAdminRtdbData, setAdminRtdbOnDisconnect, getAdminRtdbServerTimestamp, getAdminDb } from '@/lib/firebase-admin.server';
+import { createDocument } from '@/lib/services/firebase-service-manager';
 import { Entity } from '@/features/entities/types';
 import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
-import { entityConverter } from '@/lib/converters/entity-converter';
-import { FieldValue } from 'firebase-admin/firestore';
+import { CollectionReference, FieldValue } from 'firebase-admin/firestore';
 import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors';
 import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
-import { invalidateEntitiesCache } from '@/lib/cached-data'
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { invalidateEntitiesCache } from '@/lib/cached-data';
+import { entityConverter } from '@/lib/converters/entity-converter';
 
 /**
  * Type definition for the data required to create a new entity.
@@ -26,7 +22,7 @@ import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manag
 type NewEntityData = Omit<Entity, 'id' | 'dateAdded' | 'lastUpdated'>;
 
 /**
- * Creates a new Entity in Firestore with ES2022 enhancements.
+ * Creates a new Entity.
  * 
  * This function performs the following steps:
  * 1. Authenticates the user and retrieves their session.
@@ -145,24 +141,7 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
       }
     }
 
-    // Step 3: Initialize database connection
-    let adminDb;
-    const dbContext = { ...validationContext, operation: 'getAdminDb' };
-    
-    try {
-      const serviceManager = getFirebaseServiceManager();
-      adminDb = serviceManager.db;
-    } catch (error) {
-      throw new EntityDatabaseError(
-        'Failed to initialize database connection',
-        error instanceof Error ? error : new Error(String(error)),
-        dbContext
-      );
-    }
-
-    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter);
-
-    // Step 4: Create the new entity document with ES2022 logical assignment
+    // Step 3: Create the new entity document with ES2022 logical assignment
     const newEntityData: any = {
       ...data,
       addedBy: userId,
@@ -185,7 +164,8 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
 
     let docRef;
     try {
-      docRef = await entitiesCollection.add(newEntityData);
+      // Use optimized createDocument function instead of direct collection access
+      docRef = await createDocument('entities', newEntityData);
     } catch (error) {
       throw new EntityQueryError(
         'Failed to create entity document',
@@ -230,6 +210,9 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     // Step 6: Set up presence detection for eligible user roles
     if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
       try {
+        // Get collection reference for presence detection setup
+        const adminDb = getAdminDb();
+        const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter);
         await setupPresenceDetection(entityId, entitiesCollection);
       } catch (error) {
         // Log presence detection error but don't fail the entire operation
@@ -272,7 +255,7 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
  * @param {FirebaseFirestore.CollectionReference} entitiesCollection - The Firestore collection reference
  * @throws {EntityDatabaseError} If realtime database operations fail
  */
-async function setupPresenceDetection(entityId: string, entitiesCollection: FirebaseFirestore.CollectionReference): Promise<void> {
+async function setupPresenceDetection(entityId: string, entitiesCollection: CollectionReference<Entity>): Promise<void> {
   try {
     console.log('Services: createEntity - Enabling presence detection for eligible user roles.');
 

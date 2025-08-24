@@ -1,8 +1,10 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { getServerAuthSession } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
+import { logger } from '@/lib/logger'
 
 export interface CryptoOnboardingFormState {
   success?: boolean
@@ -15,65 +17,64 @@ export async function completeCryptoOnboarding(
   prevState: CryptoOnboardingFormState | null,
   formData: FormData
 ): Promise<CryptoOnboardingFormState> {
-  const userId = formData.get('userId') as string
+  // Get current user session
+  const session = await getServerAuthSession()
+  if (!session?.user?.id) {
+    return {
+      error: 'Authentication required'
+    }
+  }
+
+  const userId = session.user.id // Use session user ID for security
   const name = formData.get('name') as string
   const email = formData.get('email') as string
 
-  // Validation
-  const fieldErrors: Record<string, string> = {}
-  
-  if (!userId?.trim()) {
-    return {
-      error: 'User ID is required'
-    }
-  }
-  
-  if (!name?.trim()) {
-    fieldErrors.name = 'Name is required'
-  }
-  
-  if (!email?.trim()) {
-    fieldErrors.email = 'Email is required'
-  } else if (!/\S+@\S+\.\S+/.test(email)) {
-    fieldErrors.email = 'Please enter a valid email address'
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      fieldErrors
-    }
-  }
-
   try {
-    // Update user profile via Firebase
-    // Note: In server actions, we need to use Firebase Admin SDK
-    // For now, we'll use an API route to handle Firebase updates
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/crypto/onboarding`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: userId.trim(),
-        name: name.trim(),
-        email: email.trim(),
-      }),
-    })
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+    // Validation
+    const fieldErrors: Record<string, string> = {}
+    
+    if (!name?.trim()) {
+      fieldErrors.name = 'Name is required'
+    }
+    
+    if (!email?.trim()) {
+      fieldErrors.email = 'Email is required'
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      fieldErrors.email = 'Please enter a valid email address'
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
       return {
-        error: errorData.message || 'Failed to complete onboarding. Please try again.'
+        fieldErrors
       }
     }
+    // ✅ Use direct service call instead of HTTP request
+    // Use the auth profile update service for crypto onboarding
+    const { updateProfile } = await import('@/features/auth/services')
+    
+    const success = await updateProfile({
+      name: name.trim(),
+      email: email.trim(),
+    })
 
-    return {
-      success: true,
-      message: 'Profile completed successfully! Welcome to Ring.'
+    if (success) {
+      return {
+        success: true,
+        message: 'Profile completed successfully! Welcome to Ring.'
+      }
+    } else {
+      return {
+        error: 'Failed to complete onboarding. Please try again.'
+      }
     }
     
   } catch (error) {
-    console.error('Error completing crypto onboarding:', error)
+    logger.error('Crypto onboarding service call failed:', {
+      userId: session?.user?.id,
+      email: session?.user?.email,
+      error: error instanceof Error ? error.message : error
+    })
     return {
       error: 'An unexpected error occurred. Please try again.'
     }

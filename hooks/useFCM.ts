@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging'
 import { app, validateFirebaseConfig } from '@/lib/firebase-client'
+import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 interface FCMState {
   token: string | null
@@ -239,24 +240,31 @@ export function useFCM(): FCMHookReturn {
         lastSeen: new Date()
       }
 
-      const response = await fetch('/api/notifications/fcm/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          deviceInfo
-        })
+      // Use API client with notification domain configuration (8s timeout, 1 retry)
+      const response: ApiResponse = await apiClient.post('/api/notifications/fcm/register', {
+        token,
+        deviceInfo
+      }, {
+        timeout: 8000, // 8 second timeout for notification operations
+        retries: 1 // Retry once for transient failures
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to register token with server')
+      if (response.success) {
+        console.log('FCM token registered with server')
+      } else {
+        throw new Error(response.error || 'Failed to register token with server')
       }
-
-      console.log('FCM token registered with server')
     } catch (error) {
-      console.error('Error registering token with server:', error)
+      if (error instanceof ApiClientError) {
+        console.error('FCM token registration failed:', {
+          endpoint: '/api/notifications/fcm/register',
+          statusCode: error.statusCode,
+          message: error.message,
+          context: error.context
+        })
+      } else {
+        console.error('Unexpected error registering token with server:', error)
+      }
     }
   }
 

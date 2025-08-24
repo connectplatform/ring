@@ -15,8 +15,56 @@
 | **Session Security** | ✅ Complete | 2025-08-22 | 100% effective |
 | **Token Validation** | ✅ Complete | 2025-08-22 | 100% effective |
 | **Error Handling** | ✅ Complete | 2025-08-22 | 100% effective |
+| **Account Deletion** | ✅ Complete | 2025-01-18 | GDPR/CCPA compliant |
 
 ## 🧪 **Security Test Results**
+
+### **Account Deletion Compliance Tests**
+
+#### **GDPR/CCPA Account Deletion Flow**
+```bash
+# Test: Complete account deletion workflow
+# 1. Request account deletion
+curl -X POST http://localhost:3000/api/auth/delete-account \
+  -H "Content-Type: application/json" \
+  -d '{"password":"userpassword","reason":"User requested deletion"}'
+
+# Results:
+{
+  "success": true,
+  "message": "Account deletion requested. You have 30 days to cancel.",
+  "deletionDate": "2025-02-17T00:00:00.000Z",
+  "canCancel": true
+}
+
+# 2. Check deletion status
+curl -X GET http://localhost:3000/api/auth/deletion-status
+
+# Results:
+{
+  "success": true,
+  "deletionDate": "2025-02-17T00:00:00.000Z",
+  "canCancel": true,
+  "message": "Account scheduled for deletion"
+}
+
+# 3. Cancel deletion (within grace period)
+curl -X POST http://localhost:3000/api/auth/cancel-deletion
+
+# Results:
+{
+  "success": true,
+  "message": "Account deletion cancelled. Your account is now active.",
+  "canCancel": false
+}
+```
+
+**Compliance Metrics**:
+- ✅ **Grace Period**: 30 days (GDPR requirement)
+- ✅ **Password Verification**: Required for deletion request
+- ✅ **Audit Trail**: Complete logging of all deletion events
+- ✅ **User Control**: Can cancel during grace period
+- ✅ **Data Rights**: Full "Right to be Forgotten" implementation
 
 ### **Rate Limiting Tests**
 

@@ -12,10 +12,16 @@
 
 import { FieldValue } from 'firebase-admin/firestore';
 
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { 
+  getCachedDocument, 
+  getCachedCollectionAdvanced, 
+  createDocument, 
+  updateDocument,
+  deleteDocument,
+  runTransaction,
+  createBatchWriter,
+  executeBatch
+} from '@/lib/services/firebase-service-manager';
 
 import {
   Notification,
@@ -52,9 +58,6 @@ export async function createNotification(
   console.log('NotificationService: Creating notification', { type: request.type });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-
     // Handle single user or multiple users
     const userIds = request.userIds || (request.userId ? [request.userId] : []);
     if (userIds.length === 0) {
@@ -101,8 +104,8 @@ export async function createNotification(
         locale: preferences?.language || 'en'
       };
 
-      // Add to Firestore
-      const docRef = await adminDb.collection('notifications').add(notificationData);
+      // Add to Firestore using optimized createDocument function
+      const docRef = await createDocument('notifications', notificationData);
 
       const notification: Notification = {
         ...notificationData,
@@ -148,50 +151,46 @@ export async function getUserNotifications(
   console.log('NotificationService: Getting user notifications', { userId, options });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    
-    // Add timeout for network issues
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Firestore connection timeout')), 10000)
-    );
-
-    let query = adminDb
-      .collection('notifications')
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc');
+    // Build optimized query configuration
+    const queryConfig: any = {
+      where: [{ field: 'userId', operator: '==', value: userId }],
+      orderBy: [{ field: 'createdAt', direction: 'desc' }]
+    };
 
     // Apply filters
     if (options.unreadOnly) {
-      query = query.where('readAt', '==', null);
+      queryConfig.where.push({ field: 'readAt', operator: '==', value: null });
     }
     
     if (options.types && options.types.length > 0) {
-      query = query.where('type', 'in', options.types);
+      queryConfig.where.push({ field: 'type', operator: 'in', value: options.types });
     }
 
     // Apply pagination
     if (options.limit) {
-      query = query.limit(options.limit);
+      queryConfig.limit = options.limit;
     }
     
     if (options.startAfter) {
-      const startAfterDoc = await adminDb.collection('notifications').doc(options.startAfter).get();
-      if (startAfterDoc.exists) {
-        query = query.startAfter(startAfterDoc);
+      const startAfterDoc = await getCachedDocument('notifications', options.startAfter);
+      if (startAfterDoc && startAfterDoc.exists) {
+        queryConfig.startAfter = startAfterDoc;
       }
     }
 
-    const firestoreQuery = query.get();
-    const snapshot = await Promise.race([firestoreQuery, timeout]) as any;
+    // Execute optimized query with built-in timeout handling
+    const snapshot = await getCachedCollectionAdvanced('notifications', queryConfig);
     
-    const notifications = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      readAt: doc.data().readAt?.toDate() || null,
-      deliveredAt: doc.data().deliveredAt?.toDate() || null
-    })) as Notification[];
+    const notifications = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        readAt: data.readAt?.toDate() || null,
+        deliveredAt: data.deliveredAt?.toDate() || null
+      } as unknown as Notification;
+    });
 
     // Get the last document for pagination
     const lastDoc = snapshot.docs[snapshot.docs.length - 1];
@@ -246,12 +245,9 @@ export async function markNotificationAsRead(
   console.log('NotificationService: Marking notification as read', { notificationId, userId });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const docRef = adminDb.collection('notifications').doc(notificationId);
-    const docSnap = await docRef.get();
+    const docSnap = await getCachedDocument('notifications', notificationId);
 
-    if (!docSnap.exists) {
+    if (!docSnap || !docSnap.exists) {
       throw new Error('Notification not found');
     }
 
@@ -260,7 +256,7 @@ export async function markNotificationAsRead(
       throw new Error('Unauthorized access to notification');
     }
 
-    await docRef.update({
+    await updateDocument('notifications', notificationId, {
       readAt: FieldValue.serverTimestamp(),
       status: NotificationStatus.READ
     });
@@ -281,15 +277,22 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
   console.log('NotificationService: Marking all notifications as read', { userId });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const snapshot = await adminDb
-      .collection('notifications')
-      .where('userId', '==', userId)
-      .where('readAt', '==', null)
-      .get();
+    // Use optimized collection query to get unread notifications
+    const queryConfig = {
+      where: [
+        { field: 'userId', operator: '==' as const, value: userId },
+        { field: 'readAt', operator: '==' as const, value: null }
+      ]
+    };
+    
+    const snapshot = await getCachedCollectionAdvanced('notifications', queryConfig);
 
-    const batch = adminDb.batch();
+    if (snapshot.docs.length === 0) {
+      return 0;
+    }
+
+    // Use optimized batch operations
+    const batch = createBatchWriter();
     snapshot.docs.forEach(doc => {
       batch.update(doc.ref, {
         readAt: FieldValue.serverTimestamp(),
@@ -297,7 +300,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
       });
     });
 
-    await batch.commit();
+    await executeBatch(batch);
     
     console.log(`NotificationService: Marked ${snapshot.docs.length} notifications as read`);
     return snapshot.docs.length;
@@ -322,12 +325,10 @@ export async function deleteNotification(
   console.log('NotificationService: Deleting notification', { notificationId, userId });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const docRef = adminDb.collection('notifications').doc(notificationId);
-    const docSnap = await docRef.get();
+    // Use optimized getCachedDocument to retrieve notification
+    const docSnap = await getCachedDocument('notifications', notificationId);
 
-    if (!docSnap.exists) {
+    if (!docSnap || !docSnap.exists) {
       throw new Error('Notification not found');
     }
 
@@ -336,7 +337,8 @@ export async function deleteNotification(
       throw new Error('Unauthorized access to notification');
     }
 
-    await docRef.delete();
+    // Use optimized deleteDocument function
+    await deleteDocument('notifications', notificationId);
 
   } catch (error) {
     console.error('NotificationService: Error deleting notification:', error);
@@ -356,20 +358,12 @@ export async function getNotificationStats(
   console.log('NotificationService: Getting notification stats', { userId });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
+    // Use optimized collection query with built-in timeout handling
+    const queryConfig = {
+      where: [{ field: 'userId', operator: '==' as const, value: userId }]
+    };
     
-    // Add timeout and better error handling for network issues
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Firestore connection timeout')), 10000)
-    );
-    
-    const firestoreQuery = adminDb
-      .collection('notifications')
-      .where('userId', '==', userId)
-      .get();
-
-    const snapshot = await Promise.race([firestoreQuery, timeout]) as any;
+    const snapshot = await getCachedCollectionAdvanced('notifications', queryConfig);
     
     const notifications = snapshot.docs.map(doc => ({
       ...doc.data(),
@@ -452,11 +446,10 @@ export async function getUserNotificationPreferences(
   userId: string
 ): Promise<DetailedNotificationPreferences | null> {
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const docSnap = await adminDb.collection('notificationPreferences').doc(userId).get();
+    // Use optimized getCachedDocument
+    const docSnap = await getCachedDocument('notificationPreferences', userId);
 
-    if (!docSnap.exists) {
+    if (!docSnap || !docSnap.exists) {
       return null;
     }
 
@@ -484,14 +477,11 @@ export async function updateUserNotificationPreferences(
   preferences: Partial<DetailedNotificationPreferences>
 ): Promise<void> {
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const docRef = adminDb.collection('notificationPreferences').doc(userId);
-    
-    await docRef.set({
+    // Use optimized updateDocument for updating preferences
+    await updateDocument('notificationPreferences', userId, {
       ...preferences,
       updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    });
 
   } catch (error) {
     console.error('NotificationService: Error updating user preferences:', error);
@@ -549,10 +539,6 @@ async function processNotificationDelivery(notification: Notification): Promise<
   console.log('NotificationService: Processing notification delivery', { id: notification.id });
 
   try {
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const batch = adminDb.batch();
-    const notificationRef = adminDb.collection('notifications').doc(notification.id);
 
     // Process each channel
     for (const delivery of notification.deliveries) {
@@ -610,14 +596,13 @@ async function processNotificationDelivery(notification: Notification): Promise<
       notification.status = NotificationStatus.PENDING;
     }
 
-    // Update in Firestore
-    batch.update(notificationRef, {
+    // Update in Firestore using optimized updateDocument
+    await updateDocument('notifications', notification.id, {
       status: notification.status,
       deliveries: notification.deliveries,
       updatedAt: FieldValue.serverTimestamp()
     });
 
-    await batch.commit();
     console.log('NotificationService: Updated notification delivery status', { id: notification.id, status: notification.status });
 
   } catch (error) {

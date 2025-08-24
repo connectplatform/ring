@@ -2,6 +2,7 @@
 
 import { sendToTelegramBot } from '@/lib/telegram'
 import { redirect } from 'next/navigation'
+import { getServerAuthSession } from '@/auth'
 
 export interface ContactFormState {
   success?: boolean
@@ -13,6 +14,9 @@ export async function submitContactForm(
   prevState: ContactFormState | null,
   formData: FormData
 ): Promise<ContactFormState> {
+  // Optional: Get session to track logged-in users
+  const session = await getServerAuthSession()
+  
   const entityId = formData.get('entityId') as string
   const entityName = formData.get('entityName') as string
   const name = formData.get('name') as string
@@ -33,12 +37,14 @@ export async function submitContactForm(
   }
 
   try {
+    // Include user info if logged in
     await sendToTelegramBot({
       entityId,
       entityName,
-      name,
-      email,
-      message
+      name: session?.user?.name || name,
+      email: session?.user?.email || email,
+      message,
+      userId: session?.user?.id // Track if from logged-in user
     })
 
     return {

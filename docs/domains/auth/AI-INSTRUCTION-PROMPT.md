@@ -7,6 +7,304 @@
 
 ## 🎯 **Core Authentication Functions**
 
+### **Account Deletion System (GDPR/CCPA Compliant)**
+
+```typescript
+// Account deletion server actions - app/_actions/auth.ts
+export async function requestAccountDeletion(
+  prevState: AccountDeletionState | null,
+  formData: FormData
+): Promise<AccountDeletionState> {
+  const session = await getServerAuthSession()
+  
+  if (!session?.user?.id) {
+    return { error: 'You must be logged in to delete your account' }
+  }
+  
+  const password = formData.get('password') as string
+  const reason = formData.get('reason') as string
+  
+  // Password verification for security
+  if (!password) {
+    return { fieldErrors: { password: 'Password is required for account deletion' } }
+  }
+  
+  try {
+    // Use direct service call for account deletion request
+    const { requestAccountDeletion: requestDeletionService } = await import('@/features/auth/services')
+    
+    const result = await requestDeletionService({
+      userId: session.user.id,
+      password,
+      reason: reason || 'User requested account deletion',
+      userEmail: session.user.email || '',
+      userName: session.user.name || ''
+    })
+    
+    if (result.success) {
+      return {
+        success: true,
+        message: 'Account deletion requested. You have 30 days to cancel.',
+        deletionDate: result.data?.deletionDate,
+        canCancel: true
+      }
+    } else {
+      return { error: result.error || 'Failed to request account deletion' }
+    }
+  } catch (error) {
+    logger.error('Account deletion request failed:', {
+      userId: session.user.id,
+      error: error instanceof Error ? error.message : error
+    })
+    
+    return { error: 'An unexpected error occurred. Please try again.' }
+  }
+}
+
+export async function cancelAccountDeletion(
+  prevState: AccountDeletionState | null,
+  formData: FormData
+): Promise<AccountDeletionState> {
+  const session = await getServerAuthSession()
+  
+  if (!session?.user?.id) {
+    return { error: 'You must be logged in to cancel account deletion' }
+  }
+  
+  try {
+    // Use direct service call for cancelling account deletion
+    const { cancelAccountDeletion: cancelDeletionService } = await import('@/features/auth/services')
+    
+    const result = await cancelDeletionService({
+      userId: session.user.id,
+      userEmail: session.user.email || ''
+    })
+    
+    if (result.success) {
+      return {
+        success: true,
+        message: 'Account deletion cancelled. Your account is now active.',
+        canCancel: false
+      }
+    } else {
+      return { error: result.error || 'Failed to cancel account deletion' }
+    }
+  } catch (error) {
+    logger.error('Account deletion cancellation failed:', {
+      userId: session.user.id,
+      error: error instanceof Error ? error.message : error
+    })
+    
+    return { error: 'An unexpected error occurred. Please try again.' }
+  }
+}
+
+export async function confirmAccountDeletion(
+  prevState: AccountDeletionState | null,
+  formData: FormData
+): Promise<AccountDeletionState> {
+  const session = await getServerAuthSession()
+  
+  if (!session?.user?.id) {
+    return { error: 'You must be logged in to confirm account deletion' }
+  }
+  
+  try {
+    // Use direct service call for final account deletion
+    const { confirmAccountDeletion: confirmDeletionService } = await import('@/features/auth/services')
+    
+    const result = await confirmDeletionService({
+      userId: session.user.id,
+      userEmail: session.user.email || '',
+      userName: session.user.name || ''
+    })
+    
+    if (result.success) {
+      return {
+        success: true,
+        message: 'Account permanently deleted. Thank you for using our platform.',
+        canCancel: false
+      }
+    } else {
+      return { error: result.error || 'Failed to confirm account deletion' }
+    }
+  } catch (error) {
+    logger.error('Account deletion confirmation failed:', {
+      userId: session.user.id,
+      error: error instanceof Error ? error.message : error
+    })
+    
+    return { error: 'An unexpected error occurred. Please try again.' }
+  }
+}
+
+export async function getAccountDeletionStatus(
+  prevState: AccountDeletionState | null,
+  formData: FormData
+): Promise<AccountDeletionState> {
+  const session = await getServerAuthSession()
+  
+  if (!session?.user?.id) {
+    return { error: 'You must be logged in to check deletion status' }
+  }
+  
+  try {
+    // Use direct service call to get deletion status
+    const { getAccountDeletionStatus: getDeletionStatusService } = await import('@/features/auth/services')
+    
+    const result = await getDeletionStatusService({
+      userId: session.user.id
+    })
+    
+    if (result.success && result.data) {
+      return {
+        success: true,
+        deletionDate: result.data.deletionDate,
+        canCancel: result.data.canCancel,
+        message: result.data.message
+      }
+    } else {
+      return { 
+        success: true,
+        message: 'No pending account deletion found',
+        canCancel: false
+      }
+    }
+  } catch (error) {
+    logger.error('Account deletion status check failed:', {
+      userId: session.user.id,
+      error: error instanceof Error ? error.message : error
+    })
+    
+    return { error: 'An unexpected error occurred. Please try again.' }
+  }
+}
+```
+
+### **Account Deletion Service Implementation**
+
+```typescript
+// features/auth/services/account-deletion.ts
+export async function requestAccountDeletion(
+  request: AccountDeletionRequest
+): Promise<ServiceResult> {
+  const { userId, password, reason, userEmail, userName } = request
+  
+  try {
+    // Verify password for security
+    const userDoc = await getCachedDocument('users', userId)
+    if (!userDoc) {
+      return { success: false, error: 'User not found' }
+    }
+    
+    // Password verification logic here
+    // ... password verification implementation
+    
+    // Create deletion request with 30-day grace period
+    const deletionDate = new Date()
+    deletionDate.setDate(deletionDate.getDate() + 30)
+    
+    const deletionRecord = {
+      userId,
+      userEmail,
+      userName,
+      reason,
+      requestedAt: new Date().toISOString(),
+      deletionDate: deletionDate.toISOString(),
+      status: 'pending',
+      canCancel: true
+    }
+    
+    await createDocument('account_deletions', userId, deletionRecord)
+    
+    // Update user status
+    await updateDocument('users', userId, {
+      accountDeletionRequested: true,
+      accountDeletionDate: deletionDate.toISOString()
+    })
+    
+    // Log audit trail
+    await createDocument('audit_logs', crypto.randomUUID(), {
+      action: 'account_deletion_requested',
+      userId,
+      userEmail,
+      timestamp: new Date().toISOString(),
+      details: { reason }
+    })
+    
+    return {
+      success: true,
+      data: {
+        deletionDate: deletionDate.toISOString(),
+        canCancel: true
+      }
+    }
+  } catch (error) {
+    logger.error('Account deletion request failed:', error)
+    return { success: false, error: 'Failed to request account deletion' }
+  }
+}
+
+export async function cancelAccountDeletion(
+  request: AccountDeletionCancel
+): Promise<ServiceResult> {
+  const { userId, userEmail } = request
+  
+  try {
+    // Remove deletion request
+    await deleteDocument('account_deletions', userId)
+    
+    // Restore user status
+    await updateDocument('users', userId, {
+      accountDeletionRequested: false,
+      accountDeletionDate: null
+    })
+    
+    // Log audit trail
+    await createDocument('audit_logs', crypto.randomUUID(), {
+      action: 'account_deletion_cancelled',
+      userId,
+      userEmail,
+      timestamp: new Date().toISOString()
+    })
+    
+    return { success: true }
+  } catch (error) {
+    logger.error('Account deletion cancellation failed:', error)
+    return { success: false, error: 'Failed to cancel account deletion' }
+  }
+}
+
+export async function confirmAccountDeletion(
+  request: AccountDeletionConfirm
+): Promise<ServiceResult> {
+  const { userId, userEmail, userName } = request
+  
+  try {
+    // Permanently delete user data
+    await deleteDocument('users', userId)
+    await deleteDocument('account_deletions', userId)
+    
+    // Delete related data (entities, opportunities, etc.)
+    // ... comprehensive data deletion
+    
+    // Log final audit trail
+    await createDocument('audit_logs', crypto.randomUUID(), {
+      action: 'account_deletion_completed',
+      userId,
+      userEmail,
+      userName,
+      timestamp: new Date().toISOString()
+    })
+    
+    return { success: true }
+  } catch (error) {
+    logger.error('Account deletion confirmation failed:', error)
+    return { success: false, error: 'Failed to confirm account deletion' }
+  }
+}
+```
+
 ### **NextAuth.js v5 Configuration**
 
 ```typescript
@@ -1019,6 +1317,11 @@ export default function Dashboard() {
 11. **Use enhanced useAuth hook** for type-safe authentication with status page integration
 12. **Implement KYC status management** through getKycStatus() helper method
 13. **Use navigateToAuthStatus()** for seamless auth flow navigation to unified status pages
+14. **Implement GDPR/CCPA compliant account deletion** with 30-day grace period and audit trails
+15. **Use password verification** for critical account operations (deletion, role changes)
+16. **Maintain complete audit logs** for all user data operations and access
+17. **Follow progressive deletion flow** - Request → Grace Period → Final Deletion
+18. **Use direct service calls** for server actions instead of HTTP requests to own API routes
 
 ## 🔄 **Unified Status Page Integration**
 

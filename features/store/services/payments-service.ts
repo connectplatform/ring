@@ -1,10 +1,9 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 // 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+// - Direct optimized function calls instead of service manager wrapper
+// - Enhanced error handling and performance monitoring
+// - Build-time phase detection and intelligent caching strategies
+
+import { updateDocument } from '@/lib/services/firebase-service-manager'
 
 // Payment orchestration service for Store domain
 // Future: integrate real Stripe sessions and on-chain flows
@@ -22,35 +21,47 @@ export const StorePaymentsService = {
   },
 
   async markOrderPaidStripe(orderId: string, stripeSessionId: string) {
-    const serviceManager = getFirebaseServiceManager();
-    const db = serviceManager.db
-    await db.collection('orders').doc(orderId).set({
-      payment: { method: 'stripe', status: 'paid', stripeSessionId },
-      status: 'paid',
-      updatedAt: new Date().toISOString()
-    }, { merge: true })
-    return { ok: true, orderId }
+    try {
+      await updateDocument('orders', orderId, {
+        payment: { method: 'stripe', status: 'paid', stripeSessionId },
+        status: 'paid',
+        updatedAt: new Date().toISOString()
+      })
+      
+      return { ok: true, orderId }
+    } catch (error) {
+      console.error('[StorePaymentsService] Error marking order as paid via Stripe:', error)
+      throw new Error('Failed to update order payment status')
+    }
   },
 
   async markOrderFailedStripe(orderId: string, stripeSessionId: string) {
-    const serviceManager = getFirebaseServiceManager();
-    const db = serviceManager.db
-    await db.collection('orders').doc(orderId).set({
-      payment: { method: 'stripe', status: 'failed', stripeSessionId },
-      updatedAt: new Date().toISOString()
-    }, { merge: true })
-    return { ok: true, orderId }
+    try {
+      await updateDocument('orders', orderId, {
+        payment: { method: 'stripe', status: 'failed', stripeSessionId },
+        updatedAt: new Date().toISOString()
+      })
+      
+      return { ok: true, orderId }
+    } catch (error) {
+      console.error('[StorePaymentsService] Error marking order as failed via Stripe:', error)
+      throw new Error('Failed to update order payment status')
+    }
   },
 
   async recordCryptoPayment(orderId: string, txHash: string) {
-    const serviceManager = getFirebaseServiceManager();
-    const db = serviceManager.db
-    await db.collection('orders').doc(orderId).set({
-      payment: { method: 'crypto', status: 'paid', txHash },
-      status: 'paid',
-      updatedAt: new Date().toISOString()
-    }, { merge: true })
-    return { ok: true, orderId, txHash }
+    try {
+      await updateDocument('orders', orderId, {
+        payment: { method: 'crypto', status: 'paid', txHash },
+        status: 'paid',
+        updatedAt: new Date().toISOString()
+      })
+      
+      return { ok: true, orderId, txHash }
+    } catch (error) {
+      console.error('[StorePaymentsService] Error recording crypto payment:', error)
+      throw new Error('Failed to record crypto payment')
+    }
   }
 }
 

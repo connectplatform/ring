@@ -7,19 +7,10 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, generateHreflangAlternates, type Locale, defaultLocale } from '@/i18n-config'
-import { generatePageMetadata } from '@/utils/seo-metadata'
-import type { Metadata } from 'next'
-
 export const dynamic = 'force-dynamic'
 
 // Define the type for the settings route params
 type SettingsParams = {};
-
-export async function generateMetadata({ params }: LocalePageProps<SettingsParams>): Promise<Metadata> {
-  const { locale } = await params
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale
-  return generatePageMetadata(validLocale, 'profile.settings')
-}
 
 /**
  * SettingsPage component
@@ -48,12 +39,11 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('SettingsPage: Using locale', locale);
 
-  // React 19 metadata preparation
-  const translations = loadTranslations(locale);
-  const title = (translations as any).metadata?.settings || 'User Settings | Ring';
-  const description = (translations as any).metaDescription?.settings || 'Manage your Ring account settings, preferences, and privacy options.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/settings`;
-  const alternates = generateHreflangAlternates('/settings');
+  // Basic metadata for authenticated page (no SEO needed)
+  const translations = await loadTranslations(locale);
+  const title = `${(translations as any).settings?.title || 'Settings'} | Ring Platform`;
+  const description = (translations as any).settings?.description || 'Manage your Ring account settings, preferences, and privacy options.';
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/settings`;
 
   let initialSettings: UserSettings | null = null
   let error: string | null = null
@@ -92,32 +82,15 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
 
   return (
     <>
-      {/* React 19 Native Document Metadata */}
+      {/* React 19 Native Document Metadata - Authenticated Page */}
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
       
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      
-      {/* Security meta tags for user settings */}
+      {/* Authenticated page security meta tags */}
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
-      
-      {/* Hreflang alternates */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
 
       <SettingsWrapper 
         initialSettings={initialSettings}

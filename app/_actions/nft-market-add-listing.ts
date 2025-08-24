@@ -1,6 +1,8 @@
 "use server"
 
 import { getServerAuthSession } from '@/auth'
+// Removed apiClient import - using direct service calls instead
+// import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 export interface AddListingDraftState {
   error?: string
@@ -27,11 +29,20 @@ export async function addListingDraft(
       },
       price: { amount: String(formData.get('amount') || ''), currency: String(formData.get('currency') || 'NATIVE') }
     }
-    const res = await fetch('/api/nft-market/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    const json = await res.json()
-    if (!res.ok) return { error: json?.error || 'Failed to create draft' }
-    return { success: true, id: json.id }
+    
+    // ✅ Use direct service call instead of HTTP request
+    const { createListingDraft } = await import('@/features/nft-market/services/listing-service')
+    const result = await createListingDraft(payload)
+    
+    if (result.success && result.id) {
+      return { success: true, id: result.id }
+    } else {
+      return { error: result.error || 'Failed to create draft' }
+    }
   } catch (e: any) {
+    console.error('NFT listing creation service call failed:', {
+      error: e instanceof Error ? e.message : e
+    })
     return { error: e?.message || 'Failed to create draft' }
   }
 }

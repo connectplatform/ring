@@ -4,14 +4,10 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin.server';
+import { getAdminAuth } from '@/lib/firebase-admin.server';
+import { getCachedDocument, createDocument } from '@/lib/services/firebase-service-manager';
 import { AuthUser, UserRole, UserSettings, Wallet } from '@/features/auth/types';
 import { ZodError } from 'zod';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
 import { signUpSchema } from '@/lib/zod'; // Assume we have a signup schema defined
 import { randomBytes, createHash } from 'crypto';
@@ -71,11 +67,7 @@ export async function createNewUserWithEmail(email: string, password: string, na
 
     console.log(`Services: createNewUserWithEmail - Default wallet created with address: ${defaultWallet.address}`);
 
-    // Step 4: Create or update the user profile in the database
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const usersCollection = adminDb.collection('users');
-
+    // Step 4: Create the user profile in the database using optimized createDocument
     const userSettings: UserSettings = {
       language: 'en',
       theme: 'light',
@@ -112,7 +104,7 @@ export async function createNewUserWithEmail(email: string, password: string, na
       },
     };
 
-    await usersCollection.doc(newUser.id).set(newUser);
+    await createDocument('users', newUser, newUser.id);
 
     console.log(`Services: createNewUserWithEmail - User profile created in database for ID: ${userId}`);
 

@@ -147,16 +147,30 @@ export function useConversation(conversationId: string) {
         setLoading(true)
         setError(null)
 
-        const response = await fetch(`${API_BASE}/conversations/${conversationId}`)
-        const data = await response.json()
+        // Use API client with messaging domain configuration (10s timeout, 2 retries)
+        const response: ApiResponse<{ data: Conversation }> = await apiClient.get(`${API_BASE}/conversations/${conversationId}`, {
+          timeout: 10000, // 10 second timeout for conversation fetching
+          retries: 2 // Retry twice for messaging operations
+        })
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch conversation')
+        if (response.success && response.data) {
+          setConversation(response.data.data)
+        } else {
+          throw new Error(response.error || 'Failed to fetch conversation')
         }
-
-        setConversation(data.data)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        if (err instanceof ApiClientError) {
+          setError(err.message)
+          console.error('Conversation fetch failed:', {
+            endpoint: `/conversations/${conversationId}`,
+            statusCode: err.statusCode,
+            conversationId,
+            context: err.context
+          })
+        } else {
+          setError(err instanceof Error ? err.message : 'An error occurred')
+          console.error('Unexpected error fetching conversation:', err)
+        }
       } finally {
         setLoading(false)
       }
@@ -169,18 +183,29 @@ export function useConversation(conversationId: string) {
     if (!conversationId) return
 
     try {
-      const response = await fetch(`${API_BASE}/conversations/${conversationId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'mark_read' })
-      })
+      // Use API client with messaging domain configuration (10s timeout, 2 retries)
+      const response: ApiResponse = await apiClient.put(`${API_BASE}/conversations/${conversationId}`, 
+        { action: 'mark_read' }, 
+        {
+          timeout: 8000, // 8 second timeout for quick actions
+          retries: 1 // Retry once for mark read operations
+        }
+      )
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to mark as read')
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to mark as read')
       }
     } catch (err) {
-      console.error('Error marking conversation as read:', err)
+      if (err instanceof ApiClientError) {
+        console.error('Mark conversation as read failed:', {
+          endpoint: `/conversations/${conversationId}`,
+          statusCode: err.statusCode,
+          conversationId,
+          context: err.context
+        })
+      } else {
+        console.error('Unexpected error marking conversation as read:', err)
+      }
     }
   }, [conversationId])
 

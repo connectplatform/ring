@@ -1,3 +1,8 @@
+'use server'
+
+// Server action for handling likes
+// This file must be marked with 'use server' to prevent bundling server code with client
+
 export interface LikeActionState {
   error?: string
   success?: boolean
@@ -28,72 +33,29 @@ export async function toggleLike(
   }
 
   try {
-    let response: Response
+    // ✅ Use direct service call instead of HTTP request
+    const { toggleLike } = await import('@/features/interactions/services/like-service')
+    const result = await toggleLike(targetId, targetType)
 
-    // Route to appropriate API endpoint based on target type
-    switch (targetType) {
-      case 'news':
-        response = await fetch(`/api/news/${targetId}/like`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        break
-      
-      case 'entity':
-        // TODO: Implement entity like endpoint
-        response = await fetch(`/api/entities/${targetId}/like`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        break
-      
-      case 'opportunity':
-        // TODO: Implement opportunity like endpoint  
-        response = await fetch(`/api/opportunities/${targetId}/like`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        break
-      
-      case 'comment':
-        // TODO: Implement comment like endpoint
-        response = await fetch(`/api/comments/${targetId}/like`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        break
-      
-      default:
-        return {
-          error: 'Unsupported target type'
-        }
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json()
+    if (result.success) {
       return {
-        error: errorData.error || 'Failed to update like'
+        success: true,
+        message: result.message,
+        newCount: result.likeCount,
+        isLiked: result.liked
+      }
+    } else {
+      return {
+        error: result.error || 'Failed to update like'
       }
     }
-
-    const data = await response.json()
     
-    return {
-      success: true,
-      message: data.message,
-      newCount: data.likeCount,
-      isLiked: data.liked
-    }
   } catch (error) {
-    console.error('Error toggling like:', error)
+    console.error('Like toggle service call failed:', {
+      targetType,
+      targetId,
+      error: error instanceof Error ? error.message : error
+    })
     return {
       error: 'Failed to update like. Please try again.'
     }

@@ -72,6 +72,7 @@ Ring Platform implements a tiered access model for professional networking:
 - **Subscription Management**: Centralized TunnelProvider context with deduplication
 - **API Client**: RingApiClient with standardized timeout, retry, and error handling
 - **Security**: Enterprise-grade security with rate limiting, CORS protection, and input validation
+- **Account Deletion**: GDPR/CCPA compliant account deletion with 30-day grace period and audit trails
 
 ### **Platform Statistics**
 

@@ -4,16 +4,11 @@
  */
 
 import React from 'react';
-import { Metadata } from 'next';
 import { NotificationList } from '@/features/notifications/components/notification-list';
 import { Button } from '@/components/ui/button';
 import { Settings, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-
-export const metadata: Metadata = {
-  title: 'Notifications | Ring Platform',
-  description: 'View and manage your notifications on the Ring platform',
-};
+import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 
 interface NotificationsPageProps {
   params: Promise<{
@@ -23,9 +18,27 @@ interface NotificationsPageProps {
 
 export default async function NotificationsPage({ params }: NotificationsPageProps) {
   const { locale } = await params;
+  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
+  const translations = await loadTranslations(validLocale);
+  
+  // Basic metadata for authenticated page (no SEO needed)
+  const title = `${(translations as any).notifications?.title || 'Notifications'} | Ring Platform`;
+  const description = (translations as any).notifications?.description || 'View and manage your notifications on the Ring platform';
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${validLocale}/notifications`;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <>
+      {/* React 19 Native Document Metadata - Authenticated Page */}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <link rel="canonical" href={canonicalUrl} />
+      
+      {/* Authenticated page security meta tags */}
+      <meta name="robots" content="noindex, nofollow" />
+      <meta name="googlebot" content="noindex, nofollow" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -59,5 +72,6 @@ export default async function NotificationsPage({ params }: NotificationsPagePro
         <NotificationList />
       </div>
     </div>
+    </>
   );
 } 

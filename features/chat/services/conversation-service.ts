@@ -4,12 +4,13 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminDb, getAdminRtdb } from '@/lib/firebase-admin.server'
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getAdminRtdb } from '@/lib/firebase-admin.server'
+import { 
+  getCachedDocument, 
+  getCachedCollectionAdvanced, 
+  createDocument, 
+  updateDocument 
+} from '@/lib/services/firebase-service-manager';
 
 import { 
   Conversation, 
@@ -22,14 +23,12 @@ import {
 import { Timestamp } from 'firebase-admin/firestore'
 
 export class ConversationService {
-  private db = getAdminDb()
   private rtdb = getAdminRtdb()
 
   async createConversation(data: CreateConversationRequest): Promise<Conversation> {
     const now = Timestamp.now()
     
-    // Create conversation document
-    const conversationRef = this.db.collection('conversations').doc()
+    // Create conversation document (we'll get the generated ID after creation)
     
     // Set up participants with proper roles
     const participants: ConversationParticipant[] = data.participantIds.map((userId, index) => ({
@@ -40,8 +39,7 @@ export class ConversationService {
       isOnline: false
     }))
 
-    const conversation: Conversation = {
-      id: conversationRef.id,
+    const conversationData = {
       type: data.type,
       participants,
       lastActivity: now,
@@ -51,7 +49,13 @@ export class ConversationService {
       updatedAt: now
     }
 
-    await conversationRef.set(conversation)
+    // Create conversation using optimized function
+    const conversationRef = await createDocument('conversations', conversationData)
+    
+    const conversation: Conversation = {
+      ...conversationData,
+      id: conversationRef.id
+    }
 
     // Initialize real-time presence data for each participant
     for (const participant of participants) {
@@ -78,30 +82,32 @@ export class ConversationService {
     filters?: ConversationFilters,
     pagination?: PaginationOptions
   ): Promise<Conversation[]> {
-    let query = this.db.collection('conversations')
-      .where('participants', 'array-contains', { userId })
-      .orderBy('lastActivity', 'desc')
+    // Build query configuration for optimized collection query
+    const queryConfig: any = {
+      where: [{ field: 'participants', operator: 'array-contains' as const, value: { userId } }],
+      orderBy: [{ field: 'lastActivity', direction: 'desc' as const }]
+    }
 
     // Apply filters
     if (filters?.type) {
-      query = query.where('type', '==', filters.type)
+      queryConfig.where.push({ field: 'type', operator: '==' as const, value: filters.type })
     }
     if (filters?.isActive !== undefined) {
-      query = query.where('isActive', '==', filters.isActive)
+      queryConfig.where.push({ field: 'isActive', operator: '==' as const, value: filters.isActive })
     }
 
     // Apply pagination
     if (pagination?.limit) {
-      query = query.limit(pagination.limit)
+      queryConfig.limit = pagination.limit
     }
     if (pagination?.cursor) {
-      const cursorDoc = await this.db.collection('conversations').doc(pagination.cursor).get()
-      if (cursorDoc.exists) {
-        query = query.startAfter(cursorDoc)
+      const cursorDoc = await getCachedDocument('conversations', pagination.cursor)
+      if (cursorDoc && cursorDoc.exists) {
+        queryConfig.startAfter = cursorDoc
       }
     }
 
-    const snapshot = await query.get()
+    const snapshot = await getCachedCollectionAdvanced('conversations', queryConfig)
     const conversations: Conversation[] = []
 
     for (const doc of snapshot.docs) {
@@ -120,9 +126,9 @@ export class ConversationService {
   }
 
   async getConversationById(id: string, userId: string): Promise<Conversation | null> {
-    const doc = await this.db.collection('conversations').doc(id).get()
+    const doc = await getCachedDocument('conversations', id)
     
-    if (!doc.exists) {
+    if (!doc || !doc.exists) {
       return null
     }
 
@@ -138,12 +144,11 @@ export class ConversationService {
   }
 
   async addParticipant(conversationId: string, userId: string, role: 'admin' | 'member' | 'observer' = 'member'): Promise<void> {
-    const conversationRef = this.db.collection('conversations').doc(conversationId)
     const now = Timestamp.now()
 
     // Check if user is already a participant
-    const conversation = await conversationRef.get()
-    if (!conversation.exists) {
+    const conversation = await getCachedDocument('conversations', conversationId)
+    if (!conversation || !conversation.exists) {
       throw new Error('Conversation not found')
     }
 
@@ -163,7 +168,7 @@ export class ConversationService {
       isOnline: false
     }
 
-    await conversationRef.update({
+    await updateDocument('conversations', conversationId, {
       participants: [...data.participants, newParticipant],
       updatedAt: now
     })
@@ -183,11 +188,10 @@ export class ConversationService {
   }
 
   async removeParticipant(conversationId: string, userId: string): Promise<void> {
-    const conversationRef = this.db.collection('conversations').doc(conversationId)
     const now = Timestamp.now()
 
-    const conversation = await conversationRef.get()
-    if (!conversation.exists) {
+    const conversation = await getCachedDocument('conversations', conversationId)
+    if (!conversation || !conversation.exists) {
       throw new Error('Conversation not found')
     }
 
@@ -198,7 +202,7 @@ export class ConversationService {
       throw new Error('User is not a participant')
     }
 
-    await conversationRef.update({
+    await updateDocument('conversations', conversationId, {
       participants: updatedParticipants,
       updatedAt: now
     })
@@ -214,11 +218,10 @@ export class ConversationService {
   }
 
   async updateLastRead(conversationId: string, userId: string): Promise<void> {
-    const conversationRef = this.db.collection('conversations').doc(conversationId)
     const now = Timestamp.now()
 
-    const conversation = await conversationRef.get()
-    if (!conversation.exists) {
+    const conversation = await getCachedDocument('conversations', conversationId)
+    if (!conversation || !conversation.exists) {
       throw new Error('Conversation not found')
     }
 
@@ -227,7 +230,7 @@ export class ConversationService {
       p.userId === userId ? { ...p, lastReadAt: now } : p
     )
 
-    await conversationRef.update({
+    await updateDocument('conversations', conversationId, {
       participants: updatedParticipants,
       updatedAt: now
     })
@@ -235,8 +238,8 @@ export class ConversationService {
 
   private async getUnreadCount(conversationId: string, userId: string): Promise<number> {
     // Get user's last read timestamp
-    const conversationDoc = await this.db.collection('conversations').doc(conversationId).get()
-    if (!conversationDoc.exists) return 0
+    const conversationDoc = await getCachedDocument('conversations', conversationId)
+    if (!conversationDoc || !conversationDoc.exists) return 0
 
     const conversation = conversationDoc.data() as Conversation
     const participant = conversation.participants.find(p => p.userId === userId)
@@ -244,27 +247,27 @@ export class ConversationService {
 
     if (!lastReadAt) {
       // Count all messages if never read
-      const messagesSnapshot = await this.db
-        .collection('messages')
-        .where('conversationId', '==', conversationId)
-        .get()
+      const queryConfig = {
+        where: [{ field: 'conversationId', operator: '==' as const, value: conversationId }]
+      }
+      const messagesSnapshot = await getCachedCollectionAdvanced('messages', queryConfig)
       return messagesSnapshot.size
     }
 
     // Count messages after last read
-    const unreadSnapshot = await this.db
-      .collection('messages')
-      .where('conversationId', '==', conversationId)
-      .where('timestamp', '>', lastReadAt)
-      .where('senderId', '!=', userId) // Don't count own messages
-      .get()
+    const queryConfig = {
+      where: [
+        { field: 'conversationId', operator: '==' as const, value: conversationId },
+        { field: 'timestamp', operator: '>' as const, value: lastReadAt },
+        { field: 'senderId', operator: '!=' as const, value: userId } // Don't count own messages
+      ]
+    }
+    const unreadSnapshot = await getCachedCollectionAdvanced('messages', queryConfig)
 
     return unreadSnapshot.size
   }
 
   private async sendSystemMessage(conversationId: string, content: string): Promise<void> {
-    const messageRef = this.db.collection('messages').doc()
-    
     const message: Omit<Message, 'id'> = {
       conversationId,
       senderId: 'system',
@@ -275,10 +278,11 @@ export class ConversationService {
       timestamp: Timestamp.now()
     }
 
-    await messageRef.set(message)
+    // Create message using optimized function
+    await createDocument('messages', message)
 
     // Update conversation last activity
-    await this.db.collection('conversations').doc(conversationId).update({
+    await updateDocument('conversations', conversationId, {
       lastActivity: Timestamp.now(),
       updatedAt: Timestamp.now()
     })
