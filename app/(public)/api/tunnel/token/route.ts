@@ -14,32 +14,45 @@ export const runtime = 'edge';
  * POST handler to generate tunnel authentication token
  */
 export async function POST(request: NextRequest) {
-  // Verify the user is authenticated
+  // Try to verify authentication, but allow anonymous connections
   const authResult = await verifyAuth(request);
   
+  // For anonymous users, generate a temporary anonymous token
   if (!authResult) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { 
-        status: 401,
-        headers: {
-          'WWW-Authenticate': 'Bearer realm="tunnel"',
-        },
-      }
-    );
+    try {
+      // Generate anonymous user token with limited capabilities
+      const anonymousId = `anon-${Math.random().toString(36).substr(2, 9)}`;
+      const token = await createTunnelToken(anonymousId, undefined);
+      
+      return NextResponse.json({
+        token,
+        userId: anonymousId,
+        email: undefined,
+        anonymous: true,
+        expiresIn: 3600, // 1 hour for anonymous tokens
+      });
+    } catch (error) {
+      console.error('Failed to generate anonymous tunnel token:', error);
+      
+      return NextResponse.json(
+        { error: 'Failed to generate anonymous token' },
+        { status: 500 }
+      );
+    }
   }
 
   const { userId, email } = authResult;
 
   try {
-    // Generate a new tunnel token
+    // Generate a new tunnel token for authenticated user
     const token = await createTunnelToken(userId, email);
     
     return NextResponse.json({
       token,
       userId,
       email,
-      expiresIn: 86400, // 24 hours in seconds
+      anonymous: false,
+      expiresIn: 86400, // 24 hours in seconds for authenticated users
     });
   } catch (error) {
     console.error('Failed to generate tunnel token:', error);
