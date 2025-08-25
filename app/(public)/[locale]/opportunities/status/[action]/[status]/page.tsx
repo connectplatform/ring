@@ -1,4 +1,4 @@
-import React, { use } from 'react'
+import React from 'react'
 import type { Locale } from '@/i18n-config'
 import OpportunityStatusPage from '@/components/opportunities/OpportunityStatusPage'
 import { getSEOMetadata } from '@/lib/seo-metadata'
@@ -16,7 +16,7 @@ const VALID_ACTIONS = [
 
 // Valid status types per action
 const VALID_STATUSES = {
-  create: ['draft', 'pending_review', 'published', 'failed', 'rejected'],
+  create: ['draft', 'pending_review', 'published', 'success', 'failed', 'rejected'],
   apply: ['submitted', 'under_review', 'accepted', 'rejected', 'pending_documents'],
   submit: ['received', 'processing', 'approved', 'requires_changes', 'rejected'],
   approve: ['pending', 'approved', 'rejected', 'needs_revision'],
