@@ -4,15 +4,18 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { UserRole, Wallet, AuthUser } from '@/features/auth/types';
 import { ethers } from 'ethers';
 import { FieldValue } from 'firebase-admin/firestore';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  updateDocument
+} from '@/lib/services/firebase-service-manager';
 
 /**
  * Ensures that the authenticated user has at least one wallet.
@@ -32,7 +35,7 @@ export async function ensureWallet(): Promise<Wallet> {
 
   try {
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.error('Services: ensureWallet - Unauthorized access attempt');
       throw new Error('Unauthorized: Please log in to ensure wallet');
@@ -47,16 +50,17 @@ export async function ensureWallet(): Promise<Wallet> {
       throw new Error('Access denied: Visitors cannot have wallets');
     }
 
-    // Step 3: Retrieve user document from Firestore
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    // Step 3: Retrieve user document using optimized firebase-service-manager
     const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userDoc = adminDb.collection('users').doc(userId);
-    const userData = (await userDoc.get()).data() as AuthUser | undefined;
-
-    if (!userData) {
+    const userDocSnap = await getCachedDocument('users', userId);
+    
+    if (!userDocSnap || !userDocSnap.exists) {
       throw new Error('User document not found in Firestore');
+    }
+
+    const userData = userDocSnap.data() as AuthUser | undefined;
+    if (!userData) {
+      throw new Error('User document exists but has no data');
     }
 
     // Step 4: Check if user already has a wallet
@@ -94,8 +98,8 @@ export async function ensureWallet(): Promise<Wallet> {
       balance: '0' // Initialize balance to '0'
     };
 
-    // Step 8: Add the new wallet to the user's wallets array in Firestore
-    await userDoc.update({
+    // Step 8: Add the new wallet to the user's wallets array using optimized firebase-service-manager
+    await updateDocument('users', userId, {
       wallets: FieldValue.arrayUnion(newWallet)
     });
 
