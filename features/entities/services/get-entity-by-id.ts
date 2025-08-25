@@ -8,10 +8,13 @@ import { Entity, SerializedEntity, EntityType } from '@/features/entities/types'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
 
-import { getServerAuthSession } from '@/auth'; // Consistent session handling
+import { auth } from '@/auth'; // Consistent session handling
 import { entityConverter } from '@/lib/converters/entity-converter';
 import { UserRole } from '@/features/auth/types';
 
@@ -44,7 +47,7 @@ export async function getEntityById(id: string): Promise<Entity | null> {try {
 console.log('Services: getEntityById - Fetching entity with ID:', id);
 
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.error('Services: getEntityById - Unauthorized access attempt');
       throw new Error('Unauthorized access');
@@ -85,32 +88,35 @@ console.log('Services: getEntityById - Fetching entity with ID:', id);
       }
     }
 
-    // Step 2: Access Firestore and get the entity document
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db; // Using getAdminDb directly without await
-    const docRef = adminDb.collection('entities').doc(id).withConverter(entityConverter);
-    const docSnap = await docRef.get();
+    // Step 2: Access Firestore using optimized firebase-service-manager
+    const docSnap = await getCachedDocument('entities', id);
 
     // Step 3: Check if the entity exists
-    if (!docSnap.exists) {
+    if (!docSnap || !docSnap.exists) {
       console.warn('Services: getEntityById - No entity found with ID:', id);
       return null;
     }
 
     // Step 4: Get the entity data and check permissions
-    const entity = docSnap.data();
-    if (entity) {
-      if (entity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
-        console.error('Services: getEntityById - Access denied for confidential entity');
-        throw new Error('Access denied. You do not have permission to view this confidential entity.');
-      }
-
-      console.log('Services: getEntityById - Entity retrieved successfully');
-      return entity;
+    const entityData = docSnap.data();
+    if (!entityData) {
+      console.warn('Services: getEntityById - Entity data is null');
+      return null;
     }
 
-    console.warn('Services: getEntityById - Entity data is null');
-    return null;
+    const entity: Entity = {
+      ...entityData,
+      id: docSnap.id,
+    } as Entity;
+
+    // Check confidential access permissions
+    if (entity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
+      console.error('Services: getEntityById - Access denied for confidential entity');
+      throw new Error('Access denied. You do not have permission to view this confidential entity.');
+    }
+
+    console.log('Services: getEntityById - Entity retrieved successfully');
+    return entity;
   } catch (error) {
     console.error('Services: getEntityById - Error fetching entity:', error);
     throw error instanceof Error ? error : new Error('Unknown error occurred while fetching entity');
