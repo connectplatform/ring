@@ -14,6 +14,7 @@
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
+import { SerializedOpportunity } from '@/features/opportunities/types'
 
 interface OpportunityWidgetProps {
   theme?: 'light' | 'dark'
@@ -21,22 +22,6 @@ interface OpportunityWidgetProps {
   maxItems?: number
   showAmounts?: boolean
   apiKey?: string
-}
-
-interface Opportunity {
-  id: string
-  title: string
-  description: string
-  category: string
-  type?: 'offer' | 'request'
-  amount?: number
-  currency?: string
-  deadline?: string
-  entityName?: string
-  entityLogo?: string
-  creatorName?: string
-  creatorNickname?: string
-  isPrivate?: boolean
 }
 
 // React 19 Opportunity Widget Component
@@ -47,7 +32,7 @@ function OpportunityWidgetComponent({
   showAmounts = true,
   apiKey 
 }: OpportunityWidgetProps) {
-  const [opportunities, setOpportunities] = React.useState<Opportunity[]>([])
+  const [opportunities, setOpportunities] = React.useState<SerializedOpportunity[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -147,23 +132,26 @@ function OpportunityWidgetComponent({
                 opportunity.isPrivate && opportunity.type === 'request' 
                   ? React.createElement('span', null, 
                       '👤 ', 
-                      opportunity.creatorNickname || opportunity.creatorName || 'Private User'
+                      'Private User'
                     )
-                  : (opportunity.entityName || 'Unknown Entity')
+                  : React.createElement('span', null, 
+                      '🏢 ', 
+                      opportunity.contactInfo?.linkedEntity || 'Unknown Entity'
+                    )
               )
             ),
             opportunity.category && React.createElement('span', { 
               className: `ml-2 px-2 py-1 text-xs rounded-full ${theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}` 
             }, opportunity.category)
           ),
-          React.createElement('p', { className: 'text-xs opacity-90 mb-2 line-clamp-2' }, opportunity.description),
+          React.createElement('p', { className: 'text-xs opacity-90 mb-2 line-clamp-2' }, opportunity.briefDescription),
           React.createElement('div', { className: 'flex items-center justify-between text-xs' },
-            showAmounts && opportunity.amount && React.createElement('span', { 
+            showAmounts && opportunity.budget?.max && React.createElement('span', { 
               className: 'font-medium text-green-600' 
-            }, formatAmount(opportunity.amount, opportunity.currency)),
-            opportunity.deadline && React.createElement('span', { 
+            }, formatAmount(opportunity.budget.max, opportunity.budget.currency || 'USD')),
+            opportunity.applicationDeadline && React.createElement('span', { 
               className: 'opacity-75' 
-            }, formatDeadline(opportunity.deadline))
+            }, formatDeadline(opportunity.applicationDeadline))
           )
         )
       )
@@ -175,7 +163,7 @@ function OpportunityWidgetComponent({
     ),
     React.createElement('div', { className: 'mt-3 pt-3 border-t border-gray-200' },
       React.createElement('a', {
-        href: 'https://ring.ck.ua/opportunities',
+        href: `${process.env.NEXT_PUBLIC_API_URL}/opportunities`,
         target: '_blank',
         rel: 'noopener noreferrer',
         className: 'text-xs text-blue-600 hover:text-blue-800 transition-colors'
