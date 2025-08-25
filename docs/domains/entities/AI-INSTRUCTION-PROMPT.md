@@ -5,6 +5,17 @@
 
 ---
 
+## 🔄 Updates (2025-08-25)
+
+- Advanced filtering implemented in UI and services: 26 industry types, employee count, location, founded year, verification status, membership tier, certifications, partnerships
+- New visual systems: entity type iconography (26 types) and verification badge system (6 levels)
+- Enhanced `EntityCard` with quick actions, badges, and type-based visual accents
+- `getEntities(limit, startAfter, filters?)` now accepts `EntityFilters` and returns `{ entities: SerializedEntity[]; lastVisible; totalCount? }`
+- New AI-powered `searchEntities(params)` service with fuzzy matching, relevance scoring, industry compatibility, and structured results `{ results: SerializedEntitySearchResult[]; totalResults; searchTime; suggestions? }`
+- All client-facing responses use `SerializedEntity` to ensure React 19/Next 15 compatibility
+
+---
+
 ## 🎯 **Core Entity Functions**
 
 ### **Entity Type System (26+ Industries)**
@@ -98,163 +109,55 @@ export interface Entity {
 }
 ```
 
-### **Entity CRUD Operations**
+### **Service Signatures (Updated)**
 
 ```typescript
-// Create entity with role-based validation
-export async function createEntity(data: NewEntityData): Promise<Entity> {
-  // Step 1: Authentication and authorization
-  const session = await auth()
-  if (!session?.user) {
-    throw new EntityAuthError('User authentication required to create entity')
-  }
-  
-  const userId = session.user.id
-  const userRole = session.user.role as UserRole
-  
-  // Step 2: Role-based permission checking
-  if (data.isConfidential) {
-    // Only CONFIDENTIAL and ADMIN users can create confidential entities
-    const hasConfidentialAccess = userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN
-    if (!hasConfidentialAccess) {
-      throw new EntityPermissionError('Only ADMIN or CONFIDENTIAL users can create confidential entities')
-    }
-  } else {
-    // Regular entities require MEMBER+ role
-    const hasEntityAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole)
-    if (!hasEntityAccess) {
-      throw new EntityPermissionError('Only ADMIN, MEMBER, or CONFIDENTIAL users can create entities')
-    }
-  }
-  
-  // Step 3: Data validation with ES2022 enhancements
-  if (!validateEntityData(data)) {
-    throw new EntityQueryError('Invalid entity data provided')
-  }
-  
-  // Step 4: Prepare entity document
-  const adminDb = await getAdminDb()
-  const entityData: Omit<Entity, 'id'> = {
-    ...data,
-    addedBy: userId,
-    members: [userId], // Creator is automatically a member
-    opportunities: [],
-    dateAdded: admin.firestore.FieldValue.serverTimestamp() as Timestamp,
-    lastUpdated: admin.firestore.FieldValue.serverTimestamp() as Timestamp,
-    visibility: data.isConfidential ? 'confidential' : data.visibility || 'public'
-  }
-  
-  // Step 5: Create entity in Firestore with converter
-  const entityRef = adminDb.collection('entities').withConverter(entityConverter)
-  const docRef = await entityRef.add(entityData)
-  
-  // Step 6: Update user's created entities list
-  await adminDb.collection('users').doc(userId).update({
-    createdEntities: admin.firestore.FieldValue.arrayUnion(docRef.id)
-  })
-  
-  // Step 7: Return created entity
-  const createdDoc = await docRef.get()
-  return { id: createdDoc.id, ...createdDoc.data() }
-}
-
-// Get entities with role-based filtering
+// Get entities with role-based and advanced filtering (returns SerializedEntity)
 export async function getEntities(
-  limit: number = 20,
-  startAfter?: string
-): Promise<{ entities: Entity[]; lastVisible: string | null }> {
-  // Step 1: Authentication
-  const session = await getServerAuthSession()
-  if (!session?.user) {
-    throw new EntityAuthError('Unauthorized access')
-  }
-  
-  const userRole = session.user.role as UserRole
-  
-  // Step 2: Build role-based query
-  const adminDb = await getAdminDb()
-  const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
-  let query: Query<Entity> = entitiesCollection
-  
-  // Apply role-based filtering
-  if (userRole === UserRole.VISITOR) {
-    query = query.where('visibility', 'in', ['public'])
-  } else if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-    // SUBSCRIBER (and MEMBER) can see public + subscriber + role-specific
-    query = query.where('visibility', 'in', ['public', 'subscriber', userRole])
-  }
-  // ADMIN and CONFIDENTIAL users can see all entities
-  
-  // Step 3: Apply pagination
-  query = query.limit(limit)
-  if (startAfter) {
-    const startAfterDoc = await entitiesCollection.doc(startAfter).get()
-    if (startAfterDoc.exists) {
-      query = query.startAfter(startAfterDoc)
-    }
-  }
-  
-  // Step 4: Execute query
-  const snapshot = await query.get()
-  const entities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-  const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
-  
-  return { entities, lastVisible }
-}
+  limit = 20,
+  startAfter?: string,
+  filters?: EntityFilters
+): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }>;
 
-// Get confidential entities (restricted access)
-export async function getConfidentialEntities(
-  params: {
-    limit: number
-    startAfter?: string
-    sort: string
-    filter?: string
-    userId: string
-    userRole: UserRole.CONFIDENTIAL | UserRole.ADMIN
-  }
-): Promise<{
-  entities: Entity[]
-  lastVisible: string | null
-  totalPages: number
-  totalEntities: number
-}> {
-  const { limit, startAfter, sort, filter, userRole } = params
-  
-  // Step 1: Build confidential entities query
-  const adminDb = await getAdminDb()
-  const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter)
-  let baseQuery = entitiesCollection.where('isConfidential', '==', true)
-  
-  // Apply additional filters
-  if (filter) {
-    baseQuery = baseQuery.where('status', '==', filter)
-  }
-  
-  // Apply sorting
-  const [sortField, sortDirection] = sort.split(':')
-  baseQuery = baseQuery.orderBy(sortField, sortDirection as 'asc' | 'desc')
-  
-  // Step 2: Get total count for pagination
-  const totalSnapshot = await baseQuery.count().get()
-  const totalEntities = totalSnapshot.data().count
-  const totalPages = Math.ceil(totalEntities / limit)
-  
-  // Step 3: Execute paginated query
-  let query: Query<Entity> = baseQuery.limit(limit)
-  if (startAfter) {
-    const startAfterDoc = await entitiesCollection.doc(startAfter).get()
-    if (startAfterDoc.exists) {
-      query = query.startAfter(startAfterDoc)
-    }
-  }
-  
-  const snapshot = await query.get()
-  const entities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-  const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
-  
-  return { entities, lastVisible, totalPages, totalEntities }
+// AI-powered search service
+export async function searchEntities(params: EntitySearchParams): Promise<{
+  results: SerializedEntitySearchResult[];
+  totalResults: number;
+  searchTime: number;
+  suggestions?: string[];
+}>;
+```
+
+### **Entity Filters**
+
+```typescript
+export interface EntityFilters {
+  search?: string
+  types?: EntityType[]
+  location?: string
+  employeeCountMin?: number
+  employeeCountMax?: number
+  foundedYearMin?: number
+  foundedYearMax?: number
+  verificationStatus?: 'all' | 'verified' | 'unverified' | 'premium'
+  membershipTier?: 'all' | 'subscriber' | 'member' | 'confidential'
+  hasCertifications?: boolean
+  hasPartnerships?: boolean
+  services?: string[]
+  sortBy?: 'dateAdded' | 'name' | 'employeeCount' | 'foundedYear' | 'memberSince'
+  sortOrder?: 'asc' | 'desc'
 }
 ```
+
+### **Client Compatibility**
+
+- Always serialize Firestore Timestamps using `serializeEntities()` before returning to client components
+- Prefer optimized functions from `lib/services/firebase-service-manager` with React 19 `cache()` patterns
+
+### **Verification Badges and Icons**
+
+- Use `components/entities/verification-badges.tsx` for verification indicators (levels: unverified, basic, verified, premium, enterprise, partner)
+- Use `components/entities/entity-type-icons.tsx` for consistent type icons and badges
 
 ---
 
