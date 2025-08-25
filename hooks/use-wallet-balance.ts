@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use, useMemo } from 'react'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 interface WalletBalanceResponse {
@@ -16,8 +16,50 @@ interface UseWalletBalanceReturn {
   context?: any
 }
 
+interface UseWalletBalancePromiseReturn {
+  promise: Promise<string>
+  refetch: () => void
+}
+
 /**
- * Hook to fetch wallet balance using Ring API Client
+ * Internal function to fetch wallet balance
+ * Enhanced with timeout, retry, and standardized error handling
+ */
+async function fetchWalletBalance(): Promise<string> {
+  try {
+    // Use API client with built-in timeout (15s), retry logic, and standardized error handling
+    const response: ApiResponse<WalletBalanceResponse> = await apiClient.get('/api/wallet/balance', {
+      timeout: 15000, // Extend timeout for blockchain calls
+      retries: 2 // Retry twice for network resilience
+    })
+
+    if (response.success && response.data) {
+      return response.data.balance
+    } else {
+      throw new Error(response.error || 'Failed to fetch balance')
+    }
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      // Enhanced error information from API client
+      console.error('Wallet balance fetch failed:', {
+        endpoint: '/api/wallet/balance',
+        statusCode: err.statusCode,
+        message: err.message,
+        context: err.context,
+        cause: err.cause
+      })
+      throw new Error(err.message)
+    } else {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch balance'
+      console.error('Unexpected error fetching wallet balance:', err)
+      throw new Error(errorMessage)
+    }
+  }
+}
+
+/**
+ * React 19 Enhanced Hook to fetch wallet balance using use() function
+ * Provides both traditional state-based and modern promise-based approaches
  * Enhanced with timeout, retry, and standardized error handling
  */
 export function useWalletBalance(enabled: boolean = true): UseWalletBalanceReturn {
@@ -38,17 +80,8 @@ export function useWalletBalance(enabled: boolean = true): UseWalletBalanceRetur
     setContext(undefined)
 
     try {
-      // Use API client with built-in timeout (10s), retry logic, and standardized error handling
-      const response: ApiResponse<WalletBalanceResponse> = await apiClient.get('/api/wallet/balance', {
-        timeout: 15000, // Extend timeout for blockchain calls
-        retries: 2 // Retry twice for network resilience
-      })
-
-      if (response.success && response.data) {
-        setBalance(response.data.balance)
-      } else {
-        throw new Error(response.error || 'Failed to fetch balance')
-      }
+      const balanceResult = await fetchWalletBalance()
+      setBalance(balanceResult)
     } catch (err) {
       setIsError(true)
       
@@ -57,18 +90,8 @@ export function useWalletBalance(enabled: boolean = true): UseWalletBalanceRetur
         setError(err.message)
         setStatusCode(err.statusCode)
         setContext(err.context)
-        
-        // Log with structured context
-        console.error('Wallet balance fetch failed:', {
-          endpoint: '/api/wallet/balance',
-          statusCode: err.statusCode,
-          message: err.message,
-          context: err.context,
-          cause: err.cause
-        })
       } else {
         setError(err instanceof Error ? err.message : 'Failed to fetch balance')
-        console.error('Unexpected error fetching wallet balance:', err)
       }
     } finally {
       setIsLoading(false)
@@ -94,5 +117,76 @@ export function useWalletBalance(enabled: boolean = true): UseWalletBalanceRetur
     statusCode,
     context
   }
+}
+
+/**
+ * React 19 Promise-based hook for wallet balance using use() function
+ * Returns a promise that can be consumed with React 19's use() function
+ * 
+ * Usage:
+ * ```tsx
+ * function WalletDisplay() {
+ *   const { promise } = useWalletBalancePromise(true)
+ *   const balance = use(promise)
+ *   
+ *   return <div>Balance: {balance}</div>
+ * }
+ * 
+ * // Wrap in Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading balance...</div>}>
+ *       <WalletDisplay />
+ *     </Suspense>
+ *   )
+ * }
+ * ```
+ */
+export function useWalletBalancePromise(enabled: boolean = true): UseWalletBalancePromiseReturn {
+  const [refreshKey, setRefreshKey] = useState(0)
+  
+  const promise = useMemo(() => {
+    if (!enabled) {
+      return Promise.resolve('0')
+    }
+    
+    return fetchWalletBalance()
+  }, [enabled, refreshKey])
+
+  const refetch = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
+  return {
+    promise,
+    refetch
+  }
+}
+
+/**
+ * React 19 Enhanced hook that directly uses use() function
+ * Suspends the component until the balance is loaded
+ * 
+ * Usage:
+ * ```tsx
+ * function WalletDisplay() {
+ *   const balance = useWalletBalanceWithSuspense(true)
+ *   
+ *   return <div>Balance: {balance}</div>
+ * }
+ * 
+ * // Wrap in Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading balance...</div>}>
+ *       <WalletDisplay />
+ *     </Suspense>
+ *   )
+ * }
+ * ```
+ */
+export function useWalletBalanceWithSuspense(enabled: boolean = true): string {
+  const { promise } = useWalletBalancePromise(enabled)
+  return use(promise)
 }
 
