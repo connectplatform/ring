@@ -51,6 +51,7 @@ export const ROUTES = {
   ENTITY: (id: string, locale: Locale = defaultLocale) => `/${locale}/entities/${id}`,
   ADD_ENTITY: (locale: Locale = defaultLocale) => `/${locale}/entities/add`,
   OPPORTUNITIES: (locale: Locale = defaultLocale) => `/${locale}/opportunities`,
+  MY_OPPORTUNITIES: (locale: Locale = defaultLocale) => `/${locale}/opportunities/my`,
   OPPORTUNITY: (id: string, locale: Locale = defaultLocale) => `/${locale}/opportunities/${id}`,
   NOTIFICATIONS: (locale: Locale = defaultLocale) => `/${locale}/notifications`,
   STORE: (locale: Locale = defaultLocale) => `/${locale}/store`,
