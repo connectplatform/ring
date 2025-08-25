@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, use } from 'react';
 import { useSession } from 'next-auth/react';
 import { getTunnelTransportManager, TunnelTransportManager } from '@/lib/tunnel/transport-manager';
 import {
@@ -46,7 +46,7 @@ interface TunnelContextType {
 export const TunnelContext = createContext<TunnelContextType | null>(null);
 
 export function useTunnelContext() {
-  const context = useContext(TunnelContext);
+  const context = use(TunnelContext);
   if (!context) {
     throw new Error('useTunnelContext must be used within TunnelProvider');
   }
