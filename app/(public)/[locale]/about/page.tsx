@@ -2,7 +2,7 @@ import React from 'react'
 import { Suspense } from 'react'
 import { cookies, headers } from 'next/headers'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
@@ -53,7 +53,7 @@ export default async function AboutPage(props: LocalePageProps<AboutParams>) {
 
   // Step 4: Authenticate user session
   console.log('AboutPage: Authenticating session');
-  const session = await getServerAuthSession();
+  const session = await auth();
   console.log('AboutPage: Session authenticated', { 
     sessionExists: !!session, 
     userId: session?.user?.id, 
