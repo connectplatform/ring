@@ -2,10 +2,11 @@
 // Extracted from API routes to follow Ring's architectural pattern:
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
-import { getServerAuthSession } from '@/auth'
-import { getNewsCollection } from '@/lib/firestore-collections'
+import { auth } from '@/auth'
+import { getCachedNewsCollection, getCachedNewsBySlug, getCachedNewsById, createDocument, updateDocument, deleteDocument } from '@/lib/services/firebase-service-manager'
 import { NewsFilters, NewsFormData, NewsArticle } from '@/features/news/types'
 import { FieldValue } from 'firebase-admin/firestore'
+import { logger } from '@/lib/logger'
 
 interface CreateNewsResult {
   success: boolean
@@ -23,7 +24,7 @@ interface UpdateNewsResult {
 
 export async function createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user) {
       return {
@@ -57,11 +58,9 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       .replace(/-+/g, '-')
       .trim()
 
-    const newsCollection = getNewsCollection()
-    
     // Check if slug already exists
-    const existingSlug = await newsCollection.where('slug', '==', slug).get()
-    if (!existingSlug.empty) {
+    const existingSlug = await getCachedNewsBySlug(slug)
+    if (existingSlug) {
       return {
         success: false,
         error: 'Article with this slug already exists'
@@ -91,8 +90,9 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       seo: formData.seo || null,
     }
 
-    const docRef = await newsCollection.add(newArticle as any)
-    const createdArticle = await docRef.get()
+    const docRef = await createDocument('news', newArticle)
+    const createdDoc = await getCachedNewsById(docRef.id)
+    const createdArticle = createdDoc
 
     return {
       success: true,
@@ -101,7 +101,7 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
     }
 
   } catch (error) {
-    console.error('Error creating news article:', error)
+    logger.error('Error creating news article:', error)
     return {
       success: false,
       error: 'Failed to create news article'
@@ -111,7 +111,7 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
 
 export async function updateNewsArticle(articleId: string, formData: NewsFormData): Promise<UpdateNewsResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user) {
       return {
@@ -122,10 +122,9 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
 
     // Check if user is admin or article author
     const userRole = (session.user as any).role
-    const newsCollection = getNewsCollection()
-    const articleDoc = await newsCollection.doc(articleId).get()
+    const articleDoc = await getCachedNewsById(articleId)
     
-    if (!articleDoc.exists) {
+    if (!articleDoc || !articleDoc.exists) {
       return {
         success: false,
         error: 'Article not found'
@@ -161,8 +160,8 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
 
     // Check if slug already exists (excluding current article)
     if (slug !== articleData?.slug) {
-      const existingSlug = await newsCollection.where('slug', '==', slug).get()
-      if (!existingSlug.empty) {
+      const existingSlug = await getCachedNewsBySlug(slug)
+      if (existingSlug) {
         return {
           success: false,
           error: 'Article with this slug already exists'
@@ -189,8 +188,8 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       seo: formData.seo || null,
     }
 
-    await newsCollection.doc(articleId).update(updateData)
-    const updatedArticle = await newsCollection.doc(articleId).get()
+    await updateDocument('news', articleId, updateData)
+    const updatedArticle = await getCachedNewsById(articleId)
 
     return {
       success: true,
@@ -199,7 +198,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
     }
 
   } catch (error) {
-    console.error('Error updating news article:', error)
+    logger.error('Error updating news article:', error)
     return {
       success: false,
       error: 'Failed to update news article'
@@ -215,40 +214,39 @@ export async function getNewsArticles(filters: NewsFilters = {}): Promise<{
   error?: string
 }> {
   try {
-    const newsCollection = getNewsCollection()
-    let query = newsCollection.orderBy(filters.sortBy || 'publishedAt', filters.sortOrder || 'desc')
+    // Build query options for getCachedNewsCollection
+    const options: any = {
+      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
+      where: []
+    };
 
     // Apply filters
     if (filters.category) {
-      query = query.where('category', '==', filters.category)
+      options.where.push({ field: 'category', operator: '==', value: filters.category });
     }
     
     if (filters.status) {
-      query = query.where('status', '==', filters.status)
+      options.where.push({ field: 'status', operator: '==', value: filters.status });
     }
     
     if (filters.visibility) {
-      query = query.where('visibility', '==', filters.visibility)
+      options.where.push({ field: 'visibility', operator: '==', value: filters.visibility });
     }
     
     if (filters.featured !== undefined) {
-      query = query.where('featured', '==', filters.featured)
+      options.where.push({ field: 'featured', operator: '==', value: filters.featured });
     }
     
     if (filters.authorId) {
-      query = query.where('authorId', '==', filters.authorId)
+      options.where.push({ field: 'authorId', operator: '==', value: filters.authorId });
     }
 
-    // Apply pagination
-    if (filters.offset && filters.offset > 0) {
-      query = query.offset(filters.offset)
-    }
-    
+    // Apply pagination (limit only, offset not supported by getCachedNewsCollection)
     if (filters.limit) {
-      query = query.limit(filters.limit)
+      options.limit = filters.limit;
     }
 
-    const snapshot = await query.get()
+    const snapshot = await getCachedNewsCollection(options)
     const articles = snapshot.docs.map(doc => doc.data() as NewsArticle)
 
     // Filter by search term if provided (client-side filtering for now)
@@ -282,7 +280,7 @@ export async function getNewsArticles(filters: NewsFilters = {}): Promise<{
     }
 
   } catch (error) {
-    console.error('Error fetching news:', error)
+      logger.error('Error fetching news:', error)
     return {
       success: false,
       error: 'Failed to fetch news articles'
