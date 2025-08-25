@@ -252,8 +252,10 @@ export const formatDate = (timestamp: Timestamp | FieldValue): string => {
  * @param budget - The budget object containing min, max, and currency
  * @returns A formatted string representing the budget range
  */
-export const formatBudget = (budget: { min: number; max: number; currency: string }): string => {
-  return `${budget.currency} ${budget.min} - ${budget.max}`
+export const formatBudget = (budget: { min?: number; max: number; currency?: string }): string => {
+  const currency = budget.currency || 'USD'
+  const min = budget.min || 0
+  return `${currency} ${min} - ${budget.max}`
 }
 
 /**
