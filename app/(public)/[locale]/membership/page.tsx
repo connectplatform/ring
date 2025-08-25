@@ -1,5 +1,5 @@
 import React from 'react'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { isValidLocale, defaultLocale, type Locale, loadTranslations, generateHreflangAlternates } from '@/i18n-config'
 import { ROUTES } from '@/constants/routes'
@@ -21,7 +21,7 @@ export default async function MembershipPage(props: MembershipPageProps) {
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
   
   // Get session
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   // Redirect to login if not authenticated
   if (!session || !session.user) {
