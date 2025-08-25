@@ -1,6 +1,6 @@
 'use server'
 
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { UserSettings } from '@/features/auth/types'
 
 export type UpdateSettingsResponse = {
@@ -11,7 +11,7 @@ export type UpdateSettingsResponse = {
 
 export async function updateSettings(state: UpdateSettingsResponse | null, formData: FormData): Promise<UpdateSettingsResponse> {
   // Check authentication first
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
