@@ -1,7 +1,7 @@
 import React from "react"
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { ROUTES } from "@/constants/routes"
 import { UserRole } from "@/features/auth/types"
 import type { Entity } from "@/types"
@@ -107,7 +107,7 @@ export default async function ConfidentialEntitiesPage(props: LocalePageProps<Co
   })
 
   // Authenticate user
-  const session = await getServerAuthSession()
+  const session = await auth()
 
   // Check user authorization
   if (!session || (session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN)) {
@@ -118,7 +118,7 @@ export default async function ConfidentialEntitiesPage(props: LocalePageProps<Co
   // React 19 metadata for confidential pages
   const title = (translations as any).metadata?.confidentialEntities || 'Confidential Entities | Ring App';
   const description = (translations as any).metaDescription?.confidentialEntities || 'Secure access to confidential entities in the Ring App ecosystem.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/confidential/entities`;
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}/${locale}/confidential/entities`;
   const alternates = generateHreflangAlternates('/confidential/entities');
 
   // Initialize variables for entities and error handling
