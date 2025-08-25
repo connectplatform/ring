@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 
@@ -12,7 +12,7 @@ import { StoreOrdersService } from '@/features/store/services/orders-service'
 export async function updateOrderStatus(formData: FormData) {
   try {
     // Step 1: Authenticate and check admin role
-    const session = await getServerAuthSession()
+    const session = await auth()
     if (!session?.user) {
       throw new Error('Authentication required')
     }
@@ -52,7 +52,7 @@ export async function updateOrderStatus(formData: FormData) {
 export async function refreshOrders() {
   try {
     // Step 1: Authenticate and check admin role
-    const session = await getServerAuthSession()
+    const session = await auth()
     if (!session?.user) {
       throw new Error('Authentication required')
     }
