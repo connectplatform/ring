@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
 import { logger } from '@/lib/logger'
@@ -18,7 +18,7 @@ export async function completeCryptoOnboarding(
   formData: FormData
 ): Promise<CryptoOnboardingFormState> {
   // Get current user session
-  const session = await getServerAuthSession()
+  const session = await auth()
   if (!session?.user?.id) {
     return {
       error: 'Authentication required'
