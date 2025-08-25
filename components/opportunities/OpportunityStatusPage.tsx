@@ -61,6 +61,12 @@ const STATUS_CONFIG = {
     bgColor: 'bg-green-50',
     borderColor: 'border-green-200'
   },
+  'create-success': {
+    icon: CheckCircle,
+    iconColor: 'text-green-500',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200'
+  },
   'create-failed': {
     icon: XCircle,
     iconColor: 'text-red-500',
@@ -356,7 +362,7 @@ export default function OpportunityStatusPage({
           {/* Primary Action Buttons */}
           <div className="space-y-3">
             {/* Success states - View/Continue */}
-            {(status === 'published' || status === 'approved' || status === 'accepted') && (
+            {(status === 'success' || status === 'published' || status === 'approved' || status === 'accepted') && (
               <>
                 {opportunityId && (
                   <Link 
