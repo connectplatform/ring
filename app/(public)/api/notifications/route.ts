@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { 
   getUserNotifications, 
   createNotification, 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     }
     
     // Step 1: Authenticate the session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.log('API: /api/notifications - Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Step 1: Authenticate the session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.log('API: /api/notifications - Unauthorized access attempt');
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
