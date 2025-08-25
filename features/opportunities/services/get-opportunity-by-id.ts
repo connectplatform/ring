@@ -5,14 +5,17 @@
 // - Intelligent data strategies per environment
 
 import { Opportunity } from '@/features/opportunities/types';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 
-import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
+import { logger } from '@/lib/logger';
 
 /**
  * Fetches a single Opportunity from Firestore by its ID, ensuring proper authentication and authorization.
@@ -42,9 +45,9 @@ export async function getOpportunityById(id: string): Promise<Opportunity | null
 console.log('Services: getOpportunityById - Starting...', { id });
 
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
-      console.error('Services: getOpportunityById - Unauthorized access attempt');
+      logger.error('Services: getOpportunityById - Unauthorized access attempt');
       throw new Error('Unauthorized access');
     }
 
@@ -63,31 +66,33 @@ console.log('Services: getOpportunityById - Starting...', { id });
         // Generic cache fallback for build time
         return null;
       } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
+        logger.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
         // Continue to live data below
       }
     }
 
-    // Step 2: Access Firestore using admin SDK and get the opportunity document
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const opportunityRef = adminDb.collection('opportunities').doc(id).withConverter(opportunityConverter);
-    const docSnap = await opportunityRef.get();
+    // Step 2: Access Firestore using optimized firebase-service-manager
+    const docSnap = await getCachedDocument('opportunities', id);
 
-    if (!docSnap.exists) {
-      console.warn('Services: getOpportunityById - No opportunity found', { id });
+    if (!docSnap || !docSnap.exists) {
+      logger.warn('Services: getOpportunityById - No opportunity found', { id });
       return null;
     }
 
-    const opportunity = docSnap.data();
-    if (!opportunity) {
-      console.warn('Services: getOpportunityById - Document exists but has no data', { id });
+    const opportunityData = docSnap.data();
+    if (!opportunityData) {
+      logger.warn('Services: getOpportunityById - Document exists but has no data', { id });
       return null;
     }
+
+    const opportunity: Opportunity = {
+      ...opportunityData,
+      id: docSnap.id,
+    } as Opportunity;
 
     // Step 3: Check user permissions
     if (opportunity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
-      console.error('Services: getOpportunityById - Access denied for confidential opportunity', { id, userRole });
+      logger.error('Services: getOpportunityById - Access denied for confidential opportunity', { id, userRole });
       throw new Error('Access denied. You do not have permission to view this confidential opportunity.');
     }
 
@@ -95,7 +100,7 @@ console.log('Services: getOpportunityById - Starting...', { id });
     return opportunity;
 
   } catch (error) {
-    console.error('Services: getOpportunityById - Error:', error);
+      logger.error('Services: getOpportunityById - Error:', error);
     throw error instanceof Error ? error : new Error('An unknown error occurred while fetching the opportunity');
   }
 }
