@@ -2,13 +2,12 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
 import { NewsAnalyticsDashboard } from '@/features/news/components/news-analytics-dashboard'
-import { getNewsCollection } from '@/lib/firestore-collections'
+import { getCachedNewsCollection } from '@/lib/services/firebase-service-manager'
 import { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
 
 async function getNewsAnalytics(): Promise<NewsAnalytics> {
   try {
-    const newsCollection = getNewsCollection()
-    const snapshot = await newsCollection.get()
+    const snapshot = await getCachedNewsCollection({})
     const articles = snapshot.docs.map(doc => doc.data()) as NewsArticle[]
 
     // Calculate analytics
