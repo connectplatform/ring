@@ -42,8 +42,10 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
     fetchOpportunity()
   }, [opportunity.id])
 
-  const formatBudget = (budget: { min: number; max: number; currency: string }) => {
-    return `${budget.currency}${budget.min} - ${budget.currency}${budget.max}`
+  const formatBudget = (budget: { min?: number; max: number; currency?: string }) => {
+    const currency = budget.currency || 'USD'
+    const min = budget.min || 0
+    return `${currency} ${min} - ${currency}${budget.max}`
   }
 
   const handleCloseContactPopup = async () => {
