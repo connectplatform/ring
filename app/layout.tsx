@@ -10,7 +10,7 @@ import { Toaster } from '@/components/ui/toaster'
 import '@/styles/globals.css'
 import { Inter } from 'next/font/google'
 import { AppProvider } from '@/contexts/app-context'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import InstanceConfigProvider from '@/components/providers/instance-config-provider'
 import { StoreProvider } from '@/features/store/context'
 import { WebSocketDiagnosticsProvider } from '@/components/providers/websocket-diagnostics-provider'
@@ -39,7 +39,7 @@ export default async function RootLayout({
   setupResourcePreloading()
   
   // Get server session to pass to SessionProvider
-  const session = await getServerAuthSession().catch(() => null)
+  const session = await auth().catch(() => null)
   
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
