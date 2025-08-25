@@ -2,7 +2,7 @@
 // Extracted from API routes to follow Ring's architectural pattern:
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { getAdminDb } from '@/lib/firebase-admin.server'
 import { FieldValue } from 'firebase-admin/firestore'
 
@@ -16,7 +16,7 @@ interface LikeResult {
 
 export async function toggleLike(targetId: string, targetType: string): Promise<LikeResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
@@ -135,7 +135,7 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
   error?: string
 }> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
