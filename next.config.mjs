@@ -30,6 +30,7 @@ const nextConfig = {
     AUTH_APPLE_SECRET: process.env.AUTH_APPLE_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+    AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
   },
   async headers() {
     // SECURITY FIX: Restrict CORS to specific origins only
