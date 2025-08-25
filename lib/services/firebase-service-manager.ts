@@ -22,7 +22,6 @@ import type {
  * - Performance monitoring and optimization
  * - Build-time mocking integration
  * 
- * Replaces direct getAdminDb() calls across 73 files with optimized patterns.
  */
 
 /**
@@ -653,6 +652,204 @@ export async function deleteDocument(collection: string, docId: string): Promise
 }
 
 /**
+ * NEWS DOMAIN OPERATIONS
+ * Optimized news, categories, and comments operations with caching
+ */
+
+/**
+ * Get news collection with caching and converter
+ */
+export const getCachedNewsCollection = cache(async (
+  options: {
+    limit?: number;
+    orderBy?: Array<{ field: string; direction?: 'asc' | 'desc' }>;
+    where?: Array<{ field: string; operator: FirebaseFirestore.WhereFilterOp; value: any }>;
+    startAfter?: any;
+  } = {}
+) => {
+  const signature = createRequestSignature('getNewsCollection', 'news', options);
+  
+  try {
+    const db = getAdminDb();
+    let query: any = db.collection('news');
+    
+    // Apply where clauses
+    if (options.where) {
+      options.where.forEach(({ field, operator, value }) => {
+        query = query.where(field, operator, value);
+      });
+    }
+    
+    // Apply ordering
+    if (options.orderBy) {
+      options.orderBy.forEach(({ field, direction = 'asc' }) => {
+        query = query.orderBy(field, direction);
+      });
+    } else {
+      query = query.orderBy('publishedAt', 'desc'); // Default sort
+    }
+    
+    // Apply pagination
+    if (options.startAfter) {
+      query = query.startAfter(options.startAfter);
+    }
+    
+    // Apply limit
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - News Collection: ${snapshot.size} articles`);
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error('[Firebase Manager] Error fetching news collection:', error);
+    throw error;
+  }
+});
+
+/**
+ * Get news categories collection with caching
+ */
+export const getCachedNewsCategoriesCollection = cache(async (
+  options: {
+    limit?: number;
+    orderBy?: { field: string; direction?: 'asc' | 'desc' };
+    where?: { field: string; operator: FirebaseFirestore.WhereFilterOp; value: any };
+  } = {}
+) => {
+  const signature = createRequestSignature('getNewsCategoriesCollection', 'newsCategories', options);
+  
+  try {
+    const db = getAdminDb();
+    let query: any = db.collection('newsCategories');
+    
+    // Apply where clauses
+    if (options.where) {
+      query = query.where(options.where.field, options.where.operator, options.where.value);
+    }
+    
+    // Apply ordering
+    if (options.orderBy) {
+      query = query.orderBy(options.orderBy.field, options.orderBy.direction || 'asc');
+    } else {
+      query = query.orderBy('name', 'asc'); // Default alphabetical sort
+    }
+    
+    // Apply limit
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - News Categories: ${snapshot.size} categories`);
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error('[Firebase Manager] Error fetching news categories:', error);
+    throw error;
+  }
+});
+
+/**
+ * Get news comments collection with caching
+ */
+export const getCachedNewsCommentsCollection = cache(async (
+  newsId?: string,
+  options: {
+    limit?: number;
+    orderBy?: { field: string; direction?: 'asc' | 'desc' };
+    where?: Array<{ field: string; operator: FirebaseFirestore.WhereFilterOp; value: any }>;
+  } = {}
+) => {
+  const signature = createRequestSignature('getNewsCommentsCollection', 'newsComments', { newsId, ...options });
+  
+  try {
+    const db = getAdminDb();
+    let query: any = db.collection('newsComments');
+    
+    // Filter by news article if provided
+    if (newsId) {
+      query = query.where('newsId', '==', newsId);
+    }
+    
+    // Apply additional where clauses
+    if (options.where) {
+      options.where.forEach(({ field, operator, value }) => {
+        query = query.where(field, operator, value);
+      });
+    }
+    
+    // Apply ordering
+    if (options.orderBy) {
+      query = query.orderBy(options.orderBy.field, options.orderBy.direction || 'desc');
+    } else {
+      query = query.orderBy('createdAt', 'desc'); // Default newest first
+    }
+    
+    // Apply limit
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - News Comments: ${snapshot.size} comments`);
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error('[Firebase Manager] Error fetching news comments:', error);
+    throw error;
+  }
+});
+
+/**
+ * Get single news article by ID with caching
+ */
+export const getCachedNewsById = cache(async (newsId: string) => {
+  return getCachedDocument('news', newsId);
+});
+
+/**
+ * Get single news article by slug with caching
+ */
+export const getCachedNewsBySlug = cache(async (slug: string) => {
+  const signature = createRequestSignature('getNewsBySlug', 'news', { slug });
+  
+  try {
+    const db = getAdminDb();
+    const query = db.collection('news').where('slug', '==', slug).limit(1);
+    const snapshot = await query.get();
+    
+    metrics.recordCacheMiss();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Cache MISS - News by slug: ${slug}`);
+    }
+    
+    return snapshot.docs.length > 0 ? snapshot.docs[0] : null;
+  } catch (error) {
+    console.error(`[Firebase Manager] Error fetching news by slug ${slug}:`, error);
+    throw error;
+  }
+});
+
+/**
  * PERFORMANCE UTILITIES
  */
 
@@ -690,6 +887,259 @@ Hit Rate: ${hitRate.toFixed(2)}%
 }
 
 /**
+ * ADVANCED TRANSACTION & BATCH OPERATIONS
+ * Extracted from firebase-service-optimized.ts and firebase-service.ts
+ * for real-world use cases requiring atomic operations
+ */
+
+/**
+ * Update user role and permissions - Atomic operation
+ * 
+ * Updates user role and related permissions in a single transaction.
+ * This is a real-world use case where user changes affect multiple collections.
+ * 
+ * @param userId - User ID to update
+ * @param newRole - New role to assign
+ * @param permissions - Updated permissions object
+ * @throws Error if role update fails
+ * 
+ * @example
+ * ```typescript
+ * await updateUserRoleAndPermissions('user123', 'admin', {
+ *   canPostconfidentialOpportunities: true,
+ *   canViewconfidentialOpportunities: true
+ * });
+ * ```
+ */
+export async function updateUserRoleAndPermissions(
+  userId: string,
+  newRole: string,
+  permissions: {
+    canPostconfidentialOpportunities?: boolean;
+    canViewconfidentialOpportunities?: boolean;
+  }
+): Promise<void> {
+  const adminDb = getAdminDb();
+  
+  await adminDb.runTransaction(async (transaction) => {
+    // Update user profile with new role and permissions
+    const userRef = adminDb.collection('userProfiles').doc(userId);
+    transaction.update(userRef, {
+      role: newRole,
+      ...permissions,
+      updatedAt: new Date()
+    });
+    
+    // Update any entities owned by this user to reflect new permissions
+    const entitiesSnapshot = await adminDb
+      .collection('entities')
+      .where('userId', '==', userId)
+      .get();
+    
+    entitiesSnapshot.docs.forEach(doc => {
+      transaction.update(doc.ref, {
+        ownerRole: newRole,
+        updatedAt: new Date()
+      });
+    });
+  });
+}
+
+/**
+ * Delete user account with complete cleanup - Atomic operation
+ * 
+ * Performs complete user account deletion including all related data.
+ * This is a real-world use case where multiple collections need atomic updates.
+ * 
+ * @param userId - User ID to delete
+ * @throws Error if account deletion fails
+ * 
+ * @example
+ * ```typescript
+ * await deleteUserAccountWithCleanup('user123');
+ * ```
+ */
+export async function deleteUserAccountWithCleanup(userId: string): Promise<void> {
+  const adminDb = getAdminDb();
+  const adminAuth = getAdminAuth();
+  
+  await adminDb.runTransaction(async (transaction) => {
+    // Delete user profile
+    const userRef = adminDb.collection('userProfiles').doc(userId);
+    transaction.delete(userRef);
+    
+    // Delete user's entities
+    const entitiesSnapshot = await adminDb
+      .collection('entities')
+      .where('userId', '==', userId)
+      .get();
+    
+    entitiesSnapshot.docs.forEach(doc => {
+      transaction.delete(doc.ref);
+    });
+    
+    // Delete user's opportunities
+    const opportunitiesSnapshot = await adminDb
+      .collection('opportunities')
+      .where('userId', '==', userId)
+      .get();
+    
+    opportunitiesSnapshot.docs.forEach(doc => {
+      transaction.delete(doc.ref);
+    });
+  });
+  
+  // Finally delete auth account (outside transaction as it's not Firestore)
+  try {
+    await adminAuth.deleteUser(userId);
+  } catch (error) {
+    console.error('Error deleting Firebase Auth user:', error);
+    throw error;
+  }
+}
+
+/**
+ * Batch update entities - Optimized with efficient data organization
+ * 
+ * Updates multiple entities in a single batch operation for improved performance.
+ * Uses Map for efficient data organization.
+ * 
+ * @param updates - Array of entity updates with ID and data
+ * @throws Error if batch update fails
+ * 
+ * @example
+ * ```typescript
+ * await batchUpdateEntities([
+ *   { id: 'entity1', data: { name: 'Updated Name' } },
+ *   { id: 'entity2', data: { status: 'active' } }
+ * ]);
+ * ```
+ */
+export async function batchUpdateEntities(updates: Array<{ id: string, data: any }>): Promise<void> {
+  if (!updates.length) return;
+
+  try {
+    const adminDb = getAdminDb();
+    const batch = adminDb.batch();
+
+    // Use Map for efficient data organization
+    const updateMap = new Map(updates.map(({ id, data }) => [id, data]));
+
+    for (const [id, data] of updateMap) {
+      const docRef = adminDb.collection('entities').doc(id);
+      batch.update(docRef, data);
+    }
+
+    await batch.commit();
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Batch updated ${updates.length} entities`);
+    }
+  } catch (error) {
+    console.error('[Firebase Manager] Batch entity update failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Bulk write opportunities - Optimized for performance
+ * 
+ * Writes multiple opportunities in batches to handle Firestore's 500-item limit.
+ * Processes large datasets efficiently with automatic batching.
+ * 
+ * @param opportunities - Array of opportunities to write
+ * @throws Error if bulk write fails
+ * 
+ * @example
+ * ```typescript
+ * await bulkWriteOpportunities([
+ *   { title: 'Opportunity 1', description: '...' },
+ *   { title: 'Opportunity 2', description: '...' }
+ * ]);
+ * ```
+ */
+export async function bulkWriteOpportunities(opportunities: Array<any>): Promise<void> {
+  if (!opportunities.length) return;
+
+  const BATCH_SIZE = 500; // Firestore batch limit
+  const adminDb = getAdminDb();
+
+  try {
+    // Process in batches for large datasets
+    for (let i = 0; i < opportunities.length; i += BATCH_SIZE) {
+      const batch = adminDb.batch();
+      const batchOpportunities = opportunities.slice(i, i + BATCH_SIZE);
+
+      for (const opportunity of batchOpportunities) {
+        const docRef = adminDb.collection('opportunities').doc();
+        batch.set(docRef, opportunity);
+      }
+
+      await batch.commit();
+    }
+    
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Bulk wrote ${opportunities.length} opportunities in ${Math.ceil(opportunities.length / BATCH_SIZE)} batches`);
+    }
+  } catch (error) {
+    console.error('[Firebase Manager] Bulk opportunity write failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update user profile and related entities in a transaction
+ * 
+ * Updates user profile data and related entities atomically.
+ * This ensures data consistency when user changes affect multiple documents.
+ * 
+ * @param userId - The ID of the user whose profile to update
+ * @param profileData - The user profile data to update
+ * @param entityUpdates - An array of entity updates
+ * @throws Error if transaction fails
+ * 
+ * @example
+ * ```typescript
+ * await updateUserProfileAndEntities('user123', 
+ *   { name: 'New Name' },
+ *   [{ id: 'entity1', data: { ownerName: 'New Name' } }]
+ * );
+ * ```
+ */
+export async function updateUserProfileAndEntities(
+  userId: string, 
+  profileData: any, 
+  entityUpdates: Array<{ id: string, data: any }>
+): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+    
+    await adminDb.runTransaction(async (transaction) => {
+      const userRef = adminDb.collection('userProfiles').doc(userId);
+
+      // Update user profile
+      transaction.update(userRef, {
+        ...profileData,
+        lastLogin: new Date(),
+      });
+
+      // Update related entities
+      entityUpdates.forEach(({ id, data }) => {
+        const entityRef = adminDb.collection('entities').doc(id);
+        transaction.update(entityRef, data);
+      });
+    });
+
+    if (process.env.NODE_ENV === 'development' && process.env.FIREBASE_DEBUG_LOGS === 'true') {
+      console.log(`[Firebase Manager] Successfully updated profile and ${entityUpdates.length} entities for user ${userId}`);
+    }
+  } catch (error) {
+    console.error('[Firebase Manager] Error updating user profile and entities:', error);
+    throw error;
+  }
+}
+
+/**
  * LEGACY COMPATIBILITY
  * Wrapper functions to ease migration from direct getAdminDb() calls
  */
@@ -716,6 +1166,13 @@ export function getFirebaseServiceManager() {
     getCachedSubcollection,
     getCachedCollectionGroup,
     
+    // News domain operations
+    getCachedNewsCollection,
+    getCachedNewsCategoriesCollection,
+    getCachedNewsCommentsCollection,
+    getCachedNewsById,
+    getCachedNewsBySlug,
+    
     // Specialized payment operations
     getUserCreditTransactions,
     getActiveSubscriptions,
@@ -739,6 +1196,13 @@ export function getFirebaseServiceManager() {
     // Performance utilities
     getCacheMetrics,
     resetCacheMetrics,
-    logCachePerformance
+    logCachePerformance,
+
+    // Advanced transaction & batch operations
+    updateUserRoleAndPermissions,
+    deleteUserAccountWithCleanup,
+    batchUpdateEntities,
+    bulkWriteOpportunities,
+    updateUserProfileAndEntities
   };
 }
