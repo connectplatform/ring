@@ -5,7 +5,8 @@ import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
-import { Entity } from '@/types'
+import { SerializedEntity } from '@/features/entities/types'
+import { deserializeEntities } from '@/lib/converters/entity-serializer'
 import Link from 'next/link'
 import { Building2, MapPin, Tag, Globe, Calendar, Users, Award, Plus, ArrowUp } from 'lucide-react'
 import { Button } from "@/components/ui/button"
@@ -17,10 +18,27 @@ import { defaultLocale } from '@/i18n-config'
 import SlidingPopup from '@/components/common/widgets/modal'
 import { EntityLogo } from '@/components/ui/safe-image'
 import LoginForm from '@/features/auth/components/login-form'
-import { AddEntityButton } from '@/components/entities/add-entity-button'
+import EntityAdvancedFilters from '@/components/entities/advanced-filters'
+import { EntityType } from '@/features/entities/types'
+
+interface EntityFilterState {
+  search: string
+  types: EntityType[]
+  location: string
+  employeeCountMin: string
+  employeeCountMax: string
+  foundedYearMin: string
+  foundedYearMax: string
+  verificationStatus: string
+  membershipTier: string
+  services: string[]
+  certifications: boolean | null
+  partnerships: boolean | null
+}
+
 
 interface EntitiesContentProps {
-  initialEntities: Entity[];
+  initialEntities: SerializedEntity[];
   initialError: string | null;
   page: number;
   totalPages: number;
@@ -46,11 +64,44 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   const tCommon = useTranslations('common')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
-  const [entities, setentities] = useState<Entity[]>(initialEntities)
+  const [entities, setentities] = useState<SerializedEntity[]>(initialEntities)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
+  
+  // Filter state
+  const [filters, setFilters] = useState<EntityFilterState>({
+    search: '',
+    types: [],
+    location: '',
+    employeeCountMin: '',
+    employeeCountMax: '',
+    foundedYearMin: '',
+    foundedYearMax: '',
+    verificationStatus: 'all',
+    membershipTier: 'all',
+    services: [],
+    certifications: null,
+    partnerships: null
+  })
 
+  // Clear filters function
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      types: [],
+      location: '',
+      employeeCountMin: '',
+      employeeCountMax: '',
+      foundedYearMin: '',
+      foundedYearMax: '',
+      verificationStatus: 'all',
+      membershipTier: 'all',
+      services: [],
+      certifications: null,
+      partnerships: null
+    })
+  }
 
   const fetchEntities = useCallback(async () => {
     if (!session) {
@@ -157,24 +208,17 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl font-bold mb-6">{tEntities('entitiesTitle')}</h1>
-          
-          {/* Action Buttons Section */}
-          <div className="flex justify-center gap-4 mb-8">
-            <AddEntityButton 
-              locale={defaultLocale}
-              className="size-lg"
-            />
-          </div>
-        </motion.div>
+      {/* Advanced Filters */}
+      <div className="container mx-auto px-4 py-6">
+        <EntityAdvancedFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={clearFilters}
+          resultCount={entities.length}
+        />
+      </div>
 
+      <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {entities.map((entity) => (
             <EntityCard key={entity.id} entity={entity} />
@@ -193,7 +237,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   )
 }
 
-const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
+const EntityCard: React.FC<{ entity: SerializedEntity }> = ({ entity }) => {
   const tEntities = useTranslations('modules.entities')
 
   return (
@@ -238,7 +282,7 @@ const EntityCard: React.FC<{ entity: Entity }> = ({ entity }) => {
   )
 }
 
-const EntityDetails: React.FC<{ entity: Entity }> = ({ entity }) => {
+const EntityDetails: React.FC<{ entity: SerializedEntity }> = ({ entity }) => {
   const tEntities = useTranslations('modules.entities')
 
   return (
