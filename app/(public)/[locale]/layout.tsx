@@ -1,4 +1,4 @@
-import React, { use } from 'react'
+import React from 'react'
 import { NotificationProvider } from '@/features/notifications/components/notification-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import Navigation from '@/features/layout/components/navigation'
