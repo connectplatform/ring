@@ -9,8 +9,11 @@ import { FirebaseError } from 'firebase/app';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -44,28 +47,26 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
 
     console.log(`Services: getUserById - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userRef = adminDb.collection('users').doc(userId);
-
-    // Step 3: Check authorization
+    // Step 2: Check authorization
     if (requestingUserId !== userId && requestingUserRole !== UserRole.ADMIN) {
       console.log(`Services: getUserById - Unauthorized access attempt to user ${userId} by user ${requestingUserId}`);
       return null; // Only allow users to access their own profile or admins to access any profile
     }
 
-    // Step 4: Retrieve the user document
-    const userDoc = await userRef.get();
+    // Step 3: Retrieve the user document using optimized firebase-service-manager
+    const phase = getCurrentPhase();
+    const userDoc = await getCachedDocument('users', userId);
 
-    if (!userDoc.exists) {
+    if (!userDoc || !userDoc.exists) {
       console.log(`Services: getUserById - User document not found for ID: ${userId}`);
       return null;
     }
 
     const userData = userDoc.data();
+    if (!userData) {
+      console.log(`Services: getUserById - User document exists but has no data for ID: ${userId}`);
+      return null;
+    }
 
     // Convert Firebase Timestamps to Date objects consistently
     const convertTimestamp = (timestamp: any): Date => {
