@@ -398,4 +398,4 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
  * Auth.js v5 Universal auth() method
  * Replaces getServerSession, getToken, etc.
  */
-export { auth as getServerAuthSession }
+export default { auth };
