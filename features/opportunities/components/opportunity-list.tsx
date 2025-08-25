@@ -19,28 +19,35 @@ import {
   DollarSign, 
   Clock, 
   Plus,
-  Filter,
-  Search,
   Loader2,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Briefcase,
+  HandHeart,
+  Users2,
+  GraduationCap,
+  Package,
+  Calendar as CalendarIcon,
+  Star,
+  Bookmark,
+  BookmarkCheck,
+  CheckCircle,
+  ExternalLink
 } from 'lucide-react'
 
-import { Opportunity } from '@/features/opportunities/types'
+import { SerializedOpportunity } from '@/features/opportunities/types'
 import { Entity } from '@/features/entities/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
-import { formatTimestampOrFieldValue, truncateDescription, formatBudget } from '@/lib/utils'
+import { formatDateValue, truncateDescription, formatBudget } from '@/lib/utils'
 import LoginForm from '@/features/auth/components/login-form'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 
 interface OpportunityListProps {
-  initialOpportunities: Opportunity[]
+  initialOpportunities: SerializedOpportunity[]
   initialEntities: { [key: string]: Entity }
   initialError: string | null
   lastVisible: string | null
@@ -49,27 +56,13 @@ interface OpportunityListProps {
   locale: string
 }
 
-interface OptimisticOpportunity extends Opportunity {
+interface OptimisticOpportunity extends SerializedOpportunity {
   isOptimistic?: boolean
   isPending?: boolean
   error?: string
 }
 
-interface OpportunityFilters {
-  search: string
-  category: string
-  type: 'all' | 'offer' | 'request'
-  location: string
-  sortBy: 'newest' | 'oldest' | 'budget' | 'deadline'
-}
 
-const defaultFilters: OpportunityFilters = {
-  search: '',
-  category: 'all',
-  type: 'all',
-  location: '',
-  sortBy: 'newest'
-}
 
 export default function OpportunityList({
   initialOpportunities,
@@ -97,13 +90,11 @@ export default function OpportunityList({
     }
   )
 
-  // Local state for pagination and filtering
+  // Local state for pagination
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>(initialEntities)
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
   const [error, setError] = React.useState<string | null>(initialError)
-  const [filters, setFilters] = React.useState<OpportunityFilters>(defaultFilters)
-  const [showFilters, setShowFilters] = React.useState(false)
 
   // Sync entities when parent-provided initialEntities change
   useEffect(() => {
@@ -116,36 +107,8 @@ export default function OpportunityList({
     null
   )
 
-  // Filter opportunities based on current filters
-  const filteredOpportunities = React.useMemo(() => {
-    return optimisticOpportunities.filter(opportunity => {
-      const matchesSearch = !filters.search || 
-        opportunity.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-        opportunity.briefDescription.toLowerCase().includes(filters.search.toLowerCase())
-      
-      const matchesCategory = filters.category === 'all' || opportunity.category === filters.category
-      const matchesType = filters.type === 'all' || opportunity.type === filters.type
-      const matchesLocation = !filters.location || 
-        opportunity.location.toLowerCase().includes(filters.location.toLowerCase())
-
-      return matchesSearch && matchesCategory && matchesType && matchesLocation
-    }).sort((a, b) => {
-      switch (filters.sortBy) {
-        case 'newest':
-          return new Date(b.dateCreated as any).getTime() - new Date(a.dateCreated as any).getTime()
-        case 'oldest':
-          return new Date(a.dateCreated as any).getTime() - new Date(b.dateCreated as any).getTime()
-        case 'budget':
-          const aBudget = a.budget?.max || 0
-          const bBudget = b.budget?.max || 0
-          return bBudget - aBudget
-        case 'deadline':
-          return new Date(a.expirationDate as any).getTime() - new Date(b.expirationDate as any).getTime()
-        default:
-          return 0
-      }
-    })
-  }, [optimisticOpportunities, filters])
+  // Use optimistic opportunities directly (filtering moved to wrapper)
+  const displayOpportunities = optimisticOpportunities
 
   // Fetch more opportunities for infinite scroll
   const fetchMoreOpportunities = useCallback(async () => {
@@ -157,11 +120,7 @@ export default function OpportunityList({
     try {
       const queryParams = new URLSearchParams({
         limit: limit.toString(),
-        startAfter: lastVisible,
-        ...(filters.category !== 'all' && { category: filters.category }),
-        ...(filters.type !== 'all' && { type: filters.type }),
-        ...(filters.location && { location: filters.location }),
-        sort: filters.sortBy
+        startAfter: lastVisible
       })
 
       const response = await apiClient.get(`/api/opportunities?${queryParams}`, {
@@ -176,17 +135,18 @@ export default function OpportunityList({
       const data = response.data
       
       // Update opportunities without affecting optimistic ones
-      const newOpportunities = data.opportunities.filter((opp: Opportunity) => 
+      const newOpportunities = data.opportunities.filter((opp: SerializedOpportunity) => 
         !optimisticOpportunities.some(existing => existing.id === opp.id)
       )
       
-      newOpportunities.forEach((opp: Opportunity) => addOptimisticOpportunity(opp))
+      newOpportunities.forEach((opp: SerializedOpportunity) => addOptimisticOpportunity(opp))
       setLastVisible(data.lastVisible)
 
       // Fetch entities for new opportunities - with deduplication
+      // Filter out null, empty, or already loaded entities
       const uniqueEntityIds = [...new Set(newOpportunities
-        .map((opp: Opportunity) => opp.organizationId)
-        .filter(id => !entities[id]))]
+        .map((opp: SerializedOpportunity) => opp.organizationId)
+        .filter(id => id && id.trim() !== '' && !entities[id]))]
 
       if (uniqueEntityIds.length > 0) {
         const entityPromises = uniqueEntityIds.map(id => 
@@ -214,7 +174,7 @@ export default function OpportunityList({
     } finally {
       setLoading(false)
     }
-  }, [loading, lastVisible, limit, filters, session, t, optimisticOpportunities, entities, addOptimisticOpportunity])
+  }, [loading, lastVisible, limit, session, t, optimisticOpportunities, entities, addOptimisticOpportunity])
 
   // Trigger infinite scroll
   useEffect(() => {
@@ -224,7 +184,7 @@ export default function OpportunityList({
   }, [inView, fetchMoreOpportunities, loading])
 
   // Handle optimistic opportunity creation
-  const handleOptimisticCreate = (opportunityData: Partial<Opportunity>) => {
+  const handleOptimisticCreate = (opportunityData: Partial<SerializedOpportunity>) => {
     if (!session?.user) return
 
     const optimisticOpportunity: OptimisticOpportunity = {
@@ -237,10 +197,11 @@ export default function OpportunityList({
       location: opportunityData.location || '',
       tags: opportunityData.tags || [],
       createdBy: session.user.id,
+      applicantCount: 0, // Initialize with 0 applicants
       organizationId: opportunityData.organizationId || '',
-      dateCreated: new Date() as any,
-      dateUpdated: new Date() as any,
-      expirationDate: opportunityData.expirationDate || new Date() as any,
+      dateCreated: new Date().toISOString(),
+      dateUpdated: new Date().toISOString(),
+      expirationDate: opportunityData.expirationDate ? new Date(opportunityData.expirationDate).toISOString() : new Date().toISOString(),
       status: 'active',
       requiredSkills: opportunityData.requiredSkills || [],
       requiredDocuments: opportunityData.requiredDocuments || [],
@@ -256,15 +217,7 @@ export default function OpportunityList({
     addOptimisticOpportunity(optimisticOpportunity)
   }
 
-  // Handle filter changes
-  const handleFilterChange = (key: keyof OpportunityFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-  }
 
-  // Clear all filters
-  const clearFilters = () => {
-    setFilters(defaultFilters)
-  }
 
   if (status === 'loading') {
     return <LoadingMessage message={t('loadingMessage')} />
@@ -277,113 +230,8 @@ export default function OpportunityList({
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">{t('opportunities')}</h1>
-            <p className="text-muted-foreground mt-1">
-              {t('opportunitiesSubtitle', { count: totalCount })}
-            </p>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              {t('filters')}
-            </Button>
-            
-            <AddOpportunityButton locale={locale as any} />
-          </div>
-        </div>
 
-        {/* Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-6"
-            >
-              <Card>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">{t('search')}</label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder={t('searchOpportunities')}
-                          value={filters.search}
-                          onChange={(e) => handleFilterChange('search', e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
 
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">{t('category')}</label>
-                      <Select value={filters.category} onValueChange={(value) => handleFilterChange('category', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('selectCategory')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{t('allCategories')}</SelectItem>
-                          <SelectItem value="technology">{t('technology')}</SelectItem>
-                          <SelectItem value="business">{t('business')}</SelectItem>
-                          <SelectItem value="education">{t('education')}</SelectItem>
-                          <SelectItem value="healthcare">{t('healthcare')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">{t('type')}</label>
-                      <Select value={filters.type} onValueChange={(value) => handleFilterChange('type', value as any)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('selectType')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">{t('allTypes')}</SelectItem>
-                          <SelectItem value="offer">{t('offer')}</SelectItem>
-                          <SelectItem value="request">{t('request')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">{t('sortBy')}</label>
-                      <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value as any)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('sortBy')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="newest">{t('newest')}</SelectItem>
-                          <SelectItem value="oldest">{t('oldest')}</SelectItem>
-                          <SelectItem value="budget">{t('budget')}</SelectItem>
-                          <SelectItem value="deadline">{t('deadline')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center mt-4">
-                    <p className="text-sm text-muted-foreground">
-                      {t('showingResults', { count: filteredOpportunities.length })}
-                    </p>
-                    <Button variant="ghost" onClick={clearFilters}>
-                      {t('clearFilters')}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Error Display */}
         {error && (
@@ -404,7 +252,7 @@ export default function OpportunityList({
         {/* Opportunity List */}
         <div className="max-w-4xl mx-auto">
           <AnimatePresence mode="popLayout">
-            {filteredOpportunities.map((opportunity) => (
+            {displayOpportunities.map((opportunity) => (
               <OpportunityCard
                 key={opportunity.id}
                 opportunity={opportunity}
@@ -416,7 +264,7 @@ export default function OpportunityList({
           </AnimatePresence>
 
           {/* Empty State */}
-          {filteredOpportunities.length === 0 && !loading && (
+          {displayOpportunities.length === 0 && !loading && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -455,6 +303,63 @@ export default function OpportunityList({
 }
 
 // Individual Opportunity Card Component
+// Opportunity type configuration for visual indicators
+const getOpportunityTypeConfig = (type: string) => {
+  const configs = {
+    offer: {
+      icon: Briefcase,
+      color: 'bg-blue-500',
+      bgColor: 'bg-blue-50 dark:bg-blue-950/20',
+      borderColor: 'border-blue-200 dark:border-blue-800',
+      textColor: 'text-blue-700 dark:text-blue-300'
+    },
+    request: {
+      icon: HandHeart,
+      color: 'bg-green-500', 
+      bgColor: 'bg-green-50 dark:bg-green-950/20',
+      borderColor: 'border-green-200 dark:border-green-800',
+      textColor: 'text-green-700 dark:text-green-300'
+    },
+    partnership: {
+      icon: Users2,
+      color: 'bg-purple-500',
+      bgColor: 'bg-purple-50 dark:bg-purple-950/20', 
+      borderColor: 'border-purple-200 dark:border-purple-800',
+      textColor: 'text-purple-700 dark:text-purple-300'
+    },
+    volunteer: {
+      icon: HandHeart,
+      color: 'bg-orange-500',
+      bgColor: 'bg-orange-50 dark:bg-orange-950/20',
+      borderColor: 'border-orange-200 dark:border-orange-800', 
+      textColor: 'text-orange-700 dark:text-orange-300'
+    },
+    mentorship: {
+      icon: GraduationCap,
+      color: 'bg-indigo-500',
+      bgColor: 'bg-indigo-50 dark:bg-indigo-950/20',
+      borderColor: 'border-indigo-200 dark:border-indigo-800',
+      textColor: 'text-indigo-700 dark:text-indigo-300'
+    },
+    resource: {
+      icon: Package,
+      color: 'bg-teal-500',
+      bgColor: 'bg-teal-50 dark:bg-teal-950/20',
+      borderColor: 'border-teal-200 dark:border-teal-800',
+      textColor: 'text-teal-700 dark:text-teal-300'
+    },
+    event: {
+      icon: CalendarIcon,
+      color: 'bg-pink-500',
+      bgColor: 'bg-pink-50 dark:bg-pink-950/20',
+      borderColor: 'border-pink-200 dark:border-pink-800',
+      textColor: 'text-pink-700 dark:text-pink-300'
+    }
+  }
+  
+  return configs[type as keyof typeof configs] || configs.offer
+}
+
 interface OpportunityCardProps {
   opportunity: OptimisticOpportunity
   entity: Entity | undefined
@@ -471,6 +376,29 @@ function OpportunityCard({
   const t = useTranslations('modules.opportunities')
   // Ensure we always pass a defined translation key
   const typeKey = opportunity?.type === 'request' ? 'request' : 'offer'
+  
+  // Get translated type name
+  const getTypeTranslation = (type: string) => {
+    const typeMap: { [key: string]: string } = {
+      'offer': t('offer'),
+      'request': t('request'),
+      'partnership': t('partnership'),
+      'volunteer': t('volunteer'),
+      'mentorship': t('mentorship'),
+      'resource': t('resource'),
+      'event': t('event')
+    }
+    return typeMap[type] || type
+  }
+  
+  // Get type configuration for visual styling
+  const typeConfig = getOpportunityTypeConfig(opportunity.type)
+  const TypeIcon = typeConfig.icon
+  
+  // Check if opportunity is expired or has urgent deadline
+  const isExpired = opportunity.expirationDate && new Date(opportunity.expirationDate) < new Date()
+  const isDeadlineSoon = opportunity.applicationDeadline && 
+    new Date(opportunity.applicationDeadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
   return (
     <motion.div
@@ -490,9 +418,11 @@ function OpportunityCard({
       }}
       className="mb-6"
     >
-      <Card className={`relative overflow-hidden ${
-        isOptimistic ? 'border-primary/50 bg-primary/5' : ''
-      } ${isPending ? 'border-dashed' : ''}`}>
+      <Card className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${
+        isOptimistic ? 'border-primary/50 bg-primary/5' : typeConfig.borderColor + ' ' + typeConfig.bgColor
+      } ${isPending ? 'border-dashed' : ''} ${isExpired ? 'opacity-60 grayscale' : ''}`}>
+        {/* Type indicator stripe */}
+        <div className={`absolute top-0 left-0 w-1 h-full ${typeConfig.color}`} />
         {/* Optimistic Indicator */}
         {isOptimistic && (
           <div className="absolute top-2 right-2 z-10">
@@ -514,42 +444,76 @@ function OpportunityCard({
 
         <CardContent className="p-6">
           {/* Header */}
-          <div className="flex items-center mb-4">
-            <div className="relative">
-              <Image
-                src={entity?.logo || '/placeholder.svg'}
-                alt={entity?.name || 'Company logo'}
-                width={40}
-                height={40}
-                className={`rounded-full mr-3 ${isOptimistic ? 'opacity-70' : ''}`}
-              />
-              {isPending && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <h2 className="font-semibold">{entity?.name || t('loadingEntity')}</h2>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4 mr-1" />
-                <span>{opportunity.location}</span>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Entity logo or type icon */}
+              <div className="relative flex-shrink-0">
+                {entity ? (
+                  <Image
+                    src={entity.logo || '/placeholder.svg'}
+                    alt={entity.name || 'Organization logo'}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${typeConfig.color}`}>
+                    <TypeIcon className="h-5 w-5 text-white" />
+                  </div>
+                )}
+                {isPending && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full">
+                    <Loader2 className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={opportunity.type === 'offer' ? 'default' : 'secondary'}>
-                {t(typeKey)}
-              </Badge>
-              {opportunity.isConfidential && (
-                <Badge variant="destructive">{t('confidential')}</Badge>
-              )}
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="outline" className={`text-xs ${typeConfig.textColor}`}>
+                    <TypeIcon className="h-3 w-3 mr-1" />
+                    {getTypeTranslation(opportunity.type)}
+                  </Badge>
+                  
+                  {opportunity.priority && opportunity.priority !== 'normal' && (
+                    <Badge variant={opportunity.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {opportunity.priority}
+                    </Badge>
+                  )}
+                  
+                  {isDeadlineSoon && !isExpired && (
+                    <Badge variant="destructive" className="text-xs">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Deadline Soon
+                    </Badge>
+                  )}
+                  
+                  {isExpired && (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      Expired
+                    </Badge>
+                  )}
+                  
+                  {opportunity.isConfidential && (
+                    <Badge variant="destructive" className="text-xs">{t('confidential')}</Badge>
+                  )}
+                </div>
+                
+                <h2 className="font-semibold text-base leading-tight mb-1 group-hover:text-primary transition-colors">
+                  {opportunity.title}
+                </h2>
+                
+                <p className="text-sm text-muted-foreground">
+                  {entity?.name || t('privateUser')}
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Content */}
-          <h3 className="text-xl font-semibold mb-2">{opportunity.title}</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {truncateDescription(opportunity.briefDescription)}
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+            {truncateDescription(opportunity.briefDescription || opportunity.fullDescription || '', 120)}
           </p>
 
           {/* Details Grid */}
@@ -564,11 +528,11 @@ function OpportunityCard({
             </div>
             <div className="flex items-center text-sm">
               <Calendar className="w-4 h-4 mr-2" />
-              <span>{formatTimestampOrFieldValue(opportunity.expirationDate)}</span>
+              <span>{formatDateValue(opportunity.expirationDate)}</span>
             </div>
             <div className="flex items-center text-sm">
               <Clock className="w-4 h-4 mr-2" />
-              <span>{formatTimestampOrFieldValue(opportunity.dateCreated)}</span>
+              <span>{formatDateValue(opportunity.dateCreated)}</span>
             </div>
           </div>
 
