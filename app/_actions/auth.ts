@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale, isValidLocale, type Locale } from '@/i18n-config'
 import { signIn } from '@/auth'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 
 export interface AuthFormState {
   success?: boolean
@@ -427,7 +427,7 @@ export async function requestAccountDeletion(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
@@ -514,7 +514,7 @@ export async function cancelAccountDeletion(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
@@ -570,7 +570,7 @@ export async function confirmAccountDeletion(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
@@ -639,7 +639,7 @@ export async function getAccountDeletionStatus(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
