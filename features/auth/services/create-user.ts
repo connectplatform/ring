@@ -5,13 +5,16 @@
 // - Intelligent data strategies per environment
 
 import { AuthUser, UserRole } from '@/features/auth/types';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors';
 
-import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { 
+  createDocument,
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
 
 /**
  * Create a new user in Firestore, with authentication and role-based access control.
@@ -67,7 +70,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
     }
 
     // Step 2: Authenticate the requesting user (for admin-created users)
-    const session = await getServerAuthSession();
+    const session = await auth();
     
     // If there's a session, validate permissions for admin-created users
     if (session && session.user) {
@@ -91,30 +94,23 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       }
     }
 
-    // Step 3: Initialize database connection
-    // 🚀 OPTIMIZED: Enhanced error handling with service manager
+    // 🚀 OPTIMIZED: Use firebase-service-manager for user creation
     const phase = getCurrentPhase();
-    let adminDb;
-    try {
-      const serviceManager = getFirebaseServiceManager();
-      adminDb = serviceManager.db;
-    } catch (error) {
-      throw new EntityDatabaseError(
-        'Failed to initialize database connection',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          operation: 'getAdminDb'
-        }
-      );
-    }
 
-    const usersCollection = adminDb.collection('users');
-
-    // Step 4: Check if user already exists
+    // Step 3: Check if user already exists by email (using a query approach)
+    // Note: We cannot use email as document ID, so we check if user exists first
     let existingUserQuery;
     try {
-      existingUserQuery = await usersCollection.where('email', '==', userData.email).get();
+      // Since we can't query by email directly with getCachedDocument, 
+      // we'll use getCachedCollectionAdvanced to find existing users by email
+      const usersSnapshot = await getCachedCollectionAdvanced('users', {
+        where: [{ field: 'email', operator: '==', value: userData.email }],
+        limit: 1
+      });
+      
+      if (usersSnapshot.docs.length > 0) {
+        existingUserQuery = usersSnapshot.docs[0];
+      }
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to check for existing user',
@@ -127,21 +123,21 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       );
     }
 
-    if (!existingUserQuery.empty) {
+    if (existingUserQuery) {
       throw new ValidationError(
         'User with this email already exists',
         undefined,
         {
           timestamp: Date.now(),
           email: userData.email,
-          existingUserId: existingUserQuery.docs[0].id,
+          existingUserId: existingUserQuery.id || '',
           operation: 'createUser'
         }
       );
     }
 
-    // Step 5: Prepare user data with defaults
-    const userId = userData.id || usersCollection.doc().id;
+    // Step 4: Generate user ID and prepare user data with defaults  
+    const userId = userData.id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date();
     
     const newUser: AuthUser = {
@@ -177,9 +173,9 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       wallets: userData.wallets || [],
     };
 
-    // Step 6: Create the user document in Firestore
+    // Step 5: Create the user document using optimized firebase-service-manager
     try {
-      await usersCollection.doc(newUser.id).set(newUser);
+      await createDocument('users', newUser, newUser.id);
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to create user document',
