@@ -2,7 +2,7 @@
 // Extracted from API routes to follow Ring's architectural pattern:
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import { CommentFormData, CommentFilters } from '@/features/comments/types'
 
@@ -26,7 +26,7 @@ interface GetCommentsResult {
 
 export async function createComment(formData: CommentFormData): Promise<CreateCommentResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
@@ -162,7 +162,7 @@ export async function createComment(formData: CommentFormData): Promise<CreateCo
 
 export async function deleteComment(commentId: string): Promise<CreateCommentResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
@@ -226,7 +226,7 @@ export async function deleteComment(commentId: string): Promise<CreateCommentRes
 
 export async function updateComment(commentId: string, content: string): Promise<CreateCommentResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
