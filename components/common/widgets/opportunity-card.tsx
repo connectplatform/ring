@@ -7,12 +7,28 @@ import { Opportunity, Entity } from '@/types'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Tag, FileText, Building, User } from 'lucide-react'
+import { Calendar, MapPin, Tag, FileText, Building, User, Briefcase, Handshake, Heart, Users, Share2, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 import { Timestamp, FieldValue } from 'firebase/firestore'
 
 // React 19 Resource Preloading APIs
 import { preload } from 'react-dom'
+
+/**
+ * Helper function to get icon and styling for opportunity types
+ */
+function getOpportunityTypeConfig(type: string) {
+  const configs = {
+    request: { icon: FileText, color: 'text-blue-500', bgColor: 'bg-blue-50' },
+    offer: { icon: Briefcase, color: 'text-green-500', bgColor: 'bg-green-50' },
+    partnership: { icon: Handshake, color: 'text-purple-500', bgColor: 'bg-purple-50' },
+    volunteer: { icon: Heart, color: 'text-red-500', bgColor: 'bg-red-50' },
+    mentorship: { icon: Users, color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
+    resource: { icon: Share2, color: 'text-orange-500', bgColor: 'bg-orange-50' },
+    event: { icon: CalendarDays, color: 'text-teal-500', bgColor: 'bg-teal-50' }
+  }
+  return configs[type as keyof typeof configs] || configs.request
+}
 
 /**
  * Props for the Opportunitycard component
@@ -48,8 +64,11 @@ const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportuni
   const t = useTranslations('modules.opportunities')
   const { data: session } = useSession()
 
+  // Get type configuration for styling and icons
+  const typeConfig = getOpportunityTypeConfig(opportunity.type)
+
   // Determine display name and avatar for the card
-  const isPrivateRequest = !entity && opportunity.type === 'request'
+  const isPrivateRequest = !entity && (opportunity.type === 'request' || opportunity.type === 'mentorship' || opportunity.type === 'resource')
   const displayName = isPrivateRequest 
     ? (creator?.nickname || creator?.name?.split(' ')[0] || 'Private User')
     : (entity?.name || 'Unknown Entity')
@@ -115,18 +134,32 @@ const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportuni
   return (
     <Card className="w-full hover:shadow-lg transition-shadow duration-300">
       <CardHeader>
-        <div className="flex items-center space-x-4">
-          <Avatar
-            src={displayAvatar}
-            alt={`${displayName} avatar`}
-            fallback={displayName.charAt(0)}
-          />
-          <div>
-            <CardTitle className="text-lg">{opportunity.title}</CardTitle>
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              {isPrivateRequest && <User className="w-3 h-3" />}
-              {displayName}
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Avatar
+              src={displayAvatar}
+              alt={`${displayName} avatar`}
+              fallback={displayName.charAt(0)}
+            />
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                {opportunity.title}
+                {opportunity.priority === 'urgent' && (
+                  <span className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                    {t('priorityUrgent', { defaultValue: 'Urgent' })}
+                  </span>
+                )}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                {isPrivateRequest && <User className="w-3 h-3" />}
+                {displayName}
+              </p>
+            </div>
+          </div>
+          <div className={`p-2 rounded-full ${typeConfig.bgColor}`}>
+            {React.createElement(typeConfig.icon, { 
+              className: `w-5 h-5 ${typeConfig.color}` 
+            })}
           </div>
         </div>
       </CardHeader>
@@ -155,14 +188,25 @@ const OpportunityCardContent: React.FC<OpportunitycardProps> = memo(({ opportuni
           </div>
           <div className="flex items-center">
             <dt className="sr-only">{t('type')}</dt>
-            <FileText className="w-4 h-4 mr-2" aria-hidden="true" />
-            <dd>{t('type')}: {opportunity.type === 'offer' ? t('offer') : t('request')}</dd>
+            {React.createElement(typeConfig.icon, { className: `w-4 h-4 mr-2 ${typeConfig.color}`, 'aria-hidden': true })}
+            <dd>{t('type')}: {t(opportunity.type, { defaultValue: opportunity.type })}</dd>
           </div>
           <div className="flex items-center">
             <dt className="sr-only">{isPrivateRequest ? t('creator') : t('entity.name')}</dt>
             {React.createElement(displayIcon, { className: "w-4 h-4 mr-2", 'aria-hidden': true })}
             <dd>{isPrivateRequest ? t('creator') : t('entity.name')}: {displayName}</dd>
           </div>
+          {/* Show applicant count for opportunities that track applications */}
+          {(opportunity.type === 'offer' || opportunity.type === 'volunteer' || opportunity.type === 'event') && opportunity.applicantCount !== undefined && (
+            <div className="flex items-center">
+              <dt className="sr-only">{t('applicants')}</dt>
+              <Users className="w-4 h-4 mr-2" aria-hidden="true" />
+              <dd>
+                {t('applicants', { defaultValue: 'Applicants' })}: {opportunity.applicantCount}
+                {opportunity.maxApplicants && ` / ${opportunity.maxApplicants}`}
+              </dd>
+            </div>
+          )}
         </dl>
       </CardContent>
       <CardFooter>
