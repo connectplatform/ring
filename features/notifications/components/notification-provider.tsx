@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState, use } from 'react';
 import { useSession } from 'next-auth/react';
 import { Notification } from '@/features/notifications/types';
 import { ToastContainer, useToastNotifications } from './toast-notification';
@@ -195,7 +195,7 @@ export function NotificationProvider({
  * Hook to use notification context
  */
 export function useNotificationContext() {
-  const context = useContext(NotificationContext);
+  const context = use(NotificationContext);
   
   if (context === undefined) {
     throw new Error('useNotificationContext must be used within a NotificationProvider');
