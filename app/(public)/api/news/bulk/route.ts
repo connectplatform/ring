@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getNewsCollection } from '@/lib/firestore-collections'
+import { 
+  getCachedDocument,
+  updateDocument,
+  deleteDocument,
+  createBatchWriter,
+  executeBatch
+} from '@/lib/services/firebase-service-manager'
+import { getAdminDb } from '@/lib/firebase-admin.server'
 import { FieldValue } from 'firebase-admin/firestore'
 import { NewsCategory, NewsStatus } from '@/features/news/types'
 
@@ -54,8 +61,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const newsCollection = getNewsCollection()
-    const batch = newsCollection.firestore.batch()
+    const batch = createBatchWriter()
     
     let successCount = 0
     let failedIds: string[] = []
@@ -63,15 +69,17 @@ export async function POST(request: NextRequest) {
     // Process each article
     for (const articleId of articleIds) {
       try {
-        const articleRef = newsCollection.doc(articleId)
-        
-        // Verify article exists
-        const articleDoc = await articleRef.get()
-        if (!articleDoc.exists) {
+        // Verify article exists using firebase-service-manager
+        const articleDoc = await getCachedDocument('news', articleId)
+        if (!articleDoc || !articleDoc.exists) {
           failedIds.push(articleId)
           continue
         }
 
+        // Get document reference for batch operations
+        const db = getAdminDb()
+        const articleRef = db.collection('news').doc(articleId)
+        
         // Apply operation
         switch (operation) {
           case 'publish':
@@ -116,10 +124,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Commit batch operation
+    // Commit batch operation using firebase-service-manager
     if (successCount > 0) {
       try {
-        await batch.commit()
+        await executeBatch(batch)
       } catch (error) {
         console.error('Batch commit failed:', error)
         return NextResponse.json(
