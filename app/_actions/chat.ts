@@ -2,7 +2,7 @@
 
 import { getAdminDb } from '@/lib/firebase-admin.server'
 import { FieldValue } from 'firebase-admin/firestore'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 
 export interface MessageFormState {
   error?: string
@@ -37,7 +37,7 @@ export async function sendMessage(
 
   try {
     // Get current user session
-    const session = await getServerAuthSession()
+    const session = await auth()
     if (!session?.user?.id) {
       return {
         error: 'Authentication required'
