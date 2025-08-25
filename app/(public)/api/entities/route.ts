@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerAuthSession } from '@/auth'; // Fixed import to use getServerAuthSession
+import { auth } from '@/auth'; // Fixed import to use auth
 import { getCachedEntitiesForRole } from '@/lib/cached-data';
 import { UserRole } from '@/features/auth/types';
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   console.log('API: /api/entities - Starting GET request');
   try {
     // Authenticate the session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.log('API: /api/entities - Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
