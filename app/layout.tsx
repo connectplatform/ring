@@ -4,7 +4,6 @@ import { SessionProvider } from '@/components/providers/session-provider'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { WebVitalsProvider } from '@/components/providers/web-vitals-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
-import { WebSocketProvider } from '@/components/providers/websocket-provider'
 import InstanceThemeStyle from '@/components/common/whitelabel/InstanceThemeStyle.server'
 import { Toaster } from '@/components/ui/toaster'
 import '@/styles/globals.css'
@@ -68,18 +67,16 @@ export default async function RootLayout({
               <AppProvider>
                 <FCMProvider>
                   <TunnelProvider autoConnect={true} debug={false}>
-                    <WebSocketProvider>
-                      <StoreProvider>
-                        <div className="flex flex-col min-h-screen">
-                          <main className="flex-grow">{children}</main>
-                        </div>
-                      </StoreProvider>
-                      {/* Removed transition overlay to prevent color banding/stripes during theme switch */}
-                      <FCMPermissionPrompt />
-                      <Toaster />
-                      {/* WebSocket Diagnostics Panel (Development Only) */}
-                      <WebSocketDiagnosticsProvider />
-                    </WebSocketProvider>
+                    <StoreProvider>
+                      <div className="flex flex-col min-h-screen">
+                        <main className="flex-grow">{children}</main>
+                      </div>
+                    </StoreProvider>
+                    {/* Removed transition overlay to prevent color banding/stripes during theme switch */}
+                    <FCMPermissionPrompt />
+                    <Toaster />
+                    {/* WebSocket Diagnostics Panel (Development Only) */}
+                    <WebSocketDiagnosticsProvider />
                   </TunnelProvider>
                 </FCMProvider>
               </AppProvider>
