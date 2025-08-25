@@ -1,8 +1,8 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
-import { auth } from '@/auth';
-import { getNewsCollection } from '@/lib/firestore-collections';
+import { auth } from '@/auth' 
+import { getCachedNewsById } from '@/lib/services/firebase-service-manager';
 import { NewsArticle } from '@/features/news/types';
 import { ArticleEditor } from '@/features/news/components/article-editor';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
@@ -11,16 +11,20 @@ export const dynamic = 'force-dynamic';
 
 async function getArticle(id: string): Promise<NewsArticle | null> {
   try {
-    const newsCollection = getNewsCollection();
-    const doc = await newsCollection.doc(id).get();
+    const doc = await getCachedNewsById(id);
     
-    if (!doc.exists) {
+    if (!doc || !doc.exists) {
+      return null;
+    }
+    
+    const data = doc.data();
+    if (!data) {
       return null;
     }
     
     return {
       id: doc.id,
-      ...doc.data()
+      ...data
     } as NewsArticle;
   } catch (error) {
     console.error('Error fetching article:', error);
@@ -41,8 +45,7 @@ export async function generateMetadata({
 
   return {
     title: `${t.news.editArticle}: ${article?.title || 'Article'} | Ring Platform`,
-    description: `Edit article: ${article?.title || 'Unknown article'}`,
-    robots: 'noindex, nofollow',
+    description: `Edit article: ${article?.title || 'Unknown article'}`
   };
 }
 
