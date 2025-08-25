@@ -94,9 +94,11 @@ class RateLimiter {
 }
 
 // Create rate limiters for different endpoints
-export const authRateLimiter = new RateLimiter(60000, 5) // 5 auth attempts per minute
-export const apiRateLimiter = new RateLimiter(60000, 100) // 100 API calls per minute
-export const wsRateLimiter = new RateLimiter(60000, 10) // 10 WebSocket connections per minute
+// More lenient limits for development environment
+const isDevelopment = process.env.NODE_ENV === 'development'
+export const authRateLimiter = new RateLimiter(60000, isDevelopment ? 50 : 5) // 50 auth attempts per minute in dev, 5 in prod
+export const apiRateLimiter = new RateLimiter(60000, isDevelopment ? 500 : 100) // 500 API calls per minute in dev, 100 in prod
+export const wsRateLimiter = new RateLimiter(60000, isDevelopment ? 50 : 10) // 50 WebSocket connections per minute in dev, 10 in prod
 
 /**
  * Express/Next.js middleware for rate limiting
