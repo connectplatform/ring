@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { getAdminDb } from '@/lib/firebase-admin.server'
 
 export const dynamic = 'force-dynamic'
 
 // Marks a draft listing as active after on-chain tx confirmation
 export async function POST(req: NextRequest) {
-  const session = await getServerAuthSession()
+  const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
