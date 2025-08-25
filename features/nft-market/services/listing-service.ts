@@ -2,7 +2,7 @@
 // Extracted from API routes to follow Ring's architectural pattern:
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { getAdminDb } from '@/lib/firebase-admin.server'
 
 interface CreateListingData {
@@ -33,7 +33,7 @@ interface GetListingsResult {
 
 export async function createListingDraft(data: CreateListingData): Promise<CreateListingResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
@@ -137,7 +137,7 @@ export async function getUserActiveListings(username: string, limit = 12): Promi
 
 export async function activateListing(listingId: string, txHash: string): Promise<CreateListingResult> {
   try {
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       return {
