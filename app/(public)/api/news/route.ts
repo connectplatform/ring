@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNewsCollection } from '@/lib/firestore-collections';
+import { 
+  getCachedCollectionAdvanced,
+  getCachedNewsBySlug,
+  getCachedDocument,
+  createDocument
+} from '@/lib/services/firebase-service-manager';
 import { NewsFilters, NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -32,58 +37,66 @@ export async function GET(request: NextRequest) {
       filters.tags = tagsParam.split(',').map(tag => tag.trim());
     }
 
-    const newsCollection = getNewsCollection();
-    let query = newsCollection.orderBy(filters.sortBy || 'publishedAt', filters.sortOrder || 'desc');
+    // Build query configuration for firebase-service-manager
+    const queryConfig: any = {
+      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
+      limit: filters.limit || 10
+    };
 
-    // Apply filters
+    // Build where clauses array
+    const whereClause = [];
+    
     if (filters.category) {
-      query = query.where('category', '==', filters.category);
+      whereClause.push({ field: 'category', operator: '==', value: filters.category });
     }
     
     if (filters.status) {
-      query = query.where('status', '==', filters.status);
+      whereClause.push({ field: 'status', operator: '==', value: filters.status });
     }
     
     if (filters.visibility) {
-      query = query.where('visibility', '==', filters.visibility);
+      whereClause.push({ field: 'visibility', operator: '==', value: filters.visibility });
     }
     
     if (filters.featured !== undefined) {
-      query = query.where('featured', '==', filters.featured);
+      whereClause.push({ field: 'featured', operator: '==', value: filters.featured });
     }
     
     if (filters.authorId) {
-      query = query.where('authorId', '==', filters.authorId);
+      whereClause.push({ field: 'authorId', operator: '==', value: filters.authorId });
     }
 
-    // Apply pagination
+    if (whereClause.length > 0) {
+      queryConfig.where = whereClause;
+    }
+
+    const snapshot = await getCachedCollectionAdvanced('news', queryConfig);
+    let articles: any[] = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return { ...data, id: doc.id };
+    }).filter((article: any) => article.title); // Filter out any invalid articles
+
+    // Apply pagination offset (since getCachedCollectionAdvanced may not support offset)
     if (filters.offset && filters.offset > 0) {
-      query = query.offset(filters.offset);
+      articles = articles.slice(filters.offset);
     }
-    
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
-
-    const snapshot = await query.get();
-    const articles = snapshot.docs.map(doc => doc.data());
 
     // Filter by search term if provided (client-side filtering for now)
     let filteredArticles = articles;
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
       filteredArticles = articles.filter(article => 
-        article.title.toLowerCase().includes(searchTerm) ||
-        article.excerpt.toLowerCase().includes(searchTerm) ||
-        article.content.toLowerCase().includes(searchTerm) ||
-        article.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+        (article.title || '').toLowerCase().includes(searchTerm) ||
+        (article.excerpt || '').toLowerCase().includes(searchTerm) ||
+        (article.content || '').toLowerCase().includes(searchTerm) ||
+        (article.tags || []).some((tag: string) => tag.toLowerCase().includes(searchTerm))
       );
     }
 
     // Filter by tags if provided
     if (filters.tags && filters.tags.length > 0) {
       filteredArticles = filteredArticles.filter(article =>
-        filters.tags!.some(tag => article.tags.includes(tag))
+        filters.tags!.some(tag => (article.tags || []).includes(tag))
       );
     }
 
@@ -150,11 +163,13 @@ export async function POST(request: NextRequest) {
       .replace(/-+/g, '-')
       .trim();
 
-    const newsCollection = getNewsCollection();
-    
     // Check if slug already exists
-    const existingSlug = await newsCollection.where('slug', '==', slug).get();
-    if (!existingSlug.empty) {
+    const existingSlugSnapshot = await getCachedCollectionAdvanced('news', {
+      where: [{ field: 'slug', operator: '==', value: slug }],
+      limit: 1
+    });
+    
+    if (existingSlugSnapshot.docs.length > 0) {
       return NextResponse.json(
         { success: false, error: 'Article with this slug already exists' },
         { status: 400 }
@@ -184,8 +199,8 @@ export async function POST(request: NextRequest) {
       seo: formData.seo || null,
     };
 
-    const docRef = await newsCollection.add(newArticle as any);
-    const createdArticle = await docRef.get();
+    const docRef = await createDocument('news', newArticle);
+    const createdArticle = await getCachedDocument('news', docRef.id);
 
     return NextResponse.json({
       success: true,
