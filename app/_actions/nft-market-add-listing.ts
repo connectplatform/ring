@@ -1,6 +1,6 @@
 "use server"
 
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 // Removed apiClient import - using direct service calls instead
 // import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
@@ -15,7 +15,7 @@ export async function addListingDraft(
   prev: AddListingDraftState | null,
   formData: FormData
 ): Promise<AddListingDraftState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   if (!session?.user?.id) return { error: 'Unauthorized' }
 
   try {
