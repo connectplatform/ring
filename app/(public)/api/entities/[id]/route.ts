@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerAuthSession } from '@/auth'; // Session handling consistent with list route
+import { auth } from '@/auth'; // Session handling consistent with list route
 import { deleteEntity } from '@/features/entities/services/delete-entity';
 import { getEntityById } from '@/features/entities/services/get-entity-by-id';
 import { updateEntity } from '@/features/entities/services/update-entity';
@@ -47,7 +47,7 @@ export async function GET(
 
   try {
     // Authenticate the user
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -91,7 +91,7 @@ export async function PUT(
 
   try {
     // Authenticate the user
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -145,7 +145,7 @@ export async function DELETE(
 
   try {
     // Authenticate the user
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
