@@ -9,10 +9,12 @@ import { FirebaseError } from 'firebase/app';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument
+} from '@/lib/services/firebase-service-manager';
 
-import { getServerAuthSession } from '@/auth'; // Consistent session handling
+import { auth } from '@/auth'; // Consistent session handling
 
 /**
  * Retrieve a user's settings from Firestore, with authentication.
@@ -34,7 +36,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
 
   try {
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       throw new Error('Unauthorized access');
     }
@@ -43,17 +45,11 @@ export async function getUserSettings(): Promise<UserSettings | null> {
 
     console.log(`Services: getUserSettings - User authenticated with ID ${userId} and role ${userRole}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    // Step 2: Retrieve the user document using optimized firebase-service-manager
     const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userRef = adminDb.collection('users').doc(userId);
+    const userDoc = await getCachedDocument('users', userId);
 
-    // Step 3: Retrieve the user document
-    const userDoc = await userRef.get();
-
-    if (!userDoc.exists) {
+    if (!userDoc || !userDoc.exists) {
       console.log(`Services: getUserSettings - User document not found for ID: ${userId}`);
       return null;
     }
