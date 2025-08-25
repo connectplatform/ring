@@ -5,15 +5,18 @@
 // - Intelligent data strategies per environment
 
 import { Opportunity } from '@/features/opportunities/types';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { UserRole } from '@/features/auth/types';
 import { Query, Filter } from 'firebase-admin/firestore';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
 
 /**
  * Fetches opportunities by matching tags in the 'slug' array, enforcing role-based access control.
@@ -44,7 +47,7 @@ export async function getOpportunitiesBySlug(slugs: string[]): Promise<Opportuni
 console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
 
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       throw new Error('Unauthorized access');
 
@@ -82,38 +85,56 @@ console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
       }
     }
 
-    // Step 2: Access Firestore and initialize collection with converter
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detectionconst serviceManager = getFirebaseServiceManager();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
+    // Step 2: Build optimized query configuration based on user role and slugs
+    const queryConfig: any = {
+      orderBy: [{ field: 'dateCreated', direction: 'desc' }]
+    };
 
-    // Step 3: Build the query based on slugs and user role
-    let query: Query<Opportunity> = opportunitiesCollection;
-
+    // Build where clauses array
+    const whereClause = [];
+    
+    // Add slug filtering if provided
     if (slugs.length > 0) {
-      query = query.where('tags', 'array-contains-any', slugs);
+      whereClause.push({ field: 'tags', operator: 'array-contains-any', value: slugs });
     }
 
-    // Step 4: Apply role-based visibility filtering
+    // Apply role-based visibility filtering for non-admin users
     if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      query = query.where(
-        Filter.or(
-          Filter.where('visibility', '==', 'public'),
-          Filter.where('visibility', '==', 'subscriber'),
-          Filter.where('visibility', '==', userRole)
-        )
+      // For now, we'll use a simpler approach since getCachedCollectionAdvanced may not support complex OR queries
+      // We'll filter by visibility after the query
+    }
+
+    if (whereClause.length > 0) {
+      queryConfig.where = whereClause;
+    }
+
+    // Step 3: Execute optimized query
+    const snapshot = await getCachedCollectionAdvanced('opportunities', queryConfig);
+
+    // Step 4: Map documents and apply role-based filtering
+    let opportunities: Opportunity[] = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+      } as Opportunity;
+    });
+
+    // Apply role-based visibility filtering for non-admin users
+    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+      const allowedVisibilities = ['public'];
+      
+      if (userRole === UserRole.SUBSCRIBER || userRole === UserRole.MEMBER) {
+        allowedVisibilities.push('subscriber');
+      }
+      if (userRole === UserRole.MEMBER) {
+        allowedVisibilities.push('member');
+      }
+
+      opportunities = opportunities.filter(opportunity => 
+        allowedVisibilities.includes(opportunity.visibility || 'public')
       );
     }
-
-    // Step 5: Execute the query
-    const snapshot = await query.get();
-
-    // Step 6: Map and return opportunities
-    const opportunities = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id,
-    }));
 
     console.log('Services: getOpportunitiesBySlug - Fetched opportunities:', opportunities.length);
 
