@@ -1,4 +1,4 @@
-import React, { use } from 'react'
+import React from 'react'
 import type { Locale } from '@/i18n-config'
 import AuthStatusPage from '@/components/auth/AuthStatusPage'
 import { getSEOMetadata } from '@/lib/seo-metadata'
