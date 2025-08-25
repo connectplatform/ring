@@ -1,6 +1,6 @@
 import React from 'react'
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { ROUTES } from '@/constants/routes'
 import { headers } from 'next/headers'
 import LoginForm from '@/features/auth/components/login-form'
@@ -52,7 +52,7 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
     console.log('Search Params:', searchParams)
 
     // Step 2: Check if the user is already authenticated
-    const session = await getServerAuthSession()
+    const session = await auth()
     console.log('Session:', session ? 'Exists' : 'Does not exist')
 
     // Step 3: Redirect authenticated users
