@@ -1,5 +1,5 @@
 "use client"
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState, use } from 'react'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import type { StoreProduct, CartItem, CheckoutInfo } from './types'
 import { getClientStoreService } from './client'
@@ -19,13 +19,13 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | null>(null)
 
 export function useStore(): StoreContextType {
-  const ctx = useContext(StoreContext)
+  const ctx = use(StoreContext)
   if (!ctx) throw new Error('useStore must be used within StoreProvider')
   return ctx
 }
 
 export function useOptionalStore(): StoreContextType | null {
-  return useContext(StoreContext)
+  return use(StoreContext)
 }
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
