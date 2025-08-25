@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
 import { AiFillApple } from 'react-icons/ai'
@@ -24,8 +25,6 @@ declare global {
     ethereum?: any
   }
 }
-
-
 
 /**
  * unified-login-component props
@@ -66,26 +65,28 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
     // Only handle redirect when the login dialog is open to avoid
     // unexpected redirects during normal navigation (e.g., language switch)
     if (!open) return
-    if (status === 'authenticated') {
+    
+    // Only redirect if fully authenticated (not during magic link flow)
+    if (status === 'authenticated' && !emailSent) {
       router.replace(from || ROUTES.PROFILE(locale))
       onClose?.()
     }
-  }, [status, router, from, onClose, open, locale])
+  }, [status, router, from, onClose, open, locale, emailSent])
 
   /**
    * Handles sign-in errors
    * @param {Error} error - The error object
    */
-  const handleSignInError = useCallback((error: Error) => {
+  const handleSignInError = (error: Error) => {
     console.error('Error signing in:', error)
     setError(tAuth('errors.signIn'))
-  }, [tAuth])
+  }
 
   /**
    * Handles magic link email authentication
    * @param {React.FormEvent} e - Form event
    */
-  const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
+  const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) {
       setError(tAuth('errors.emailRequired'))
@@ -95,30 +96,36 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
     setIsLoading(true)
     setError(null)
     try {
+      console.log('Attempting magic link sign-in with email:', email.trim())
       const result = await signIn('resend', { 
         email: email.trim(),
         redirect: false,
         callbackUrl: from || ROUTES.PROFILE(locale)
       })
       
+      console.log('Magic link sign-in result:', result)
+      
       if (result?.error) {
+        console.error('Magic link sign-in error:', result.error)
         throw new Error(result.error)
       }
       
       // Magic link sent successfully
+      console.log('Magic link sent successfully')
       setEmailSent(true)
     } catch (error) {
+      console.error('Magic link sign-in failed:', error)
       handleSignInError(error as Error)
     } finally {
       setIsLoading(false)
     }
-  }, [email, tAuth, from, locale, handleSignInError])
+  }
 
   /**
    * Handles sign-in for Google and Apple
    * @param {string} provider - The provider to sign in with ('google' or 'apple')
    */
-  const handleSignIn = useCallback(async (provider: string) => {
+  const handleSignIn = async (provider: string) => {
     setIsLoading(true)
     setError(null)
     try {
@@ -134,12 +141,12 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
     } finally {
       setIsLoading(false)
     }
-  }, [from, locale, router, handleSignInError])
+  }
 
   /**
    * Handles sign-in with Crypto Wallet (MetaMask)
    */
-  const handleCryptoLogin = useCallback(async () => {
+  const handleCryptoLogin = async () => {
     setIsLoading(true)
     try {
       if (typeof window === 'undefined' || !window.ethereum) {
@@ -184,38 +191,26 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
     } finally {
       setIsLoading(false)
     }
-  }, [from, locale, router, handleSignInError])
+  }
 
-  /**
-   * Handles resetting email form
-   */
-  const handleResetEmail = useCallback(() => {
-    setEmailSent(false)
-    setEmail('')
-  }, [])
-
-  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value)
-  }, [])
+  const AnimatedLoginContainer = dynamic(() => import('./animated-login-content').then(m => m.AnimatedLoginContainer), { ssr: false })
+  const AnimatedItem = dynamic(() => import('./animated-login-content').then(m => m.AnimatedItem), { ssr: false })
 
   return (
     <Dialog open={open} onOpenChange={onClose || (() => {})}>
       <DialogContent className="sm:max-w-[425px] p-8">
         <DialogHeader className="text-center mb-6">
-          <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-            <img 
-              src="/logo.svg" 
-              alt="Ring Logo" 
-              className="w-16 h-16"
-            />
+          <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
+            <span className="text-2xl">🥙</span>
           </div>
-          <DialogTitle className="text-2xl font-bold text-center">{tAuth('signIn.title')}</DialogTitle>
-          <p className="text-muted-foreground mt-2 text-center">{tAuth('signIn.subtitle')}</p>
+          <DialogTitle className="text-2xl font-bold">{tAuth('signIn.title')}</DialogTitle>
+          <p className="text-muted-foreground mt-2">{tAuth('signIn.subtitle')}</p>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <AnimatedLoginContainer>
           {emailSent ? (
-            <div className="text-center py-8">
+            <AnimatedItem>
+              <div className="text-center py-8">
                 <HiMail className="mx-auto h-12 w-12 text-green-500 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">{tAuth('signIn.magicLink.sent')}</h3>
                 <p className="text-muted-foreground mb-4">
@@ -223,14 +218,19 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                 </p>
                 <Button 
                   variant="outline" 
-                  onClick={handleResetEmail}
+                  onClick={() => {
+                    setEmailSent(false)
+                    setEmail('')
+                  }}
                   className="w-full"
                 >
                   {tAuth('signIn.magicLink.useDifferent')}
                 </Button>
               </div>
+            </AnimatedItem>
           ) : (
-            <div className="space-y-4">
+            <AnimatedItem>
+              <div className="space-y-4">
                 {/* Email Input Form */}
                 <form onSubmit={handleEmailSignIn} className="space-y-4">
                   <div className="relative">
@@ -238,7 +238,7 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                       type="email"
                       placeholder={tAuth('signIn.emailPlaceholder')}
                       value={email}
-                      onChange={handleEmailChange}
+                      onChange={(e) => setEmail(e.target.value)}
                       disabled={isLoading}
                       className="w-full h-12 pl-4 pr-12 text-base"
                       required
@@ -302,26 +302,20 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
 
                 {/* Terms and Privacy */}
                 <p className="text-xs text-center text-muted-foreground mt-6">
-                  By continuing, you agree to our{' '}
-                  <a href="/terms" className="text-blue-600 hover:underline">
-                    Terms of Use
-                  </a>
-                  {' '}and{' '}
-                  <a href="/privacy" className="text-blue-600 hover:underline">
-                    Privacy Policy
-                  </a>.
+                  {tAuth('signIn.disclaimer')}
                 </p>
               </div>
+            </AnimatedItem>
           )}
 
           {error && (
-            <div style={{ marginTop: '1.5rem' }}>
+            <AnimatedItem style={{ marginTop: '1.5rem' }}>
               <Alert variant="destructive">
                 <AlertTitle>{error}</AlertTitle>
               </Alert>
-            </div>
+            </AnimatedItem>
           )}
-        </div>
+        </AnimatedLoginContainer>
       </DialogContent>
     </Dialog>
   )
