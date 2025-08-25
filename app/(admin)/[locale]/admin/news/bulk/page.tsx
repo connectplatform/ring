@@ -2,16 +2,15 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
 import { BulkOperationsManager } from '@/features/news/components/bulk-operations-manager'
-import { getNewsCollection } from '@/lib/firestore-collections'
+import { getCachedNewsCollection } from '@/lib/services/firebase-service-manager'
 import { NewsArticle } from '@/features/news/types'
 
 async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
-    const newsCollection = getNewsCollection()
-    const snapshot = await newsCollection
-      .orderBy('createdAt', 'desc')
-      .limit(100) // Limit for performance in bulk operations
-      .get()
+    const snapshot = await getCachedNewsCollection({
+      orderBy: [{ field: 'createdAt', direction: 'desc' }],
+      limit: 100 // Limit for performance in bulk operations
+    })
     
     return snapshot.docs.map(doc => doc.data())
   } catch (error) {
