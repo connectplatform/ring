@@ -4,9 +4,25 @@
   "loadingMessage": "Завантаження можливостей...",
   "loadingMoreOpportunities": "Завантаження додаткових можливостей...",
   "loadingEntity": "Завантаження організації...",
+  "privateUser": "Приватний користувач",
   "opportunities": "Можливості",
   "opportunitiesDescription": "Відкрийте можливості в спільноті Ring",
   "opportunitiesSubtitle": "Доступно {count} можливостей",
+  "myOpportunities": "Мої можливості",
+  "allOpportunities": "Всі можливості",
+  "viewAll": "Переглянути всі",
+  "savedOpportunities": "Збережені",
+  "appliedOpportunities": "Подані заявки",
+  "postedOpportunities": "Опубліковані",
+  "draftOpportunities": "Чернетки",
+  "expiredOpportunities": "Прострочені",
+  "myOpportunitiesDescription": "Перегляд та керування вашими можливостями",
+  "myOpportunitiesSubtitle": "Доступно {count} можливостей",
+  "myOpportunitiesEmpty": "Ви ще не опублікували жодної можливості. Створіть свою першу можливість, щоб почати.",
+  "myOpportunitiesCreate": "Створити можливість",
+  "myOpportunitiesCreateDescription": "Створіть свою першу можливість, щоб почати",
+  "myOpportunitiesCreateButton": "Створити можливість",
+  "createOpportunity": "Створити можливість",
   "add": "Додати",
   "cancel": "Скасувати",
   "tags": "Теги",
@@ -73,15 +89,70 @@
     },
     "offer": {
       "title": "Пропозиція",
-      "description": "Публікуйте офіційні можливості від вашої організації або бізнесу.",
+      "description": "Публікуйте офіційні робочі можливості від вашої організації.",
       "examples": {
         "job": "Вакансія в моїй компанії",
-        "partnership": "Можливість партнерства",
-        "investment": "Інвестиційна можливість"
+        "contract": "Контрактна позиція",
+        "internship": "Можливість стажування"
       },
       "button": "Створити пропозицію",
       "member_required": "Потрібен доступ учасника",
       "upgrade_message": "Оновіть до Учасника, щоб публікувати пропозиції від вашої організації.",
+      "upgrade_button": "Оновити до Учасника"
+    },
+    "partnership": {
+      "title": "Партнерство",
+      "description": "Шукайте стратегічні партнерства та бізнес-співпрацю.",
+      "examples": {
+        "strategic": "Стратегічне бізнес-партнерство",
+        "joint_venture": "Спільне підприємство",
+        "collaboration": "Міжгалузева співпраця"
+      },
+      "button": "Створити партнерство",
+      "upgrade_button": "Оновити до Учасника"
+    },
+    "volunteer": {
+      "title": "Волонтерство",
+      "description": "Публікуйте волонтерські можливості для громадських справ.",
+      "examples": {
+        "community": "Проект громадського служіння",
+        "nonprofit": "Допомога неприбутковій організації",
+        "social": "Ініціатива соціального впливу"
+      },
+      "button": "Створити волонтерство",
+      "upgrade_button": "Оновити до Учасника"
+    },
+    "mentorship": {
+      "title": "Менторство",
+      "description": "Пропонуйте або шукайте можливості менторства.",
+      "examples": {
+        "career": "Кар'єрне керівництво та поради",
+        "skill": "Менторство розвитку навичок",
+        "business": "Програма бізнес-менторства"
+      },
+      "button": "Створити менторство",
+      "upgrade_button": "Оновити до Учасника"
+    },
+    "resource": {
+      "title": "Ресурс",
+      "description": "Діліться або запитуйте ресурси, інструменти та обладнання.",
+      "examples": {
+        "equipment": "Спільне використання обладнання",
+        "workspace": "Робоче місце або офісний простір",
+        "tools": "Доступ до професійних інструментів"
+      },
+      "button": "Створити ресурс",
+      "upgrade_button": "Оновити до Учасника"
+    },
+    "event": {
+      "title": "Подія",
+      "description": "Організовуйте події та запрошуйте участь спільноти.",
+      "examples": {
+        "conference": "Галузева конференція",
+        "workshop": "Майстер-клас з навичок",
+        "networking": "Нетворкінг-подія"
+      },
+      "button": "Створити подію",
       "upgrade_button": "Оновити до Учасника"
     }
   },
@@ -109,6 +180,20 @@
   "save": "Зберегти",
   "saving": "Збереження...",
   "redirecting": "Перенаправлення...",
+  "applicationDeadline": "Дедлайн подачі заявок",
+  "maxApplicants": "Максимум кандидатів",
+  "maxApplicantsPlaceholder": "Залиште порожнім для необмеженої кількості",
+  "priority": "Пріоритет",
+  "selectPriority": "Виберіть пріоритет",
+  "priorityLow": "Низький",
+  "priorityNormal": "Звичайний",
+  "priorityUrgent": "Терміновий",
+  "applicants": "Кандидати",
+  "partnership": "Партнерство",
+  "volunteer": "Волонтерство",
+  "mentorship": "Менторство",
+  "resource": "Ресурс",
+  "event": "Подія",
   "status": {
     "opportunityTitle": "Назва можливості",
     "applicationId": "ID заявки",

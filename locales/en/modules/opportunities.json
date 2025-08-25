@@ -4,9 +4,25 @@
   "loadingMessage": "Loading opportunities...",
   "loadingMoreOpportunities": "Loading more opportunities...",
   "loadingEntity": "Loading entity...",
+  "privateUser": "Private User",
   "opportunities": "Opportunities",
   "opportunitiesDescription": "Discover opportunities in the Ring community",
   "opportunitiesSubtitle": "{count} opportunities available",
+  "myOpportunities": "My Opportunities",
+  "myOpportunitiesDescription": "View and manage your opportunities",
+  "myOpportunitiesSubtitle": "{count} opportunities available",
+  "myOpportunitiesEmpty": "You haven't posted any opportunities yet. Create your first opportunity to get started.",
+  "myOpportunitiesCreate": "Create Opportunity",
+  "myOpportunitiesCreateDescription": "Create your first opportunity to get started",
+  "myOpportunitiesCreateButton": "Create Opportunity",
+  "createOpportunity": "Create Opportunity",
+  "viewAll": "View All",
+  "allOpportunities": "All Opportunities",
+  "savedOpportunities": "Saved",
+  "appliedOpportunities": "Applied",
+  "postedOpportunities": "Posted",
+  "draftOpportunities": "Drafts",
+  "expiredOpportunities": "Expired",
   "add": "Add",
   "cancel": "Cancel",
   "tags": "Tags",
@@ -73,15 +89,70 @@
     },
     "offer": {
       "title": "Offer",
-      "description": "Post official opportunities from your organization or business.",
+      "description": "Post official job opportunities from your organization.",
       "examples": {
         "job": "Job opening at my company",
-        "partnership": "Partnership opportunity",
-        "investment": "Investment opportunity"
+        "contract": "Contract position available",
+        "internship": "Internship opportunity"
       },
       "button": "Create Offer",
       "member_required": "Member Access Required",
       "upgrade_message": "Upgrade to Member to post offers from your organization.",
+      "upgrade_button": "Upgrade to Member"
+    },
+    "partnership": {
+      "title": "Partnership",
+      "description": "Seek strategic partnerships and business collaborations.",
+      "examples": {
+        "strategic": "Strategic business partnership",
+        "joint_venture": "Joint venture opportunity",
+        "collaboration": "Cross-industry collaboration"
+      },
+      "button": "Create Partnership",
+      "upgrade_button": "Upgrade to Member"
+    },
+    "volunteer": {
+      "title": "Volunteer",
+      "description": "Post volunteer opportunities for community causes.",
+      "examples": {
+        "community": "Community service project",
+        "nonprofit": "Nonprofit organization help",
+        "social": "Social impact initiative"
+      },
+      "button": "Create Volunteer",
+      "upgrade_button": "Upgrade to Member"
+    },
+    "mentorship": {
+      "title": "Mentorship",
+      "description": "Offer or seek mentorship opportunities.",
+      "examples": {
+        "career": "Career guidance and advice",
+        "skill": "Skill development mentoring",
+        "business": "Business mentorship program"
+      },
+      "button": "Create Mentorship",
+      "upgrade_button": "Upgrade to Member"
+    },
+    "resource": {
+      "title": "Resource",
+      "description": "Share or request resources, tools, and equipment.",
+      "examples": {
+        "equipment": "Equipment sharing",
+        "workspace": "Workspace or office space",
+        "tools": "Professional tools access"
+      },
+      "button": "Create Resource",
+      "upgrade_button": "Upgrade to Member"
+    },
+    "event": {
+      "title": "Event",
+      "description": "Organize events and invite community participation.",
+      "examples": {
+        "conference": "Industry conference",
+        "workshop": "Skills workshop",
+        "networking": "Networking event"
+      },
+      "button": "Create Event",
       "upgrade_button": "Upgrade to Member"
     }
   },
@@ -109,6 +180,20 @@
   "save": "Save",
   "saving": "Saving...",
   "redirecting": "Redirecting...",
+  "applicationDeadline": "Application Deadline",
+  "maxApplicants": "Maximum Applicants",
+  "maxApplicantsPlaceholder": "Leave empty for unlimited",
+  "priority": "Priority",
+  "selectPriority": "Select priority",
+  "priorityLow": "Low",
+  "priorityNormal": "Normal",
+  "priorityUrgent": "Urgent",
+  "applicants": "Applicants",
+  "partnership": "Partnership",
+  "volunteer": "Volunteer",
+  "mentorship": "Mentorship",
+  "resource": "Resource",
+  "event": "Event",
   "status": {
     "opportunityTitle": "Opportunity Title",
     "applicationId": "Application ID",
