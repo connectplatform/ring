@@ -1,6 +1,6 @@
 import React, { Suspense, JSX } from 'react'
 import { headers } from 'next/headers'
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
 import { LocalePageProps } from '@/utils/page-props'
@@ -116,7 +116,7 @@ export default async function OpportunitiesPage(props: LocalePageProps<Opportuni
     userAgent
   });
 
-  const session = await getServerAuthSession();
+  const session = await auth();
   console.log('OpportunitiesPage: Session retrieved', { sessionExists: !!session, userId: session?.user?.id, role: session?.user?.role });
 
   return (
