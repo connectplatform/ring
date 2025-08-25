@@ -1,6 +1,6 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { auth } from "@/auth"
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,7 @@ export default async function AdminDashboardPage({
   // React 19 metadata for admin pages
   const title = `${(t as any).admin?.dashboard || 'Admin Dashboard'} | Ring Platform`;
   const description = (t as any).admin?.dashboardDescription || 'Administrative dashboard for Ring Platform management and monitoring.';
-  const canonicalUrl = `https://ring.ck.ua/${validLocale}/admin`;
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}/${validLocale}/admin`;
 
   const adminSections = [
     {
