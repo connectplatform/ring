@@ -1,4 +1,4 @@
-import React, { use } from 'react'
+import React from 'react'
 import type { Locale } from '@/i18n-config'
 import CheckoutClient from './checkoutClient'
 import { getSEOMetadata } from '@/lib/seo-metadata'
