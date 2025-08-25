@@ -93,7 +93,12 @@
   },
   "domains": {
     "auth": {
-      "providers": ["google", "apple", "email", "wallet_optional"],
+      "providers": ["resend_magic_link", "google", "apple", "crypto_wallet"],
+      "magic_links": {
+        "provider": "Resend",
+        "primary_method": "email registration and access",
+        "from_address": "noreply@ring.ck.ua"
+      },
       "server_usage": "auth() on server components and API handlers",
       "route_protection": "enforce via middleware.ts and server-side checks",
       "account_deletion": {
@@ -107,7 +112,23 @@
       "description": "Organization profiles with verification and tiered visibility",
       "api_dir": "app/api/entities",
       "service": "services/entities",
-      "visibility": "respect access_tiers"
+      "visibility": "respect access_tiers",
+      "enhancements": {
+        "advanced_filters": ["types (26)", "employee_count", "location", "founded_year", "verification_status", "membership_tier", "certifications", "partnerships"],
+        "ui": ["enhanced EntityCard with quick actions", "entity type icon system (26)", "verification badges (6 levels)"],
+        "search": {
+          "service": "features/entities/services/search-entities.ts",
+          "capabilities": ["fuzzy_matching", "relevance_scoring", "industry_compatibility", "suggestions"],
+          "returns": "SerializedEntitySearchResult[]"
+        },
+        "services": {
+          "get_entities": {
+            "file": "features/entities/services/get-entities.ts",
+            "params": ["limit", "startAfter", "filters?: EntityFilters"],
+            "returns": "{ entities: SerializedEntity[]; lastVisible: string|null; totalCount?: number }"
+          }
+        }
+      }
     },
     "opportunities": {
       "description": "Offers and requests with tiered access",
