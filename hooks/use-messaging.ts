@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, use } from 'react'
 import { useSession } from 'next-auth/react'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 import { 
@@ -370,4 +370,75 @@ export function useTyping(conversationId: string) {
     startTyping,
     stopTyping
   }
+}
+
+/**
+ * Internal function to fetch conversations
+ * Enhanced with timeout, retry, and standardized error handling
+ */
+async function fetchConversationsData(filters?: ConversationFilters, pagination?: PaginationOptions): Promise<{ data: Conversation[], pagination?: { hasMore: boolean } }> {
+  const params = new URLSearchParams()
+  if (filters?.type) params.set('type', filters.type)
+  if (filters?.isActive !== undefined) params.set('isActive', filters.isActive.toString())
+  if (pagination?.limit) params.set('limit', pagination.limit.toString())
+  if (pagination?.cursor) params.set('cursor', pagination.cursor)
+
+  // Use API client with optimized timeout for conversation fetching
+  const response: ApiResponse<{ data: Conversation[], pagination?: { hasMore: boolean } }> = await apiClient.get(
+    `${API_BASE}/conversations?${params}`,
+    {
+      timeout: 8000, // 8 second timeout for conversation listing
+      retries: 1 // Retry once for conversation loading
+    }
+  )
+
+  if (response.success && response.data) {
+    return response.data
+  } else {
+    throw new Error(response.error || 'Failed to fetch conversations')
+  }
+}
+
+/**
+ * React 19 Promise-based hook for conversations using use() function
+ * Returns a promise that can be consumed with React 19's use() function
+ * 
+ * Usage:
+ * ```tsx
+ * function ConversationsList() {
+ *   const conversationsPromise = useConversationsPromise({ limit: 10 })
+ *   const conversationsData = use(conversationsPromise)
+ *   
+ *   return (
+ *     <div>
+ *       {conversationsData.data.map(conv => (
+ *         <div key={conv.id}>{conv.title}</div>
+ *       ))}
+ *     </div>
+ *   )
+ * }
+ * 
+ * // Wrap in Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading conversations...</div>}>
+ *       <ConversationsList />
+ *     </Suspense>
+ *   )
+ * }
+ * ```
+ */
+export function useConversationsPromise(filters?: ConversationFilters, pagination?: PaginationOptions): Promise<{ data: Conversation[], pagination?: { hasMore: boolean } }> {
+  return useMemo(() => {
+    return fetchConversationsData(filters, pagination)
+  }, [filters, pagination])
+}
+
+/**
+ * React 19 Enhanced hook that directly uses use() function for conversations
+ * Suspends the component until the conversations are loaded
+ */
+export function useConversationsWithSuspense(filters?: ConversationFilters, pagination?: PaginationOptions): { data: Conversation[], pagination?: { hasMore: boolean } } {
+  const promise = useConversationsPromise(filters, pagination)
+  return use(promise)
 } 
