@@ -4,53 +4,83 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { Entity } from '@/features/entities/types'
+import { Entity, SerializedEntity, EntityType } from '@/features/entities/types'
+import { serializeEntities } from '@/lib/converters/entity-serializer'
 import { UserRole } from '@/features/auth/types'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
+import { logger } from '@/lib/logger'
 import { QuerySnapshot } from 'firebase-admin/firestore'
 import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
 import { 
   getCachedDocument,
-  getCachedCollectionAdvanced, 
+  getCachedCollectionAdvanced,
   getCachedDocumentBatch 
 } from '@/lib/services/firebase-service-manager'
 
-import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedEntities } from '@/lib/build-cache/static-data-cache';
 
 /**
- * Fetch a paginated list of entities based on user role.
+ * Advanced entity filtering interface
+ */
+export interface EntityFilters {
+  search?: string
+  types?: EntityType[]
+  location?: string
+  employeeCountMin?: number
+  employeeCountMax?: number
+  foundedYearMin?: number
+  foundedYearMax?: number
+  verificationStatus?: 'all' | 'verified' | 'unverified' | 'premium'
+  membershipTier?: 'all' | 'subscriber' | 'member' | 'confidential'
+  hasCertifications?: boolean
+  hasPartnerships?: boolean
+  services?: string[]
+  sortBy?: 'dateAdded' | 'name' | 'employeeCount' | 'foundedYear' | 'memberSince'
+  sortOrder?: 'asc' | 'desc'
+}
+
+/**
+ * Fetch a paginated list of entities based on user role with advanced filtering.
  * 
  * This function performs the following steps:
  * 1. Authenticates the user and retrieves their session information.
  * 2. Accesses Firestore and initializes the entities collection with the entity converter.
  * 3. Builds a query based on the user's role and applies appropriate filters.
- * 4. Implements pagination using the 'limit' and 'startAfter' parameters.
- * 5. Executes the query and processes the results.
- * 6. Maps the document snapshots to Entity objects, including their IDs.
- * 7. Determines the ID of the last visible entity for future pagination.
+ * 4. Applies advanced filtering based on provided filter parameters.
+ * 5. Implements pagination using the 'limit' and 'startAfter' parameters.
+ * 6. Executes the query and processes the results.
+ * 7. Maps the document snapshots to Entity objects, including their IDs.
+ * 8. Determines the ID of the last visible entity for future pagination.
  * 
  * User steps:
  * 1. User requests a list of entities (e.g., from a client-side component).
  * 2. The function authenticates the user and checks their role.
- * 3. Based on the user's role, the function fetches the appropriate entities.
+ * 3. Based on the user's role and filters, the function fetches the appropriate entities.
  * 4. The function returns the entities and pagination information to the user.
  * 
- * @param {number} limit - The maximum number of entities to fetch per page. Defaults to 20.
- * @param {string} [startAfter] - The ID of the last entity from the previous page for pagination. Optional.
- * @returns {Promise<{ entities: Entity[]; lastVisible: string | null }>} A promise that resolves to an object containing the fetched entities and the ID of the last visible entity for pagination.
+ * @param {object} params - Parameters object
+ * @param {UserRole} params.userRole - The role of the requesting user
+ * @param {number} [params.limit] - The maximum number of entities to fetch per page. Defaults to 20.
+ * @param {string} [params.startAfter] - The ID of the last entity from the previous page for pagination. Optional.
+ * @param {EntityFilters} [params.filters] - Advanced filtering options. Optional.
+ * @returns {Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }>} A promise that resolves to an object containing the serialized entities and the ID of the last visible entity for pagination.
  * @throws {EntityAuthError} If the user is not authenticated
  * @throws {EntityDatabaseError} If there's an error accessing the database
  * @throws {EntityQueryError} If there's an error executing the query
  */
 export async function getEntitiesForRole(
-  params: { userRole: UserRole; limit?: number; startAfter?: string }
-): Promise<{ entities: Entity[]; lastVisible: string | null }> {
+  params: { 
+    userRole: UserRole; 
+    limit?: number; 
+    startAfter?: string;
+    filters?: EntityFilters;
+  }
+): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }> {
   const phase = getCurrentPhase();
-  const { userRole, limit = 20, startAfter } = params
+  const { userRole, limit = 20, startAfter, filters } = params
   try {
-    console.log('Services: getEntitiesForRole - Starting...', { userRole, limit, startAfter })
+    console.log('Services: getEntitiesForRole - Starting...', { userRole, limit, startAfter, filters })
 
     // Validate role before proceeding to ensure only authenticated users with valid roles can access entities
     const validRoles: UserRole[] = [
@@ -78,29 +108,93 @@ export async function getEntitiesForRole(
         // Return cached data based on operation type
         const entities = await getCachedEntities({ limit: Math.min(limit, 50), isPublic: true });
         const result = entities.slice(0, limit);
-        return { entities: result, lastVisible: null };
+        const serializedResult = serializeEntities(result);
+        return { entities: serializedResult, lastVisible: null };
       } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
+        logger.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
         // Continue to live data below
       }
     }
 
-    // Step 2: Build optimized query configuration based on user role
+    // Step 2: Build optimized query configuration based on user role and filters
     const queryConfig: any = {
       limit,
-      orderBy: [{ field: 'dateAdded', direction: 'desc' }]
+      orderBy: []
     };
+
+    // Initialize where conditions array
+    const whereConditions: any[] = [];
 
     // Apply role-based filtering for non-admin users
     // Visitors see only public. Subscribers see public + subscriber. Members see public + subscriber + member.
     if (userRole === UserRole.VISITOR) {
-      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public'] }];
+      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public'] });
     } else if (userRole === UserRole.SUBSCRIBER) {
-      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }];
+      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] });
     } else if (userRole === UserRole.MEMBER) {
-      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] }];
+      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] });
     }
     // ADMIN and CONFIDENTIAL users see all entities (no filter applied)
+
+    // Apply advanced filters if provided
+    if (filters) {
+      // Entity type filtering
+      if (filters.types && filters.types.length > 0) {
+        whereConditions.push({ field: 'type', operator: 'in', value: filters.types });
+      }
+
+      // Employee count filtering
+      if (filters.employeeCountMin !== undefined) {
+        whereConditions.push({ field: 'employeeCount', operator: '>=', value: filters.employeeCountMin });
+      }
+      if (filters.employeeCountMax !== undefined) {
+        whereConditions.push({ field: 'employeeCount', operator: '<=', value: filters.employeeCountMax });
+      }
+
+      // Founded year filtering
+      if (filters.foundedYearMin !== undefined) {
+        whereConditions.push({ field: 'foundedYear', operator: '>=', value: filters.foundedYearMin });
+      }
+      if (filters.foundedYearMax !== undefined) {
+        whereConditions.push({ field: 'foundedYear', operator: '<=', value: filters.foundedYearMax });
+      }
+
+      // Certification filtering
+      if (filters.hasCertifications === true) {
+        whereConditions.push({ field: 'certifications', operator: '!=', value: null });
+      } else if (filters.hasCertifications === false) {
+        whereConditions.push({ field: 'certifications', operator: '==', value: null });
+      }
+
+      // Partnership filtering
+      if (filters.hasPartnerships === true) {
+        whereConditions.push({ field: 'partnerships', operator: '!=', value: null });
+      } else if (filters.hasPartnerships === false) {
+        whereConditions.push({ field: 'partnerships', operator: '==', value: null });
+      }
+
+      // Membership tier filtering (applies additional visibility constraints)
+      if (filters.membershipTier && filters.membershipTier !== 'all') {
+        if (filters.membershipTier === 'confidential') {
+          whereConditions.push({ field: 'isConfidential', operator: '==', value: true });
+        } else {
+          whereConditions.push({ field: 'visibility', operator: '==', value: filters.membershipTier });
+        }
+      }
+
+      // Sorting configuration
+      const sortField = filters.sortBy || 'dateAdded';
+      const sortDirection = filters.sortOrder || 'desc';
+      queryConfig.orderBy.push({ field: sortField, direction: sortDirection });
+    } else {
+      // Default sorting
+      queryConfig.orderBy.push({ field: 'dateAdded', direction: 'desc' });
+    }
+
+    // Apply where conditions to query config
+    if (whereConditions.length > 0) {
+      queryConfig.where = whereConditions;
+    }
 
     // Apply pagination if provided
     if (startAfter) {
@@ -142,20 +236,87 @@ export async function getEntitiesForRole(
     }
 
     // Step 4: Map document snapshots to Entity objects
-    const entities = snapshot.docs.map(doc => ({
+    let entities = snapshot.docs.map(doc => ({
       ...doc.data(),
       id: doc.id,
     })) as Entity[]
 
-    // Note: Role-based filtering is now handled by the query configuration above,
-    // eliminating the need for additional in-memory filtering
+    // Step 5: Apply client-side filtering for complex queries that can't be done in Firestore
+    if (filters) {
+      // Search filtering (client-side for complex text search)
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        entities = entities.filter(entity => {
+          const searchableText = [
+            entity.name,
+            entity.shortDescription,
+            entity.fullDescription,
+            entity.location,
+            ...(entity.services || []),
+            ...(entity.industries || []),
+            ...(entity.tags || [])
+          ].join(' ').toLowerCase();
+          
+          return searchableText.includes(searchTerm);
+        });
+      }
 
-    // Step 5: Get the ID of the last visible document for pagination
+      // Location filtering (client-side for fuzzy matching)
+      if (filters.location) {
+        const locationTerm = filters.location.toLowerCase();
+        entities = entities.filter(entity => 
+          entity.location?.toLowerCase().includes(locationTerm)
+        );
+      }
+
+      // Services filtering (client-side for array contains)
+      if (filters.services && filters.services.length > 0) {
+        entities = entities.filter(entity => 
+          entity.services?.some(service => 
+            filters.services!.some(filterService => 
+              service.toLowerCase().includes(filterService.toLowerCase())
+            )
+          )
+        );
+      }
+
+      // Verification status filtering (client-side for complex logic)
+      if (filters.verificationStatus && filters.verificationStatus !== 'all') {
+        entities = entities.filter(entity => {
+          const hasCertifications = entity.certifications && entity.certifications.length > 0;
+          const hasPartnerships = entity.partnerships && entity.partnerships.length > 0;
+          
+          switch (filters.verificationStatus) {
+            case 'verified':
+              return hasCertifications;
+            case 'unverified':
+              return !hasCertifications;
+            case 'premium':
+              return hasCertifications && hasPartnerships;
+            default:
+              return true;
+          }
+        });
+      }
+    }
+
+    // Step 6: Serialize entities for client component compatibility
+    const serializedEntities = serializeEntities(entities)
+
+    // Step 7: Get the ID of the last visible document for pagination
     const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null
 
-    console.log('Services: getEntitiesForRole - Total entities fetched:', entities.length)
+    logger.info('Services: getEntitiesForRole - Total entities fetched:', { 
+      entities: serializedEntities.length, 
+      lastVisible,
+      filtersApplied: !!filters 
+    })
 
-    return { entities, lastVisible }
+    return { 
+      entities: serializedEntities, 
+      lastVisible,
+      totalCount: serializedEntities.length 
+    }
   } catch (error) {
     // Enhanced error logging with cause information using centralized logger
     logRingError(error, 'Services: getEntitiesForRole - Error')
@@ -181,10 +342,11 @@ export async function getEntitiesForRole(
 // Convenience wrapper for contexts where dynamic session access is allowed (not inside caches)
 export async function getEntities(
   limit: number = 20,
-  startAfter?: string
-): Promise<{ entities: Entity[]; lastVisible: string | null }> {
-  console.log('Services: getEntities - Starting...')
-  const session = await getServerAuthSession()
+  startAfter?: string,
+  filters?: EntityFilters
+): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }> {
+  logger.info('Services: getEntities - Starting...')
+  const session = await auth()
   if (!session || !session.user) {
     throw new EntityAuthError('Unauthorized access', undefined, {
       timestamp: Date.now(),
@@ -194,7 +356,7 @@ export async function getEntities(
     });
   }
   const userRole = session.user.role as UserRole
-  return getEntitiesForRole({ userRole, limit, startAfter })
+  return getEntitiesForRole({ userRole, limit, startAfter, filters })
 }
 
 /**
@@ -221,10 +383,10 @@ export async function getEntities(
  */
 export async function getConfidentialEntities(): Promise<Entity[]> {
   try {
-    console.log('Services: getConfidentialEntities - Starting...')
+    logger.info('Services: getConfidentialEntities - Starting...')
 
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession()
+    const session = await auth()
     if (!session || !session.user) {
       throw new EntityAuthError('Unauthorized access', undefined, {
         timestamp: Date.now(),
@@ -250,7 +412,7 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
       );
     }
 
-    console.log(`Services: getConfidentialEntities - User authenticated with role ${userRole}`)
+    logger.info(`Services: getConfidentialEntities - User authenticated with role ${userRole}`)
 
     // Step 3: Build and execute optimized query for confidential entities
     let snapshot: QuerySnapshot;
@@ -279,7 +441,7 @@ export async function getConfidentialEntities(): Promise<Entity[]> {
       id: doc.id,
     })) as Entity[]
 
-    console.log('Services: getConfidentialEntities - Total confidential entities fetched:', confidentialEntities.length)
+    logger.info('Services: getConfidentialEntities - Total confidential entities fetched:', { confidentialEntities: confidentialEntities.length })
 
     return confidentialEntities
   } catch (error) {
@@ -331,12 +493,12 @@ export async function getEntitiesByIds(
   userRole?: UserRole
 ): Promise<Entity[]> {
   try {
-    console.log('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole })
+    logger.info('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole })
 
     // If no userRole provided, get from session
     let role = userRole;
     if (!role) {
-      const session = await getServerAuthSession();
+      const session = await auth();
       if (!session || !session.user) {
         throw new EntityAuthError('Unauthorized access', undefined, {
           timestamp: Date.now(),
@@ -355,7 +517,7 @@ export async function getEntitiesByIds(
     // Limit batch size for performance (Firestore has limits)
     const maxBatchSize = 100;
     if (entityIds.length > maxBatchSize) {
-      console.warn(`Services: getEntitiesByIds - Batch size ${entityIds.length} exceeds maximum ${maxBatchSize}, truncating`);
+      logger.warn(`Services: getEntitiesByIds - Batch size ${entityIds.length} exceeds maximum ${maxBatchSize}, truncating`);
       entityIds = entityIds.slice(0, maxBatchSize);
     }
 
@@ -398,7 +560,7 @@ export async function getEntitiesByIds(
       }
     });
 
-    console.log('Services: getEntitiesByIds - Batch fetch completed:', {
+      logger.info('Services: getEntitiesByIds - Batch fetch completed:', {
       requested: entityIds.length,
       found: documents.filter(d => d && d.exists).length,
       accessible: entities.length,
