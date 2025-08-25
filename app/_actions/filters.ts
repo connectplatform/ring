@@ -1,6 +1,6 @@
 'use server'
 
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 
 export interface FilterFormState {
   success?: boolean
@@ -16,7 +16,7 @@ export async function applyFilters(
 ): Promise<FilterFormState> {
   try {
     // Optional: Get session for personalized filters
-    const session = await getServerAuthSession()
+    const session = await auth()
     const userRole = (session?.user as any)?.role
     
     const filters: Record<string, any> = {}
