@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 
 // Role hierarchy for access control
@@ -20,13 +20,14 @@ export interface OpportunityFormState {
   message?: string
   error?: string
   fieldErrors?: Record<string, string>
+  redirectUrl?: string
 }
 
 export async function createOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData
 ): Promise<OpportunityFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
@@ -38,7 +39,7 @@ export async function createOpportunity(
   
   // Extract form data
   const title = formData.get('title') as string
-  const type = formData.get('type') as 'offer' | 'request'
+  const type = formData.get('type') as 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event'
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
@@ -49,29 +50,25 @@ export async function createOpportunity(
   const budgetCurrency = formData.get('budgetCurrency') as string
   
   const deadline = formData.get('deadline') as string
+  const applicationDeadline = formData.get('applicationDeadline') as string
+  const maxApplicants = formData.get('maxApplicants') as string
+  const priority = formData.get('priority') as 'urgent' | 'normal' | 'low'
   const contactEmail = formData.get('contactEmail') as string
   let entityId = formData.get('entityId') as string
   const isConfidential = formData.get('isConfidential') === 'true'
   const tagsString = formData.get('tags') as string
+  const requiredSkillsString = formData.get('requiredSkills') as string
 
   // Role-based validation
   if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
     return { error: 'Only SUBSCRIBER users and above can create opportunities' }
   }
 
-  // Type-specific validation
-  if (type === 'offer') {
-    // Offers require MEMBER role and entity
-    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
-      return { 
-        error: 'Only MEMBER users and above can create offers. Upgrade your membership to create offers.' 
-      }
-    }
-    
-    if (!entityId?.trim()) {
-      return { error: 'Entity is required for offers' }
-    }
-  } else if (type === 'request') {
+  // Type-specific validation based on the enhanced type system
+  const requestTypes = ['request'];
+  const organizationalTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event'];
+  
+  if (requestTypes.includes(type)) {
     // Requests can be created by SUBSCRIBER+, no entity required
     if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
       return { 
@@ -80,6 +77,17 @@ export async function createOpportunity(
     }
     // For requests, we set organizationId to null to indicate it's from an individual
     entityId = null
+  } else if (organizationalTypes.includes(type)) {
+    // Organizational opportunities require MEMBER role and entity
+    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+      return { 
+        error: `Only MEMBER users and above can create ${type} opportunities. Upgrade your membership to create organizational opportunities.` 
+      }
+    }
+    
+    if (!entityId?.trim()) {
+      return { error: `Entity is required for ${type} opportunities` }
+    }
   } else {
     return { error: 'Valid opportunity type is required' }
   }
@@ -119,8 +127,9 @@ export async function createOpportunity(
   }
 
   try {
-    // Parse tags
+    // Parse tags and required skills
     const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
+    const requiredSkills = requiredSkillsString ? requiredSkillsString.split(',').map(skill => skill.trim()).filter(Boolean) : []
 
     // Parse budget from separate form fields
     let budgetObj = undefined
@@ -143,36 +152,60 @@ export async function createOpportunity(
       }
     }
 
-    // Parse deadline to expiration date - convert to Timestamp for Firestore compatibility
+    // Parse deadlines - convert to Timestamp for Firestore compatibility
     const { Timestamp } = await import('firebase-admin/firestore')
     const deadlineDate = deadline ? new Date(deadline) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default 30 days
     const expirationDate = Timestamp.fromDate(deadlineDate)
+    
+    // Parse application deadline if provided
+    let applicationDeadlineTimestamp = undefined
+    if (applicationDeadline?.trim()) {
+      try {
+        applicationDeadlineTimestamp = Timestamp.fromDate(new Date(applicationDeadline))
+      } catch (e) {
+        console.warn('Could not parse application deadline:', applicationDeadline)
+      }
+    }
+
+    // Parse max applicants
+    let maxApplicantsNumber = undefined
+    if (maxApplicants?.trim()) {
+      try {
+        maxApplicantsNumber = parseInt(maxApplicants)
+      } catch (e) {
+        console.warn('Could not parse max applicants:', maxApplicants)
+      }
+    }
 
     // Create opportunity data matching the Opportunity interface
-    // Only include budget if it's defined to prevent Firestore undefined errors
     const opportunityData = {
-      type: type as 'offer' | 'request',
+      type,
       title: title.trim(),
       isConfidential,
       briefDescription: description.trim(),
-      fullDescription: requirements?.trim() || '',
+      fullDescription: description?.trim() || '',
       createdBy: session.user.id,
-      // For requests: null (individual), for offers: entityId (organization)
-      organizationId: type === 'request' ? null : entityId?.trim() || null,
+      // For requests: null (individual), for organizational types: entityId (organization)
+      organizationId: requestTypes.includes(type) ? null : entityId?.trim() || null,
       expirationDate,
+      ...(applicationDeadlineTimestamp ? { applicationDeadline: applicationDeadlineTimestamp } : {}),
       status: 'active' as const,
       category: category.trim(),
       tags,
       location: formData.get('location')?.toString().trim() || '',
       ...(budgetObj ? { budget: budgetObj } : {}), // Only include budget if defined
-      requiredSkills: requirements ? requirements.split(',').map(s => s.trim()).filter(Boolean) : [],
+      requiredSkills,
       requiredDocuments: [],
       attachments: [],
+      applicantCount: 0, // Initialize with 0 applicants
+      ...(maxApplicantsNumber ? { maxApplicants: maxApplicantsNumber } : {}),
+      ...(priority ? { priority } : {}),
       visibility: isConfidential ? 'confidential' as const : 'public' as const,
       contactInfo: {
-        linkedEntity: type === 'request' ? '' : entityId?.trim() || '',
+        linkedEntity: requestTypes.includes(type) ? '' : entityId?.trim() || '',
         contactAccount: contactEmail?.trim() || session.user.email || ''
-      }
+      },
+      isPrivate: requestTypes.includes(type) // Requests are private (individual), organizational types are not
     }
 
     // Import and call the opportunity creation service
@@ -188,8 +221,13 @@ export async function createOpportunity(
       organizationId: newOpportunity.organizationId 
     })
     
-    // Redirect to success status page
-    redirect(`/${defaultLocale}/opportunities/status/create/success?id=${newOpportunity.id}&type=${type}`)
+    // Return success with redirect URL instead of using redirect()
+    // This follows React 19/Next.js 15 patterns for server actions
+    return {
+      success: true,
+      message: 'Opportunity created successfully!',
+      redirectUrl: `/${defaultLocale}/opportunities/status/create/success?id=${newOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
+    }
   } catch (error) {
     console.error('Error creating opportunity:', error)
     return {
@@ -202,7 +240,7 @@ export async function updateOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData
 ): Promise<OpportunityFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
