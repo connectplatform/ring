@@ -5,7 +5,7 @@
 // - Intelligent data strategies per environment
 
 import { ethers } from 'ethers'
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { AuthUser, Wallet } from '@/features/auth/types'
 import { selectDefaultWallet } from './utils'
 
@@ -31,7 +31,7 @@ export async function getWalletBalance(): Promise<string> {
 
   try {
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.error('Services: getWalletBalance - Unauthorized access attempt');
       throw new Error('Unauthorized: Please log in to fetch wallet balance');
