@@ -1,7 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { NewsList } from '@/features/news/components/news-list';
-import { getNewsCollection, getNewsCategoriesCollection } from '@/lib/firestore-collections';
+import { getCachedNewsCollection, getCachedNewsCategoriesCollection } from '@/lib/services/firebase-service-manager';
 import { NewsArticle, NewsCategoryInfo } from '@/features/news/types';
 import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config';
@@ -13,13 +13,14 @@ export const dynamic = 'force-dynamic';
 
 async function getInitialNews(): Promise<NewsArticle[]> {
   try {
-    const newsCollection = getNewsCollection();
-    const snapshot = await newsCollection
-      .where('status', '==', 'published')
-      .where('visibility', 'in', ['public', 'subscriber'])
-      .orderBy('publishedAt', 'desc')
-      .limit(12)
-      .get();
+    const snapshot = await getCachedNewsCollection({
+      where: [
+        { field: 'status', operator: '==', value: 'published' },
+        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
+      ],
+      orderBy: [{ field: 'publishedAt', direction: 'desc' }],
+      limit: 12
+    });
     
     return snapshot.docs.map(doc => doc.data());
   } catch (error) {
@@ -30,8 +31,9 @@ async function getInitialNews(): Promise<NewsArticle[]> {
 
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
-    const categoriesCollection = getNewsCategoriesCollection();
-    const snapshot = await categoriesCollection.orderBy('name', 'asc').get();
+    const snapshot = await getCachedNewsCategoriesCollection({
+      orderBy: { field: 'name', direction: 'asc' }
+    });
     
     return snapshot.docs.map(doc => doc.data());
   } catch (error) {
