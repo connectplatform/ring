@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { NewsArticle, NewsCategory, NewsStatus, NewsVisibility, NewsSEO } from '@/features/news/types'
 import { UserRole } from '@/features/auth/types'
 
@@ -19,7 +19,7 @@ export async function saveArticle(
 ): Promise<ArticleFormState> {
   try {
     // Get current user session - Admin only action
-    const session = await getServerAuthSession()
+    const session = await auth()
     if (!session?.user?.id) {
       return {
         error: 'Authentication required'
