@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getNewsCollection } from '@/lib/firestore-collections'
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced,
+  updateDocument
+} from '@/lib/services/firebase-service-manager'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 
 export async function POST(
@@ -27,13 +31,12 @@ export async function POST(
       )
     }
 
-    const newsCollection = getNewsCollection()
     const db = getFirestore()
     
     // Check if news article exists
-    const newsDoc = await newsCollection.doc(newsId).get()
+    const newsDoc = await getCachedDocument('news', newsId)
 
-    if (!newsDoc.exists) {
+    if (!newsDoc || !newsDoc.exists) {
       return NextResponse.json(
         { error: 'News article not found' },
         { status: 404 }
@@ -41,6 +44,12 @@ export async function POST(
     }
 
     const newsData = newsDoc.data()
+    if (!newsData) {
+      return NextResponse.json(
+        { error: 'News article data not found' },
+        { status: 404 }
+      )
+    }
     
     // Check if user already liked this article
     const likesCollection = db.collection('news_likes')
@@ -58,8 +67,8 @@ export async function POST(
       const likeDoc = existingLike.docs[0]
       await likeDoc.ref.delete()
 
-      // Decrement like count
-      await newsCollection.doc(newsId).update({
+      // Decrement like count using firebase-service-manager
+      await updateDocument('news', newsId, {
         likes: FieldValue.increment(-1),
         updatedAt: FieldValue.serverTimestamp()
       })
@@ -74,8 +83,8 @@ export async function POST(
         createdAt: FieldValue.serverTimestamp()
       })
 
-      // Increment like count
-      await newsCollection.doc(newsId).update({
+      // Increment like count using firebase-service-manager
+      await updateDocument('news', newsId, {
         likes: FieldValue.increment(1),
         updatedAt: FieldValue.serverTimestamp()
       })
@@ -115,13 +124,12 @@ export async function GET(
       )
     }
 
-    const newsCollection = getNewsCollection()
     const db = getFirestore()
     
     // Get like count for the article
-    const newsDoc = await newsCollection.doc(newsId).get()
+    const newsDoc = await getCachedDocument('news', newsId)
 
-    if (!newsDoc.exists) {
+    if (!newsDoc || !newsDoc.exists) {
       return NextResponse.json(
         { error: 'News article not found' },
         { status: 404 }
@@ -129,6 +137,12 @@ export async function GET(
     }
 
     const newsData = newsDoc.data()
+    if (!newsData) {
+      return NextResponse.json(
+        { error: 'News article data not found' },
+        { status: 404 }
+      )
+    }
     let isLiked = false
     
     // Check if current user liked this article
