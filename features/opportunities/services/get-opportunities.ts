@@ -7,14 +7,16 @@
 import { QuerySnapshot, Query } from 'firebase-admin/firestore';
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
 import { UserRole } from '@/features/auth/types';
-import { opportunityConverter } from '@/lib/converters/opportunity-converter';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth'; 
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors';
-
-import { cache } from 'react';
+import { logger } from '@/lib/logger';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
+
 
 /**
  * Fetches a paginated list of opportunities based on user role.
@@ -66,79 +68,44 @@ export async function getOpportunitiesForRole(
       });
     }
 
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-opportunities`);
+    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data ONLY during actual build phase
+    // Skip optimization in development and runtime to ensure real data is always returned
+    if (phase.isBuildTime && process.env.NODE_ENV === 'production' && (shouldUseMockData() || shouldUseCache())) {
+      console.log(`[Service Optimization] Using ${phase.strategy} data for get-opportunities (build-time only)`);
       
       try {
-        // Return cached data based on operation type
-        
         const opportunities = await getCachedOpportunities({ limit: 30, status: 'active' });
-        const result = opportunities.slice(0, 10); return { opportunities: result, lastVisible: null };
+        const result = opportunities.slice(0, Math.min(limit, 10));
+        return { opportunities: result, lastVisible: null };
       } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
+        logger.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
         // Continue to live data below
       }
     }
 
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-opportunities`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        const opportunities = await getCachedOpportunities({ limit: 30, status: 'active' });
-        const result = opportunities.slice(0, 10); return { opportunities: result, lastVisible: null };
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
-
-    // Step 2: Access Firestore using the admin SDK and initialize collection with converter
-    // 🚀 OPTIMIZED: Enhanced error handling with service manager
-    let adminDb;
-    try {
-      const serviceManager = getFirebaseServiceManager();
-      adminDb = serviceManager.db;
-    } catch (error) {
-      throw new OpportunityDatabaseError(
-        'Failed to initialize database connection',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userRole,
-          operation: 'getAdminDb'
-        }
-      );
-    }
-
-    const opportunitiesCol = adminDb.collection('opportunities').withConverter(opportunityConverter);
-
-    // Step 3: Build query based on user role
-    let query: Query<Opportunity> = opportunitiesCol;
+    // Step 2: Build optimized query configuration based on user role
+    const queryConfig: any = {
+      limit,
+      orderBy: [{ field: 'dateCreated', direction: 'desc' }]
+    };
 
     // Apply role-based filtering for non-admin users
     // Visitors see only public. Subscribers see public + subscriber. Members see public + subscriber + member.
     if (userRole === UserRole.VISITOR) {
-      query = query.where('visibility', 'in', ['public']);
+      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public'] }];
     } else if (userRole === UserRole.SUBSCRIBER) {
-      query = query.where('visibility', 'in', ['public', 'subscriber']);
+      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }];
     } else if (userRole === UserRole.MEMBER) {
-      query = query.where('visibility', 'in', ['public', 'subscriber', 'member']);
+      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] }];
     }
     // ADMIN and CONFIDENTIAL users see all opportunities (no filter applied)
 
-    // Step 4: Handle pagination
-    query = query.limit(limit);
+    // Apply pagination if provided
     if (startAfter) {
       try {
-        const startAfterDoc = await opportunitiesCol.doc(startAfter).get();
-        if (startAfterDoc.exists) {
-          query = query.startAfter(startAfterDoc);
+        const startAfterDoc = await getCachedDocument('opportunities', startAfter);
+        if (startAfterDoc && startAfterDoc.exists) {
+          queryConfig.startAfter = startAfterDoc;
         }
       } catch (error) {
         throw new OpportunityQueryError(
@@ -154,10 +121,10 @@ export async function getOpportunitiesForRole(
       }
     }
 
-    // Step 5: Execute query
-    let snapshot: QuerySnapshot<Opportunity>;
+    // Step 3: Execute optimized query
+    let snapshot;
     try {
-      snapshot = await query.get();
+      snapshot = await getCachedCollectionAdvanced('opportunities', queryConfig);
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to execute opportunities query',
@@ -172,7 +139,7 @@ export async function getOpportunitiesForRole(
       );
     }
 
-    // Step 6: Map document snapshots to Opportunity objects and serialize Timestamps
+    // Step 4: Map document snapshots to Opportunity objects and serialize Timestamps
     const opportunities = snapshot.docs.map(doc => {
       const data = doc.data();
       
@@ -195,13 +162,15 @@ export async function getOpportunitiesForRole(
         dateCreated: timestampToISO(data.dateCreated),
         dateUpdated: timestampToISO(data.dateUpdated),
         expirationDate: timestampToISO(data.expirationDate),
+        // Handle optional applicationDeadline field
+        applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
       };
     });
 
     // Get the ID of the last visible document for pagination
     const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
 
-    console.log('Services: getOpportunitiesForRole - Total opportunities fetched:', opportunities.length);
+    logger.info('Services: getOpportunitiesForRole - Total opportunities fetched:', { opportunities: opportunities.length, lastVisible } );
 
     return { opportunities, lastVisible };
   } catch (error) {
@@ -231,8 +200,8 @@ export async function getOpportunities(
   limit: number = 20,
   startAfter?: string
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> {
-  console.log('Services: getOpportunities - Starting...');
-  const session = await getServerAuthSession();
+  logger.info('Services: getOpportunities - Starting...');
+  const session = await auth();
   if (!session || !session.user) {
     throw new OpportunityAuthError('Unauthorized access', undefined, {
       timestamp: Date.now(),
