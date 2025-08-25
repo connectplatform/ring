@@ -1,7 +1,7 @@
 import React from "react"
 import { redirect, notFound } from "next/navigation"
 import { cookies } from "next/headers"
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { ROUTES } from "@/constants/routes"
 import { UserRole } from "@/features/auth/types"
 import type { Opportunity } from "@/types"
@@ -108,7 +108,7 @@ export default async function ConfidentialOpportunitiesPage(props: LocalePagePro
   })
 
   // Authenticate user
-  const session = await getServerAuthSession()
+  const session = await auth()
 
   // Check user authorization
   if (!session || (session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN)) {
@@ -119,7 +119,7 @@ export default async function ConfidentialOpportunitiesPage(props: LocalePagePro
   // React 19 metadata for confidential pages
   const title = (translations as any).metadata?.confidentialOpportunities || 'Confidential Opportunities | Ring App';
   const description = (translations as any).metaDescription?.confidentialOpportunities || 'Secure access to confidential opportunities in the Ring App ecosystem.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/confidential/opportunities`;
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}/${locale}/confidential/opportunities`;
   const alternates = generateHreflangAlternates('/confidential/opportunities');
 
   // Initialize variables for opportunities and error handling
