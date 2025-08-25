@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useCallback, use } from 'react'
 import { useSession } from 'next-auth/react'
 import { useWebSocketConnection, useWebSocketNotifications, useWebSocketPresence, useWebSocketSystem } from '@/hooks/use-websocket'
 import { toast } from '@/hooks/use-toast'
@@ -45,7 +45,7 @@ interface WebSocketContextType {
 const WebSocketContext = createContext<WebSocketContextType | null>(null)
 
 export function useWebSocketContext() {
-  const context = useContext(WebSocketContext)
+  const context = use(WebSocketContext)
   if (!context) {
     throw new Error('useWebSocketContext must be used within WebSocketProvider')
   }
