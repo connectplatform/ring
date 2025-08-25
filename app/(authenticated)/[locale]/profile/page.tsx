@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers'
 import ProfileWrapper from '@/components/wrappers/profile-wrapper'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { AuthUser } from '@/features/auth/types'
 // Use server-side services for wallet operations
 import { ensureWallet } from '@/features/wallet/services/ensure-wallet'
@@ -64,7 +64,7 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
 
   try {
     console.log('ProfilePage: Authenticating session');
-    const session = await getServerAuthSession()
+    const session = await auth()
     console.log('ProfilePage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id, role: session?.user?.role });
 
     if (!session) {
