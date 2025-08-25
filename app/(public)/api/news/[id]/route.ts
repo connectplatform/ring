@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNewsCollection } from '@/lib/firestore-collections';
+import { 
+  getCachedDocument,
+  getCachedNewsBySlug,
+  getCachedCollectionAdvanced,
+  updateDocument,
+  deleteDocument
+} from '@/lib/services/firebase-service-manager';
 import { NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -14,20 +20,21 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    const newsCollection = getNewsCollection();
 
     // Try to find by document ID first
-    let articleDoc = await newsCollection.doc(id).get();
+    let articleDoc = await getCachedDocument('news', id);
+    let articleId = id;
     
     // If not found by ID, try to find by slug
-    if (!articleDoc.exists) {
-      const slugQuery = await newsCollection.where('slug', '==', id).limit(1).get();
-      if (!slugQuery.empty) {
-        articleDoc = slugQuery.docs[0];
+    if (!articleDoc || !articleDoc.exists) {
+      const slugDoc = await getCachedNewsBySlug(id);
+      if (slugDoc && slugDoc.exists) {
+        articleDoc = slugDoc;
+        articleId = slugDoc.id;
       }
     }
 
-    if (!articleDoc.exists) {
+    if (!articleDoc || !articleDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'News article not found' },
         { status: 404 }
@@ -35,9 +42,15 @@ export async function GET(
     }
 
     const article = articleDoc.data();
+    if (!article) {
+      return NextResponse.json(
+        { success: false, error: 'News article data not found' },
+        { status: 404 }
+      );
+    }
 
-    // Increment view count
-    await articleDoc.ref.update({
+    // Increment view count using firebase-service-manager
+    await updateDocument('news', articleId, {
       views: FieldValue.increment(1),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -89,10 +102,9 @@ export async function PUT(
     const { id } = params;
     const formData: Partial<NewsFormData> = await request.json();
 
-    const newsCollection = getNewsCollection();
-    const articleDoc = await newsCollection.doc(id).get();
+    const articleDoc = await getCachedDocument('news', id);
 
-    if (!articleDoc.exists) {
+    if (!articleDoc || !articleDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'News article not found' },
         { status: 404 }
@@ -129,11 +141,11 @@ export async function PUT(
     // Handle slug update
     if (formData.slug !== undefined) {
       // Check if new slug already exists (excluding current article)
-      const existingSlug = await newsCollection
-        .where('slug', '==', formData.slug)
-        .get();
+      const existingSlugSnapshot = await getCachedCollectionAdvanced('news', {
+        where: [{ field: 'slug', operator: '==', value: formData.slug }]
+      });
       
-      const slugExists = existingSlug.docs.some(doc => doc.id !== id);
+      const slugExists = existingSlugSnapshot.docs.some(doc => doc.id !== id);
       if (slugExists) {
         return NextResponse.json(
           { success: false, error: 'Article with this slug already exists' },
@@ -143,11 +155,11 @@ export async function PUT(
       updateData.slug = formData.slug;
     }
 
-    // Update the article
-    await articleDoc.ref.update(updateData);
+    // Update the article using firebase-service-manager
+    await updateDocument('news', id, updateData);
     
     // Fetch updated article
-    const updatedDoc = await articleDoc.ref.get();
+    const updatedDoc = await getCachedDocument('news', id);
 
     return NextResponse.json({
       success: true,
@@ -192,18 +204,17 @@ export async function DELETE(
     }
 
     const { id } = params;
-    const newsCollection = getNewsCollection();
-    const articleDoc = await newsCollection.doc(id).get();
+    const articleDoc = await getCachedDocument('news', id);
 
-    if (!articleDoc.exists) {
+    if (!articleDoc || !articleDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'News article not found' },
         { status: 404 }
       );
     }
 
-    // Delete the article
-    await articleDoc.ref.delete();
+    // Delete the article using firebase-service-manager
+    await deleteDocument('news', id);
 
     return NextResponse.json({
       success: true,
