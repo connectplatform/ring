@@ -1,14 +1,15 @@
 import { redirect } from 'next/navigation'
-import { auth } from '@/auth'
+import { auth } from '@/auth' 
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
 import { CategoriesManager } from '@/features/news/components/categories-manager'
-import { getNewsCategoriesCollection } from '@/lib/firestore-collections'
+import { getCachedNewsCategoriesCollection } from '@/lib/services/firebase-service-manager'
 import { NewsCategoryInfo } from '@/features/news/types'
 
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
-    const categoriesCollection = getNewsCategoriesCollection()
-    const snapshot = await categoriesCollection.orderBy('name', 'asc').get()
+    const snapshot = await getCachedNewsCategoriesCollection({
+      orderBy: { field: 'name', direction: 'asc' }
+    })
     return snapshot.docs.map(doc => doc.data())
   } catch (error) {
     console.error('Error fetching categories:', error)
