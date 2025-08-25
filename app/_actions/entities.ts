@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
 import { UserRole } from '@/features/auth/types'
@@ -18,7 +18,7 @@ export async function createEntity(
   prevState: EntityFormState | null,
   formData: FormData
 ): Promise<EntityFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
@@ -102,6 +102,7 @@ export async function createEntity(
 
     // Create entity data matching the Entity interface
     const entityData = {
+      locale: session.user.settings.language,
       name: name.trim(),
       type: type as any, // Cast to EntityType
       shortDescription: shortDescription.trim(),
@@ -152,7 +153,7 @@ export async function updateEntity(
   prevState: EntityFormState | null,
   formData: FormData
 ): Promise<EntityFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return { error: 'You must be logged in to update an entity' }
@@ -265,7 +266,7 @@ export async function deleteEntity(
   prevState: EntityFormState | null,
   formData: FormData
 ): Promise<EntityFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return { error: 'You must be logged in to delete an entity' }
