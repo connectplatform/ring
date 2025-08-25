@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerAuthSession } from '@/auth'; 
+import { auth } from '@/auth'; 
 import { getCachedOpportunitiesForRole } from '@/lib/cached-data';
 import { UserRole } from '@/features/auth/types';
 
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Step 1: Authenticate the session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.log('API: /api/opportunities - Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
