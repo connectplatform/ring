@@ -27,6 +27,7 @@ try {
 } catch (error) {
   console.error("Failed to initialize Firestore adapter:", error);
   // Continue without adapter for development/testing
+  firestoreAdapter = undefined;
 }
 
 export const { auth, handlers, signIn, signOut } = NextAuth({

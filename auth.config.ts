@@ -9,13 +9,19 @@ import { UserRole } from "@/features/auth/types"
  * Auth.js v5 Edge-Compatible Configuration
  * This config is used in middleware and edge runtime
  */
+// Check if we're in middleware context (no adapter available)
+const isMiddleware = typeof process !== 'undefined' && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+
 export default {
   providers: [
     // Magic Link Email Authentication (Primary for registration/access)
-    Resend({
-      // Auth.js v5 automatically uses AUTH_RESEND_KEY
-      from: "noreply@ring.ck.ua",
-    }),
+    // Note: Only include Resend when adapter is available (not in middleware)
+    ...(isMiddleware ? [] : [
+      Resend({
+        // Auth.js v5 automatically uses AUTH_RESEND_KEY
+        from: "noreply@ring.ck.ua",
+      })
+    ]),
     // Google OAuth (Preferred signin option)
     GoogleProvider({
       // Auth.js v5 automatically uses AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET
