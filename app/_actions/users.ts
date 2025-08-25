@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { getAdminDb } from '@/lib/firebase-admin.server'
 import { defaultLocale } from '@/i18n-config'
@@ -17,7 +17,7 @@ export async function updateUserSettings(
   prevState: UserFormState | null,
   formData: FormData
 ): Promise<UserFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
@@ -76,7 +76,7 @@ export async function updateUserProfile(
   prevState: UserFormState | null,
   formData: FormData
 ): Promise<UserFormState> {
-  const session = await getServerAuthSession()
+  const session = await auth()
   
   if (!session?.user?.id) {
     return {
