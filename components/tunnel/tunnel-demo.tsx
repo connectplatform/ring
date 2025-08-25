@@ -13,7 +13,7 @@ export function TunnelDemo() {
   const [testChannel] = useState('demo-channel');
   const [messageText, setMessageText] = useState('');
   
-  // Main tunnel hook
+  // Main tunnel hook - disable autoConnect to prevent conflicts with TunnelProvider
   const {
     isConnected,
     connectionState,
@@ -26,25 +26,29 @@ export function TunnelDemo() {
     switchProvider,
     error,
   } = useTunnel({
-    autoConnect: true,
+    autoConnect: false, // Let TunnelProvider handle connection
     debug: true,
   });
 
-  // Notifications hook
+  // Notifications hook - use existing connection from TunnelProvider
   const { notifications, clearNotifications } = useTunnelNotifications();
 
-  // Messages hook
+  // Messages hook - use existing connection from TunnelProvider
   const { messages, sendMessage } = useTunnelMessages(testChannel);
 
-  // Subscribe to test channel
+  // Subscribe to test channel - prevent duplicate subscriptions
   useEffect(() => {
     if (!isConnected) return;
 
+    console.log(`[TunnelDemo] Subscribing to channel: ${testChannel}`);
     const unsubscribe = subscribe(testChannel, (message) => {
-      console.log('Received message:', message);
+      console.log('[TunnelDemo] Received message:', message);
     });
 
-    return unsubscribe;
+    return () => {
+      console.log(`[TunnelDemo] Unsubscribing from channel: ${testChannel}`);
+      unsubscribe?.();
+    };
   }, [isConnected, testChannel, subscribe]);
 
   // Send test message
