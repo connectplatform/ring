@@ -76,4 +76,16 @@ export interface Order {
   updatedAt?: string
 }
 
-
+export type AdminOrdersSearchParams = {
+  status?: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled';
+  page?: string;
+  limit?: string;
+  sort?: string;
+  sortOrder?: string;
+  search?: string;
+  startAfter?: string;
+  endBefore?: string;
+  orderBy?: string;
+  orderByDirection?: string;
+  orderByField?: string;
+};
