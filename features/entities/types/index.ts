@@ -42,6 +42,7 @@ export interface Entity {
   industries?: string[];
   isConfidential: boolean;
   lastUpdated: Timestamp;
+  locale: string;
   location: string;
   logo?: string;
   memberSince?: Timestamp;
@@ -83,6 +84,7 @@ export interface SerializedEntity {
   industries?: string[];
   isConfidential: boolean;
   lastUpdated: string;
+  locale: string;
   location: string;
   logo?: string;
   memberSince?: string;
