@@ -1,8 +1,8 @@
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { Suspense } from "react"
 import { cookies } from "next/headers"
-import { getServerAuthSession } from "@/auth"
-import type { Entity } from "@/types"
+import { auth } from "@/auth"
+import type { SerializedEntity } from "@/features/entities/types"
 import EntitiesWrapper from "@/components/wrappers/entities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
@@ -25,12 +25,12 @@ type EntitiesParams = {}
  *
  * @param session - The authenticated user session.
  * @param searchParams - The query parameters for fetching entities.
- * @returns Promise<{ entities: Entity[]; lastVisible: string | null; totalPages: number; totalEntities: number }>
+ * @returns Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalPages: number; totalEntities: number }>
  */
 async function getEntities(
   session: any,
   searchParams: URLSearchParams,
-): Promise<{ entities: Entity[]; lastVisible: string | null; totalPages: number; totalEntities: number }> {
+): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalPages: number; totalEntities: number }> {
   const phase = getCurrentPhase();
   
   // 🔥 BUILD-TIME OPTIMIZATION: Use cached/mock data during static generation
@@ -174,7 +174,7 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   })
 
   // Authenticate user (optional for intro gating)
-  const session = await getServerAuthSession()
+  const session = await auth()
 
   // 🚀 PREFETCH OPTIMIZATION: Load page-specific data during build
   const phase = getCurrentPhase();
@@ -186,7 +186,7 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   }
 
   // Initialize variables for entities and error handling
-  let entities: Entity[] = []
+  let entities: SerializedEntity[] = []
   let lastVisible: string | null = null
   let totalPages = 0
   let totalEntities = 0
