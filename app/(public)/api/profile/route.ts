@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { updateProfile } from "@/features/auth/services/update-profile";
 import { getUserProfile } from "@/features/auth/services/get-user-profile";
 import { ProfileFormData } from '@/features/auth/types';
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Step 1: Authenticate the user with enhanced validation
-    const session = await getServerAuthSession();
+    const session = await auth();
     
     // ES2022 logical assignment for context building
     requestContext.hasSession ??= !!session;
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Step 1: Authenticate the user with enhanced validation
-    const session = await getServerAuthSession();
+    const session = await auth();
     
     // ES2022 logical assignment for context building
     requestContext.hasSession ??= !!session;
