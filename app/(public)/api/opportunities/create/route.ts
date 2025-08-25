@@ -9,6 +9,23 @@ import { logger } from '@/lib/logger'
 import { rateLimit, keyFromRequest } from '@/lib/rate-limit';
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 
+const createOpportunitySchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  budget: z.object({ min: z.number().nonnegative(), max: z.number().nonnegative(), currency: z.string().min(1) }),
+  expirationDate: z.string().or(z.date()).optional(),
+  visibility: z.enum(['public', 'subscriber', 'member', 'confidential']).optional(),
+  isConfidential: z.boolean().optional(),
+  requiredDocuments: z.array(z.any()).optional(),
+  attachments: z.array(z.any()).optional(),
+  contactInfo: z.any().optional(),
+  fullDescription: z.string().optional(),
+  type: z.enum(['offer', 'request']).optional(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  location: z.string().optional()
+})
+
 /**
  * POST handler for creating a new opportunity
  * 
@@ -53,19 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 3: Validate and process the incoming data
-    const schema = z.object({
-      title: z.string().min(1),
-      briefDescription: z.string().min(1),
-      budget: z.object({ min: z.number().nonnegative(), max: z.number().nonnegative(), currency: z.string().min(1) }),
-      expirationDate: z.string().or(z.date()).optional(),
-      visibility: z.enum(['public', 'subscriber', 'member', 'confidential']).optional(),
-      isConfidential: z.boolean().optional(),
-      requiredDocuments: z.array(z.any()).optional(),
-      attachments: z.array(z.any()).optional(),
-      contactInfo: z.any().optional()
-    }).passthrough();
-
-    const data = schema.parse(await req.json());
+    const data = createOpportunitySchema.parse(await req.json());
     
     // Data already validated above
 
@@ -79,7 +84,7 @@ export async function POST(req: NextRequest) {
       tags: (data as any).tags || [],
       location: (data as any).location || 'remote',
       requiredSkills: (data as any).requiredSkills || [],
-      fullDescription: (data as any).fullDescription || data.briefDescription,
+      description: (data as any).description || '',
       organizationId: (data as any).organizationId || '',
 
       createdBy: userId,
