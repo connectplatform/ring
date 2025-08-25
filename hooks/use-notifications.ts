@@ -4,7 +4,7 @@
  * Provides CRUD operations, real-time updates, and state management
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, use, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client';
 import { 
@@ -484,4 +484,82 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     refresh,
     clearError
   };
+}
+
+/**
+ * Internal function to fetch notifications
+ * Enhanced with timeout, retry, and standardized error handling
+ */
+async function fetchNotificationsData(options: UseNotificationsOptions = {}): Promise<NotificationListResponse> {
+  const {
+    limit = 20,
+    unreadOnly = false,
+    types
+  } = options;
+
+  const params = new URLSearchParams();
+  params.set('limit', limit.toString());
+  if (unreadOnly) params.set('unreadOnly', 'true');
+  if (types && types.length > 0) {
+    params.set('types', types.join(','));
+  }
+
+  // Use API client with notification domain configuration (10s timeout, 2 retries)
+  const response: ApiResponse<NotificationListResponse> = await apiClient.get(
+    `/api/notifications?${params}`,
+    {
+      timeout: 10000, // 10 second timeout for notifications
+      retries: 2 // Retry twice for network resilience
+    }
+  );
+
+  if (response.success && response.data) {
+    return response.data;
+  } else {
+    throw new Error(response.error || 'Failed to fetch notifications');
+  }
+}
+
+/**
+ * React 19 Promise-based hook for notifications using use() function
+ * Returns a promise that can be consumed with React 19's use() function
+ * 
+ * Usage:
+ * ```tsx
+ * function NotificationsList() {
+ *   const notificationsPromise = useNotificationsPromise({ limit: 10, unreadOnly: true })
+ *   const notificationsData = use(notificationsPromise)
+ *   
+ *   return (
+ *     <div>
+ *       {notificationsData.notifications.map(notif => (
+ *         <div key={notif.id}>{notif.title}</div>
+ *       ))}
+ *     </div>
+ *   )
+ * }
+ * 
+ * // Wrap in Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading notifications...</div>}>
+ *       <NotificationsList />
+ *     </Suspense>
+ *   )
+ * }
+ * ```
+ */
+export function useNotificationsPromise(options: UseNotificationsOptions = {}): Promise<NotificationListResponse> {
+  return useMemo(() => {
+    return fetchNotificationsData(options)
+  }, [options])
+}
+
+/**
+ * React 19 Enhanced hook that directly uses use() function for notifications
+ * Suspends the component until the notifications are loaded
+ */
+export function useNotificationsWithSuspense(options: UseNotificationsOptions = {}): NotificationListResponse {
+  const promise = useNotificationsPromise(options)
+  return use(promise)
 } 
