@@ -2,9 +2,17 @@
 
 import { Suspense, useState, useEffect } from "react"
 import dynamic from "next/dynamic"
-import type { Entity } from "@/types"
-import { useSearchParams } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { useSearchParams, usePathname } from "next/navigation"
+import { useTranslations } from 'next-intl'
+import type { SerializedEntity } from "@/features/entities/types"
+import { deserializeEntities } from "@/lib/converters/entity-serializer"
 import { EntitySuspenseBoundary } from "@/components/suspense/enhanced-suspense-boundary"
+import { Button } from '@/components/ui/button'
+import { Building2, User, Plus } from 'lucide-react'
+import { ROUTES } from '@/constants/routes'
+import { AddEntityButton } from '@/components/entities/add-entity-button'
+import Link from 'next/link'
 
 /**
  * Dynamically import the EntitiesContent component
@@ -18,7 +26,7 @@ const EntitiesContent = dynamic(() => import("@/features/entities/components/ent
  * EntitiesWrapper component props
  */
 interface EntitiesWrapperProps {
-  initialEntities: Entity[]
+  initialEntities: SerializedEntity[]
   initialError: string | null
   page: number
   totalPages: number
@@ -53,13 +61,18 @@ export default function EntitiesWrapper({
   initialSort,
   initialFilter,
 }: EntitiesWrapperProps) {
+  const { data: session, status } = useSession()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const t = useTranslations('modules.entities')
   const [mounted, setMounted] = useState(false)
-  const [entities, setEntities] = useState<Entity[]>(initialEntities)
+  const [entities, setEntities] = useState<SerializedEntity[]>(initialEntities)
   const [error, setError] = useState<string | null>(initialError)
   const [limit, setLimit] = useState(initialLimit)
   const [sort, setSort] = useState(initialSort)
   const [filter, setFilter] = useState(initialFilter)
+  
+  const locale = pathname.split('/')[1] || 'en'
 
   // Prevent hydration mismatches
   useEffect(() => {
@@ -94,25 +107,53 @@ export default function EntitiesWrapper({
   }
 
   return (
-    <EntitySuspenseBoundary 
-      level="page" 
-      showProgress={true}
-      description="Loading entities directory with advanced filtering and sorting"
-      retryEnabled={true}
-      onRetry={() => window.location.reload()}
-    >
-      <EntitiesContent
-        initialEntities={entities}
-        initialError={error}
-        page={page}
-        totalPages={totalPages}
-        totalEntities={totalEntities}
-        lastVisible={lastVisible}
-        limit={limit}
-        sort={sort}
-        filter={filter}
-      />
-    </EntitySuspenseBoundary>
+    <div>
+      {/* Main Navigation Bar for Entities */}
+      <div className="bg-white border-b mb-6">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {t('title', { defaultValue: 'Entities' })}
+            </h1>
+            
+            <div className="flex flex-wrap gap-3">
+              {session?.user && (
+                <>
+                  {/* Add Entity Button */}
+                  <AddEntityButton locale={locale as any} className="flex items-center gap-2" />
+                </>
+              )}
+              <Link href={ROUTES.ENTITIES(locale as any)}>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <Building2 size={20} />
+                  {t('viewAll', { defaultValue: 'View All' })}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <EntitySuspenseBoundary 
+        level="page" 
+        showProgress={true}
+        description="Loading entities directory with advanced filtering and sorting"
+        retryEnabled={true}
+        onRetry={() => window.location.reload()}
+      >
+        <EntitiesContent
+          initialEntities={entities}
+          initialError={error}
+          page={page}
+          totalPages={totalPages}
+          totalEntities={totalEntities}
+          lastVisible={lastVisible}
+          limit={limit}
+          sort={sort}
+          filter={filter}
+        />
+      </EntitySuspenseBoundary>
+    </div>
   )
 }
 
