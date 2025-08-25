@@ -6,7 +6,7 @@
 
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { Opportunity } from '@/features/opportunities/types';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
 import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
@@ -14,11 +14,15 @@ import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from 
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { appendEvent } from '@/lib/events/event-log'
 import { NeuralMatcher } from '@/lib/ai/neural-matcher'
+import { logger } from '@/lib/logger';
 
-import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced,
+  createDocument
+} from '@/lib/services/firebase-service-manager';
 
 /**
  * Type definition for the data required to create a new opportunity.
@@ -50,10 +54,10 @@ type NewOpportunityData = Omit<Opportunity, 'id' | 'dateCreated' | 'dateUpdated'
  */
 export async function createOpportunity(data: NewOpportunityData): Promise<Opportunity> {
   try {
-    console.log('Services: createOpportunity - Starting opportunity creation process...');
+    logger.info('Services: createOpportunity - Starting opportunity creation process...');
 
     // Step 1: Authenticate the user
-    const session = await getServerAuthSession();
+    const session = await auth();
     
     if (!session || !session.user) {
       throw new OpportunityAuthError('User authentication required to create opportunity', undefined, {
@@ -98,10 +102,14 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
         );
       }
     } else {
-      // Type-based permission checking: different rules for offers vs requests
+      // Type-based permission checking: different rules for different opportunity types
       const opportunityType = data.type || 'offer'; // Default to offer if not specified
       
-      if (opportunityType === 'request') {
+      // Define type categories for permission checking
+      const requestTypes = ['request']; // Individual requests
+      const offerTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event']; // Organizational opportunities
+      
+      if (requestTypes.includes(opportunityType)) {
         // Requests can be created by SUBSCRIBER and above
         const hasRequestAccess = [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
         
@@ -109,28 +117,46 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
           validationContext.requiredRoles ??= [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
           validationContext.opportunityType = opportunityType;
           throw new OpportunityPermissionError(
-            'Only SUBSCRIBER, MEMBER, ADMIN, or CONFIDENTIAL users can create requests',
+            `Only SUBSCRIBER, MEMBER, ADMIN, or CONFIDENTIAL users can create ${opportunityType} opportunities`,
             undefined,
             validationContext
           );
         }
-      } else {
-        // Offers require MEMBER and above
+      } else if (offerTypes.includes(opportunityType)) {
+        // Offers and organizational opportunities require MEMBER and above
         const hasOfferAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
         
         if (!hasOfferAccess) {
           validationContext.requiredRoles ??= [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
           validationContext.opportunityType = opportunityType;
           throw new OpportunityPermissionError(
-            'Only MEMBER, ADMIN, or CONFIDENTIAL users can create offers',
+            `Only MEMBER, ADMIN, or CONFIDENTIAL users can create ${opportunityType} opportunities`,
             undefined,
             validationContext
           );
         }
+        
+        // Validate linkedEntity requirement for organizational opportunities
+        if (!data.contactInfo?.linkedEntity) {
+          validationContext.opportunityType = opportunityType;
+          throw new OpportunityPermissionError(
+            `${opportunityType} opportunities require a linkedEntity in contactInfo`,
+            undefined,
+            validationContext
+          );
+        }
+      } else {
+        // Unknown opportunity type
+        validationContext.opportunityType = opportunityType;
+        throw new OpportunityQueryError(
+          `Unknown opportunity type: ${opportunityType}`,
+          undefined,
+          validationContext
+        );
       }
     }
 
-    console.log(`Services: createOpportunity - User authenticated: ${userId} with role: ${userRole}, creating ${data.type || 'offer'} opportunity`);
+    logger.info(`Services: createOpportunity - User authenticated: ${userId} with role: ${userRole}, creating ${data.type || 'offer'} opportunity`);
 
     // Step 2.5: Enhanced data validation using ES2022 utilities
     if (!validateOpportunityData(data)) {
@@ -212,24 +238,7 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
       }
     }
 
-    // Step 3: Initialize database connection
-    let adminDb;
-    const dbContext = { ...validationContext, operation: 'getAdminDb' };
-    
-    try {
-      const serviceManager = getFirebaseServiceManager();
-      adminDb = serviceManager.db;
-    } catch (error) {
-      throw new OpportunityDatabaseError(
-        'Failed to initialize database connection',
-        error instanceof Error ? error : new Error(String(error)),
-        dbContext
-      );
-    }
-
-    const opportunitiesCollection = adminDb.collection('opportunities').withConverter(opportunityConverter);
-
-    // Step 4: Create the new opportunity document with ES2022 logical assignment
+    // Step 3: Create the new opportunity document with ES2022 logical assignment
     const newOpportunityData: any = {
       ...data,
       createdBy: userId,
@@ -247,10 +256,15 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     // ES2022 ||= logical assignment - set defaults for optional fields
     newOpportunityData.isActive ||= true;
     newOpportunityData.isConfidential ||= false;
+    
+    // Set default values for new tracking fields
+    newOpportunityData.applicantCount ??= 0;
+    // Priority is optional and only set for certain opportunity types
 
+    // Step 4: Create the opportunity document using optimized firebase-service-manager
     let docRef;
     try {
-      docRef = await opportunitiesCollection.add(newOpportunityData);
+      docRef = await createDocument('opportunities', newOpportunityData);
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to create opportunity document',
@@ -265,10 +279,10 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
       );
     }
 
-    // Step 5: Retrieve the created opportunity
+    // Step 5: Retrieve the created opportunity using optimized caching
     let docSnap;
     try {
-      docSnap = await docRef.get();
+      docSnap = await getCachedDocument('opportunities', docRef.id);
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to retrieve created opportunity',
@@ -283,7 +297,7 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
       );
     }
 
-    if (!docSnap.exists) {
+    if (!docSnap || !docSnap.exists) {
       throw new OpportunityQueryError(
         'Created opportunity document not found',
         undefined,
@@ -298,30 +312,41 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     }
 
     // Step 6: Retrieve and return the created opportunity
-    const opportunityData = {
-      ...docSnap.data(),
-      id: docSnap.id,
-      dateCreated: docSnap.createTime || Timestamp.now(),
-      dateUpdated: docSnap.updateTime || Timestamp.now(),
-    };
+    const rawData = docSnap.data();
+    if (!rawData) {
+      throw new OpportunityQueryError(
+        'Created opportunity document has no data',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userId,
+          userRole,
+          opportunityId: docRef.id,
+          operation: 'opportunity_data_validation'
+        }
+      );
+    }
+
+    const opportunityData: Opportunity = {
+      ...rawData,
+      id: docRef.id,
+      dateCreated: rawData.dateCreated || Timestamp.now(),
+      dateUpdated: rawData.dateUpdated || Timestamp.now(),
+    } as Opportunity;
 
     let createdOpportunity;
     try {
-      createdOpportunity = opportunityConverter.fromFirestore({
-        ...docSnap,
-        id: docRef.id,
-        data: () => opportunityData,
-      } as any);
+      createdOpportunity = opportunityData;
     } catch (error) {
       throw new OpportunityQueryError(
-        'Failed to convert opportunity document',
+        'Failed to process opportunity document',
         error instanceof Error ? error : new Error(String(error)),
         {
           timestamp: Date.now(),
           userId,
           userRole,
           opportunityId: docRef.id,
-          operation: 'opportunity_conversion'
+          operation: 'opportunity_processing'
         }
       );
     }
