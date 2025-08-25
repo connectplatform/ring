@@ -19,6 +19,7 @@ import { useAppContext } from '@/contexts/app-context'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 import { usePathname } from 'next/navigation'
 import OpportunityList from './opportunity-list'
+import AdvancedFilters from '@/components/opportunities/advanced-filters'
 
 interface OpportunitiesProps {
   initialOpportunities: SerializedOpportunity[]
@@ -42,6 +43,19 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
+  const [filters, setFilters] = React.useState({
+    search: '',
+    types: [],
+    categories: [],
+    location: '',
+    budgetMin: '',
+    budgetMax: '',
+    currency: 'USD',
+    priority: '',
+    deadline: '',
+    entityVerified: null,
+    hasDeadline: null
+  })
   const { ref, inView } = useInView()
 
   // Extract locale from pathname
@@ -84,8 +98,9 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
       setError(null)
       try {
         // Deduplicate entity IDs before fetching
+        // Filter out null, empty, or already loaded entities
         const uniqueEntityIds = [...new Set(opportunities.map(opp => opp.organizationId))]
-        const missingEntityIds = uniqueEntityIds.filter(id => !entities[id])
+        const missingEntityIds = uniqueEntityIds.filter(id => id && id.trim() !== '' && !entities[id])
         
         if (missingEntityIds.length === 0) {
           setLoading(false)
@@ -156,10 +171,36 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
     return <ErrorMessage message={error} />
   }
 
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      types: [],
+      categories: [],
+      location: '',
+      budgetMin: '',
+      budgetMax: '',
+      currency: 'USD',
+      priority: '',
+      deadline: '',
+      entityVerified: null,
+      hasDeadline: null
+    })
+  }
+
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
+      {/* Advanced Filters */}
+      <div className="container mx-auto px-4 py-6">
+        <AdvancedFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={clearFilters}
+          resultCount={opportunities.length}
+        />
+      </div>
+      
       <OpportunityList 
-        initialOpportunities={opportunities as any}
+        initialOpportunities={opportunities}
         initialEntities={entities}
         initialError={error}
         lastVisible={lastVisible}
