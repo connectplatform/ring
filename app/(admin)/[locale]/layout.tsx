@@ -1,4 +1,4 @@
-import React, { use } from 'react'
+import React from 'react'
 import { NotificationProvider } from '@/features/notifications/components/notification-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import Navigation from '@/features/layout/components/navigation'
@@ -7,7 +7,7 @@ import { routing } from '@/i18n-config'
 import { notFound, redirect } from 'next/navigation'
 import { setupResourcePreloading } from '@/lib/preload/setup'
 import { buildMessages } from '@/lib/i18n'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 
 interface AdminLocaleLayoutProps {
@@ -24,7 +24,7 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
   }
   
   // Check authentication and admin role
-  const session = await getServerAuthSession()
+  const session = await auth()
   if (!session) {
     redirect(`/${locale}/login`)
   }
