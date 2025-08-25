@@ -4,7 +4,7 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { UserRole } from '@/features/auth/types'
 
 import { cache } from 'react';
@@ -40,7 +40,7 @@ export async function listWallets(): Promise<WalletInfo[]> {
   console.log('Services: listWallets - Starting wallet listing process')
 
   // Step 1: Authenticate the user
-  const session = await getServerAuthSession()
+  const session = await auth()
   if (!session || !session.user) {
     console.log('Services: listWallets - Unauthorized access attempt')
     throw new Error('Unauthorized: Please log in to list wallets')
