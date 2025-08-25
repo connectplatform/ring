@@ -47,7 +47,7 @@ export async function PATCH(
     // Attempt to parse the request body as JSON
     const schema = z.object({
       title: z.string().min(1).optional(),
-      briefDescription: z.string().min(1).optional(),
+      description: z.string().min(1).optional(),
       budget: z.object({ min: z.number().nonnegative(), max: z.number().nonnegative(), currency: z.string().min(1) }).optional(),
       expirationDate: z.string().or(z.date()).optional(),
       visibility: z.enum(['public', 'subscriber', 'member', 'confidential']).optional(),
