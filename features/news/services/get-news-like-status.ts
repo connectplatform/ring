@@ -1,5 +1,5 @@
-import { getServerAuthSession } from '@/auth';
-import { getNewsCollection } from '@/lib/firestore-collections';
+import { auth } from '@/auth';
+import { getCachedNewsById } from '@/lib/services/firebase-service-manager';
 import { getFirestore } from 'firebase-admin/firestore';
 
 /**
@@ -20,17 +20,16 @@ export async function getNewsLikeStatus(newsId: string): Promise<{ likeCount: nu
     console.log('Services: getNewsLikeStatus - Starting...', { newsId });
 
     // Step 1: Get session (optional for like status - can be viewed without auth)
-    const session = await getServerAuthSession();
+    const session = await auth();
     console.log('Services: getNewsLikeStatus - Session checked', { 
       hasSession: !!session, 
       userId: session?.user?.id 
     });
 
     // Step 2: Validate news article exists and get like count
-    const newsCollection = getNewsCollection();
-    const newsDoc = await newsCollection.doc(newsId).get();
+    const newsDoc = await getCachedNewsById(newsId);
 
-    if (!newsDoc.exists) {
+    if (!newsDoc || !newsDoc.exists) {
       console.error('Services: getNewsLikeStatus - News article not found', { newsId });
       throw new Error('News article not found');
     }
