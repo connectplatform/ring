@@ -1,7 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { auth } from "@/auth"
 import { getAdminDb } from '@/lib/firebase-admin.server';
 import { AuthUser } from '@/features/auth/types';
 import { AdminUserManager } from '@/features/auth/components/admin-user-manager';
@@ -39,8 +39,7 @@ export async function generateMetadata({
 
   return {
     title: `${t.admin.userManagement} | Ring Platform`,
-    description: t.admin.userManagementDescription,
-    robots: 'noindex, nofollow', // Admin pages should not be indexed
+    description: t.admin.userManagementDescription
   };
 }
 
