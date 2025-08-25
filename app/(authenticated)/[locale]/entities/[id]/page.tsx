@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
 import { headers } from 'next/headers'
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import { Entity, SerializedEntity } from '@/features/entities/types'
@@ -90,7 +90,7 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
   });
 
   console.log('EntityPage: Authenticating session');
-  const session = await getServerAuthSession();
+  const session = await auth();
   console.log('EntityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id, role: session?.user?.role });
 
   if (!session) {
@@ -104,7 +104,7 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
   // Prepare fallback metadata
   let title = (translations as any).metadata?.entityDetails || 'Entity Details | Ring App';
   let description = (translations as any).metaDescription?.entityDetails || 'View entity details in the Ring App ecosystem.';
-  let canonicalUrl = `https://ring.ck.ua/${locale}/entities/${id}`;
+  let canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}/${locale}/entities/${id}`;
   const alternates = generateHreflangAlternates(`/entities/${id}`);
 
   try {
