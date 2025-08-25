@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import { headers } from 'next/headers'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import { Entity, SerializedEntity } from '@/features/entities/types'
@@ -61,6 +61,7 @@ async function getOpportunityData(
       dateCreated: timestampToISO(opportunity.dateCreated),
       dateUpdated: timestampToISO(opportunity.dateUpdated),
       expirationDate: timestampToISO(opportunity.expirationDate),
+      applicationDeadline: opportunity.applicationDeadline ? timestampToISO(opportunity.applicationDeadline) : undefined,
     };
 
     // Try to get the associated entity if organizationId is available
@@ -140,7 +141,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
   });
 
   console.log('OpportunityPage: Authenticating session');
-  const session = await getServerAuthSession();
+  const session = await auth();
   console.log('OpportunityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id, role: session?.user?.role });
 
   if (!session) {
@@ -175,7 +176,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
     // Generate opportunity-specific metadata
     if (opportunity) {
       title = `${opportunity.title} | Ring App`;
-      description = opportunity.briefDescription || opportunity.fullDescription || `Learn more about this opportunity: ${opportunity.title}`;
+      description = opportunity.briefDescription || opportunity.fullDescription;
     }
 
   } catch (e) {
@@ -247,7 +248,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
               "@context": "https://schema.org",
               "@type": "JobPosting",
               "title": opportunity.title,
-              "description": opportunity.fullDescription || opportunity.briefDescription,
+              "description": opportunity.briefDescription || opportunity.fullDescription,
               "hiringOrganization": {
                 "@type": "Organization",
                 "name": entity.name,
@@ -258,7 +259,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
                 "@type": "Place",
                 "address": entity.location
               },
-              "url": `https://ring.ck.ua/${locale}/opportunities/${opportunity.id}`,
+              "url": `${process.env.NEXT_PUBLIC_API_URL}/${locale}/opportunities/${opportunity.id}`,
               ...(opportunity.type && { "employmentType": opportunity.type }),
               "inLanguage": locale,
               "datePosted": opportunity.dateCreated
