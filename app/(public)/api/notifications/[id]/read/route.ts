@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerAuthSession } from '@/auth';
+import { auth } from '@/auth';
 import { markNotificationAsRead } from '@/features/notifications/services/notification-service';
 import { UserRole } from '@/features/auth/types';
 
@@ -15,7 +15,7 @@ export async function POST(
 
   try {
     // Step 1: Authenticate the session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
       console.log('API: /api/notifications/[id]/read - Unauthorized access attempt');
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
