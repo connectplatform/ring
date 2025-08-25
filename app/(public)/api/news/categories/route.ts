@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNewsCategoriesCollection } from '@/lib/firestore-collections';
+import { 
+  getCachedNewsCategoriesCollection,
+  getCachedDocument,
+  createDocument
+} from '@/lib/services/firebase-service-manager';
 import { auth } from '@/auth';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NewsCategoryInfo, NewsCategory } from '@/features/news/types';
@@ -10,10 +14,11 @@ import { NewsCategoryInfo, NewsCategory } from '@/features/news/types';
  */
 export async function GET(request: NextRequest) {
   try {
-    const categoriesCollection = getNewsCategoriesCollection();
-    const snapshot = await categoriesCollection.orderBy('name', 'asc').get();
+    const snapshot = await getCachedNewsCategoriesCollection({
+      orderBy: { field: 'name', direction: 'asc' }
+    });
     
-    const categories = snapshot.docs.map(doc => doc.data());
+    const categories = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 
     return NextResponse.json({
       success: true,
@@ -69,11 +74,9 @@ export async function POST(request: NextRequest) {
       .replace(/-+/g, '-')
       .trim() as NewsCategory;
 
-    const categoriesCollection = getNewsCategoriesCollection();
-    
-    // Check if category already exists
-    const existingCategory = await categoriesCollection.doc(categoryId).get();
-    if (existingCategory.exists) {
+    // Check if category already exists using firebase-service-manager
+    const existingCategory = await getCachedDocument('newsCategories', categoryId);
+    if (existingCategory && existingCategory.exists) {
       return NextResponse.json(
         { success: false, error: 'Category with this name already exists' },
         { status: 400 }
@@ -91,9 +94,9 @@ export async function POST(request: NextRequest) {
       updatedAt: FieldValue.serverTimestamp() as any,
     };
 
-    await categoriesCollection.doc(categoryId).set(newCategory);
+    await createDocument('newsCategories', newCategory, categoryId);
 
-    const createdCategory = await categoriesCollection.doc(categoryId).get();
+    const createdCategory = await getCachedDocument('newsCategories', categoryId);
 
     return NextResponse.json({
       success: true,
