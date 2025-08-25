@@ -9,8 +9,11 @@ import { FirebaseError } from 'firebase/app';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -44,17 +47,11 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
 
     console.log(`Services: getUserProfile - User authenticated with ID ${sessionUserId} and role ${sessionUserRole}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
+    // Step 2: Retrieve the user document using optimized firebase-service-manager
     const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userRef = adminDb.collection('userProfiles').doc(userId);
+    const userDoc = await getCachedDocument('userProfiles', userId);
 
-    // Step 3: Retrieve the user document
-    const userDoc = await userRef.get();
-
-    if (!userDoc.exists) {
+    if (!userDoc || !userDoc.exists) {
       console.log(`Services: getUserProfile - User document not found for ID: ${userId}`);
       return null;
     }
