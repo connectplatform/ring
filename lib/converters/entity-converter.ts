@@ -66,6 +66,8 @@ export const entityConverter: FirestoreDataConverter<Entity> = {
       addedBy: entity.addedBy ?? '',
       visibility: entity.visibility ?? 'public',
       isConfidential: !!entity.isConfidential, // Force Boolean
+      locale: entity.locale ?? 'en',
+      location: entity.location ?? '',
 
       // Timestamps
       dateAdded: entity.dateAdded || FieldValue.serverTimestamp(),
@@ -73,7 +75,7 @@ export const entityConverter: FirestoreDataConverter<Entity> = {
 
       // Optional fields with reasonable default values
       shortDescription: entity.shortDescription ?? '',
-      location: entity.location ?? null,
+      contactEmail: entity.contactEmail ?? null,
       employeeCount: entity.employeeCount ?? 0,
       memberSince: entity.memberSince || undefined,
       industries: entity.industries ?? [],
@@ -103,11 +105,13 @@ export const entityConverter: FirestoreDataConverter<Entity> = {
     return {
       // Required fields
       id: snapshot.id,
+      locale: data.locale ?? 'en',
       name: data.name ?? 'Unknown',
       type: data.type ?? 'other',
       addedBy: data.addedBy ?? '',
       visibility: data.visibility ?? 'public',
       isConfidential: !!data.isConfidential, // Guarantee Boolean conversion
+      location: data.location ?? '',
 
       // Convert various timestamp formats to Firestore Timestamps
       dateAdded: safeToTimestamp(data.dateAdded) || Timestamp.now(), // Defaults to current timestamp if missing
@@ -115,7 +119,7 @@ export const entityConverter: FirestoreDataConverter<Entity> = {
 
       // Optional fields with fallback/default behavior
       shortDescription: data.shortDescription ?? '',
-      location: data.location ?? null,
+      contactEmail: data.contactEmail ?? null,
       employeeCount: data.employeeCount ?? 0,
       memberSince: safeToTimestamp(data.memberSince), // Safe conversion with proper type checking
       industries: data.industries ?? [],
