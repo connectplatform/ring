@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { getServerAuthSession } from '@/auth'
+import { auth } from '@/auth'
 import type { ProfileFormData } from "@/types/profile"
 import type { ProfileUpdateState } from "@/types/profile"
 import { ProfileAuthError, ProfileValidationError, ProfileUpdateError, logRingError } from "@/lib/errors"
@@ -19,7 +19,7 @@ import { ProfileAuthError, ProfileValidationError, ProfileUpdateError, logRingEr
 export async function updateProfile(prevState: ProfileUpdateState, formData: FormData): Promise<ProfileUpdateState> {
   try {
     // Check authentication first
-    const session = await getServerAuthSession()
+    const session = await auth()
     
     if (!session?.user?.id) {
       throw new ProfileAuthError('Authentication required', undefined, {
