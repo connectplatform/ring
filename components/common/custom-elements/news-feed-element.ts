@@ -14,6 +14,7 @@
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
+import { NewsArticle } from '@/features/news/types'
 
 interface NewsFeedProps {
   theme?: 'light' | 'dark'
@@ -21,17 +22,6 @@ interface NewsFeedProps {
   showImages?: boolean
   compact?: boolean
   apiKey?: string
-}
-
-interface NewsItem {
-  id: string
-  title: string
-  excerpt: string
-  imageUrl?: string
-  publishedAt: string
-  author?: string
-  category?: string
-  slug: string
 }
 
 // React 19 News Feed Component
@@ -42,7 +32,7 @@ function NewsFeedComponent({
   compact = false,
   apiKey 
 }: NewsFeedProps) {
-  const [news, setNews] = React.useState<NewsItem[]>([])
+  const [news, setNews] = React.useState<NewsArticle[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -74,8 +64,20 @@ function NewsFeedComponent({
     ? 'bg-gray-900 text-white border-gray-700' 
     : 'bg-white text-gray-900 border-gray-200'
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatDate = (dateInput: string | { toDate?: () => Date } | any) => {
+    let date: Date;
+    
+    // Handle Firestore Timestamp
+    if (dateInput && typeof dateInput.toDate === 'function') {
+      date = dateInput.toDate();
+    } else if (typeof dateInput === 'string') {
+      date = new Date(dateInput);
+    } else if (dateInput instanceof Date) {
+      date = dateInput;
+    } else {
+      date = new Date(); // fallback
+    }
+    
     const now = new Date()
     const diffTime = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
@@ -123,14 +125,14 @@ function NewsFeedComponent({
           className: `pb-4 border-b border-gray-200 last:border-b-0 cursor-pointer hover:opacity-80 transition-opacity`,
           onClick: () => window.open(`/news/${item.slug}`, '_blank')
         },
-          showImages && !compact && item.imageUrl && React.createElement('img', {
-            src: item.imageUrl,
+          showImages && !compact && item.featuredImage && React.createElement('img', {
+            src: item.featuredImage,
             alt: item.title,
             className: 'w-full h-32 object-cover rounded mb-3'
           }),
           React.createElement('div', { className: compact ? 'flex items-start space-x-3' : '' },
-            showImages && compact && item.imageUrl && React.createElement('img', {
-              src: item.imageUrl,
+            showImages && compact && item.featuredImage && React.createElement('img', {
+              src: item.featuredImage,
               alt: item.title,
               className: 'w-16 h-16 object-cover rounded flex-shrink-0'
             }),
@@ -143,7 +145,7 @@ function NewsFeedComponent({
               }, item.excerpt),
               React.createElement('div', { className: 'flex items-center justify-between text-xs opacity-75' },
                 React.createElement('div', { className: 'flex items-center space-x-2' },
-                  item.author && React.createElement('span', {}, item.author),
+                  item.authorName && React.createElement('span', {}, item.authorName),
                   item.category && React.createElement('span', { 
                     className: `px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}` 
                   }, item.category)
