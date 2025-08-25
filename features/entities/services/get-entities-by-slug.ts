@@ -6,15 +6,18 @@
 
 import { Entity } from '@/features/entities/types';
 
-import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced
+} from '@/lib/services/firebase-service-manager';
 
-import { getServerAuthSession } from '@/auth'; // Consistent session handling
+import { auth } from '@/auth'; // Consistent session handling
 import { entityConverter } from '@/lib/converters/entity-converter';
 import { UserRole } from '@/features/auth/types';
 import { Query, Filter } from 'firebase-admin/firestore';
+import { logger } from '@/lib/logger';
 
 /**
  * Fetches entities by matching tags in the 'slug' array, enforcing role-based access control.
@@ -42,12 +45,12 @@ import { Query, Filter } from 'firebase-admin/firestore';
  */
 export async function getEntitiesBySlug(slugs: string[]): Promise<Entity[]> {try {
   const phase = getCurrentPhase();
-console.log('Services: getEntitiesBySlug - Starting with slugs:', slugs);
+logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
 
     // Step 1: Authenticate and get user session
-    const session = await getServerAuthSession();
+    const session = await auth();
     if (!session || !session.user) {
-      console.error('Services: getEntitiesBySlug - Unauthorized access attempt');
+      logger.error('Services: getEntitiesBySlug - Unauthorized access attempt');
       throw new Error('Unauthorized access');
 
     }
@@ -66,12 +69,12 @@ console.log('Services: getEntitiesBySlug - Starting with slugs:', slugs);
       throw new Error('Invalid or missing user role');
     }
 
-    console.log(`Services: getEntitiesBySlug - User authenticated with role ${userRole}`);
+    logger.info(`Services: getEntitiesBySlug - User authenticated with role ${userRole}`);
 
     
     // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
     if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-entities-by-slug`);
+      logger.info(`[Service Optimization] Using ${phase.strategy} data for get-entities-by-slug`);
       
       try {
         // Return cached data based on operation type
@@ -82,51 +85,68 @@ console.log('Services: getEntitiesBySlug - Starting with slugs:', slugs);
         const entities = await getCachedEntities({ limit: 50, isPublic: true });
         const result = entities.slice(0, 10); return result;
       } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
+        logger.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
         // Continue to live data below
       }
     }
 
-    // Step 2: Access Firestore and initialize collection with converter
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detectionconst serviceManager = getFirebaseServiceManager();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter);
+    // Step 2: Build optimized query configuration based on user role and slugs
+    const queryConfig: any = {
+      orderBy: [{ field: 'dateAdded', direction: 'desc' }]
+    };
 
-    // Step 3: Build the query based on slugs and user role
-    let query: Query<Entity> = entitiesCollection;
-
+    // Build where clauses array
+    const whereClause = [];
+    
+    // Add slug filtering if provided
     if (slugs.length > 0) {
-      query = query.where('tags', 'array-contains-any', slugs);
+      whereClause.push({ field: 'tags', operator: 'array-contains-any', value: slugs });
     }
 
-    // Step 4: Apply role-based visibility filtering
+    // Apply role-based visibility filtering for non-admin users
     if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      query = query.where(
-        Filter.or(
-          Filter.where('visibility', '==', 'public'),
-          Filter.where('visibility', '==', 'subscriber'),
-          Filter.where('visibility', '==', userRole)
-        )
+      // For now, we'll use post-query filtering since getCachedCollectionAdvanced may not support complex OR queries
+    }
+
+    if (whereClause.length > 0) {
+      queryConfig.where = whereClause;
+    }
+
+    logger.info('Services: getEntitiesBySlug - Executing optimized query');
+
+    // Step 3: Execute optimized query
+    const snapshot = await getCachedCollectionAdvanced('entities', queryConfig);
+
+    // Step 4: Map documents and apply role-based filtering
+    let entities: Entity[] = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+      } as Entity;
+    });
+
+    // Apply role-based visibility filtering for non-admin users
+    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+      const allowedVisibilities = ['public'];
+      
+      if (userRole === UserRole.SUBSCRIBER || userRole === UserRole.MEMBER) {
+        allowedVisibilities.push('subscriber');
+      }
+      if (userRole === UserRole.MEMBER) {
+        allowedVisibilities.push('member');
+      }
+
+      entities = entities.filter(entity => 
+        allowedVisibilities.includes(entity.visibility || 'public')
       );
     }
 
-    console.log('Services: getEntitiesBySlug - Executing Firestore query');
-
-    // Step 5: Execute the query
-    const snapshot = await query.get();
-
-    // Step 6: Map and return entities
-    const entities = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id,
-    }));
-
-    console.log(`Services: getEntitiesBySlug - Fetched ${entities.length} entities`);
+    logger.info(`Services: getEntitiesBySlug - Fetched ${entities.length} entities`);
 
     return entities;
   } catch (error) {
-    console.error('Services: getEntitiesBySlug - Error fetching entities by slug:', error);
+    logger.error('Services: getEntitiesBySlug - Error fetching entities by slug:', error);
     throw error instanceof Error 
       ? error 
       : new Error('Unknown error occurred while fetching entities by slug');
