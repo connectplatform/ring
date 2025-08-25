@@ -1,24 +1,20 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
-import { getNewsCollection } from '@/lib/firestore-collections';
+import { auth } from '@/auth'
+import { getCachedNewsCollection } from '@/lib/services/firebase-service-manager';
 import { NewsArticle } from '@/features/news/types';
 import { AdminNewsManager } from '@/features/news/components/admin-news-manager';
-import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
-
-type AdminNewsParams = {};
 
 export const dynamic = 'force-dynamic';
 
 async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
-    const newsCollection = getNewsCollection();
-    const snapshot = await newsCollection
-      .orderBy('createdAt', 'desc')
-      .limit(50)
-      .get();
+    const snapshot = await getCachedNewsCollection({
+      orderBy: [{ field: 'createdAt', direction: 'desc' }],
+      limit: 50
+    });
     
     return snapshot.docs.map(doc => ({
       id: doc.id,
@@ -41,8 +37,7 @@ export async function generateMetadata({
 
   return {
     title: `${t.admin.newsManagement} | Ring Platform`,
-    description: t.admin.newsManagementDescription,
-    robots: 'noindex, nofollow', // Admin pages should not be indexed
+    description: t.admin.newsManagementDescription
   };
 }
 
