@@ -2,6 +2,7 @@ import type { NextAuthConfig } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import AppleProvider from "next-auth/providers/apple"
 import CredentialsProvider from "next-auth/providers/credentials"
+import Resend from "next-auth/providers/resend"
 import { UserRole } from "@/features/auth/types"
 
 /**
@@ -10,6 +11,12 @@ import { UserRole } from "@/features/auth/types"
  */
 export default {
   providers: [
+    // Magic Link Email Authentication (Primary for registration/access)
+    Resend({
+      // Auth.js v5 automatically uses AUTH_RESEND_KEY
+      from: "noreply@ring.ck.ua",
+    }),
+    // Google OAuth (Preferred signin option)
     GoogleProvider({
       // Auth.js v5 automatically uses AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET
       allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
@@ -25,6 +32,7 @@ export default {
       // Explicitly set wellKnown endpoint for better reliability
       wellKnown: "https://accounts.google.com/.well-known/openid-configuration",
     }),
+    // Apple OAuth
     AppleProvider({
       // Auth.js v5 automatically uses AUTH_APPLE_ID and AUTH_APPLE_SECRET
       allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email

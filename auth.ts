@@ -31,8 +31,8 @@ try {
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   ...authConfig,
-  // Only use Firestore adapter if properly configured
-  ...(firestoreAdapter && process.env.AUTH_FIREBASE_PROJECT_ID && { adapter: firestoreAdapter }),
+  // Email providers require a database adapter - always include if available
+  adapter: firestoreAdapter,
   session: { 
     strategy: "jwt", // Use JWT for better edge compatibility and reliability
     maxAge: 30 * 24 * 60 * 60, // 30 days
