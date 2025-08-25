@@ -48,7 +48,7 @@ export default {
           email: "",
           name: null,
           image: null,
-          role: UserRole.SUBSCRIBER,
+          role: UserRole.SUBSCRIBER,  
         }
       },
     }),
