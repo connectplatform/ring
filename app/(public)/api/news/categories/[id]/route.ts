@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getNewsCategoriesCollection, getNewsCollection } from '@/lib/firestore-collections'
+import { 
+  getCachedDocument,
+  getCachedCollectionAdvanced,
+  updateDocument,
+  deleteDocument
+} from '@/lib/services/firebase-service-manager'
 import { auth } from '@/auth'
 import { FieldValue } from 'firebase-admin/firestore'
 import { NewsCategory } from '@/features/news/types'
@@ -14,11 +19,10 @@ export async function GET(
 ) {
   try {
     const { id } = params
-    const categoriesCollection = getNewsCategoriesCollection()
 
-    const categoryDoc = await categoriesCollection.doc(id).get()
+    const categoryDoc = await getCachedDocument('newsCategories', id)
     
-    if (!categoryDoc.exists) {
+    if (!categoryDoc || !categoryDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
@@ -26,6 +30,12 @@ export async function GET(
     }
 
     const category = categoryDoc.data()
+    if (!category) {
+      return NextResponse.json(
+        { success: false, error: 'Category data not found' },
+        { status: 404 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -78,11 +88,9 @@ export async function PUT(
       )
     }
 
-    const categoriesCollection = getNewsCategoriesCollection()
-    
-    // Check if category exists
-    const categoryDoc = await categoriesCollection.doc(id).get()
-    if (!categoryDoc.exists) {
+    // Check if category exists using firebase-service-manager
+    const categoryDoc = await getCachedDocument('newsCategories', id)
+    if (!categoryDoc || !categoryDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
@@ -97,9 +105,15 @@ export async function PUT(
       updatedAt: FieldValue.serverTimestamp(),
     }
 
-    await categoriesCollection.doc(id).update(updateData)
+    await updateDocument('newsCategories', id, updateData)
 
-    const updatedCategory = await categoriesCollection.doc(id).get()
+    const updatedCategory = await getCachedDocument('newsCategories', id)
+    if (!updatedCategory) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to retrieve updated category' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -143,12 +157,10 @@ export async function DELETE(
     }
 
     const { id } = params
-    const categoriesCollection = getNewsCategoriesCollection()
-    const newsCollection = getNewsCollection()
 
-    // Check if category exists
-    const categoryDoc = await categoriesCollection.doc(id).get()
-    if (!categoryDoc.exists) {
+    // Check if category exists using firebase-service-manager
+    const categoryDoc = await getCachedDocument('newsCategories', id)
+    if (!categoryDoc || !categoryDoc.exists) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
@@ -156,12 +168,12 @@ export async function DELETE(
     }
 
     // Check if any articles are using this category
-    const articlesWithCategory = await newsCollection
-      .where('category', '==', id as NewsCategory)
-      .limit(1)
-      .get()
+    const articlesWithCategory = await getCachedCollectionAdvanced('news', {
+      where: [{ field: 'category', operator: '==', value: id as NewsCategory }],
+      limit: 1
+    })
 
-    if (!articlesWithCategory.empty) {
+    if (articlesWithCategory.docs.length > 0) {
       return NextResponse.json(
         { 
           success: false, 
@@ -171,8 +183,8 @@ export async function DELETE(
       )
     }
 
-    // Delete the category
-    await categoriesCollection.doc(id).delete()
+    // Delete the category using firebase-service-manager
+    await deleteDocument('newsCategories', id)
 
     return NextResponse.json({
       success: true,
