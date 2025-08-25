@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Typography } from "@/components/ui/typography"
 import Image from 'next/image'
 import { ContactForm } from '@/components/common/widgets/contact-form'
-import { getServerAuthSession } from "@/auth"
+import { auth } from "@/auth"
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
@@ -50,7 +50,7 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
 
   // Authenticate user session
   console.log('ContactPage: Authenticating session');
-  const session = await getServerAuthSession()
+  const session = await auth()
   console.log('ContactPage: Session authenticated', { 
     sessionExists: !!session, 
     userId: session?.user?.id,
