@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, use, useMemo } from 'react'
 import { logger } from '@/lib/logger'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
@@ -32,6 +32,11 @@ interface UseCreditBalanceReturn {
   error: string | null
   refresh: () => Promise<void>
   lastRefreshed: number | null
+}
+
+interface UseCreditBalancePromiseReturn {
+  promise: Promise<CreditBalanceData>
+  refresh: () => void
 }
 
 /**
@@ -133,4 +138,111 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     refresh,
     lastRefreshed,
   }
+}
+
+/**
+ * Internal function to fetch credit balance
+ * Enhanced with timeout, retry, and standardized error handling
+ */
+async function fetchCreditBalance(): Promise<CreditBalanceData> {
+  try {
+    // Use API client with wallet domain configuration (15s timeout, 2 retries)
+    const response: ApiResponse<CreditBalanceData> = await apiClient.get('/api/wallet/credit/balance', {
+      timeout: 15000, // 15 second timeout for wallet operations
+      retries: 2 // Retry twice for network resilience
+    })
+
+    if (response.success && response.data) {
+      logger.info('Credit balance fetched', { 
+        amount: response.data.balance.amount,
+        subscriptionActive: response.data.subscription.active
+      })
+      return response.data
+    } else {
+      throw new Error(response.error || 'Failed to fetch balance')
+    }
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      // Log with structured context
+      logger.error('Credit balance fetch failed:', {
+        endpoint: '/api/wallet/credit/balance',
+        statusCode: err.statusCode,
+        message: err.message,
+        context: err.context,
+        cause: err.cause
+      })
+      throw new Error(err.message)
+    } else {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      logger.error('Unexpected error fetching credit balance', { error: err })
+      throw new Error(errorMessage)
+    }
+  }
+}
+
+/**
+ * React 19 Promise-based hook for credit balance using use() function
+ * Returns a promise that can be consumed with React 19's use() function
+ * 
+ * Usage:
+ * ```tsx
+ * function CreditDisplay() {
+ *   const { promise } = useCreditBalancePromise()
+ *   const creditData = use(promise)
+ *   
+ *   return <div>Balance: {creditData.balance.amount}</div>
+ * }
+ * 
+ * // Wrap in Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading credit balance...</div>}>
+ *       <CreditDisplay />
+ *     </Suspense>
+ *   )
+ * }
+ * ```
+ */
+export function useCreditBalancePromise(): UseCreditBalancePromiseReturn {
+  const [refreshKey, setRefreshKey] = useState(0)
+  
+  const promise = useMemo(() => {
+    return fetchCreditBalance()
+  }, [refreshKey])
+
+  const refresh = () => {
+    setRefreshKey(prev => prev + 1)
+  }
+
+  return {
+    promise,
+    refresh
+  }
+}
+
+/**
+ * React 19 Enhanced hook that directly uses use() function
+ * Suspends the component until the credit balance is loaded
+ * 
+ * Usage:
+ * ```tsx
+ * function CreditDisplay() {
+ *   const creditData = useCreditBalanceWithSuspense()
+ *   
+ *   return <div>Balance: {creditData.balance.amount}</div>
+ * }
+ * 
+ * // Wrap in Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading credit balance...</div>}>
+ *       <CreditDisplay />
+ *     </Suspense>
+ *   )
+ * }
+ * ```
+ */
+export function useCreditBalanceWithSuspense(): CreditBalanceData {
+  const { promise } = useCreditBalancePromise()
+  return use(promise)
 }
