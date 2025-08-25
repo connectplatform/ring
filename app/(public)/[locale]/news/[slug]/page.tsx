@@ -2,7 +2,7 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getNewsCollection } from '@/lib/firestore-collections';
+import { getCachedNewsCollection, getCachedNewsBySlug } from '@/lib/services/firebase-service-manager';
 import { NewsArticle } from '@/features/news/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,14 +21,13 @@ interface NewsArticlePageParams {
 
 async function getArticleBySlug(slug: string): Promise<NewsArticle | null> {
   try {
-    const newsCollection = getNewsCollection();
-    const snapshot = await newsCollection.where('slug', '==', slug).limit(1).get();
+    const articleDoc = await getCachedNewsBySlug(slug);
     
-    if (snapshot.empty) {
+    if (!articleDoc) {
       return null;
     }
     
-    return snapshot.docs[0].data();
+    return articleDoc.data() as NewsArticle;
   } catch (error) {
     console.error('Error fetching article:', error);
     return null;
@@ -37,14 +36,15 @@ async function getArticleBySlug(slug: string): Promise<NewsArticle | null> {
 
 async function getRelatedArticles(currentArticle: NewsArticle): Promise<NewsArticle[]> {
   try {
-    const newsCollection = getNewsCollection();
-    const snapshot = await newsCollection
-      .where('status', '==', 'published')
-      .where('category', '==', currentArticle.category)
-      .where('visibility', 'in', ['public', 'subscriber'])
-      .orderBy('publishedAt', 'desc')
-      .limit(4)
-      .get();
+    const snapshot = await getCachedNewsCollection({
+      where: [
+        { field: 'status', operator: '==', value: 'published' },
+        { field: 'category', operator: '==', value: currentArticle.category },
+        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
+      ],
+      orderBy: [{ field: 'publishedAt', direction: 'desc' }],
+      limit: 4
+    });
     
     return snapshot.docs
       .map(doc => doc.data())
