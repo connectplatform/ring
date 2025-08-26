@@ -161,9 +161,7 @@ export default auth(async (req) => {
     // Protect routes that require authentication
     const protectedRoutes = [
       '/profile',
-      '/settings',
-      '/entities',
-      '/opportunities'
+      '/settings'
     ];
 
     // Routes that require confidential or admin status
