@@ -129,8 +129,8 @@ async function getEntities(
  *
  * User steps:
  * 1. User navigates to the entities page
- * 2. The page authenticates the user and checks their role
- * 3. If authorized, the page fetches and displays entities
+ * 2. If unauthenticated, shows intro with login form
+ * 3. If authenticated, the page fetches and displays entities
  * 4. User can view, filter, and paginate through the entities
  *
  * @param props - The page properties including params and searchParams as Promises.
@@ -192,7 +192,8 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   let totalEntities = 0
   let error: string | null = null
 
-  if (session) {
+  // Only fetch entities if user is authenticated
+  if (session && session.user) {
     try {
       // 🚀 OPTIMIZED: Fetch entities with intelligent caching
       const data = await getEntities(session, apiSearchParams)
@@ -218,8 +219,8 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
       }
     }
   } else {
-    // Not logged in: show intro; no fetch
-    error = null
+    // For unauthenticated users, don't set an error - let the component handle the intro display
+    console.log('EntitiesPage: No session found, will show intro');
     
     // 🚀 BUILD-TIME: Provide sample data for static generation even without auth
     if (phase.isBuildTime && shouldUseMockData()) {

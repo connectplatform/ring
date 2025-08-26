@@ -64,7 +64,7 @@ async function getOpportunities(
  * 
  * User steps:
  * 1. User navigates to the opportunities page.
- * 2. The middleware checks user authentication and redirects if necessary.
+ * 2. If unauthenticated, shows intro with login form.
  * 3. If authenticated, the page fetches and displays opportunities.
  * 4. User can interact with pagination controls to load more opportunities.
  * 
@@ -184,11 +184,8 @@ async function OpportunitiesContent({ searchParams, limit, session }: { searchPa
   let lastVisible: string | null = null
   let error: string | null = null
 
-  // Validate session before proceeding
-  if (!session || !session.user) {
-    error = "You must be logged in to view opportunities. Please log in.";
-    console.log('OpportunitiesContent: No valid session, skipping fetch');
-  } else {
+  // Only fetch opportunities if user is authenticated
+  if (session && session.user) {
     const validRoles = ['visitor','subscriber','member','confidential','admin'] as const;
     const userRole = session.user?.role as (typeof validRoles)[number] | undefined;
     if (!userRole || !validRoles.includes(userRole)) {
@@ -217,6 +214,9 @@ async function OpportunitiesContent({ searchParams, limit, session }: { searchPa
         }
       }
     }
+  } else {
+    // For unauthenticated users, don't set an error - let the component handle the intro display
+    console.log('OpportunitiesContent: No session found, will show intro');
   }
 
   console.log('OpportunitiesContent: Rendering', { hasError: !!error, opportunityCount: opportunities.length, lastVisible });
