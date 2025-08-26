@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Locale } from '@/i18n-config'
-import AuthStatusPage from '@/components/auth/AuthStatusPage'
+import AuthStatusPage from '@/components/auth/auth-status-page'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 import { notFound } from 'next/navigation'
