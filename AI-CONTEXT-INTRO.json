@@ -23,15 +23,14 @@
         "protocol": "/lib/tunnel/protocol.ts",
         "hooks": "/hooks/use-tunnel.ts",
         "provider": "/components/providers/tunnel-provider.tsx",
-        "api_endpoints": "/app/(public)/api/tunnel/",
+        "api_endpoints": "/app/api/tunnel/",
         "demo": "/tunnel-test",
         "features": ["automatic-transport-selection", "edge-runtime-compatibility", "unified-message-protocol", "health-monitoring", "backward-compatibility", "production-jwt-auth", "comprehensive-api-endpoints"],
         "vercel_deployment": "production-ready",
         "automatic_environment_detection": true,
         "websocket_disabled_on_vercel": true,
         "sse_primary_for_vercel": true,
-        "build_status": "successful",
-        "recent_fixes": "Auth.js adapter error, rate limiting, subscription loops, provider conflicts resolved"
+        "build_status": "successful"
       },
       "websocket": {
         "enabled": true,
@@ -52,9 +51,9 @@
       "middleware": "ring/middleware.ts"
     },
     "apis": {
-      "entities": "ring/app/(public)/api/entities",
-      "opportunities": "ring/app/(public)/api/opportunities",
-      "store": "ring/app/(public)/api/store"
+      "entities": "ring/app/api/entities",
+      "opportunities": "ring/app/api/opportunities",
+      "store": "ring/app/api/store"
     },
     "services": {
       "entities": "ring/services/entities",
@@ -74,7 +73,7 @@
       "tunnel_config": "ring/lib/tunnel/config.ts",
       "tunnel_protocol": "ring/lib/tunnel/protocol.ts",
       "tunnel_transports": "ring/lib/tunnel/transports/",
-      "tunnel_api_endpoints": "ring/app/(public)/api/tunnel/",
+      "tunnel_api_endpoints": "ring/app/api/tunnel/",
       "tunnel_demo": "ring/app/(public)/[locale]/tunnel-test/",
       "websocket_compatibility": "ring/hooks/use-websocket.ts",
       "websocket_manager": "ring/lib/websocket/websocket-manager.ts",
@@ -111,7 +110,7 @@
     },
     "entities": {
       "description": "Organization profiles with verification and tiered visibility",
-      "api_dir": "app/(public)/api/entities",
+      "api_dir": "app/api/entities",
       "service": "services/entities",
       "visibility": "respect access_tiers",
       "enhancements": {
@@ -133,7 +132,7 @@
     },
     "opportunities": {
       "description": "Offers and requests with tiered access",
-      "api_dir": "app/(public)/api/opportunities",
+      "api_dir": "app/api/opportunities",
       "service": "services/opportunities",
       "types": ["offer", "request"]
     },
@@ -173,7 +172,7 @@
     },
     "store": {
       "description": "Adapter-driven catalog, cart, checkout, orders with Firebase-first backend and ConnectPlatform compatibility",
-      "api_dir": "app/(public)/api/store",
+      "api_dir": "app/api/store",
       "ui": ["/[locale]/store", "/[locale]/store/cart", "/[locale]/store/checkout", "/[locale]/store/[id]"],
       "orders_ui": ["/[locale]/store/orders", "/[locale]/store/orders/[id]", "/[locale]/admin/store/orders"],
       "adapters": ["mock", "firebase", "connect (planned)"],
@@ -233,15 +232,15 @@
         "tunnel_transports": "lib/tunnel/transports/",
         "tunnel_hooks": "hooks/use-tunnel.ts",
         "tunnel_provider": "components/providers/tunnel-provider.tsx",
-        "tunnel_api_endpoints": "app/(public)/api/tunnel/",
+        "tunnel_api_endpoints": "app/api/tunnel/",
         "tunnel_demo": "app/(public)/[locale]/tunnel-test/",
         "websocket_manager": "lib/websocket/websocket-manager.ts",
         "websocket_hooks": "hooks/use-websocket.ts",
         "websocket_compatibility": "hooks/use-websocket.ts (backward compatibility)",
         "websocket_auth": "app/api/websocket/auth/route.ts",
         "websocket_provider": "components/providers/websocket-provider.tsx",
-        "sse_endpoint": "app/(public)/api/tunnel/sse/route.ts",
-        "polling_endpoint": "app/(public)/api/tunnel/poll/route.ts",
+        "sse_endpoint": "app/api/tunnel/sse/route.ts",
+        "polling_endpoint": "app/api/tunnel/poll/route.ts",
         "push_notifications": "FCM + Tunnel transport push with React 19 optimizations",
         "migration_status": "✅ Tunnel transport implementation completed - Edge Runtime compatible multi-transport architecture with comprehensive API endpoints and demo",
         "vercel_deployment": "production-ready",
