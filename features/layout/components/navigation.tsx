@@ -149,12 +149,13 @@ export default function Navigation() {
   const handleSignOut = useCallback(async () => {
     setIsOpen(false)
     try {
-      await signOut()
+      await signOut({ redirect: false })
+      router.push(`/${locale}/auth/signout`)
     } catch (error) {
       console.error('Sign out error:', error)
       setError(tCommon('status.error'))
     }
-  }, [tCommon])
+  }, [tCommon, router, locale])
 
   // Language switching is now handled by LanguageSwitcher component
 
