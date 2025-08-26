@@ -17,7 +17,7 @@ import { ROUTES } from '@/constants/routes'
 import { defaultLocale } from '@/i18n-config'
 import SlidingPopup from '@/components/common/widgets/modal'
 import { EntityLogo } from '@/components/ui/safe-image'
-import LoginForm from '@/features/auth/components/login-form'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import EntityAdvancedFilters from '@/components/entities/advanced-filters'
 import { EntityType } from '@/features/entities/types'
 
@@ -172,8 +172,8 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
         >
           {tEntities('introDescription')}
         </motion.p>
-        <div className="w-full max-w-sm">
-          <LoginForm from={from} />
+        <div className="w-full max-w-md">
+          <UnifiedLoginInline from={from} variant="hero" />
         </div>
       </div>
     )
