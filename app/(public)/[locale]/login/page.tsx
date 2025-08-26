@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { auth } from "@/auth"
 import { ROUTES } from '@/constants/routes'
 import { headers } from 'next/headers'
-import LoginForm from '@/features/auth/components/login-form'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 
@@ -102,9 +102,13 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
           <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
         ))}
 
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md w-full space-y-8">
-            <LoginForm from={from} />
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-2">Welcome back</h1>
+              <p className="text-muted-foreground">Sign in to continue to Ring</p>
+            </div>
+            <UnifiedLoginInline from={from} variant="hero" />
           </div>
         </div>
       </>
@@ -124,9 +128,13 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
         <title>Login | Ring App</title>
         <meta name="description" content="Log in to access tech opportunities in Cherkasy region" />
         
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md w-full space-y-8">
-            <LoginForm from={from} />
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-2">Welcome back</h1>
+              <p className="text-muted-foreground">Sign in to continue to Ring</p>
+            </div>
+            <UnifiedLoginInline from={from} variant="hero" />
           </div>
         </div>
       </>
