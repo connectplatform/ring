@@ -63,10 +63,11 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
   }, [])
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    // Only redirect if fully authenticated (not during magic link flow)
+    if (status === 'authenticated' && !emailSent) {
       router.replace(from || ROUTES.PROFILE(locale))
     }
-  }, [status, router, from, locale])
+  }, [status, router, from, locale, emailSent])
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value)
@@ -76,16 +77,16 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
    * Handles sign-in errors
    * @param {Error} error - The error object
    */
-  const handleSignInError = (error: Error) => {
+  const handleSignInError = useCallback((error: Error) => {
     console.error('Error signing in:', error)
     setError(tAuth('errors.signIn'))
-  }
+  }, [tAuth])
 
   /**
    * Handles magic link email authentication
    * @param {React.FormEvent} e - Form event
    */
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) {
       setError(tAuth('errors.emailRequired'))
@@ -112,13 +113,13 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [email, tAuth, from, locale, handleSignInError])
 
   /**
    * Handles sign-in for Google and Apple
    * @param {string} provider - The provider to sign in with ('google' or 'apple')
    */
-  const handleSignIn = async (provider: string) => {
+  const handleSignIn = useCallback(async (provider: string) => {
     setIsLoading(true)
     setError(null)
     try {
@@ -134,12 +135,12 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [from, locale, router, handleSignInError])
 
   /**
    * Handles sign-in with Crypto Wallet (MetaMask)
    */
-  const handleCryptoLogin = async () => {
+  const handleCryptoLogin = useCallback(async () => {
     setIsLoading(true)
     try {
       if (typeof window === 'undefined' || !window.ethereum) {
@@ -184,7 +185,12 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [from, locale, router, handleSignInError])
+
+  const handleUseDifferentEmail = useCallback(() => {
+    setEmailSent(false)
+    setEmail('')
+  }, [])
 
   const AnimatedLoginContainer = dynamic(() => import('./animated-login-content').then(m => m.AnimatedLoginContainer), { ssr: false })
   const AnimatedItem = dynamic(() => import('./animated-login-content').then(m => m.AnimatedItem), { ssr: false })
@@ -203,10 +209,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
                 </p>
                 <Button 
                   variant="outline" 
-                  onClick={() => {
-                    setEmailSent(false)
-                    setEmail('')
-                  }}
+                  onClick={handleUseDifferentEmail}
                   className="w-full"
                 >
                   {tAuth('signIn.magicLink.useDifferent')}
@@ -323,10 +326,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
               </p>
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setEmailSent(false)
-                  setEmail('')
-                }}
+                onClick={handleUseDifferentEmail}
                 className="w-full"
                 size="sm"
               >
