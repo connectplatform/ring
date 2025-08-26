@@ -12,7 +12,7 @@ import { EntityLogo } from '@/components/ui/safe-image'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import LoginForm from '@/features/auth/components/login-form'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 
 /**
  * Props for the ConfidentialEntitiesContent component
@@ -117,7 +117,30 @@ export const ConfidentialEntitiesContent: React.FC<ConfidentialEntitiesContentPr
   }
 
   if (status === "unauthenticated") {
-    return <LoginForm />
+    const from = typeof window !== 'undefined' ? (window.location.pathname + window.location.search) : undefined
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-4xl font-bold mb-4"
+        >
+          {t('confidentialTitle') || 'Confidential Entities'}
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="max-w-2xl text-muted-foreground mb-8"
+        >
+          {t('confidentialDescription') || 'Access exclusive confidential entities and partnerships. Sign in to view restricted content.'}
+        </motion.p>
+        <div className="w-full max-w-md">
+          <UnifiedLoginInline from={from} variant="hero" />
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
