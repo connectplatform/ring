@@ -46,29 +46,75 @@ type StatusType = typeof VALID_STATUSES[number]
 import React, { use } from 'react'
 import type { Locale } from '@/i18n-config'
 import { StatusPageComponent } from '@/components/[domain]/[Feature]StatusPage'
-import { generatePageMetadata } from '@/utils/seo-metadata'
+import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 import { notFound } from 'next/navigation'
 
 const VALID_STATUSES = ['success', 'failure', 'error', 'cancel', 'pending', 'processing', 'complete'] as const
 type StatusType = typeof VALID_STATUSES[number]
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: Locale; status: string }> }) {
-  const { locale, status } = await params
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale
-  return generatePageMetadata(validLocale, '[domain].[feature].status', { 
-    status: status.charAt(0).toUpperCase() + status.slice(1) 
-  })
-}
+// Metadata will be handled inline using React 19 native approach
 
-export default function StatusPage({ params }: { params: Promise<{ locale: Locale; status: string }> }) {
-  const { locale, status } = use(params)
+export default async function StatusPage({ params }: { params: Promise<{ locale: Locale; status: string }> }) {
+  const { locale, status } = await params
   
   if (!VALID_STATUSES.includes(status as StatusType)) {
     notFound()
   }
   
-  return <StatusPageComponent status={status as StatusType} locale={locale} />
+  const validLocale = isValidLocale(locale) ? locale : defaultLocale
+  
+  // Get SEO metadata for the status page
+  const seoData = await getSEOMetadata(
+    validLocale, 
+    '[domain].[feature].status', 
+    { 
+      status: status.charAt(0).toUpperCase() + status.slice(1) 
+    }
+  )
+  
+  return (
+    <>
+      {/* React 19 Native Metadata */}
+      <title>{seoData?.title || `Status ${status.charAt(0).toUpperCase() + status.slice(1)} - Ring Platform`}</title>
+      <meta name="description" content={seoData?.description || `Status: ${status}. View your status and next steps.`} />
+      {seoData?.keywords && (
+        <meta name="keywords" content={seoData.keywords.join(', ')} />
+      )}
+      {seoData?.canonical && (
+        <link rel="canonical" href={seoData.canonical} />
+      )}
+      
+      {/* OpenGraph metadata */}
+      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || `Status ${status.charAt(0).toUpperCase() + status.slice(1)} - Ring Platform`} />
+      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || `Status: ${status}. View your status and next steps.`} />
+      <meta property="og:type" content="website" />
+      <meta property="og:locale" content={validLocale === 'uk' ? 'uk_UA' : 'en_US'} />
+      <meta property="og:site_name" content="Ring Platform" />
+      {seoData?.ogImage && (
+        <meta property="og:image" content={seoData.ogImage} />
+      )}
+      
+      {/* Twitter Card metadata */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@RingPlatform" />
+      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || `Status ${status.charAt(0).toUpperCase() + status.slice(1)}`} />
+      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || `Status: ${status}. View your status and next steps.`} />
+      {seoData?.twitterImage && (
+        <meta name="twitter:image" content={seoData.twitterImage} />
+      )}
+      
+      {/* Hreflang alternates */}
+      <link rel="alternate" hrefLang="en" href={`/en/[domain]/[feature]/${status}`} />
+      <link rel="alternate" hrefLang="uk" href={`/uk/[domain]/[feature]/${status}`} />
+      
+      {/* Standard SEO metadata */}
+      <meta name="robots" content="index, follow" />
+      <meta name="author" content="Ring Platform" />
+
+      <StatusPageComponent status={status as StatusType} locale={locale} />
+    </>
+  )
 }
 
 // Optional: Generate static params for better performance
