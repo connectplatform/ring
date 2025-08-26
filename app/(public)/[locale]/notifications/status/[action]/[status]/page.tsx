@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Locale } from '@/i18n-config'
-import NotificationStatusPage from '@/components/notifications/NotificationStatusPage'
+import NotificationStatusPage from '@/components/notifications/notification-status-page'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 import { notFound } from 'next/navigation'

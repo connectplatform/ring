@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Locale } from '@/i18n-config'
-import OpportunityStatusPage from '@/components/opportunities/OpportunityStatusPage'
+import OpportunityStatusPage from '@/components/opportunities/opportunity-status-page'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 import { notFound } from 'next/navigation'
