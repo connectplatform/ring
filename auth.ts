@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import { FirestoreAdapter } from "@auth/firebase-adapter"
 import { getAdminDb } from "@/lib/firebase-admin.server"
 import authConfig from "./auth.config"
+import Resend from "next-auth/providers/resend"
 import { ethers } from "ethers"
 import { generateInternalJWT } from "@/lib/auth/generate-jwt"
 import {
@@ -29,10 +30,21 @@ try {
   // Continue without adapter for development/testing
 }
 
+// Determine if we should include Resend based on adapter availability
+const hasAdapter = firestoreAdapter && process.env.AUTH_FIREBASE_PROJECT_ID;
+const hasResendKey = process.env.AUTH_RESEND_KEY;
+
+if (!hasAdapter && hasResendKey) {
+  console.warn("AUTH_RESEND_KEY is set but Firebase adapter is not available. Magic link authentication will be disabled.");
+}
+if (hasAdapter && !hasResendKey) {
+  console.info("AUTH_RESEND_KEY not set. Magic link authentication will be disabled. Set AUTH_RESEND_KEY to enable email authentication.");
+}
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
   ...authConfig,
   // Only use Firestore adapter if properly configured
-  ...(firestoreAdapter && process.env.AUTH_FIREBASE_PROJECT_ID && { adapter: firestoreAdapter }),
+  ...(hasAdapter && { adapter: firestoreAdapter }),
   session: { 
     strategy: "jwt", // Use JWT for better edge compatibility and reliability
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -53,6 +65,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     }
   },
   providers: [
+    // Magic Link Email Authentication (requires adapter for token storage)
+    // Only add if we have both an adapter and Resend API key
+    ...(hasAdapter && hasResendKey ? [
+      Resend({
+        // Auth.js v5 automatically uses AUTH_RESEND_KEY
+        from: "noreply@ring.ck.ua",
+      })
+    ] : []),
     ...authConfig.providers.map(provider => {
       // Override crypto wallet provider with full server-side validation
       if (provider.id === "crypto-wallet") {
