@@ -15,6 +15,7 @@ import { UserRole } from "@/features/auth/types"
 import { useInView } from "@/hooks/use-intersection-observer"
 import { formatBudget, truncateDescription, formatTimestampOrFieldValue } from "@/lib/utils"
 import { useAppContext } from "@/contexts/app-context"
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 
 /**
  * Props for the ConfidentialOpportunities component
@@ -100,8 +101,75 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
     return <LoadingMessage message={t("loadingMessage")} />
   }
 
-  if (!session || (session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN)) {
-    return <ErrorMessage message={t("unauthorizedAccess")} />
+  if (!session) {
+    const from = typeof window !== 'undefined' ? (window.location.pathname + window.location.search) : undefined
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-6"
+        >
+          <Lock className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-4xl font-bold mb-4"
+        >
+          {t('confidentialTitle') || 'Confidential Opportunities'}
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="max-w-2xl text-muted-foreground mb-8"
+        >
+          {t('confidentialDescription') || 'Access exclusive confidential opportunities and partnerships. Sign in to view restricted content.'}
+        </motion.p>
+        <div className="w-full max-w-md">
+          <UnifiedLoginInline from={from} variant="hero" />
+        </div>
+      </div>
+    )
+  }
+
+  if (session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-6"
+        >
+          <Lock className="mx-auto h-16 w-16 text-orange-500 mb-4" />
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-3xl font-bold mb-4"
+        >
+          {t('accessDeniedTitle') || 'Access Restricted'}
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="max-w-2xl text-muted-foreground mb-8"
+        >
+          {t('accessDeniedDescription') || 'This content requires confidential access level. Contact support to upgrade your account.'}
+        </motion.p>
+        <Button asChild variant="outline">
+          <Link href="/contact">
+            {t('contactSupport') || 'Contact Support'}
+          </Link>
+        </Button>
+      </div>
+    )
   }
 
   if (error) {
