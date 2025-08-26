@@ -312,9 +312,119 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
   // Default variant (compact)
   return (
     <div className="w-full">
-      {/* Same content but without hero wrapper */}
       <AnimatedLoginContainer>
-        {/* ... same content as hero variant ... */}
+        {emailSent ? (
+          <AnimatedItem>
+            <div className="text-center py-6">
+              <HiMail className="mx-auto h-10 w-10 text-green-500 mb-3" />
+              <h3 className="text-base font-semibold mb-2">{tAuth('signIn.magicLink.sent')}</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                {tAuth('signIn.magicLink.sentDescription')} <strong>{email}</strong>
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setEmailSent(false)
+                  setEmail('')
+                }}
+                className="w-full"
+                size="sm"
+              >
+                {tAuth('signIn.magicLink.useDifferent')}
+              </Button>
+            </div>
+          </AnimatedItem>
+        ) : (
+          <AnimatedItem>
+            <div className="space-y-3">
+              {/* Email Input Form - Only show if Resend provider is available */}
+              {providers?.resend && (
+                <>
+                  <form onSubmit={handleEmailSignIn} className="space-y-3">
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        placeholder={tAuth('signIn.emailPlaceholder')}
+                        value={email}
+                        onChange={handleEmailChange}
+                        disabled={isLoading}
+                        className="w-full h-10 pl-4 pr-10 text-sm"
+                        required
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <HiMail className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                    
+                    <Button
+                      type="submit"
+                      disabled={isLoading || !email.trim()}
+                      className="w-full h-10 bg-green-500 hover:bg-green-600 text-white font-medium text-sm"
+                    >
+                      {isLoading ? tAuth('signIn.loading') : tAuth('signIn.providers.email')}
+                    </Button>
+                  </form>
+
+                  {/* Alternative Login Options */}
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-muted"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-background px-3 text-muted-foreground">OR</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Google Sign-in (Preferred) */}
+              <Button
+                onClick={() => handleSignIn('google')}
+                disabled={isLoading}
+                variant="outline"
+                className="w-full h-10 text-sm font-medium bg-white hover:bg-gray-50 border-gray-300"
+              >
+                <FcGoogle className="mr-2 h-4 w-4" />
+                {tAuth('signIn.providers.google')}
+              </Button>
+
+              {/* Secondary Options Row */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => handleSignIn('apple')}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="h-10 text-xs font-medium"
+                >
+                  <AiFillApple className="mr-1 h-4 w-4" />
+                  {tAuth('signIn.providers.apple')}
+                </Button>
+                <Button
+                  onClick={handleCryptoLogin}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="h-10 text-xs font-medium"
+                >
+                  <FaEthereum className="mr-1 h-4 w-4" />
+                  {tAuth('signIn.providers.metamask')}
+                </Button>
+              </div>
+
+              {/* Terms and Privacy */}
+              <p className="text-xs text-center text-muted-foreground mt-4">
+                {tAuth('signIn.disclaimer')}
+              </p>
+            </div>
+          </AnimatedItem>
+        )}
+
+        {error && (
+          <AnimatedItem style={{ marginTop: '1rem' }}>
+            <Alert variant="destructive">
+              <AlertTitle>{error}</AlertTitle>
+            </Alert>
+          </AnimatedItem>
+        )}
       </AnimatedLoginContainer>
     </div>
   )
