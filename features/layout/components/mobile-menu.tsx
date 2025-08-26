@@ -1,34 +1,35 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Moon, Sun, X, LogIn, Globe, User } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
+  Building2, Wallet, Shield, Crown, Heart, Bell, MessageCircle,
+  Home, Info, Phone, FileText, HelpCircle, ChevronRight,
+  Sparkles, Zap, Globe
+} from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
+import { signIn } from 'next-auth/react'
+import { FcGoogle } from 'react-icons/fc'
+import { AiFillApple } from 'react-icons/ai'
+import { FaEthereum } from 'react-icons/fa'
+import { HiMail } from 'react-icons/hi'
 
 // Import the Session type from next-auth
 import { Session } from 'next-auth'
+import { UserRole } from '@/features/auth/types'
 
 // Client-side constant for default locale
 const DEFAULT_LOCALE = 'en' as const
 
 /**
  * Props for the MobileMenu component
- * @typedef {Object} MobileMenuProps
- * @property {Array<{href: string, label: string}>} navigationLinks - Array of navigation link objects
- * @property {string} theme - Current theme ('light' or 'dark')
- * @property {() => void} toggleTheme - Function to toggle the theme
- * @property {() => void} toggleLanguage - Function to toggle the language
- * @property {Session['user'] | null} user - User object from the session, or null if not authenticated
- * @property {boolean} loading - Whether the authentication state is loading
- * @property {() => void} handleGoogleSignIn - Function to handle Google sign-in
- * @property {() => void} handleSignOut - Function to handle sign-out
- * @property {() => void} onClose - Function to close the mobile menu
  */
 interface MobileMenuProps {
   navigationLinks: Array<{ href: string; label: string }>
@@ -43,22 +44,47 @@ interface MobileMenuProps {
 }
 
 /**
+ * Navigation link interface with role-based access
+ */
+interface NavigationLink {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  requiredRole?: UserRole
+  badge?: string
+  gradient?: string
+}
+
+/**
+ * Get user role from session
+ */
+const getUserRole = (user: Session['user'] | null): UserRole => {
+  if (!user) return UserRole.VISITOR
+  return (user as any)?.role || UserRole.VISITOR
+}
+
+/**
+ * Check if user can access a link based on role
+ */
+const canAccessLink = (link: NavigationLink, userRole: UserRole): boolean => {
+  if (!link.requiredRole) return true
+  
+  const roleHierarchy = {
+    [UserRole.VISITOR]: 0,
+    [UserRole.SUBSCRIBER]: 1,
+    [UserRole.MEMBER]: 2,
+    [UserRole.CONFIDENTIAL]: 3,
+    [UserRole.ADMIN]: 4
+  }
+  
+  return roleHierarchy[userRole] >= roleHierarchy[link.requiredRole]
+}
+
+/**
  * MobileMenu component for responsive navigation
  * 
- * This component renders a mobile-friendly menu with navigation links,
- * theme toggle, language toggle, and authentication actions.
- * 
- * User steps:
- * 1. User opens the mobile menu (typically by clicking a hamburger icon)
- * 2. User can navigate through the app using the provided links
- * 3. User can toggle between light and dark themes
- * 4. User can switch between available languages
- * 5. User can sign in or access their profile if already signed in
- * 6. User can sign out if they're currently authenticated
- * 7. User can close the mobile menu by clicking the close button
- * 
- * @param {MobileMenuProps} props - The props for the MobileMenu component
- * @returns {React.ReactElement} The rendered MobileMenu component
+ * Modern sliding menu with Tailwind 4 gradients, role-based navigation,
+ * and integrated authentication options.
  */
 const MobileMenu: React.FC<MobileMenuProps> = ({
   navigationLinks,
@@ -71,87 +97,372 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   handleSignOut,
   onClose,
 }) => {
-  const t = useTranslations('Navigation')
+  const t = useTranslations('navigation')
+  const tAuth = useTranslations('modules.auth')
+  const [showAuthOptions, setShowAuthOptions] = useState(false)
+  const [isSigningIn, setIsSigningIn] = useState(false)
+  
+  const userRole = getUserRole(user)
+  
+  // Define role-based navigation links with modern gradients
+  const getNavigationLinks = useCallback((): NavigationLink[] => {
+    const baseLinks: NavigationLink[] = [
+      {
+        href: ROUTES.HOME(locale as 'en' | 'uk'),
+        label: t('home'),
+        icon: Home,
+        gradient: 'from-blue-500 to-purple-600'
+      },
+      {
+        href: ROUTES.ENTITIES(locale as 'en' | 'uk'),
+        label: t('entities'),
+        icon: Building2,
+        gradient: 'from-green-500 to-teal-600'
+      },
+      {
+        href: ROUTES.OPPORTUNITIES(locale as 'en' | 'uk'),
+        label: t('opportunities'),
+        icon: Briefcase,
+        gradient: 'from-orange-500 to-red-600'
+      },
+      {
+        href: ROUTES.STORE(locale as 'en' | 'uk'),
+        label: t('store'),
+        icon: Store,
+        gradient: 'from-pink-500 to-rose-600'
+      }
+    ]
+
+    const memberLinks: NavigationLink[] = [
+      {
+        href: ROUTES.PROFILE(locale as 'en' | 'uk'),
+        label: t('profile'),
+        icon: User,
+        requiredRole: UserRole.MEMBER,
+        gradient: 'from-indigo-500 to-blue-600'
+      },
+      {
+        href: ROUTES.WALLET(locale as 'en' | 'uk'),
+        label: t('wallet'),
+        icon: Wallet,
+        requiredRole: UserRole.MEMBER,
+        gradient: 'from-yellow-500 to-orange-600'
+      },
+      {
+        href: ROUTES.SETTINGS(locale as 'en' | 'uk'),
+        label: t('settings'),
+        icon: Settings,
+        requiredRole: UserRole.MEMBER,
+        gradient: 'from-gray-500 to-slate-600'
+      }
+    ]
+
+    const confidentialLinks: NavigationLink[] = [
+      {
+        href: ROUTES.CONFIDENTIAL_ENTITIES(locale as 'en' | 'uk'),
+        label: 'Confidential Entities',
+        icon: Shield,
+        requiredRole: UserRole.CONFIDENTIAL,
+        badge: 'VIP',
+        gradient: 'from-purple-500 to-indigo-600'
+      },
+      {
+        href: ROUTES.CONFIDENTIAL_OPPORTUNITIES(locale as 'en' | 'uk'),
+        label: 'Confidential Opportunities',
+        icon: Crown,
+        requiredRole: UserRole.CONFIDENTIAL,
+        badge: 'VIP',
+        gradient: 'from-amber-500 to-yellow-600'
+      }
+    ]
+
+    const supportLinks: NavigationLink[] = [
+      {
+        href: ROUTES.ABOUT(locale as 'en' | 'uk'),
+        label: t('about'),
+        icon: Info,
+        gradient: 'from-cyan-500 to-blue-600'
+      },
+      {
+        href: ROUTES.CONTACT(locale as 'en' | 'uk'),
+        label: t('contact'),
+        icon: Phone,
+        gradient: 'from-emerald-500 to-green-600'
+      },
+      {
+        href: ROUTES.TERMS(locale as 'en' | 'uk'),
+        label: t('terms'),
+        icon: FileText,
+        gradient: 'from-slate-500 to-gray-600'
+      }
+    ]
+
+    return [...baseLinks, ...memberLinks, ...confidentialLinks, ...supportLinks]
+      .filter(link => canAccessLink(link, userRole))
+  }, [locale, t, userRole])
+
+  // Handle authentication
+  const handleAuthAction = useCallback(async (provider: 'google' | 'apple' | 'crypto-wallet') => {
+    setIsSigningIn(true)
+    try {
+      await signIn(provider, { 
+        redirect: false,
+        callbackUrl: ROUTES.PROFILE(locale as 'en' | 'uk')
+      })
+    } catch (error) {
+      console.error('Sign in error:', error)
+    } finally {
+      setIsSigningIn(false)
+    }
+  }, [locale])
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { x: '-100%', opacity: 0 },
+    visible: { 
+      x: 0, 
+      opacity: 1,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 300,
+        damping: 30,
+        staggerChildren: 0.05
+      }
+    },
+    exit: { 
+      x: '-100%', 
+      opacity: 0,
+      transition: { duration: 0.2 }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { x: -20, opacity: 0 },
+    visible: { x: 0, opacity: 1 }
+  }
+
+  const authVariants = {
+    hidden: { height: 0, opacity: 0 },
+    visible: { 
+      height: 'auto', 
+      opacity: 1,
+      transition: { duration: 0.3 }
+    }
+  }
 
   return (
-    <Card className="p-4 h-full w-full max-w-sm bg-background text-foreground">
-      {/* Header with logo and close button */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">
-          <span className="text-blue-500 dark:text-blue-400">Techno</span>
-          <span className="text-green-500 dark:text-green-400">Ring</span>
-        </h2>
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('closeMenu')}>
-          <X className="h-6 w-6" />
-        </Button>
-      </div>
-
-      {/* Navigation links */}
-      <nav>
-        <ul className="space-y-2">
-          {navigationLinks.map(({ href, label }) => (
-            <li key={href}>
-              <Link href={href} passHref legacyBehavior>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={onClose}
-                >
-                  {label}
-                </Button>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <Separator className="my-4" />
-
-      {/* Theme toggle, language toggle, and authentication actions */}
-      <div className="space-y-4">
-        {/* Theme toggle */}
-        <div className="flex items-center justify-between">
-          <span>{t('toggleTheme')}</span>
-          <Switch
-            checked={theme === 'dark'}
-            onCheckedChange={toggleTheme}
-            aria-label={t('toggleTheme')}
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-y-0 left-0 z-50 w-80 bg-gradient-to-br from-background via-background/95 to-background/90 backdrop-blur-xl border-r border-border/50 shadow-2xl"
+    >
+      {/* Modern gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
+      
+      <div className="relative h-full flex flex-col p-6">
+        {/* Header with logo and close button */}
+        <motion.div 
+          variants={itemVariants}
+          className="flex justify-between items-center mb-8"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Ring
+              </h2>
+              <p className="text-xs text-muted-foreground">Professional Network</p>
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onClose} 
+            className="rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors"
           >
-            {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-          </Switch>
-        </div>
-
-        {/* Language toggle */}
-        <div className="w-full flex justify-center">
-          <LanguageSwitcher />
-        </div>
-
-        {/* Authentication actions */}
-        {loading ? (
-          <p>{t('loading')}</p>
-        ) : user ? (
-          <>
-            {/* User profile link when authenticated */}
-            <Link href={ROUTES.PROFILE(locale as 'en' | 'uk')} passHref legacyBehavior>
-              <Button variant="outline" className="w-full justify-between" onClick={onClose}>
-                <span>{t('profile')}</span>
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
-            {/* Sign out button when authenticated */}
-            <Button variant="outline" className="w-full" onClick={handleSignOut}>
-              {t('logout')}
-            </Button>
-          </>
-        ) : (
-          // Sign in button when not authenticated
-          <Button variant="outline" className="w-full justify-between" onClick={handleGoogleSignIn}>
-            <span>{t('signIn')}</span>
-            <LogIn className="h-5 w-5" />
+            <X className="h-5 w-5" />
           </Button>
+        </motion.div>
+
+        {/* User info section */}
+        {user && (
+          <motion.div 
+            variants={itemVariants}
+            className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{user.name || user.email}</p>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-muted-foreground capitalize">{userRole}</span>
+                  {userRole === UserRole.CONFIDENTIAL && (
+                    <Crown className="w-3 h-3 text-yellow-500" />
+                  )}
+                  {userRole === UserRole.ADMIN && (
+                    <Shield className="w-3 h-3 text-red-500" />
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
+
+        {/* Navigation links */}
+        <motion.nav variants={itemVariants} className="flex-1 overflow-y-auto">
+          <div className="space-y-2">
+            {getNavigationLinks().map((link, index) => (
+              <motion.div
+                key={link.href}
+                variants={itemVariants}
+                custom={index}
+              >
+                <Link href={link.href} onClick={onClose}>
+                  <div className={`group relative p-3 rounded-xl transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r ${link.gradient} hover:shadow-lg cursor-pointer`}>
+                    <div className="absolute inset-0 bg-white/90 dark:bg-black/90 rounded-xl group-hover:bg-white/80 dark:group-hover:bg-black/80 transition-colors" />
+                    <div className="relative flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg bg-gradient-to-br ${link.gradient} text-white`}>
+                          <link.icon className="w-4 h-4" />
+                        </div>
+                        <span className="font-medium text-sm">{link.label}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {link.badge && (
+                          <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full">
+                            {link.badge}
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </motion.nav>
+
+        {/* Controls section */}
+        <motion.div variants={itemVariants} className="mt-6 space-y-4">
+          {/* Theme toggle */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-slate-500 to-gray-600 text-white">
+                {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </div>
+              <span className="font-medium text-sm">{t('toggleTheme')}</span>
+            </div>
+            <Switch
+              checked={theme === 'dark'}
+              onCheckedChange={toggleTheme}
+              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-blue-500 data-[state=checked]:to-purple-600"
+            />
+          </div>
+
+          {/* Language switcher */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white">
+                <Globe className="w-4 h-4" />
+              </div>
+              <span className="font-medium text-sm">{t('language')}</span>
+            </div>
+            <LanguageSwitcher />
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Authentication section */}
+          {loading ? (
+            <div className="flex items-center justify-center p-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+            </div>
+          ) : user ? (
+            <Button 
+              variant="outline" 
+              className="w-full justify-center bg-gradient-to-r from-red-500/10 to-pink-500/10 border-red-500/20 hover:from-red-500/20 hover:to-pink-500/20" 
+              onClick={handleSignOut}
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              {t('signOut')}
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              <Button
+                variant="ghost"
+                className="w-full justify-center text-blue-600 hover:bg-blue-500/10"
+                onClick={() => setShowAuthOptions(!showAuthOptions)}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                {t('signIn')}
+              </Button>
+              
+              <AnimatePresence>
+                {showAuthOptions && (
+                  <motion.div
+                    variants={authVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    className="space-y-2 overflow-hidden"
+                  >
+                    {/* Magic Link / Email */}
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20 hover:from-green-500/20 hover:to-emerald-500/20"
+                      disabled={isSigningIn}
+                    >
+                      <HiMail className="w-4 h-4 mr-3" />
+                      {tAuth('signIn.providers.email')}
+                    </Button>
+
+                    {/* Google */}
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/20 hover:from-blue-500/20 hover:to-indigo-500/20"
+                      onClick={() => handleAuthAction('google')}
+                      disabled={isSigningIn}
+                    >
+                      <FcGoogle className="w-4 h-4 mr-3" />
+                      {tAuth('signIn.providers.google')}
+                    </Button>
+
+                    {/* Apple */}
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-gradient-to-r from-gray-500/10 to-slate-500/10 border-gray-500/20 hover:from-gray-500/20 hover:to-slate-500/20"
+                      onClick={() => handleAuthAction('apple')}
+                      disabled={isSigningIn}
+                    >
+                      <AiFillApple className="w-4 h-4 mr-3" />
+                      {tAuth('signIn.providers.apple')}
+                    </Button>
+
+                    {/* MetaMask */}
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/20 hover:from-orange-500/20 hover:to-amber-500/20"
+                      onClick={() => handleAuthAction('crypto-wallet')}
+                      disabled={isSigningIn}
+                    >
+                      <FaEthereum className="w-4 h-4 mr-3" />
+                      {tAuth('signIn.providers.metamask')}
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </motion.div>
       </div>
-    </Card>
+    </motion.div>
   )
 }
 
