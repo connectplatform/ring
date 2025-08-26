@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { Calendar, MapPin, Tag, Building, User, DollarSign, Clock } from 'lucide-react'
 import Image from 'next/image'
 import { useSession } from "next-auth/react"
-import LoginForm from '@/features/auth/components/login-form'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useInView } from '@/hooks/use-intersection-observer'
@@ -160,8 +160,8 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
         >
           {t('introDescription') || 'The Opportunities page curates jobs, partnerships, grants, and collaborations from entities in our ecosystem. Sign in to browse and apply.'}
         </motion.p>
-        <div className="w-full max-w-sm">
-          <LoginForm from={from} />
+        <div className="w-full max-w-md">
+          <UnifiedLoginInline from={from} variant="hero" />
         </div>
       </div>
     )
