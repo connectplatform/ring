@@ -5,9 +5,11 @@ import { defaultLocale } from '@/i18n-config'
 const BASE_ROUTES = {
   HOME: '/',
   LOGIN: '/login',
+  REGISTER: '/register',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   VERIFY_EMAIL: '/verify-email',
+  KYC: '/kyc',
   AUTH_STATUS: '/auth/status/[action]/[status]',
   ENTITIES: '/entities',
   ENTITY_STATUS: '/entities/status/[action]/[status]',
@@ -40,9 +42,11 @@ const BASE_ROUTES = {
 export const ROUTES = {
   HOME: (locale: Locale = defaultLocale) => `/${locale}`,
   LOGIN: (locale: Locale = defaultLocale) => `/${locale}/login`,
+  REGISTER: (locale: Locale = defaultLocale) => `/${locale}/register`,
   FORGOT_PASSWORD: (locale: Locale = defaultLocale) => `/${locale}/forgot-password`,
   RESET_PASSWORD: (locale: Locale = defaultLocale) => `/${locale}/reset-password`,
   VERIFY_EMAIL: (locale: Locale = defaultLocale) => `/${locale}/verify-email`,
+  KYC: (locale: Locale = defaultLocale) => `/${locale}/kyc`,
   AUTH_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => `/${locale}/auth/status/${action}/${status}`,
   ENTITIES: (locale: Locale = defaultLocale) => `/${locale}/entities`,
   ENTITY_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => `/${locale}/entities/status/${action}/${status}`,
