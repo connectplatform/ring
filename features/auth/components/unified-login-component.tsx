@@ -247,46 +247,6 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
               </div>
           ) : (
               <div className="space-y-4">
-                {/* Email Input Form - Only show if Resend provider is available */}
-                {providers?.resend && (
-                  <>
-                    <form onSubmit={handleEmailSignIn} className="space-y-4">
-                      <div className="relative">
-                        <Input
-                          type="email"
-                          placeholder={tAuth('signIn.emailPlaceholder')}
-                          value={email}
-                          onChange={handleEmailChange}
-                          disabled={isLoading}
-                          className="w-full h-12 pl-4 pr-12 text-base"
-                          required
-                        />
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          <HiMail className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      </div>
-                      
-                      <Button
-                        type="submit"
-                        disabled={isLoading || !email.trim()}
-                        className="w-full h-12 bg-green-500 hover:bg-green-600 text-white font-medium"
-                      >
-                        {isLoading ? tAuth('signIn.loading') : tAuth('signIn.providers.email')}
-                      </Button>
-                    </form>
-
-                    {/* Alternative Login Options */}
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-muted"></div>
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="bg-background px-4 text-muted-foreground">OR</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
                 {/* Google Sign-in (Preferred) */}
                 <Button
                   onClick={() => handleSignIn('google')}
@@ -319,6 +279,44 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                     {tAuth('signIn.providers.metamask')}
                   </Button>
                 </div>
+
+                {/* Alternative Login Options */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-muted"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="bg-background px-4 text-muted-foreground">OR</span>
+                  </div>
+                </div>
+
+                {/* Email Input Form - Only show if Resend provider is available */}
+                {providers?.resend && (
+                  <form onSubmit={handleEmailSignIn} className="space-y-4">
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        placeholder={tAuth('signIn.emailPlaceholder')}
+                        value={email}
+                        onChange={handleEmailChange}
+                        disabled={isLoading}
+                        className="w-full h-12 pl-4 pr-12 text-base"
+                        required
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <HiMail className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                    
+                    <Button
+                      type="submit"
+                      disabled={isLoading || !email.trim()}
+                      className="w-full h-12 bg-green-500 hover:bg-green-600 text-white font-medium"
+                    >
+                      {isLoading ? tAuth('signIn.loading') : tAuth('signIn.providers.email')}
+                    </Button>
+                  </form>
+                )}
 
                 {/* Terms and Privacy */}
                 <p className="text-xs text-center text-muted-foreground mt-6">
