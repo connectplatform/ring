@@ -401,3 +401,33 @@ export function formatDateValue(value: string | Timestamp | FieldValue): string 
   return 'N/A'
 }
 
+/**
+ * Formats currency amounts with proper symbols and formatting
+ * @param amount - The amount to format
+ * @param currency - The currency code (RING, DAAR, DAARION, USD, etc.)
+ * @returns Formatted currency string
+ * 
+ * @example
+ * const formatted = formatCurrency(1500, 'RING') // "1,500 RING"
+ * const formatted = formatCurrency(99.99, 'USD') // "$99.99"
+ */
+export function formatCurrency(amount: number, currency: string = 'USD'): string {
+  // Handle crypto currencies
+  if (['RING', 'DAAR', 'DAARION'].includes(currency.toUpperCase())) {
+    return `${amount.toLocaleString()} ${currency.toUpperCase()}`
+  }
+  
+  // Handle fiat currencies
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount)
+  } catch (error) {
+    // Fallback for unsupported currencies
+    return `${amount.toLocaleString()} ${currency.toUpperCase()}`
+  }
+}
+
