@@ -1,22 +1,21 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Entity Retrieval Service
+ * 
+ * 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
+ * - Centralized service manager with React 19 cache() for request deduplication
+ * - Build-time phase detection and intelligent caching strategies
+ * - Auth.js v5 authentication with role-based access control
+ * - Serialization support for client components
+ * - Unified entity retrieval functions
+ */
 
-import { Entity, SerializedEntity, EntityType } from '@/features/entities/types';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
-
-import { auth } from '@/auth'; // Consistent session handling
-import { entityConverter } from '@/lib/converters/entity-converter';
-import { UserRole } from '@/features/auth/types';
+import { Entity, SerializedEntity } from '@/features/entities/types'
+import { cache } from 'react'
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache'
+import { getCachedDocument, getCachedCollectionAdvanced } from '@/lib/services/firebase-helpers'
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
 
 /**
  * Fetches an entity by its ID from Firestore, enforcing role-based access control.
@@ -41,146 +40,205 @@ import { UserRole } from '@/features/auth/types';
  * Note: Confidential entities can only be accessed by users with CONFIDENTIAL or ADMIN roles.
  *       Non-confidential entities can be accessed by all authenticated users.
  */
-export async function getEntityById(id: string): Promise<Entity | null> {try {
-  const phase = getCurrentPhase();
-
-console.log('Services: getEntityById - Fetching entity with ID:', id);
-
-    // Step 1: Authenticate and get user session
-    const session = await auth();
-    if (!session || !session.user) {
-      console.error('Services: getEntityById - Unauthorized access attempt');
-      throw new Error('Unauthorized access');
-    }
-
-    const userRole = session.user.role as UserRole;
-    console.log(`Services: getEntityById - User authenticated with role ${userRole}`);
-
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-entity-by-id`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        // Generic cache fallback for build time
-        return null;
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
-
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-entity-by-id`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        // Generic cache fallback for build time
-        return null;
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
-
-    // Step 2: Access Firestore using optimized firebase-service-manager
-    const docSnap = await getCachedDocument('entities', id);
-
-    // Step 3: Check if the entity exists
-    if (!docSnap || !docSnap.exists) {
-      console.warn('Services: getEntityById - No entity found with ID:', id);
-      return null;
-    }
-
-    // Step 4: Get the entity data and check permissions
-    const entityData = docSnap.data();
-    if (!entityData) {
-      console.warn('Services: getEntityById - Entity data is null');
-      return null;
-    }
-
-    const entity: Entity = {
-      ...entityData,
-      id: docSnap.id,
-    } as Entity;
-
-    // Check confidential access permissions
-    if (entity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
-      console.error('Services: getEntityById - Access denied for confidential entity');
-      throw new Error('Access denied. You do not have permission to view this confidential entity.');
-    }
-
-    console.log('Services: getEntityById - Entity retrieved successfully');
-    return entity;
-  } catch (error) {
-    console.error('Services: getEntityById - Error fetching entity:', error);
-    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching entity');
+/**
+ * Custom error classes for entity operations
+ */
+export class EntityNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Entity not found`)
+    this.name = 'EntityNotFoundError'
   }
 }
+
+export class EntityAccessDeniedError extends Error {
+  constructor(reason: string) {
+    super(`Access denied: ${reason}`)
+    this.name = 'EntityAccessDeniedError'
+  }
+}
+
+/**
+ * Fetches an entity by its ID with Auth.js v5 authentication and role-based access control.
+ * 
+ * Features:
+ * - Auth.js v5 session handling with tiered access control per Platform Philosophy
+ * - Build-time optimization with graceful auth handling
+ * - Confidential entity access control (CONFIDENTIAL/ADMIN only)
+ * - React 19 cache() for request deduplication
+ * 
+ * @param id - The unique identifier of the entity to fetch
+ * @returns Promise that resolves to Entity object or null if not found
+ * @throws EntityNotFoundError if entity doesn't exist
+ * @throws EntityAccessDeniedError if user lacks permissions
+ */
+export const getEntityById = cache(async (id: string): Promise<Entity | null> => {
+  try {
+    const phase = getCurrentPhase()
+    
+    // Step 1: Handle authentication with build-time graceful fallback
+    const session = await auth()
+    
+    // During build time, allow unauthenticated access for public entities only
+    if (phase.isBuildTime && !session) {
+      console.log('[Build Optimization] Build-time access - using cached data')
+      
+      try {
+        const cachedEntities = await getCachedEntities()
+        const cachedEntity = cachedEntities.find(e => e.id === id)
+        
+        // Only return public entities during build
+        if (cachedEntity && !cachedEntity.isConfidential) {
+          return cachedEntity as Entity
+        }
+        return null
+      } catch (cacheError) {
+        console.warn('[Build Optimization] Cache miss during build')
+        return null
+      }
+    }
+
+    // Runtime authentication required
+    if (!phase.isBuildTime && (!session || !session.user)) {
+      throw new EntityAccessDeniedError('Authentication required')
+    }
+
+    const userRole = (session?.user?.role as UserRole) || UserRole.VISITOR
+
+    // Step 2: Fetch entity using appropriate strategy
+    let entity: Entity | null = null
+    
+    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
+      // Build-time: Use cached data
+      const cachedEntities = await getCachedEntities()
+      entity = cachedEntities.find(e => e.id === id) as Entity || null
+    } else {
+      // Runtime: Use Firebase
+      entity = await getCachedDocument<Entity>('entities', id)
+    }
+
+    if (!entity) {
+      return null
+    }
+
+    // Step 3: Apply Platform Philosophy access control
+    // Confidential entities: CONFIDENTIAL or ADMIN only
+    if (entity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
+      throw new EntityAccessDeniedError('Confidential entity access requires CONFIDENTIAL or ADMIN role')
+    }
+
+    return entity
+  } catch (error) {
+    if (error instanceof EntityNotFoundError || error instanceof EntityAccessDeniedError) {
+      throw error
+    }
+    throw new Error('Entity retrieval failed')
+  }
+})
 
 /**
  * Fetches an entity by its ID and returns it in serialized format for client components.
+ * Uses the centralized entity-serializer for consistent timestamp conversion.
  * 
- * @param {string} id - The unique identifier of the entity to fetch.
- * @returns {Promise<SerializedEntity | null>} A promise that resolves to the SerializedEntity object if found, or null if not found.
- * @throws {Error} If the user is not authenticated or lacks the necessary permissions.
+ * @param id - The unique identifier of the entity to fetch
+ * @returns Promise that resolves to SerializedEntity object or null if not found
+ * @throws EntityNotFoundError if entity doesn't exist
+ * @throws EntityAccessDeniedError if user lacks permissions
  */
-export async function getSerializedEntityById(id: string): Promise<SerializedEntity | null> {
+export const getSerializedEntityById = cache(async (id: string): Promise<SerializedEntity | null> => {
   try {
-    const entity = await getEntityById(id);
+    const entity = await getEntityById(id)
     
     if (!entity) {
-      return null;
+      return null
     }
 
-    // Helper function to safely convert Timestamp to ISO string
-    const timestampToISO = (timestamp: any): string => {
-      if (timestamp && typeof timestamp.toDate === 'function') {
-        return timestamp.toDate().toISOString();
-      }
-      if (timestamp instanceof Date) {
-        return timestamp.toISOString();
-      }
-      // Fallback to current time if timestamp is invalid
-      return new Date().toISOString();
-    };
-
-    // Convert Entity to SerializedEntity
-    const serializedEntity: SerializedEntity = {
-      ...entity,
-      dateAdded: timestampToISO(entity.dateAdded),
-      lastUpdated: timestampToISO(entity.lastUpdated),
-      memberSince: entity.memberSince ? timestampToISO(entity.memberSince) : undefined,
-    };
-
-    console.log('Services: getSerializedEntityById - Entity serialized successfully');
-    return serializedEntity;
+    // Use the centralized entity serializer
+    const { serializeEntity } = await import('@/lib/converters/entity-serializer')
+    return serializeEntity(entity)
   } catch (error) {
-    console.error('Services: getSerializedEntityById - Error fetching entity:', error);
-    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching serialized entity');
+    if (error instanceof EntityNotFoundError || error instanceof EntityAccessDeniedError) {
+      throw error
+    }
+    throw new Error('Entity serialization failed')
   }
-}
+})
 
 /**
- * Example usage of getEntityById function:
+ * Simple entity retrieval without authentication (for public entities only)
+ * Use getEntityById for authenticated access with role-based permissions
  * 
- * async function displayentity-details(entityId: string) {
- *   try {
- *     const entity = await getEntityById(entityId);
- *     if (entity) {
- *       // Display entity details to the user
- *       console.log('Entity details:', entity);
- *     } else {
- *       console.log('Entity not found');
- *     }
- *   } catch (error) {
- *     console.error('Error fetching entity:', error);
- *     // Handle error (e.g., show error message to user)
+ * @param entityId - The unique identifier of the entity to fetch
+ * @returns Promise that resolves to Entity object or null if not found
+ */
+export const getEntity = cache(async (entityId: string): Promise<Entity | null> => {
+  try {
+    const entity = await getCachedDocument<Entity>('entities', entityId)
+    
+    // Only return public entities for unauthenticated access
+    if (entity && entity.isConfidential) {
+      return null
+    }
+    
+    return entity
+  } catch (error) {
+    return null
+  }
+})
+
+/**
+ * Get entities created by a specific user with proper authentication
+ * 
+ * @param userId - The user ID to fetch entities for
+ * @returns Promise that resolves to array of Entity objects
+ */
+export const getUserEntities = cache(async (userId: string): Promise<Entity[]> => {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return []
+    }
+
+    // Users can only see their own entities or admins can see all
+    const userRole = session.user.role as UserRole
+    const canViewAll = userRole === UserRole.ADMIN
+    const isOwnEntities = session.user.id === userId
+
+    if (!canViewAll && !isOwnEntities) {
+      throw new EntityAccessDeniedError('Can only view own entities')
+    }
+
+    const result = await getCachedCollectionAdvanced<Entity>('entities', {
+      filters: [{ field: 'createdBy', operator: '==', value: userId }],
+      orderBy: { field: 'createdAt', direction: 'desc' }
+    })
+    
+    return result.items
+  } catch (error) {
+    return []
+  }
+})
+
+/**
+ * Example usage:
+ * 
+ * // Authenticated access with tiered role-based permissions (Platform Philosophy)
+ * const entity = await getEntityById('entity-id')
+ * 
+ * // Serialized for client components
+ * const serializedEntity = await getSerializedEntityById('entity-id')
+ * 
+ * // Public entities only (no authentication required)
+ * const publicEntity = await getEntity('entity-id')
+ * 
+ * // User's own entities
+ * const userEntities = await getUserEntities('user-id')
+ * 
+ * // Error handling
+ * try {
+ *   const entity = await getEntityById('confidential-entity-id')
+ * } catch (error) {
+ *   if (error instanceof EntityAccessDeniedError) {
+ *     // Handle access denied - redirect to upgrade
  *   }
  * }
  */
