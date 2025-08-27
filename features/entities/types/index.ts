@@ -1,4 +1,10 @@
 import { Timestamp } from 'firebase-admin/firestore';
+import { 
+  StoreStatus, 
+  StoreTier, 
+  StoreVisibility,
+  PaymentProcessor 
+} from '@/constants/store';
 
 // Entity Industry sectors 
 export type EntityType =
@@ -28,6 +34,54 @@ export type EntityType =
   | 'softwareDevelopment'
   | 'technologyCenter'
   | 'virtualReality';
+
+// Store Verification Status
+export interface StoreVerification {
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  identityVerified: boolean;
+  businessVerified: boolean;
+  bankAccountVerified: boolean;
+  verificationDate?: string;
+}
+
+// Store Performance Metrics
+export interface StoreMetrics {
+  trustScore: number;
+  totalSales: number;
+  totalOrders: number;
+  averageRating: number;
+  returnRate: number;
+  disputeRate: number;
+  responseTime: number; // in hours
+  lastActiveDate?: string;
+}
+
+// Store Settings
+export interface StoreSettings {
+  autoApproveProducts: boolean;
+  allowGuestCheckout: boolean;
+  requireInventoryTracking: boolean;
+  enableInstantPayouts: boolean;
+}
+
+// Payment Processor Configuration
+export interface PaymentProcessorConfig {
+  configSetID: string;
+  provider: PaymentProcessor;
+  enabled: boolean;
+  priority: number;
+  config: Record<string, any>;
+  supportedMethods: string[];
+  supportedCurrencies: string[];
+  fees?: {
+    fixed: number;
+    percentage: number;
+  };
+  webhookEndpoint?: string;
+  testMode: boolean;
+  uiComponents?: Record<string, any>;
+}
 
 export interface Entity {
   addedBy: string;
@@ -68,6 +122,21 @@ export interface Entity {
   website?: string;
   members: string[];
   opportunities: string[];
+  
+  // Multi-vendor Store Fields
+  storeActivated?: boolean;
+  storeID?: string;
+  storeName?: string;
+  storeSlug?: string;
+  storeWallet?: string; // userWalletID reference
+  storeStatus?: StoreStatus;
+  storeTier?: StoreTier;
+  storeVisibility?: StoreVisibility;
+  storeMerchantConfigID?: string;
+  storeVerification?: StoreVerification;
+  storeMetrics?: StoreMetrics;
+  storeSettings?: StoreSettings;
+  storeFiatPaymentProcessors?: PaymentProcessorConfig[];
 }
 
 // Serialized version for client components (dates as ISO strings)
@@ -110,5 +179,20 @@ export interface SerializedEntity {
   website?: string;
   members: string[];
   opportunities: string[];
+  
+  // Multi-vendor Store Fields (serialized)
+  storeActivated?: boolean;
+  storeID?: string;
+  storeName?: string;
+  storeSlug?: string;
+  storeWallet?: string;
+  storeStatus?: StoreStatus;
+  storeTier?: StoreTier;
+  storeVisibility?: StoreVisibility;
+  storeMerchantConfigID?: string;
+  storeVerification?: StoreVerification;
+  storeMetrics?: StoreMetrics;
+  storeSettings?: StoreSettings;
+  storeFiatPaymentProcessors?: PaymentProcessorConfig[];
 }
 
