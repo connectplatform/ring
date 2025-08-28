@@ -4,7 +4,7 @@
  * Service for retrieving vendor profiles and related data
  */
 
-import { getCachedDocument } from '@/lib/services/firebase-helpers'
+import { getCachedDocumentTyped } from '@/lib/services/firebase-service-manager'
 import { VendorProfile } from '@/features/store/types/vendor'
 
 /**
@@ -13,7 +13,7 @@ import { VendorProfile } from '@/features/store/types/vendor'
 export async function getVendorProfile(entityId: string): Promise<VendorProfile | null> {
   try {
     const vendorId = `vendor_${entityId}`
-    const profile = await getCachedDocument<VendorProfile>('vendorProfiles', vendorId)
+    const profile = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
     return profile
   } catch (error) {
     console.error('Error fetching vendor profile:', error)

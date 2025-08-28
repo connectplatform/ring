@@ -6,12 +6,12 @@
  */
 
 import { 
-  getCachedDocument,
-  updateDocument,
+  getCachedDocumentTyped,
+  updateDocumentTyped,
   runTransaction,
-  getCachedCollectionAdvanced,
-  createDocument
-} from '@/lib/services/firebase-helpers'
+  getCachedCollectionTyped,
+  createDocumentTyped
+} from '@/lib/services/firebase-service-manager'
 import { StoreProduct } from '@/features/store/types'
 import { InventorySyncStrategy, StoreEvent } from '@/constants/store'
 import { publishEvent } from '@/lib/events/event-bus'
@@ -64,7 +64,7 @@ export async function updateInventoryLevels(
   await runTransaction(async (transaction) => {
     // Get current inventory level
     const inventoryId = `${productId}_${storeId}`
-    const currentLevel = await getCachedDocument<InventoryLevel>(
+    const currentLevel = await getCachedDocumentTyped<InventoryLevel>(
       'inventoryLevels',
       inventoryId
     )
@@ -91,15 +91,15 @@ export async function updateInventoryLevels(
 
     // Update inventory level
     if (currentLevel) {
-      await updateDocument('inventoryLevels', inventoryId, newLevel)
+      await updateDocumentTyped('inventoryLevels', inventoryId, newLevel)
     } else {
-      await createDocument('inventoryLevels', inventoryId, newLevel)
+      await createDocumentTyped('inventoryLevels', inventoryId, newLevel)
     }
 
     // Update product stock status
-    const product = await getCachedDocument<StoreProduct>('products', productId)
+    const product = await getCachedDocumentTyped<StoreProduct>('products', productId)
     if (product) {
-      await updateDocument(
+      await updateDocumentTyped(
         'products',
         productId,
         { inStock: newAvailable > 0 }
@@ -142,7 +142,7 @@ export async function reserveInventory(
   await runTransaction(async (transaction) => {
     // Get current inventory level
     const inventoryId = `${productId}_${storeId}`
-    const currentLevel = await getCachedDocument<InventoryLevel>(
+    const currentLevel = await getCachedDocumentTyped<InventoryLevel>(
       'inventoryLevels',
       inventoryId
     )
@@ -159,10 +159,10 @@ export async function reserveInventory(
       syncVersion: currentLevel.syncVersion + 1
     }
 
-    await updateDocument('inventoryLevels', inventoryId, updatedLevel)
+    await updateDocumentTyped('inventoryLevels', inventoryId, updatedLevel)
 
     // Create reservation
-    await createDocument('inventoryReservations', reservationId, reservation)
+    await createDocumentTyped('inventoryReservations', reservationId, reservation)
   })
 
   return reservation
@@ -175,7 +175,7 @@ export async function releaseReservation(
   reservationId: string,
   fulfilled: boolean = false
 ): Promise<void> {
-  const reservation = await getCachedDocument<InventoryReservation>(
+  const reservation = await getCachedDocumentTyped<InventoryReservation>(
     'inventoryReservations',
     reservationId
   )
@@ -186,7 +186,7 @@ export async function releaseReservation(
 
   await runTransaction(async (transaction) => {
     // Update reservation status
-    await updateDocument(
+    await updateDocumentTyped(
       'inventoryReservations',
       reservationId,
       { 
@@ -198,7 +198,7 @@ export async function releaseReservation(
     if (!fulfilled) {
       // Return reserved inventory to available pool
       const inventoryId = `${reservation.productId}_${reservation.storeId}`
-      const currentLevel = await getCachedDocument<InventoryLevel>(
+      const currentLevel = await getCachedDocumentTyped<InventoryLevel>(
         'inventoryLevels',
         inventoryId
       )
@@ -211,7 +211,7 @@ export async function releaseReservation(
           syncVersion: currentLevel.syncVersion + 1
         }
 
-        await updateDocument('inventoryLevels', inventoryId, updatedLevel)
+        await updateDocumentTyped('inventoryLevels', inventoryId, updatedLevel)
       }
     }
   })
@@ -224,7 +224,7 @@ export async function syncInventoryAcrossStores(
   productId: string,
   strategy: InventorySyncStrategy = InventorySyncStrategy.MASTER
 ): Promise<void> {
-  const product = await getCachedDocument<StoreProduct>('products', productId)
+  const product = await getCachedDocumentTyped<StoreProduct>('products', productId)
   if (!product || !product.productListedAt) {
     return
   }
@@ -257,7 +257,7 @@ async function syncFromMasterStore(
   masterStoreId: string,
   storeIds: string[]
 ): Promise<void> {
-  const masterInventory = await getCachedDocument<InventoryLevel>(
+  const masterInventory = await getCachedDocumentTyped<InventoryLevel>(
     'inventoryLevels',
     `${productId}_${masterStoreId}`
   )
@@ -286,7 +286,7 @@ async function distributeInventoryEvenly(
   // Get total inventory across all stores
   const inventoryLevels = await Promise.all(
     storeIds.map(storeId =>
-      getCachedDocument<InventoryLevel>('inventoryLevels', `${productId}_${storeId}`)
+      getCachedDocumentTyped<InventoryLevel>('inventoryLevels', `${productId}_${storeId}`)
     )
   )
 
@@ -319,7 +319,7 @@ async function maintainReservedLevels(
   const MIN_RESERVED = 5 // Configurable minimum per store
 
   for (const storeId of storeIds) {
-    const inventory = await getCachedDocument<InventoryLevel>(
+    const inventory = await getCachedDocumentTyped<InventoryLevel>(
       'inventoryLevels',
       `${productId}_${storeId}`
     )
@@ -340,7 +340,7 @@ async function requestInventoryTransfer(
   quantity: number
 ): Promise<void> {
   // Find stores with excess inventory
-  const inventoryLevels = await getCachedCollectionAdvanced<InventoryLevel>(
+  const inventoryLevels = await getCachedCollectionTyped<InventoryLevel>(
     'inventoryLevels',
     {
       filters: [
@@ -369,7 +369,7 @@ async function requestInventoryTransfer(
     initiatedAt: new Date().toISOString()
   }
 
-  await createDocument('inventoryTransfers', transfer.id, transfer)
+  await createDocumentTyped('inventoryTransfers', transfer.id, transfer)
   
   // In a real system, this would trigger a fulfillment workflow
   // For now, we'll just update the inventory levels
@@ -382,7 +382,7 @@ async function requestInventoryTransfer(
 export async function processInventoryTransfer(
   transferId: string
 ): Promise<void> {
-  const transfer = await getCachedDocument<InventoryTransfer>(
+  const transfer = await getCachedDocumentTyped<InventoryTransfer>(
     'inventoryTransfers',
     transferId
   )
@@ -409,7 +409,7 @@ export async function processInventoryTransfer(
     )
 
     // Update transfer status
-          await updateDocument(
+          await updateDocumentTyped(
         'inventoryTransfers',
         transferId,
         {
@@ -426,7 +426,7 @@ export async function processInventoryTransfer(
 export async function cleanupExpiredReservations(): Promise<void> {
   const now = new Date().toISOString()
   
-  const expiredReservations = await getCachedCollectionAdvanced<InventoryReservation>(
+  const expiredReservations = await getCachedCollectionTyped<InventoryReservation>(
     'inventoryReservations',
     {
       filters: [
@@ -441,4 +441,4 @@ export async function cleanupExpiredReservations(): Promise<void> {
   }
 }
 
-// createDocument is now imported from firebase-helpers
+// createDocumentTyped is now imported from firebase-helpers

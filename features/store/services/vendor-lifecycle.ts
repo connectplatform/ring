@@ -6,12 +6,12 @@
  */
 
 import { 
-  getCachedDocument,
-  createDocument,
-  updateDocument,
-  getCachedCollectionAdvanced,
+  getCachedDocumentTyped,
+  createDocumentTyped,
+  updateDocumentTyped,
+  getCachedCollectionTyped,
   runTransaction
-} from '@/lib/services/firebase-helpers'
+} from '@/lib/services/firebase-service-manager'
 import { 
   VendorProfile,
   VendorApplication,
@@ -120,7 +120,7 @@ export async function createVendorProfile(
     updatedAt: now
   }
 
-  await createDocument('vendorProfiles', profile.id, profile)
+  await createDocumentTyped('vendorProfiles', profile.id, profile)
   
   // Publish event
   await publishEvent({
@@ -152,7 +152,7 @@ export async function updateOnboardingStatus(
     updates.notes = notes
   }
 
-  await updateDocument('vendorProfiles', vendorId, updates)
+  await updateDocumentTyped('vendorProfiles', vendorId, updates)
 }
 
 /**
@@ -162,7 +162,7 @@ export async function updateVendorPerformance(
   vendorId: string,
   metrics: Partial<VendorPerformanceMetrics>
 ): Promise<void> {
-  const vendor = await getCachedDocument<VendorProfile>('vendorProfiles', vendorId)
+  const vendor = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
   if (!vendor) {
     throw new Error('Vendor not found')
   }
@@ -187,7 +187,7 @@ export async function updateVendorPerformance(
   const tierChanged = newTrustLevel !== vendor.trustLevel
 
   // Update vendor profile
-  await updateDocument('vendorProfiles', vendorId, {
+  await updateDocumentTyped('vendorProfiles', vendorId, {
     performanceMetrics: updatedMetrics,
     trustScore: newTrustScore,
     trustLevel: newTrustLevel,
@@ -215,7 +215,7 @@ async function recordTierProgression(
   toTier: VendorTrustLevel,
   reason: string
 ): Promise<void> {
-  const vendor = await getCachedDocument<VendorProfile>('vendorProfiles', vendorId)
+  const vendor = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
   if (!vendor) return
 
   const progression: TierProgressionEntry = {
@@ -228,7 +228,7 @@ async function recordTierProgression(
 
   const updatedHistory = [...vendor.tierProgressionHistory, progression]
 
-  await updateDocument('vendorProfiles', vendorId, {
+  await updateDocumentTyped('vendorProfiles', vendorId, {
     tierProgressionHistory: updatedHistory,
     updatedAt: new Date().toISOString()
   })
@@ -248,7 +248,7 @@ export async function suspendVendor(
   reason: string,
   durationDays: number
 ): Promise<void> {
-  const vendor = await getCachedDocument<VendorProfile>('vendorProfiles', vendorId)
+  const vendor = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
   if (!vendor) {
     throw new Error('Vendor not found')
   }
@@ -262,16 +262,16 @@ export async function suspendVendor(
 
   const updatedHistory = [...vendor.suspensionHistory, suspension]
 
-  await updateDocument('vendorProfiles', vendorId, {
+  await updateDocumentTyped('vendorProfiles', vendorId, {
     suspensionHistory: updatedHistory,
     trustLevel: VendorTrustLevel.NEW, // Reset to NEW on suspension
     updatedAt: new Date().toISOString()
   })
 
   // Update entity store status
-  const entity = await getCachedDocument<Entity>('entities', vendor.entityId)
+  const entity = await getCachedDocumentTyped<Entity>('entities', vendor.entityId)
   if (entity) {
-    await updateDocument('entities', vendor.entityId, {
+    await updateDocumentTyped('entities', vendor.entityId, {
       storeStatus: 'suspended',
       lastUpdated: new Date()
     })
@@ -291,7 +291,7 @@ export async function reinstateVendor(
   vendorId: string,
   notes?: string
 ): Promise<void> {
-  const vendor = await getCachedDocument<VendorProfile>('vendorProfiles', vendorId)
+  const vendor = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
   if (!vendor) {
     throw new Error('Vendor not found')
   }
@@ -311,15 +311,15 @@ export async function reinstateVendor(
     notes
   }
 
-  await updateDocument('vendorProfiles', vendorId, {
+  await updateDocumentTyped('vendorProfiles', vendorId, {
     suspensionHistory: updatedHistory,
     updatedAt: new Date().toISOString()
   })
 
   // Update entity store status
-  const entity = await getCachedDocument<Entity>('entities', vendor.entityId)
+  const entity = await getCachedDocumentTyped<Entity>('entities', vendor.entityId)
   if (entity) {
-    await updateDocument('entities', vendor.entityId, {
+    await updateDocumentTyped('entities', vendor.entityId, {
       storeStatus: 'open',
       lastUpdated: new Date()
     })
@@ -338,7 +338,7 @@ export async function reinstateVendor(
 export async function getVendorsByTrustLevel(
   trustLevel: VendorTrustLevel
 ): Promise<VendorProfile[]> {
-  const vendors = await getCachedCollectionAdvanced<VendorProfile>(
+  const vendors = await getCachedCollectionTyped<VendorProfile>(
     'vendorProfiles',
     {
       filters: [
@@ -355,7 +355,7 @@ export async function getVendorsByTrustLevel(
  * Get vendors requiring review
  */
 export async function getVendorsRequiringReview(): Promise<VendorProfile[]> {
-  const vendors = await getCachedCollectionAdvanced<VendorProfile>(
+  const vendors = await getCachedCollectionTyped<VendorProfile>(
     'vendorProfiles',
     {
       filters: [
@@ -378,7 +378,7 @@ export async function processVendorApplication(
   reviewNotes?: string,
   reviewerId?: string
 ): Promise<void> {
-  const application = await getCachedDocument<VendorApplication>('vendorApplications', applicationId)
+  const application = await getCachedDocumentTyped<VendorApplication>('vendorApplications', applicationId)
   if (!application) {
     throw new Error('Application not found')
   }
@@ -386,7 +386,7 @@ export async function processVendorApplication(
   const status = approved ? 'approved' : 'rejected'
   const now = new Date().toISOString()
 
-  await updateDocument('vendorApplications', applicationId, {
+  await updateDocumentTyped('vendorApplications', applicationId, {
     status,
     reviewedAt: now,
     reviewedBy: reviewerId,
@@ -399,7 +399,7 @@ export async function processVendorApplication(
     await createVendorProfile(application.entityId, application.userId, application)
     
     // Update entity to activate store
-    await updateDocument('entities', application.entityId, {
+    await updateDocumentTyped('entities', application.entityId, {
       storeActivated: true,
       storeStatus: 'test', // Start in test mode
       lastUpdated: new Date()
@@ -411,7 +411,7 @@ export async function processVendorApplication(
  * Run automated vendor performance review
  */
 export async function runAutomatedPerformanceReview(): Promise<void> {
-  const vendors = await getCachedCollectionAdvanced<VendorProfile>(
+  const vendors = await getCachedCollectionTyped<VendorProfile>(
     'vendorProfiles',
     {
       filters: [
@@ -431,7 +431,7 @@ export async function runAutomatedPerformanceReview(): Promise<void> {
 
     if (belowThresholds) {
       // Flag for manual review or automatic action
-      await updateDocument('vendorProfiles', vendor.id, {
+      await updateDocumentTyped('vendorProfiles', vendor.id, {
         notes: `Performance below thresholds - Review required`,
         updatedAt: new Date().toISOString()
       })

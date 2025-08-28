@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -18,6 +18,10 @@ import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { RingPaymentModal } from './ring-payment-modal'
 import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
+import { initiateMembershipPayment } from '@/app/_actions/membership-payment'
+import { UserRole } from '@/features/auth/types'
 
 interface PaymentModalProps {
   onClose: () => void
@@ -29,10 +33,18 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const { balance } = useCreditBalance()
   const [showRingPayment, setShowRingPayment] = useState(false)
   const [selectedTab, setSelectedTab] = useState('ring')
+  const [formState, formAction] = useActionState(initiateMembershipPayment, null)
   
   const ringBalance = parseFloat(balance?.amount || '0')
   const membershipCost = 1.0
   const hasSufficientRing = ringBalance >= membershipCost
+  
+  // Redirect to WayForPay when server action returns a payment URL
+  useEffect(() => {
+    if (formState?.paymentUrl) {
+      window.location.href = formState.paymentUrl
+    }
+  }, [formState])
 
   if (showRingPayment) {
     return (
@@ -60,10 +72,12 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                 {t('payment.ring_tokens', { defaultValue: 'RING Tokens' })}
                 {hasSufficientRing && <Badge variant="default" className="text-xs">Available</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="fiat" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                {t('payment.fiat', { defaultValue: 'Fiat Currency' })}
-                <Badge variant="secondary" className="text-xs">Soon</Badge>
+              <TabsTrigger value="fiat" className="flex items-center justify-center gap-0">
+                <img
+                  src="/icons/mc-visa-google-apple-pay.svg"
+                  alt="Card methods: Mastercard, Visa, Google Pay, Apple Pay"
+                  className="h-5 w-auto opacity-90"
+                />
               </TabsTrigger>
             </TabsList>
 
@@ -149,17 +163,8 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
             </TabsContent>
 
             <TabsContent value="fiat" className="space-y-4">
-              {/* Fiat Payment Option */}
-              <Alert>
-                <Construction className="h-4 w-4" />
-                <AlertDescription>
-                  {t('payment.fiat_details.placeholder', { 
-                    defaultValue: 'Fiat payment integration (WayForPay) will be implemented in Phase 3. For now, please use RING tokens.' 
-                  })}
-                </AlertDescription>
-              </Alert>
-              
-              <div className="bg-muted p-4 rounded-lg text-center opacity-50">
+              {/* Card (WayForPay) Payment Option */}
+              <div className="bg-muted p-4 rounded-lg text-center">
                 <div className="flex justify-center items-center space-x-2 mb-2">
                   <span className="text-2xl font-bold">₴299</span>
                   <span className="text-sm text-muted-foreground">UAH</span>
@@ -168,16 +173,25 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                   {t('payment.membership_fee', { defaultValue: 'One-time membership upgrade fee' })}
                 </p>
               </div>
-              
-              <Button 
-                onClick={() => {
-                  alert('Fiat payment integration will be implemented in Phase 3')
-                }}
-                className="w-full"
-                disabled
-              >
-                {t('payment.fiat_details.proceed', { defaultValue: 'Proceed to Payment (Coming Soon)' })}
-              </Button>
+
+              {/* Server action form to initiate WayForPay membership payment */}
+              <form action={formAction} className="space-y-3">
+                {formState?.error && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800">
+                      {formState.error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <input type="hidden" name="targetRole" value={UserRole.MEMBER} />
+                {returnTo && <input type="hidden" name="returnUrl" value={returnTo} />}
+
+                <SubmitCardButton label={t('payment.fiat_details.proceed', { defaultValue: 'Proceed to Card Payment' })} />
+              </form>
+
+              {/* Error display (if any) handled inside CardPaymentForm */}
             </TabsContent>
           </Tabs>
           
@@ -193,5 +207,24 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function SubmitCardButton({ label }: { label: string }) {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? (
+        <>
+          <ArrowRight className="h-4 w-4 mr-2 animate-pulse" />
+          {label}
+        </>
+      ) : (
+        <>
+          <CreditCard className="h-4 w-4 mr-2" />
+          {label}
+        </>
+      )}
+    </Button>
   )
 }

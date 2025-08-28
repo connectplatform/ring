@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getStoreAdapterName } from '@/features/store/config'
 import { MockStoreAdapter } from '@/features/store/mock-adapter'
-import { FirebaseStoreAdapter } from '@/features/store/adapters/firebase-adapter'
+import { FirebaseStoreAdapter } from '@/lib/services/firebase-service-manager'
 
 export async function GET(request: Request) {
   try {

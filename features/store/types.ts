@@ -56,12 +56,16 @@ export interface ProductCompliance {
   intellectualPropertyStatus?: 'owned' | 'licensed' | 'pending' | 'none'
 }
 
+export type TokenCurrency = 'RING' | 'DAAR' | 'DAARION'
+export type FiatCurrency = 'UAH' | 'USD' | 'EUR'
+export type StoreCurrency = TokenCurrency | FiatCurrency
+
 export interface StoreProduct {
   id: string
   name: string
   description?: string
   price: string
-  currency: 'DAAR' | 'DAARION' | 'RING' // Added RING support
+  currency: StoreCurrency
   inStock: boolean
   category?: string
   tags?: string[]
@@ -93,6 +97,125 @@ export interface CheckoutInfo {
   address?: string
   city?: string
   notes?: string
+  phone?: string
+  postalCode?: string
+  country?: string
+}
+
+// Payment-related types
+export type PaymentMethod = 'wayforpay' | 'stripe' | 'crypto' | 'credit'
+export type PaymentStatus = 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'partially_refunded'
+export type RefundStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+export type DisputeStatus = 'open' | 'investigating' | 'resolved' | 'closed' | 'escalated'
+
+export interface StorePayment {
+  method: PaymentMethod
+  status: PaymentStatus
+  wayforpayOrderId?: string
+  wayforpayTransactionId?: string
+  stripeSessionId?: string
+  cryptoTxHash?: string
+  amount: number
+  currency: string
+  paidAt?: string
+  failureReason?: string
+  refundedAmount?: number
+  cardLast4?: string
+  cardType?: string
+  paymentSystem?: string
+}
+
+export interface StoreOrder {
+  id: string
+  userId: string
+  items: CartItem[]
+  subtotal: number
+  tax?: number
+  shipping?: number
+  total: number
+  status: 'new' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled'
+  payment?: StorePayment
+  shippingInfo: CheckoutInfo
+  vendorSettlements?: VendorSettlement[]
+  createdAt: string
+  updatedAt?: string
+  completedAt?: string
+  notes?: string
+}
+
+export interface VendorSettlement {
+  vendorId: string
+  vendorEntityId: string
+  productIds: string[]
+  subtotal: number
+  commission: number
+  commissionRate: number
+  netAmount: number
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  processedAt?: string
+  payoutMethod?: string
+  payoutReference?: string
+}
+
+export interface PaymentTransaction {
+  id: string
+  orderId: string
+  userId: string
+  vendorId?: string
+  gatewayId: 'wayforpay' | 'stripe' | 'crypto'
+  gatewayTransactionId: string
+  amount: number
+  currency: string
+  status: PaymentStatus
+  method: PaymentMethod
+  cardLast4?: string
+  cardType?: string
+  refundedAmount?: number
+  disputeStatus?: DisputeStatus
+  metadata?: Record<string, any>
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface Refund {
+  id: string
+  transactionId: string
+  orderId: string
+  amount: number
+  reason: string
+  status: RefundStatus
+  processedBy?: string
+  processedAt?: string
+  gatewayRefundId?: string
+  vendorApproval?: boolean
+  createdAt: string
+}
+
+export interface Dispute {
+  id: string
+  transactionId: string
+  orderId: string
+  buyerId: string
+  vendorId: string
+  reason: string
+  status: DisputeStatus
+  evidence?: Array<{
+    type: string
+    description: string
+    url?: string
+    submittedBy: string
+    submittedAt: string
+  }>
+  resolution?: {
+    decision: 'buyer_favor' | 'vendor_favor' | 'split' | 'cancelled'
+    amount?: number
+    notes: string
+    resolvedBy: string
+    resolvedAt: string
+  }
+  mediatorId?: string
+  createdAt: string
+  resolvedAt?: string
 }
 
 export interface StoreAdapter {
@@ -125,7 +248,7 @@ export interface OrderItem {
   productId: string
   name: string
   price: string
-  currency: 'DAAR' | 'DAARION' | 'RING'
+  currency: StoreCurrency
   quantity: number
   // Multi-vendor fields
   vendorId?: string

@@ -6,7 +6,7 @@
  */
 
 import { cache } from 'react'
-import { getCachedCollectionAdvanced } from '@/lib/services/firebase-helpers'
+import { getCachedCollectionTyped } from '@/lib/services/firebase-service-manager'
 import { Entity, SerializedEntity } from '@/features/entities/types'
 import { serializeEntity } from '@/lib/converters/entity-serializer'
 
@@ -17,7 +17,7 @@ import { serializeEntity } from '@/lib/converters/entity-serializer'
 export const getVendorEntity = cache(async (userId: string): Promise<SerializedEntity | null> => {
   try {
     // Query directly for entities with storeActivated: true and addedBy: userId
-    const result = await getCachedCollectionAdvanced<Entity>(
+    const result = await getCachedCollectionTyped<Entity>(
       'entities',
       {
         filters: [
@@ -47,7 +47,7 @@ export const getVendorEntity = cache(async (userId: string): Promise<SerializedE
  */
 export const hasVendorEntity = cache(async (userId: string): Promise<boolean> => {
   try {
-    const result = await getCachedCollectionAdvanced<Entity>(
+    const result = await getCachedCollectionTyped<Entity>(
       'entities',
       {
         filters: [
@@ -71,7 +71,7 @@ export const hasVendorEntity = cache(async (userId: string): Promise<boolean> =>
  */
 export const getVendorEntities = cache(async (userId: string): Promise<SerializedEntity[]> => {
   try {
-    const result = await getCachedCollectionAdvanced<Entity>(
+    const result = await getCachedCollectionTyped<Entity>(
       'entities',
       {
         filters: [
@@ -96,7 +96,7 @@ export const getVendorEntities = cache(async (userId: string): Promise<Serialize
  */
 export const getVendorEntityById = cache(async (entityId: string): Promise<SerializedEntity | null> => {
   try {
-    const result = await getCachedCollectionAdvanced<Entity>(
+    const result = await getCachedCollectionTyped<Entity>(
       'entities',
       {
         filters: [
@@ -127,7 +127,7 @@ export const getVendorEntitiesByStatus = cache(async (
   limit: number = 50
 ): Promise<SerializedEntity[]> => {
   try {
-    const result = await getCachedCollectionAdvanced<Entity>(
+    const result = await getCachedCollectionTyped<Entity>(
       'entities',
       {
         filters: [
@@ -161,25 +161,25 @@ export const getVendorEntityStats = cache(async (): Promise<VendorEntityStats> =
   try {
     // Run parallel queries for different statuses
     const [total, active, pending, suspended] = await Promise.all([
-      getCachedCollectionAdvanced<Entity>('entities', {
+      getCachedCollectionTyped<Entity>('entities', {
         filters: [{ field: 'storeActivated', operator: '==', value: true }],
         limit: 1000 // Reasonable limit for counting
       }),
-      getCachedCollectionAdvanced<Entity>('entities', {
+      getCachedCollectionTyped<Entity>('entities', {
         filters: [
           { field: 'storeActivated', operator: '==', value: true },
           { field: 'storeStatus', operator: '==', value: 'open' }
         ],
         limit: 1000
       }),
-      getCachedCollectionAdvanced<Entity>('entities', {
+      getCachedCollectionTyped<Entity>('entities', {
         filters: [
           { field: 'storeActivated', operator: '==', value: true },
           { field: 'storeStatus', operator: '==', value: 'pending' }
         ],
         limit: 1000
       }),
-      getCachedCollectionAdvanced<Entity>('entities', {
+      getCachedCollectionTyped<Entity>('entities', {
         filters: [
           { field: 'storeActivated', operator: '==', value: true },
           { field: 'storeStatus', operator: '==', value: 'suspended' }

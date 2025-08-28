@@ -39,6 +39,15 @@ export interface NotificationPreferences {
  * AuthUser interface
  * Defines the properties of an authenticated user
  */
+export interface RoleUpgradeHistory {
+  fromRole: UserRole;
+  toRole: UserRole;
+  upgradedAt: Date;
+  paymentReference: string;
+  paymentAmount: number;
+  paymentCurrency: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -67,6 +76,7 @@ export interface AuthUser {
   phoneNumber?: string;
   organization?: string;
   position?: string;
+  lastRoleUpgrade?: RoleUpgradeHistory;
 }
 
 /**

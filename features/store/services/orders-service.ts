@@ -18,6 +18,7 @@ import {
   updateDocument,
   getUserOrders 
 } from '@/lib/services/firebase-service-manager'
+import type { StorePayment, VendorSettlement } from '@/features/store/types'
 
 export const StoreOrdersService = {
   async listOrdersForUser(userId: string, opts?: { limit?: number; startAfter?: string }) {
@@ -124,6 +125,56 @@ export const StoreOrdersService = {
     } catch (error) {
       console.error('[StoreOrdersService] Error updating order status:', error)
       throw new Error('Failed to update order status')
+    }
+  },
+
+  async updateOrderPaymentStatus(id: string, paymentData: StorePayment) {
+    try {
+      await updateDocument('orders', id, {
+        payment: paymentData,
+        updatedAt: new Date().toISOString()
+      })
+      
+      return true
+    } catch (error) {
+      console.error('[StoreOrdersService] Error updating order payment status:', error)
+      throw new Error('Failed to update order payment status')
+    }
+  },
+
+  async updateOrderSettlements(id: string, settlements: VendorSettlement[]) {
+    try {
+      await updateDocument('orders', id, {
+        vendorSettlements: settlements,
+        updatedAt: new Date().toISOString()
+      })
+      
+      return true
+    } catch (error) {
+      console.error('[StoreOrdersService] Error updating order settlements:', error)
+      throw new Error('Failed to update order settlements')
+    }
+  },
+
+  async getOrderWithPaymentDetails(id: string) {
+    try {
+      const doc = await getCachedDocument('orders', id)
+      if (!doc || !doc.exists) return null
+      
+      const orderData: any = { id: doc.id, ...doc.data() }
+      
+      // Ensure payment data is included
+      if (!orderData.payment) {
+        orderData.payment = {
+          method: 'wayforpay',
+          status: 'pending'
+        }
+      }
+      
+      return orderData
+    } catch (error) {
+      console.error('[StoreOrdersService] Error getting order with payment details:', error)
+      throw new Error('Failed to retrieve order payment details')
     }
   }
 }

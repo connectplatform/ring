@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { FirebaseStoreAdapter } from '@/features/store/adapters/firebase-adapter'
+import { FirebaseStoreAdapter } from '@/lib/services/firebase-service-manager'
 import { MockStoreAdapter } from '@/features/store/mock-adapter'
 import { getStoreAdapterName } from '@/features/store/config'
 

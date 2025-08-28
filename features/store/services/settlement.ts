@@ -6,12 +6,12 @@
  */
 
 import { 
-  getCachedDocument,
-  updateDocument,
-  createDocument,
+  getCachedDocumentTyped,
+  updateDocumentTyped,
+  createDocumentTyped,
   runTransaction,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-helpers'
+  getCachedCollectionTyped
+} from '@/lib/services/firebase-service-manager'
 import { Order, VendorOrder } from '@/features/store/types'
 import { 
   VendorProfile,
@@ -121,7 +121,7 @@ export async function createSettlement(
   order: Order,
   vendorOrder: VendorOrder
 ): Promise<Settlement> {
-  const vendor = await getCachedDocument<VendorProfile>(
+  const vendor = await getCachedDocumentTyped<VendorProfile>(
     'vendorProfiles',
     `vendor_${vendorOrder.vendorId}`
   )
@@ -130,7 +130,7 @@ export async function createSettlement(
     throw new Error(`Vendor not found: ${vendorOrder.vendorId}`)
   }
   
-  const merchantConfig = await getCachedDocument<MerchantConfiguration>(
+  const merchantConfig = await getCachedDocumentTyped<MerchantConfiguration>(
     'merchantConfigs',
     vendor.storeMerchantConfigID || ''
   )
@@ -165,7 +165,7 @@ export async function createSettlement(
     }
   }
   
-  await createDocument('settlements', settlement.id, settlement)
+  await createDocumentTyped('settlements', settlement.id, settlement)
   
   return settlement
 }
@@ -215,7 +215,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
   const now = new Date().toISOString()
   
   // Get all pending settlements that are due
-  const dueSettlements = await getCachedCollectionAdvanced<Settlement>(
+  const dueSettlements = await getCachedCollectionTyped<Settlement>(
     'settlements',
     {
       filters: [
@@ -242,7 +242,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
     failedCount: 0
   }
   
-  await createDocument('payoutBatches', batch.id, batch)
+  await createDocumentTyped('payoutBatches', batch.id, batch)
   
   // Process each settlement
   for (const settlement of dueSettlements.items) {
@@ -254,7 +254,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
       batch.failedCount++
       
       // Mark settlement as failed
-      await updateDocument('settlements', settlement.id, {
+      await updateDocumentTyped('settlements', settlement.id, {
         status: 'failed',
         failureReason: error.message
       })
@@ -265,7 +265,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
   const batchStatus = batch.failedCount === 0 ? 'completed' : 
                       batch.completedCount === 0 ? 'failed' : 'partial'
   
-  await updateDocument('payoutBatches', batch.id, {
+  await updateDocumentTyped('payoutBatches', batch.id, {
     status: batchStatus,
     processedAt: new Date().toISOString(),
     completedCount: batch.completedCount,
@@ -283,18 +283,18 @@ async function processSettlement(
   batchId: string
 ): Promise<void> {
   // Update settlement status to processing
-  await updateDocument('settlements', settlement.id, {
+  await updateDocumentTyped('settlements', settlement.id, {
     status: 'processing'
   })
   
   try {
     // Get vendor's merchant configuration
-    const vendor = await getCachedDocument<VendorProfile>(
+    const vendor = await getCachedDocumentTyped<VendorProfile>(
       'vendorProfiles',
       `vendor_${settlement.vendorId}`
     )
     
-    const merchantConfig = await getCachedDocument<MerchantConfiguration>(
+    const merchantConfig = await getCachedDocumentTyped<MerchantConfiguration>(
       'merchantConfigs',
       vendor?.storeMerchantConfigID || ''
     )
@@ -322,7 +322,7 @@ async function processSettlement(
     }
     
     // Update settlement as completed
-    await updateDocument('settlements', settlement.id, {
+    await updateDocumentTyped('settlements', settlement.id, {
       status: 'completed',
       processedAt: new Date().toISOString(),
       transactionId,
@@ -397,7 +397,7 @@ export async function holdSettlement(
   settlementId: string,
   reason: string
 ): Promise<void> {
-  await updateDocument('settlements', settlementId, {
+  await updateDocumentTyped('settlements', settlementId, {
     status: 'held',
     metadata: {
       holdReason: reason,
@@ -412,7 +412,7 @@ export async function holdSettlement(
 export async function releaseHeldSettlement(
   settlementId: string
 ): Promise<void> {
-  const settlement = await getCachedDocument<Settlement>('settlements', settlementId)
+  const settlement = await getCachedDocumentTyped<Settlement>('settlements', settlementId)
   
   if (!settlement || settlement.status !== 'held') {
     throw new Error('Settlement not found or not held')
@@ -424,7 +424,7 @@ export async function releaseHeldSettlement(
     0 // No additional hold period
   )
   
-  await updateDocument('settlements', settlementId, {
+  await updateDocumentTyped('settlements', settlementId, {
     status: 'pending',
     scheduledFor: newScheduledDate,
     metadata: {
@@ -441,7 +441,7 @@ export async function getVendorPayoutHistory(
   vendorId: string,
   limit: number = 50
 ): Promise<Settlement[]> {
-  const settlements = await getCachedCollectionAdvanced<Settlement>(
+  const settlements = await getCachedCollectionTyped<Settlement>(
     'settlements',
     {
       filters: [
@@ -462,7 +462,7 @@ export async function getVendorPayoutHistory(
 export async function getVendorPendingPayouts(
   vendorId: string
 ): Promise<{ settlements: Settlement[], total: number }> {
-  const settlements = await getCachedCollectionAdvanced<Settlement>(
+  const settlements = await getCachedCollectionTyped<Settlement>(
     'settlements',
     {
       filters: [
@@ -488,7 +488,7 @@ export async function calculatePlatformRevenue(
   startDate: string,
   endDate: string
 ): Promise<{ total: number, breakdown: Record<string, number> }> {
-  const settlements = await getCachedCollectionAdvanced<Settlement>(
+  const settlements = await getCachedCollectionTyped<Settlement>(
     'settlements',
     {
       filters: [

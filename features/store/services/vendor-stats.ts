@@ -5,9 +5,9 @@
  */
 
 import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced 
-} from '@/lib/services/firebase-helpers'
+  getCachedDocumentTyped,
+  getCachedCollectionTyped 
+} from '@/lib/services/firebase-service-manager'
 import { VendorProfile, VendorDashboardStats } from '@/features/store/types/vendor'
 import { Order } from '@/features/store/types'
 import { StoreProduct } from '@/features/store/types'
@@ -21,7 +21,7 @@ export async function getVendorDashboardStats(entityId: string): Promise<VendorD
     const vendorId = `vendor_${entityId}`
     
     // Get vendor profile
-    const vendor = await getCachedDocument<VendorProfile>('vendorProfiles', vendorId)
+    const vendor = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
     
     // Get orders for this vendor
     const orders = await getVendorOrders(entityId)
@@ -123,7 +123,7 @@ export async function getVendorDashboardStats(entityId: string): Promise<VendorD
  */
 async function getVendorOrders(entityId: string): Promise<Order[]> {
   try {
-    const orders = await getCachedCollectionAdvanced<Order>(
+    const orders = await getCachedCollectionTyped<Order>(
       'orders',
       {
         filters: [
@@ -146,7 +146,7 @@ async function getVendorOrders(entityId: string): Promise<Order[]> {
  */
 async function getVendorProducts(entityId: string): Promise<StoreProduct[]> {
   try {
-    const products = await getCachedCollectionAdvanced<StoreProduct>(
+    const products = await getCachedCollectionTyped<StoreProduct>(
       'products',
       {
         filters: [

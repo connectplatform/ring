@@ -20,8 +20,8 @@ export async function getStoreAdapter(): Promise<StoreAdapter> {
 
   const name = getStoreAdapterName()
   if (name === 'firebase') {
-    const mod = await import('./adapters/firebase-adapter')
-    return new mod.FirebaseStoreAdapter()
+    const { FirebaseStoreAdapter } = await import('@/lib/services/firebase-service-manager')
+    return new FirebaseStoreAdapter()
   }
   // ConnectPlatform adapter is not wired yet; fallback to mock
   return new MockStoreAdapter()
