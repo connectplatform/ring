@@ -13,6 +13,8 @@ import type {
   FieldValue
 } from 'firebase-admin/firestore';
 
+// Store adapter types - defined locally to avoid circular imports
+
 /**
  * Centralized Firebase Service Manager
  * 
@@ -1136,6 +1138,298 @@ export async function updateUserProfileAndEntities(
   } catch (error) {
     console.error('[Firebase Manager] Error updating user profile and entities:', error);
     throw error;
+  }
+}
+
+/**
+ * TYPE-SAFE WRAPPER FUNCTIONS
+ * Enhanced functions with better type safety and data extraction
+ */
+
+/**
+ * Get a document and extract its data with type safety
+ * Enhanced version that returns typed data directly
+ */
+export async function getCachedDocumentTyped<T>(
+  collection: string, 
+  docId: string
+): Promise<T | null> {
+  const doc = await getCachedDocument(collection, docId)
+  if (!doc || !doc.exists) {
+    return null
+  }
+  return { id: doc.id, ...doc.data() } as T
+}
+
+/**
+ * Get collection with advanced query and extract typed data
+ * Enhanced version with better pagination and type safety
+ */
+export async function getCachedCollectionTyped<T>(
+  collection: string,
+  queryConfig: {
+    filters?: Array<{ field: string; operator: FirebaseFirestore.WhereFilterOp; value: any }>
+    orderBy?: { field: string; direction?: 'asc' | 'desc' }
+    limit?: number
+    startAfter?: any
+    endBefore?: any
+  } = {}
+): Promise<{ items: T[], lastVisible: string | null, totalCount?: number }> {
+  // Convert our interface to the expected format
+  const convertedConfig = {
+    where: queryConfig.filters,
+    orderBy: queryConfig.orderBy ? [queryConfig.orderBy] : undefined,
+    limit: queryConfig.limit,
+    startAfter: queryConfig.startAfter,
+    endBefore: queryConfig.endBefore
+  }
+  
+  const snapshot = await getCachedCollectionAdvanced(collection, convertedConfig)
+  
+  const items = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as T[]
+  
+  const lastVisible = snapshot.docs.length > 0 
+    ? snapshot.docs[snapshot.docs.length - 1].id 
+    : null
+  
+  return {
+    items,
+    lastVisible,
+    totalCount: items.length
+  }
+}
+
+/**
+ * Create document with proper data handling and ID cleanup
+ */
+export async function createDocumentTyped(
+  collection: string,
+  docId: string,
+  data: any
+): Promise<void> {
+  // Remove the id field if it exists in data to avoid conflicts
+  const { id, ...cleanData } = data
+  await createDocument(collection, cleanData, docId)
+}
+
+/**
+ * Update document with proper data handling and ID cleanup
+ */
+export async function updateDocumentTyped(
+  collection: string,
+  docId: string,
+  data: any
+): Promise<void> {
+  // Remove the id field if it exists in data to avoid conflicts
+  const { id, ...cleanData } = data
+  await updateDocument(collection, docId, cleanData)
+}
+
+/**
+ * BACKEND ADAPTER INTERFACE AND IMPLEMENTATION
+ * Generic backend operations with query filtering
+ */
+
+export interface QueryFilters {
+  where?: Array<{ field: string; op: '==' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'array-contains' | 'array-contains-any'; value: any }>;
+  orderBy?: Array<{ field: string; direction?: 'asc' | 'desc' }>;
+  limit?: number;
+  startAfterId?: string;
+}
+
+export interface BackendAdapter {
+  create<T>(collection: string, data: T): Promise<{ id: string; data: T }>
+  read<T>(collection: string, id: string): Promise<T | null>
+  update<T>(collection: string, id: string, data: Partial<T>): Promise<void>
+  delete(collection: string, id: string): Promise<void>
+  query<T>(collection: string, filters: QueryFilters): Promise<Array<{ id: string; data: T }>>
+}
+
+/**
+ * Firebase Backend Adapter Implementation
+ * Generic CRUD operations using firebase-service-manager
+ */
+export class FirebaseBackendAdapter implements BackendAdapter {
+  async create<T>(collection: string, data: T): Promise<{ id: string; data: T }> {
+    const docRef = await createDocument(collection, data as any)
+    const doc = await getCachedDocument(collection, docRef.id)
+    return { 
+      id: docRef.id, 
+      data: { id: docRef.id, ...(doc?.data() as any) } as T 
+    }
+  }
+
+  async read<T>(collection: string, id: string): Promise<T | null> {
+    return await getCachedDocumentTyped<T>(collection, id)
+  }
+
+  async update<T>(collection: string, id: string, data: Partial<T>): Promise<void> {
+    await updateDocumentTyped(collection, id, data)
+  }
+
+  async delete(collection: string, id: string): Promise<void> {
+    await deleteDocument(collection, id)
+  }
+
+  async query<T>(collection: string, filters: QueryFilters): Promise<Array<{ id: string; data: T }>> {
+    const queryConfig = {
+      filters: filters.where?.map(w => ({ 
+        field: w.field, 
+        operator: w.op as FirebaseFirestore.WhereFilterOp, 
+        value: w.value 
+      })),
+      orderBy: filters.orderBy?.[0],
+      limit: filters.limit
+    }
+
+    // Handle startAfterId if provided
+    let startAfter: any = undefined
+    if (filters.startAfterId) {
+      const startDoc = await getCachedDocument(collection, filters.startAfterId)
+      if (startDoc?.exists) {
+        startAfter = startDoc
+      }
+    }
+
+    const result = await getCachedCollectionTyped<T>(collection, {
+      ...queryConfig,
+      startAfter
+    })
+
+    return result.items.map(item => ({ 
+      id: (item as any).id, 
+      data: item 
+    }))
+  }
+}
+
+/**
+ * STORE ADAPTER INTERFACE AND IMPLEMENTATION
+ * Store-specific operations for products and checkout
+ */
+
+export type TokenCurrency = 'RING' | 'DAAR' | 'DAARION'
+export type FiatCurrency = 'UAH' | 'USD' | 'EUR'
+export type StoreCurrency = TokenCurrency | FiatCurrency
+
+export interface StoreProduct {
+  id: string
+  name: string
+  description?: string
+  price: string
+  currency: StoreCurrency
+  inStock: boolean
+}
+
+export interface CartItem {
+  product: StoreProduct
+  quantity: number
+}
+
+export interface CheckoutInfo {
+  firstName: string
+  lastName: string
+  email?: string
+  address?: string
+  city?: string
+  notes?: string
+  phone?: string
+  postalCode?: string
+  country?: string
+}
+
+export interface OrderItem {
+  productId: string
+  name: string
+  price: string
+  currency: StoreCurrency
+  quantity: number
+}
+
+export interface OrderTotalsByCurrency {
+  [currency: string]: number
+}
+
+export interface Order {
+  id: string
+  items: OrderItem[]
+  totals: OrderTotalsByCurrency
+  checkoutInfo: CheckoutInfo
+  status: string
+  createdAt: string
+}
+
+export interface StoreAdapter {
+  listProducts(): Promise<StoreProduct[]>
+  checkout(items: CartItem[], info: CheckoutInfo): Promise<{ orderId: string }>
+}
+
+/**
+ * Firebase Store Adapter Implementation
+ * Store-specific operations using firebase-service-manager
+ */
+export class FirebaseStoreAdapter implements StoreAdapter {
+  async listProducts(): Promise<StoreProduct[]> {
+    try {
+      const snapshot = await getCachedCollection('products', {
+        orderBy: { field: 'name', direction: 'asc' }
+      })
+      
+      const items: StoreProduct[] = []
+      snapshot.forEach(doc => {
+        const data = doc.data() as any
+        items.push({
+          id: doc.id,
+          name: data.name,
+          description: data.description,
+          price: String(data.price),
+          currency: data.currency,
+          inStock: Boolean(data.inStock),
+        })
+      })
+      
+      return items
+    } catch (error) {
+      console.error('[FirebaseStoreAdapter] Error listing products:', error)
+      throw new Error('Failed to retrieve products')
+    }
+  }
+
+  async checkout(items: CartItem[], info: CheckoutInfo): Promise<{ orderId: string }> {
+    try {
+      const orderItems: OrderItem[] = items.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        price: item.product.price,
+        currency: item.product.currency,
+        quantity: item.quantity,
+      }))
+      
+      const totals: OrderTotalsByCurrency = orderItems.reduce((acc, item) => {
+        const currency = item.currency
+        const price = parseFloat(item.price) * item.quantity
+        acc[currency] = (acc[currency] || 0) + price
+        return acc
+      }, {} as OrderTotalsByCurrency)
+
+      const now = new Date().toISOString()
+      const order: Omit<Order, 'id'> = {
+        items: orderItems,
+        totals,
+        checkoutInfo: info,
+        status: 'new',
+        createdAt: now,
+      }
+      
+      const docRef = await createDocument('orders', order)
+      return { orderId: docRef.id }
+    } catch (error) {
+      console.error('[FirebaseStoreAdapter] Error during checkout:', error)
+      throw new Error('Failed to process checkout')
+    }
   }
 }
 

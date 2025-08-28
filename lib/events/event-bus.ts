@@ -6,7 +6,7 @@
  */
 
 import { StoreEvent } from '@/constants/store'
-import { createDocument } from '@/lib/services/firebase-helpers'
+import { createDocumentTyped } from '@/lib/services/firebase-service-manager'
 
 export interface EventPayload {
   type: StoreEvent
@@ -33,7 +33,7 @@ export async function publishEvent(event: Omit<EventPayload, 'timestamp'>): Prom
   try {
     // Store event in Firestore for now
     // This can trigger Firebase Functions or be processed by background jobs
-    await createDocument('storeEvents', `${event.type}_${Date.now()}`, fullEvent)
+    await createDocumentTyped('storeEvents', `${event.type}_${Date.now()}`, fullEvent)
     
     // In production, you might also want to:
     // - Trigger Firebase Functions

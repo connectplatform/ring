@@ -1,5 +1,4 @@
-import type { BackendAdapter } from './types'
-import { FirebaseBackendAdapter } from './firebase-adapter'
+import { BackendAdapter, FirebaseBackendAdapter } from '@/lib/services/firebase-service-manager'
 
 export type BackendKind = 'firebase' | 'connect' | 'supabase' | 'prisma'
 
