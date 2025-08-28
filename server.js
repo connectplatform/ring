@@ -49,12 +49,16 @@ class WebSocketService {
         throw new Error('Invalid authentication token')
       }
 
-      console.log(`✅ WebSocket authentication successful for user: ${session.email || session.sub}`)
+      // Check if this is an anonymous user
+      const isAnonymous = session.sub && session.sub.startsWith('anon-')
+      
+      console.log(`✅ WebSocket authentication successful for ${isAnonymous ? 'anonymous' : 'authenticated'} user: ${session.email || session.sub}`)
       
       // Store user info for later use
       socket.userId = session.sub
       socket.userEmail = session.email
-      socket.userRole = session.role
+      socket.userRole = session.role || (isAnonymous ? 'anonymous' : 'subscriber')
+      socket.isAnonymous = isAnonymous
       
       return session
     } catch (error) {

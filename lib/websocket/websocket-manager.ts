@@ -94,23 +94,43 @@ export class WebSocketManager extends EventEmitter {
 
   /**
    * Get WebSocket authentication token from API
+   * Falls back to tunnel token for anonymous users
    */
   private async fetchAuthToken(): Promise<string> {
     try {
+      // First try the WebSocket auth endpoint for authenticated users
       const response = await fetch('/api/websocket/auth', {
         method: 'GET',
         credentials: 'include',
       })
 
-      if (!response.ok) {
-        throw new Error(`Auth failed: ${response.status}`)
+      if (response.ok) {
+        const data = await response.json()
+        this.currentToken = data.token
+        this.tokenExpiry = Date.now() + (data.expiresIn * 1000)
+        return data.token
       }
 
-      const data = await response.json()
-      this.currentToken = data.token
-      this.tokenExpiry = Date.now() + (data.expiresIn * 1000)
-      
-      return data.token
+      // If WebSocket auth fails (401), try tunnel token for anonymous users
+      if (response.status === 401) {
+        console.log('[WebSocketManager] WebSocket auth failed, trying tunnel token for anonymous connection')
+        
+        const tunnelResponse = await fetch('/api/tunnel/token', {
+          method: 'POST',
+          credentials: 'include',
+        })
+
+        if (tunnelResponse.ok) {
+          const tunnelData = await tunnelResponse.json()
+          this.currentToken = tunnelData.token
+          this.tokenExpiry = Date.now() + (tunnelData.expiresIn * 1000)
+          
+          console.log(`[WebSocketManager] Using ${tunnelData.anonymous ? 'anonymous' : 'authenticated'} tunnel token`)
+          return tunnelData.token
+        }
+      }
+
+      throw new Error(`Auth failed: ${response.status}`)
     } catch (error) {
       console.error('Failed to fetch WebSocket auth token:', error)
       throw error
