@@ -18,10 +18,10 @@ import { TunnelConnectionState, TunnelMessage } from '@/lib/tunnel/types'
 export function useRealtimeConnection() {
   const { status: sessionStatus } = useSession()
   
-  // Use the tunnel transport system with automatic authentication
+  // Use the tunnel transport system - let TunnelProvider handle auto-connect
   const tunnel = useTunnel({
-    autoConnect: sessionStatus === 'authenticated',
-    debug: process.env.NODE_ENV === 'development'
+    autoConnect: false, // Let TunnelProvider handle this
+    debug: false // Disable debug to prevent spam
   })
 
   // Map tunnel state to legacy WebSocket status
@@ -230,7 +230,10 @@ interface UserPresence {
 
 export function useRealtimePresence() {
   const [presence, setPresence] = useState<Map<string, UserPresence>>(new Map())
-  const tunnel = useTunnel()
+  const tunnel = useTunnel({
+    autoConnect: false, // Let TunnelProvider handle this
+    debug: false // Disable debug to prevent spam
+  })
   
   // Stable references to avoid re-subscriptions
   const isConnected = tunnel.isConnected
@@ -284,7 +287,10 @@ export function useRealtimePresence() {
  * System status hook for monitoring
  */
 export function useRealtimeSystemStatus() {
-  const tunnel = useTunnel()
+  const tunnel = useTunnel({
+    autoConnect: false, // Let TunnelProvider handle this
+    debug: false // Disable debug to prevent spam
+  })
   const [systemStatus, setSystemStatus] = useState({
     isHealthy: true,
     maintenanceMode: false,

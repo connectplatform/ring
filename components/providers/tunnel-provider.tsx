@@ -162,8 +162,8 @@ export function TunnelProvider({
     manager.on('transport:switch', handleTransportSwitch);
     manager.on('message', handleMessage);
     
-    // Auto-connect if enabled and authenticated
-    if (autoConnect && sessionStatus === 'authenticated' && !manager.isConnected()) {
+    // Auto-connect if enabled (supports both authenticated and anonymous users)
+    if (autoConnect && sessionStatus !== 'loading' && !manager.isConnected()) {
       manager.connect().catch(err => {
         console.error('[TunnelProvider] Failed to auto-connect:', err);
         setError(err);

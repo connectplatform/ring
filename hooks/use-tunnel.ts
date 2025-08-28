@@ -71,9 +71,6 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
   
   // If context is available and initialized, return it directly
   if (contextValue) {
-    if (debug) {
-      console.log('[useTunnel] Using shared TunnelContext instance');
-    }
     return contextValue as UseTunnelReturn;
   }
   
