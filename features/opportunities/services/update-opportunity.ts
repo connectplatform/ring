@@ -21,7 +21,7 @@ import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manag
  * 
  * @param {string} id - The unique identifier of the opportunity to update.
  * @param {Partial<Opportunity>} data - Partial Opportunity object containing the fields to update.
- * @returns {Promise<boolean>} A promise that resolves to true if the update was successful, false otherwise.
+ * @returns {Promise<Opportunity>} A promise that resolves to the updated Opportunity object.
  * @throws {Error} If the user is not authenticated or lacks the necessary permissions.
  * 
  * This function performs the following steps:
@@ -39,7 +39,7 @@ import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manag
  * 
  * Note: Only the opportunity creator, users with ADMIN role, or users with appropriate roles for confidential opportunities can update opportunities.
  */
-export async function updateOpportunity(id: string, data: Partial<Opportunity>): Promise<boolean> {
+export async function updateOpportunity(id: string, data: Partial<Opportunity>): Promise<Opportunity> {
   try {
     console.log('Services: updateOpportunity - Starting update for ID:', id);
 
@@ -66,7 +66,7 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
     // Step 3: Check if the opportunity exists
     if (!docSnap.exists) {
       console.warn('Services: updateOpportunity - No opportunity found with ID:', id);
-      return false;
+      throw new Error('Opportunity not found');
     }
 
     // Step 4: Get the current opportunity data and check permissions
@@ -95,11 +95,25 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
 
       invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin'])
 
-      return true; // Indicate successful update
+      // Step 7: Fetch and return the updated opportunity
+      const updatedDocSnap = await docRef.get();
+      if (!updatedDocSnap.exists) {
+        throw new Error('Failed to retrieve updated opportunity');
+      }
+
+      const updatedOpportunity = updatedDocSnap.data();
+      if (!updatedOpportunity) {
+        throw new Error('Updated opportunity has no data');
+      }
+
+      return {
+        ...updatedOpportunity,
+        id: updatedDocSnap.id,
+      } as Opportunity;
     }
 
     console.warn('Services: updateOpportunity - Opportunity data is null');
-    return false; // Opportunity not found or data is null
+    throw new Error('Opportunity not found or data is null');
   } catch (error) {
     console.error('Services: updateOpportunity - Error updating opportunity:', error);
     throw error instanceof Error ? error : new Error('Unknown error occurred while updating opportunity');

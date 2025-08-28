@@ -16,36 +16,32 @@ export const dynamic = 'force-dynamic'
 type EntityParams = { id: string };
 
 /**
- * Fetches a single entity using direct service call.
+ * Fetches a single entity using unified service with proper error handling.
  * 
- * @param session - The authenticated user session.
- * @param id - The ID of the entity to fetch.
- * @returns Promise<Entity> - A promise that resolves to the entity.
- * @throws Error if there's a problem fetching the entity or if the user is unauthorized.
+ * @param id - The ID of the entity to fetch
+ * @returns Promise<SerializedEntity> - A promise that resolves to the entity
+ * @throws EntityNotFoundError if entity doesn't exist
+ * @throws EntityAccessDeniedError if user lacks permissions
  */
-async function getEntity(
-  session: any,
-  id: string
-): Promise<SerializedEntity> {
-  console.log('getEntity: Starting direct service call', { sessionUserId: session.user.id, role: session.user.role, entityId: id });
-
+async function getEntity(id: string): Promise<SerializedEntity> {
   try {
-    // Import and call the service function directly
-    const { getSerializedEntityById } = await import('@/features/entities/services/get-entity-by-id');
+    // Use the unified service with proper authentication and error handling
+    const { getSerializedEntityById, EntityNotFoundError, EntityAccessDeniedError } = await import('@/features/entities/services/get-entity-by-id')
     
-    console.log('getEntity: Calling entity service');
-    const entity = await getSerializedEntityById(id);
+    const entity = await getSerializedEntityById(id)
     
     if (!entity) {
-      console.log('getEntity: Entity not found');
-      throw new Error('NOT_FOUND');
+      throw new EntityNotFoundError(id)
     }
 
-    console.log('getEntity: Entity fetched successfully', { entityId: entity.id });
-    return entity;
+    return entity
   } catch (error) {
-    console.error('getEntity: Error during service call:', error);
-    throw error;
+    // Re-throw structured errors as-is
+    if (error instanceof Error && (error.name === 'EntityNotFoundError' || error.name === 'EntityAccessDeniedError')) {
+      throw error
+    }
+    // Wrap unknown errors
+    throw new Error('Entity retrieval failed')
   }
 }
 
@@ -61,42 +57,20 @@ async function getEntity(
  * @returns Promise<React.ReactNode> - A promise that resolves to the rendered page content.
  */
 export default async function EntityPage(props: LocalePageProps<EntityParams>): Promise<React.ReactNode> {
-  console.log('EntityPage: Starting');
-
   // Resolve params and searchParams
-  const params = await props.params;
-  const searchParams = await props.searchParams;
+  const params = await props.params
+  const searchParams = await props.searchParams
 
   // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('EntityPage: Using locale', locale);
+  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
 
   // Load translations for React 19 metadata
-  const translations = loadTranslations(locale);
+  const translations = loadTranslations(locale)
 
-  console.log('Params:', params);
-  console.log('Search Params:', searchParams);
+  const { id } = params
 
-  const { id } = params;
-
-  const headersList = await headers()
-  const userAgent = headersList.get('user-agent')
-
-  console.log('EntityPage: Request details', {
-    entityId: id,
-    searchParams,
-    locale,
-    userAgent
-  });
-
-  console.log('EntityPage: Authenticating session');
-  const session = await auth();
-  console.log('EntityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id, role: session?.user?.role });
-
-  if (!session) {
-    console.log('EntityPage: No session, redirecting to login');
-    redirect(ROUTES.LOGIN(locale))
-  }
+  // Authentication is now handled by the unified service
+  // No need for manual session checks here
 
   let entity: SerializedEntity | null = null
   let error: string | null = null
@@ -108,34 +82,24 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
   const alternates = generateHreflangAlternates(`/entities/${id}`);
 
   try {
-    console.log('EntityPage: Fetching Entity');
-    entity = await getEntity(session, id)
-    console.log('EntityPage: Entity fetched successfully', { entityId: entity.id });
-
-    if (entity.isConfidential && session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN) {
-      console.log('EntityPage: Unauthorized access to confidential entity, redirecting');
-      redirect(ROUTES.UNAUTHORIZED(locale))
-    }
+    entity = await getEntity(id)
 
     // Generate entity-specific metadata
     if (entity) {
-      title = `${entity.name} | Ring App`;
-      description = entity.shortDescription || entity.fullDescription || `Learn more about ${entity.name} in the Ring App ecosystem.`;
+      title = `${entity.name} | Ring App`
+      description = entity.shortDescription || entity.fullDescription || `Learn more about ${entity.name} in the Ring App ecosystem.`
     }
 
   } catch (e) {
-    console.error("EntityPage: Error fetching Entity:", e)
     if (e instanceof Error) {
-      console.error('EntityPage: Error details', { message: e.message, stack: e.stack });
-      if (e.message === 'UNAUTHORIZED') {
-        console.log('EntityPage: Unauthorized, redirecting to login');
-        redirect(ROUTES.LOGIN(locale))
-      } else if (e.message === 'PERMISSION_DENIED') {
-        error = "You don't have permission to view this Entity. Please contact an administrator."
-      } else if (e.message === 'NOT_FOUND') {
+      if (e.name === 'EntityAccessDeniedError') {
+        if (e.message.includes('Authentication required')) {
+          redirect(ROUTES.LOGIN(locale))
+        } else {
+          redirect(ROUTES.UNAUTHORIZED(locale))
+        }
+      } else if (e.name === 'EntityNotFoundError') {
         return notFound()
-      } else if (e.message === 'FETCH_FAILED') {
-        error = "Failed to load Entity. Please try again later."
       } else {
         error = "An unexpected error occurred. Please try again later."
       }
@@ -144,7 +108,7 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
     }
   }
 
-  console.log('EntityPage: Rendering', { hasError: !!error, hasEntity: !!entity });
+  // Ready to render
 
   return (
     <>

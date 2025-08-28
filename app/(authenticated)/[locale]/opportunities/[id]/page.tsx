@@ -19,82 +19,46 @@ export const dynamic = 'force-dynamic'
 type OpportunityParams = { id: string };
 
 /**
- * Fetches opportunity data by its ID using direct service calls.
+ * Fetches opportunity data using unified services with proper error handling.
  * 
- * @param session - The authenticated user session.
- * @param id - The unique identifier of the opportunity to fetch.
- * @returns Promise<{ opportunity: SerializedOpportunity | null; entity: Entity | null }> - A promise that resolves to the opportunity and associated entity data.
- * @throws Error if there's a problem fetching the opportunity data.
+ * @param id - The unique identifier of the opportunity to fetch
+ * @returns Promise with opportunity and associated entity data
+ * @throws OpportunityNotFoundError if opportunity doesn't exist
+ * @throws OpportunityAccessDeniedError if user lacks permissions
  */
 async function getOpportunityData(
-  session: any,
   id: string
 ): Promise<{ opportunity: SerializedOpportunity | null; entity: SerializedEntity | null }> {
-  console.log('getOpportunityData: Starting direct service call', { sessionUserId: session.user.id, role: session.user.role, opportunityId: id });
-
   try {
-    // Import and call the service functions directly
-    const { getOpportunityById } = await import('@/features/opportunities/services/get-opportunity-by-id');
-    const { getEntityById } = await import('@/features/entities/services/get-entity-by-id');
+    // Use unified services with proper authentication and error handling
+    const { getSerializedOpportunityById, OpportunityNotFoundError, OpportunityAccessDeniedError } = await import('@/features/opportunities/services/get-opportunity-by-id')
+    const { getSerializedEntityById } = await import('@/features/entities/services/get-entity-by-id')
     
-    console.log('getOpportunityData: Calling opportunity service');
-    const opportunity = await getOpportunityById(id);
+    const opportunity = await getSerializedOpportunityById(id)
     
     if (!opportunity) {
-      console.log('getOpportunityData: Opportunity not found');
-      throw new Error('NOT_FOUND');
+      throw new OpportunityNotFoundError(id)
     }
-
-    // Serialize the opportunity timestamps
-    const timestampToISO = (timestamp: any): string => {
-      if (timestamp && typeof timestamp.toDate === 'function') {
-        return timestamp.toDate().toISOString();
-      }
-      if (timestamp instanceof Date) {
-        return timestamp.toISOString();
-      }
-      return new Date().toISOString();
-    };
-
-    const serializedOpportunity: SerializedOpportunity = {
-      ...opportunity,
-      dateCreated: timestampToISO(opportunity.dateCreated),
-      dateUpdated: timestampToISO(opportunity.dateUpdated),
-      expirationDate: timestampToISO(opportunity.expirationDate),
-      applicationDeadline: opportunity.applicationDeadline ? timestampToISO(opportunity.applicationDeadline) : undefined,
-    };
 
     // Try to get the associated entity if organizationId is available
-    let entity: SerializedEntity | null = null;
+    let entity: SerializedEntity | null = null
     if (opportunity.organizationId) {
       try {
-        console.log('getOpportunityData: Calling entity service');
-        const rawEntity = await getEntityById(opportunity.organizationId);
-        
-        if (rawEntity) {
-          // Serialize the entity timestamps
-          entity = {
-            ...rawEntity,
-            dateAdded: timestampToISO(rawEntity.dateAdded),
-            lastUpdated: timestampToISO(rawEntity.lastUpdated),
-            memberSince: rawEntity.memberSince ? timestampToISO(rawEntity.memberSince) : undefined,
-          };
-        }
+        entity = await getSerializedEntityById(opportunity.organizationId)
       } catch (entityError) {
-        console.warn('getOpportunityData: Could not fetch associated entity', { entityError });
         // Continue without entity - this is not a critical error
+        // The entity might be confidential or deleted
       }
     }
-
-    console.log('getOpportunityData: Data fetched successfully', { 
-      opportunityExists: !!serializedOpportunity,
-      entityExists: !!entity
-    });
     
-    return { opportunity: serializedOpportunity, entity };
+    return { opportunity, entity }
   } catch (error) {
-    console.error('getOpportunityData: Error during service call:', error);
-    throw error;
+    // Re-throw structured errors as-is
+    if (error instanceof Error && (error.name === 'OpportunityNotFoundError' || error.name === 'OpportunityAccessDeniedError')) {
+      throw error
+    }
+    // Wrap unknown errors
+    throw new Error('Opportunity retrieval failed')
   }
 }
 
@@ -112,42 +76,20 @@ async function getOpportunityData(
  * @returns Promise<React.ReactNode> - A promise that resolves to the rendered page content.
  */
 export default async function OpportunityPage(props: LocalePageProps<OpportunityParams>): Promise<React.ReactNode> {
-  console.log('OpportunityPage: Starting');
-
   // Resolve params and searchParams
-  const params = await props.params;
-  const searchParams = await props.searchParams;
+  const params = await props.params
+  const searchParams = await props.searchParams
 
   // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('OpportunityPage: Using locale', locale);
+  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
 
   // Load translations for React 19 metadata
-  const translations = loadTranslations(locale);
+  const translations = loadTranslations(locale)
 
-  console.log('Params:', params);
-  console.log('Search Params:', searchParams);
+  const { id } = params
 
-  const { id } = params;
-
-  const headersList = await headers()
-  const userAgent = headersList.get('user-agent')
-
-  console.log('OpportunityPage: Request details', {
-    opportunityId: id,
-    searchParams,
-    locale,
-    userAgent
-  });
-
-  console.log('OpportunityPage: Authenticating session');
-  const session = await auth();
-  console.log('OpportunityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id, role: session?.user?.role });
-
-  if (!session) {
-    console.log('OpportunityPage: No session, redirecting to login');
-    redirect(ROUTES.LOGIN(locale))
-  }
+  // Authentication is now handled by the unified service
+  // No need for manual session checks here
 
   let opportunity: SerializedOpportunity | null = null
   let entity: SerializedEntity | null = null
@@ -160,38 +102,26 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
   const alternates = generateHreflangAlternates(`/opportunities/${id}`);
 
   try {
-    console.log('OpportunityPage: Fetching Opportunity');
-    const data = await getOpportunityData(session, id)
+    const data = await getOpportunityData(id)
     opportunity = data.opportunity
     entity = data.entity
-    console.log('OpportunityPage: Opportunity fetched successfully', { opportunityId: opportunity?.id, entityId: entity?.id });
-
-    if (opportunity?.isConfidential && session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN) {
-      console.log('OpportunityPage: Unauthorized access to confidential opportunity, redirecting');
-      redirect(ROUTES.UNAUTHORIZED(locale))
-    }
-
-    // Allow rendering even if associated entity was not found; page will show opportunity-only view
 
     // Generate opportunity-specific metadata
     if (opportunity) {
-      title = `${opportunity.title} | Ring App`;
-      description = opportunity.briefDescription || opportunity.fullDescription;
+      title = `${opportunity.title} | Ring App`
+      description = opportunity.briefDescription || opportunity.fullDescription
     }
 
   } catch (e) {
-    console.error("OpportunityPage: Error fetching Opportunity:", e)
     if (e instanceof Error) {
-      console.error('OpportunityPage: Error details', { message: e.message, stack: e.stack });
-      if (e.message === 'UNAUTHORIZED') {
-        console.log('OpportunityPage: Unauthorized, redirecting to login');
-        redirect(ROUTES.LOGIN(locale))
-      } else if (e.message === 'PERMISSION_DENIED') {
-        error = "You don't have permission to view this Opportunity. Please contact an administrator."
-      } else if (e.message === 'NOT_FOUND') {
+      if (e.name === 'OpportunityAccessDeniedError') {
+        if (e.message.includes('Authentication required')) {
+          redirect(ROUTES.LOGIN(locale))
+        } else {
+          redirect(ROUTES.UNAUTHORIZED(locale))
+        }
+      } else if (e.name === 'OpportunityNotFoundError') {
         return notFound()
-      } else if (e.message === 'FETCH_FAILED') {
-        error = "Failed to load Opportunity. Please try again later."
       } else {
         error = "An unexpected error occurred. Please try again later."
       }
@@ -200,7 +130,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
     }
   }
 
-  console.log('OpportunityPage: Rendering', { hasError: !!error, hasOpportunity: !!opportunity, hasEntity: !!entity });
+  // Ready to render
 
   return (
     <>

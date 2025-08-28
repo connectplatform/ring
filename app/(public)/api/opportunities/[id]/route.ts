@@ -1,22 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth'; // Auth.js session handling
-import { deleteOpportunity } from '@/features/opportunities/services/delete-opportunity';
-import { getOpportunityById } from '@/features/opportunities/services/get-opportunity-by-id';
-import { getEntityById } from '@/features/entities/services/get-entity-by-id';
-import { updateOpportunity } from '@/features/opportunities/services/update-opportunity';
-import { UserRole } from '@/features/auth/types';
-import { Opportunity, OpportunityVisibility } from '@/features/opportunities/types';
-import { RouteHandlerProps } from '@/types/next-page';
-
-/**
- * Checks if a user has confidential access based on their role.
- * @param user - The user session object.
- * @returns {boolean} True if the user has confidential access.
- */
-async function hasConfidentialAccess(user: any): Promise<boolean> {
-  if (!user) return false;
-  return ['admin', 'confidential'].includes(user.role as UserRole);
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { deleteOpportunity } from '@/features/opportunities/services/delete-opportunity'
+import { getOpportunityById, OpportunityNotFoundError, OpportunityAccessDeniedError } from '@/features/opportunities/services/get-opportunity-by-id'
+import { getEntityById } from '@/features/entities/services/get-entity-by-id'
+import { updateOpportunity } from '@/features/opportunities/services/update-opportunity'
+import { Opportunity } from '@/features/opportunities/types'
+import { RouteHandlerProps } from '@/types/next-page'
 
 /**
  * Handle GET: Retrieve a single opportunity by ID.
@@ -29,47 +17,40 @@ export async function GET(
   req: NextRequest,
   context: RouteHandlerProps<{ id: string }>
 ) {
-  console.log('API: /api/opportunities/[id] - Processing GET request');
-  
   // Get the ID from the route params (Next.js 15 style)
-  const params = await context.params;
-  const { id } = params;
-  
-  console.log('GET function called with params:', { id });
+  const params = await context.params
+  const { id } = params
 
   try {
-    // Authenticate the user
-    const session = await auth();
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Fetch opportunity by ID
-    const opportunity = await getOpportunityById(id);
+    // Use unified service with built-in authentication and authorization
+    const opportunity = await getOpportunityById(id)
+    
     if (!opportunity) {
-      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 });
-    }
-
-    // Confidential access check
-    const isConfidential = await hasConfidentialAccess(session.user);
-    if (!isConfidential && opportunity.visibility === 'confidential') {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 })
     }
 
     // Fetch associated entity for convenience in detail views
-    let entity = null;
+    let entity = null
     try {
-      entity = await getEntityById(opportunity.organizationId);
+      entity = await getEntityById(opportunity.organizationId)
     } catch (e) {
       // If entity lookup fails, continue; client can handle null entity
-      entity = null;
+      entity = null
     }
 
-    console.log('API: /api/opportunities/[id] - Opportunity retrieved successfully');
-    return NextResponse.json({ opportunity, entity }, { status: 200 });
+    return NextResponse.json({ opportunity, entity }, { status: 200 })
   } catch (error) {
-    console.error('API: /api/opportunities/[id] - Error fetching opportunity:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof OpportunityAccessDeniedError) {
+      if (error.message.includes('Authentication required')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      } else {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    }
+    if (error instanceof OpportunityNotFoundError) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 })
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
 
@@ -84,46 +65,39 @@ export async function PUT(
   req: NextRequest,
   context: RouteHandlerProps<{ id: string }>
 ) {
-  console.log('API: /api/opportunities/[id] - Processing PUT request');
-  
   // Get the ID from the route params (Next.js 15 style)
-  const params = await context.params;
-  const { id } = params;
+  const params = await context.params
+  const { id } = params
 
   try {
-    // Authenticate the user
-    const session = await auth();
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Extract request body
-    const body: Partial<Opportunity> = await req.json();
-    const isConfidential = await hasConfidentialAccess(session.user);
+    const body: Partial<Opportunity> = await req.json()
 
-    // Confidential role handling
-    if (isConfidential && body.visibility === 'confidential') {
-      console.log('API: /api/opportunities/[id] - Updating confidential opportunity');
-      // Add any additional checks/processing here for confidential opportunities
-    }
-
-    // Update the opportunity
-    const updateSuccess = await updateOpportunity(id, body);
+    // Update the opportunity (this will handle authentication internally)
+    const updateSuccess = await updateOpportunity(id, body)
     if (!updateSuccess) {
-      return NextResponse.json({ error: 'Opportunity update failed' }, { status: 400 });
+      return NextResponse.json({ error: 'Opportunity update failed' }, { status: 400 })
     }
 
-    // Retrieve the updated opportunity
-    const updatedOpportunity = await getOpportunityById(id);
+    // Retrieve the updated opportunity using unified service
+    const updatedOpportunity = await getOpportunityById(id)
     if (!updatedOpportunity) {
-      return NextResponse.json({ error: 'Opportunity not found after update' }, { status: 404 });
+      return NextResponse.json({ error: 'Opportunity not found after update' }, { status: 404 })
     }
 
-    console.log('API: /api/opportunities/[id] - Opportunity updated successfully');
-    return NextResponse.json(updatedOpportunity, { status: 200 });
+    return NextResponse.json(updatedOpportunity, { status: 200 })
   } catch (error) {
-    console.error('API: /api/opportunities/[id] - Error updating opportunity:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof OpportunityAccessDeniedError) {
+      if (error.message.includes('Authentication required')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      } else {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    }
+    if (error instanceof OpportunityNotFoundError) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 })
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
 
@@ -138,37 +112,30 @@ export async function DELETE(
   req: NextRequest,
   context: RouteHandlerProps<{ id: string }>
 ) {
-  console.log('API: /api/opportunities/[id] - Processing DELETE request');
-  
   // Get the ID from the route params (Next.js 15 style)
-  const params = await context.params;
-  const { id } = params;
+  const params = await context.params
+  const { id } = params
 
   try {
-    // Authenticate the user
-    const session = await auth();
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Confidential role handling
-    const isConfidential = await hasConfidentialAccess(session.user);
-    if (isConfidential) {
-      console.log('API: /api/opportunities/[id] - Deleting confidential opportunity');
-      // Add any additional checks/logic for confidential deletion, if necessary
-    }
-
-    // Delete the opportunity
-    const success = await deleteOpportunity(id);
+    // Delete the opportunity (this will handle authentication internally)
+    const success = await deleteOpportunity(id)
     if (!success) {
-      return NextResponse.json({ error: 'Failed to delete opportunity' }, { status: 400 });
+      return NextResponse.json({ error: 'Failed to delete opportunity' }, { status: 400 })
     }
 
-    console.log('API: /api/opportunities/[id] - Opportunity deleted successfully');
-    return NextResponse.json({ message: 'Opportunity deleted successfully' }, { status: 200 });
+    return NextResponse.json({ message: 'Opportunity deleted successfully' }, { status: 200 })
   } catch (error) {
-    console.error('API: /api/opportunities/[id] - Error deleting opportunity:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (error instanceof OpportunityAccessDeniedError) {
+      if (error.message.includes('Authentication required')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      } else {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
+    }
+    if (error instanceof OpportunityNotFoundError) {
+      return NextResponse.json({ error: 'Opportunity not found' }, { status: 404 })
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
 

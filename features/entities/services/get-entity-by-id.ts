@@ -13,7 +13,7 @@ import { Entity, SerializedEntity } from '@/features/entities/types'
 import { cache } from 'react'
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
 import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache'
-import { getCachedDocument, getCachedCollectionAdvanced } from '@/lib/services/firebase-helpers'
+import { getCachedDocumentTyped, getCachedCollectionTyped } from '@/lib/services/firebase-service-manager'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 
@@ -113,7 +113,7 @@ export const getEntityById = cache(async (id: string): Promise<Entity | null> =>
       entity = cachedEntities.find(e => e.id === id) as Entity || null
     } else {
       // Runtime: Use Firebase
-      entity = await getCachedDocument<Entity>('entities', id)
+      entity = await getCachedDocumentTyped<Entity>('entities', id)
     }
 
     if (!entity) {
@@ -172,7 +172,7 @@ export const getSerializedEntityById = cache(async (id: string): Promise<Seriali
  */
 export const getEntity = cache(async (entityId: string): Promise<Entity | null> => {
   try {
-    const entity = await getCachedDocument<Entity>('entities', entityId)
+    const entity = await getCachedDocumentTyped<Entity>('entities', entityId)
     
     // Only return public entities for unauthenticated access
     if (entity && entity.isConfidential) {
@@ -207,7 +207,7 @@ export const getUserEntities = cache(async (userId: string): Promise<Entity[]> =
       throw new EntityAccessDeniedError('Can only view own entities')
     }
 
-    const result = await getCachedCollectionAdvanced<Entity>('entities', {
+    const result = await getCachedCollectionTyped<Entity>('entities', {
       filters: [{ field: 'createdBy', operator: '==', value: userId }],
       orderBy: { field: 'createdAt', direction: 'desc' }
     })
