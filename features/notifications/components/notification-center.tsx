@@ -21,6 +21,7 @@ import { useSession } from 'next-auth/react';
 import { useWebSocketNotifications } from '@/hooks/use-websocket';
 import { useWebSocketConnection } from '@/hooks/use-websocket';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
+import { useUnreadCount } from '@/hooks/use-unread-count';
 import { NotificationItem } from './notification-item';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
@@ -97,6 +98,13 @@ export function NotificationCenter({
     refresh: wsRefresh
   } = useWebSocketNotifications();
 
+  // Optimized unread count with caching
+  const { unreadCount: cachedUnreadCount, refresh: refreshUnreadCount } = useUnreadCount({
+    autoRefresh: true,
+    refreshInterval: 180000, // 3 minutes
+    cacheTimeout: 120000 // 2 minutes cache TTL
+  });
+
   // Local state for notifications (combines WebSocket and initial load)
   const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
   const [isLoadingInitial, setIsLoadingInitial] = useState(false);
@@ -130,10 +138,11 @@ export function NotificationCenter({
     }
   );
 
-  // Calculate optimistic unread count
-  const optimisticUnreadCount = optimisticNotifications.filter(
-    n => n.status !== NotificationStatus.READ
-  ).length;
+  // Calculate optimistic unread count with fallback to cached count
+  const optimisticUnreadCount = Math.max(
+    optimisticNotifications.filter(n => n.status !== NotificationStatus.READ).length,
+    cachedUnreadCount
+  );
 
   // React 19 Enhanced Navigation
   const { navigateToNotificationsList, navigateToSettings, isNavigating } = useNotificationNavigation();

@@ -165,7 +165,7 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className={`sticky top-0 z-50 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'}`}>
+      <nav className={`sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="flex justify-between items-center p-4">
           <Link href={ROUTES.HOME(locale)} className="flex items-center gap-4" aria-label={tCommon('labels.homeLink')}>
             <div className="w-12 h-12">

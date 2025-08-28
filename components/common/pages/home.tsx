@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, Variants } from 'framer-motion'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -35,6 +35,12 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
   const tPages = useTranslations('pages.home')
   const tConfig = useTranslations('config')
   const { theme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Determine the current theme (dark or light)
   const currentTheme = theme === 'system' ? resolvedTheme : theme
@@ -141,36 +147,36 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
     <div style={containerStyle}>
       <motion.h1 
         style={titleStyle}
-        variants={titleVariants}
-        initial="hidden"
-        animate="visible"
+        variants={mounted ? titleVariants : undefined}
+        initial={mounted ? "hidden" : false}
+        animate={mounted ? "visible" : false}
         className="motion-safe motion-element"
       >
         {tPages('hero.title', { platform: tConfig('platform.name') })}
       </motion.h1>
       <motion.h2 
         style={subtitleStyle}
-        variants={subtitleVariants}
-        initial="hidden"
-        animate="visible"
+        variants={mounted ? subtitleVariants : undefined}
+        initial={mounted ? "hidden" : false}
+        animate={mounted ? "visible" : false}
         className="motion-safe motion-element"
       >
         {tPages('hero.subtitle')}
       </motion.h2>
       <motion.p 
         style={descriptionStyle}
-        variants={textVariants}
-        initial="hidden"
-        animate="visible"
+        variants={mounted ? textVariants : undefined}
+        initial={mounted ? "hidden" : false}
+        animate={mounted ? "visible" : false}
         className="motion-safe motion-element"
       >
         {tPages('hero.description')}
       </motion.p>
       <motion.div
         style={linksContainerStyle}
-        variants={linksVariants}
-        initial="hidden"
-        animate="visible"
+        variants={mounted ? linksVariants : undefined}
+        initial={mounted ? "hidden" : false}
+        animate={mounted ? "visible" : false}
         className="motion-safe motion-element"
       >
         <Link href="/entities" style={entitiesLinkStyle}>
@@ -185,9 +191,9 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
       {session && (
         <motion.p
           style={sessionMessageStyle}
-          variants={sessionMessageVariants}
-          initial="hidden"
-          animate="visible"
+          variants={mounted ? sessionMessageVariants : undefined}
+          initial={mounted ? "hidden" : false}
+          animate={mounted ? "visible" : false}
           className="motion-safe motion-element"
         >
           {tCommon('messages.welcome', { name: session.user?.name || 'User' })}
