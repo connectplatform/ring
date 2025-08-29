@@ -1,6 +1,6 @@
 {
     "name": "ring",
-    "version": "0.9.6",
+    "version": "0.9.7",
     "private": true,
     "type": "module",
     "scripts": {
@@ -93,9 +93,11 @@
         "os-browserify": "^0.3.0",
         "path-browserify": "^1.0.1",
         "process": "^0.11.10",
+        "qrcode.js": "^0.0.1",
         "react": "^19.1.1",
         "react-dom": "^19.1.1",
         "react-error-boundary": "^6.0.0",
+        "react-hook-form": "^7.62.0",
         "react-icons": "^5.5.0",
         "react-world-flags": "^1.6.0",
         "socket.io": "^4.8.1",

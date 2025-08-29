@@ -1439,8 +1439,15 @@ export class FirebaseStoreAdapter implements StoreAdapter {
  */
 
 /**
- * Get Firestore instance (legacy compatibility)
- * @deprecated Use specific cached operations instead
+ * Get Firestore instance for direct database operations
+ * 
+ * Use this for:
+ * - Subcollections (users/{id}/addresses, users/{id}/preferences)
+ * - Complex queries requiring direct database access
+ * - Batch operations and transactions
+ * 
+ * For top-level collections, prefer specific cached operations like:
+ * getCachedDocument(), updateDocument(), createDocument()
  */
 export function getFirebaseServiceManager() {
   return {
