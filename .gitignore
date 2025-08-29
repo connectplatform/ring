@@ -8,4 +8,8 @@ tsconfig.tsbuildinfo
 .env*.local
 svc.json
 .DS_Store
-env.production
+*.env.production
+log/*.json
+docs/2025-*
+*.md
+.gitignore
