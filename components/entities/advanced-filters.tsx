@@ -417,10 +417,10 @@ const EntityAdvancedFilters = ({
               <span className="text-xs text-muted-foreground">{tCommon('activeFilters')}:</span>
               <Badge variant="secondary" className="text-xs">
                 {[
-                  filters.types.length > 0 && `${filters.types.length} ${t('types')}`,
-                  filters.location && t('location'),
-                  filters.verificationStatus !== 'all' && t('verification'),
-                  filters.employeeCountMin && t('companySize')
+                  filters.types.length > 0 && `${filters.types.length} ${t('filters.types')}`,
+                  filters.location && t('filters.location'),
+                  filters.verificationStatus !== 'all' && t('filters.verification'),
+                  filters.employeeCountMin && t('filters.companySize')
                 ].filter(Boolean).join(', ')}
               </Badge>
             </div>
