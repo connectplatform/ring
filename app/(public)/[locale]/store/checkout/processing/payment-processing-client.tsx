@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
@@ -26,8 +26,20 @@ export default function PaymentProcessingClient({
   const [attempts, setAttempts] = useState(0)
   const [isChecking, setIsChecking] = useState(false)
 
+  // Refs to avoid stale values inside interval
+  const statusRef = useRef<PaymentStatus>('processing')
+  const isCheckingRef = useRef(false)
+
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
+
+  useEffect(() => {
+    isCheckingRef.current = isChecking
+  }, [isChecking])
+
   const checkPaymentStatus = useCallback(async () => {
-    if (isChecking) return
+    if (isCheckingRef.current) return
     
     setIsChecking(true)
     setError(null)
@@ -74,7 +86,7 @@ export default function PaymentProcessingClient({
       setIsChecking(false)
       setAttempts(prev => prev + 1)
     }
-  }, [orderId, locale, isChecking, t, router])
+  }, [orderId, locale, t, router])
 
   useEffect(() => {
     // Check status immediately
@@ -82,9 +94,12 @@ export default function PaymentProcessingClient({
     
     // Then check every 3 seconds for up to 2 minutes
     const maxAttempts = 40 // 40 * 3 seconds = 2 minutes
+    let localAttempts = 0
     
     const interval = setInterval(() => {
-      if (attempts < maxAttempts && !['paid', 'failed', 'cancelled', 'refunded'].includes(status)) {
+      if (localAttempts < maxAttempts && !['paid', 'failed', 'cancelled', 'refunded'].includes(statusRef.current)) {
+        localAttempts += 1
+        setAttempts(localAttempts)
         checkPaymentStatus()
       } else {
         clearInterval(interval)
@@ -92,7 +107,7 @@ export default function PaymentProcessingClient({
     }, 3000)
     
     return () => clearInterval(interval)
-  }, []) // Only run once on mount
+  }, [checkPaymentStatus])
 
   const handleManualCheck = () => {
     setAttempts(0)

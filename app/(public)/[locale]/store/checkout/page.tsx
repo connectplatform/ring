@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Locale } from '@/i18n-config'
-import CheckoutClient from './checkoutClient'
+import CheckoutClient from './checkout-client'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 

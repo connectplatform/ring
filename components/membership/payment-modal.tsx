@@ -14,6 +14,7 @@ import {
   ArrowRight,
   AlertTriangle
 } from 'lucide-react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { RingPaymentModal } from './ring-payment-modal'
@@ -73,10 +74,13 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                 {hasSufficientRing && <Badge variant="default" className="text-xs">Available</Badge>}
               </TabsTrigger>
               <TabsTrigger value="fiat" className="flex items-center justify-center gap-0">
-                <img
+                <Image
                   src="/icons/mc-visa-google-apple-pay.svg"
                   alt="Card methods: Mastercard, Visa, Google Pay, Apple Pay"
-                  className="h-5 w-auto opacity-90"
+                  height={20}
+                  width={120}
+                  className="opacity-90 h-5 w-auto"
+                  priority
                 />
               </TabsTrigger>
             </TabsList>

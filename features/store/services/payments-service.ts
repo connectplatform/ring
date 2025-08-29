@@ -1,8 +1,8 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Direct optimized function calls instead of service manager wrapper
+// 🚀 OPTIMIZED SERVICE: Server-side payment orchestration
+// - Direct Firebase operations via service manager
 // - Enhanced error handling and performance monitoring
-// - Build-time phase detection and intelligent caching strategies
 // - WayForPay integration for Ukrainian market
+// - Used in API routes and server actions only
 
 import { updateDocument } from '@/lib/services/firebase-service-manager'
 import type { StorePayment, VendorSettlement } from '@/features/store/types'
