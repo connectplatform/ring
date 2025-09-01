@@ -1,0 +1,15 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="630" fill="url(#grad1)"/>
+        <circle cx="150" cy="150" r="60" fill="white" opacity="0.2"/>
+        <circle cx="1050" cy="480" r="60" fill="white" opacity="0.2"/>
+        <text x="600" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="white">🔗 Ring Platform</text>
+        <text x="600" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" fill="white" opacity="0.9">Professional Networking with Web3</text>
+        <text x="600" y="350" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="white" opacity="0.8">Documentation</text>
+        <text x="600" y="580" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="white" opacity="0.7">docs.ring.ck.ua</text>
+      </svg>
