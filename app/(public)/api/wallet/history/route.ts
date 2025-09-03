@@ -6,6 +6,9 @@ import {
   TransactionFilter 
 } from '@/features/wallet/services/wallet-history'
 
+// Simple in-memory ETag cache per user address and block range
+const etagCache = new Map<string, { etag: string, expiresAt: number }>()
+
 /**
  * GET handler for fetching wallet transaction history
  * 
@@ -58,6 +61,17 @@ export async function GET(request: NextRequest) {
 
     console.log(`API: /api/wallet/history - User wallet address: ${walletAddress}`);
 
+    // Compute a weak ETag key by address + range
+    const etagKey = `${walletAddress}-${filter.startBlock || 'auto'}-${filter.endBlock || 'auto'}`
+    const prev = etagCache.get(etagKey)
+    const currentEtag = `W/"${Date.now().toString(36)}-${transactionsHashSeed(walletAddress, filter)}"`
+
+    // If-None-Match short-circuit
+    const ifNoneMatch = request.headers.get('if-none-match')
+    if (ifNoneMatch && prev && ifNoneMatch === prev.etag && prev.expiresAt > Date.now()) {
+      return new NextResponse(null, { status: 304, headers: { 'ETag': prev.etag, 'Cache-Control': 'no-store' } })
+    }
+
     // Step 4: Get wallet transaction history
     const transactions = await getWalletHistory(walletAddress, filter)
 
@@ -67,7 +81,10 @@ export async function GET(request: NextRequest) {
     console.log(`API: /api/wallet/history - Returning ${paginatedTransactions.length} transactions`);
 
     // Step 6: Return the paginated transaction history
-    return NextResponse.json({
+    // Store/update ETag (5s freshness window)
+    etagCache.set(etagKey, { etag: currentEtag, expiresAt: Date.now() + 5000 })
+
+    const res = NextResponse.json({
       history: paginatedTransactions,
       pagination: {
         page,
@@ -76,10 +93,22 @@ export async function GET(request: NextRequest) {
         totalItems: transactions.length
       }
     })
+    res.headers.set('ETag', currentEtag)
+    res.headers.set('Cache-Control', 'no-store')
+    return res
   } catch (error) {
     console.error('API: /api/wallet/history - Error:', error)
     return NextResponse.json({ error: 'Failed to fetch transaction history' }, { status: 500 })
   }
+}
+
+function transactionsHashSeed(address: string, filter: TransactionFilter): string {
+  const f = `${address}|${filter.startBlock || ''}|${filter.endBlock || ''}|${filter.type || ''}|${filter.minAmount || ''}|${filter.maxAmount || ''}`
+  let hash = 0
+  for (let i = 0; i < f.length; i++) {
+    hash = (hash * 31 + f.charCodeAt(i)) >>> 0
+  }
+  return hash.toString(36)
 }
 
 /**

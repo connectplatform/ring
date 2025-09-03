@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { ethers } from 'ethers'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
+import { eventBus } from '@/lib/event-bus.client'
 import { POLYGON_CHAIN_ID, POLYGON_RPC_URL } from '@/constants/web3'
 
 export interface Web3ContextType {
@@ -88,6 +89,9 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       localStorage.setItem('walletConnected', 'true')
       localStorage.setItem('connectionMethod', 'wallet')
       
+      // Notify listeners for an immediate balance refresh
+      eventBus.emit('wallet:balance:refresh', { reason: 'connect:session-wallet', address: walletAddress })
+
       toast({
         title: 'Wallet Connected',
         description: `Connected to Ring wallet: ${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}`,
@@ -148,6 +152,8 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       localStorage.setItem('walletConnected', 'true')
       localStorage.setItem('connectionMethod', 'metamask')
       
+      eventBus.emit('wallet:balance:refresh', { reason: 'connect:metamask', address: walletAddress })
+
       toast({
         title: 'MetaMask Connected',
         description: `Connected to ${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}`,
@@ -321,14 +327,17 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       if (accounts.length === 0) {
         // MetaMask is locked or the user has disconnected
         disconnect()
+        eventBus.emit('wallet:balance:refresh', { reason: 'disconnect:metamask', address: null })
       } else if (accounts[0] !== address && localStorage.getItem('connectionMethod') === 'metamask') {
         // User switched accounts in MetaMask
+        eventBus.emit('wallet:balance:refresh', { reason: 'account-changed', address: accounts[0] })
         window.location.reload() // Reload to re-initialize with new account
       }
     }
 
     const handleChainChanged = (chainId: string) => {
       // Reload the page when chain changes
+      eventBus.emit('wallet:balance:refresh', { reason: 'chain-changed', address })
       window.location.reload()
     }
 

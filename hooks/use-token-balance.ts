@@ -12,6 +12,7 @@ import {
   POLYGON_RPC_URL
 } from '@/constants/web3'
 import type { TokenBalance, WalletBalances } from '@/features/wallet/types'
+import { eventBus } from '@/lib/event-bus.client'
 
 // Global singleton state to prevent multiple instances
 let globalTokenBalances: WalletBalances = { RING: '0', POL: '0', USDT: '0', USDC: '0' }
@@ -26,6 +27,9 @@ let globalCurrentAddress: string | null = null
 const FETCH_THROTTLE_MS = 8000
 // Auto-refresh interval (3 minutes)
 const AUTO_REFRESH_INTERVAL = 180000
+// Debounce push-initiated refreshes to avoid bursts (e.g., 1s)
+const PUSH_DEBOUNCE_MS = 1000
+let pushDebounceTimer: any = null
 
 /**
  * Global fetch function shared by all hook instances
@@ -256,8 +260,27 @@ export function useTokenBalance() {
       }, AUTO_REFRESH_INTERVAL)
     }
 
+    // Listen to event-bus balance refresh signals (server push or connection events)
+    const off = eventBus.on('wallet:balance:refresh', () => {
+      if (pushDebounceTimer) clearTimeout(pushDebounceTimer)
+      pushDebounceTimer = setTimeout(() => {
+        console.log('📊 GLOBAL: Push-initiated balance refresh')
+        fetchTokenBalances(true)
+      }, PUSH_DEBOUNCE_MS)
+    })
+
+    // Optional: Listen to browser visibility to refresh on focus
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTokenBalances()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
     return () => {
       // Interval cleanup is handled in the subscriber cleanup
+      off()
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [isConnected, address, fetchTokenBalances])
 
