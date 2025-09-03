@@ -84,7 +84,10 @@ interface NotificationData {
 }
 
 export function useRealtimeNotifications() {
-  const { notifications: tunnelNotifications, clearNotifications } = useTunnelNotifications()
+  const { notifications: tunnelNotifications, clearNotifications } = useTunnelNotifications({
+    autoConnect: false, // Let TunnelProvider handle this
+    debug: false // Disable debug to prevent spam
+  })
   const [unreadCount, setUnreadCount] = useState(0)
   
   // Convert tunnel messages to notification format
@@ -243,7 +246,7 @@ export function useRealtimePresence() {
   useEffect(() => {
     if (!isConnected) return
 
-    // Subscribe to presence channel
+    // Subscribe to presence channel - only subscribe once per connection
     const unsubscribe = subscribe('presence', (message) => {
       if (message.payload?.userId) {
         setPresence(prev => {
@@ -307,7 +310,7 @@ export function useRealtimeSystemStatus() {
   useEffect(() => {
     if (!isConnected) return
 
-    // Subscribe to system channel
+    // Subscribe to system channel - only subscribe once per connection
     const unsubscribe = subscribe('system', (message) => {
       if (message.payload?.type === 'maintenance') {
         setSystemStatus(prev => ({

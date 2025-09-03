@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger'
-import { getEvents } from '@/lib/events/event-log'
+import { getEvents } from '@/lib/events/event-log.server'
 
 export interface TrainingExample { input: any; output: any; meta?: Record<string, unknown> }
 export interface PatternModel { version: string; trainedAt: string; notes?: string }

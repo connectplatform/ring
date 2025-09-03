@@ -1,5 +1,5 @@
 /**
- * Event Bus for Store Events
+ * Event Bus for Store Events (server-side)
  * 
  * Simple event publishing system for store-related events.
  * Can be extended to use Firebase Functions, AWS EventBridge, or other event systems.

@@ -241,10 +241,17 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
     
     // Subscribe if not already subscribed
     if (!subscriptionsRef.current.has(channel)) {
+      if (debug) {
+        console.log(`[Tunnel] Creating new subscription for channel: ${channel}`);
+      }
+      
       managerRef.current
         .subscribe({ channel })
         .then(subscription => {
           subscriptionsRef.current.set(channel, subscription);
+          if (debug) {
+            console.log(`[Tunnel] Successfully subscribed to channel: ${channel}`);
+          }
         })
         .catch(err => {
           // Don't log errors for system/presence channels on anonymous connections
@@ -253,12 +260,16 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
           
           if (isSystemChannel && isAuthError) {
             // Silently ignore - anonymous users can't subscribe to these channels
-            console.log(`[Tunnel] Anonymous user cannot subscribe to ${channel} channel`);
+            if (debug) {
+              console.log(`[Tunnel] Anonymous user cannot subscribe to ${channel} channel`);
+            }
           } else {
-            console.error(`Failed to subscribe to ${channel}:`, err);
+            console.error(`[Tunnel] Failed to subscribe to ${channel}:`, err);
             setError(err);
           }
         });
+    } else if (debug) {
+      console.log(`[Tunnel] Reusing existing subscription for channel: ${channel}`);
     }
     
     // Return unsubscribe function
@@ -269,6 +280,10 @@ export function useTunnel(options: UseTunnelOptions = {}): UseTunnelReturn {
         
         // If no more handlers, unsubscribe from channel
         if (handlers.size === 0) {
+          if (debug) {
+            console.log(`[Tunnel] Unsubscribing from channel: ${channel} (no more handlers)`);
+          }
+          
           handlersRef.current.delete(channel);
           
           const subscription = subscriptionsRef.current.get(channel);

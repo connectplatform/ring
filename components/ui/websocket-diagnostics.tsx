@@ -6,22 +6,25 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { 
-  useRealtimeConnection,
-  useRealtimeNotifications,
-  useRealtimePresence,
-  useRealtimeSystemStatus 
-} from '@/hooks/use-realtime'
+import { useTunnelContext } from '@/components/providers/tunnel-provider'
+import { TunnelConnectionState } from '@/lib/tunnel/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Activity, Wifi, WifiOff, Clock, Server, AlertCircle, CheckCircle } from 'lucide-react'
 
 export function WebSocketDiagnostics({ className = '' }: { className?: string }) {
-  const connection = useRealtimeConnection()
-  const notifications = useRealtimeNotifications()
-  const presence = useRealtimePresence()
-  const system = useRealtimeSystemStatus()
+  // Use the Tunnel context directly to avoid duplicate subscriptions
+  const {
+    isConnected,
+    connectionState,
+    provider,
+    connect,
+    disconnect,
+    health,
+    latency,
+    error
+  } = useTunnelContext()
   const [showDetails, setShowDetails] = useState(false)
   const [localUptime, setLocalUptime] = useState(0)
 
@@ -49,6 +52,13 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
     return `${secs}s`
   }
 
+  // Map connection state to status string
+  const status = isConnected ? 'connected' : 
+                connectionState === TunnelConnectionState.CONNECTING ? 'connecting' :
+                connectionState === TunnelConnectionState.RECONNECTING ? 'reconnecting' :  
+                connectionState === TunnelConnectionState.ERROR ? 'error' :
+                'disconnected'
+
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -61,11 +71,17 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
     }
   }
 
+  // Get connection quality based on latency
+  const connectionQuality = latency < 100 ? 'excellent' : 
+                           latency < 300 ? 'good' : 
+                           latency < 1000 ? 'fair' : 'poor'
+
   // Get quality badge variant
   const getQualityVariant = (quality: string): 'default' | 'secondary' | 'destructive' => {
     switch (quality) {
       case 'excellent': return 'default'
       case 'good': return 'secondary'
+      case 'fair': return 'secondary'
       case 'poor': return 'destructive'
       default: return 'secondary'
     }
@@ -85,7 +101,7 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
         variant="outline"
         className="mb-2 shadow-lg"
       >
-        {connection.isConnected ? (
+        {isConnected ? (
           <Wifi className="h-4 w-4 mr-2 text-green-500" />
         ) : (
           <WifiOff className="h-4 w-4 mr-2 text-red-500" />
@@ -102,8 +118,8 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
                 <Activity className="h-4 w-4 mr-2" />
                 WebSocket Diagnostics
               </span>
-              <Badge className={getStatusColor(connection.status)}>
-                {connection.status.toUpperCase()}
+              <Badge className={getStatusColor(status)}>
+                {status.toUpperCase()}
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -112,25 +128,43 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
             {/* Connection Status */}
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center">
-                {connection.isConnected ? (
+                {isConnected ? (
                   <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
                 ) : (
                   <AlertCircle className="h-3 w-3 mr-1 text-red-500" />
                 )}
                 <span>Connection:</span>
               </div>
-              <span className={`font-mono ${getStatusColor(connection.status)}`}>
-                {connection.status}
+              <span className={`font-mono ${getStatusColor(status)}`}>
+                {status}
               </span>
             </div>
 
             {/* Connection Quality */}
             <div className="grid grid-cols-2 gap-2">
               <span>Quality:</span>
-              <Badge variant={getQualityVariant(system.connectionQuality)} className="text-xs">
-                {system.connectionQuality}
+              <Badge variant={getQualityVariant(connectionQuality)} className="text-xs">
+                {connectionQuality}
               </Badge>
             </div>
+
+            {/* Latency */}
+            <div className="grid grid-cols-2 gap-2">
+              <span>Latency:</span>
+              <span className="font-mono text-xs">
+                {latency}ms
+              </span>
+            </div>
+
+            {/* Provider */}
+            {provider && (
+              <div className="grid grid-cols-2 gap-2">
+                <span>Provider:</span>
+                <Badge variant="outline" className="text-xs">
+                  {provider}
+                </Badge>
+              </div>
+            )}
 
             {/* Uptime */}
             <div className="grid grid-cols-2 gap-2">
@@ -143,66 +177,31 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               </span>
             </div>
 
-            {/* Reconnect Attempts */}
-            {connection.reconnectAttempts > 0 && (
+            {/* Health Status */}
+            {health && (
               <div className="grid grid-cols-2 gap-2">
-                <span>Reconnect Attempts:</span>
-                <span className="font-mono text-orange-500">
-                  {connection.reconnectAttempts}
-                </span>
+                <span>Health:</span>
+                <Badge variant={health.state === TunnelConnectionState.CONNECTED ? 'default' : 'destructive'} className="text-xs">
+                  {health.state}
+                </Badge>
               </div>
             )}
 
-            {/* Last Connected */}
-            {connection.lastConnected && (
+            {/* Connection Info */}
+            <div className="border-t pt-2">
               <div className="grid grid-cols-2 gap-2">
-                <span>Last Connected:</span>
+                <span>Connection State:</span>
                 <span className="font-mono text-xs">
-                  {new Date(connection.lastConnected).toLocaleTimeString()}
-                </span>
-              </div>
-            )}
-
-            {/* Notifications */}
-            <div className="border-t pt-2">
-              <div className="grid grid-cols-2 gap-2">
-                <span>Unread Notifications:</span>
-                <Badge variant="secondary" className="text-xs">
-                  {notifications.unreadCount}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <span>Total Received:</span>
-                <span className="font-mono">
-                  {notifications.notifications.length}
+                  {connectionState}
                 </span>
               </div>
             </div>
-
-            {/* Presence */}
-            <div className="border-t pt-2">
-              <div className="grid grid-cols-2 gap-2">
-                <span>Online Users:</span>
-                <Badge variant="default" className="text-xs">
-                  {presence.onlineCount}
-                </Badge>
-              </div>
-            </div>
-
-            {/* System Status */}
-            {system.maintenanceMode && (
-              <div className="border-t pt-2">
-                <Badge variant="destructive" className="w-full">
-                  ⚠️ Maintenance Mode Active
-                </Badge>
-              </div>
-            )}
 
             {/* Connection Error */}
-            {connection.error && (
+            {error && (
               <div className="border-t pt-2">
                 <div className="text-red-500 text-xs break-words">
-                  Error: {connection.error?.message || String(connection.error)}
+                  Error: {error.message || String(error)}
                 </div>
               </div>
             )}
@@ -212,29 +211,20 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => connection.reconnect()}
-                disabled={connection.isConnected || connection.isConnecting}
+                onClick={() => connect()}
+                disabled={isConnected || status === 'connecting'}
                 className="flex-1 text-xs"
               >
-                {connection.isConnecting ? 'Connecting...' : 'Connect'}
+                {status === 'connecting' ? 'Connecting...' : 'Connect'}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => connection.disconnect()}
-                disabled={!connection.isConnected}
+                onClick={() => disconnect()}
+                disabled={!isConnected}
                 className="flex-1 text-xs"
               >
                 Disconnect
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => notifications.refresh()}
-                disabled={!connection.isConnected}
-                className="text-xs"
-              >
-                Refresh
               </Button>
             </div>
 
