@@ -56,6 +56,8 @@
   "noDataAvailable": "No data available for this opportunity.",
   "confidential": "Confidential",
   "processing": "Processing...",
+  "posting": "Posting...",
+  "posted": "Posted",
   "offer": "Offer",
   "request": "Request",
   "filters": "Filters",

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useCallback, useEffect } from 'react'
-import { useOptimistic, useActionState } from 'react'
+import React, { useCallback, useEffect, useTransition } from 'react'
+import { useOptimistic, useActionState, startTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -77,6 +77,7 @@ export default function OpportunityList({
   const { theme } = useTheme()
   const { data: session, status } = useSession()
   const { ref, inView } = useInView()
+  const [isPending, startTransitionFn] = useTransition()
 
   // Optimistic state for opportunities
   const [optimisticOpportunities, addOptimisticOpportunity] = useOptimistic<
@@ -139,7 +140,9 @@ export default function OpportunityList({
         !optimisticOpportunities.some(existing => existing.id === opp.id)
       )
       
-      newOpportunities.forEach((opp: SerializedOpportunity) => addOptimisticOpportunity(opp))
+      startTransition(() => {
+        newOpportunities.forEach((opp: SerializedOpportunity) => addOptimisticOpportunity(opp))
+      })
       setLastVisible(data.lastVisible)
 
       // Fetch entities for new opportunities - with deduplication

@@ -12,7 +12,7 @@ import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
 import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
-import { appendEvent } from '@/lib/events/event-log'
+import { appendEvent } from '@/lib/events/event-log.server'
 import { NeuralMatcher } from '@/lib/ai/neural-matcher'
 import { logger } from '@/lib/logger';
 
