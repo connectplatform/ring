@@ -24,7 +24,7 @@ import {
   StoreEvent,
   TIER_BENEFITS
 } from '@/constants/store'
-import { publishEvent } from '@/lib/events/event-bus'
+import { publishEvent } from '@/lib/events/event-bus.server'
 
 // Settlement record for tracking payouts
 export interface Settlement {

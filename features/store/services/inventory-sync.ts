@@ -14,7 +14,7 @@ import {
 } from '@/lib/services/firebase-service-manager'
 import { StoreProduct } from '@/features/store/types'
 import { InventorySyncStrategy, StoreEvent } from '@/constants/store'
-import { publishEvent } from '@/lib/events/event-bus'
+import { publishEvent } from '@/lib/events/event-bus.server'
 
 // Inventory reservation for pending orders
 export interface InventoryReservation {

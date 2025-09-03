@@ -26,7 +26,7 @@ import {
   StoreEvent
 } from '@/constants/store'
 import { Entity } from '@/features/entities/types'
-import { publishEvent } from '@/lib/events/event-bus'
+import { publishEvent } from '@/lib/events/event-bus.server'
 
 /**
  * Calculate trust score based on performance metrics

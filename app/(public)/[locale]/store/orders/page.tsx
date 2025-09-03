@@ -1,9 +1,10 @@
 "use client"
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState, use } from 'react'
 import type { Locale } from '@/i18n-config'
 import { useInView } from '@/hooks/use-intersection-observer'
 
-export default function MyOrdersPage({ params }: { params: { locale: Locale } }) {
+export default function MyOrdersPage({ params }: { params: Promise<{ locale: Locale }> }) {
+  const resolvedParams = use(params)
   const [items, setItems] = useState<any[]>([])
   const [lastVisible, setLastVisible] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -33,7 +34,7 @@ export default function MyOrdersPage({ params }: { params: { locale: Locale } })
   useEffect(() => { if (inView && lastVisible && !loading) void load(false) }, [inView, lastVisible, loading, load])
 
   return (
-    <div data-locale={params.locale}
+    <div data-locale={resolvedParams.locale}
     >
       <h1 className="text-2xl font-semibold mb-4">My Orders</h1>
       {items.length === 0 ? (
