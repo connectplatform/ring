@@ -136,6 +136,7 @@ const nextConfig = {
   serverRuntimeConfig: {
     PROJECT_ROOT: process.cwd()
   },
+  output: 'standalone',
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'ring.ck.ua'],
