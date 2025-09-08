@@ -1,0 +1,58 @@
+# Ring Platform - Prometheus Configuration
+# Monitoring configuration for Ring Platform services
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Ring Platform application metrics
+  - job_name: 'ring-platform'
+    static_configs:
+      - targets: ['ring-app:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Ring Platform health checks
+  - job_name: 'ring-health'
+    static_configs:
+      - targets: ['ring-app:3000']
+    metrics_path: '/api/health'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  # MongoDB metrics (if exporter is available)
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb:27017']
+    scrape_interval: 30s
+
+  # Nginx metrics (if enabled)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    metrics_path: '/nginx_status'
+    scrape_interval: 30s
+
+  # Node.js process metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['ring-app:9100']
+    scrape_interval: 30s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093

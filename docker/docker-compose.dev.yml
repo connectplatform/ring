@@ -1,0 +1,92 @@
+# Ring Platform - Development Docker Compose Override
+# Development-specific configurations with hot reload and debugging
+
+version: '3.8'
+
+services:
+  ring-app:
+    build:
+      target: builder  # Use builder stage for development
+      args:
+        NODE_ENV: development
+    environment:
+      - NODE_ENV=development
+      - DEBUG=ring:*
+      - CHOKIDAR_USEPOLLING=true  # For file watching in containers
+    volumes:
+      # Enable hot reload by mounting source code
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugging port
+    command: npm run dev
+    stdin_open: true
+    tty: true
+
+  # Development database with exposed ports
+  mongodb:
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=ring
+      - MONGO_INITDB_ROOT_PASSWORD=ring_dev_password
+      - MONGO_INITDB_DATABASE=ring_platform_dev
+
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+
+  # Development tools
+  mongo-express:
+    image: mongo-express:latest
+    container_name: ring-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=ring
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=ring_dev_password
+      - ME_CONFIG_MONGODB_URL=mongodb://ring:ring_dev_password@mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    networks:
+      - ring-network
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    profiles:
+      - dev-tools
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ring-redis-commander
+    ports:
+      - "8082:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    networks:
+      - ring-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+    profiles:
+      - dev-tools
+
+  # Mailhog for email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ring-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - ring-network
+    restart: unless-stopped
+    profiles:
+      - dev-tools
+
+networks:
+  ring-network:
+    driver: bridge

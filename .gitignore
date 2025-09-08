@@ -13,3 +13,4 @@ log/*.json
 docs/2025-*
 *.md
 .gitignore
+AI-CONTEXT/*
