@@ -23,6 +23,7 @@
     "category": "Category",
     "tags": "Tags",
     "goesWellWith": "Goes well with",
+    "inStock": "In Stock",
     "addToCart": "Add to cart",
     "adding": "Adding…",
     "goToCart": "Go to cart",

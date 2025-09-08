@@ -310,3 +310,154 @@ export interface VendorSettings {
     customerInquiry?: string
   }
 }
+
+// ERP Extension: Vendor Quality & Compliance Tracking
+export interface VendorQualityProfile {
+  certifications: Certification[]
+  qualityScore: number // 0-100 scale
+  complianceRating: number // 0-100 scale
+  lastInspectionDate?: string
+  nextInspectionDue?: string
+  qualityFlags: string[]
+}
+
+export interface Certification {
+  id: string
+  name: string
+  issuer: string
+  issueDate: string
+  expiryDate?: string
+  status: 'active' | 'expired' | 'pending' | 'revoked'
+  certificateUrl?: string
+  verificationMethod: 'self_certified' | 'third_party' | 'government'
+}
+
+// ERP Extension: Vendor Analytics & Performance
+export interface VendorAnalytics {
+  salesVelocity: number // Average sales per day
+  customerRetention: number // Percentage of repeat customers
+  orderFulfillmentTime: number // Average hours to fulfill orders
+  returnRate: number // Percentage of returned items
+  customerSatisfactionScore: number // 1-5 scale
+  marketShare: number // Percentage of category sales
+  trendingDirection: 'up' | 'down' | 'stable'
+  predictedGrowth: number // Percentage growth prediction
+}
+
+// ERP Extension: Vendor Compliance Tracking
+export interface VendorCompliance {
+  fsmaCompliant: boolean
+  euGdprCompliant: boolean
+  organicCertified: boolean
+  fairTradeCertified: boolean
+  lastComplianceAudit?: string
+  nextComplianceAudit?: string
+  complianceViolations: ComplianceViolation[]
+  regulatoryFilings: RegulatoryFiling[]
+}
+
+export interface ComplianceViolation {
+  id: string
+  type: 'fsma' | 'eu' | 'organic' | 'fair_trade' | 'other'
+  description: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  dateReported: string
+  dateResolved?: string
+  resolution: string
+  fineAmount?: number
+}
+
+export interface RegulatoryFiling {
+  id: string
+  type: 'fsma_report' | 'eu_declaration' | 'organic_certification' | 'tax_filing'
+  filingDate: string
+  status: 'pending' | 'submitted' | 'approved' | 'rejected'
+  referenceNumber?: string
+  dueDate: string
+}
+
+// ERP Extension: Extended Vendor Profile with 85+ fields
+// Export the extended vendor profile
+export interface ExtendedVendorProfile extends VendorProfile {
+  // Quality & Compliance (15+ fields)
+  qualityProfile: VendorQualityProfile
+  compliance: VendorCompliance
+
+  // Analytics & Performance (10+ fields)
+  analytics: VendorAnalytics
+
+  // Business Intelligence (15+ fields)
+  businessIntelligence: {
+    marketPositioning: string
+    competitiveAdvantages: string[]
+    targetCustomerSegments: string[]
+    pricingStrategy: 'premium' | 'value' | 'competitive' | 'cost_leader'
+    distributionChannels: string[]
+    brandStrength: number // 0-100 scale
+  }
+
+  // Operational Excellence (10+ fields)
+  operationalMetrics: {
+    inventoryTurnover: number
+    supplierReliability: number
+    productionEfficiency: number
+    qualityControlPassRate: number
+    customerServiceResponseTime: number
+    orderProcessingTime: number
+  }
+
+  // Supply Chain Integration (10+ fields)
+  supplyChain: {
+    primarySuppliers: string[]
+    supplierDiversity: number // Percentage of diverse suppliers
+    traceabilityLevel: 'basic' | 'intermediate' | 'advanced' | 'full'
+    blockchainEnabled: boolean
+    iotIntegration: boolean
+    realTimeTracking: boolean
+  }
+
+  // ESG & Sustainability (10+ fields)
+  sustainability: {
+    carbonFootprint: number // kg CO2 per product
+    waterUsage: number // liters per product
+    wasteReduction: number // percentage reduction
+    renewableEnergyUsage: number // percentage
+    socialImpactScore: number // 0-100 scale
+    communityEngagement: string[]
+  }
+
+  // AI & Automation (10+ fields)
+  automationLevel: {
+    orderProcessing: number // percentage automated
+    inventoryManagement: number // percentage automated
+    customerService: number // percentage automated
+    qualityControl: number // percentage automated
+    reporting: number // percentage automated
+  }
+
+  aiInsights: {
+    churnProbability: number
+    growthForecast: number
+    recommendedActions: string[]
+    marketOpportunities: string[]
+    riskAlerts: string[]
+  }
+
+  // Integration Capabilities (5+ fields)
+  integrations: {
+    marketplaceConnections: string[]
+    erpSystems: string[]
+    logisticsProviders: string[]
+    paymentProcessors: string[]
+    analyticsPlatforms: string[]
+  }
+
+  // Advanced Metadata (5+ fields)
+  metadata: {
+    lastUpdatedBy: string
+    updateReason: string
+    dataQualityScore: number
+    verificationStatus: 'unverified' | 'self_verified' | 'third_party_verified'
+    lastAuditDate?: string
+  }
+}

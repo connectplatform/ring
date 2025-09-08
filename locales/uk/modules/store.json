@@ -22,6 +22,7 @@
     "price": "Ціна",
     "category": "Категорія",
     "tags": "Теги",
+    "inStock": "Склад",
     "goesWellWith": "Добре поєднується",
     "addToCart": "Додати до кошика",
     "adding": "Додаємо…",
