@@ -35,7 +35,10 @@ const BASE_ROUTES = {
   CONFIDENTIAL_ENTITIES: '/confidential/entities',
   CONFIDENTIAL_OPPORTUNITIES: '/confidential/opportunities',
   UNAUTHORIZED: '/unauthorized',
-  WALLET: '/wallet'
+  WALLET: '/wallet',
+  DOCS: '/docs',
+  MARKETPLACE: '/marketplace',
+  MESSAGES: '/messages'
 }
 
 // Localized routes
@@ -75,7 +78,10 @@ export const ROUTES = {
   CONFIDENTIAL_ENTITIES: (locale: Locale = defaultLocale) => `/${locale}/confidential/entities`,
   CONFIDENTIAL_OPPORTUNITIES: (locale: Locale = defaultLocale) => `/${locale}/confidential/opportunities`,
   UNAUTHORIZED: (locale: Locale = defaultLocale) => `/${locale}/unauthorized`,
-  WALLET: (locale: Locale = defaultLocale) => `/${locale}/wallet`
+  WALLET: (locale: Locale = defaultLocale) => `/${locale}/wallet`,
+  DOCS: (locale: Locale = defaultLocale) => `/${locale}/docs`,
+  MARKETPLACE: (locale: Locale = defaultLocale) => `/${locale}/marketplace`,
+  MESSAGES: (locale: Locale = defaultLocale) => `/${locale}/messages`
 }
 
 // Legacy routes for backward compatibility (these will redirect to localized versions)

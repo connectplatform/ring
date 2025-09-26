@@ -20,6 +20,7 @@ import { AddOpportunityButton } from '@/components/opportunities/add-opportunity
 import { usePathname } from 'next/navigation'
 import OpportunityList from './opportunity-list'
 import AdvancedFilters from '@/components/opportunities/advanced-filters'
+import { useRealtimeOpportunities, useOptimisticOpportunities } from '@/hooks/use-realtime-opportunities'
 
 interface OpportunitiesProps {
   initialOpportunities: SerializedOpportunity[]
@@ -60,6 +61,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
 
   // Extract locale from pathname
   const locale = pathname.split('/')[1] || 'en'
+
+  // Real-time opportunities integration
+  const realtime = useRealtimeOpportunities({
+    autoConnect: true,
+    debug: false
+  })
+
+  // Use optimistic opportunities for real-time updates
+  const { opportunities: realtimeOpportunities } = useOptimisticOpportunities(initialOpportunities)
 
   useEffect(() => {
     setOpportunities(initialOpportunities)
@@ -171,6 +181,102 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
     return <ErrorMessage message={error} />
   }
 
+  // Filter opportunities based on current filter state
+  const filteredOpportunities = React.useMemo(() => {
+    return realtimeOpportunities.filter((opportunity) => {
+      // Search filter
+      if (filters.search && filters.search.trim() !== '') {
+        const searchTerm = filters.search.toLowerCase()
+        const searchableText = `${opportunity.title} ${opportunity.briefDescription} ${opportunity.tags?.join(' ') || ''}`.toLowerCase()
+        if (!searchableText.includes(searchTerm)) {
+          return false
+        }
+      }
+
+      // Type filter
+      if (filters.types.length > 0 && !filters.types.includes(opportunity.type)) {
+        return false
+      }
+
+      // Category filter
+      if (filters.categories.length > 0 && !filters.categories.includes(opportunity.category)) {
+        return false
+      }
+
+      // Location filter
+      if (filters.location && filters.location.trim() !== '') {
+        const locationTerm = filters.location.toLowerCase()
+        if (!opportunity.location.toLowerCase().includes(locationTerm)) {
+          return false
+        }
+      }
+
+      // Budget filters
+      if (filters.budgetMin && filters.budgetMin.trim() !== '') {
+        const minBudget = parseFloat(filters.budgetMin)
+        if (opportunity.budget?.max && opportunity.budget.max < minBudget) {
+          return false
+        }
+      }
+
+      if (filters.budgetMax && filters.budgetMax.trim() !== '') {
+        const maxBudget = parseFloat(filters.budgetMax)
+        if (opportunity.budget?.min && opportunity.budget.min > maxBudget) {
+          return false
+        }
+      }
+
+      // Priority filter
+      if (filters.priority && filters.priority !== 'all') {
+        if (opportunity.priority !== filters.priority) {
+          return false
+        }
+      }
+
+      // Deadline filter
+      if (filters.deadline && filters.deadline !== 'all') {
+        const now = new Date()
+        if (filters.deadline === 'today') {
+          const today = new Date()
+          today.setHours(23, 59, 59, 999)
+          if (!opportunity.applicationDeadline || new Date(opportunity.applicationDeadline) > today) {
+            return false
+          }
+        } else if (filters.deadline === 'week') {
+          const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+          if (!opportunity.applicationDeadline || new Date(opportunity.applicationDeadline) > weekFromNow) {
+            return false
+          }
+        } else if (filters.deadline === 'month') {
+          const monthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+          if (!opportunity.applicationDeadline || new Date(opportunity.applicationDeadline) > monthFromNow) {
+            return false
+          }
+        } else if (filters.deadline === 'no-deadline') {
+          if (opportunity.applicationDeadline) {
+            return false
+          }
+        }
+      }
+
+      // Entity verified filter (placeholder - would need entity data)
+      if (filters.entityVerified !== null) {
+        // This would require fetching entity verification status
+        // For now, skip this filter
+      }
+
+      // Has deadline filter
+      if (filters.hasDeadline !== null) {
+        const hasDeadline = !!opportunity.applicationDeadline
+        if (filters.hasDeadline !== hasDeadline) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [realtimeOpportunities, filters])
+
   const clearFilters = () => {
     setFilters({
       search: '',
@@ -189,23 +295,49 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
 
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
+      {/* Real-time Status Indicator */}
+      <div className="bg-background border-b">
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${
+                realtime.isConnected ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className="text-sm text-muted-foreground">
+                {realtime.isConnected ? 'Live Updates Active' : 'Offline Mode'}
+              </span>
+              {realtime.lastUpdate && (
+                <span className="text-xs text-muted-foreground">
+                  • Last update: {realtime.lastUpdate.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+            {realtime.provider && (
+              <span className="text-xs text-muted-foreground">
+                via {realtime.provider}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Advanced Filters */}
       <div className="container mx-auto px-4 py-6">
         <AdvancedFilters
           filters={filters}
           onFiltersChange={setFilters}
           onClearFilters={clearFilters}
-          resultCount={opportunities.length}
+          resultCount={filteredOpportunities.length}
         />
       </div>
       
-      <OpportunityList 
-        initialOpportunities={opportunities}
+      <OpportunityList
+        initialOpportunities={filteredOpportunities}
         initialEntities={entities}
         initialError={error}
         lastVisible={lastVisible}
         limit={limit}
-        totalCount={opportunities.length}
+        totalCount={filteredOpportunities.length}
         locale={locale}
       />
       {loading && <LoadingMessage message={t('loadingMoreOpportunities')} />}

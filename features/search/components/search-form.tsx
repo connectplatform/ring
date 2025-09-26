@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTranslations } from 'next-intl'
 import { searchEntities, SearchFormState } from '@/app/_actions/search'
+import { searchOpportunities, SearchOpportunitiesResult } from '@/lib/client-search'
 
 interface SearchFormProps {
   placeholder?: string
@@ -29,11 +30,11 @@ interface SearchResult {
   createdAt: string
 }
 
-function SearchButton({ isPending }: { isPending?: boolean }) {
+function SearchButton({ isPending, isSearchingOpportunities }: { isPending?: boolean, isSearchingOpportunities?: boolean }) {
   const { pending } = useFormStatus()
   const t = useTranslations('search')
-  
-  const isLoading = pending || isPending
+
+  const isLoading = pending || isPending || isSearchingOpportunities
   
   return (
     <Button 
@@ -210,10 +211,12 @@ export default function SearchForm({
   const [isPending, startTransition] = useTransition()
   const deferredQuery = useDeferredValue(query)
   
-  const [state, formAction] = useActionState<SearchFormState | null, FormData>(
+  const [entityState, entityFormAction] = useActionState<SearchFormState | null, FormData>(
     searchEntities,
     null
   )
+  const [opportunityState, setOpportunityState] = React.useState<SearchOpportunitiesResult | null>(null)
+  const [isSearchingOpportunities, setIsSearchingOpportunities] = React.useState(false)
 
   // Load recent searches from localStorage
   React.useEffect(() => {
@@ -229,13 +232,36 @@ export default function SearchForm({
 
   // Handle search results
   React.useEffect(() => {
-    if (state?.success && state.results) {
-      setSearchResults(state.results)
+    if (entityState?.success && entityState.results) {
+      const formattedResults = entityState.results.map(result => ({
+        ...result,
+        type: 'entity' as const
+      }))
+      setSearchResults(formattedResults)
       if (onResults) {
-        onResults(state.results)
+        onResults(formattedResults)
       }
     }
-  }, [state, onResults])
+  }, [entityState, onResults])
+
+  // Handle opportunity search results
+  React.useEffect(() => {
+    if (opportunityState) {
+      const formattedResults = opportunityState.opportunities.map(opp => ({
+        id: opp.id,
+        title: opp.title,
+        description: opp.briefDescription || '',
+        type: 'opportunity' as const,
+        category: opp.category,
+        location: opp.location,
+        createdAt: opp.dateCreated
+      }))
+      setSearchResults(formattedResults)
+      if (onResults) {
+        onResults(formattedResults)
+      }
+    }
+  }, [opportunityState, onResults])
 
   // React 19: Handle deferred query for optimized rendering
   React.useEffect(() => {
@@ -243,13 +269,32 @@ export default function SearchForm({
     // This prevents excessive re-renders during fast typing
     if (deferredQuery !== query && deferredQuery.trim().length >= 2) {
       startTransition(() => {
-        const formData = new FormData()
-        formData.append('query', deferredQuery)
-        formData.append('category', category)
-        formAction(formData)
+        if (category === 'opportunities' || category === 'all') {
+          // Search opportunities
+          setIsSearchingOpportunities(true)
+          searchOpportunities({
+            query: deferredQuery,
+            limit: 10,
+            sortBy: 'relevance'
+          }).then((results) => {
+            setOpportunityState(results)
+            setIsSearchingOpportunities(false)
+          }).catch((error) => {
+            console.error('Opportunity search failed:', error)
+            setIsSearchingOpportunities(false)
+          })
+        }
+
+        if (category === 'entities' || category === 'all') {
+          // Search entities
+          const formData = new FormData()
+          formData.append('query', deferredQuery)
+          formData.append('category', category === 'all' ? 'all' : 'entities')
+          entityFormAction(formData)
+        }
       })
     }
-  }, [deferredQuery, query, category, formAction])
+  }, [deferredQuery, query, category, entityFormAction, searchOpportunities])
 
   // React 19 Enhanced Search with useTransition
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,10 +309,29 @@ export default function SearchForm({
       searchTimeoutRef.current = setTimeout(() => {
         // Use startTransition for non-blocking search
         startTransition(() => {
-          const formData = new FormData()
-          formData.append('query', value)
-          formData.append('category', category)
-          formAction(formData)
+          if (category === 'opportunities' || category === 'all') {
+            // Search opportunities
+            setIsSearchingOpportunities(true)
+            searchOpportunities({
+              query: value,
+              limit: 10,
+              sortBy: 'relevance'
+            }).then((results) => {
+              setOpportunityState(results)
+              setIsSearchingOpportunities(false)
+            }).catch((error) => {
+              console.error('Opportunity search failed:', error)
+              setIsSearchingOpportunities(false)
+            })
+          }
+
+          if (category === 'entities' || category === 'all') {
+            // Search entities
+            const formData = new FormData()
+            formData.append('query', value)
+            formData.append('category', category === 'all' ? 'all' : 'entities')
+            entityFormAction(formData)
+          }
         })
       }, 300)
     } else {
@@ -289,10 +353,29 @@ export default function SearchForm({
 
     // Use startTransition for non-blocking form submission
     startTransition(() => {
-      const formData = new FormData()
-      formData.append('query', query)
-      formData.append('category', category)
-      formAction(formData)
+      if (category === 'opportunities' || category === 'all') {
+        // Search opportunities
+        setIsSearchingOpportunities(true)
+        searchOpportunities({
+          query: query,
+          limit: 10,
+          sortBy: 'relevance'
+        }).then((results) => {
+          setOpportunityState(results)
+          setIsSearchingOpportunities(false)
+        }).catch((error) => {
+          console.error('Opportunity search failed:', error)
+          setIsSearchingOpportunities(false)
+        })
+      }
+
+      if (category === 'entities' || category === 'all') {
+        // Search entities
+        const formData = new FormData()
+        formData.append('query', query)
+        formData.append('category', category === 'all' ? 'all' : 'entities')
+        entityFormAction(formData)
+      }
     })
   }
 
@@ -300,10 +383,29 @@ export default function SearchForm({
     setQuery(search)
     // Use startTransition for non-blocking recent search selection
     startTransition(() => {
-      const formData = new FormData()
-      formData.append('query', search)
-      formData.append('category', category)
-      formAction(formData)
+      if (category === 'opportunities' || category === 'all') {
+        // Search opportunities
+        setIsSearchingOpportunities(true)
+        searchOpportunities({
+          query: search,
+          limit: 10,
+          sortBy: 'relevance'
+        }).then((results) => {
+          setOpportunityState(results)
+          setIsSearchingOpportunities(false)
+        }).catch((error) => {
+          console.error('Opportunity search failed:', error)
+          setIsSearchingOpportunities(false)
+        })
+      }
+
+      if (category === 'entities' || category === 'all') {
+        // Search entities
+        const formData = new FormData()
+        formData.append('query', search)
+        formData.append('category', category === 'all' ? 'all' : 'entities')
+        entityFormAction(formData)
+      }
     })
   }
 
@@ -339,7 +441,7 @@ export default function SearchForm({
                 <X className="h-3 w-3" />
               </Button>
             )}
-            <SearchButton isPending={isPending} />
+            <SearchButton isPending={isPending} isSearchingOpportunities={isSearchingOpportunities} />
           </div>
         </div>
 
@@ -367,16 +469,18 @@ export default function SearchForm({
         )}
       </AnimatePresence>
 
-      {/* Error message */}
-      {state?.error && (
+      {/* Error messages */}
+      {entityState?.error && (
         <motion.div
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-2 text-sm text-destructive"
         >
-          {state.error}
+          {entityState.error}
         </motion.div>
       )}
+
+      {/* Opportunity search error handling would go here if needed */}
     </div>
   )
 } 

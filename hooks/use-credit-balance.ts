@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, use, useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 import { logger } from '@/lib/logger'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
@@ -43,20 +44,27 @@ interface UseCreditBalancePromiseReturn {
  * Hook for managing user's RING credit balance
  */
 export function useCreditBalance(): UseCreditBalanceReturn {
+  const { data: session, status } = useSession()
   const [data, setData] = useState<CreditBalanceData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastRefreshed, setLastRefreshed] = useState<number | null>(null)
 
   const fetchBalance = useCallback(async (isRefresh = false) => {
+    // Only fetch if user is authenticated
+    if (status !== 'authenticated' || !session?.user) {
+      logger.debug('Skipping balance fetch - user not authenticated', { status, hasSession: !!session })
+      return
+    }
+
     try {
       if (isRefresh) {
         setIsRefreshing(true)
       } else {
         setIsLoading(true)
       }
-      
+
       setError(null)
 
       // Use API client with wallet domain configuration (15s timeout, 2 retries)
@@ -68,11 +76,11 @@ export function useCreditBalance(): UseCreditBalanceReturn {
       if (response.success && response.data) {
         setData(response.data)
         setLastRefreshed(Date.now())
-        
-        logger.info('Credit balance fetched', { 
+
+        logger.info('Credit balance fetched', {
           amount: response.data.balance.amount,
           subscriptionActive: response.data.subscription.active,
-          isRefresh 
+          isRefresh
         })
       } else {
         throw new Error(response.error || 'Failed to fetch balance')
@@ -112,21 +120,28 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     await fetchBalance(true)
   }, [fetchBalance])
 
-  // Initial load
+  // Initial load - only when authenticated
   useEffect(() => {
-    fetchBalance()
-  }, [fetchBalance])
+    if (status === 'authenticated' && session?.user) {
+      fetchBalance()
+    } else {
+      // Reset data when user becomes unauthenticated
+      setData(null)
+      setError(null)
+      setLastRefreshed(null)
+    }
+  }, [fetchBalance, status, session?.user])
 
-  // Auto-refresh every 30 seconds for balance updates
+  // Auto-refresh every 30 seconds for balance updates - only when authenticated
   useEffect(() => {
-    if (!data) return
+    if (!data || status !== 'authenticated' || !session?.user) return
 
     const interval = setInterval(() => {
       fetchBalance(true)
     }, 30000) // 30 seconds
 
     return () => clearInterval(interval)
-  }, [data, fetchBalance])
+  }, [data, fetchBalance, status, session?.user])
 
   return {
     balance: data?.balance || null,
@@ -153,7 +168,7 @@ async function fetchCreditBalance(): Promise<CreditBalanceData> {
     })
 
     if (response.success && response.data) {
-      logger.info('Credit balance fetched', { 
+      logger.info('Credit balance fetched', {
         amount: response.data.balance.amount,
         subscriptionActive: response.data.subscription.active
       })
@@ -162,6 +177,14 @@ async function fetchCreditBalance(): Promise<CreditBalanceData> {
       throw new Error(response.error || 'Failed to fetch balance')
     }
   } catch (err) {
+    // Handle authentication errors gracefully
+    if (err instanceof ApiClientError && err.statusCode === 401) {
+      logger.debug('Credit balance fetch failed due to authentication', {
+        statusCode: err.statusCode,
+        message: err.message
+      })
+      throw new Error('Authentication required')
+    }
     if (err instanceof ApiClientError) {
       // Log with structured context
       logger.error('Credit balance fetch failed:', {

@@ -13,7 +13,7 @@ import { Entity, SerializedEntity } from '@/features/entities/types'
 import { cache } from 'react'
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
 import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache'
-import { getCachedDocumentTyped, getCachedCollectionTyped } from '@/lib/services/firebase-service-manager'
+import { db } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 
@@ -112,8 +112,15 @@ export const getEntityById = cache(async (id: string): Promise<Entity | null> =>
       const cachedEntities = await getCachedEntities()
       entity = cachedEntities.find(e => e.id === id) as Entity || null
     } else {
-      // Runtime: Use Firebase
-      entity = await getCachedDocumentTyped<Entity>('entities', id)
+      // Runtime: Use db.command() abstraction
+      const result = await db().execute('findById', {
+        collection: 'entities',
+        id: id
+      });
+
+      if (result.success && result.data) {
+        entity = result.data.data as Entity;
+      }
     }
 
     if (!entity) {
@@ -172,14 +179,21 @@ export const getSerializedEntityById = cache(async (id: string): Promise<Seriali
  */
 export const getEntity = cache(async (entityId: string): Promise<Entity | null> => {
   try {
-    const entity = await getCachedDocumentTyped<Entity>('entities', entityId)
-    
-    // Only return public entities for unauthenticated access
-    if (entity && entity.isConfidential) {
-      return null
+    const result = await db().execute('findById', {
+      collection: 'entities',
+      id: entityId
+    });
+
+    if (result.success && result.data) {
+      const entity = result.data.data as Entity;
+      // Only return public entities for unauthenticated access
+      if (entity && entity.isConfidential) {
+        return null
+      }
+      return entity;
     }
-    
-    return entity
+
+    return null;
   } catch (error) {
     return null
   }
@@ -207,12 +221,19 @@ export const getUserEntities = cache(async (userId: string): Promise<Entity[]> =
       throw new EntityAccessDeniedError('Can only view own entities')
     }
 
-    const result = await getCachedCollectionTyped<Entity>('entities', {
-      filters: [{ field: 'createdBy', operator: '==', value: userId }],
-      orderBy: { field: 'createdAt', direction: 'desc' }
-    })
-    
-    return result.items
+    const queryResult = await db().execute('find', {
+      collection: 'entities',
+      filters: [{ field: 'addedBy', operator: '==', value: userId }],
+      options: {
+        orderBy: [{ field: 'dateAdded', direction: 'desc' }]
+      }
+    });
+
+    if (queryResult.success && queryResult.data) {
+      return queryResult.data.map(item => item.data as Entity);
+    }
+
+    return [];
   } catch (error) {
     return []
   }

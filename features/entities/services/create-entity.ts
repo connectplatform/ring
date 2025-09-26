@@ -4,8 +4,8 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminRtdb, getAdminRtdbRef, setAdminRtdbData, setAdminRtdbOnDisconnect, getAdminRtdbServerTimestamp, getAdminDb } from '@/lib/firebase-admin.server';
-import { createDocument } from '@/lib/services/firebase-service-manager';
+import { getAdminRtdb, getAdminRtdbRef, setAdminRtdbData, setAdminRtdbOnDisconnect, getAdminRtdbServerTimestamp } from '@/lib/firebase-admin.server';
+import { db } from '@/lib/database/DatabaseService';
 import { Entity } from '@/features/entities/types';
 import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
@@ -164,8 +164,24 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
 
     let docRef;
     try {
-      // Use optimized createDocument function instead of direct collection access
-      docRef = await createDocument('entities', newEntityData);
+      // Use db.command() abstraction layer
+      const result = await db().execute('create', {
+        collection: 'entities',
+        data: newEntityData
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create entity');
+      }
+
+      // Create a mock document reference for compatibility
+      docRef = {
+        id: result.data?.id || 'unknown',
+        get: async () => ({
+          data: () => result.data?.data,
+          exists: true
+        })
+      };
     } catch (error) {
       throw new EntityQueryError(
         'Failed to create entity document',
@@ -210,10 +226,15 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     // Step 6: Set up presence detection for eligible user roles
     if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
       try {
-        // Get collection reference for presence detection setup
-        const adminDb = getAdminDb();
-        const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter);
-        await setupPresenceDetection(entityId, entitiesCollection);
+        // Use db.command() to get entity data for presence detection setup
+        const entityResult = await db().execute('findById', {
+          collection: 'entities',
+          id: entityId
+        });
+
+        if (entityResult.success && entityResult.data) {
+          await setupPresenceDetection(entityId, entityResult.data);
+        }
       } catch (error) {
         // Log presence detection error but don't fail the entire operation
         logRingError(error, `Services: createEntity - Presence detection setup failed for entity ${entityId}`);
@@ -250,12 +271,12 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
 
 /**
  * Sets up presence detection for an entity using Firebase Realtime Database.
- * 
+ *
  * @param {string} entityId - The ID of the entity to set up presence detection for
- * @param {FirebaseFirestore.CollectionReference} entitiesCollection - The Firestore collection reference
+ * @param {any} entityData - The entity data from db.command() result
  * @throws {EntityDatabaseError} If realtime database operations fail
  */
-async function setupPresenceDetection(entityId: string, entitiesCollection: CollectionReference<Entity>): Promise<void> {
+async function setupPresenceDetection(entityId: string, entityData: any): Promise<void> {
   try {
     console.log('Services: createEntity - Enabling presence detection for eligible user roles.');
 
@@ -275,10 +296,17 @@ async function setupPresenceDetection(entityId: string, entitiesCollection: Coll
         const lastOnlineDisconnect = setAdminRtdbOnDisconnect(`entities/${entityId}/lastOnline`);
         lastOnlineDisconnect.set(getAdminRtdbServerTimestamp());
 
-        entitiesCollection.doc(entityId).update({
-          onlineStatus: true,
-        }).then(() => {
-          console.log('Services: Firestore - Entity updated to online.');
+        // Use db.command() to update entity online status
+        db().execute('update', {
+          collection: 'entities',
+          id: entityId,
+          data: { onlineStatus: true }
+        }).then((result) => {
+          if (result.success) {
+            console.log('Services: Firestore - Entity updated to online.');
+          } else {
+            logRingError(result.error, `Services: Firestore - Failed to update entity ${entityId} online status`);
+          }
         }).catch((error) => {
           logRingError(error, `Services: Firestore - Failed to update entity ${entityId} online status`);
         });

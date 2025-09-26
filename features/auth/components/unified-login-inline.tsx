@@ -8,12 +8,13 @@ import { useTranslations } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
 import { AiFillApple } from 'react-icons/ai'
 import { FaEthereum } from 'react-icons/fa'
-import { FcGoogle } from 'react-icons/fc'
 import { HiMail } from 'react-icons/hi'
 import { signIn, useSession, getProviders } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertTitle } from '@/components/ui/alert'
+import { GoogleOneTap } from './google-one-tap'
+import GoogleSignInButtonGIS from './google-signin-button-gis'
 
 // Client-side constant for default locale
 const DEFAULT_LOCALE = 'en' as const
@@ -116,8 +117,8 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
   }, [email, tAuth, from, locale, handleSignInError])
 
   /**
-   * Handles sign-in for Google and Apple
-   * @param {string} provider - The provider to sign in with ('google' or 'apple')
+   * Handles sign-in for Apple
+   * @param {string} provider - The provider to sign in with ('apple')
    */
   const handleSignIn = useCallback(async (provider: string) => {
     setIsLoading(true)
@@ -199,6 +200,9 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
     return (
       <div className="w-full max-w-md mx-auto">
         <AnimatedLoginContainer>
+          {/* Google One Tap - Automatically shows for signed-in Google users */}
+          <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} />
+          
           {emailSent ? (
             <AnimatedItem>
               <div className="text-center py-8">
@@ -219,16 +223,13 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
           ) : (
             <AnimatedItem>
               <div className="space-y-4">
-                {/* Google Sign-in (Preferred) */}
-                <Button
-                  onClick={() => handleSignIn('google')}
-                  disabled={isLoading}
+                {/* Google Sign-in with GIS (No redirects!) */}
+                <GoogleSignInButtonGIS
+                  redirectUrl={from || ROUTES.PROFILE(locale)}
+                  className="w-full"
                   variant="outline"
-                  className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 border-gray-300"
-                >
-                  <FcGoogle className="mr-3 h-5 w-5" />
-                  {tAuth('signIn.providers.google')}
-                </Button>
+                  size="lg"
+                />
 
                 {/* Secondary Options Row */}
                 <div className="grid grid-cols-2 gap-3">
@@ -321,6 +322,9 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
   return (
     <div className="w-full">
       <AnimatedLoginContainer>
+        {/* Google One Tap - Automatically shows for signed-in Google users */}
+        <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} />
+
         {emailSent ? (
           <AnimatedItem>
             <div className="text-center py-6">
@@ -342,16 +346,13 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
         ) : (
           <AnimatedItem>
             <div className="space-y-3">
-              {/* Google Sign-in (Preferred) */}
-              <Button
-                onClick={() => handleSignIn('google')}
-                disabled={isLoading}
+              {/* Google Sign-in with GIS (No redirects!) */}
+              <GoogleSignInButtonGIS
+                redirectUrl={from || ROUTES.PROFILE(locale)}
+                className="w-full"
                 variant="outline"
-                className="w-full h-10 text-sm font-medium bg-white hover:bg-gray-50 border-gray-300"
-              >
-                <FcGoogle className="mr-2 h-4 w-4" />
-                {tAuth('signIn.providers.google')}
-              </Button>
+                size="default"
+              />
 
               {/* Secondary Options Row */}
               <div className="grid grid-cols-2 gap-2">

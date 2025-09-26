@@ -1,5 +1,60 @@
 {
-  "title": "Адмін-панель"
+  "title": "Адмін-панель",
+  "matcher": {
+    "title": "Аналітика AI Matcher",
+    "subtitle": "Моніторте та оптимізуйте вашу систему AI-підбору можливостей",
+    "refresh": "Оновити",
+    "export": "Експорт",
+    "metrics": {
+      "totalMatches": "Загальна кількість збігів",
+      "totalMatchesDesc": "Загальна кількість збігів користувач-можливість",
+      "averageScore": "Середній бал збігу",
+      "averageScoreDesc": "Середній бал якості збігів",
+      "engagementRate": "Рівень залучення",
+      "engagementRateDesc": "Взаємодія користувачів зі сповіщеннями про збіги",
+      "costSavings": "Економія коштів",
+      "costSavingsDesc": "Місячна економія від оптимізації"
+    },
+    "tabs": {
+      "performance": "Продуктивність",
+      "quality": "Якість",
+      "usage": "Використання",
+      "trends": "Тенденції"
+    },
+    "performance": {
+      "autoFillAccuracy": "Точність авто-заповнення",
+      "autoFillDesc": "Відсоток полів, правильно заповнених AI",
+      "processingTime": "Час обробки",
+      "processingDesc": "Середній час обробки можливості",
+      "llmUsage": "Використання LLM та вартість",
+      "totalTokens": "Загальна кількість токенів",
+      "totalRequests": "Загальна кількість запитів",
+      "avgResponseTime": "Сер. час відповіді",
+      "costPerMatch": "Вартість за збіг"
+    },
+    "quality": {
+      "matchDistribution": "Розподіл якості збігів",
+      "levels": {
+        "excellent": "Відмінний",
+        "good": "Добрий",
+        "fair": "Задовільний",
+        "poor": "Поганий"
+      },
+      "userEngagement": "Залучення користувачів",
+      "clickRate": "Рівень кліків",
+      "acceptanceRate": "Рівень прийняття",
+      "feedbackRate": "Рівень відгуків"
+    },
+    "usage": {
+      "dailyMatches": "Денний обсяг збігів",
+      "weeklyAccuracy": "Тижневий тренд точності"
+    },
+    "trends": {
+      "matchTrends": "Тренди збігів з часом",
+      "chartPlaceholder": "Тут буде відображатися інтерактивний графік",
+      "chartDesc": "Показує обсяг та якість збігів"
+    }
+  }
 }
 
 

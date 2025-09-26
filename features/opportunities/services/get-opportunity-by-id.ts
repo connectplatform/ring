@@ -13,7 +13,7 @@ import { Opportunity, SerializedOpportunity } from '@/features/opportunities/typ
 import { cache } from 'react'
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
 import { getCachedDocument as getCachedStaticDocument, getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
-import { getCachedDocumentTyped, getCachedCollectionTyped } from '@/lib/services/firebase-service-manager'
+import { db } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 
@@ -89,8 +89,15 @@ export const getOpportunityById = cache(async (id: string): Promise<Opportunity 
       const cachedOpportunities = await getCachedOpportunities()
       opportunity = cachedOpportunities.find(o => o.id === id) as Opportunity || null
     } else {
-      // Runtime: Use Firebase
-      opportunity = await getCachedDocumentTyped<Opportunity>('opportunities', id)
+      // Runtime: Use db.command() abstraction
+      const result = await db().execute('findById', {
+        collection: 'opportunities',
+        id: id
+      });
+
+      if (result.success && result.data) {
+        opportunity = result.data.data as Opportunity;
+      }
     }
 
     if (!opportunity) {
@@ -148,14 +155,21 @@ export const getSerializedOpportunityById = cache(async (id: string): Promise<Se
  */
 export const getOpportunity = cache(async (opportunityId: string): Promise<Opportunity | null> => {
   try {
-    const opportunity = await getCachedDocumentTyped<Opportunity>('opportunities', opportunityId)
-    
-    // Only return public opportunities for unauthenticated access
-    if (opportunity && opportunity.isConfidential) {
-      return null
+    const result = await db().execute('findById', {
+      collection: 'opportunities',
+      id: opportunityId
+    });
+
+    if (result.success && result.data) {
+      const opportunity = result.data.data as Opportunity;
+      // Only return public opportunities for unauthenticated access
+      if (opportunity && opportunity.isConfidential) {
+        return null
+      }
+      return opportunity;
     }
-    
-    return opportunity
+
+    return null;
   } catch (error) {
     return null
   }

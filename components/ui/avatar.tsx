@@ -17,6 +17,17 @@ interface AvatarProps {
   uploading?: boolean
 }
 
+interface AvatarImageProps {
+  src: string
+  alt?: string
+  className?: string
+}
+
+interface AvatarFallbackProps {
+  children: React.ReactNode
+  className?: string
+}
+
 /**
  * Avatar Component
  * Displays user profile picture with fallback to initials
@@ -153,3 +164,35 @@ export function Avatar({
   )
 }
 
+/**
+ * AvatarImage Component
+ * Displays the avatar image with proper styling
+ */
+export function AvatarImage({ src, alt = "", className }: AvatarImageProps) {
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      className={cn("h-full w-full object-cover rounded-full", className)}
+      onError={(e) => {
+        // Hide broken images
+        const target = e.target as HTMLImageElement
+        target.style.display = 'none'
+      }}
+      unoptimized={!src.startsWith('/')} // Don't optimize external images
+    />
+  )
+}
+
+/**
+ * AvatarFallback Component
+ * Displays fallback content when no image is available
+ */
+export function AvatarFallback({ children, className }: AvatarFallbackProps) {
+  return (
+    <span className={cn("font-medium text-muted-foreground", className)}>
+      {children}
+    </span>
+  )
+}

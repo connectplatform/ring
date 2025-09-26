@@ -18,7 +18,7 @@ import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 /**
  * Interface defining the parameters required to fetch confidential opportunities
@@ -93,59 +93,72 @@ export async function getConfidentialOpportunities(
       throw new Error('Invalid or missing user role for confidential access');
     }
 
-    // Step 1: Initialize Firestore using admin SDK
-    // Uses admin SDK to ensure proper access controls and server-side execution
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const opportunitiesCol = adminDb
-      .collection('opportunities')
-      .withConverter(opportunityConverter as FirestoreDataConverter<Opportunity>);
-
-    // Step 2: Build base query for confidential opportunities
-    // Filters for confidential opportunities only
-    let baseQuery = opportunitiesCol.where('isConfidential', '==', true);
+    // Step 1: Build filters for confidential opportunities
+    const filters: Array<{ field: string; operator: string; value: any }> = [
+      { field: 'isConfidential', operator: '==', value: true }
+    ];
 
     // Apply additional status filter if provided
-    // Allows filtering by opportunity status (e.g., 'active', 'closed')
     if (filter) {
-      baseQuery = baseQuery.where('status', '==', filter);
+      filters.push({ field: 'status', operator: '==', value: filter });
     }
 
-    // Apply sorting based on provided criteria
-    // Expects sort parameter in format 'field:direction' (e.g., 'createdAt:desc')
+    // Step 2: Parse sorting criteria
     const [sortField, sortDirection] = sort.split(':');
-    baseQuery = baseQuery.orderBy(sortField, sortDirection as 'asc' | 'desc');
 
     // Step 3: Get total count for pagination
-    // Calculates total pages and opportunities for pagination metadata
-    const totalSnapshot = await baseQuery.count().get();
-    const totalOpportunities = totalSnapshot.data().count;
+    const countResult = await db().execute('count', {
+      collection: 'opportunities',
+      filters: filters
+    });
+
+    const totalOpportunities = countResult.success ? countResult.data : 0;
     const totalPages = Math.ceil(totalOpportunities / limit);
 
-    // Step 4: Build paginated query
-    // Implements cursor-based pagination using startAfter parameter
-    let query: Query<Opportunity> = baseQuery.limit(limit);
+    // Step 4: Build query with pagination
+    const dbQuery = {
+      collection: 'opportunities',
+      filters: filters,
+      orderBy: [{ field: sortField, direction: sortDirection as 'asc' | 'desc' }],
+      pagination: {
+        limit: limit,
+        offset: startAfter ? 1 : 0 // Simple offset for pagination
+      }
+    };
+
     if (startAfter) {
       console.log(`Services: getconfidential-opportunities - Paginating after opportunity ID: ${startAfter}`);
-      const startAfterDoc = await opportunitiesCol.doc(startAfter).get();
-      if (startAfterDoc.exists) {
-        query = query.startAfter(startAfterDoc);
-      } else {
-        console.warn(`Services: getconfidential-opportunities - Start-after document ${startAfter} does not exist`);
+      try {
+        const startAfterResult = await db().execute('findById', {
+          collection: 'opportunities',
+          id: startAfter
+        });
+
+        if (startAfterResult.success && startAfterResult.data) {
+          // For now, use simple offset-based pagination
+          // TODO: Implement proper cursor-based pagination when db.command() supports it
+        }
+      } catch (error) {
+        console.warn(`Services: getconfidential-opportunities - Start-after document ${startAfter} error:`, error);
       }
     }
 
     // Step 5: Execute query and process results
-    // Fetches documents and formats them for response
-    const querySnapshot = await query.get();
-    const opportunities = querySnapshot.docs.map((doc) => ({
-      ...doc.data(),
-      id: doc.id,
-    }));
+    const queryResult = await db().execute('query', { querySpec: dbQuery });
+
+    const opportunities: Opportunity[] = [];
+    if (queryResult.success && queryResult.data) {
+      queryResult.data.forEach(item => {
+        opportunities.push({
+          ...item.data,
+          id: item.id,
+        } as Opportunity);
+      });
+    }
 
     // Get the ID of the last visible document for next page pagination
-    const lastVisible = querySnapshot.docs.length > 0
-      ? querySnapshot.docs[querySnapshot.docs.length - 1].id
+    const lastVisible = opportunities.length > 0
+      ? opportunities[opportunities.length - 1].id
       : null;
 
     console.log('Services: getconfidential-opportunities - Results:', {

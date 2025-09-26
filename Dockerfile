@@ -39,7 +39,7 @@ COPY pnpm-lock.yaml* ./
 RUN if [ -f pnpm-lock.yaml ]; then \
         pnpm install --frozen-lockfile --production=false; \
     else \
-        npm ci --include=dev; \
+        npm ci --include=dev --legacy-peer-deps; \
     fi
 
 # Copy source code
@@ -50,13 +50,7 @@ COPY env.local.template .env.local.template
 
 # Build the application
 RUN npm run prebuild && \
-    npm run build && \
-    # Clean up development dependencies
-    if [ -f pnpm-lock.yaml ]; then \
-        pnpm prune --prod; \
-    else \
-        npm prune --production; \
-    fi
+    npm run build
 
 # Runtime Stage
 FROM node:22-alpine AS runtime
@@ -86,20 +80,22 @@ WORKDIR /app
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy package files for dependency installation
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json* ./
 
-# Copy server.js for WebSocket support
-COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
-# Copy necessary configuration files
-COPY --from=builder --chown=nextjs:nodejs /app/next.config.mjs ./next.config.mjs
-COPY --from=builder --chown=nextjs:nodejs /app/middleware.ts ./middleware.ts
+
 
 # Copy lib directory for auth and utilities
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 
 # Copy environment template
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
+
+# Install production dependencies with legacy peer deps to handle socket.io
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
 # Create necessary directories
 RUN mkdir -p /app/log /app/tmp && \
@@ -118,5 +114,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application with WebSocket support
+# Start the application with Next.js standalone server (supports WebSocket via API routes)
 CMD ["node", "server.js"]

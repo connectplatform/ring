@@ -39,23 +39,27 @@ interface OpportunitiesWrapperProps {
   initialLimit: number
 }
 
-export default function OpportunitiesWrapper({ 
+export default function OpportunitiesWrapper({
   initialOpportunities = [],
   initialOpportunity,
   initialEntity,
-  initialError, 
-  lastVisible, 
-  initialLimit 
+  initialError,
+  lastVisible,
+  initialLimit
 }: OpportunitiesWrapperProps) {
   const [isClient, setIsClient] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState('all')
 
   const searchParams = useSearchParams()
   const pathname = usePathname()
+
+  // Restore useAppContext hook
   const { setEntities, setError } = useAppContext()
+  // Restore useSession hook
   const { data: session } = useSession()
+  // Restore useTranslations hook
   const t = useTranslations('modules.opportunities')
-  
+
   const locale = pathname.split('/')[1] || 'en'
   const isMyOpportunitiesPage = pathname.includes('/my-opportunities')
 
@@ -72,28 +76,23 @@ export default function OpportunitiesWrapper({
 
   if (!isClient) {
     return (
-      <OpportunitySuspenseBoundary 
-        level="page" 
-        showProgress={true}
-        description="Preparing opportunities directory for display"
-        retryEnabled={false}
-      >
-        <div />
-      </OpportunitySuspenseBoundary>
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
     )
   }
 
   // If initialOpportunity is provided, render opportunity-details
   if (initialOpportunity) {
     return (
-      <OpportunitySuspenseBoundary 
-        level="page" 
+      <OpportunitySuspenseBoundary
+        level="page"
         showProgress={true}
-        description="Loading opportunity details and related information"
+        description={t('loadingOpportunityDetails', { defaultValue: "Loading opportunity details and related information" })}
         retryEnabled={true}
         onRetry={() => window.location.reload()}
       >
-        <OpportunityDetails 
+        <OpportunityDetails
           initialOpportunity={initialOpportunity}
           initialEntity={initialEntity || null}
           initialError={initialError}
@@ -101,8 +100,6 @@ export default function OpportunitiesWrapper({
       </OpportunitySuspenseBoundary>
     )
   }
-
-
 
   // Otherwise, render the opportunities list with navigation
   return (
@@ -114,21 +111,20 @@ export default function OpportunitiesWrapper({
             <h1 className="text-2xl font-bold text-gray-900">
               {t('opportunities', { defaultValue: 'Opportunities' })}
             </h1>
-            
+
             <div className="flex flex-wrap gap-3">
               {session?.user && (
                 <>
-                  <Link href={ROUTES.MY_OPPORTUNITIES(locale as any)}>
+                  <Link href={`/${locale}/my-opportunities`}>
                     <Button variant="outline" className="flex items-center gap-2">
                       <User size={20} />
                       {t('myOpportunities', { defaultValue: 'My Opportunities' })}
                     </Button>
                   </Link>
-                  {/* Add Opportunity Button with Modal */}
                   <AddOpportunityButton locale={locale as any} className="flex items-center gap-2" />
                 </>
               )}
-              <Link href={ROUTES.OPPORTUNITIES(locale as any)}>
+              <Link href={`/${locale}/opportunities`}>
                 <Button variant="ghost" className="flex items-center gap-2">
                   <Briefcase size={20} />
                   {t('viewAll', { defaultValue: 'View All' })}
@@ -139,9 +135,7 @@ export default function OpportunitiesWrapper({
         </div>
       </div>
 
-
-      
-      {/* Submenu Navigation - Only show on My Opportunities page */}
+      {/* Restore Submenu Navigation - Only show on My Opportunities page */}
       {isMyOpportunitiesPage && (
         <OpportunitiesSubmenu
           activeTab={activeTab}
@@ -152,21 +146,21 @@ export default function OpportunitiesWrapper({
             applied: 0, // TODO: Get from user applications
             posted: 0, // TODO: Get from user's posted opportunities
             drafts: 0, // TODO: Get from user's draft opportunities
-            expired: initialOpportunities.filter(opp => 
+            expired: initialOpportunities.filter(opp =>
               opp.expirationDate && new Date(opp.expirationDate) < new Date()
             ).length
           }}
         />
       )}
-      
-      <OpportunitySuspenseBoundary 
-        level="page" 
+
+      <OpportunitySuspenseBoundary
+        level="page"
         showProgress={true}
-        description="Loading opportunities directory with filtering and search capabilities"
+        description={t('loadingOpportunities', { defaultValue: "Loading opportunities directory with filtering and search capabilities" })}
         retryEnabled={true}
         onRetry={() => window.location.reload()}
       >
-        <Opportunities 
+        <Opportunities
           initialOpportunities={initialOpportunities}
           initialError={initialError}
           lastVisible={lastVisible}

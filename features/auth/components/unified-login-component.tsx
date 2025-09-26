@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { GoogleOneTap } from './google-one-tap'
+import GoogleSignInButtonGIS from './google-signin-button-gis'
 
 // Client-side constant for default locale
 const DEFAULT_LOCALE = 'en' as const
@@ -219,15 +221,23 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
       <DialogContent className="sm:max-w-[425px] p-8">
         <DialogHeader className="text-center mb-6">
           <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-            <img 
-              src="/logo.svg" 
-              alt="Ring Logo" 
+            <img
+              src="/logo.svg"
+              alt="Ring Logo"
               className="w-16 h-16"
             />
           </div>
           <DialogTitle className="text-2xl font-bold text-center">{tAuth('signIn.title')}</DialogTitle>
           <p className="text-muted-foreground mt-2 text-center">{tAuth('signIn.subtitle')}</p>
         </DialogHeader>
+
+        {/* Google One Tap - Automatically shows for signed-in Google users */}
+        <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} />
+
+        {/* Debug info */}
+        <div style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '11px', color: '#666' }}>
+          Debug: Check console for One Tap logs
+        </div>
 
         <div className="space-y-4">
           {emailSent ? (
@@ -247,16 +257,13 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
               </div>
           ) : (
               <div className="space-y-4">
-                {/* Google Sign-in (Preferred) */}
-                <Button
-                  onClick={() => handleSignIn('google')}
-                  disabled={isLoading}
+                {/* Google Sign-in with GIS (No redirects!) */}
+                <GoogleSignInButtonGIS
+                  redirectUrl={from || ROUTES.PROFILE(locale)}
+                  className="w-full"
                   variant="outline"
-                  className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 border-gray-300"
-                >
-                  <FcGoogle className="mr-3 h-5 w-5" />
-                  {tAuth('signIn.providers.google')}
-                </Button>
+                  size="lg"
+                />
 
                 {/* Secondary Options Row */}
                 <div className="grid grid-cols-2 gap-3">

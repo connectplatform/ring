@@ -1,5 +1,60 @@
 {
-  "title": "Admin Panel"
+  "title": "Admin Panel",
+  "matcher": {
+    "title": "AI Matcher Analytics",
+    "subtitle": "Monitor and optimize your AI-powered opportunity matching system",
+    "refresh": "Refresh",
+    "export": "Export",
+    "metrics": {
+      "totalMatches": "Total Matches",
+      "totalMatchesDesc": "Total user-opportunity matches generated",
+      "averageScore": "Average Match Score",
+      "averageScoreDesc": "Average quality score of matches",
+      "engagementRate": "Engagement Rate",
+      "engagementRateDesc": "User interaction with match notifications",
+      "costSavings": "Cost Savings",
+      "costSavingsDesc": "Monthly savings from optimization"
+    },
+    "tabs": {
+      "performance": "Performance",
+      "quality": "Quality",
+      "usage": "Usage",
+      "trends": "Trends"
+    },
+    "performance": {
+      "autoFillAccuracy": "Auto-Fill Accuracy",
+      "autoFillDesc": "Percentage of fields correctly auto-filled by AI",
+      "processingTime": "Processing Time",
+      "processingDesc": "Average time to process an opportunity",
+      "llmUsage": "LLM Usage & Cost",
+      "totalTokens": "Total Tokens",
+      "totalRequests": "Total Requests",
+      "avgResponseTime": "Avg Response Time",
+      "costPerMatch": "Cost per Match"
+    },
+    "quality": {
+      "matchDistribution": "Match Quality Distribution",
+      "levels": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "fair": "Fair",
+        "poor": "Poor"
+      },
+      "userEngagement": "User Engagement",
+      "clickRate": "Click Rate",
+      "acceptanceRate": "Acceptance Rate",
+      "feedbackRate": "Feedback Rate"
+    },
+    "usage": {
+      "dailyMatches": "Daily Match Volume",
+      "weeklyAccuracy": "Weekly Accuracy Trend"
+    },
+    "trends": {
+      "matchTrends": "Match Trends Over Time",
+      "chartPlaceholder": "Interactive chart would be displayed here",
+      "chartDesc": "Shows match volume and quality trends"
+    }
+  }
 }
 
 

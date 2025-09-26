@@ -131,9 +131,9 @@ export function getRecommendedTransport(): TunnelProvider {
     }
   }
 
-  // Local development - prefer WebSocket
-  if (env.isLocalhost && available.has(TunnelProvider.WEBSOCKET)) {
-    return TunnelProvider.WEBSOCKET;
+  // Local development - prefer SSE (WebSocket server not running in dev)
+  if (env.isLocalhost && available.has(TunnelProvider.SSE)) {
+    return TunnelProvider.SSE;
   }
 
   // Self-hosted with Node.js - prefer WebSocket

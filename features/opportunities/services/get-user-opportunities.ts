@@ -7,10 +7,7 @@ import { UserRole } from '@/features/auth/types';
 import { auth } from '@/auth';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
-import { 
-  getCachedCollectionAdvanced,
-  getCachedDocument
-} from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 /**
  * Fetches opportunities created by a specific user
@@ -39,22 +36,35 @@ export async function getUserCreatedOpportunities(
     // Apply pagination if provided
     if (startAfter) {
       try {
-        const startAfterDoc = await getCachedDocument('opportunities', startAfter);
-        if (startAfterDoc && startAfterDoc.exists) {
-          queryConfig.startAfter = startAfterDoc;
+        const result = await db().execute('findById', {
+          collection: 'opportunities',
+          id: startAfter
+        });
+
+        if (result.success && result.data) {
+          queryConfig.startAfter = result.data;
         }
       } catch (error) {
         logger.warn('Pagination document not found, starting from beginning');
       }
     }
 
-    // Execute query
-    const snapshot = await getCachedCollectionAdvanced('opportunities', queryConfig);
+    // Execute query using db.command()
+    const dbQuery = {
+      collection: 'opportunities',
+      filters: queryConfig.where || [],
+      orderBy: queryConfig.orderBy || [{ field: 'dateCreated', direction: 'desc' }],
+      pagination: {
+        limit: queryConfig.limit || 20,
+        offset: startAfter ? 1 : 0
+      }
+    };
+
+    const queryResult = await db().execute('query', { querySpec: dbQuery });
 
     // Map and serialize opportunities
-    const opportunities = snapshot.docs.map(doc => {
-      const data = doc.data();
-      
+    const opportunities: SerializedOpportunity[] = [];
+    if (queryResult.success && queryResult.data) {
       const timestampToISO = (timestamp: any): string => {
         if (timestamp && typeof timestamp.toDate === 'function') {
           return timestamp.toDate().toISOString();
@@ -64,18 +74,21 @@ export async function getUserCreatedOpportunities(
         }
         return new Date().toISOString();
       };
-      
-      return {
-        ...data,
-        id: doc.id,
-        dateCreated: timestampToISO(data.dateCreated),
-        dateUpdated: timestampToISO(data.dateUpdated),
-        expirationDate: timestampToISO(data.expirationDate),
-        applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
-      } as SerializedOpportunity;
-    });
 
-    const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
+      queryResult.data.forEach(item => {
+        const data = item.data;
+        opportunities.push({
+          ...data,
+          id: item.id,
+          dateCreated: timestampToISO(data.dateCreated),
+          dateUpdated: timestampToISO(data.dateUpdated),
+          expirationDate: timestampToISO(data.expirationDate),
+          applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
+        } as SerializedOpportunity);
+      });
+    }
+
+    const lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null;
 
     logger.info('Services: getUserCreatedOpportunities - Fetched', { count: opportunities.length, lastVisible });
 

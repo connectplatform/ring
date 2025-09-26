@@ -4,6 +4,7 @@ import { getAdminDb } from "@/lib/firebase-admin.server"
 import authConfig from "./auth.config"
 import Resend from "next-auth/providers/resend"
 import { ethers } from "ethers"
+import { OAuth2Client } from 'google-auth-library'
 import { generateInternalJWT } from "@/lib/auth/generate-jwt"
 import {
   UserRole,
@@ -12,6 +13,9 @@ import {
   type UserSettings,
   type NotificationPreferences,
 } from "@/features/auth/types"
+
+// Initialize Google Auth client for ID token verification (server-side only)
+const googleAuthClient = new OAuth2Client(process.env.AUTH_GOOGLE_ID)
 
 /**
  * Auth.js v5 Server-Side Configuration
@@ -74,6 +78,81 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       })
     ] : []),
     ...authConfig.providers.map(provider => {
+      console.log('🔵 Processing provider:', { id: provider.id, name: provider.name })
+
+      // Override Google One Tap provider with full server-side validation
+      if (provider.id === 'google-one-tap') {
+        console.log('🔵 Found Google One Tap provider, applying server override')
+        console.log('Google One Tap provider override activated for provider:', provider.id)
+        return {
+          ...provider,
+          async authorize(credentials: any) {
+            console.log('🔵 Google One Tap SERVER authorize called')
+            console.log('🔵 Credentials object:', credentials)
+            console.log('🔵 Has credential:', !!credentials?.credential)
+
+            // Handle both direct credential and credential passed from Edge provider
+            const token = credentials?.credential;
+            console.log('🔵 Token to verify:', token ? 'present' : 'missing')
+
+            if (!token) {
+              console.log('🔵 No credential provided to server-side provider')
+              return null;
+            }
+
+            try {
+              console.log('🔵 Verifying Google ID token on server...')
+              console.log('🔵 Token length:', token.length)
+              console.log('🔵 Google Client ID:', process.env.AUTH_GOOGLE_ID)
+
+              // Verify the ID token from Google Identity Services
+              const ticket = await googleAuthClient.verifyIdToken({
+                idToken: token as string,
+                audience: process.env.AUTH_GOOGLE_ID,
+              });
+
+              const payload = ticket.getPayload();
+              console.log('🔵 Token verification successful!')
+              console.log('🔵 Token payload:', {
+                sub: payload?.sub,
+                email: payload?.email,
+                name: payload?.name,
+                email_verified: payload?.email_verified,
+                picture: payload?.picture ? 'present' : 'missing'
+              })
+
+              if (!payload) {
+                console.log('🔵 No payload in token')
+                return null;
+              }
+
+              // Return user data in Auth.js format
+              const user = {
+                id: payload.sub,
+                email: payload.email,
+                name: payload.name,
+                image: payload.picture,
+                role: UserRole.SUBSCRIBER,
+                isVerified: payload.email_verified || false,
+              };
+
+              console.log('🔵 Returning verified user from Google One Tap:', {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role
+              })
+              return user;
+            } catch (error) {
+              console.error('🔵 Google One Tap token verification failed:', error);
+              console.error('🔵 Error details:', error.message)
+              console.error('🔵 Error stack:', error.stack)
+
+              return null; // Don't return dummy data in production
+            }
+          },
+        }
+      }
       // Override crypto wallet provider with full server-side validation
       if (provider.id === "crypto-wallet") {
         return {
@@ -133,14 +212,22 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, user, account, trigger }) {
+      console.log('JWT callback triggered:', { trigger, hasUser: !!user, hasAccount: !!account, userId: user?.id, tokenUserId: token.userId })
+
       // Fetch fresh user data from Firebase if needed
-      if (trigger === 'update' || (user && account)) {
+      if (trigger === 'update' || (user && account) || (user && !token.name)) {
+        console.log('Fetching fresh user data from Firebase for userId:', token.userId || user?.id)
         try {
           const db = getAdminDb()
-          if (db && token.userId) {
-            const userDoc = await db.collection("users").doc(token.userId as string).get()
+          if (db && (token.userId || user?.id)) {
+            const userId = (token.userId as string) || user?.id
+            console.log('Looking up user document for ID:', userId)
+            const userDoc = await db.collection("users").doc(userId).get()
+
             if (userDoc.exists) {
               const userData = userDoc.data()
+              console.log('Found user data in Firebase:', { name: userData?.name, email: userData?.email, role: userData?.role })
+
               token.username = userData?.username
               token.phoneNumber = userData?.phoneNumber
               token.bio = userData?.bio
@@ -150,6 +237,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               token.role = userData?.role ?? UserRole.SUBSCRIBER
               token.isSuperAdmin = userData?.isSuperAdmin ?? false
               token.isVerified = userData?.isVerified ?? false
+            } else {
+              console.log('User document not found in Firebase for ID:', userId)
             }
           }
         } catch (error) {
@@ -211,6 +300,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
+      console.log('Session callback triggered with token:', { hasToken: !!token, userId: token?.userId, name: token?.name, email: token?.email })
+
       if (token) {
         session.user.id = token.userId as string
         session.user.role = token.role as UserRole
@@ -218,6 +309,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
+
+        console.log('Session being set with user data:', {
+          id: session.user.id,
+          name: session.user.name,
+          email: session.user.email,
+          role: session.user.role
+        })
+
         // Add custom fields from Firebase
         ;(session.user as any).username = token.username as string
         ;(session.user as any).phoneNumber = token.phoneNumber as string
@@ -232,6 +331,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         session.accessToken = token.accessToken as string
         session.refreshToken = token.refreshToken as string
       }
+
+      console.log('Session callback returning session:', {
+        hasUser: !!session.user,
+        userId: session.user?.id,
+        name: session.user?.name,
+        email: session.user?.email
+      })
+
       return session
     },
 
@@ -244,8 +351,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           return true // Allow signin without database operations
         }
 
-        // Handle different provider types
-        if (account?.provider === "google" || account?.provider === "apple") {
+        // Handle different provider types including Google One Tap
+        if (account?.provider === "google" || account?.provider === "apple" || account?.provider === "google-one-tap") {
           // First check if there's an existing user with this email
           const usersRef = db.collection("users")
           const emailQuery = await usersRef.where("email", "==", user.email).get()
@@ -256,13 +363,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             const existingData = existingUser.data()
             
             // Check if this is the same provider or if we should link accounts
-            if (existingData.authProvider !== account.provider) {
+            // Treat google-one-tap and google as the same provider
+            const normalizedProvider = account.provider === 'google-one-tap' ? 'google' : account.provider
+            const existingProvider = existingData.authProvider === 'google-one-tap' ? 'google' : existingData.authProvider
+            
+            if (existingProvider !== normalizedProvider) {
               // Link the accounts by updating the existing user
               await existingUser.ref.update({
-                [`linkedProviders.${account.provider}`]: {
-                  id: account.providerAccountId,
+                [`linkedProviders.${normalizedProvider}`]: {
+                  id: account.providerAccountId || user.id,
                   linkedAt: new Date(),
                 },
+                lastLogin: new Date(),
+              })
+              return true
+            } else {
+              // Same provider, just update last login
+              await existingUser.ref.update({
                 lastLogin: new Date(),
               })
               return true
@@ -289,7 +406,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
             // Handle Google profile photo storage
             let storedPhotoURL = user.image
-            if (account?.provider === "google" && user.image) {
+            if ((account?.provider === "google" || account?.provider === "google-one-tap") && user.image) {
               try {
                 // Store Google profile photo in our storage system
                 console.log('Storing Google profile photo for:', user.email)
@@ -348,16 +465,19 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               console.warn('WALLET_ENCRYPTION_KEY not set - skipping wallet creation for new user')
             }
 
+            // Normalize provider name for storage
+            const normalizedProvider = account.provider === 'google-one-tap' ? 'google' : account.provider
+
             await userDoc.ref.set({
               email: user.email,
               name: user.name,
               photoURL: storedPhotoURL,
               role: UserRole.SUBSCRIBER,
-              authProvider: account.provider,
-              authProviderId: account.providerAccountId,
+              authProvider: normalizedProvider,
+              authProviderId: account.providerAccountId || user.id,
               linkedProviders: {
-                [account.provider]: {
-                  id: account.providerAccountId,
+                [normalizedProvider]: {
+                  id: account.providerAccountId || user.id,
                   linkedAt: now,
                 }
               },
@@ -418,4 +538,4 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
  * Auth.js v5 Universal auth() method
  * Replaces getServerSession, getToken, etc.
  */
-export default { auth };
+export default { auth }

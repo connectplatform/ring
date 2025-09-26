@@ -15,8 +15,14 @@ Entities represent professional organizations within the Ring Platform ecosystem
 - **26 Industry Types**: Technology, Finance, Healthcare, Manufacturing, Consulting, etc.
 - **Visibility Tiers**: Public → Subscriber → Member → Confidential access levels
 - **Rich Profiles**: Company information, team details, achievements, certifications
+- **Showcase Pages**: Comprehensive multi-section layouts (Overview, Opportunities, Products, Analytics, Contact)
+- **Direct Inquiries**: Embedded inquiry forms with multiple inquiry types
+- **Store Integration**: Product showcases and e-commerce capabilities
+- **Real-time Updates**: Live opportunities and product listings
+- **Analytics Dashboard**: Performance metrics and engagement tracking
 - **Social Integration**: News articles, updates, and professional content
 - **Verification System**: Enhanced credibility through verification processes
+- **Wallet Integration**: RING token payments and financial interactions
 
 #### **Opportunities - Dual Nature System**
 Ring Platform supports a sophisticated dual-nature opportunity system:
@@ -88,6 +94,11 @@ Ring Platform implements a tiered access model for professional networking:
 
 ### **Professional Networking**
 - **Entity Profiles**: Comprehensive company and organization profiles
+- **Enhanced Showcase Pages**: Multi-section entity displays with opportunities, products, analytics, and contact forms
+- **Direct Inquiry System**: Embedded forms for partnership inquiries, collaborations, and support requests
+- **Store Integration**: E-commerce capabilities with product showcases and RING token payments
+- **Real-time Opportunities**: Live listings with deadline tracking and application management
+- **Analytics Dashboard**: Performance metrics and engagement tracking for entities
 - **Opportunity Management**: Advanced job posting and service request system
 - **Professional Discovery**: Find companies, opportunities, and professionals
 - **Networking Tools**: Connect with industry professionals and organizations

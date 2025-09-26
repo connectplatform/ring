@@ -9,9 +9,9 @@ This directory contains various setup and configuration scripts for the Ring Pla
 
 ```bash
 # Located in Ring project root directory
-./setup.sh         # Development environment setup (default)
-./setup.sh dev     # Development environment setup (explicit)
-./setup.sh prod    # Production deployment setup
+./install.sh         # Development environment setup (default)
+./install.sh dev     # Development environment setup (explicit)
+./install.sh prod    # Production deployment setup
 ```
 
 **Features:**

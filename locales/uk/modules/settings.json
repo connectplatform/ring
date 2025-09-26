@@ -30,6 +30,50 @@
   "unsavedChanges": "Незабережені зміни",
   "appearance": "Зовнішній вигляд",
   "privacy": "Приватність",
-  "profileVisibility": "Видимість профілю",
-  "timezone": "Часовий пояс"
+    "profileVisibility": "Видимість профілю",
+    "timezone": "Часовий пояс",
+    "aiMatching": {
+      "title": "Налаштування AI-підбору",
+      "enableMatching": "Увімкнути AI-підбір можливостей",
+      "minMatchScore": "Мінімальний бал збігу",
+      "selectScore": "Оберіть мінімальний бал",
+      "scoreLabels": {
+        "low": "Показувати більше збігів",
+        "medium": "Збалансовано",
+        "high": "Тільки високої якості",
+        "excellent": "Тільки відмінні збіги"
+      },
+      "maxMatchesPerDay": "Максимум збігів на день",
+      "selectLimit": "Оберіть денний ліміт",
+      "limitLabels": {
+        "conservative": "Консервативно",
+        "moderate": "Помірно",
+        "aggressive": "Агресивно",
+        "unlimited": "Без обмежень"
+      },
+      "preferredCategories": "Перевагові категорії можливостей",
+      "preferredWorkTypes": "Перевагові типи роботи",
+      "autoFillSuggestions": "Показувати пропозиції AI авто-заповнення при створенні можливостей",
+      "categories": {
+        "technology": "Технології",
+        "business": "Бізнес",
+        "education": "Освіта",
+        "healthcare": "Охорона здоров'я",
+        "finance": "Фінанси",
+        "marketing": "Маркетинг",
+        "design": "Дизайн",
+        "engineering": "Інженерія",
+        "consulting": "Консалтинг",
+        "other": "Інше"
+      },
+      "workTypes": {
+        "full-time": "Повний робочий день",
+        "part-time": "Неповний робочий день",
+        "contract": "Контракт",
+        "freelance": "Фріланс",
+        "remote": "Віддалено",
+        "hybrid": "Гібридно",
+        "onsite": "На місці"
+      }
+    }
 }

@@ -82,6 +82,11 @@
   "noOpportunitiesDescription": "Try adjusting your search criteria or check back later for new opportunities.",
   "clearFilters": "Clear Filters",
   "createFirstOpportunity": "Create Your First Opportunity",
+  "noCreatedOpportunities": "No opportunities created yet",
+  "noAppliedOpportunities": "No applications yet",
+  "applyToOpportunities": "Browse opportunities and apply to get started",
+  "getStartedWithOpportunities": "Create or apply to opportunities to get started",
+  "browseOpportunities": "Browse Opportunities",
   "type_selector": {
     "title": "What would you like to create?",
     "examples": "Examples",
@@ -202,7 +207,89 @@
   "mentorship": "Mentorship",
   "resource": "Resource",
   "event": "Event",
-  "status": {
+    "matchQuality": {
+      "factors": {
+        "skillMatch": "Skills",
+        "experienceMatch": "Experience",
+        "industryMatch": "Industry",
+        "locationMatch": "Location",
+        "budgetMatch": "Budget",
+        "availabilityMatch": "Availability",
+        "careerMatch": "Career Fit",
+        "cultureMatch": "Culture Fit"
+      },
+      "detailedBreakdown": "Match Analysis",
+      "explanation": "AI Explanation",
+      "factorsBreakdown": "Factor Breakdown",
+      "scoringNote": "Scoring based on AI analysis of user profile and opportunity requirements",
+      "matchScore": "Match Score",
+      "levels": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "fair": "Fair",
+        "poor": "Poor"
+      },
+      "clickForDetails": "Click for detailed breakdown",
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Medium confidence",
+        "low": "Low confidence"
+      }
+    },
+    "enrichment": {
+      "title": "AI Opportunity Enrichment",
+      "stats": {
+        "accepted": "Accepted",
+        "modified": "Modified",
+        "pending": "Pending"
+      },
+      "confidence": "Confidence",
+      "description": "AI has analyzed your opportunity and suggests the following improvements. Review and accept the changes you want to apply.",
+      "fields": {
+        "suggestedTags": "Suggested Tags",
+        "estimatedBudget": "Budget Estimate",
+        "requiredSkills": "Required Skills",
+        "industryCategory": "Industry Category",
+        "locationPreference": "Location Preference",
+        "experienceLevel": "Experience Level",
+        "urgency": "Urgency Level",
+        "estimatedDuration": "Estimated Duration",
+        "companySize": "Company Size",
+        "workType": "Work Type"
+      },
+      "noValue": "Not specified",
+      "selectValue": "Select value",
+      "enterValue": "Enter value",
+      "options": {
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onsite": "On-site",
+        "junior": "Junior",
+        "mid": "Mid-level",
+        "senior": "Senior",
+        "lead": "Lead",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "startup": "Startup",
+        "scaleup": "Scale-up",
+        "enterprise": "Enterprise",
+        "fullTime": "Full-time",
+        "partTime": "Part-time",
+        "contract": "Contract",
+        "freelance": "Freelance"
+      },
+      "modified": "Modified",
+      "reject": "Reject All",
+      "acceptSelected": "Accept Selected",
+      "advancedInfo": "Advanced Information",
+      "processingTime": "Processing Time",
+      "suggestionsCount": "Suggestions",
+      "aiModel": "AI Model",
+      "hideAdvanced": "Hide Advanced",
+      "showAdvanced": "Show Advanced"
+    },
+    "status": {
     "opportunityTitle": "Opportunity Title",
     "applicationId": "Application ID",
     "submissionId": "Submission ID",

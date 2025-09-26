@@ -30,6 +30,7 @@ const nextConfig = {
     AUTH_APPLE_SECRET: process.env.AUTH_APPLE_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+    NEXT_PUBLIC_AUTH_GOOGLE_ID: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID || process.env.AUTH_GOOGLE_ID,
     AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
   },
   async headers() {
@@ -137,6 +138,9 @@ const nextConfig = {
     PROJECT_ROOT: process.cwd()
   },
   output: 'standalone',
+  outputFileTracingIncludes: {
+    '**/*': ['./lib/**/*', './server.js']
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'ring.ck.ua'],

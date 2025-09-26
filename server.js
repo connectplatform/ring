@@ -2,7 +2,7 @@ import { createServer } from 'http'
 import next from 'next'
 import { Server } from 'socket.io'
 import { verifyJwtToken } from './lib/auth/jwt.js'
-import { wsRateLimiter, authRateLimiter } from './lib/security/rate-limiter.ts'
+import { wsRateLimiter } from './lib/security/rate-limiter.ts'
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })

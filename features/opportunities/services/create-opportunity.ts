@@ -13,16 +13,14 @@ import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseEr
 import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { appendEvent } from '@/lib/events/event-log.server'
-import { NeuralMatcher } from '@/lib/ai/neural-matcher'
+import { Matcher } from '@/lib/ai/matcher'
+import { OpportunityAutoFillService } from './auto-fill-service'
+import { OpportunityMatchingService } from './matching-service'
 import { logger } from '@/lib/logger';
 
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced,
-  createDocument
-} from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 /**
  * Type definition for the data required to create a new opportunity.
@@ -261,10 +259,26 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     newOpportunityData.applicantCount ??= 0;
     // Priority is optional and only set for certain opportunity types
 
-    // Step 4: Create the opportunity document using optimized firebase-service-manager
+    // Step 4: Create the opportunity document using db.command()
     let docRef;
     try {
-      docRef = await createDocument('opportunities', newOpportunityData);
+      const result = await db().execute('create', {
+        collection: 'opportunities',
+        data: newOpportunityData
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create opportunity');
+      }
+
+      // Create a mock document reference for compatibility
+      docRef = {
+        id: result.data?.id || 'unknown',
+        get: async () => ({
+          data: () => result.data?.data,
+          exists: true
+        })
+      };
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to create opportunity document',
@@ -279,10 +293,29 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
       );
     }
 
-    // Step 5: Retrieve the created opportunity using optimized caching
-    let docSnap;
+    // Step 5: Retrieve the created opportunity using db.command()
+    let rawData;
     try {
-      docSnap = await getCachedDocument('opportunities', docRef.id);
+      const result = await db().execute('findById', {
+        collection: 'opportunities',
+        id: docRef.id
+      });
+
+      if (!result.success || !result.data) {
+        throw new OpportunityQueryError(
+          'Created opportunity document not found',
+          undefined,
+          {
+            timestamp: Date.now(),
+            userId,
+            userRole,
+            opportunityId: docRef.id,
+            operation: 'opportunity_verification'
+          }
+        );
+      }
+
+      rawData = result.data.data;
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to retrieve created opportunity',
@@ -297,22 +330,6 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
       );
     }
 
-    if (!docSnap || !docSnap.exists) {
-      throw new OpportunityQueryError(
-        'Created opportunity document not found',
-        undefined,
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          opportunityId: docRef.id,
-          operation: 'opportunity_verification'
-        }
-      );
-    }
-
-    // Step 6: Retrieve and return the created opportunity
-    const rawData = docSnap.data();
     if (!rawData) {
       throw new OpportunityQueryError(
         'Created opportunity document has no data',
@@ -354,21 +371,89 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     console.log(`Services: createOpportunity - Opportunity created successfully with ID: ${docRef.id}`);
     invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin'])
     
-    // Emit opportunity_matched baseline event(s) using NeuralMatcher
+    // AI-Powered Opportunity Processing: Auto-fill and Matching
     try {
-      const matcher = new NeuralMatcher()
-      const matches = await matcher.match(createdOpportunity)
+      logger.info('Services: createOpportunity - Starting AI-powered opportunity processing');
+
+      // Step 1: Auto-fill opportunity with AI suggestions
+      const autoFillService = new OpportunityAutoFillService();
+      const autoFillResult = await autoFillService.enrichOpportunity({
+        id: createdOpportunity.id,
+        type: createdOpportunity.type,
+        title: createdOpportunity.title,
+        description: createdOpportunity.briefDescription + (createdOpportunity.fullDescription ? '\n' + createdOpportunity.fullDescription : ''),
+        tags: createdOpportunity.tags,
+        category: createdOpportunity.category,
+        location: createdOpportunity.location,
+        budget: createdOpportunity.budget,
+        requiredSkills: createdOpportunity.requiredSkills
+      });
+
+      logger.info('Services: createOpportunity - Auto-fill completed', {
+        confidence: autoFillResult.confidence,
+        suggestionsCount: autoFillResult.suggestions.length
+      });
+
+      // Step 2: Find matching users and generate notifications
+      const matchingService = new OpportunityMatchingService();
+      const matchingResult = await matchingService.findMatches(createdOpportunity);
+
+      logger.info('Services: createOpportunity - User matching completed', {
+        matchesFound: matchingResult.matches.length,
+        averageScore: matchingResult.matchQuality.averageScore,
+        processingTime: matchingResult.processingTime
+      });
+
+      // Step 3: Emit enhanced opportunity_matched event with LLM data
       await appendEvent({
-        type: 'opportunity_matched',
+        type: 'opportunity_matched_ai',
         userId,
         reversible: false,
         payload: {
-          opportunity: { id: createdOpportunity.id, tags: createdOpportunity.tags, type: createdOpportunity.type },
-          matches
+          opportunity: {
+            id: createdOpportunity.id,
+            title: createdOpportunity.title,
+            type: createdOpportunity.type,
+            tags: createdOpportunity.tags,
+            category: createdOpportunity.category
+          },
+          autoFillResult,
+          matchingResult,
+          processingTimestamp: Date.now()
         }
-      })
-    } catch (e) {
-      console.warn('Services: createOpportunity - match emit failed', e)
+      });
+
+      // Step 4: Notify matched users (async, don't wait for completion)
+      if (matchingResult.matches.length > 0) {
+        matchingService.notifyMatchedUsers(matchingResult).catch(error => {
+          logger.warn('Services: createOpportunity - User notification failed', { error });
+        });
+      }
+
+    } catch (error) {
+      logger.error('Services: createOpportunity - AI processing failed, continuing without AI features', { error });
+
+      // Fallback: Emit basic opportunity_matched event if AI processing fails
+      try {
+        const matcher = new Matcher();
+        const matches = await matcher.match(createdOpportunity);
+        await appendEvent({
+          type: 'opportunity_matched',
+          userId,
+          reversible: false,
+          payload: {
+            opportunity: {
+              id: createdOpportunity.id,
+              tags: createdOpportunity.tags,
+              type: createdOpportunity.type
+            },
+            matches,
+            fallback: true
+          }
+        });
+      } catch (fallbackError) {
+        logger.warn('Services: createOpportunity - Fallback matching also failed', { fallbackError });
+      }
     }
 
     return createdOpportunity;

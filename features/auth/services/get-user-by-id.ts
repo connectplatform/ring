@@ -10,10 +10,11 @@ import { FirebaseError } from 'firebase/app';
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { 
+import {
   getCachedDocument,
   getCachedCollectionAdvanced
 } from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -53,24 +54,73 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       return null; // Only allow users to access their own profile or admins to access any profile
     }
 
-    // Step 3: Retrieve the user document using optimized firebase-service-manager
-    const phase = getCurrentPhase();
-    const userDoc = await getCachedDocument('users', userId);
+    // Step 3: Retrieve the user document using database abstraction layer
+    console.log(`Services: getUserById - Using database abstraction layer for user: ${userId}`);
 
-    if (!userDoc || !userDoc.exists) {
-      console.log(`Services: getUserById - User document not found for ID: ${userId}`);
-      return null;
-    }
+    try {
+      // Initialize database service if needed
+      console.log(`Services: getUserById - Initializing database service`);
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        console.error(`Services: getUserById - Database initialization failed:`, initResult.error);
+        // Fallback to Firebase direct access if database initialization fails
+        console.log(`Services: getUserById - Falling back to Firebase direct access`);
+        const fallbackDoc = await getCachedDocument('users', userId);
+        if (fallbackDoc && fallbackDoc.exists) {
+          const fallbackData = fallbackDoc.data();
+          console.log(`Services: getUserById - Fallback successful for user: ${userId}`);
+          return {
+            id: userId,
+            name: fallbackData?.name,
+            username: fallbackData?.username,
+            email: fallbackData?.email,
+            role: fallbackData?.role,
+            photoURL: fallbackData?.photoURL,
+            phoneNumber: fallbackData?.phoneNumber,
+            organization: fallbackData?.organization,
+            position: fallbackData?.position,
+            wallets: fallbackData?.wallets,
+            isVerified: fallbackData?.isVerified,
+            createdAt: new Date(fallbackData?.createdAt?._seconds * 1000 || Date.now()),
+            lastLogin: new Date(fallbackData?.lastLogin?._seconds * 1000 || Date.now()),
+            bio: fallbackData?.bio,
+            canPostconfidentialOpportunities: fallbackData?.canPostconfidentialOpportunities,
+            canViewconfidentialOpportunities: fallbackData?.canViewconfidentialOpportunities,
+            postedopportunities: fallbackData?.postedopportunities,
+            savedopportunities: fallbackData?.savedopportunities,
+            notificationPreferences: fallbackData?.notificationPreferences,
+          } as Partial<AuthUser>;
+        }
+        return null;
+      }
 
-    const userData = userDoc.data();
-    if (!userData) {
-      console.log(`Services: getUserById - User document exists but has no data for ID: ${userId}`);
-      return null;
-    }
+      console.log(`Services: getUserById - Database initialization successful`);
 
-    // Convert Firebase Timestamps to Date objects consistently
+      const dbService = getDatabaseService();
+      const userResult = await dbService.read('users', userId);
+
+      if (!userResult.success || !userResult.data) {
+        console.log(`Services: getUserById - User document not found for ID: ${userId}`);
+        console.log(`Services: getUserById - Database result:`, userResult);
+        return null;
+      }
+
+      const dbDocument = userResult.data;
+      console.log(`Services: getUserById - Successfully retrieved database document for ID: ${userId}`, {
+        hasDocument: !!dbDocument,
+        documentType: typeof dbDocument,
+        documentKeys: dbDocument ? Object.keys(dbDocument) : []
+      });
+
+      if (!dbDocument) {
+        console.log(`Services: getUserById - No document found in database result`);
+        return null;
+      }
+
+    // Convert timestamps to Date objects consistently
     const convertTimestamp = (timestamp: any): Date => {
       if (timestamp && timestamp._seconds) {
+        // Firebase timestamp format
         return new Date(timestamp._seconds * 1000);
       }
       if (timestamp instanceof Date) {
@@ -79,8 +129,25 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       if (typeof timestamp === 'string') {
         return new Date(timestamp);
       }
+      // PostgreSQL timestamp format (ISO string)
+      if (typeof timestamp === 'object' && timestamp.toISOString) {
+        return timestamp;
+      }
       return new Date();
     };
+
+    // Extract the actual data from the database document
+    const userData = (dbDocument as any).data || dbDocument;
+    console.log(`Services: getUserById - Extracted user data:`, {
+      hasData: !!userData,
+      dataKeys: userData ? Object.keys(userData) : [],
+      dataType: typeof userData
+    });
+
+    if (!userData) {
+      console.log(`Services: getUserById - No data found in database document`);
+      return null;
+    }
 
     // Step 5: Return appropriate data based on user role
     if (requestingUserRole === UserRole.ADMIN) {
@@ -119,12 +186,16 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       return safeUserData;
     }
 
-  } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: getUserById - Firebase error:', error.code, error.message);
-    } else {
+    } catch (error) {
       console.error('Services: getUserById - Error retrieving user profile:', error);
+      console.error('Services: getUserById - Error details:', {
+        message: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      return null; // Indicate failure by returning null
     }
+  } catch (error) {
+    console.error('Services: getUserById - Authentication or authorization error:', error);
     return null; // Indicate failure by returning null
   }
 }

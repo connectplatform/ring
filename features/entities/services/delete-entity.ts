@@ -4,12 +4,12 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { getAdminDb, getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server';
+import { getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 import { auth } from '@/auth'; // Auth.js v5 handler for session management
 import { UserRole } from '@/features/auth/types';
@@ -55,21 +55,19 @@ export async function deleteEntity(id: string): Promise<boolean> {
 
     console.log(`Services: deleteEntity - User authenticated with ID ${userId} and role ${userRole}`);
 
-    // Step 2: Access Firestore and get the entity document
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const entitiesCollection = adminDb.collection('entities');
-    const entityDoc = await entitiesCollection.doc(id).get();
+    // Step 2: Get the entity using db.command()
+    const entityResult = await db().execute('findById', {
+      collection: 'entities',
+      id: id
+    });
 
     // Step 3: Check if the entity exists
-    if (!entityDoc.exists) {
+    if (!entityResult.success || !entityResult.data) {
       console.warn('Services: deleteEntity - No entity found with ID:', id);
       throw new Error(`Entity with ID ${id} not found.`);
     }
 
-    const entity = entityDoc.data() as Entity;
+    const entity = entityResult.data.data as Entity;
 
     // Step 4: Check user's permission to delete the entity
     const isOwner = await checkEntityOwnership(userId, id);
@@ -84,8 +82,15 @@ export async function deleteEntity(id: string): Promise<boolean> {
       throw new Error('You do not have permission to delete confidential entities.');
     }
 
-    // Step 6: Delete the entity from Firestore
-    await entitiesCollection.doc(id).delete();
+    // Step 6: Delete the entity using db.command()
+    const deleteResult = await db().execute('delete', {
+      collection: 'entities',
+      id: id
+    });
+
+    if (!deleteResult.success) {
+      throw new Error(deleteResult.error?.message || 'Failed to delete entity');
+    }
 
     // Step 7: Remove presence data from Realtime Database
     const entityPresenceRef = getAdminRtdbRef(`entities/${id}`);

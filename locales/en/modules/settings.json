@@ -30,6 +30,50 @@
   "unsavedChanges": "Unsaved changes",
   "appearance": "Appearance",
   "privacy": "Privacy",
-  "profileVisibility": "Profile Visibility",
-  "timezone": "Timezone"
+    "profileVisibility": "Profile Visibility",
+    "timezone": "Timezone",
+    "aiMatching": {
+      "title": "AI Matching Preferences",
+      "enableMatching": "Enable AI-powered opportunity matching",
+      "minMatchScore": "Minimum Match Score",
+      "selectScore": "Select minimum score",
+      "scoreLabels": {
+        "low": "Show more matches",
+        "medium": "Balanced",
+        "high": "High quality only",
+        "excellent": "Excellent matches only"
+      },
+      "maxMatchesPerDay": "Maximum Matches Per Day",
+      "selectLimit": "Select daily limit",
+      "limitLabels": {
+        "conservative": "Conservative",
+        "moderate": "Moderate",
+        "aggressive": "Aggressive",
+        "unlimited": "No limit"
+      },
+      "preferredCategories": "Preferred Opportunity Categories",
+      "preferredWorkTypes": "Preferred Work Types",
+      "autoFillSuggestions": "Show AI auto-fill suggestions when creating opportunities",
+      "categories": {
+        "technology": "Technology",
+        "business": "Business",
+        "education": "Education",
+        "healthcare": "Healthcare",
+        "finance": "Finance",
+        "marketing": "Marketing",
+        "design": "Design",
+        "engineering": "Engineering",
+        "consulting": "Consulting",
+        "other": "Other"
+      },
+      "workTypes": {
+        "full-time": "Full-time",
+        "part-time": "Part-time",
+        "contract": "Contract",
+        "freelance": "Freelance",
+        "remote": "Remote",
+        "hybrid": "Hybrid",
+        "onsite": "On-site"
+      }
+    }
 }

@@ -88,6 +88,14 @@ export interface UserSettings {
   theme: 'light' | 'dark' | 'system';
   notifications: boolean;
   notificationPreferences: NotificationPreferences;
+  aiMatching?: {
+    enabled: boolean;
+    minMatchScore: number;
+    maxMatchesPerDay: number;
+    preferredCategories: string[];
+    preferredWorkTypes: string[];
+    autoFillSuggestions: boolean;
+  };
 }
 
 /**

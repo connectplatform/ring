@@ -16,6 +16,7 @@ export enum NotificationType {
   OPPORTUNITY_EXPIRED = 'opportunity_expired',
   OPPORTUNITY_SAVED = 'opportunity_saved',
   OPPORTUNITY_APPLIED = 'opportunity_applied',
+  OPPORTUNITY_MATCHED_AI = 'opportunity_matched_ai', // AI-powered match notification
   
   // Entities
   ENTITY_CREATED = 'entity_created',
@@ -107,6 +108,22 @@ export interface NotificationData {
   opportunityId?: string;
   opportunityTitle?: string;
   opportunityType?: string;
+  opportunityCategory?: string;
+
+  // AI Matcher-specific data
+  matchScore?: number;
+  matchReason?: string;
+  matchFactors?: {
+    skillMatch?: number;
+    experienceMatch?: number;
+    industryMatch?: number;
+    locationMatch?: number;
+    budgetMatch?: number;
+    availabilityMatch?: number;
+    careerMatch?: number;
+    cultureMatch?: number;
+  };
+  overallMatchScore?: number;
   
   // Entity-related data
   entityId?: string;

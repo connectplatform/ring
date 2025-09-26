@@ -5,6 +5,7 @@ import { useOptimistic, useActionState, startTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
+import { useCreditBalance } from '@/hooks/use-credit-balance'
 import { useSession } from 'next-auth/react'
 import { useInView } from '@/hooks/use-intersection-observer'
 import Link from 'next/link'
@@ -32,7 +33,14 @@ import {
   Bookmark,
   BookmarkCheck,
   CheckCircle,
-  ExternalLink
+  ExternalLink,
+  Timer,
+  Users,
+  BadgeCheck,
+  AlertTriangle,
+  MessageCircle,
+  Wallet,
+  Coins
 } from 'lucide-react'
 
 import { SerializedOpportunity } from '@/features/opportunities/types'
@@ -370,16 +378,19 @@ interface OpportunityCardProps {
   isPending?: boolean
 }
 
-function OpportunityCard({ 
-  opportunity, 
-  entity, 
-  isOptimistic = false, 
-  isPending = false 
+function OpportunityCard({
+  opportunity,
+  entity,
+  isOptimistic = false,
+  isPending = false
 }: OpportunityCardProps) {
   const t = useTranslations('modules.opportunities')
+  const { data: session } = useSession()
+  const { balance: ringBalance } = useCreditBalance()
+
   // Ensure we always pass a defined translation key
   const typeKey = opportunity?.type === 'request' ? 'request' : 'offer'
-  
+
   // Get translated type name
   const getTypeTranslation = (type: string) => {
     const typeMap: { [key: string]: string } = {
@@ -393,15 +404,47 @@ function OpportunityCard({
     }
     return typeMap[type] || type
   }
-  
+
   // Get type configuration for visual styling
   const typeConfig = getOpportunityTypeConfig(opportunity.type)
   const TypeIcon = typeConfig.icon
-  
+
   // Check if opportunity is expired or has urgent deadline
   const isExpired = opportunity.expirationDate && new Date(opportunity.expirationDate) < new Date()
-  const isDeadlineSoon = opportunity.applicationDeadline && 
+  const isDeadlineSoon = opportunity.applicationDeadline &&
     new Date(opportunity.applicationDeadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  // Calculate deadline countdown
+  const getDeadlineCountdown = () => {
+    if (!opportunity.applicationDeadline) return null
+
+    const deadline = new Date(opportunity.applicationDeadline)
+    const now = new Date()
+    const diffTime = deadline.getTime() - now.getTime()
+
+    if (diffTime <= 0) return 'Expired'
+
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) return 'Today'
+    if (diffDays === 1) return 'Tomorrow'
+    if (diffDays < 7) return `${diffDays} days`
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks`
+
+    return `${Math.ceil(diffDays / 30)} months`
+  }
+
+  // Calculate skill match percentage (placeholder - would need user profile)
+  const getSkillMatch = () => {
+    // This would be calculated based on user's skills vs required skills
+    // For now, return a random percentage for demonstration
+    if (!opportunity.requiredSkills || opportunity.requiredSkills.length === 0) return null
+    return Math.floor(Math.random() * 100) // Placeholder
+  }
+
+  // Check entity verification status
+  const isEntityVerified = entity?.storeVerification?.identityVerified || false
+  const entityTrustScore = entity?.storeMetrics?.trustScore || 0
 
   return (
     <motion.div
@@ -506,10 +549,20 @@ function OpportunityCard({
                 <h2 className="font-semibold text-base leading-tight mb-1 group-hover:text-primary transition-colors">
                   {opportunity.title}
                 </h2>
-                
-                <p className="text-sm text-muted-foreground">
-                  {entity?.name || t('privateUser')}
-                </p>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {entity?.name || t('privateUser')}
+                  </p>
+
+                  {/* RING Balance Indicator */}
+                  {ringBalance && session?.user && (
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <Coins className="w-3 h-3 mr-1" />
+                      <span>{ringBalance.amount} RING</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -539,16 +592,112 @@ function OpportunityCard({
             </div>
           </div>
 
-          {/* Budget */}
+          {/* Budget with RING Token Display */}
           {opportunity.budget && (
-            <div className="flex items-center text-sm mb-4">
-              <DollarSign className="w-4 h-4 mr-2" />
-              <span>{formatBudget(opportunity.budget)}</span>
+            <div className="flex items-center justify-between text-sm mb-4">
+              <div className="flex items-center">
+                <DollarSign className="w-4 h-4 mr-2" />
+                <span>{formatBudget(opportunity.budget)}</span>
+              </div>
+
+              {/* Show RING token equivalent if budget is in USD */}
+              {opportunity.budget.currency === 'USD' && opportunity.budget.max && (
+                <div className="flex items-center text-xs text-muted-foreground">
+                  <Wallet className="w-3 h-3 mr-1" />
+                  <span>≈ {String(Math.round(opportunity.budget.max / 12))} RING</span>
+                </div>
+              )}
             </div>
           )}
 
+          {/* Enhanced Information Row */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {/* Deadline Countdown */}
+            {getDeadlineCountdown() && (
+              <div className="flex items-center text-xs">
+                <Timer className="w-3 h-3 mr-1 text-muted-foreground" />
+                <span className={getDeadlineCountdown() === 'Expired' ? 'text-red-500' :
+                  getDeadlineCountdown() === 'Today' ? 'text-orange-500' : 'text-muted-foreground'}>
+                  {getDeadlineCountdown()}
+                </span>
+              </div>
+            )}
+
+            {/* Applicant Count */}
+            <div className="flex items-center text-xs">
+              <Users className="w-3 h-3 mr-1 text-muted-foreground" />
+              <span className="text-muted-foreground">
+                {String(opportunity.applicantCount || 0)} applicants
+              </span>
+            </div>
+
+            {/* Skill Match */}
+            {getSkillMatch() !== null && (
+              <div className="flex items-center text-xs">
+                <BadgeCheck className="w-3 h-3 mr-1 text-green-500" />
+                <span className="text-green-600">
+                  {getSkillMatch()}% match
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Entity Verification & Trust Score */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              {isEntityVerified && (
+                <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                  <BadgeCheck className="w-3 h-3 text-green-500" />
+                  Verified Entity
+                </Badge>
+              )}
+              {entityTrustScore > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  Trust: {entityTrustScore}/100
+                </Badge>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-1">
+              {/* Quick Message Button */}
+              {session?.user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    // TODO: Open quick messaging modal
+                    console.log('Open messaging for opportunity:', opportunity.id)
+                  }}
+                  title="Quick Message"
+                >
+                  <MessageCircle className="w-3 h-3" />
+                </Button>
+              )}
+
+              {/* Wallet Integration */}
+              {opportunity.budget && ringBalance && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    // TODO: Open wallet modal for payment
+                    console.log('Open wallet for opportunity payment:', opportunity.id)
+                  }}
+                  title="Pay with RING tokens"
+                >
+                  <Wallet className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Tags */}
-          {opportunity.tags.length > 0 && (
+          {opportunity.tags && opportunity.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               <Tag className="w-4 h-4 mr-2" />
               {opportunity.tags.slice(0, 3).map((tag, index) => (

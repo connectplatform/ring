@@ -7,6 +7,7 @@ import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { getSEOMetadata } from '@/lib/seo-metadata'
+import OpportunitiesSearchClient from '@/components/opportunities/opportunities-search-client'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = 'force-dynamic'
@@ -35,20 +36,63 @@ async function getOpportunities(
   }
 
   console.log('getOpportunities: Starting direct service call', { sessionUserId: session.user.id, role: session.user.role });
-  
-  // Extract pagination parameters
+
+  // Extract pagination and search parameters
   const limit = parseInt(searchParams.get('limit') || '20', 10);
   const startAfter = searchParams.get('startAfter') || undefined;
+
+  // Extract search/filter parameters
+  const query = searchParams.get('q') || undefined;
+  const types = searchParams.get('types')?.split(',').filter(Boolean) || undefined;
+  const categories = searchParams.get('categories')?.split(',').filter(Boolean) || undefined;
+  const location = searchParams.get('location') || undefined;
+  const budgetMin = searchParams.get('budgetMin') ? parseInt(searchParams.get('budgetMin')!) : undefined;
+  const budgetMax = searchParams.get('budgetMax') ? parseInt(searchParams.get('budgetMax')!) : undefined;
+  const priority = searchParams.get('priority') as 'urgent' | 'normal' | 'low' | undefined;
+  const deadline = searchParams.get('deadline') as 'today' | 'week' | 'month' | undefined;
+  const entityVerified = searchParams.get('entityVerified') === 'true' ? true :
+                        searchParams.get('entityVerified') === 'false' ? false : undefined;
+  const hasDeadline = searchParams.get('hasDeadline') === 'true' ? true :
+                     searchParams.get('hasDeadline') === 'false' ? false : undefined;
 
   try {
     // Import and call the service function directly instead of making HTTP request
     const { getOpportunitiesForRole } = await import('@/features/opportunities/services/get-opportunities');
     const userRole = session.user.role;
-    
-    console.log('getOpportunities: Calling service with params', { userRole, limit, startAfter });
-    const result = await getOpportunitiesForRole({ userRole, limit, startAfter });
-    
-    console.log('getOpportunities: Data fetched successfully', { 
+
+    console.log('getOpportunities: Calling service with params', {
+      userRole,
+      limit,
+      startAfter,
+      query,
+      types,
+      categories,
+      location,
+      budgetMin,
+      budgetMax,
+      priority,
+      deadline,
+      entityVerified,
+      hasDeadline
+    });
+
+    const result = await getOpportunitiesForRole({
+      userRole,
+      limit,
+      startAfter,
+      query,
+      types,
+      categories,
+      location,
+      budgetMin,
+      budgetMax,
+      priority,
+      deadline,
+      entityVerified,
+      hasDeadline
+    });
+
+    console.log('getOpportunities: Data fetched successfully', {
       opportunityCount: result.opportunities.length,
       lastVisible: result.lastVisible,
     });
@@ -161,10 +205,11 @@ export default async function OpportunitiesPage(props: LocalePageProps<Opportuni
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       }>
-        <OpportunitiesContent 
+        <OpportunitiesContent
           searchParams={apiSearchParams}
           limit={limit}
           session={session}
+          locale={locale}
         />
       </Suspense>
     </>
@@ -179,7 +224,12 @@ export default async function OpportunitiesPage(props: LocalePageProps<Opportuni
  * @param session - The user's session data.
  * @returns Promise<JSX.Element> - The rendered opportunities content.
  */
-async function OpportunitiesContent({ searchParams, limit, session }: { searchParams: URLSearchParams, limit: number, session: any }): Promise<JSX.Element> {
+async function OpportunitiesContent({ searchParams, limit, session, locale }: {
+  searchParams: URLSearchParams,
+  limit: number,
+  session: any,
+  locale: string
+}): Promise<JSX.Element> {
   let opportunities: SerializedOpportunity[] = []
   let lastVisible: string | null = null
   let error: string | null = null
@@ -222,12 +272,30 @@ async function OpportunitiesContent({ searchParams, limit, session }: { searchPa
   console.log('OpportunitiesContent: Rendering', { hasError: !!error, opportunityCount: opportunities.length, lastVisible });
 
   return (
-    <OpportunitiesWrapper 
-      initialOpportunities={opportunities} 
-      initialError={error}
-      lastVisible={lastVisible}
-      initialLimit={limit}
-    />
+    <div className="min-h-screen bg-background">
+      {/* Search Header */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <OpportunitiesSearchClient locale={locale} />
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Main Content */}
+          <div className="flex-1">
+            <OpportunitiesWrapper
+              initialOpportunities={opportunities}
+              initialError={error}
+              lastVisible={lastVisible}
+              initialLimit={limit}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

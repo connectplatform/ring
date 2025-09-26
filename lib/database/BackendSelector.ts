@@ -1,0 +1,531 @@
+/**
+ * Database Backend Selector
+ *
+ * Intelligently routes database operations between multiple backends
+ * Supports PostgreSQL and Firebase with automatic failover and load balancing
+ */
+
+import {
+  IDatabaseService,
+  DatabaseResult,
+  DatabaseFilter,
+  DatabaseOrderBy,
+  DatabasePagination,
+  DatabaseQuery,
+  DatabaseDocument,
+  IDatabaseTransaction,
+  DatabaseBackendConfig,
+  DatabaseSyncConfig
+} from './interfaces/IDatabaseService';
+import { PostgreSQLAdapter } from './adapters/PostgreSQLAdapter';
+import { FirebaseAdapter } from './adapters/FirebaseAdapter';
+
+export enum BackendPriority {
+  PRIMARY = 'primary',
+  SECONDARY = 'secondary',
+  FALLBACK = 'fallback'
+}
+
+export interface BackendHealth {
+  backend: string;
+  healthy: boolean;
+  responseTime: number;
+  lastChecked: Date;
+  errorCount: number;
+  consecutiveFailures: number;
+}
+
+export interface BackendRoute {
+  collection: string;
+  backend: string;
+  priority: BackendPriority;
+  readOnly?: boolean;
+  syncEnabled?: boolean;
+}
+
+/**
+ * Backend Selector - Routes operations to appropriate database backends
+ */
+export class BackendSelector implements IDatabaseService {
+  private backends: Map<string, IDatabaseService> = new Map();
+  private healthStatus: Map<string, BackendHealth> = new Map();
+  private routes: Map<string, BackendRoute> = new Map();
+  private syncConfig: DatabaseSyncConfig;
+
+  // Health monitoring
+  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private readonly HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
+  private readonly MAX_CONSECUTIVE_FAILURES = 3;
+
+  constructor(
+    backendConfigs: DatabaseBackendConfig[],
+    syncConfig: DatabaseSyncConfig,
+    routes: BackendRoute[] = []
+  ) {
+    this.syncConfig = syncConfig;
+    this.initializeBackends(backendConfigs);
+    this.initializeRoutes(routes);
+    this.startHealthMonitoring();
+  }
+
+  private initializeBackends(configs: DatabaseBackendConfig[]): void {
+    for (const config of configs) {
+      let adapter: IDatabaseService;
+
+      switch (config.type) {
+        case 'postgresql':
+          adapter = new PostgreSQLAdapter(config);
+          break;
+        case 'firebase':
+          adapter = new FirebaseAdapter(config);
+          break;
+        default:
+          throw new Error(`Unsupported backend type: ${config.type}`);
+      }
+
+      console.log(`BackendSelector: Registering backend '${config.type}'`);
+      this.backends.set(config.type, adapter);
+      this.healthStatus.set(config.type, {
+        backend: config.type,
+        healthy: true,
+        responseTime: 0,
+        lastChecked: new Date(),
+        errorCount: 0,
+        consecutiveFailures: 0
+      });
+      console.log(`BackendSelector: Backend '${config.type}' registered successfully`);
+    }
+  }
+
+  private initializeRoutes(routes: BackendRoute[]): void {
+    // Set default routes for common collections
+    // Note: Users collection uses Firebase as primary since Auth.js creates documents there
+    const defaultRoutes: BackendRoute[] = [
+      { collection: 'users', backend: 'firebase', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'entities', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'opportunities', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'messages', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'notifications', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'wallet_transactions', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'nft_listings', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'news', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'analytics_events', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'store_products', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true },
+      { collection: 'store_orders', backend: 'postgresql', priority: BackendPriority.PRIMARY, syncEnabled: true }
+    ];
+
+    // Apply custom routes
+    for (const route of defaultRoutes) {
+      this.routes.set(route.collection, route);
+    }
+
+    // Override with custom routes
+    for (const route of routes) {
+      this.routes.set(route.collection, route);
+    }
+  }
+
+  private startHealthMonitoring(): void {
+    this.healthCheckInterval = setInterval(async () => {
+      await this.performHealthChecks();
+    }, this.HEALTH_CHECK_INTERVAL);
+  }
+
+  private async performHealthChecks(): Promise<void> {
+    for (const [backendName, backend] of this.backends) {
+      try {
+        const startTime = Date.now();
+        const healthResult = await backend.healthCheck();
+        const responseTime = Date.now() - startTime;
+
+        const healthStatus = this.healthStatus.get(backendName)!;
+
+        if (healthResult.success && healthResult.data) {
+          // Backend is healthy
+          healthStatus.healthy = true;
+          healthStatus.responseTime = responseTime;
+          healthStatus.consecutiveFailures = 0;
+        } else {
+          // Backend is unhealthy
+          healthStatus.healthy = false;
+          healthStatus.errorCount++;
+          healthStatus.consecutiveFailures++;
+        }
+
+        healthStatus.lastChecked = new Date();
+      } catch (error) {
+        const healthStatus = this.healthStatus.get(backendName)!;
+        healthStatus.healthy = false;
+        healthStatus.errorCount++;
+        healthStatus.consecutiveFailures++;
+        healthStatus.lastChecked = new Date();
+      }
+    }
+  }
+
+  private getBackendForCollection(collection: string): IDatabaseService {
+    console.log(`BackendSelector: Looking up backend for collection '${collection}'`);
+
+    const route = this.routes.get(collection);
+    console.log(`BackendSelector: Route found for '${collection}':`, route);
+
+    if (!route) {
+      console.log(`BackendSelector: No route found for '${collection}', using healthy backend fallback`);
+      return this.getHealthyBackend();
+    }
+
+    const backend = this.backends.get(route.backend);
+    console.log(`BackendSelector: Backend '${route.backend}' found for '${collection}':`, !!backend);
+
+    if (!backend) {
+      console.log(`BackendSelector: Available backends:`, Array.from(this.backends.keys()));
+      throw new Error(`Backend ${route.backend} not found for collection ${collection}`);
+    }
+
+    // Check if backend is healthy
+    const healthStatus = this.healthStatus.get(route.backend);
+    if (!healthStatus?.healthy) {
+      // Fallback to healthy backend
+      return this.getHealthyBackend();
+    }
+
+    return backend;
+  }
+
+  private getHealthyBackend(): IDatabaseService {
+    // Find the healthiest backend
+    let bestBackend: IDatabaseService | null = null;
+    let bestResponseTime = Infinity;
+
+    for (const [backendName, backend] of this.backends) {
+      const healthStatus = this.healthStatus.get(backendName);
+      if (healthStatus?.healthy && healthStatus.responseTime < bestResponseTime) {
+        bestBackend = backend;
+        bestResponseTime = healthStatus.responseTime;
+      }
+    }
+
+    if (!bestBackend) {
+      throw new Error('No healthy database backends available');
+    }
+
+    return bestBackend;
+  }
+
+  // IDatabaseService implementation
+  async connect(): Promise<DatabaseResult<void>> {
+    const results: DatabaseResult<void>[] = [];
+
+    for (const backend of this.backends.values()) {
+      const result = await backend.connect();
+      results.push(result);
+    }
+
+    // Return success if at least one backend connected
+    const success = results.some(result => result.success);
+
+    return {
+      success,
+      error: success ? undefined : new Error('Failed to connect to any backend'),
+      metadata: {
+        operation: 'connect',
+        duration: 0,
+        backend: 'selector',
+        timestamp: new Date()
+      }
+    };
+  }
+
+  async disconnect(): Promise<DatabaseResult<void>> {
+    const results: DatabaseResult<void>[] = [];
+
+    for (const backend of this.backends.values()) {
+      const result = await backend.disconnect();
+      results.push(result);
+    }
+
+    // Return success if at least one backend disconnected
+    const success = results.some(result => result.success);
+
+    return {
+      success,
+      error: success ? undefined : new Error('Failed to disconnect from any backend'),
+      metadata: {
+        operation: 'disconnect',
+        duration: 0,
+        backend: 'selector',
+        timestamp: new Date()
+      }
+    };
+  }
+
+  async healthCheck(): Promise<DatabaseResult<boolean>> {
+    const healthyBackends = Array.from(this.healthStatus.values())
+      .filter(status => status.healthy);
+
+    return {
+      success: true,
+      data: healthyBackends.length > 0,
+      metadata: {
+        operation: 'healthCheck',
+        duration: 0,
+        backend: 'selector',
+        timestamp: new Date()
+      }
+    };
+  }
+
+  getBackendType(): string {
+    return 'selector';
+  }
+
+  async create<T = any>(
+    collection: string,
+    data: T,
+    options: { id?: string; merge?: boolean } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>>> {
+    const backend = this.getBackendForCollection(collection);
+    const result = await backend.create(collection, data, options);
+
+    // Trigger sync if enabled
+    if (result.success && this.shouldSyncCollection(collection)) {
+      this.triggerSync(collection, 'create', { id: result.data?.id, data });
+    }
+
+    return result;
+  }
+
+  async read<T = any>(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<DatabaseDocument<T> | null>> {
+    const backend = this.getBackendForCollection(collection);
+    return await backend.read<T>(collection, id);
+  }
+
+  async update<T = any>(
+    collection: string,
+    id: string,
+    data: Partial<T>,
+    options: { merge?: boolean } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>>> {
+    const backend = this.getBackendForCollection(collection);
+    const result = await backend.update(collection, id, data, options);
+
+    // Trigger sync if enabled
+    if (result.success && this.shouldSyncCollection(collection)) {
+      this.triggerSync(collection, 'update', { id, data });
+    }
+
+    return result;
+  }
+
+  async delete(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<void>> {
+    const backend = this.getBackendForCollection(collection);
+    const result = await backend.delete(collection, id);
+
+    // Trigger sync if enabled
+    if (result.success && this.shouldSyncCollection(collection)) {
+      this.triggerSync(collection, 'delete', { id });
+    }
+
+    return result;
+  }
+
+  async query<T = any>(
+    querySpec: DatabaseQuery
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    const backend = this.getBackendForCollection(querySpec.collection);
+    return await backend.query<T>(querySpec);
+  }
+
+  async count(
+    collection: string,
+    filters: DatabaseFilter[] = []
+  ): Promise<DatabaseResult<number>> {
+    const backend = this.getBackendForCollection(collection);
+    return await backend.count(collection, filters);
+  }
+
+  async batchCreate<T = any>(
+    collection: string,
+    documents: Array<{ id?: string; data: T }>
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    const backend = this.getBackendForCollection(collection);
+    const result = await backend.batchCreate(collection, documents);
+
+    // Trigger sync if enabled
+    if (result.success && this.shouldSyncCollection(collection)) {
+      this.triggerSync(collection, 'batchCreate', { documents });
+    }
+
+    return result;
+  }
+
+  async batchUpdate<T = any>(
+    collection: string,
+    updates: Array<{ id: string; data: Partial<T> }>
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    const backend = this.getBackendForCollection(collection);
+    const result = await backend.batchUpdate(collection, updates);
+
+    // Trigger sync if enabled
+    if (result.success && this.shouldSyncCollection(collection)) {
+      this.triggerSync(collection, 'batchUpdate', { updates });
+    }
+
+    return result;
+  }
+
+  async batchDelete(
+    collection: string,
+    ids: string[]
+  ): Promise<DatabaseResult<void>> {
+    const backend = this.getBackendForCollection(collection);
+    const result = await backend.batchDelete(collection, ids);
+
+    // Trigger sync if enabled
+    if (result.success && this.shouldSyncCollection(collection)) {
+      this.triggerSync(collection, 'batchDelete', { ids });
+    }
+
+    return result;
+  }
+
+  async runTransaction<T>(
+    operation: (transaction: IDatabaseTransaction) => Promise<T>
+  ): Promise<DatabaseResult<T>> {
+    // For transactions, use the primary backend
+    const primaryBackend = this.getHealthyBackend();
+    return await primaryBackend.runTransaction(operation);
+  }
+
+  async subscribe<T = any>(
+    collection: string,
+    filters: DatabaseFilter[],
+    callback: (documents: DatabaseDocument<T>[]) => void
+  ): Promise<DatabaseResult<{ unsubscribe: () => void }>> {
+    const backend = this.getBackendForCollection(collection);
+    return await backend.subscribe(collection, filters, callback);
+  }
+
+  async createCollection(
+    collection: string,
+    schema?: any
+  ): Promise<DatabaseResult<void>> {
+    const backend = this.getBackendForCollection(collection);
+    return await backend.createCollection(collection, schema);
+  }
+
+  async migrateData(
+    fromCollection: string,
+    toCollection: string,
+    transform?: (doc: DatabaseDocument) => DatabaseDocument
+  ): Promise<DatabaseResult<{ migrated: number; errors: Error[] }>> {
+    const fromBackend = this.getBackendForCollection(fromCollection);
+    return await fromBackend.migrateData(fromCollection, toCollection, transform);
+  }
+
+  // Additional methods for backend management
+  getHealthStatus(): BackendHealth[] {
+    return Array.from(this.healthStatus.values());
+  }
+
+  getRoutes(): BackendRoute[] {
+    return Array.from(this.routes.values());
+  }
+
+  updateRoute(collection: string, route: Partial<BackendRoute>): void {
+    const existingRoute = this.routes.get(collection);
+    if (existingRoute) {
+      this.routes.set(collection, { ...existingRoute, ...route });
+    }
+  }
+
+  private shouldSyncCollection(collection: string): boolean {
+    if (!this.syncConfig.enabled) {
+      return false;
+    }
+
+    const route = this.routes.get(collection);
+    return route?.syncEnabled || false;
+  }
+
+  private triggerSync(
+    collection: string,
+    operation: string,
+    data: any
+  ): void {
+    if (!this.syncConfig.enabled) {
+      return;
+    }
+
+    // Emit sync event for background processing
+    process.nextTick(() => {
+      this.performSync(collection, operation, data);
+    });
+  }
+
+  private async performSync(
+    collection: string,
+    operation: string,
+    data: any
+  ): Promise<void> {
+    try {
+      // Get all backends that should receive sync
+      const syncBackends = Array.from(this.backends.entries())
+        .filter(([name]) => this.syncConfig.backends.includes(name))
+        .filter(([name]) => {
+          const healthStatus = this.healthStatus.get(name);
+          return healthStatus?.healthy;
+        });
+
+      for (const [backendName, backend] of syncBackends) {
+        try {
+          // Skip if this is the source backend
+          const route = this.routes.get(collection);
+          if (route?.backend === backendName) {
+            continue;
+          }
+
+          // Perform sync operation based on type
+          switch (operation) {
+            case 'create':
+              await backend.create(collection, data.data, { id: data.id });
+              break;
+            case 'update':
+              await backend.update(collection, data.id, data.data);
+              break;
+            case 'delete':
+              await backend.delete(collection, data.id);
+              break;
+            // Add more sync operations as needed
+          }
+        } catch (error) {
+          console.error(`Sync failed for backend ${backendName}:`, error);
+          // Continue with other backends even if one fails
+        }
+      }
+    } catch (error) {
+      console.error('Sync operation failed:', error);
+    }
+  }
+
+  // Cleanup method
+  destroy(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+
+    // Disconnect all backends
+    for (const backend of this.backends.values()) {
+      backend.disconnect().catch(error => {
+        console.error('Error disconnecting backend:', error);
+      });
+    }
+  }
+}

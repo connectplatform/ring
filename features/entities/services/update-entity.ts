@@ -14,7 +14,7 @@ import { invalidateEntitiesCache } from '@/lib/cached-data'
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 /**
  * Updates an entity by its ID in Firestore, enforcing role-based access control.
@@ -61,14 +61,18 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
       throw new Error('Access denied. Only the entity creator or an admin can update this entity.');
     }
 
-    // Step 3: Access Firestore and update the entity
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const docRef = adminDb.collection('entities').doc(id).withConverter(entityConverter);
-    
-    await docRef.set(data, { merge: true });
+    // Step 3: Update entity using db.command() abstraction
+    const result = await db().execute('update', {
+      collection: 'entities',
+      id: id,
+      data: data,
+      options: { merge: true }
+    });
+
+    if (!result.success) {
+      throw new Error(result.error?.message || 'Failed to update entity');
+    }
+
     console.log('Services: updateEntity - Entity updated successfully');
 
     invalidateEntitiesCache(['public','subscriber','member','confidential','admin'])

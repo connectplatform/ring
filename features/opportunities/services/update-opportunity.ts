@@ -14,7 +14,7 @@ import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 /**
  * Updates an opportunity by its ID in Firestore, enforcing role-based access control.
@@ -55,22 +55,20 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
 
     console.log(`Services: updateOpportunity - User authenticated with role ${userRole} and ID ${userId}`);
 
-    // Step 2: Access Firestore and get the current opportunity document
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const docRef = adminDb.collection('opportunities').doc(id).withConverter(opportunityConverter);
-    const docSnap = await docRef.get();
+    // Step 2: Get the current opportunity using db.command()
+    const currentResult = await db().execute('findById', {
+      collection: 'opportunities',
+      id: id
+    });
 
     // Step 3: Check if the opportunity exists
-    if (!docSnap.exists) {
+    if (!currentResult.success || !currentResult.data) {
       console.warn('Services: updateOpportunity - No opportunity found with ID:', id);
       throw new Error('Opportunity not found');
     }
 
     // Step 4: Get the current opportunity data and check permissions
-    const currentOpportunity = docSnap.data();
+    const currentOpportunity = currentResult.data.data as Opportunity;
     if (currentOpportunity) {
       if (userRole !== UserRole.ADMIN && userId !== currentOpportunity.createdBy) {
         if (currentOpportunity.isConfidential && userRole !== UserRole.CONFIDENTIAL) {
@@ -86,29 +84,43 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
       // Step 5: Prepare the update data
       const updateData = {
         ...data,
-        dateUpdated: FieldValue.serverTimestamp(),
+        dateUpdated: new Date(),
       };
 
-      // Step 6: Update the Firestore document
-      await docRef.set(updateData, { merge: true });
+      // Step 6: Update the opportunity using db.command()
+      const updateResult = await db().execute('update', {
+        collection: 'opportunities',
+        id: id,
+        data: updateData,
+        options: { merge: true }
+      });
+
+      if (!updateResult.success) {
+        throw new Error(updateResult.error?.message || 'Failed to update opportunity');
+      }
+
       console.log('Services: updateOpportunity - Opportunity updated successfully');
 
       invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin'])
 
       // Step 7: Fetch and return the updated opportunity
-      const updatedDocSnap = await docRef.get();
-      if (!updatedDocSnap.exists) {
+      const updatedResult = await db().execute('findById', {
+        collection: 'opportunities',
+        id: id
+      });
+
+      if (!updatedResult.success || !updatedResult.data) {
         throw new Error('Failed to retrieve updated opportunity');
       }
 
-      const updatedOpportunity = updatedDocSnap.data();
+      const updatedOpportunity = updatedResult.data.data as Opportunity;
       if (!updatedOpportunity) {
         throw new Error('Updated opportunity has no data');
       }
 
       return {
         ...updatedOpportunity,
-        id: updatedDocSnap.id,
+        id: id,
       } as Opportunity;
     }
 

@@ -8,11 +8,7 @@ import { getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server';
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument as getCachedFirebaseDocument,
-  getCachedCollectionAdvanced,
-  deleteDocument
-} from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 import { auth } from '@/auth'; // Auth.js v5 handler for session management
 import { UserRole } from '@/features/auth/types';
@@ -92,19 +88,23 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
 
     logger.info(`Services: deleteOpportunity - User authenticated with ID ${currentUserId} and role ${currentUserRole}`);
 
-    // Step 2: Get the opportunity document
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    let opportunityDoc;
+    // Step 2: Get the opportunity using db.command()
+    let opportunity;
     try {
-      opportunityDoc = await getCachedFirebaseDocument('opportunities', id);
-      
-      if (!opportunityDoc || !opportunityDoc.exists) {
+      const result = await db().execute('findById', {
+        collection: 'opportunities',
+        id: id
+      });
+
+      if (!result.success || !result.data) {
         throw new OpportunityQueryError(`Opportunity with ID ${id} not found`, undefined, {
           timestamp: Date.now(),
           opportunityId: id,
           operation: 'document_retrieval'
         });
       }
+
+      opportunity = result.data.data as Opportunity;
     } catch (error) {
       throw new OpportunityDatabaseError(
         'Failed to retrieve opportunity document',
@@ -116,8 +116,6 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
         }
       );
     }
-
-    const opportunity = opportunityDoc.data() as Opportunity;
 
     // Step 3: Check user's permission to delete the opportunity
     if (currentUserRole !== UserRole.ADMIN && opportunity.createdBy !== currentUserId) {
@@ -151,18 +149,26 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
       );
     }
 
-    // Step 5: Delete the opportunity from Firestore
+    // Step 5: Delete the opportunity using db.command()
     try {
-      await deleteDocument('opportunities', id);
-      logger.info(`Services: deleteOpportunity - Opportunity ${id} deleted from Firestore`);
+      const deleteResult = await db().execute('delete', {
+        collection: 'opportunities',
+        id: id
+      });
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error?.message || 'Failed to delete opportunity');
+      }
+
+      logger.info(`Services: deleteOpportunity - Opportunity ${id} deleted successfully`);
     } catch (error) {
       throw new OpportunityDatabaseError(
-        'Failed to delete opportunity from Firestore',
+        'Failed to delete opportunity',
         error instanceof Error ? error : new Error(String(error)),
         {
           timestamp: Date.now(),
           opportunityId: id,
-          operation: 'firestore_deletion'
+          operation: 'deletion'
         }
       );
     }

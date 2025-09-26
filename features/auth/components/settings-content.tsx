@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useActionState } from 'react'
+import { Brain } from 'lucide-react'
 import type { Locale } from '@/i18n-config'
 
 /**
@@ -304,6 +305,118 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                       <SelectItem value="system">{t('system')}</SelectItem>
                     </SelectContent>
                   </Select>
+                </motion.div>
+
+                {/* AI Matching Preferences Section */}
+                <motion.div variants={itemVariants} className="pt-6 border-t">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-blue-600" />
+                    {t('aiMatching.title')}
+                  </h3>
+
+                  <div className="space-y-4">
+                    <motion.div variants={itemVariants} className="flex items-center space-x-2">
+                      <Switch
+                        id="aiMatchingEnabled"
+                        defaultChecked={settings.aiMatching?.enabled ?? true}
+                        name="aiMatchingEnabled"
+                      />
+                      <Label htmlFor="aiMatchingEnabled">
+                        {t('aiMatching.enableMatching')}
+                      </Label>
+                    </motion.div>
+
+                    <motion.div variants={itemVariants}>
+                      <Label htmlFor="minMatchScore" className="block mb-2">
+                        {t('aiMatching.minMatchScore')}
+                      </Label>
+                      <Select defaultValue={String(settings.aiMatching?.minMatchScore ?? 70)} name="minMatchScore">
+                        <SelectTrigger id="minMatchScore">
+                          <SelectValue placeholder={t('aiMatching.selectScore')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="50">50% - {t('aiMatching.scoreLabels.low')}</SelectItem>
+                          <SelectItem value="60">60% - {t('aiMatching.scoreLabels.medium')}</SelectItem>
+                          <SelectItem value="70">70% - {t('aiMatching.scoreLabels.high')}</SelectItem>
+                          <SelectItem value="80">80% - {t('aiMatching.scoreLabels.excellent')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </motion.div>
+
+                    <motion.div variants={itemVariants}>
+                      <Label htmlFor="maxMatchesPerDay" className="block mb-2">
+                        {t('aiMatching.maxMatchesPerDay')}
+                      </Label>
+                      <Select defaultValue={String(settings.aiMatching?.maxMatchesPerDay ?? 5)} name="maxMatchesPerDay">
+                        <SelectTrigger id="maxMatchesPerDay">
+                          <SelectValue placeholder={t('aiMatching.selectLimit')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">3 - {t('aiMatching.limitLabels.conservative')}</SelectItem>
+                          <SelectItem value="5">5 - {t('aiMatching.limitLabels.moderate')}</SelectItem>
+                          <SelectItem value="10">10 - {t('aiMatching.limitLabels.aggressive')}</SelectItem>
+                          <SelectItem value="0">0 - {t('aiMatching.limitLabels.unlimited')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </motion.div>
+
+                    <motion.div variants={itemVariants}>
+                      <Label className="block mb-2">
+                        {t('aiMatching.preferredCategories')}
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['technology', 'marketing', 'design', 'consulting', 'education', 'finance'].map((category) => (
+                          <div key={category} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`category-${category}`}
+                              name={`preferredCategories[]`}
+                              value={category}
+                              defaultChecked={settings.aiMatching?.preferredCategories?.includes(category) ?? false}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`category-${category}`} className="text-sm capitalize">
+                              {t(`aiMatching.categories.${category}`)}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    <motion.div variants={itemVariants}>
+                      <Label className="block mb-2">
+                        {t('aiMatching.preferredWorkTypes')}
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['remote', 'hybrid', 'onsite', 'contract', 'full-time', 'freelance'].map((workType) => (
+                          <div key={workType} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`workType-${workType}`}
+                              name={`preferredWorkTypes[]`}
+                              value={workType}
+                              defaultChecked={settings.aiMatching?.preferredWorkTypes?.includes(workType) ?? false}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={`workType-${workType}`} className="text-sm capitalize">
+                              {t(`aiMatching.workTypes.${workType}`)}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    <motion.div variants={itemVariants} className="flex items-center space-x-2">
+                      <Switch
+                        id="autoFillSuggestions"
+                        defaultChecked={settings.aiMatching?.autoFillSuggestions ?? true}
+                        name="autoFillSuggestions"
+                      />
+                      <Label htmlFor="autoFillSuggestions">
+                        {t('aiMatching.autoFillSuggestions')}
+                      </Label>
+                    </motion.div>
+                  </div>
                 </motion.div>
                 
                 <motion.div variants={itemVariants}>

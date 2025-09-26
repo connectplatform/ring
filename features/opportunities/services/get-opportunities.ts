@@ -12,10 +12,7 @@ import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError
 import { logger } from '@/lib/logger';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
 import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
+import { db } from '@/lib/database/DatabaseService';
 
 
 /**
@@ -43,10 +40,38 @@ import {
  * @throws {OpportunityQueryError} If there's an error executing the query
  */
 export async function getOpportunitiesForRole(
-  params: { userRole: UserRole; limit?: number; startAfter?: string }
+  params: {
+    userRole: UserRole;
+    limit?: number;
+    startAfter?: string;
+    query?: string;
+    types?: string[];
+    categories?: string[];
+    location?: string;
+    budgetMin?: number;
+    budgetMax?: number;
+    priority?: 'urgent' | 'normal' | 'low';
+    deadline?: 'today' | 'week' | 'month';
+    entityVerified?: boolean;
+    hasDeadline?: boolean;
+  }
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> {
   const phase = getCurrentPhase();
-  const { userRole, limit = 20, startAfter } = params;
+  const {
+    userRole,
+    limit = 20,
+    startAfter,
+    query,
+    types,
+    categories,
+    location,
+    budgetMin,
+    budgetMax,
+    priority,
+    deadline,
+    entityVerified,
+    hasDeadline
+  } = params;
   try {
     console.log('Services: getOpportunitiesForRole - Starting...', { userRole, limit, startAfter });
 
@@ -91,21 +116,94 @@ export async function getOpportunitiesForRole(
 
     // Apply role-based filtering for non-admin users
     // Visitors see only public. Subscribers see public + subscriber. Members see public + subscriber + member.
+    const whereConditions: any[] = [];
     if (userRole === UserRole.VISITOR) {
-      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public'] }];
+      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public'] });
     } else if (userRole === UserRole.SUBSCRIBER) {
-      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }];
+      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] });
     } else if (userRole === UserRole.MEMBER) {
-      queryConfig.where = [{ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] }];
+      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] });
     }
     // ADMIN and CONFIDENTIAL users see all opportunities (no filter applied)
+
+    // Apply search and filter conditions
+    if (query) {
+      whereConditions.push({ field: 'title', operator: '>=', value: query });
+      whereConditions.push({ field: 'title', operator: '<=', value: query + '\uf8ff' });
+    }
+
+    if (types && types.length > 0) {
+      whereConditions.push({ field: 'type', operator: 'in', value: types });
+    }
+
+    if (categories && categories.length > 0) {
+      whereConditions.push({ field: 'category', operator: 'in', value: categories });
+    }
+
+    if (location) {
+      whereConditions.push({ field: 'location', operator: '>=', value: location });
+      whereConditions.push({ field: 'location', operator: '<=', value: location + '\uf8ff' });
+    }
+
+    if (budgetMin !== undefined) {
+      whereConditions.push({ field: 'budget.amount', operator: '>=', value: budgetMin });
+    }
+
+    if (budgetMax !== undefined) {
+      whereConditions.push({ field: 'budget.amount', operator: '<=', value: budgetMax });
+    }
+
+    if (priority) {
+      whereConditions.push({ field: 'priority', operator: '==', value: priority });
+    }
+
+    if (deadline) {
+      const now = new Date();
+      let deadlineDate: Date;
+
+      switch (deadline) {
+        case 'today':
+          deadlineDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          break;
+        case 'week':
+          deadlineDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          deadlineDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+          break;
+        default:
+          deadlineDate = now;
+      }
+
+      whereConditions.push({ field: 'deadline', operator: '<=', value: deadlineDate });
+    }
+
+    if (entityVerified !== undefined) {
+      whereConditions.push({ field: 'entity.verified', operator: '==', value: entityVerified });
+    }
+
+    if (hasDeadline !== undefined) {
+      if (hasDeadline) {
+        whereConditions.push({ field: 'deadline', operator: '!=', value: null });
+      } else {
+        whereConditions.push({ field: 'deadline', operator: '==', value: null });
+      }
+    }
+
+    if (whereConditions.length > 0) {
+      queryConfig.where = whereConditions;
+    }
 
     // Apply pagination if provided
     if (startAfter) {
       try {
-        const startAfterDoc = await getCachedDocument('opportunities', startAfter);
-        if (startAfterDoc && startAfterDoc.exists) {
-          queryConfig.startAfter = startAfterDoc;
+        const result = await db().execute('findById', {
+          collection: 'opportunities',
+          id: startAfter
+        });
+
+        if (result.success && result.data) {
+          queryConfig.startAfter = result.data;
         }
       } catch (error) {
         throw new OpportunityQueryError(
@@ -121,10 +219,20 @@ export async function getOpportunitiesForRole(
       }
     }
 
-    // Step 3: Execute optimized query
-    let snapshot;
+    // Step 3: Execute query using db.command()
+    let queryResult;
     try {
-      snapshot = await getCachedCollectionAdvanced('opportunities', queryConfig);
+      const dbQuery = {
+        collection: 'opportunities',
+        filters: queryConfig.where || [],
+        orderBy: queryConfig.orderBy || [{ field: 'dateCreated', direction: 'desc' }],
+        pagination: {
+          limit: queryConfig.limit || 20,
+          offset: startAfter ? 1 : 0 // Simple offset for pagination
+        }
+      };
+
+      queryResult = await db().execute('query', { querySpec: dbQuery });
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to execute opportunities query',
@@ -139,10 +247,9 @@ export async function getOpportunitiesForRole(
       );
     }
 
-    // Step 4: Map document snapshots to Opportunity objects and serialize Timestamps
-    const opportunities = snapshot.docs.map(doc => {
-      const data = doc.data();
-      
+    // Step 4: Map query results to SerializedOpportunity objects
+    const opportunities: SerializedOpportunity[] = [];
+    if (queryResult.success && queryResult.data) {
       // Helper function to safely convert Timestamp to ISO string
       const timestampToISO = (timestamp: any): string => {
         if (timestamp && typeof timestamp.toDate === 'function') {
@@ -154,21 +261,24 @@ export async function getOpportunitiesForRole(
         // Fallback to current time if timestamp is invalid
         return new Date().toISOString();
       };
-      
-      return {
-        ...data,
-        id: doc.id,
-        // Convert Firestore Timestamps to ISO strings for client component serialization
-        dateCreated: timestampToISO(data.dateCreated),
-        dateUpdated: timestampToISO(data.dateUpdated),
-        expirationDate: timestampToISO(data.expirationDate),
-        // Handle optional applicationDeadline field
-        applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
-      };
-    });
+
+      queryResult.data.forEach(item => {
+        const data = item.data;
+        opportunities.push({
+          ...data,
+          id: item.id,
+          // Convert Firestore Timestamps to ISO strings for client component serialization
+          dateCreated: timestampToISO(data.dateCreated),
+          dateUpdated: timestampToISO(data.dateUpdated),
+          expirationDate: timestampToISO(data.expirationDate),
+          // Handle optional applicationDeadline field
+          applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
+        } as SerializedOpportunity);
+      });
+    }
 
     // Get the ID of the last visible document for pagination
-    const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null;
 
     logger.info('Services: getOpportunitiesForRole - Total opportunities fetched:', { opportunities: opportunities.length, lastVisible } );
 
