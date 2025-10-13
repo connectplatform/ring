@@ -5,7 +5,7 @@ import authConfig from '@/auth.config'
 import { ROUTES, LEGACY_ROUTES } from './constants/routes'
 import { UserRole } from '@/features/auth/types'
 import createMiddleware from 'next-intl/middleware'
-import { routing } from './i18n-config'
+import { routing, type Locale } from './i18n-config'
 
 // Create edge-compatible auth instance
 const { auth } = NextAuth(authConfig)
@@ -76,7 +76,20 @@ export default auth(async (req) => {
 
     // Extract locale from pathname (after next-intl processing)
     const localeFromPath = pathname.split('/')[1] || routing.defaultLocale
-    const locale = (localeFromPath === 'en' || localeFromPath === 'uk') ? localeFromPath : routing.defaultLocale
+    let locale = (localeFromPath === 'en' || localeFromPath === 'uk' || localeFromPath === 'ru') ? localeFromPath : routing.defaultLocale
+
+    // Check if we should redirect to user's preferred locale
+    // Only redirect if no locale in path or path doesn't have a valid locale
+    const shouldCheckStoredLocale = !localeFromPath || !routing.locales.includes(localeFromPath as any)
+    if (shouldCheckStoredLocale) {
+      const storedLocale = req.cookies.get('ring-locale')?.value as Locale
+      if (storedLocale && routing.locales.includes(storedLocale) && storedLocale !== locale) {
+        // Redirect to stored locale preference
+        const newPath = `/${storedLocale}${pathname}`
+        return NextResponse.redirect(new URL(newPath, req.nextUrl.origin))
+      }
+    }
+
     const pathnameWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/'
 
     // OPTIMIZED: Check auth cache first to prevent redundant auth() calls

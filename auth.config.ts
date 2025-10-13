@@ -30,7 +30,7 @@ export default {
     }),
     
     // Google Identity Services One Tap (New modern approach)
-    // Edge-compatible provider with direct Google token verification
+    // Always available for local development and production
     CredentialsProvider({
       id: 'google-one-tap',
       name: 'Google One Tap',
@@ -38,39 +38,23 @@ export default {
         credential: { type: 'text' },
       },
       async authorize(credentials) {
-        console.log('🟡 Google One Tap EDGE provider called with credentials:', !!credentials?.credential)
-
         if (!credentials?.credential) {
           console.log('🟡 No credential provided')
           return null;
         }
 
-        try {
-          console.log('🟡 Verifying Google ID token in Edge provider...')
-          console.log('🟡 Token length:', (credentials.credential as string).length)
-
-          // For Edge compatibility, we'll need to use a different approach
-          // since google-auth-library is not available in Edge runtime
-          // We'll use a simplified verification approach or route to server-side
-
-          // Option 1: Return basic credential info and let server-side handle verification
-          // The server-side auth.ts will override this provider
-          console.log('🟡 Edge provider returning credential for server-side processing')
-
-          // Return a temporary user object that will be processed by server-side auth
-          return {
-            id: 'google-one-tap-temp-' + Date.now(),
-            email: 'temp@example.com', // Will be replaced by server verification
-            name: 'Temp User', // Will be replaced by server verification
-            image: null,
-            role: UserRole.SUBSCRIBER,
-            credential: credentials.credential, // Pass the credential for server verification
-          };
-
-        } catch (error) {
-          console.error('🟡 Google One Tap Edge verification failed:', error);
-          return null;
-        }
+        console.log('🟡 Google One Tap provider - passing credential for server verification')
+        
+        // Return a placeholder user with the credential embedded
+        // This ensures Auth.js invokes the adapter's createUser method
+        // The server-side signIn callback will verify the credential and update the user data
+        return {
+          id: 'google-one-tap-pending',
+          email: credentials.credential as string, // Temporarily store credential here
+          name: 'Google One Tap User',
+          image: null,
+          role: UserRole.SUBSCRIBER,
+        };
       },
     }),
     

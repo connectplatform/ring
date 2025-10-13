@@ -1,0 +1,131 @@
+---
+title: Authentication
+description: Authentication documentation for Ring Platform
+---
+
+# Authentication API
+
+The Ring Platform uses **Auth.js v5** for comprehensive authentication with multiple providers including OAuth, magic links, and crypto wallets.
+
+## Overview
+
+**3 endpoints** for authentication management:
+- User authentication and session management
+- Multi-provider OAuth integration
+- Crypto wallet authentication
+
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Auth.js
+    participant Provider
+    participant Database
+    
+    User->>Frontend: Click "Sign In"
+    Frontend->>Auth.js: Initiate auth
+    Auth.js->>Provider: Redirect to provider
+    Provider->>User: Authentication prompt
+    User->>Provider: Provide credentials
+    Provider->>Auth.js: Return auth code
+    Auth.js->>Database: Create/update user
+    Auth.js->>Frontend: Return session
+    Frontend->>User: Authenticated state
+```
+
+## Supported Providers
+
+### OAuth Providers
+- **Google** - Primary OAuth provider
+- **Apple** - iOS/macOS integration
+- **MetaMask** - Crypto wallet authentication
+
+### Magic Links
+- **Email-based** - Passwordless authentication
+- **Secure tokens** - Time-limited access
+- **GDPR compliant** - Privacy-first approach
+
+## API Endpoints
+
+### `POST /api/auth/signin`
+Initiate authentication with specified provider
+
+### `POST /api/auth/signout`
+Sign out user and invalidate session
+
+### `GET /api/auth/session`
+Get current user session information
+
+## Implementation Examples
+
+### Server-Side Authentication
+
+```typescript
+import { auth } from '@/auth'
+
+export default async function ProtectedPage() {
+  const session = await auth()
+  
+  if (!session) {
+    return <div>Please sign in</div>
+  }
+  
+  return <div>Welcome, {session.user.name}!</div>
+}
+```
+
+### Client-Side Authentication
+
+```typescript
+'use client'
+import { useSession } from 'next-auth/react'
+
+export default function UserProfile() {
+  const { data: session, status } = useSession()
+  
+  if (status === 'loading') return <div>Loading...</div>
+  if (!session) return <div>Not authenticated</div>
+  
+  return <div>Hello, {session.user.name}!</div>
+}
+```
+
+### Role-Based Access Control
+
+```typescript
+import { auth } from '@/auth'
+
+export default async function AdminPage() {
+  const session = await auth()
+  
+  if (!session || session.user.role !== 'ADMIN') {
+    return <div>Access denied</div>
+  }
+  
+  return <div>Admin dashboard</div>
+}
+```
+
+## Role Hierarchy
+
+Ring Platform uses a hierarchical role system:
+
+1. **VISITOR** - Public access only
+2. **SUBSCRIBER** - Basic platform access
+3. **MEMBER** - Full platform features
+4. **CONFIDENTIAL** - Access to confidential entities
+5. **ADMIN** - Platform administration
+
+## Security Features
+
+- **JWT Tokens** with automatic refresh
+- **CSRF Protection** built-in
+- **Rate Limiting** on auth endpoints
+- **Secure Cookies** with httpOnly flag
+- **GDPR Compliance** with data deletion
+
+---
+
+*Need help with authentication? Check our [Getting Started](/en/library/getting-started) guide or join our [Discord](https://discord.gg/ring-platform).*

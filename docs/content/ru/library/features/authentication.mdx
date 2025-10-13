@@ -1,0 +1,233 @@
+---
+title: Authentication
+description: Authentication documentation for Ring Platform
+---
+
+# Authentication System
+
+Auth.js v5 multi-provider authentication with magic links, OAuth providers, crypto wallets, and GDPR compliance.
+
+## Overview
+
+Ring Platform uses Auth.js v5 to provide seamless authentication across multiple providers while maintaining security and user privacy.
+
+## Authentication Providers
+
+### Magic Links
+- **Passwordless Authentication** - Email-based secure login
+- **One-click Access** - No password required
+- **Secure Tokens** - Time-limited access tokens
+- **GDPR Compliant** - Privacy-first approach
+
+### OAuth Providers
+- **Google** - Primary OAuth provider for web and mobile
+- **Apple** - iOS/macOS native integration with Sign in with Apple
+- **GitHub** - Developer-focused authentication
+- **Discord** - Community platform integration
+
+#### Интеграция входа через Apple
+
+Платформа Ring поддерживает бесшовную интеграцию **Sign in with Apple** с использованием Auth.js v5.
+
+##### Необходимые условия
+
+Перед настройкой входа через Apple убедитесь, что у вас есть:
+
+1. **Аккаунт разработчика Apple** - Платный аккаунт разработчика ($99/год)
+2. **App ID** - Зарегистрированный идентификатор приложения (например, `com.yourcompany.yourapp`)
+3. **Service ID** - Для веб-аутентификации (например, `com.yourcompany.auth`)
+4. **Приватный ключ** - Сгенерированный в портале разработчика Apple
+5. **Team ID** - Из вашего аккаунта разработчика Apple
+
+##### Настройка в Apple Developer Portal
+
+1. **Создание App ID**:
+   - Перейдите в [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
+   - Нажмите **+** → Выберите **App IDs**
+   - Зарегистрируйте приложение с bundle ID (например, `com.sonoratek.ring`)
+   - Включите возможность **Sign in with Apple**
+
+2. **Создание Service ID**:
+   - В разделе **Identifiers** → Нажмите **+** → Выберите **Services IDs**
+   - Создайте service ID (например, `com.sonoratek.ring-auth`)
+   - Включите **Sign in with Apple**
+   - Настройте **Return URLs** (URL-адреса обратного вызова вашего приложения)
+
+3. **Генерация приватного ключа**:
+   - Перейдите в **Keys** → Нажмите **+**
+   - Назовите ключ (например, "Auth Key for Ring Platform")
+   - Включите **Sign in with Apple**
+   - Выберите ваш **App ID**
+   - Скачайте файл приватного ключа `.p8` (храните в безопасности!)
+
+##### Конфигурация окружения
+
+Добавьте эти переменные в ваш `.env.local`:
+
+```bash
+# Конфигурация входа через Apple
+AUTH_APPLE_ID=com.sonoratek.ring-auth
+AUTH_APPLE_SECRET=<JWT_ТОКЕН_СГЕНЕРИРОВАННЫЙ_ИЗ_ПРИВАТНОГО_КЛЮЧА>
+```
+
+##### Генерация JWT
+
+Apple требует JWT, подписанный вашим приватным ключом. Используйте этот скрипт Node.js:
+
+```javascript
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+
+const privateKey = fs.readFileSync('AuthKey_YD444LWM9J.p8');
+const teamId = 'X9EQDPCJU6'; // Ваш Team ID
+const keyId = 'YD444LWM9J'; // Из имени файла ключа
+const serviceId = 'com.sonoratek.ring-auth';
+
+const token = jwt.sign(
+  {
+    iss: teamId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 15777000, // 6 месяцев
+    aud: 'https://appleid.apple.com',
+    sub: serviceId,
+  },
+  privateKey,
+  {
+    algorithm: 'ES256',
+    keyid: keyId,
+  }
+);
+
+console.log(token); // Используйте как AUTH_APPLE_SECRET
+```
+
+##### Конфигурация Auth.js v5
+
+Вход через Apple автоматически настраивается в вашем `auth.config.ts`:
+
+```typescript
+import AppleProvider from 'next-auth/providers/apple'
+
+export default {
+  providers: [
+    AppleProvider({
+      // Использует AUTH_APPLE_ID и AUTH_APPLE_SECRET из окружения
+      allowDangerousEmailAccountLinking: true,
+    }),
+    // ... другие провайдеры
+  ]
+}
+```
+
+##### Использование в компонентах
+
+```typescript
+'use client'
+
+import { signIn } from 'next-auth/react'
+
+export function AppleSignInButton() {
+  return (
+    <button
+      onClick={() => signIn('apple')}
+      className="apple-signin-button"
+    >
+      <AppleIcon />
+      Продолжить с Apple
+    </button>
+  )
+}
+```
+
+##### Особенности пользовательского опыта
+
+- **Одно касание аутентификации** на устройствах Apple
+- **Ориентированность на приватность** - Нет сбора email без согласия пользователя
+- **Безопасный обмен токенами** - Валидация на стороне сервера
+- **Связывание аккаунтов** - Подключение к существующим аккаунтам
+- **Кросс-платформенная поддержка** - Работает на веб и мобильных
+
+##### Меры безопасности
+
+- **Защита приватного ключа** - Никогда не коммитьте файлы `.p8` в систему контроля версий
+- **Истечение JWT** - Перегенерируйте токены каждые 6 месяцев
+- **Изоляция окружений** - Используйте разные ключи для dev/staging/production
+- **Аудит логирования** - Отслеживайте события аутентификации
+- **Ограничение частоты запросов** - Защита от злоупотреблений
+
+##### Устранение неполадок
+
+**Распространенные проблемы:**
+
+- **"Invalid client" ошибка**: Проверьте, что `AUTH_APPLE_ID` соответствует вашему Service ID
+- **"Invalid JWT" ошибка**: Проверьте генерацию JWT и срок действия
+- **"Domain verification failed"**: Убедитесь, что return URLs правильно настроены
+- **"Key not found" ошибка**: Проверьте доступность и корректность приватного ключа
+
+**Советы по отладке:**
+
+- Проверьте логи сервера для детальных сообщений об ошибках
+- Проверьте структуру полезной нагрузки JWT и подпись
+- Тестируйте с инструментами разработчика Apple
+- Убедитесь в правильной верификации домена в Apple Developer portal
+
+### Crypto Wallets
+- **MetaMask** - Ethereum wallet authentication
+- **WalletConnect** - Multi-wallet support
+- **Coinbase Wallet** - Mainstream crypto wallet
+- **Trust Wallet** - Mobile-first wallet integration
+
+## Implementation
+
+### Authentication Setup
+```typescript
+import { auth } from '@/auth'
+import { signIn, signOut } from 'next-auth/react'
+
+// Server-side authentication
+export default async function ProtectedPage() {
+  const session = await auth()
+  
+  if (!session) {
+    return <LoginRequired />
+  }
+  
+  return <Dashboard user={session.user} />
+}
+
+// Client-side authentication
+export function LoginButton() {
+  return (
+    <button onClick={() => signIn('google')}>
+      Sign in with Google
+    </button>
+  )
+}
+```
+
+### Role-Based Access
+```typescript
+// Check user role
+const hasAccess = (session: Session, requiredRole: Role) => {
+  const roleHierarchy = ['VISITOR', 'SUBSCRIBER', 'MEMBER', 'CONFIDENTIAL', 'ADMIN']
+  const userRoleIndex = roleHierarchy.indexOf(session.user.role)
+  const requiredRoleIndex = roleHierarchy.indexOf(requiredRole)
+  
+  return userRoleIndex >= requiredRoleIndex
+}
+
+// Protect API routes
+export async function GET(request: Request) {
+  const session = await auth()
+  
+  if (!session || !hasAccess(session, 'MEMBER')) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+  
+  // Handle authenticated request
+}
+```
+
+---
+
+*Complete authentication documentation coming soon.*

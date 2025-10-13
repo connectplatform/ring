@@ -1,0 +1,233 @@
+---
+title: Authentication
+description: Authentication documentation for Ring Platform
+---
+
+# Authentication System
+
+Auth.js v5 multi-provider authentication with magic links, OAuth providers, crypto wallets, and GDPR compliance.
+
+## Overview
+
+Ring Platform uses Auth.js v5 to provide seamless authentication across multiple providers while maintaining security and user privacy.
+
+## Authentication Providers
+
+### Magic Links
+- **Passwordless Authentication** - Email-based secure login
+- **One-click Access** - No password required
+- **Secure Tokens** - Time-limited access tokens
+- **GDPR Compliant** - Privacy-first approach
+
+### OAuth Providers
+- **Google** - Primary OAuth provider for web and mobile
+- **Apple** - iOS/macOS native integration with Sign in with Apple
+- **GitHub** - Developer-focused authentication
+- **Discord** - Community platform integration
+
+#### Apple Sign-in Integration
+
+Ring Platform supports seamless **Sign in with Apple** integration using Auth.js v5.
+
+##### Prerequisites
+
+Before setting up Apple Sign-in, ensure you have:
+
+1. **Apple Developer Account** - Paid developer account ($99/year)
+2. **App ID** - Registered app identifier (e.g., `com.yourcompany.yourapp`)
+3. **Service ID** - For web authentication (e.g., `com.yourcompany.auth`)
+4. **Private Key** - Generated from Apple Developer portal
+5. **Team ID** - From your Apple Developer account
+
+##### Apple Developer Portal Setup
+
+1. **Create App ID**:
+   - Go to [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)
+   - Click **+** → Choose **App IDs**
+   - Register your app with bundle ID (e.g., `com.sonoratek.ring`)
+   - Enable **Sign in with Apple** capability
+
+2. **Create Service ID**:
+   - Under **Identifiers** → Click **+** → Choose **Services IDs**
+   - Create service ID (e.g., `com.sonoratek.ring-auth`)
+   - Enable **Sign in with Apple**
+   - Configure **Return URLs** (your app's callback URLs)
+
+3. **Generate Private Key**:
+   - Go to **Keys** → Click **+**
+   - Name your key (e.g., "Auth Key for Ring Platform")
+   - Enable **Sign in with Apple**
+   - Select your **App ID**
+   - Download the `.p8` private key file (keep it secure!)
+
+##### Environment Configuration
+
+Add these variables to your `.env.local`:
+
+```bash
+# Apple Sign-in Configuration
+AUTH_APPLE_ID=com.sonoratek.ring-auth
+AUTH_APPLE_SECRET=<JWT_TOKEN_GENERATED_FROM_PRIVATE_KEY>
+```
+
+##### JWT Generation
+
+Apple requires a JWT signed with your private key. Use this Node.js script:
+
+```javascript
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+
+const privateKey = fs.readFileSync('AuthKey_YD444LWM9J.p8');
+const teamId = 'X9EQDPCJU6'; // Your Team ID
+const keyId = 'YD444LWM9J'; // From your key filename
+const serviceId = 'com.sonoratek.ring-auth';
+
+const token = jwt.sign(
+  {
+    iss: teamId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 15777000, // 6 months
+    aud: 'https://appleid.apple.com',
+    sub: serviceId,
+  },
+  privateKey,
+  {
+    algorithm: 'ES256',
+    keyid: keyId,
+  }
+);
+
+console.log(token); // Use this as AUTH_APPLE_SECRET
+```
+
+##### Auth.js v5 Configuration
+
+Apple Sign-in is automatically configured in your `auth.config.ts`:
+
+```typescript
+import AppleProvider from 'next-auth/providers/apple'
+
+export default {
+  providers: [
+    AppleProvider({
+      // Uses AUTH_APPLE_ID and AUTH_APPLE_SECRET from environment
+      allowDangerousEmailAccountLinking: true,
+    }),
+    // ... other providers
+  ]
+}
+```
+
+##### Usage in Components
+
+```typescript
+'use client'
+
+import { signIn } from 'next-auth/react'
+
+export function AppleSignInButton() {
+  return (
+    <button
+      onClick={() => signIn('apple')}
+      className="apple-signin-button"
+    >
+      <AppleIcon />
+      Continue with Apple
+    </button>
+  )
+}
+```
+
+##### User Experience Features
+
+- **One-tap authentication** on Apple devices
+- **Privacy-focused** - No email collection without user consent
+- **Secure token exchange** - Server-side validation
+- **Account linking** - Connect with existing accounts
+- **Cross-platform support** - Works on web and mobile
+
+##### Security Considerations
+
+- **Private key protection** - Never commit `.p8` files to version control
+- **JWT expiration** - Regenerate tokens every 6 months
+- **Environment isolation** - Use different keys for dev/staging/production
+- **Audit logging** - Track authentication events
+- **Rate limiting** - Protect against abuse
+
+##### Troubleshooting
+
+**Common Issues:**
+
+- **"Invalid client" error**: Verify `AUTH_APPLE_ID` matches your Service ID
+- **"Invalid JWT" error**: Check JWT generation and expiration
+- **"Domain verification failed"**: Ensure return URLs are properly configured
+- **"Key not found" error**: Verify private key is accessible and correct
+
+**Debug Tips:**
+
+- Check server logs for detailed error messages
+- Verify JWT payload structure and signature
+- Test with Apple's developer tools
+- Ensure proper domain verification in Apple Developer portal
+
+### Crypto Wallets
+- **MetaMask** - Ethereum wallet authentication
+- **WalletConnect** - Multi-wallet support
+- **Coinbase Wallet** - Mainstream crypto wallet
+- **Trust Wallet** - Mobile-first wallet integration
+
+## Implementation
+
+### Authentication Setup
+```typescript
+import { auth } from '@/auth'
+import { signIn, signOut } from 'next-auth/react'
+
+// Server-side authentication
+export default async function ProtectedPage() {
+  const session = await auth()
+  
+  if (!session) {
+    return <LoginRequired />
+  }
+  
+  return <Dashboard user={session.user} />
+}
+
+// Client-side authentication
+export function LoginButton() {
+  return (
+    <button onClick={() => signIn('google')}>
+      Sign in with Google
+    </button>
+  )
+}
+```
+
+### Role-Based Access
+```typescript
+// Check user role
+const hasAccess = (session: Session, requiredRole: Role) => {
+  const roleHierarchy = ['VISITOR', 'SUBSCRIBER', 'MEMBER', 'CONFIDENTIAL', 'ADMIN']
+  const userRoleIndex = roleHierarchy.indexOf(session.user.role)
+  const requiredRoleIndex = roleHierarchy.indexOf(requiredRole)
+  
+  return userRoleIndex >= requiredRoleIndex
+}
+
+// Protect API routes
+export async function GET(request: Request) {
+  const session = await auth()
+  
+  if (!session || !hasAccess(session, 'MEMBER')) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+  
+  // Handle authenticated request
+}
+```
+
+---
+
+*Complete authentication documentation coming soon.*

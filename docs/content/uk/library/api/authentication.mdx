@@ -1,0 +1,131 @@
+---
+title: Аутентифікація
+description: Документація з аутентифікації платформи Ring
+---
+
+# API Аутентифікації
+
+Платформа Ring використовує **Auth.js v5** для комплексної аутентифікації з багатьма провайдерами, включаючи OAuth, магічні посилання та крипто-гаманці.
+
+## Огляд
+
+**3 кінцеві точки** для управління аутентифікацією:
+- Аутентифікація користувачів та управління сесіями
+- Інтеграція мульти-провайдерного OAuth
+- Аутентифікація через крипто-гаманці
+
+## Потік Аутентифікації
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Auth.js
+    participant Provider
+    participant Database
+
+    User->>Frontend: Натиснути "Увійти"
+    Frontend->>Auth.js: Ініціювати аутентифікацію
+    Auth.js->>Provider: Перенаправити до провайдера
+    Provider->>User: Запит аутентифікації
+    User->>Provider: Надати облікові дані
+    Provider->>Auth.js: Повернути код аутентифікації
+    Auth.js->>Database: Створити/оновити користувача
+    Auth.js->>Frontend: Повернути сесію
+    Frontend->>User: Аутентифікований стан
+```
+
+## Підтримувані Провайдери
+
+### OAuth Провайдери
+- **Google** - Основний OAuth провайдер
+- **Apple** - Інтеграція з iOS/macOS
+- **MetaMask** - Аутентифікація через крипто-гаманець
+
+### Магічні Посилання
+- **На базі Email** - Аутентифікація без пароля
+- **Безпечні токени** - Доступ з обмеженням за часом
+- **GDPR сумісно** - Пріоритет приватності
+
+## Кінцеві точки API
+
+### `POST /api/auth/signin`
+Ініціювати аутентифікацію з вказаним провайдером
+
+### `POST /api/auth/signout`
+Вийти з системи та анулювати сесію
+
+### `GET /api/auth/session`
+Отримати інформацію про поточну сесію користувача
+
+## Приклади реалізації
+
+### Аутентифікація на стороні сервера
+
+```typescript
+import { auth } from '@/auth'
+
+export default async function ProtectedPage() {
+  const session = await auth()
+
+  if (!session) {
+    return <div>Будь ласка, увійдіть в систему</div>
+  }
+
+  return <div>Ласкаво просимо, {session.user.name}!</div>
+}
+```
+
+### Аутентифікація на стороні клієнта
+
+```typescript
+'use client'
+import { useSession } from 'next-auth/react'
+
+export default function UserProfile() {
+  const { data: session, status } = useSession()
+
+  if (status === 'loading') return <div>Завантаження...</div>
+  if (!session) return <div>Не аутентифіковано</div>
+
+  return <div>Привіт, {session.user.name}!</div>
+}
+```
+
+### Контроль доступу на основі ролей
+
+```typescript
+import { auth } from '@/auth'
+
+export default async function AdminPage() {
+  const session = await auth()
+
+  if (!session || session.user.role !== 'ADMIN') {
+    return <div>Доступ заборонено</div>
+  }
+
+  return <div>Панель адміністратора</div>
+}
+```
+
+## Ієрархія ролей
+
+Платформа Ring використовує ієрархічну систему ролей:
+
+1. **VISITOR** - Тільки публічний доступ
+2. **SUBSCRIBER** - Базовий доступ до платформи
+3. **MEMBER** - Повні можливості платформи
+4. **CONFIDENTIAL** - Доступ до конфіденційних сутностей
+5. **ADMIN** - Адміністрування платформи
+
+## Функції безпеки
+
+- **JWT токени** з автоматичним оновленням
+- **Захист від CSRF** вбудовано
+- **Обмеження швидкості** на кінцевих точках аутентифікації
+- **Безпечні куки** з прапором httpOnly
+- **Відповідність GDPR** з видаленням даних
+
+---
+
+*Потрібна допомога з аутентифікацією? Перегляньте наш посібник [Початок роботи](/uk/library/getting-started) або приєднуйтеся до нашого [Discord](https://discord.gg/ring-platform).*

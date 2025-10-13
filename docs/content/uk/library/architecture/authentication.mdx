@@ -1,0 +1,21 @@
+---
+title: Authentication
+description: Authentication documentation for Ring Platform
+---
+
+# Authentication (Auth.js v5)
+
+- Providers: Google, Apple, Magic link, Crypto wallet
+- JWT sessions with role-based access (VISITOR → CONFIDENTIAL → ADMIN)
+- Unified status pages for auth workflows
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant N as Next.js
+  participant A as Auth.js v5
+  U->>N: Sign in
+  N->>A: Provider callback
+  A-->>N: JWT session
+  N-->>U: Authenticated UI
+```

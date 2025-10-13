@@ -1,0 +1,392 @@
+---
+title: Authentication
+description: Authentication documentation for Ring Platform
+---
+
+# Authentication Examples
+
+Complete authentication implementation patterns using Auth.js v5 with Ring Platform.
+
+## 🔐 Auth.js v5 Configuration
+
+### Basic Auth Configuration
+
+```typescript
+// auth.ts
+import NextAuth from 'next-auth'
+import Google from 'next-auth/providers/google'
+import Email from 'next-auth/providers/email'
+import { FirestoreAdapter } from '@auth/firebase-adapter'
+import { cert } from 'firebase-admin/app'
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: FirestoreAdapter({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  }),
+  providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    Email({
+      server: {
+        host: process.env.EMAIL_SERVER_HOST,
+        port: process.env.EMAIL_SERVER_PORT,
+        auth: {
+          user: process.env.EMAIL_SERVER_USER,
+          pass: process.env.EMAIL_SERVER_PASSWORD,
+        },
+      },
+      from: process.env.EMAIL_FROM,
+    }),
+  ],
+  callbacks: {
+    session: async ({ session, token }) => {
+      if (session?.user && token?.sub) {
+        session.user.id = token.sub
+        // Add custom user data
+        session.user.role = token.role as string
+        session.user.entityId = token.entityId as string
+      }
+      return session
+    },
+    jwt: async ({ user, token }) => {
+      if (user) {
+        token.role = user.role
+        token.entityId = user.entityId
+      }
+      return token
+    },
+  },
+  pages: {
+    signIn: '/auth/signin',
+    signOut: '/auth/signout',
+    error: '/auth/error',
+  },
+})
+```
+
+## 🚀 Magic Link Authentication
+
+### Custom Sign-In Page
+
+```typescript
+// app/auth/signin/page.tsx
+'use client'
+
+import { signIn, getSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function SignIn() {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check if user is already signed in
+    getSession().then((session) => {
+      if (session) {
+        router.push('/dashboard')
+      }
+    })
+  }, [router])
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      const result = await signIn('email', { 
+        email,
+        redirect: false,
+        callbackUrl: '/dashboard'
+      })
+      
+      if (result?.ok) {
+        setSent(true)
+      }
+    } catch (error) {
+      console.error('Sign in failed:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = () => {
+    signIn('google', { callbackUrl: '/dashboard' })
+  }
+
+  if (sent) {
+    return (
+      <div className="max-w-md mx-auto mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
+        <h2 className="text-lg font-semibold text-green-800 mb-2">Check your email</h2>
+        <p className="text-green-700">
+          We've sent a magic link to <strong>{email}</strong>. 
+          Click the link in the email to sign in.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-md mx-auto mt-8">
+      <div className="bg-white p-8 rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-center mb-6">Sign In to Ring Platform</h1>
+        
+        {/* Google Sign In */}
+        <button
+          onClick={handleGoogleSignIn}
+          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 p-3 rounded-lg hover:bg-gray-50 mb-4"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+          </div>
+        </div>
+
+        {/* Magic Link Form */}
+        <form onSubmit={handleMagicLink} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Sending magic link...' : 'Send magic link'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+```
+
+## 🔒 Role-Based Access Control
+
+### Protected Route Component
+
+```typescript
+// components/ProtectedRoute.tsx
+import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  requiredRole?: 'VISITOR' | 'SUBSCRIBER' | 'MEMBER' | 'CONFIDENTIAL' | 'ADMIN'
+}
+
+export default async function ProtectedRoute({ 
+  children, 
+  requiredRole = 'VISITOR' 
+}: ProtectedRouteProps) {
+  const session = await auth()
+
+  if (!session) {
+    redirect('/auth/signin')
+  }
+
+  // Role hierarchy check
+  const roleHierarchy = {
+    'VISITOR': 0,
+    'SUBSCRIBER': 1,
+    'MEMBER': 2,
+    'CONFIDENTIAL': 3,
+    'ADMIN': 4
+  }
+
+  const userRole = session.user?.role || 'VISITOR'
+  const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy]
+  const requiredLevel = roleHierarchy[requiredRole]
+
+  if (userLevel < requiredLevel) {
+    redirect('/auth/insufficient-permissions')
+  }
+
+  return <>{children}</>
+}
+```
+
+### Usage in Pages
+
+```typescript
+// app/admin/page.tsx
+import ProtectedRoute from '@/components/ProtectedRoute'
+
+export default function AdminPage() {
+  return (
+    <ProtectedRoute requiredRole="ADMIN">
+      <div className="container mx-auto p-8">
+        <h1>Admin Dashboard</h1>
+        <p>Only admins can see this content.</p>
+      </div>
+    </ProtectedRoute>
+  )
+}
+```
+
+## 👤 User Session Management
+
+### Session Provider Setup
+
+```typescript
+// app/providers.tsx
+'use client'
+
+import { SessionProvider } from 'next-auth/react'
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      {children}
+    </SessionProvider>
+  )
+}
+```
+
+### Custom Session Hook
+
+```typescript
+// hooks/useAuth.ts
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export function useAuth(requiredRole?: string) {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (status === 'loading') return // Still loading
+
+    if (!session) {
+      router.push('/auth/signin')
+      return
+    }
+
+    if (requiredRole && session.user?.role !== requiredRole) {
+      router.push('/auth/insufficient-permissions')
+      return
+    }
+  }, [session, status, requiredRole, router])
+
+  return {
+    user: session?.user,
+    isLoading: status === 'loading',
+    isAuthenticated: !!session,
+  }
+}
+```
+
+## 🔄 Account Management
+
+### Account Deletion (GDPR Compliant)
+
+```typescript
+// app/api/auth/delete-account/route.ts
+import { auth } from '@/auth'
+import { NextResponse } from 'next/server'
+
+export async function DELETE() {
+  const session = await auth()
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    // Delete user data from Firestore
+    await deleteUserData(session.user.id)
+    
+    // Delete authentication record
+    await deleteAuthRecord(session.user.id)
+    
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Account deletion failed:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete account' }, 
+      { status: 500 }
+    )
+  }
+}
+
+async function deleteUserData(userId: string) {
+  // Implementation for deleting all user data
+  // This should be comprehensive and GDPR compliant
+}
+
+async function deleteAuthRecord(userId: string) {
+  // Implementation for deleting auth record
+}
+```
+
+## 🎯 Advanced Patterns
+
+### Middleware for Route Protection
+
+```typescript
+// middleware.ts
+import { auth } from '@/auth'
+import { NextResponse } from 'next/server'
+
+export default auth((req) => {
+  const { pathname } = req.nextUrl
+  const session = req.auth
+
+  // Public routes
+  if (pathname.startsWith('/auth') || pathname === '/') {
+    return NextResponse.next()
+  }
+
+  // Protected routes
+  if (!session && pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/auth/signin', req.url))
+  }
+
+  // Admin routes
+  if (pathname.startsWith('/admin') && session?.user?.role !== 'ADMIN') {
+    return NextResponse.redirect(new URL('/auth/insufficient-permissions', req.url))
+  }
+
+  return NextResponse.next()
+})
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+}
+```
+
+---
+
+*Ready for more? Check out [API Integration](/en/library/examples/api-integration) or [Web3 Integration](/en/library/examples/web3-integration).*
