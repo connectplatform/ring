@@ -18,23 +18,8 @@ import { defaultLocale } from '@/i18n-config'
 import SlidingPopup from '@/components/common/widgets/modal'
 import { EntityLogo } from '@/components/ui/safe-image'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
-import EntityAdvancedFilters from '@/components/entities/advanced-filters'
 import { EntityType } from '@/features/entities/types'
 
-interface EntityFilterState {
-  search: string
-  types: EntityType[]
-  location: string
-  employeeCountMin: string
-  employeeCountMax: string
-  foundedYearMin: string
-  foundedYearMax: string
-  verificationStatus: string
-  membershipTier: string
-  services: string[]
-  certifications: boolean | null
-  partnerships: boolean | null
-}
 
 
 interface EntitiesContentProps {
@@ -63,45 +48,12 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   const tEntities = useTranslations('modules.entities')
   const tCommon = useTranslations('common')
   const { theme } = useTheme()
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession({ required: false })
   const [entities, setentities] = useState<SerializedEntity[]>(initialEntities)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
   
-  // Filter state
-  const [filters, setFilters] = useState<EntityFilterState>({
-    search: '',
-    types: [],
-    location: '',
-    employeeCountMin: '',
-    employeeCountMax: '',
-    foundedYearMin: '',
-    foundedYearMax: '',
-    verificationStatus: 'all',
-    membershipTier: 'all',
-    services: [],
-    certifications: null,
-    partnerships: null
-  })
-
-  // Clear filters function
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      types: [],
-      location: '',
-      employeeCountMin: '',
-      employeeCountMax: '',
-      foundedYearMin: '',
-      foundedYearMax: '',
-      verificationStatus: 'all',
-      membershipTier: 'all',
-      services: [],
-      certifications: null,
-      partnerships: null
-    })
-  }
 
   const fetchEntities = useCallback(async () => {
     if (!session) {
@@ -208,17 +160,27 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Advanced Filters */}
-      <div className="container mx-auto px-4 py-6">
-        <EntityAdvancedFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={clearFilters}
-          resultCount={entities.length}
-        />
-      </div>
 
       <div className="container mx-auto px-4 py-6">
+        {/* Empty State */}
+        {entities.length === 0 && !loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">{tEntities('noEntities')}</h3>
+            <p className="text-muted-foreground mb-4">{tEntities('noEntitiesDescription')}</p>
+            <Link href="/entities/add">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                {tEntities('createFirstEntity')}
+              </Button>
+            </Link>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {entities.map((entity) => (
             <EntityCard key={entity.id} entity={entity} />

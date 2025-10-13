@@ -1,0 +1,68 @@
+---
+title: Entities
+description: Entities documentation for Ring Platform
+---
+
+# Entities System
+
+Organization management with **26 industry types**, verification badges, and role-based access control.
+
+## Overview
+
+The Entities system is the foundation of Ring Platform's professional networking approach. Entities represent organizations, businesses, and professional groups that create opportunities and connect with other entities.
+
+## Key Features
+
+### 26 Industry Types
+Each entity is classified into one of 26 industry categories:
+- Technology & Software
+- Healthcare & Medical  
+- Finance & Banking
+- Education & Training
+- And 22 more specialized industries
+
+### Verification System
+- **Verification Badges** - Enhanced credibility for verified entities
+- **Documentation Process** - Secure verification workflow
+- **Premium Features** - Access to advanced platform capabilities
+
+### Access Control
+- **Public Entities** - Visible to all platform users
+- **Confidential Entities** - Restricted access for sensitive organizations
+- **Role-based Permissions** - Owner, Admin, Member hierarchy
+
+## Implementation
+
+```typescript
+// Create new entity
+const entity = await createEntity({
+  name: 'Tech Innovators Inc',
+  description: 'Leading software development company',
+  industry: 'TECHNOLOGY_SOFTWARE',
+  website: 'https://techinnovators.com'
+})
+
+// Request verification
+await requestVerification(entity.id, {
+  documents: ['business-license.pdf', 'tax-certificate.pdf'],
+  contactPerson: 'John Doe',
+  contactEmail: 'john@techinnovators.com'
+})
+```
+
+## Entity Management
+
+### Creation Process
+1. **Basic Information** - Name, description, industry
+2. **Contact Details** - Website, location, contact info
+3. **Verification** - Optional verification process
+4. **Member Invitations** - Add team members with roles
+
+### Member Roles
+- **OWNER** - Full entity control and settings
+- **ADMIN** - Manage members and post opportunities
+- **MEMBER** - Basic entity access and participation
+
+---
+
+*Ready to create your entity? Check our [API Reference](/ru/library/api/entities) for implementation details.*

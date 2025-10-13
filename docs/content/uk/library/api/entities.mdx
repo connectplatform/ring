@@ -1,0 +1,176 @@
+---
+title: Entities
+description: Entities documentation for Ring Platform
+---
+
+# Entities API
+
+Manage organizations and businesses with **8 endpoints** for comprehensive entity management, including role-based access control and industry-specific features.
+
+## Overview
+
+Entities represent organizations, businesses, and professional groups within the Ring Platform ecosystem.
+
+**Key Features:**
+- 26 industry types with visual icons
+- Verification badge system
+- Confidential entity protection
+- Role-based access control
+
+## API Endpoints
+
+### `GET /api/entities`
+List entities with filtering and pagination
+
+### `POST /api/entities`
+Create a new entity (requires MEMBER role)
+
+### `GET /api/entities/{id}`
+Get entity details by ID
+
+### `PUT /api/entities/{id}`
+Update entity information
+
+### `DELETE /api/entities/{id}`
+Delete entity (admin only)
+
+### `POST /api/entities/{id}/verify`
+Request entity verification
+
+### `GET /api/entities/{id}/members`
+List entity members and roles
+
+### `POST /api/entities/{id}/members`
+Add member to entity
+
+## Entity Structure
+
+```typescript
+interface Entity {
+  id: string
+  name: string
+  description: string
+  industry: IndustryType
+  website?: string
+  location?: string
+  verified: boolean
+  confidential: boolean
+  createdAt: Date
+  updatedAt: Date
+  members: EntityMember[]
+}
+
+interface EntityMember {
+  userId: string
+  role: 'OWNER' | 'ADMIN' | 'MEMBER'
+  joinedAt: Date
+}
+```
+
+## Industry Types
+
+Ring Platform supports **26 industry types**:
+
+- Technology & Software
+- Healthcare & Medical
+- Finance & Banking
+- Education & Training
+- Manufacturing & Industrial
+- Retail & E-commerce
+- Real Estate & Construction
+- Media & Entertainment
+- Transportation & Logistics
+- Energy & Utilities
+- Agriculture & Food
+- Legal & Professional Services
+- Non-profit & Social Impact
+- Government & Public Sector
+- Consulting & Business Services
+- Marketing & Advertising
+- Design & Creative
+- Sports & Recreation
+- Travel & Hospitality
+- Automotive
+- Aerospace & Defense
+- Biotechnology & Pharmaceuticals
+- Environmental & Sustainability
+- Mining & Resources
+- Telecommunications
+- Other
+
+## Implementation Examples
+
+### Create Entity
+
+```typescript
+const response = await fetch('/api/entities', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    name: 'Tech Innovators Inc',
+    description: 'Leading software development company',
+    industry: 'TECHNOLOGY_SOFTWARE',
+    website: 'https://techinnovators.com',
+    location: 'San Francisco, CA'
+  })
+})
+
+const entity = await response.json()
+```
+
+### List Entities with Filtering
+
+```typescript
+const response = await fetch('/api/entities?industry=TECHNOLOGY_SOFTWARE&verified=true&limit=10')
+const { entities, total, hasMore } = await response.json()
+```
+
+### Get Entity Details
+
+```typescript
+const response = await fetch(`/api/entities/${entityId}`)
+const entity = await response.json()
+
+if (entity.confidential && !hasConfidentialAccess) {
+  // Handle confidential entity access
+}
+```
+
+## Access Control
+
+### Entity Visibility
+- **Public Entities**: Visible to all users
+- **Confidential Entities**: Require CONFIDENTIAL role or higher
+
+### Entity Management
+- **Create**: Requires MEMBER role
+- **Update**: Entity members with ADMIN role
+- **Delete**: Platform ADMIN only
+- **Verify**: Special verification process
+
+### Member Roles
+- **OWNER**: Full entity control
+- **ADMIN**: Manage members and content
+- **MEMBER**: Basic entity access
+
+## Verification Process
+
+Entities can request verification badges:
+
+1. Submit verification request
+2. Provide required documentation
+3. Platform review process
+4. Verification badge granted
+
+**Benefits of Verification:**
+- Enhanced credibility
+- Priority in search results
+- Access to premium features
+- Confidential entity creation
+
+---
+
+*Ready to create your first entity? Check our [Getting Started](/uk/library/getting-started) guide.*
