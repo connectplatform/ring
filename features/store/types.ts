@@ -69,8 +69,31 @@ export interface StoreProduct {
   inStock: boolean
   category?: string
   tags?: string[]
+
+  // Extended product fields for detailed product pages
+  slug?: string
+  longDescription?: string
+  images?: string[]
+  vendorName?: string
+  stock?: number
+  sku?: string
+  featured?: boolean
+  rating?: number
+  reviewCount?: number
+  billingPeriod?: 'one-time' | 'monthly' | 'yearly'
+  specifications?: Record<string, any>
+  digitalProduct?: boolean
+  instantDelivery?: boolean
+  shipping?: {
+    method?: string
+    weight?: string
+    dimensions?: string
+    origin?: string
+    included?: boolean
+  }
+
   relatedProductIds?: string[]
-  
+
   // Multi-vendor fields
   productListedAt?: string[] // Array of storeIDs where listed (default: ['1'])
   productOwner?: string // userID of product owner
@@ -220,6 +243,7 @@ export interface Dispute {
 
 export interface StoreAdapter {
   listProducts(): Promise<StoreProduct[]>
+  createProduct(product: Partial<StoreProduct> & { vendorId: string }): Promise<StoreProduct>
   checkout(items: CartItem[], info: CheckoutInfo): Promise<{ orderId: string }>
 }
 

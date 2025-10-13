@@ -170,11 +170,16 @@ export function ProductCard({
       </div>
 
       {/* ERP Extension: Vendor information */}
-      {vendorProfile && (
-        <div className="text-xs text-muted-foreground mb-3">
-          <div>Sold by: {vendorProfile.entityId}</div>
-          {vendorProfile.analytics?.customerSatisfactionScore && (
-            <div>★ {vendorProfile.analytics.customerSatisfactionScore}/5 rating</div>
+      {(vendorProfile || product.vendorName) && (
+        <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span className="font-medium">
+            {product.vendorName || vendorProfile?.entityId}
+          </span>
+          {vendorProfile?.analytics?.customerSatisfactionScore && (
+            <span className="ml-2">★ {vendorProfile.analytics.customerSatisfactionScore}/5</span>
           )}
         </div>
       )}

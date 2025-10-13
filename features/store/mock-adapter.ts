@@ -11,6 +11,27 @@ export class MockStoreAdapter implements StoreAdapter {
     return Promise.resolve(MOCK_PRODUCTS)
   }
 
+  async createProduct(productData: Partial<StoreProduct> & { vendorId: string }): Promise<StoreProduct> {
+    // Mock implementation for client-side
+    const productId = `mock_prod_${Date.now()}`
+    const product: StoreProduct = {
+      id: productId,
+      name: productData.name || 'Mock Product',
+      description: productData.description || '',
+      price: productData.price || '0',
+      currency: (productData.currency as any) || 'USD',
+      inStock: true,
+      category: productData.category,
+      tags: productData.tags || [],
+      productListedAt: ['1'],
+      productOwner: productData.vendorId,
+      ownerEntityId: undefined,
+      storeId: '1',
+      status: 'active' as any
+    }
+    return Promise.resolve(product)
+  }
+
   async checkout(items: CartItem[], info: CheckoutInfo): Promise<{ orderId: string }> {
     // Simulate processing delay
     await new Promise(r => setTimeout(r, 200))

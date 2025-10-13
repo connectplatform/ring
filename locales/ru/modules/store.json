@@ -22,7 +22,7 @@
     "price": "Price",
     "category": "Category",
     "tags": "Tags",
-    "soldBy": "Sold by",
+    "soldBy": "Продавец",
     "goesWellWith": "Goes well with",
     "inStock": "In Stock",
     "addToCart": "Add to cart",

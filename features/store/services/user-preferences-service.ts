@@ -5,7 +5,7 @@
 // - React 19 cache() for request deduplication
 // - Used in API routes and server actions only
 
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager'
+import { getDatabaseService, initializeDatabase } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { cache } from 'react'
 
@@ -32,19 +32,29 @@ export interface StoreUserPreferences {
 export const StoreUserPreferencesService = {
   get: cache(async (userId: string): Promise<StoreUserPreferences | null> => {
     try {
-      const { db } = getFirebaseServiceManager()
-      const doc = await db
-        .collection('users')
-        .doc(userId)
-        .collection('store_preferences')
-        .doc('checkout')
-        .get()
-      
-      if (!doc.exists) {
+      // Initialize database service
+      const initResult = await initializeDatabase()
+      if (!initResult.success) {
+        logger.error('StoreUserPreferencesService: Database initialization failed:', { error: initResult.error })
         return null
       }
-      
-      return { id: 'checkout', userId, ...doc.data() } as StoreUserPreferences
+
+      const dbService = getDatabaseService()
+      const userResult = await dbService.read('users', userId)
+
+      if (!userResult.success || !userResult.data) {
+        logger.error('StoreUserPreferencesService: User not found:', { userId })
+        return null
+      }
+
+      const userData = userResult.data.data || userResult.data
+      const storePrefs = userData?.store_preferences?.checkout
+
+      if (!storePrefs) {
+        return null
+      }
+
+      return { id: 'checkout', userId, ...storePrefs } as StoreUserPreferences
     } catch (error) {
       logger.error('StoreUserPreferencesService: Error getting preferences', { userId, error })
       return null
@@ -53,24 +63,48 @@ export const StoreUserPreferencesService = {
 
   async upsert(userId: string, preferences: Partial<StoreUserPreferences>): Promise<void> {
     try {
-      const { db } = getFirebaseServiceManager()
+      // Initialize database service
+      const initResult = await initializeDatabase()
+      if (!initResult.success) {
+        logger.error('StoreUserPreferencesService: Database initialization failed:', { error: initResult.error })
+        throw new Error('Database initialization failed')
+      }
+
+      const dbService = getDatabaseService()
       const now = new Date().toISOString()
-      
+
+      // Get existing preferences
       const existing = await this.get(userId)
-      const data = {
+      const checkoutData = {
         ...existing,
         ...preferences,
-        userId,
         updatedAt: now,
         ...(existing ? {} : { createdAt: now })
       }
-      
-      await db
-        .collection('users')
-        .doc(userId)
-        .collection('store_preferences')
-        .doc('checkout')
-        .set(data, { merge: true })
+
+      // Read current user data
+      const userResult = await dbService.read('users', userId)
+      if (!userResult.success || !userResult.data) {
+        throw new Error('User not found')
+      }
+
+      const userData = userResult.data.data || userResult.data
+
+      // Update user data with store preferences
+      const updatedUserData = {
+        ...userData,
+        store_preferences: {
+          ...userData.store_preferences,
+          checkout: checkoutData
+        }
+      }
+
+      // Save back to database
+      const updateResult = await dbService.update('users', userId, updatedUserData)
+      if (!updateResult.success) {
+        throw new Error('Failed to update user preferences')
+      }
+
     } catch (error) {
       logger.error('StoreUserPreferencesService: Error upserting preferences', { userId, error })
       throw error

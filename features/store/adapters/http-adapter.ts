@@ -8,6 +8,16 @@ export class HttpStoreAdapter implements StoreAdapter {
     return Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : [])
   }
 
+  async createProduct(productData: Partial<StoreProduct> & { vendorId: string }): Promise<StoreProduct> {
+    const res = await fetch('/api/store/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(productData)
+    })
+    if (!res.ok) throw new Error('Failed to create product')
+    return res.json()
+  }
+
   async checkout(items: CartItem[], info: CheckoutInfo): Promise<{ orderId: string }> {
     const res = await fetch('/api/store/checkout', {
       method: 'POST',

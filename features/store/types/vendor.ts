@@ -63,6 +63,11 @@ export interface VendorProfile {
   onboardingStartedAt: string
   onboardingCompletedAt?: string
   
+  // Store Information
+  storeName?: string // Display name for the vendor's storefront
+  businessName?: string // Legal business name
+  storeUrl?: string // Required for merchant approval
+  
   // Trust & Performance
   trustLevel: VendorTrustLevel
   trustScore: number // 0-100

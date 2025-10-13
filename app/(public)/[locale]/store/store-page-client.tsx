@@ -7,16 +7,11 @@ import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
 import { ProductCard } from '@/features/store/components/product-card'
 import { useInView } from '@/hooks/use-intersection-observer'
-import { FilterBar, SortKey, SortDir } from '@/features/store/components/filter-bar'
 import { useTranslations } from 'next-intl'
 
 export default function StorePageClient({ locale }: { locale: Locale }) {
   const { products } = useStore()
   const t = useTranslations('modules.store')
-  const [search, setSearch] = useState('')
-  const [currency, setCurrency] = useState<'' | 'DAAR' | 'DAARION'>('')
-  const [sortKey, setSortKey] = useState<SortKey>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [items, setItems] = useState<any[]>([])
   const [lastVisible, setLastVisible] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,13 +35,9 @@ export default function StorePageClient({ locale }: { locale: Locale }) {
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams()
-    if (search) p.set('search', search)
-    if (currency) p.set('currency', currency)
-    p.set('sortKey', sortKey)
-    p.set('sortDir', sortDir)
     p.set('limit', '24')
     return p.toString()
-  }, [search, currency, sortKey, sortDir])
+  }, [])
 
   const loadPage = useCallback(async (reset: boolean, afterId: string | null) => {
     if (loadingRef.current || inFlightRef.current || (!reset && !hasMoreRef.current)) return
@@ -96,12 +87,6 @@ export default function StorePageClient({ locale }: { locale: Locale }) {
           <Link className="underline" href={ROUTES.CHECKOUT(locale)}>{t('checkout.title')}</Link>
         </div>
       </div>
-      <FilterBar
-        search={search} setSearch={setSearch}
-        currency={currency} setCurrency={setCurrency}
-        sortKey={sortKey} setSortKey={setSortKey}
-        sortDir={sortDir} setSortDir={setSortDir}
-      />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {items.map(p => (
           <ProductCard key={p.id} product={p} locale={locale} />
