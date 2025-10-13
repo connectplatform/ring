@@ -1,0 +1,307 @@
+---
+title: Docker
+description: Документація по Docker для Ring Platform
+---
+
+# Розгортання Docker
+
+Ring Platform може бути розгорнутий з використанням контейнерів Docker з повною оркестрацією Kubernetes. Цей посібник охоплює як розробку, так і виробничі розгортання.
+
+## Попередні вимоги
+
+### Системні вимоги
+- Docker 20.10+
+- Docker Compose 2.0+
+- Кластер Kubernetes (для виробництва)
+- Мінімум 4 ГБ ОЗП, рекомендується 8 ГБ
+- 20 ГБ дискового простору
+
+### Мережеві вимоги
+- Вихідний доступ HTTPS для завантаження пакетів
+- Вхідний доступ на портах 80/443 (виробництво)
+- Доступ до реєстрів контейнерів (ghcr.io)
+
+## Розгортання в розробці
+
+### Docker Compose (Розробка)
+
+```yaml
+version: '3.9'
+services:
+  ring-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platform: linux/amd64
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=ring_platform
+      - POSTGRES_USER=ring
+      - POSTGRES_PASSWORD=secure_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Швидке налаштування розробки
+
+```bash
+# Клонувати репозиторій
+git clone https://github.com/connectplatform/ring.git
+cd ring/ring-platform.org
+
+# Запустити середовище розробки
+docker-compose -f docker-compose.dev.yml up -d
+
+# Переглянути логи
+docker-compose logs -f ring-platform
+
+# Доступ до додатку
+open http://localhost:3000
+```
+
+## Виробниче розгортання
+
+### Критичні вимоги до збірки
+
+> [!WARNING]
+> **КРИТИЧНО**: Ніколи не використовуйте підсвітку синтаксису на стороні сервера або імпорти Mermaid.js на верхньому рівні - викликає 30-секундні затримки та таймаути 503!
+
+#### Специфікація платформи
+```bash
+# Завжди збирати з явним зазначенням платформи для вузлів Kubernetes AMD64
+docker build --platform linux/amd64 \
+  -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
+  -f Dockerfile .
+```
+
+#### Конфігурація Docker
+- **НЕ** виключати директорію `docs/` з `.dockerignore`
+- **ОБОВ'ЯЗКОВО** копіювати директорії `lib/` та `docs/` на етапі runtime Dockerfile
+- **Використовувати динамічні імпорти** для клієнтських бібліотек типу Mermaid.js
+
+### Процес збірки та розгортання
+
+#### Крок 1: Зібрати образ Docker
+```bash
+cd ring-platform.org
+docker build --platform linux/amd64 \
+  -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
+  -f Dockerfile .
+```
+
+#### Крок 2: Надіслати до реєстру
+```bash
+docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
+```
+
+#### Крок 3: Розгорнути в Kubernetes
+```bash
+ssh k8s-control-01 'kubectl -n ring-platform-org set image \
+  deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'
+```
+
+#### Крок 4: Моніторити розгортання
+```bash
+ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
+ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'
+```
+
+---
+
+# Розгортання Kubernetes
+
+## Огляд
+
+Ring Platform розгортається в Kubernetes з використанням HAProxy як зовнішнього балансувальника навантаження та MetalLB для внутрішньої балансировки сервісів. Це забезпечує масштабованість корпоративного рівня, високу доступність та управління трафіком.
+
+## Попередні вимоги
+
+- Кластер Kubernetes v1.29+
+- Встановлений HAProxy LoadBalancer (10.10.0.30)
+- Налаштований MetalLB з пулом IP (10.10.0.40-10.10.0.50)
+- Cilium CNI з шифруванням WireGuard
+- NGINX Ingress Controller (опціонально)
+
+## Конфігурація DNS
+
+Налаштуйте вашого DNS-провайдера для вказівки `ring-platform.org` на ваші публічні IP:
+
+```bash
+# Основна настройка (Рекомендується)
+ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
+www.ring-platform.org  CNAME ring-platform.org
+
+# Розширена настройка з балансуванням навантаження
+ring-platform.org      A     195.95.233.69    # Основний (HAProxy)
+ring-platform.org      A     195.95.233.15    # Другорядний (MetalLB)
+```
+
+## Налаштування простору імен
+
+```bash
+# Створити простір імен Ring
+kubectl create namespace ring-platform-org
+
+# Встановити як простір за замовчуванням для розгортання
+kubectl config set-context --current --namespace=ring-platform-org
+```
+
+## Розгортання додатку Ring Platform
+
+```yaml
+# ring-platform-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ring-platform
+  namespace: ring-platform-org
+  labels:
+    app: ring-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ring-platform
+  template:
+    metadata:
+      labels:
+        app: ring-platform
+    spec:
+      containers:
+      - name: ring-platform
+        image: ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXTAUTH_URL
+          value: "https://ring-platform.org"
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://ring-platform.org"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+---
+# Сервіс Ring Platform з MetalLB
+apiVersion: v1
+kind: Service
+metadata:
+  name: ring-platform-service
+  namespace: ring-platform-org
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.10.0.41
+spec:
+  selector:
+    app: ring-platform
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 3000
+    protocol: TCP
+  type: LoadBalancer
+  loadBalancerIP: 10.10.0.41
+```
+
+## Конфігурація NGINX Ingress
+
+```yaml
+# ring-platform-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ring-platform-ingress
+  namespace: ring-platform-org
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  tls:
+  - hosts:
+    - ring-platform.org
+    - www.ring-platform.org
+    - docs.ring-platform.org
+    secretName: ring-platform-tls
+  rules:
+  # Основний додаток
+  - host: ring-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ring-platform-service
+            port:
+              number: 80
+  - host: www.ring-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ring-platform-service
+            port:
+              number: 80
+  # Документація субдомен
+  - host: docs.ring-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ring-platform-service
+            port:
+              number: 80
+```
+
+Це розгортання Kubernetes забезпечує масштабованість корпоративного рівня, високу доступність та надійне управління трафіком для платформи Ring з використанням балансувальників навантаження HAProxy та MetalLB.

@@ -141,7 +141,6 @@ scripts/setup*.sh
 scripts/deploy*.sh
 
 # Documentation directories
-docs/
 AI-CONTEXT/
 
 # Backup files

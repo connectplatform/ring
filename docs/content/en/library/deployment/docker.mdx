@@ -1,0 +1,522 @@
+---
+title: Docker
+description: Docker documentation for Ring Platform
+---
+
+# Docker Deployment
+
+Ring Platform can be deployed using Docker containers with full Kubernetes orchestration. This guide covers both development and production deployments.
+
+## Prerequisites
+
+### System Requirements
+- Docker 20.10+
+- Docker Compose 2.0+
+- Kubernetes cluster (for production)
+- 4GB RAM minimum, 8GB recommended
+- 20GB disk space
+
+### Network Requirements
+- Outbound HTTPS access for package downloads
+- Inbound access on ports 80/443 (production)
+- Access to container registries (ghcr.io)
+
+## Development Deployment
+
+### Docker Compose (Development)
+
+```yaml
+version: '3.9'
+services:
+  ring-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platform: linux/amd64
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=ring_platform
+      - POSTGRES_USER=ring
+      - POSTGRES_PASSWORD=secure_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+### Quick Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/connectplatform/ring.git
+cd ring/ring-platform.org
+
+# Start development environment
+docker-compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker-compose logs -f ring-platform
+
+# Access application
+open http://localhost:3000
+```
+
+## Production Deployment
+
+### Critical Build Requirements
+
+> [!WARNING]
+> **CRITICAL**: Never use server-side syntax highlighting or Mermaid.js imports at top level - causes 30-second load times and 503 timeouts!
+
+#### Platform Specification
+```bash
+# Always build with explicit platform for Kubernetes AMD64 nodes
+docker build --platform linux/amd64 \
+  -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
+  -f Dockerfile .
+```
+
+#### Docker Configuration
+- **DO NOT** exclude `docs/` directory from `.dockerignore`
+- **MUST** copy `lib/` and `docs/` directories in Dockerfile runtime stage
+- **Use dynamic imports** for client-side libraries like Mermaid.js
+
+### Build & Deploy Process
+
+#### Step 1: Build Docker Image
+```bash
+cd ring-platform.org
+docker build --platform linux/amd64 \
+  -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
+  -f Dockerfile .
+```
+
+#### Step 2: Push to Registry
+```bash
+docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
+```
+
+#### Step 3: Deploy to Kubernetes
+```bash
+ssh k8s-control-01 'kubectl -n ring-platform-org set image \
+  deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'
+```
+
+#### Step 4: Monitor Deployment
+```bash
+ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
+ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'
+```
+
+---
+
+# Kubernetes Deployment
+
+## Overview
+
+Ring Platform is deployed on Kubernetes using HAProxy as an external load balancer and MetalLB for internal service load balancing. This provides enterprise-grade scalability, high availability, and traffic management.
+
+## Prerequisites
+
+- Kubernetes cluster v1.29+
+- HAProxy LoadBalancer installed (10.10.0.30)
+- MetalLB configured with IP pool (10.10.0.40-10.10.0.50)
+- Cilium CNI with WireGuard encryption
+- NGINX Ingress Controller (optional)
+
+## DNS Configuration
+
+Configure your DNS provider to point `ring-platform.org` to your public IPs:
+
+```bash
+# Primary setup (Recommended)
+ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
+www.ring-platform.org  CNAME ring-platform.org
+
+# Advanced setup with load balancing
+ring-platform.org      A     195.95.233.69    # Primary (HAProxy)
+ring-platform.org      A     195.95.233.15    # Secondary (MetalLB)
+```
+
+## Namespace Setup
+
+```bash
+# Create Ring namespace
+kubectl create namespace ring-platform-org
+
+# Set as default for deployment
+kubectl config set-context --current --namespace=ring-platform-org
+```
+
+## Ring Platform Application Deployment
+
+```yaml
+# ring-platform-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ring-platform
+  namespace: ring-platform-org
+  labels:
+    app: ring-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ring-platform
+  template:
+    metadata:
+      labels:
+        app: ring-platform
+    spec:
+      containers:
+      - name: ring-platform
+        image: ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXTAUTH_URL
+          value: "https://ring-platform.org"
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://ring-platform.org"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+---
+# Ring Platform Service with MetalLB
+apiVersion: v1
+kind: Service
+metadata:
+  name: ring-platform-service
+  namespace: ring-platform-org
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 10.10.0.41
+spec:
+  selector:
+    app: ring-platform
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 3000
+    protocol: TCP
+  type: LoadBalancer
+  loadBalancerIP: 10.10.0.41
+```
+
+## NGINX Ingress Configuration
+
+```yaml
+# ring-platform-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ring-platform-ingress
+  namespace: ring-platform-org
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  tls:
+  - hosts:
+    - ring-platform.org
+    - www.ring-platform.org
+    - docs.ring-platform.org
+    secretName: ring-platform-tls
+  rules:
+  # Main application
+  - host: ring-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ring-platform-service
+            port:
+              number: 80
+  - host: www.ring-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ring-platform-service
+            port:
+              number: 80
+  # Documentation subdomain
+  - host: docs.ring-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ring-platform-service
+            port:
+              number: 80
+```
+
+## Secrets and ConfigMaps
+
+```yaml
+# ring-platform-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ring-platform-secrets
+  namespace: ring-platform-org
+type: Opaque
+data:
+  # Base64 encoded values - generate these securely for your environment
+  database-url: <base64-encoded-postgres-url>
+  nextauth-secret: <base64-encoded-jwt-secret>
+  firebase-key: <base64-encoded-service-account-key>
+---
+# ring-platform-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ring-platform-config
+  namespace: ring-platform-org
+data:
+  NODE_ENV: "production"
+  NEXTAUTH_URL: "https://ring-platform.org"
+  NEXT_PUBLIC_API_URL: "https://ring-platform.org"
+  LOG_LEVEL: "info"
+  METRICS_ENABLED: "true"
+```
+
+## Deployment Commands
+
+### Initial Deployment
+
+```bash
+# 1. Apply all configurations
+kubectl apply -f ring-platform-deployment.yaml
+kubectl apply -f ring-platform-ingress.yaml
+kubectl apply -f ring-platform-secrets.yaml
+kubectl apply -f ring-platform-config.yaml
+
+# 2. Check deployment status
+kubectl get pods -n ring-platform-org
+kubectl get svc -n ring-platform-org
+kubectl get ingress -n ring-platform-org
+
+# 3. Check MetalLB IP allocation
+kubectl get svc -n ring-platform-org -o wide
+
+# 4. Test external access
+curl -H "Host: ring-platform.org" http://195.95.233.69
+curl -H "Host: docs.ring-platform.org" http://195.95.233.69
+
+# 5. Check logs
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=50
+```
+
+### Updates and Rollbacks
+
+```bash
+# Update to new version
+kubectl set image deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
+  -n ring-platform-org
+
+# Check rollout status
+kubectl rollout status deployment/ring-platform -n ring-platform-org
+
+# Rollback if needed
+kubectl rollout undo deployment/ring-platform -n ring-platform-org
+```
+
+## Traffic Flow Architecture
+
+```
+Internet → DNS (ring-platform.org)
+    ↓
+Public IPs (195.95.233.69 / 195.95.233.15)
+    ↓
+HAProxy (10.10.0.30) or MetalLB (10.10.0.41-42)
+    ↓
+NGINX Ingress Controller
+    ↓
+Ring Platform Services (Pods)
+    ↓
+Application Containers (Next.js)
+```
+
+## Monitoring and Troubleshooting
+
+### Production Health Checks
+
+```bash
+# Application health
+curl https://ring-platform.org/api/health
+
+# Documentation pages
+curl https://ring-platform.org/en/docs/architecture
+
+# Pod status
+kubectl get pods -n ring-platform-org -l app=ring-platform
+
+# Service status
+kubectl get svc -n ring-platform-org
+
+# Ingress status
+kubectl describe ingress ring-platform-ingress -n ring-platform-org
+```
+
+### Common Deployment Issues
+
+#### 404 Errors on /docs Pages
+```bash
+# Check if docs directory is included in Docker build
+kubectl exec -it <pod-name> -n ring-platform-org -- ls -la /app/docs/
+
+# Verify ingress configuration
+kubectl describe ingress ring-platform-ingress -n ring-platform-org
+```
+
+#### 503 Timeouts on Diagram Pages
+```bash
+# Check for Mermaid.js errors in logs
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i mermaid
+
+# Verify dynamic imports are working
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "mermaid"
+```
+
+#### Syntax Highlighting Timeouts
+```bash
+# Check for Shiki processing errors
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "shiki\|syntax"
+
+# Verify client-side highlighting is active
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "enhance"
+```
+
+### Performance Monitoring
+
+```bash
+# Check pod resource usage
+kubectl top pods -n ring-platform-org
+
+# Monitor response times
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=50 | grep -E "(GET|POST).*(200|500|503)"
+
+# Check for memory issues
+kubectl describe pod <pod-name> -n ring-platform-org | grep -A 10 "Containers:"
+```
+
+## Scaling and Updates
+
+### Horizontal Scaling
+```bash
+# Scale Ring Platform application
+kubectl scale deployment ring-platform --replicas=3 -n ring-platform-org
+
+# Check scaling status
+kubectl get pods -n ring-platform-org -l app=ring-platform
+```
+
+### Rolling Updates
+```bash
+# Update with new version
+kubectl set image deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.19-ring-platform.org-amd64 \
+  -n ring-platform-org
+
+# Check rollout status
+kubectl rollout status deployment/ring-platform -n ring-platform-org
+
+# Rollback if needed
+kubectl rollout undo deployment/ring-platform -n ring-platform-org
+```
+
+## Backup and Recovery
+
+```bash
+# Backup configurations
+kubectl get all -n ring-platform-org -o yaml > ring-platform-backup.yaml
+
+# Backup secrets (careful with sensitive data)
+kubectl get secrets -n ring-platform-org -o yaml > ring-platform-secrets-backup.yaml
+
+# Restore
+kubectl apply -f ring-platform-backup.yaml
+```
+
+## Security Considerations
+
+### Image Security
+- Use specific image tags, avoid 'latest'
+- Scan images for vulnerabilities before deployment
+- Use private registry with authentication
+
+### Network Security
+- Configure network policies between namespaces
+- Use secrets for sensitive environment variables
+- Enable pod security standards
+
+### Access Control
+- Implement RBAC for Kubernetes resources
+- Use service account tokens with minimal permissions
+- Regularly rotate credentials and certificates
+
+## Version History
+
+- **v0.9.18**: Fixed client-side syntax highlighting timeouts, removed server-side Shiki processing
+- **v0.9.17**: Fixed Mermaid dynamic imports, resolved server-side rendering timeouts
+- **v0.9.16**: Added Docker deployment guide, fixed Mermaid SSR issues
+- **v0.9.15**: Added docs directory to Docker image, fixed .dockerignore configuration
+- **v0.9.14**: Added Callout components and EnhanceCallouts
+- **v0.9.13**: Documentation system with Shiki, Mermaid, and Callouts
+
+This Kubernetes deployment provides enterprise-grade scalability, high availability, and robust traffic management for the Ring Platform using HAProxy and MetalLB load balancers.
