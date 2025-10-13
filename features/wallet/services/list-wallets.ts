@@ -9,8 +9,7 @@ import { UserRole } from '@/features/auth/types'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 /**
  * Interface for wallet information returned by the service
@@ -51,22 +50,23 @@ export async function listWallets(): Promise<WalletInfo[]> {
 
   console.log(`Services: listWallets - User authenticated with ID: ${userId} and role: ${userRole}`)
 
-  // Step 2: Retrieve user data from Firestore
-  // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-  if (!adminDb) {
-    throw new Error('Firestore instance is null')
+  // Step 2: Retrieve user data from database abstraction layer
+  console.log('Services: listWallets - Initializing database service');
+  const initResult = await initializeDatabase();
+  if (!initResult.success) {
+    console.error('Services: listWallets - Database initialization failed:', initResult.error);
+    throw new Error('Database initialization failed');
   }
 
-  const userDoc = await adminDb.collection('users').doc(userId).get()
-  const userData = userDoc.data()
+  const dbService = getDatabaseService();
+  const userResult = await dbService.read('users', userId);
 
-  if (!userData) {
-    console.log(`Services: listWallets - User not found for ID: ${userId}`)
-    throw new Error('User not found')
+  if (!userResult.success || !userResult.data) {
+    console.log(`Services: listWallets - User not found for ID: ${userId}`);
+    throw new Error('User not found');
   }
+
+  const userData = userResult.data.data || userResult.data;
 
   // Step 3: Format and return the list of wallets
   const wallets: WalletInfo[] = [

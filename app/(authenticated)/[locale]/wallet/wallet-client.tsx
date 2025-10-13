@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { 
   Wallet, 
@@ -33,7 +32,6 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
   const tCommon = useTranslations('common')
   const { data: session } = useSession()
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
 
   // Get wallet balance data
   const { 
@@ -45,12 +43,6 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
     refresh: refetchBalance
   } = useCreditBalance()
 
-  // Handle search params for actions (e.g., ?action=topup)
-  useEffect(() => {
-    if (searchParams.action === 'topup') {
-      setActiveTab('topup')
-    }
-  }, [searchParams])
 
   // Wallet address copy functionality
   const handleCopyAddress = async () => {
@@ -120,91 +112,84 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
-              <Wallet className="h-6 w-6 text-white" />
-            </div>
-            {t('title') || 'Wallet'}
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            {t('description') || 'Manage your RING tokens and view transaction history'}
-          </p>
+    <div className="min-h-screen">
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              {t('title') || 'Wallet'}
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              {t('description') || 'Manage your RING tokens and view transaction history'}
+            </p>
+          </div>
+          <Button onClick={refetchBalance} variant="outline" size="sm">
+            <ArrowUpDown className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </div>
-        <Button onClick={refetchBalance} variant="outline" size="sm">
-          <ArrowUpDown className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
 
-      {/* Balance Overview Card */}
-      <Card className="mb-8 bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200/50 dark:border-green-800/30">
-        <CardContent className="p-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">R</span>
+        {/* Balance Overview Card */}
+        <Card className="mb-8 bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200/50 dark:border-green-800/30">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">R</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">RING Balance</span>
+                  {hasLowBalance && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Low Balance
+                    </Badge>
+                  )}
                 </div>
-                <span className="text-sm text-muted-foreground">RING Balance</span>
-                {hasLowBalance && (
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Low Balance
-                  </Badge>
+                <div className="text-4xl font-bold mb-1">
+                  {displayBalance} <span className="text-2xl text-muted-foreground">RING</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  ≈ ${ringBalance?.usd_equivalent || '0.00'} USD
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={() => window.location.href = `/${locale}/wallet/topup`}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Top Up RING
+                </Button>
+
+                {walletAddress && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyAddress}
+                    className="font-mono text-xs"
+                  >
+                    <Wallet className="h-3 w-3 mr-2" />
+                    {formatAddress(walletAddress)}
+                    {copied ? (
+                      <Check className="h-3 w-3 ml-2 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3 ml-2" />
+                    )}
+                  </Button>
                 )}
               </div>
-              <div className="text-4xl font-bold mb-1">
-                {displayBalance} <span className="text-2xl text-muted-foreground">RING</span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                ≈ ${ringBalance?.usd_equivalent || '0.00'} USD
-              </div>
             </div>
-            
-            <div className="flex flex-col gap-3">
-              <Button 
-                onClick={() => setActiveTab('topup')}
-                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Top Up RING
-              </Button>
-              
-              {walletAddress && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyAddress}
-                  className="font-mono text-xs"
-                >
-                  <Wallet className="h-3 w-3 mr-2" />
-                  {formatAddress(walletAddress)}
-                  {copied ? (
-                    <Check className="h-3 w-3 ml-2 text-green-500" />
-                  ) : (
-                    <Copy className="h-3 w-3 ml-2" />
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Wallet Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="topup">Top Up</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
+        {/* Wallet Overview */}
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Subscription Status */}
             <Card>
@@ -266,20 +251,20 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
                 <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full justify-start"
-                  onClick={() => setActiveTab('topup')}
+                  onClick={() => window.location.href = `/${locale}/wallet/topup`}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add RING Tokens
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full justify-start"
-                  onClick={() => setActiveTab('history')}
+                  onClick={() => window.location.href = `/${locale}/wallet/history`}
                 >
                   <History className="h-4 w-4 mr-2" />
                   View History
@@ -287,72 +272,8 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="topup" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Up RING Balance</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Add RING tokens to your account to use Ring platform services
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">Top-up Coming Soon</h3>
-                <p className="text-muted-foreground mb-4">
-                  RING token top-up functionality is being implemented. 
-                  Contact support for manual top-ups.
-                </p>
-                <Button variant="outline">
-                  Contact Support
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Transaction History</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                View your RING token transaction history
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <History className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No Transactions Yet</h3>
-                <p className="text-muted-foreground">
-                  Your transaction history will appear here once you start using RING tokens.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Wallet Settings</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Manage your wallet preferences and security settings
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">Settings Coming Soon</h3>
-                <p className="text-muted-foreground">
-                  Advanced wallet settings and security options will be available soon.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   )
 }

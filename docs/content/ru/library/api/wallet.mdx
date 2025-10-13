@@ -1,0 +1,61 @@
+---
+title: Wallet
+description: Wallet documentation for Ring Platform
+---
+
+# Wallet API
+
+Web3 wallet management with **10 endpoints** supporting multi-token wallets, transactions, and EVM integration.
+
+## Overview
+
+Ring Platform wallet system provides:
+- Automatic wallet creation for users
+- Multi-token support (RING, DAAR, DAARION)
+- Transaction management and history
+- Balance tracking and updates
+- EVM blockchain integration
+
+## API Endpoints
+
+### `GET /api/wallet`
+Get user wallet information
+
+### `POST /api/wallet/create`
+Create new wallet for user
+
+### `GET /api/wallet/balance`
+Get wallet token balances
+
+### `POST /api/wallet/transfer`
+Transfer tokens between wallets
+
+### `GET /api/wallet/transactions`
+Get transaction history
+
+### `POST /api/wallet/transactions/{id}/confirm`
+Confirm pending transaction
+
+### `GET /api/wallet/tokens`
+List supported tokens
+
+### `POST /api/wallet/tokens/add`
+Add custom token to wallet
+
+### `GET /api/wallet/nfts`
+Get user NFT collection
+
+### `POST /api/wallet/export`
+Export wallet private key (secure)
+
+## Supported Tokens
+
+- **RING** - Platform utility token
+- **DAAR** - Governance token
+- **DAARION** - Staking rewards token
+- **ETH** - Ethereum native token
+- **Custom ERC-20** - User-added tokens
+
+---
+
+*Complete wallet documentation coming soon. Check our [Features](/ru/library/features/wallet) section for implementation details.*

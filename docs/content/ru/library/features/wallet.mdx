@@ -1,0 +1,144 @@
+---
+title: Wallet
+description: Wallet documentation for Ring Platform
+---
+
+# Web3 Wallet Integration
+
+Multi-token wallet system with automatic creation, EVM integration, and support for RING, DAAR, and DAARION tokens.
+
+## Overview
+
+Ring Platform provides seamless Web3 integration through automatic wallet creation and comprehensive token management, making blockchain technology accessible to all users.
+
+## Key Features
+
+### Automatic Wallet Creation
+- **Seamless onboarding** - Wallets created during user registration
+- **Secure key management** - Enterprise-grade security
+- **No crypto knowledge required** - User-friendly interface
+- **Backup and recovery** - Secure seed phrase management
+
+### Multi-Token Support
+- **RING** - Platform utility token for transactions
+- **DAAR** - Governance token for platform decisions  
+- **DAARION** - Staking rewards and premium features
+- **ETH** - Ethereum native token support
+- **Custom ERC-20** - Add any ERC-20 compatible token
+
+### EVM Integration
+- **Ethereum compatibility** - Full EVM blockchain support
+- **Smart contract interaction** - Direct contract calls
+- **Transaction management** - Pending, confirmed, failed states
+- **Gas optimization** - Intelligent fee estimation
+
+## Implementation
+
+### Wallet Creation
+
+```typescript
+import { createWallet } from '@/services/wallet'
+
+// Automatic wallet creation during user registration
+const user = await registerUser({
+  email: 'user@example.com',
+  name: 'John Doe'
+})
+
+// Wallet is automatically created
+const wallet = await getWallet(user.id)
+console.log('Wallet address:', wallet.address)
+```
+
+### Token Operations
+
+```typescript
+import { walletService } from '@/services/wallet'
+
+// Get token balances
+const balances = await walletService.getBalances(userId)
+console.log('RING balance:', balances.RING)
+console.log('DAAR balance:', balances.DAAR)
+
+// Transfer tokens
+const transaction = await walletService.transfer({
+  from: userWallet.address,
+  to: recipientAddress,
+  token: 'RING',
+  amount: '100.0'
+})
+
+// Monitor transaction
+const receipt = await walletService.waitForTransaction(transaction.hash)
+```
+
+### Staking Integration
+
+```typescript
+// Stake RING tokens
+const stakingTx = await walletService.stake({
+  token: 'RING',
+  amount: '1000.0',
+  pool: 'ring-staking-pool',
+  duration: '30d'
+})
+
+// Check staking rewards
+const rewards = await walletService.getStakingRewards(userId)
+console.log('Pending DAARION rewards:', rewards.DAARION)
+```
+
+## Token Economics
+
+### RING Token
+- **Utility Token** - Platform transactions and fees
+- **Total Supply** - 1,000,000,000 RING
+- **Use Cases** - Opportunity posting, premium features, marketplace transactions
+
+### DAAR Token  
+- **Governance Token** - Platform decision making
+- **Total Supply** - 100,000,000 DAAR
+- **Use Cases** - Voting on platform changes, proposal creation, governance rewards
+
+### DAARION Token
+- **Rewards Token** - Staking and engagement rewards
+- **Total Supply** - Unlimited (inflationary)
+- **Use Cases** - Staking rewards, activity incentives, loyalty programs
+
+## Security Features
+
+### Key Management
+- **Hardware Security Module (HSM)** integration
+- **Multi-signature** wallet support
+- **Encrypted private keys** with user passwords
+- **Secure backup** and recovery processes
+
+### Transaction Security
+- **Transaction signing** with user confirmation
+- **Gas limit protection** against excessive fees
+- **Smart contract verification** before interaction
+- **Fraud detection** and prevention
+
+### Compliance
+- **KYC/AML** integration for large transactions
+- **Regulatory compliance** in supported jurisdictions
+- **Audit trails** for all wallet operations
+- **GDPR compliance** for user data
+
+## User Experience
+
+### Simplified Interface
+- **One-click transactions** for common operations
+- **QR code support** for easy address sharing
+- **Transaction history** with clear status indicators
+- **Portfolio overview** with real-time values
+
+### Mobile Integration
+- **Mobile wallet** with biometric authentication
+- **Push notifications** for transaction updates
+- **Offline transaction** preparation and signing
+- **Cross-device synchronization**
+
+---
+
+*Ready to integrate Web3 features? Check our [API Reference](/ru/library/api/wallet) for implementation details.*

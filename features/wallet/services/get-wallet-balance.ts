@@ -11,8 +11,7 @@ import { selectDefaultWallet } from './utils'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 /**
  * Fetches the wallet balance for the authenticated user.
@@ -40,13 +39,28 @@ export async function getWalletBalance(): Promise<string> {
     const userId = session.user.id;
     console.log(`Services: getWalletBalance - User authenticated with ID ${userId}`);
 
-    // Step 2: Retrieve user document from Firestore
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userDoc = await adminDb.collection('users').doc(userId).get();
-    const userData = userDoc.data() as AuthUser | undefined;
+    // Step 2: Retrieve user document from database abstraction layer
+    console.log(`Services: getWalletBalance - Initializing database service`);
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      console.error(`Services: getWalletBalance - Database initialization failed:`, initResult.error);
+      throw new Error('Database initialization failed');
+    }
+
+    const dbService = getDatabaseService();
+    const userResult = await dbService.read('users', userId);
+
+    if (!userResult.success || !userResult.data) {
+      console.error(`Services: getWalletBalance - User document not found for ID: ${userId}`);
+      throw new Error('User document not found in database');
+    }
+
+    const userData = userResult.data.data || userResult.data;
+    console.log(`Services: getWalletBalance - Retrieved userData:`, {
+      hasWallets: !!userData?.wallets,
+      walletsCount: userData?.wallets?.length || 0,
+      wallets: userData?.wallets?.map(w => ({ address: w.address, isDefault: w.isDefault }))
+    });
 
     if (!userData?.wallets || userData.wallets.length === 0) {
       console.error(`Services: getWalletBalance - Wallet not found for user ${userId}`);

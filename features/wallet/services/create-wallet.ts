@@ -7,12 +7,10 @@
 import { auth } from '@/auth';
 import { UserRole, Wallet } from '@/features/auth/types';
 import { ethers } from 'ethers';
-import { FieldValue } from 'firebase-admin/firestore';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 /**
  * Creates a new wallet for the authenticated user using ethers.js.
@@ -55,17 +53,22 @@ export async function createWallet(label?: string): Promise<Wallet> {
       throw new Error('Access denied: Visitors cannot create wallets');
     }
 
-    // Step 3: Retrieve user document from Firestore
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userDoc = adminDb.collection('users').doc(userId);
-    const userData = (await userDoc.get()).data();
-
-    if (!userData) {
-      throw new Error('User document not found in Firestore');
+    // Step 3: Retrieve user document from database abstraction layer
+    console.log('Services: createWallet - Initializing database service');
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      console.error('Services: createWallet - Database initialization failed:', initResult.error);
+      throw new Error('Database initialization failed');
     }
+
+    const dbService = getDatabaseService();
+    const userResult = await dbService.read('users', userId);
+
+    if (!userResult.success || !userResult.data) {
+      throw new Error('User document not found');
+    }
+
+    const userData = userResult.data.data || userResult.data;
 
     // Step 4: Create a new wallet using ethers.js
     console.log('Services: createWallet - Creating new wallet');
@@ -94,10 +97,20 @@ export async function createWallet(label?: string): Promise<Wallet> {
       balance: '0' // Initialize balance to '0' for new wallets
     };
 
-    // Step 7: Add the new wallet to the user's wallets array in Firestore
-    await userDoc.update({
-      wallets: FieldValue.arrayUnion(newWallet)
-    });
+    // Step 7: Add the new wallet to the user's wallets array
+    const currentWallets = userData.wallets || [];
+    const updatedWallets = [...currentWallets, newWallet];
+
+    // Update the user document with the new wallets array
+    const updatedUserData = {
+      ...userData,
+      wallets: updatedWallets
+    };
+
+    const updateResult = await dbService.update('users', userId, updatedUserData);
+    if (!updateResult.success) {
+      throw new Error('Failed to update user document with new wallet');
+    }
 
     console.log('Services: createWallet - Wallet created successfully:', address);
     return newWallet;

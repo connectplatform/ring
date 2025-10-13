@@ -7,15 +7,10 @@
 import { auth } from '@/auth';
 import { UserRole, Wallet, AuthUser } from '@/features/auth/types';
 import { ethers } from 'ethers';
-import { FieldValue } from 'firebase-admin/firestore';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  updateDocument
-} from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 /**
  * Ensures that the authenticated user has at least one wallet.
@@ -50,15 +45,23 @@ export async function ensureWallet(): Promise<Wallet> {
       throw new Error('Access denied: Visitors cannot have wallets');
     }
 
-    // Step 3: Retrieve user document using optimized firebase-service-manager
-    const phase = getCurrentPhase();
-    const userDocSnap = await getCachedDocument('users', userId);
-    
-    if (!userDocSnap || !userDocSnap.exists) {
-      throw new Error('User document not found in Firestore');
+    // Step 3: Retrieve user document using database abstraction layer
+    console.log(`Services: ensureWallet - Initializing database service`);
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      console.error(`Services: ensureWallet - Database initialization failed:`, initResult.error);
+      throw new Error('Database initialization failed');
     }
 
-    const userData = userDocSnap.data() as AuthUser | undefined;
+    const dbService = getDatabaseService();
+    const userResult = await dbService.read('users', userId);
+
+    if (!userResult.success || !userResult.data) {
+      console.error(`Services: ensureWallet - User document not found for ID: ${userId}`);
+      throw new Error('User document not found in database');
+    }
+
+    const userData = userResult.data.data || userResult.data;
     if (!userData) {
       throw new Error('User document exists but has no data');
     }
@@ -98,10 +101,25 @@ export async function ensureWallet(): Promise<Wallet> {
       balance: '0' // Initialize balance to '0'
     };
 
-    // Step 8: Add the new wallet to the user's wallets array using optimized firebase-service-manager
-    await updateDocument('users', userId, {
-      wallets: FieldValue.arrayUnion(newWallet)
-    });
+    // Step 8: Add the new wallet to the user's wallets array using database abstraction layer
+    console.log(`Services: ensureWallet - Current userData wallets:`, userData.wallets);
+    const currentWallets = userData.wallets || [];
+    const updatedWallets = [...currentWallets, newWallet];
+    const updatedUserData = {
+      ...userData,
+      wallets: updatedWallets
+    };
+
+    console.log(`Services: ensureWallet - Updating user with wallets:`, updatedWallets.map(w => w.address));
+    const updateResult = await dbService.update('users', userId, updatedUserData);
+    console.log(`Services: ensureWallet - Update result:`, { success: updateResult.success, error: updateResult.error?.message });
+
+    if (!updateResult.success) {
+      console.error(`Services: ensureWallet - Failed to update user with new wallet:`, updateResult.error);
+      throw new Error('Failed to save new wallet to database');
+    }
+
+    console.log(`Services: ensureWallet - Successfully updated user with wallet`);
 
     // Optional on-chain initialization hook (no-op unless implemented)
     try {
