@@ -7,32 +7,31 @@ import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
 import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
 import RightSidebar from '@/features/layout/components/right-sidebar'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import WalletPageClient from './wallet-client'
-import WalletNavigation from './wallet-navigation'
+import WalletNavigation from '../wallet-navigation'
+import WalletTopUpClient from './topup-client'
 
 export const dynamic = 'force-dynamic'
 
-// Define the type for the wallet route params
-type WalletParams = {};
+// Define the type for the wallet topup route params
+type WalletTopUpParams = {};
 
 /**
- * WalletPage component
- * Renders the wallet management page with RING token balance, transactions, and top-up functionality
+ * WalletTopUpPage component
+ * Renders the wallet top-up page with tabbed selection between RING tokens and WayForPay (ApplePay/GooglePay)
  * 
  * User steps:
- * 1. User navigates to the wallet page (e.g., /en/wallet or /uk/wallet)
+ * 1. User navigates to the wallet top-up page (e.g., /en/wallet/topup or /uk/wallet/topup)
  * 2. The page extracts the locale from URL params
  * 3. The page checks for user authentication
  * 4. If not authenticated, user is redirected to localized login
- * 5. If authenticated, the wallet client component is rendered with user data
- * 6. User can view balance, transaction history, and manage RING tokens
+ * 5. If authenticated, the wallet top-up client component is rendered with tabbed interface
+ * 6. User can choose between RING token transfer or WayForPay payment methods
  * 
  * @param props - The LocalePageProps with params and searchParams as Promises
- * @returns The rendered WalletPage component
+ * @returns The rendered WalletTopUpPage component
  */
-export default async function WalletPage(props: LocalePageProps<WalletParams>) {
-  console.log('WalletPage: Starting');
+export default async function WalletTopUpPage(props: LocalePageProps<WalletTopUpParams>) {
+  console.log('WalletTopUpPage: Starting');
 
   // Resolve params and searchParams
   const params = await props.params;
@@ -40,17 +39,17 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
 
   // Extract and validate locale
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('WalletPage: Using locale', locale);
+  console.log('WalletTopUpPage: Using locale', locale);
 
   // Basic metadata for authenticated page
   const translations = await loadTranslations(locale);
-  const title = `${(translations as any).modules?.wallet?.title || 'Wallet'} | Ring Platform`;
-  const description = (translations as any).modules?.wallet?.description || 'Manage your RING tokens, view transaction history, and top up your balance.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/wallet`;
+  const title = `${(translations as any).modules?.wallet?.topup?.title || 'Top Up'} | Ring Platform`;
+  const description = (translations as any).modules?.wallet?.topup?.description || 'Add funds to your wallet using RING tokens or WayForPay payment methods.';
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/wallet/topup`;
 
   const headersList = await headers()
 
-  console.log('WalletPage: Request details', {
+  console.log('WalletTopUpPage: Request details', {
     params,
     searchParams,
     locale,
@@ -58,16 +57,16 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
   });
 
   try {
-    console.log('WalletPage: Authenticating session');
+    console.log('WalletTopUpPage: Authenticating session');
     const session = await auth()
-    console.log('WalletPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+    console.log('WalletTopUpPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
 
     if (!session) {
-      console.log('WalletPage: No session, redirecting to localized login');
+      console.log('WalletTopUpPage: No session, redirecting to localized login');
       redirect(ROUTES.LOGIN(locale))
     }
 
-    console.log('WalletPage: Rendering wallet client');
+    console.log('WalletTopUpPage: Rendering wallet top-up client');
 
     return (
       <>
@@ -82,15 +81,15 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
         <div className="min-h-screen bg-background">
-          {/* Desktop Layout - Three columns, hidden on iPad and mobile */}
-          <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
+          {/* Three-column layout for desktop */}
+          <div className="grid grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
             {/* Left Sidebar - Navigation */}
-            <div>
+            <div className="hidden lg:block">
               <DesktopSidebar />
             </div>
 
-            {/* Main Content - Wallet Dashboard */}
-            <div>
+            {/* Main Content - Top Up Form */}
+            <div className="lg:ml-0 lg:mr-0 mr-4 ml-4">
               <Suspense fallback={
                 <div className="animate-pulse space-y-6 p-6">
                   <div className="h-8 bg-muted rounded w-1/4"></div>
@@ -98,7 +97,7 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
                   <div className="h-64 bg-muted rounded"></div>
                 </div>
               }>
-                <WalletPageClient
+                <WalletTopUpClient
                   locale={locale}
                   searchParams={searchParams}
                 />
@@ -106,47 +105,15 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
             </div>
 
             {/* Right Sidebar - Wallet Navigation */}
-            <div>
+            <div className="hidden lg:block">
               <RightSidebar title="Wallet">
                 <WalletNavigation locale={locale} />
               </RightSidebar>
             </div>
           </div>
 
-          {/* iPad Layout - Two columns (sidebar + wallet), hidden on mobile and desktop */}
-          <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
-            {/* Left Sidebar - Navigation */}
-            <div>
-              <DesktopSidebar />
-            </div>
-
-            {/* Main Content - Wallet Dashboard */}
-            <div className="relative">
-              <Suspense fallback={
-                <div className="animate-pulse space-y-6 p-6">
-                  <div className="h-8 bg-muted rounded w-1/4"></div>
-                  <div className="h-32 bg-muted rounded"></div>
-                  <div className="h-64 bg-muted rounded"></div>
-                </div>
-              }>
-                <WalletPageClient
-                  locale={locale}
-                  searchParams={searchParams}
-                />
-              </Suspense>
-
-              {/* Floating Sidebar Toggle for Wallet Navigation (iPad only) */}
-              <FloatingSidebarToggle>
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Wallet</h3>
-                  <WalletNavigation locale={locale} />
-                </div>
-              </FloatingSidebarToggle>
-            </div>
-          </div>
-
-          {/* Mobile Layout - Single column, hidden on iPad and desktop */}
-          <div className="md:hidden px-4">
+          {/* Mobile Layout - Stack vertically */}
+          <div className="lg:hidden">
             <Suspense fallback={
               <div className="animate-pulse space-y-6 p-6">
                 <div className="h-8 bg-muted rounded w-1/4"></div>
@@ -154,37 +121,29 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
                 <div className="h-64 bg-muted rounded"></div>
               </div>
             }>
-              <WalletPageClient
+              <WalletTopUpClient
                 locale={locale}
                 searchParams={searchParams}
               />
             </Suspense>
-
-            {/* Floating Sidebar Toggle for Wallet Navigation (Mobile only) */}
-            <FloatingSidebarToggle>
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Wallet</h3>
-                <WalletNavigation locale={locale} />
-              </div>
-            </FloatingSidebarToggle>
           </div>
         </div>
       </>
     )
 
   } catch (e) {
-    console.error("WalletPage: Error:", e)
+    console.error("WalletTopUpPage: Error:", e)
     
     return (
       <>
-        <title>Wallet Error | Ring Platform</title>
+        <title>Wallet Top Up Error | Ring Platform</title>
         <meta name="robots" content="noindex, nofollow" />
         
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Wallet Error</h1>
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Wallet Top Up Error</h1>
             <p className="text-muted-foreground mb-4">
-              Failed to load wallet. Please try again later.
+              Failed to load wallet top-up. Please try again later.
             </p>
             <a 
               href={ROUTES.HOME(locale)} 
@@ -207,3 +166,4 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
  * - Suspense for progressive loading of wallet data
  * - Preserved all authentication and locale logic
  */
+

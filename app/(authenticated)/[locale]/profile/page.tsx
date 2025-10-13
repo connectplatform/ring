@@ -73,12 +73,11 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
     }
 
     if (session.user) {
-      // Fetch complete user data from Firebase including username
-      console.log('ProfilePage: Fetching complete user profile from Firebase');
+      // Fetch complete user data from database including username
       const fullUserData = await getUserById(session.user.id);
-      
+
       if (!fullUserData) {
-        console.error('ProfilePage: Failed to fetch user data from Firebase');
+        console.error('ProfilePage: Failed to fetch user data from database');
         error = 'Failed to load complete user profile'
       } else {
         console.log('ProfilePage: Ensuring user wallet');
@@ -100,7 +99,7 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
           userWalletBalance = '0';
         }
 
-        // Merge session data with complete Firebase data
+        // Merge session data with complete database data
         // Ensure all date fields are proper Date objects
         initialUser = {
           ...session.user,
@@ -129,11 +128,6 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
               ? new Date(fullUserData.lastLogin)
               : new Date(),
         } as AuthUser
-        console.log('ProfilePage: User data prepared', { 
-          userId: initialUser.id, 
-          username: initialUser.username,
-          hasWallet: (initialUser.wallets?.length || 0) > 0 
-        });
       }
     }
 

@@ -8,6 +8,7 @@ import { Entity, SerializedEntity } from '@/features/entities/types'
 import EntityDetailsWrapper from '@/components/wrappers/entity-details-wrapper'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import BackBar from '@/components/common/back-bar'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = 'force-dynamic'
@@ -167,13 +168,20 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
         />
       )}
 
+      {/* Back Navigation Bar */}
+      <BackBar
+        href={`/${locale}/entities`}
+        title={entity?.name || 'Entity Details'}
+        locale={locale}
+      />
+
       <Suspense fallback={
         <div className="flex justify-center items-center h-screen">
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       }>
-        <EntityDetailsWrapper 
-          initialEntity={entity} 
+        <EntityDetailsWrapper
+          initialEntity={entity}
           initialError={error}
           params={params}
           searchParams={searchParams}

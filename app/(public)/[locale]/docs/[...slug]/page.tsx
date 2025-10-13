@@ -1,10 +1,20 @@
 import React from 'react'
+import { remark } from 'remark'
+import remarkRehype from 'remark-rehype'
+import rehypeStringify from 'rehype-stringify'
+import { MarkdownRenderer } from '@/components/docs/markdown-renderer'
+import { EnhanceCodeBlocks } from '@/components/docs/enhance-code-blocks'
+import { EnhanceCallouts } from '@/components/docs/enhance-callouts'
+import { EnhanceSyntax } from '@/components/docs/enhance-syntax'
+import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import RightSidebar from '@/features/layout/components/right-sidebar'
+import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import DocsNavigationTree from '../docs-navigation-tree'
 import { notFound } from 'next/navigation'
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
-import { MDXRemote } from 'next-mdx-remote/rsc'
-import { serialize } from 'next-mdx-remote/serialize'
+import remarkGfm from 'remark-gfm'
 
 // MDX components
 const components = {
@@ -96,31 +106,35 @@ const components = {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     locale: string
     slug: string[]
-  }
+  }>
 }
 
 export default async function DocPage({ params }: PageProps) {
-  const { locale, slug } = params
+  const { locale, slug } = await params
 
   // Build the file path for the MDX file
-  const docsRoot = path.join(process.cwd(), '..', 'ring-docs', 'content')
+  const docsRoot = path.join(process.cwd(), 'docs', 'content')
   let filePath: string
 
   // Handle different slug patterns
-  if (slug.length === 1) {
-    // Single segment: e.g., 'getting-started' -> 'getting-started/index.mdx'
+  if (slug.length === 1 && slug[0] === 'library') {
+    // Special case: 'library' maps to 'library/index.mdx' (the comprehensive docs index)
+    filePath = path.join(docsRoot, locale, 'library', 'index.mdx')
+  } else if (slug.length === 1) {
+    // Single segment: e.g., 'getting-started' -> 'library/getting-started/index.mdx'
     filePath = path.join(docsRoot, locale, 'library', slug[0], 'index.mdx')
   } else {
-    // Multi-segment: e.g., 'getting-started', 'installation' -> 'getting-started/installation.mdx'
+    // Multi-segment: e.g., 'getting-started', 'installation' -> 'library/getting-started/installation.mdx'
     filePath = path.join(docsRoot, locale, 'library', ...slug) + '.mdx'
   }
 
   try {
     // Check if file exists
     if (!fs.existsSync(filePath)) {
+      console.error(`Doc file not found: ${filePath}`)
       notFound()
     }
 
@@ -130,30 +144,106 @@ export default async function DocPage({ params }: PageProps) {
     // Parse frontmatter
     const { data, content } = matter(fileContents)
 
-    // Serialize the MDX content
-    const mdxSource = await serialize(content, {
-      mdxOptions: {
-        development: process.env.NODE_ENV === 'development'
-      }
-    })
+    // Convert markdown to HTML WITHOUT syntax highlighting (will be done client-side)
+    // This prevents server-side timeouts
+    const processedContent = await remark()
+      .use(remarkGfm)
+      .use(remarkRehype, { allowDangerousHtml: true })
+      .use(rehypeStringify, { allowDangerousHtml: true })
+      .process(content)
+    
+    const contentHtml = processedContent.toString()
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-background">
+        {/* Desktop Layout - Three columns, hidden on mobile and iPad */}
+        <div className="hidden lg:grid gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
+          </div>
+
+          {/* Main Content - Documentation */}
+          <div className="px-4 py-8">
+              {/* Header */}
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold mb-4">{data.title || 'Documentation'}</h1>
+                {data.description && (
+                  <p className="text-xl text-muted-foreground">{data.description}</p>
+                )}
+              </div>
+
+              {/* Content */}
+              <MarkdownRenderer htmlContent={contentHtml} />
+              <EnhanceSyntax />
+              <EnhanceCodeBlocks />
+              <EnhanceCallouts />
+          </div>
+
+          {/* Right Sidebar - Documentation Navigation */}
+          <div>
+            <RightSidebar title="Documentation">
+              <DocsNavigationTree locale={locale} />
+            </RightSidebar>
+          </div>
+        </div>
+
+        {/* iPad Layout - Two columns (sidebar + content), hidden on mobile and desktop */}
+        <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
+          </div>
+
+          {/* Main Content - Documentation */}
+          <div className="px-4 py-8 relative">
+              {/* Header */}
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold mb-4">{data.title || 'Documentation'}</h1>
+                {data.description && (
+                  <p className="text-xl text-muted-foreground">{data.description}</p>
+                )}
+              </div>
+
+              {/* Content */}
+              <MarkdownRenderer htmlContent={contentHtml} />
+              <EnhanceSyntax />
+              <EnhanceCodeBlocks />
+              <EnhanceCallouts />
+
+            {/* Floating Sidebar Toggle for Documentation Navigation */}
+            <FloatingSidebarToggle>
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Documentation</h3>
+                <DocsNavigationTree locale={locale} />
+              </div>
+            </FloatingSidebarToggle>
+          </div>
+        </div>
+
+        {/* Mobile Layout - Single column, hidden on iPad and desktop */}
+        <div className="md:hidden px-4 py-8">
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-4xl font-bold mb-4">{data.title || 'Documentation'}</h1>
+              <h1 className="text-3xl font-bold mb-4">{data.title || 'Documentation'}</h1>
               {data.description && (
-                <p className="text-xl text-gray-600 dark:text-gray-300">{data.description}</p>
+                <p className="text-lg text-muted-foreground">{data.description}</p>
               )}
             </div>
 
             {/* Content */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 prose prose-lg max-w-none dark:prose-invert">
-              <MDXRemote source={mdxSource} components={components} />
+            <MarkdownRenderer htmlContent={contentHtml} />
+            <EnhanceSyntax />
+            <EnhanceCodeBlocks />
+            <EnhanceCallouts />
+
+          {/* Floating Sidebar Toggle for Documentation Navigation */}
+          <FloatingSidebarToggle>
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Documentation</h3>
+              <DocsNavigationTree locale={locale} />
             </div>
-          </div>
+          </FloatingSidebarToggle>
         </div>
       </div>
     )
@@ -165,7 +255,7 @@ export default async function DocPage({ params }: PageProps) {
 
 // Generate static params for all docs
 export async function generateStaticParams() {
-  const docsRoot = path.join(process.cwd(), '..', 'ring-docs', 'content')
+  const docsRoot = path.join(process.cwd(), 'docs', 'content')
   const locales = ['en', 'ru', 'uk']
   const params: { locale: string; slug: string[] }[] = []
 
@@ -185,7 +275,6 @@ export async function generateStaticParams() {
           // Check if this directory has an index.mdx file
           const indexPath = path.join(fullPath, 'index.mdx')
           if (fs.existsSync(indexPath)) {
-            // For directories with index.mdx, create a slug with just the directory name
             params.push({ locale, slug: [...currentSlug, item] })
           }
           // Continue scanning subdirectories

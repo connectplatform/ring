@@ -7,6 +7,10 @@ import EntitiesWrapper from "@/components/wrappers/entities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
+import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import RightSidebar from '@/features/layout/components/right-sidebar'
+import EntitiesFiltersPanel from '@/components/entities/entities-filters-panel'
+import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 
 // 🚀 Firebase Optimization Imports
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
@@ -278,25 +282,130 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
       ))}
 
-      <Suspense
-        fallback={
-          <div className="flex justify-center items-center h-screen">
-            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-background">
+        {/* Desktop Layout - Three columns, hidden on iPad and mobile */}
+        <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
           </div>
-        }
-      >
-        <EntitiesWrapper
-          initialEntities={entities}
-          initialError={error}
-          page={page}
-          lastVisible={lastVisible}
-          totalPages={totalPages}
-          totalEntities={totalEntities}
-          initialLimit={limit}
-          initialSort={sort}
-          initialFilter={filter}
-        />
-      </Suspense>
+
+          {/* Main Content - Entity Feed */}
+          <div>
+            <Suspense
+              fallback={
+                <div className="flex justify-center items-center h-screen">
+                  <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+                </div>
+              }
+            >
+              <EntitiesWrapper
+                initialEntities={entities}
+                initialError={error}
+                page={page}
+                lastVisible={lastVisible}
+                totalPages={totalPages}
+                totalEntities={totalEntities}
+                initialLimit={limit}
+                initialSort={sort}
+                initialFilter={filter}
+              />
+            </Suspense>
+          </div>
+
+          {/* Right Sidebar - Filters */}
+          <div>
+            <RightSidebar title="Filters">
+              <EntitiesFiltersPanel
+                initialFilters={{
+                  search: filter
+                }}
+                resultCount={totalEntities}
+              />
+            </RightSidebar>
+          </div>
+        </div>
+
+        {/* iPad Layout - Two columns (sidebar + feed), hidden on mobile and desktop */}
+        <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
+          </div>
+
+          {/* Main Content - Entity Feed */}
+          <div className="relative">
+            <Suspense
+              fallback={
+                <div className="flex justify-center items-center h-screen">
+                  <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+                </div>
+              }
+            >
+              <EntitiesWrapper
+                initialEntities={entities}
+                initialError={error}
+                page={page}
+                lastVisible={lastVisible}
+                totalPages={totalPages}
+                totalEntities={totalEntities}
+                initialLimit={limit}
+                initialSort={sort}
+                initialFilter={filter}
+              />
+            </Suspense>
+
+            {/* Floating Sidebar Toggle for Filters (iPad only) */}
+            <FloatingSidebarToggle>
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Filters</h3>
+                <EntitiesFiltersPanel
+                  initialFilters={{
+                    search: filter
+                  }}
+                  resultCount={totalEntities}
+                />
+              </div>
+            </FloatingSidebarToggle>
+          </div>
+        </div>
+
+        {/* Mobile Layout - Single column, hidden on iPad and desktop */}
+        <div className="md:hidden px-4">
+          <Suspense
+            fallback={
+              <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+              </div>
+            }
+          >
+            <EntitiesWrapper
+              initialEntities={entities}
+              initialError={error}
+              page={page}
+              lastVisible={lastVisible}
+              totalPages={totalPages}
+              totalEntities={totalEntities}
+              initialLimit={limit}
+              initialSort={sort}
+              initialFilter={filter}
+            />
+          </Suspense>
+
+          {/* Floating Sidebar Toggle for Filters (Mobile only) */}
+          <FloatingSidebarToggle>
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Filters</h3>
+              <EntitiesFiltersPanel
+                initialFilters={{
+                  search: filter
+                }}
+                resultCount={totalEntities}
+              />
+            </div>
+          </FloatingSidebarToggle>
+        </div>
+      </div>
     </>
   )
 }

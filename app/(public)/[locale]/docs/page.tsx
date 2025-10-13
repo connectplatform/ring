@@ -6,6 +6,8 @@ import matter from 'gray-matter'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import RightSidebar from '@/features/layout/components/right-sidebar'
+import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
 import {
   FileText,
   Search,
@@ -36,17 +38,22 @@ interface DocSection {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     locale: string
-  }
+  }>
 }
 
-export default function DocumentationHubPage({ params }: PageProps) {
-  const { locale } = params
+export default async function DocumentationHubPage({ params }: PageProps) {
+  // Await params to avoid sync dynamic API error
+  const { locale } = await params
 
-  // Read docs from ring-docs content
+  // Redirect to the comprehensive documentation index with mermaid diagrams
+  const { redirect } = await import('next/navigation')
+  redirect(`/${locale}/docs/library`)
+
+  // This code below is unreachable but kept for reference
   const docsSections: DocSection[] = []
-  const docsRoot = path.join(process.cwd(), '..', 'ring-docs', 'content', locale, 'library')
+  const docsRoot = path.join(process.cwd(), 'docs', 'content', locale, 'library')
 
   try {
     if (fs.existsSync(docsRoot)) {
@@ -63,8 +70,11 @@ export default function DocumentationHubPage({ params }: PageProps) {
               const content = fs.readFileSync(filePath, 'utf8')
               const { data } = matter(content)
 
+              // Use full path as unique ID to avoid duplicates
+              const uniqueId = `${section}-${file.replace('.mdx', '')}`
+              
               docsSections.push({
-                id: file.replace('.mdx', ''),
+                id: uniqueId,
                 title: data.title || file.replace('.mdx', ''),
                 description: data.description || '',
                 category: section.charAt(0).toUpperCase() + section.slice(1),
@@ -85,6 +95,7 @@ export default function DocumentationHubPage({ params }: PageProps) {
   }
 
   const featuredDocs = docsSections.filter(doc => doc.featured)
+  
   const getDifficultyColor = (category: string) => {
     const colors: Record<string, string> = {
       'Getting-started': 'green',
@@ -109,44 +120,71 @@ export default function DocumentationHubPage({ params }: PageProps) {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <FileText className="w-8 h-8 text-purple-600 mr-3" />
-            <h1 className="text-4xl font-bold">Documentation Hub</h1>
-          </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Comprehensive documentation system with AI-powered search, interactive examples, and community-driven knowledge base.
-          </p>
-        </div>
+  // Localized content
+  const t = {
+    title: locale === 'uk' ? 'Центр документації' : 'Documentation Hub',
+    subtitle: locale === 'uk' 
+      ? 'Комплексна система документації з пошуком на основі ШІ, інтерактивними прикладами та базою знань, що підтримується спільнотою.'
+      : 'Comprehensive documentation system with AI-powered search, interactive examples, and community-driven knowledge base.',
+    articles: locale === 'uk' ? 'Статей' : 'Articles',
+    categories: locale === 'uk' ? 'Категорії' : 'Categories',
+    languages: locale === 'uk' ? 'Мови' : 'Languages',
+    aiPoweredSearch: locale === 'uk' ? 'Пошук з ШІ' : 'AI Powered Search',
+    featuredArticles: locale === 'uk' ? 'Популярні статті' : 'Featured Articles',
+    allDocumentation: locale === 'uk' ? 'Вся документація' : 'All Documentation',
+    minRead: locale === 'uk' ? 'хв читання' : 'min read',
+    updated: locale === 'uk' ? 'Оновлено' : 'Updated',
+    readMore: locale === 'uk' ? 'Читати далі' : 'Read More',
+    read: locale === 'uk' ? 'Читати' : 'Read'
+  }
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Desktop Layout - Hidden on mobile */}
+      <div className="hidden lg:block">
+        <div className="grid grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
+          </div>
+
+          {/* Main Content - Documentation Hub */}
+          <div className="container mx-auto px-4 py-8">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <FileText className="w-8 h-8 text-primary mr-3" />
+                <h1 className="text-4xl font-bold text-foreground">{t.title}</h1>
+              </div>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+                {t.subtitle}
+              </p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{docsSections.length}+</div>
+                  <p className="text-xs text-muted-foreground">{t.articles}</p>
+                </CardContent>
+              </Card>
+              <Card>
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-purple-600">{docsSections.length}+</div>
-              <p className="text-xs text-gray-500">Articles</p>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">8</div>
+              <p className="text-xs text-muted-foreground">{t.categories}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">8</div>
-              <p className="text-xs text-gray-500">Categories</p>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">3</div>
+              <p className="text-xs text-muted-foreground">{t.languages}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">3</div>
-              <p className="text-xs text-gray-500">Languages</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-orange-600">AI</div>
-              <p className="text-xs text-gray-500">Powered Search</p>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">AI</div>
+              <p className="text-xs text-muted-foreground">{t.aiPoweredSearch}</p>
             </CardContent>
           </Card>
         </div>
@@ -158,7 +196,7 @@ export default function DocumentationHubPage({ params }: PageProps) {
             <div className="mb-8">
               <h2 className="text-2xl font-bold mb-4 flex items-center">
                 <Star className="w-5 h-5 mr-2 text-yellow-500" />
-                Featured Articles
+                {t.featuredArticles}
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {featuredDocs.slice(0, 4).map((doc) => (
@@ -173,26 +211,26 @@ export default function DocumentationHubPage({ params }: PageProps) {
                             {doc.description}
                           </CardDescription>
                         </div>
-                        <Badge className={`bg-${getDifficultyColor(doc.category)}-100 text-${getDifficultyColor(doc.category)}-800`}>
+                        <Badge className={`bg-${getDifficultyColor(doc.category)}-100 text-${getDifficultyColor(doc.category)}-800 dark:bg-${getDifficultyColor(doc.category)}-900 dark:text-${getDifficultyColor(doc.category)}-200`}>
                           {doc.category}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center text-sm text-gray-500">
+                        <div className="flex items-center text-sm text-muted-foreground">
                           <Clock className="w-4 h-4 mr-1" />
-                          {doc.readTime} min read
+                          {doc.readTime} {t.minRead}
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-500">
-                          {doc.lastUpdated && `Updated ${new Date(doc.lastUpdated).toLocaleDateString()}`}
+                        <div className="text-sm text-muted-foreground">
+                          {doc.lastUpdated && `${t.updated} ${new Date(doc.lastUpdated).toLocaleDateString()}`}
                         </div>
                         <Link href={`/${locale}/docs/${doc.slug}`}>
                           <Button size="sm" className="group-hover:bg-purple-600 transition-colors">
-                            Read More
+                            {t.readMore}
                             <ChevronRight className="w-4 h-4 ml-1" />
                           </Button>
                         </Link>
@@ -206,7 +244,7 @@ export default function DocumentationHubPage({ params }: PageProps) {
 
           {/* All Documentation */}
           <div>
-            <h2 className="text-2xl font-bold mb-4">All Documentation</h2>
+            <h2 className="text-2xl font-bold mb-4">{t.allDocumentation}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {docsSections.map((doc) => (
                 <Card key={doc.id} className="hover:shadow-md transition-shadow">
@@ -217,14 +255,14 @@ export default function DocumentationHubPage({ params }: PageProps) {
                         {doc.category}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
+                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                       {doc.description}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">{doc.readTime} min read</span>
+                      <span className="text-xs text-muted-foreground">{doc.readTime} {t.minRead}</span>
                       <Link href={`/${locale}/docs/${doc.slug}`}>
                         <Button size="sm" variant="outline">
-                          Read
+                          {t.read}
                           <ChevronRight className="w-3 h-3 ml-1" />
                         </Button>
                       </Link>
@@ -234,8 +272,61 @@ export default function DocumentationHubPage({ params }: PageProps) {
               ))}
             </div>
           </div>
+          </div>
+
+          {/* Right Sidebar - Documentation Quick Links */}
+          <div>
+            <RightSidebar title="Quick Links">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Getting Started</h4>
+                  <div className="space-y-2">
+                    <Link href={`/${locale}/docs/getting-started`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                      Installation Guide
+                    </Link>
+                    <Link href={`/${locale}/docs/quick-start`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                      Quick Start
+                    </Link>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Popular Topics</h4>
+                  <div className="space-y-2">
+                    <Link href={`/${locale}/docs/architecture`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                      Architecture
+                    </Link>
+                    <Link href={`/${locale}/docs/api`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                      API Reference
+                    </Link>
+                    <Link href={`/${locale}/docs/deployment`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                      Deployment
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </RightSidebar>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Layout - Hidden on desktop */}
+      <div className="lg:hidden">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <FileText className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-foreground mb-4">{t.title}</h1>
+            <p className="text-muted-foreground mb-6">
+              {t.subtitle}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Please view this page on a desktop device for the full documentation experience.
+            </p>
+          </div>
         </div>
       </div>
     </div>
+    </div>
   )
 }
+
+

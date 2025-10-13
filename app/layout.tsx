@@ -13,7 +13,6 @@ import { auth } from '@/auth'
 import InstanceConfigProvider from '@/components/providers/instance-config-provider'
 import { StoreProvider } from '@/features/store/context'
 import { WebSocketDiagnosticsProvider } from '@/components/providers/websocket-diagnostics-provider'
-import PortalNavigation from '@/components/portal/portal-navigation'
 
 // Suppress known third-party library warnings
 import '@/lib/suppress-warnings'
@@ -64,22 +63,6 @@ export default async function RootLayout({
       </head>
       <body className="font-inter antialiased">
       <SessionProvider session={session}>
-          {/* Debug overlay */}
-          <div style={{
-            position: 'fixed',
-            top: '5px',
-            left: '5px',
-            background: 'rgba(255,0,0,0.8)',
-            color: 'white',
-            padding: '5px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            zIndex: 10000,
-            maxWidth: '300px'
-          }}>
-            Debug: Session: {session ? 'YES' : 'NO'}
-            {session && ` | User: ${session.user?.name || session.user?.email || session.user?.id || 'unknown'}`}
-          </div>
 
           <WebVitalsProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -88,10 +71,7 @@ export default async function RootLayout({
                 <FCMProvider>
                   <TunnelProvider autoConnect={true} debug={false}>
                     <StoreProvider>
-                      <div className="flex flex-col min-h-screen">
-                        <PortalNavigation />
-                        <main className="flex-grow">{children}</main>
-                      </div>
+                      {children}
                     </StoreProvider>
                     {/* Removed transition overlay to prevent color banding/stripes during theme switch */}
                     <FCMPermissionPrompt />

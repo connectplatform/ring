@@ -8,6 +8,11 @@ import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlterna
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import OpportunitiesSearchClient from '@/components/opportunities/opportunities-search-client'
+import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import RightSidebar from '@/features/layout/components/right-sidebar'
+import OpportunitiesFiltersPanel from '@/components/opportunities/opportunities-filters-panel'
+import MembershipUpsellCard from '@/components/common/membership-upsell-card'
+import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 export const dynamic = 'force-dynamic'
@@ -273,27 +278,88 @@ async function OpportunitiesContent({ searchParams, limit, session, locale }: {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Search Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="max-w-4xl mx-auto space-y-4">
-            <OpportunitiesSearchClient locale={locale} />
-          </div>
+      {/* Desktop Layout - Three columns, hidden on iPad and mobile */}
+      <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
+        {/* Left Sidebar - Navigation */}
+        <div>
+          <DesktopSidebar />
+        </div>
+
+        {/* Main Content - Opportunities Feed */}
+        <div>
+          <OpportunitiesWrapper
+            initialOpportunities={opportunities}
+            initialError={error}
+            lastVisible={lastVisible}
+            initialLimit={limit}
+          />
+        </div>
+
+        {/* Right Sidebar - Filters and Upsell */}
+        <div>
+          <RightSidebar title="Filters">
+            <OpportunitiesFiltersPanel
+              resultCount={opportunities.length}
+            />
+            <div className="mt-6">
+              <MembershipUpsellCard compact variant="ring_customization" />
+            </div>
+          </RightSidebar>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Main Content */}
-          <div className="flex-1">
-            <OpportunitiesWrapper
-              initialOpportunities={opportunities}
-              initialError={error}
-              lastVisible={lastVisible}
-              initialLimit={limit}
-            />
-          </div>
+      {/* iPad Layout - Two columns (sidebar + feed), hidden on mobile and desktop */}
+      <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
+        {/* Left Sidebar - Navigation */}
+        <div>
+          <DesktopSidebar />
         </div>
+
+        {/* Main Content - Opportunities Feed */}
+        <div className="relative">
+          <OpportunitiesWrapper
+            initialOpportunities={opportunities}
+            initialError={error}
+            lastVisible={lastVisible}
+            initialLimit={limit}
+          />
+
+          {/* Floating Sidebar Toggle for Filters (iPad only) */}
+          <FloatingSidebarToggle>
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Filters</h3>
+              <OpportunitiesFiltersPanel
+                resultCount={opportunities.length}
+              />
+              <div className="mt-6">
+                <MembershipUpsellCard compact variant="ring_customization" />
+              </div>
+            </div>
+          </FloatingSidebarToggle>
+        </div>
+      </div>
+
+      {/* Mobile Layout - Single column, hidden on iPad and desktop */}
+      <div className="md:hidden px-4">
+        <OpportunitiesWrapper
+          initialOpportunities={opportunities}
+          initialError={error}
+          lastVisible={lastVisible}
+          initialLimit={limit}
+        />
+
+        {/* Floating Sidebar Toggle for Filters (Mobile only) */}
+        <FloatingSidebarToggle>
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">Filters</h3>
+            <OpportunitiesFiltersPanel
+              resultCount={opportunities.length}
+            />
+            <div className="mt-6">
+              <MembershipUpsellCard compact variant="ring_customization" />
+            </div>
+          </div>
+        </FloatingSidebarToggle>
       </div>
     </div>
   )

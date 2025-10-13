@@ -8,6 +8,7 @@ import { Attachment } from '@/features/opportunities/types'
 import { UserRole } from '@/features/auth/types'
 import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
 import { ROUTES } from '@/constants/routes'
+import BackBar from '@/components/common/back-bar'
 
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
@@ -197,6 +198,13 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
           }}
         />
       )}
+
+      {/* Back Navigation Bar */}
+      <BackBar
+        href={`/${locale}/opportunities`}
+        title={opportunity?.title || 'Opportunity Details'}
+        locale={locale}
+      />
 
       <Suspense fallback={
         <div className="flex justify-center items-center h-screen">

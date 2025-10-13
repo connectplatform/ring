@@ -4,6 +4,10 @@ import type { Locale } from '@/i18n-config'
 import StorePageClient from './store-page-client'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config'
+import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import RightSidebar from '@/features/layout/components/right-sidebar'
+import StoreFiltersPanel from '@/components/store/store-filters-panel'
+import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 
 export default async function StorePage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params
@@ -54,7 +58,67 @@ export default async function StorePage({ params }: { params: Promise<{ locale: 
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
       ))}
       
-      <StorePageClient key={validLocale} locale={validLocale} />
+      <div className="min-h-screen bg-background">
+        {/* Desktop Layout - Three columns, hidden on iPad and mobile */}
+        <div className="hidden lg:grid lg:grid-cols-[280px_1fr_280px] gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
+          </div>
+
+          {/* Main Content - Store Products */}
+          <div>
+            <StorePageClient key={validLocale} locale={validLocale} />
+          </div>
+
+          {/* Right Sidebar - Filters (narrower for more feed space) */}
+          <div>
+            <RightSidebar title="Filters">
+              <StoreFiltersPanel
+                resultCount={0}
+              />
+            </RightSidebar>
+          </div>
+        </div>
+
+        {/* iPad Layout - Two columns (sidebar + feed), hidden on mobile and desktop */}
+        <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
+          {/* Left Sidebar - Navigation */}
+          <div>
+            <DesktopSidebar />
+          </div>
+
+          {/* Main Content - Store Products */}
+          <div className="relative">
+            <StorePageClient key={validLocale} locale={validLocale} />
+
+            {/* Floating Sidebar Toggle for Filters (iPad only) */}
+            <FloatingSidebarToggle>
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Filters</h3>
+                <StoreFiltersPanel
+                  resultCount={0}
+                />
+              </div>
+            </FloatingSidebarToggle>
+          </div>
+        </div>
+
+        {/* Mobile Layout - Single column, hidden on iPad and desktop */}
+        <div className="md:hidden px-4">
+          <StorePageClient key={validLocale} locale={validLocale} />
+
+          {/* Floating Sidebar Toggle for Filters (Mobile only) */}
+          <FloatingSidebarToggle>
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Filters</h3>
+              <StoreFiltersPanel
+                resultCount={0}
+              />
+            </div>
+          </FloatingSidebarToggle>
+        </div>
+      </div>
     </>
   )
 }

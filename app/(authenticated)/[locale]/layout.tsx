@@ -38,8 +38,7 @@ export default async function AuthenticatedLocaleLayout({ children, params }: Au
       <NotificationProvider>
         <div className="flex flex-col min-h-screen">
           <Navigation />
-          <main className="flex-grow pt-16">{children}</main>
-          <Footer />
+          <main className="flex-grow">{children}</main>
         </div>
       </NotificationProvider>
     </I18nProvider>

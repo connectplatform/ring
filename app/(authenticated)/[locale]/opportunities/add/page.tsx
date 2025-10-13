@@ -44,7 +44,7 @@ export default async function AddOpportunityPage(props: PageProps) {
   const { params, searchParams } = await resolvePageProps(props);
   
   const locale = params.locale as Locale
-  const type = searchParams.type as 'request' | 'offer' | undefined
+  const type = searchParams.type as 'request' | 'offer' | 'cv' | undefined
 
   console.log('Params:', params);
   console.log('Search Params:', searchParams);
@@ -57,15 +57,19 @@ export default async function AddOpportunityPage(props: PageProps) {
   const userAgent = headersList.get('user-agent')
 
   // React 19 metadata for form pages - dynamically generated based on type
-  const title = type === 'request' 
+  const title = type === 'request'
     ? 'Create Request | Ring App'
     : type === 'offer'
     ? 'Create Offer | Ring App'
+    : type === 'cv'
+    ? 'Share Developer CV | Ring App'
     : 'Add Opportunity | Ring App';
   const description = type === 'request'
     ? 'Create a request to find services, advice, or collaboration from the Ring community.'
     : type === 'offer'
     ? 'Post an official opportunity from your organization on the Ring platform.'
+    : type === 'cv'
+    ? 'Share your developer profile and skills to connect with Ring platform opportunities.'
     : 'Add a new opportunity to the Ring App. Share job postings, collaboration requests, and partnership opportunities with the community.';
   const canonicalUrl = `https://ring.ck.ua/${locale}/opportunities/add${type ? `?type=${type}` : ''}`;
 
@@ -91,8 +95,8 @@ export default async function AddOpportunityPage(props: PageProps) {
 
     // Type-specific permission checks
     if (type === 'offer' && ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
-      console.log('AddOpportunityPage: User lacks permission for offers', { userRole });
-      redirect(`/${locale}/membership?returnTo=${encodeURIComponent(`/${locale}/opportunities/add?type=offer`)}`)
+      console.log('AddOpportunityPage: User lacks permission for offers', { userRole, type });
+      redirect(`/${locale}/membership?returnTo=${encodeURIComponent(`/${locale}/opportunities/add?type=${type}`)}`)
     }
 
     // Step 5: Log authentication and request details

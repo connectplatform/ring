@@ -29,8 +29,8 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
     redirect(`/${locale}/login`)
   }
   
-  // Check if user has admin role
-  if (session.user.role !== UserRole.ADMIN) {
+  // Check if user has admin or superadmin role
+  if (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.SUPERADMIN) {
     redirect(`/${locale}/unauthorized`)
   }
   
@@ -45,7 +45,6 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
         <div className="flex flex-col min-h-screen">
           <Navigation />
           <main className="flex-grow pt-16">{children}</main>
-          <Footer />
         </div>
       </NotificationProvider>
     </I18nProvider>
