@@ -66,7 +66,8 @@ const opportunityTypes = [
   { id: 'volunteer', icon: HandHeart, color: 'bg-orange-500', label: 'Volunteer' },
   { id: 'mentorship', icon: GraduationCap, color: 'bg-indigo-500', label: 'Mentorship' },
   { id: 'resource', icon: Package, color: 'bg-teal-500', label: 'Resource' },
-  { id: 'event', icon: CalendarIcon, color: 'bg-pink-500', label: 'Event' }
+  { id: 'event', icon: CalendarIcon, color: 'bg-pink-500', label: 'Event' },
+  { id: 'ring_customization', icon: Package, color: 'bg-gradient-to-r from-violet-500 to-purple-500', label: 'Ring Customization' }
 ]
 
 const categories = [
@@ -75,6 +76,16 @@ const categories = [
   'education',
   'healthcare',
   'finance',
+  'platform_deployment',
+  'module_development',
+  'branding_customization',
+  'database_migration',
+  'localization',
+  'payment_integration',
+  'smart_contracts',
+  'ai_customization',
+  'token_economics',
+  'documentation_training',
   'other'
 ]
 
@@ -104,9 +115,33 @@ const AdvancedFilters = ({
       'volunteer': t('volunteer'),
       'mentorship': t('mentorship'),
       'resource': t('resource'),
-      'event': t('event')
+      'event': t('event'),
+      'ring_customization': t('ring_customization')
     }
     return typeMap[type] || type
+  }
+  
+  // Get translated category name
+  const getCategoryTranslation = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'technology': t('technology'),
+      'business': t('business'),
+      'education': t('education'),
+      'healthcare': t('healthcare'),
+      'finance': t('finance'),
+      'platform_deployment': t('platform_deployment'),
+      'module_development': t('module_development'),
+      'branding_customization': t('branding_customization'),
+      'database_migration': t('database_migration'),
+      'localization': t('localization'),
+      'payment_integration': t('payment_integration'),
+      'smart_contracts': t('smart_contracts'),
+      'ai_customization': t('ai_customization'),
+      'token_economics': t('token_economics'),
+      'documentation_training': t('documentation_training'),
+      'other': t('other')
+    }
+    return categoryMap[category] || category
   }
   
   const updateFilter = (key: keyof FilterState, value: any) => {
@@ -141,7 +176,7 @@ const AdvancedFilters = ({
 
   return (
     <div className="bg-background border border-border rounded-lg p-4 space-y-4">
-      {/* Search and Quick Filters */}
+      {/* Search Bar with Integrated Blue Button */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -149,14 +184,41 @@ const AdvancedFilters = ({
             placeholder={t('searchOpportunities')}
             value={filters.search}
             onChange={(e) => updateFilter('search', e.target.value)}
-            className="pl-10"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                // Trigger search on Enter
+              }
+            }}
+            className="pl-10 pr-32 h-12 text-base"
           />
+          <div className="absolute right-1 top-1 bottom-1 flex items-center gap-1">
+            {filters.search && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => updateFilter('search', '')}
+                className="h-10 w-10 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              className="h-10 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              disabled={!filters.search.trim()}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
             <CollapsibleTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2 h-12">
                 <Filter className="h-4 w-4" />
                 {t('filters')}
                 <ChevronDown className={cn(
@@ -168,7 +230,7 @@ const AdvancedFilters = ({
           </Collapsible>
           
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={onClearFilters}>
+            <Button variant="ghost" size="sm" onClick={onClearFilters} className="h-12">
               <X className="h-4 w-4 mr-1" />
               {t('clearFilters')}
             </Button>
@@ -179,7 +241,7 @@ const AdvancedFilters = ({
       {/* Opportunity Types - Always Visible */}
       <div>
         <Label className="text-sm font-medium mb-3 block">{t('type')}</Label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
           {opportunityTypes.map((type) => {
             const Icon = type.icon
             const isSelected = filters.types.includes(type.id)
@@ -195,8 +257,8 @@ const AdvancedFilters = ({
                   isSelected && "shadow-sm"
                 )}
               >
-                <div className={cn("w-3 h-3 rounded-full", type.color)}>
-                  <Icon className="h-2 w-2 text-white m-0.5" />
+                <div className={cn("w-3 h-3 rounded-full flex items-center justify-center", type.color)}>
+                  <Icon className="h-2 w-2 text-white" />
                 </div>
                 {getTypeTranslation(type.id)}
               </Button>
@@ -213,7 +275,7 @@ const AdvancedFilters = ({
           {/* Categories */}
           <div>
             <Label className="text-sm font-medium mb-3 block">{t('category')}</Label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
               {categories.map((category) => {
                 const isSelected = filters.categories.includes(category)
                 
@@ -224,7 +286,7 @@ const AdvancedFilters = ({
                     size="sm"
                     onClick={() => toggleCategory(category)}
                   >
-                    {t(category)}
+                    {getCategoryTranslation(category)}
                   </Button>
                 )
               })}

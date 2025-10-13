@@ -1,0 +1,116 @@
+---
+title: Opportunities
+description: Opportunities documentation for Ring Platform
+---
+
+# Opportunities System
+
+Dual-nature marketplace supporting both **offers** and **requests** across 7 opportunity types with confidential access tiers.
+
+## Overview
+
+Ring Platform's opportunity system revolutionizes how organizations connect by supporting both what they offer and what they need.
+
+## Dual-Nature System
+
+### Offers
+What your entity provides:
+- Job positions
+- Partnership opportunities
+- Resources and services
+- Event hosting
+- Mentorship programs
+
+### Requests  
+What your entity needs:
+- Talent acquisition
+- Partnership seeking
+- Resource requirements
+- Service needs
+- Expertise requests
+
+## 7 Opportunity Types
+
+### 1. Job Opportunities
+- Full-time positions
+- Part-time roles
+- Contract work
+- Internships
+
+### 2. Partnership Opportunities
+- Strategic alliances
+- Joint ventures
+- Collaboration projects
+- Business partnerships
+
+### 3. Volunteer Opportunities
+- Non-profit work
+- Community service
+- Pro bono projects
+- Social impact initiatives
+
+### 4. Mentorship Opportunities
+- Professional mentoring
+- Industry guidance
+- Skill development
+- Career coaching
+
+### 5. Resource Opportunities
+- Equipment sharing
+- Space rental
+- Service exchange
+- Knowledge sharing
+
+### 6. Event Opportunities
+- Conference speaking
+- Workshop hosting
+- Networking events
+- Training sessions
+
+### 7. Custom Opportunities
+- Specialized needs
+- Industry-specific opportunities
+- Unique collaborations
+
+## Access Tiers
+
+### Public Opportunities
+- Visible to all platform users
+- Standard application process
+- Open competition
+
+### Confidential Opportunities
+- Restricted to CONFIDENTIAL role users
+- Private application process
+- Exclusive access
+
+## Implementation
+
+```typescript
+// Create job offer
+const jobOffer = await createOpportunity({
+  title: 'Senior React Developer',
+  type: 'JOB',
+  nature: 'OFFER',
+  description: 'Join our innovative development team',
+  requirements: ['5+ years React', 'TypeScript', 'Next.js'],
+  compensation: {
+    type: 'SALARY',
+    amount: 150000,
+    currency: 'USD'
+  }
+})
+
+// Create partnership request
+const partnershipRequest = await createOpportunity({
+  title: 'Seeking Marketing Partner',
+  type: 'PARTNERSHIP', 
+  nature: 'REQUEST',
+  description: 'Looking for digital marketing expertise',
+  requirements: ['Digital marketing experience', 'Social media expertise']
+})
+```
+
+---
+
+*Ready to post opportunities? Check our [API Reference](/ru/library/api/opportunities) for implementation details.*

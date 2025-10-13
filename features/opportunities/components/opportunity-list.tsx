@@ -284,12 +284,7 @@ export default function OpportunityList({
               <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">{t('noOpportunities')}</h3>
               <p className="text-muted-foreground mb-4">{t('noOpportunitiesDescription')}</p>
-              <Link href="/opportunities/add">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('createFirstOpportunity')}
-                </Button>
-              </Link>
+              <AddOpportunityButton locale={locale as any} />
             </motion.div>
           )}
 

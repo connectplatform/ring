@@ -17,9 +17,8 @@ import { useInView } from '@/hooks/use-intersection-observer'
 import { formatDateValue, truncateDescription, fetchOpportunities, formatBudget } from '@/lib/utils'
 import { useAppContext } from '@/contexts/app-context'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import OpportunityList from './opportunity-list'
-import AdvancedFilters from '@/components/opportunities/advanced-filters'
 import { useRealtimeOpportunities, useOptimisticOpportunities } from '@/hooks/use-realtime-opportunities'
 
 interface OpportunitiesProps {
@@ -37,30 +36,33 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
 }) => {
   const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession({ required: false })
   const { error, setError } = useAppContext()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [opportunities, setOpportunities] = React.useState<SerializedOpportunity[]>(initialOpportunities)
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
-  const [filters, setFilters] = React.useState({
-    search: '',
-    types: [],
-    categories: [],
-    location: '',
-    budgetMin: '',
-    budgetMax: '',
-    currency: 'USD',
-    priority: '',
-    deadline: '',
-    entityVerified: null,
-    hasDeadline: null
-  })
   const { ref, inView } = useInView()
 
   // Extract locale from pathname
   const locale = pathname.split('/')[1] || 'en'
+  
+  // Get filters from URL params (managed by OpportunitiesSearchClient)
+  const filters = React.useMemo(() => ({
+    search: searchParams.get('q') || '',
+    types: searchParams.get('types')?.split(',').filter(Boolean) || [],
+    categories: searchParams.get('categories')?.split(',').filter(Boolean) || [],
+    location: searchParams.get('location') || '',
+    budgetMin: searchParams.get('budgetMin') || '',
+    budgetMax: searchParams.get('budgetMax') || '',
+    currency: searchParams.get('currency') || 'USD',
+    priority: searchParams.get('priority') || '',
+    deadline: searchParams.get('deadline') || '',
+    entityVerified: searchParams.get('entityVerified') === 'true' ? true : searchParams.get('entityVerified') === 'false' ? false : null,
+    hasDeadline: searchParams.get('hasDeadline') === 'true' ? true : searchParams.get('hasDeadline') === 'false' ? false : null
+  }), [searchParams])
 
   // Real-time opportunities integration
   const realtime = useRealtimeOpportunities({
@@ -277,22 +279,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
     })
   }, [realtimeOpportunities, filters])
 
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      types: [],
-      categories: [],
-      location: '',
-      budgetMin: '',
-      budgetMax: '',
-      currency: 'USD',
-      priority: '',
-      deadline: '',
-      entityVerified: null,
-      hasDeadline: null
-    })
-  }
-
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
       {/* Real-time Status Indicator */}
@@ -321,18 +307,8 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
         </div>
       </div>
 
-      {/* Advanced Filters */}
-      <div className="container mx-auto px-4 py-6">
-        <AdvancedFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={clearFilters}
-          resultCount={filteredOpportunities.length}
-        />
-      </div>
-      
       <OpportunityList
-        initialOpportunities={filteredOpportunities}
+        initialOpportunities={realtimeOpportunities}
         initialEntities={entities}
         initialError={error}
         lastVisible={lastVisible}

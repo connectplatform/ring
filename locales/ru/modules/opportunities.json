@@ -60,7 +60,7 @@
   "processing": "Processing...",
   "posting": "Posting...",
   "posted": "Posted",
-  "activeFilters": "Active filters",
+  "activeFilters": "Активные фильтры",
   "search": "Search",
   "searchOpportunities": "Search opportunities...",
   "category": "Category",
@@ -73,8 +73,8 @@
   "selectType": "Select type",
   "allTypes": "All types",
   "filters": {
-    "types": "types",
-    "categories": "categories"
+    "types": "типов",
+    "categories": "категорий"
   },
   "sortBy": "Sort by",
   "newest": "Newest",
@@ -140,15 +140,15 @@
       "upgrade_button": "Upgrade to Member"
     },
     "cv": {
-      "title": "Developer CV",
-      "description": "Share your developer profile and skills for Ring platform projects.",
+      "title": "Резюме Разработчика",
+      "description": "Поделитесь своим профилем разработчика и навыками для проектов платформы Ring.",
       "examples": {
-        "developer_cv": "Developer portfolio and experience",
-        "portfolio": "Project portfolio and achievements",
-        "skills": "Technical skills and expertise"
+        "developer_cv": "Резюме разработчика и опыт",
+        "portfolio": "Портфолио проектов и достижений",
+        "skills": "Технические навыки и экспертиза"
       },
-      "button": "Share Developer Profile",
-      "upgrade_button": "Sign In Required"
+      "button": "Поделиться Профилем Разработчика",
+      "upgrade_button": "Требуется Вход"
     },
     "resource": {
       "title": "Resource",
@@ -171,24 +171,6 @@
       },
       "button": "Create Event",
       "upgrade_button": "Upgrade to Member"
-    },
-    "ring_customization": {
-      "title": "Ring Customization",
-      "description": "Need help with Ring customization",
-      "examples": {
-        "platform_deployment": "Full platform deployment",
-        "module_development": "Custom module development",
-        "branding": "Brand/theme customization",
-        "database_migration": "Database migration",
-        "localization": "Multi-lingual localization",
-        "payment_integration": "Payment gateway integration",
-        "smart_contracts": "Custom smart contract development",
-        "ai_customization": "AI agent customization",
-        "token_economics": "Token economics design",
-        "documentation": "Documentation & training"
-      },
-      "button": "Create Ring Project",
-      "upgrade_button": "Upgrade to Member"
     }
   },
   "addRequest": "Create Request",
@@ -198,19 +180,19 @@
   "description": "Description",
   "locationPlaceholder": "e.g., Remote, Cherkasy, Ukraine",
   "requirements": "Requirements",
-  "title": "Title",
-  "finance": "Finance",
-  "platform_deployment": "Platform Deployment",
-  "module_development": "Module Development",
-  "branding_customization": "Branding & Customization",
-  "database_migration": "Database Migration",
-  "localization": "Localization",
-  "payment_integration": "Payment Integration",
-  "smart_contracts": "Smart Contracts",
-  "ai_customization": "AI Customization",
-  "token_economics": "Token Economics",
-  "documentation_training": "Documentation & Training",
-  "other": "Other",
+  "title": "Название",
+  "finance": "Финансы",
+  "platform_deployment": "Развертывание платформы",
+  "module_development": "Разработка модулей",
+  "branding_customization": "Брендинг и настройка",
+  "database_migration": "Миграция базы данных",
+  "localization": "Локализация",
+  "payment_integration": "Интеграция платежей",
+  "smart_contracts": "Смарт-контракты",
+  "ai_customization": "Настройка ИИ",
+  "token_economics": "Токеномика",
+  "documentation_training": "Документация и обучение",
+  "other": "Другое",
   "entity": "Entity",
   "selectEntity": "Select entity",
   "min": "Min",
@@ -237,11 +219,11 @@
   "partnership": "Partnership",
   "volunteer": "Volunteer",
   "resource": "Resource",
-  "event": "Event",
-  "ring_customization": "Ring Customization",
-  "request": "Technology Request",
-  "offer": "Technology Offer",
-  "mentorship": "Developer CV",
+  "event": "Событие",
+  "ring_customization": "Настройка Ring",
+  "request": "Запрос технологии",
+  "offer": "Предложение технологии",
+  "mentorship": "CV разработчика",
     "matchQuality": {
       "factors": {
         "skillMatch": "Skills",
