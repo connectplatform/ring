@@ -39,7 +39,7 @@ export async function createOpportunity(
   
   // Extract form data
   const title = formData.get('title') as string
-  const type = formData.get('type') as 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event'
+  const type = formData.get('type') as 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event' | 'ring_customization'
   const category = formData.get('category') as string
   const description = formData.get('description') as string
   const requirements = formData.get('requirements') as string
@@ -65,7 +65,7 @@ export async function createOpportunity(
   }
 
   // Type-specific validation based on the enhanced type system
-  const requestTypes = ['request'];
+  const requestTypes = ['request', 'ring_customization'];
   const organizationalTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event'];
   
   if (requestTypes.includes(type)) {
@@ -312,7 +312,7 @@ export async function updateOpportunity(
       fieldErrors.title = 'Title is required'
     }
     
-    if (!type || !['offer', 'request', 'partnership', 'volunteer', 'mentorship', 'resource', 'event'].includes(type)) {
+    if (!type || !['offer', 'request', 'partnership', 'volunteer', 'mentorship', 'resource', 'event', 'ring_customization'].includes(type)) {
       fieldErrors.type = 'Valid type is required'
     }
     

@@ -47,9 +47,18 @@ import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import dynamic from 'next/dynamic'
+
+// Dynamically import Developer CV form
+const DeveloperCVForm = dynamic(() => import('./developer-cv-form'), {
+  ssr: false,
+  loading: () => <div className="flex justify-center items-center h-32">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
+  </div>
+})
 
 interface AddOpportunityFormProps {
-  opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event'
+  opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'cv' | 'resource' | 'event'
   locale: string
 }
 
@@ -312,6 +321,11 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   // Get current type configuration
   const typeConfig = opportunityTypeConfigs[currentType as keyof typeof opportunityTypeConfigs] || opportunityTypeConfigs.request
   const TypeIcon = typeConfig.icon
+
+  // Use specialized Developer CV form for cv type
+  if (currentType === 'cv') {
+    return <DeveloperCVForm locale={locale as any} />
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">

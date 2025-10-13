@@ -1,7 +1,7 @@
 // /features/opportunities/types/index.ts
 import { Timestamp, FieldValue } from 'firebase/firestore';
 
-export type OpportunityType = 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event';
+export type OpportunityType = 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event' | 'ring_customization';
 export type OpportunityVisibility = 'public' | 'subscriber' | 'member' | 'confidential';
 export type OpportunityPriority = 'urgent' | 'normal' | 'low';
 

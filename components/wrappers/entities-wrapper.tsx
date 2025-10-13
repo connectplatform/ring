@@ -109,10 +109,10 @@ export default function EntitiesWrapper({
   return (
     <div>
       {/* Main Navigation Bar for Entities */}
-      <div className="bg-white border-b mb-6">
+      <div className="bg-background border-b border-border mb-6">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-foreground">
               {t('title', { defaultValue: 'Entities' })}
             </h1>
             
@@ -123,12 +123,6 @@ export default function EntitiesWrapper({
                   <AddEntityButton locale={locale as any} className="flex items-center gap-2" />
                 </>
               )}
-              <Link href={ROUTES.ENTITIES(locale as any)}>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <Building2 size={20} />
-                  {t('viewAll', { defaultValue: 'View All' })}
-                </Button>
-              </Link>
             </div>
           </div>
         </div>

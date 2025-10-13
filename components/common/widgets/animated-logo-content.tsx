@@ -11,7 +11,7 @@ const AnimatedLogoContent: React.FC = () => {
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas: document.createElement('canvas') })
 
-    renderer.setSize(64, 64) // Keep the size at 64x64
+    renderer.setSize(77, 77) // 20% larger than 64x64 for better visual impact
     camera.position.z = 2.5 // Moved the camera closer to make the ring appear larger
 
     const ring = new THREE.Group()
