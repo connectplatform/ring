@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { markNotificationAsRead } from '@/features/notifications/services/notification-service';
 import { UserRole } from '@/features/auth/types';
+import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 
 /**
  * POST handler for /api/notifications/[id]/read
@@ -39,15 +39,25 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Step 3: Mark notification as read
+    // Step 3: Check if notification service is available
+    if (!isNotificationServiceAvailable()) {
+      console.log('API: /api/notifications/[id]/read - Notifications not supported in PostgreSQL-only mode');
+      return NextResponse.json({ 
+        success: true,
+        message: 'Notifications not available in PostgreSQL-only mode (feature in development)' 
+      }, { status: 200 });
+    }
+
+    // Step 4: Mark notification as read
     console.log('API: /api/notifications/[id]/read - Marking notification as read', { 
       notificationId,
       userId 
     });
 
-    await markNotificationAsRead(notificationId, userId);
+    const notificationService = getNotificationService();
+    await notificationService.markNotificationAsRead(notificationId, userId);
 
-    // Step 4: Return success response
+    // Step 5: Return success response
     console.log('API: /api/notifications/[id]/read - Notification marked as read successfully');
     return NextResponse.json({ 
       success: true,

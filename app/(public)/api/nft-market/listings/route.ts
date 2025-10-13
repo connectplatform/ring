@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/firebase-admin.server'
 import { auth } from '@/auth'
+import { getListings, createListingDraft } from '@/features/nft-market/services/listing-service'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const username = searchParams.get('username')
+  const username = searchParams.get('username') || undefined
   const status = searchParams.get('status') || 'active'
   const limit = Number(searchParams.get('limit') || 12)
-  const db = await getAdminDb()
-  const col = db.collection('nft_listings')
-  let q = col.where('status', '==', status)
-  if (username) q = q.where('sellerUsername', '==', username)
-  const snap = await q.limit(Math.max(1, Math.min(100, limit))).get()
-  const data = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))
-  return NextResponse.json({ success: true, data })
+
+  const result = await getListings({
+    username,
+    status,
+    limit: Math.max(1, Math.min(100, limit))
+  })
+
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, data: result.data })
 }
 
 export async function POST(req: NextRequest) {
@@ -34,21 +39,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid price' }, { status: 400 })
   }
 
-  const db = await getAdminDb()
-  const col = db.collection('nft_listings')
-  const now = new Date()
-  // Create draft listing
-  const draft = await col.add({
-    sellerUserId: session.user.id,
-    sellerUsername: sellerUsername || session.user.username || null,
+  // Use the migrated createListingDraft service
+  const result = await createListingDraft({
+    sellerUsername: sellerUsername || session.user.username || '',
     item,
-    price,
-    status: 'draft',
-    createdAt: now,
-    updatedAt: now
+    price
   })
 
-  return NextResponse.json({ success: true, id: draft.id })
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, id: result.id })
 }
 
 

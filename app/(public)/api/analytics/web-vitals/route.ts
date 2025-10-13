@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Lazy load heavy dependencies only when needed
 const getAuth = async () => (await import('@/auth')).auth
-const getFirebaseAdmin = async () => (await import('@/lib/firebase-admin.server')).getAdminDb
+const getDatabaseService = async () => (await import('@/lib/database')).getDatabaseService
+const initializeDatabase = async () => (await import('@/lib/database')).initializeDatabase
 
 export interface WebVitalsData {
   url: string
@@ -105,13 +106,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Store in Firestore
-    const getDb = await getFirebaseAdmin()
-    const db = getDb()
-    await db.collection('webVitals').add(webVitalsDoc)
+    // Store in PostgreSQL
+    const initResult = await (await initializeDatabase())()
+    if (!initResult.success) {
+      console.error('Web Vitals: Database initialization failed')
+      // Don't fail the request, just skip storage
+      const performanceScore = calculatePerformanceScore(data.metrics)
+      return NextResponse.json({
+        success: true,
+        message: 'Web Vitals metrics processed (storage skipped)',
+        performanceScore,
+        timestamp: Date.now()
+      })
+    }
 
-    // Calculate performance score
+    const dbService = await (await getDatabaseService())()
     const performanceScore = calculatePerformanceScore(data.metrics)
+    const webVitalsRecord = {
+      user_id: session?.user?.id || null,
+      session_id: webVitalsDoc.sessionId,
+      url: webVitalsDoc.url,
+      user_agent: webVitalsDoc.userAgent,
+      connection_type: webVitalsDoc.connectionType,
+      metrics: webVitalsDoc.metrics,
+      timestamp: new Date(webVitalsDoc.timestamp),
+      performance_score: performanceScore,
+      platform: webVitalsDoc.platform,
+      browser: webVitalsDoc.browser,
+      react19_features: webVitalsDoc.react19Features
+    }
+
+    await dbService.create('web_vitals', webVitalsRecord)
 
     // Update user performance statistics if authenticated
     if (session?.user?.id) {
@@ -179,19 +204,32 @@ export async function GET(request: NextRequest) {
     const timeRange = timeRanges[timeframe as keyof typeof timeRanges] || timeRanges['7d']
     const startTime = new Date(Date.now() - timeRange)
 
-    // Query Firestore
-    const getDb = await getFirebaseAdmin()
-    const db = getDb()
-    let query = db.collection('webVitals')
-      .where('userId', '==', userId)
-      .where('createdAt', '>=', startTime)
-      .orderBy('createdAt', 'desc')
-      .limit(100)
+    // Query PostgreSQL
+    const dbService = await (await getDatabaseService())()
 
-    const snapshot = await query.get()
-    const documents = snapshot.docs.map(doc => ({
+    // Build query for web vitals data
+    const querySpec = {
+      collection: 'web_vitals',
+      filters: [
+        { field: 'user_id', operator: '==' as const, value: userId },
+        { field: 'timestamp', operator: '>=' as const, value: startTime }
+      ],
+      orderBy: [{ field: 'timestamp', direction: 'desc' as const }],
+      pagination: { limit: 100 }
+    }
+
+    const queryResult = await dbService.query(querySpec)
+    if (!queryResult.success) {
+      console.error('Web Vitals query failed:', queryResult.error)
+      return NextResponse.json(
+        { error: 'Failed to retrieve analytics data' },
+        { status: 500 }
+      )
+    }
+
+    const documents = queryResult.data.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data
     }))
 
     // Process analytics
@@ -285,36 +323,43 @@ function calculatePerformanceScore(metrics: any[]): number {
  * Update user performance statistics
  */
 async function updateUserPerformanceStats(
-  userId: string, 
-  performanceScore: number, 
+  userId: string,
+  performanceScore: number,
   metrics: any[]
 ): Promise<void> {
   try {
-    const getDb = await getFirebaseAdmin()
-    const db = getDb()
-    const userRef = db.collection('users').doc(userId)
-    const userDoc = await userRef.get()
+    const dbService = await (await getDatabaseService())()
 
-    if (userDoc.exists) {
-      const currentStats = userDoc.data()?.performanceStats || {}
-      
-      const updatedStats = {
-        lastPerformanceScore: performanceScore,
-        averagePerformanceScore: calculateAverageScore(currentStats, performanceScore),
-        totalMeasurements: (currentStats.totalMeasurements || 0) + 1,
-        lastMeasuredAt: new Date(),
-        react19Benefits: {
-          bundleSizeReduction: 55, // KB saved from React 19 migration
-          performanceImprovement: performanceScore > (currentStats.lastPerformanceScore || 0),
-          featuresUsed: ['useTransition', 'useDeferredValue', 'useActionState', 'useFormStatus']
-        }
-      }
-
-      await userRef.update({
-        performanceStats: updatedStats,
-        updatedAt: new Date()
-      })
+    // Read current user data
+    const userResult = await dbService.read('users', userId)
+    if (!userResult.success || !userResult.data) {
+      console.error('User not found for performance stats update')
+      return
     }
+
+    const userData = userResult.data.data || userResult.data
+    const currentStats = userData.performanceStats || {}
+
+    const updatedStats = {
+      lastPerformanceScore: performanceScore,
+      averagePerformanceScore: calculateAverageScore(currentStats, performanceScore),
+      totalMeasurements: (currentStats.totalMeasurements || 0) + 1,
+      lastMeasuredAt: new Date(),
+      react19Benefits: {
+        bundleSizeReduction: 55, // KB saved from React 19 migration
+        performanceImprovement: performanceScore > (currentStats.lastPerformanceScore || 0),
+        featuresUsed: ['useTransition', 'useDeferredValue', 'useActionState', 'useFormStatus']
+      }
+    }
+
+    // Update user with new performance stats
+    const updatedUserData = {
+      ...userData,
+      performanceStats: updatedStats,
+      updated_at: new Date()
+    }
+
+    await dbService.update('users', userId, updatedUserData)
   } catch (error) {
     console.error('Error updating user performance stats:', error)
   }
@@ -337,16 +382,16 @@ function calculateAverageScore(currentStats: any, newScore: number): number {
  */
 function processWebVitalsAnalytics(documents: any[], filterMetric?: string | null) {
   const allMetrics: any[] = []
-  
+
   // Flatten all metrics
   documents.forEach(doc => {
     if (doc.metrics && Array.isArray(doc.metrics)) {
       doc.metrics.forEach((metric: any) => {
         allMetrics.push({
           ...metric,
-          sessionId: doc.sessionId,
+          sessionId: doc.session_id,
           url: doc.url,
-          timestamp: doc.createdAt?.toDate?.() || new Date(doc.timestamp)
+          timestamp: doc.timestamp instanceof Date ? doc.timestamp : new Date(doc.timestamp)
         })
       })
     }

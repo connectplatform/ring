@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced,
-  updateDocument
-} from '@/lib/services/firebase-service-manager'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
+import { getDatabaseService, initializeDatabase } from '@/lib/database'
 
 export async function POST(
   request: NextRequest,
@@ -31,66 +26,82 @@ export async function POST(
       )
     }
 
-    const db = getFirestore()
-    
-    // Check if news article exists
-    const newsDoc = await getCachedDocument('news', newsId)
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      );
+    }
 
-    if (!newsDoc || !newsDoc.exists) {
+    const dbService = getDatabaseService();
+
+    // Check if news article exists
+    const newsResult = await dbService.read('news', newsId);
+
+    if (!newsResult.success || !newsResult.data) {
       return NextResponse.json(
         { error: 'News article not found' },
         { status: 404 }
-      )
+      );
     }
 
-    const newsData = newsDoc.data()
-    if (!newsData) {
-      return NextResponse.json(
-        { error: 'News article data not found' },
-        { status: 404 }
-      )
-    }
-    
+    const newsData = newsResult.data.data || newsResult.data;
+
     // Check if user already liked this article
-    const likesCollection = db.collection('news_likes')
-    const existingLike = await likesCollection
-      .where('newsId', '==', newsId)
-      .where('userId', '==', userId)
-      .get()
+    const likeQueryResult = await dbService.query({
+      collection: 'news_likes',
+      filters: [
+        { field: 'news_id', operator: '==' as const, value: newsId },
+        { field: 'user_id', operator: '==' as const, value: userId }
+      ],
+      pagination: { limit: 1 }
+    });
 
-    let newLikeCount: number
-    let isNowLiked: boolean
-    const currentLikes = newsData?.likes || 0
+    const existingLike = likeQueryResult.success && likeQueryResult.data.length > 0;
+    const currentLikes = newsData?.likes || 0;
 
-    if (!existingLike.empty) {
+    let newLikeCount: number;
+    let isNowLiked: boolean;
+
+    if (existingLike) {
       // Remove like
-      const likeDoc = existingLike.docs[0]
-      await likeDoc.ref.delete()
+      const likeId = likeQueryResult.data[0].id;
+      await dbService.delete('news_likes', likeId);
 
-      // Decrement like count using firebase-service-manager
-      await updateDocument('news', newsId, {
-        likes: FieldValue.increment(-1),
-        updatedAt: FieldValue.serverTimestamp()
-      })
+      // Decrement like count
+      const updatedNewsData = {
+        ...newsData,
+        likes: Math.max(0, currentLikes - 1),
+        updated_at: new Date()
+      };
 
-      newLikeCount = Math.max(0, currentLikes - 1)
-      isNowLiked = false
+      await dbService.update('news', newsId, updatedNewsData);
+
+      newLikeCount = Math.max(0, currentLikes - 1);
+      isNowLiked = false;
     } else {
       // Add like
-      await likesCollection.add({
-        newsId: newsId,
-        userId: userId,
-        createdAt: FieldValue.serverTimestamp()
-      })
+      const likeData = {
+        news_id: newsId,
+        user_id: userId,
+        created_at: new Date()
+      };
 
-      // Increment like count using firebase-service-manager
-      await updateDocument('news', newsId, {
-        likes: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp()
-      })
+      await dbService.create('news_likes', likeData);
 
-      newLikeCount = currentLikes + 1
-      isNowLiked = true
+      // Increment like count
+      const updatedNewsData = {
+        ...newsData,
+        likes: currentLikes + 1,
+        updated_at: new Date()
+      };
+
+      await dbService.update('news', newsId, updatedNewsData);
+
+      newLikeCount = currentLikes + 1;
+      isNowLiked = true;
     }
 
     return NextResponse.json({
@@ -124,35 +135,42 @@ export async function GET(
       )
     }
 
-    const db = getFirestore()
-    
-    // Get like count for the article
-    const newsDoc = await getCachedDocument('news', newsId)
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      );
+    }
 
-    if (!newsDoc || !newsDoc.exists) {
+    const dbService = getDatabaseService();
+
+    // Get news article
+    const newsResult = await dbService.read('news', newsId);
+
+    if (!newsResult.success || !newsResult.data) {
       return NextResponse.json(
         { error: 'News article not found' },
         { status: 404 }
-      )
+      );
     }
 
-    const newsData = newsDoc.data()
-    if (!newsData) {
-      return NextResponse.json(
-        { error: 'News article data not found' },
-        { status: 404 }
-      )
-    }
+    const newsData = newsResult.data.data || newsResult.data;
     let isLiked = false
-    
+
     // Check if current user liked this article
     if (session?.user?.id) {
-      const userLike = await db.collection('news_likes')
-        .where('newsId', '==', newsId)
-        .where('userId', '==', session.user.id)
-        .get()
-      
-      isLiked = !userLike.empty
+      const likeQueryResult = await dbService.query({
+        collection: 'news_likes',
+        filters: [
+          { field: 'news_id', operator: '==' as const, value: newsId },
+          { field: 'user_id', operator: '==' as const, value: session.user.id }
+        ],
+        pagination: { limit: 1 }
+      });
+
+      isLiked = likeQueryResult.success && likeQueryResult.data.length > 0;
     }
 
     return NextResponse.json({

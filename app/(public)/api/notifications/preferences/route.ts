@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { 
-  getUserNotificationPreferences, 
-  updateUserNotificationPreferences 
-} from '@/features/notifications/services/notification-service';
+import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 import { UserRole } from '@/features/auth/types';
 import { DetailedNotificationPreferences } from '@/features/notifications/types';
 
@@ -30,10 +27,22 @@ export async function GET(req: NextRequest) {
       role: userRole 
     });
 
-    // Step 2: Get user preferences
+    // Step 2: Check if notification service is available
+    if (!isNotificationServiceAvailable()) {
+      const defaultPreferences: Partial<DetailedNotificationPreferences> = {
+        enabled: false,
+        channels: { inApp: false, email: false, sms: false, push: false },
+        language: 'en',
+        updatedAt: new Date()
+      };
+      return NextResponse.json(defaultPreferences, { status: 200 });
+    }
+
+    // Step 3: Get user preferences
     console.log('API: /api/notifications/preferences - Fetching preferences', { userId });
 
-    const preferences = await getUserNotificationPreferences(userId);
+    const notificationService = getNotificationService();
+    const preferences = await notificationService.getUserNotificationPreferences(userId);
 
     // Step 3: Return preferences (or default if none exist)
     if (!preferences) {
@@ -100,13 +109,22 @@ export async function PUT(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Step 3: Update user preferences
+    // Step 3: Check if notification service is available
+    if (!isNotificationServiceAvailable()) {
+      return NextResponse.json({ 
+        success: true,
+        message: 'Notifications not available in PostgreSQL-only mode' 
+      }, { status: 200 });
+    }
+
+    // Step 4: Update user preferences
     console.log('API: /api/notifications/preferences - Updating preferences', { 
       userId,
       preferences: data 
     });
 
-    await updateUserNotificationPreferences(userId, data);
+    const notificationService = getNotificationService();
+    await notificationService.updateUserNotificationPreferences(userId, data);
 
     // Step 4: Return success response
     console.log('API: /api/notifications/preferences - Preferences updated successfully');

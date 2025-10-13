@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 import { UserRole } from '@/features/auth/types';
 
 export async function PUT(
@@ -11,8 +11,8 @@ export async function PUT(
     const { id } = await params;
     const session = await auth();
 
-    // Check authentication and admin role
-    if (!session?.user || session.user.role !== 'admin') {
+    // Check authentication and admin/superadmin role
+    if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -29,14 +29,42 @@ export async function PUT(
       );
     }
 
-    // Update user role in Firestore
-    const db = getAdminDb();
-    const userRef = db.collection('users').doc(id);
-    
-    await userRef.update({
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      );
+    }
+
+    const dbService = getDatabaseService();
+
+    // Read current user data
+    const userResult = await dbService.read('users', id);
+    if (!userResult.success || !userResult.data) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const userData = userResult.data.data || userResult.data;
+
+    // Update user role
+    const updatedUserData = {
+      ...userData,
       role,
-      updatedAt: new Date()
-    });
+      updated_at: new Date()
+    };
+
+    const updateResult = await dbService.update('users', id, updatedUserData);
+    if (!updateResult.success) {
+      return NextResponse.json(
+        { error: 'Failed to update user role' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 export async function PUT(
   request: NextRequest,
@@ -28,14 +28,42 @@ export async function PUT(
       );
     }
 
-    // Update user verification status in Firestore
-    const db = getAdminDb();
-    const userRef = db.collection('users').doc(id);
-    
-    await userRef.update({
-      isVerified,
-      updatedAt: new Date()
-    });
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      );
+    }
+
+    const dbService = getDatabaseService();
+
+    // Read current user data
+    const userResult = await dbService.read('users', id);
+    if (!userResult.success || !userResult.data) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const userData = userResult.data.data || userResult.data;
+
+    // Update user verification status
+    const updatedUserData = {
+      ...userData,
+      is_verified: isVerified,
+      updated_at: new Date()
+    };
+
+    const updateResult = await dbService.update('users', id, updatedUserData);
+    if (!updateResult.success) {
+      return NextResponse.json(
+        { error: 'Failed to update user verification status' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ 
       success: true, 

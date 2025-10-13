@@ -10,17 +10,17 @@ export const dynamic = 'force-dynamic';
 
 /**
  * API route handler for getting user settings.
- * 
+ *
  * This function handles GET requests to retrieve a user's settings.
  * It uses the getUserSettings service which handles authentication internally.
- * 
+ *
  * User steps:
  * 1. Client sends a GET request to /api/settings
  * 2. The handler authenticates the user via the getUserSettings service
  * 3. If authenticated, it retrieves and returns the user's settings
- * 
+ *
  * @returns A NextResponse object with the user's settings or an error message
- * 
+ *
  * Error Handling:
  * - 401 Unauthorized: If the user is not authenticated
  * - 500 Internal Server Error: For any other errors
@@ -43,7 +43,7 @@ export async function GET() {
       })
     } else {
       console.error('API: /api/settings - Failed to retrieve settings');
-      return NextResponse.json({ error: "Failed to retrieve settings" }, { 
+      return NextResponse.json({ error: "Failed to retrieve settings" }, {
         status: 500,
         headers: {
           'Cache-Control': 'no-store, must-revalidate',
@@ -56,7 +56,7 @@ export async function GET() {
   } catch (error) {
     console.error("API: /api/settings - Error processing GET request:", error)
     if (error instanceof Error && error.message === 'Unauthorized access') {
-      return NextResponse.json({ error: "Not authenticated" }, { 
+      return NextResponse.json({ error: "Not authenticated" }, {
         status: 401,
         headers: {
           'Cache-Control': 'no-store, must-revalidate',
@@ -65,7 +65,7 @@ export async function GET() {
         }
       })
     }
-    return NextResponse.json({ error: "An unexpected error occurred" }, { 
+    return NextResponse.json({ error: "An unexpected error occurred" }, {
       status: 500,
       headers: {
         'Cache-Control': 'no-store, must-revalidate',
@@ -78,19 +78,19 @@ export async function GET() {
 
 /**
  * API route handler for updating user settings.
- * 
+ *
  * This function handles PUT requests to update a user's settings.
  * It uses the updateUserSettings service which handles authentication internally.
- * 
+ *
  * User steps:
  * 1. Client sends a PUT request to /api/settings with updated settings data
  * 2. The handler validates the request body
  * 3. If valid, it calls the updateUserSettings service to update the user's settings
  * 4. It returns a response indicating success or failure
- * 
+ *
  * @param req - The incoming NextRequest object
  * @returns A NextResponse object with the result of the operation
- * 
+ *
  * Error Handling:
  * - 400 Bad Request: If the request body is invalid
  * - 401 Unauthorized: If the user is not authenticated
@@ -102,11 +102,11 @@ export async function PUT(req: NextRequest) {
   try {
     // Step 1: Parse and validate the request body
     const data: Partial<UserSettings> = await req.json()
-    
+
     // TODO: Add more robust validation here
     if (!data || Object.keys(data).length === 0) {
       console.log('API: /api/settings - Invalid request body');
-      return NextResponse.json({ error: "Invalid request body" }, { 
+      return NextResponse.json({ error: "Invalid request body" }, {
         status: 400,
         headers: {
           'Cache-Control': 'no-store, must-revalidate',
@@ -130,7 +130,7 @@ export async function PUT(req: NextRequest) {
       })
     } else {
       console.error('API: /api/settings - Failed to update settings');
-      return NextResponse.json({ error: "Failed to update settings" }, { 
+      return NextResponse.json({ error: "Failed to update settings" }, {
         status: 500,
         headers: {
           'Cache-Control': 'no-store, must-revalidate',
@@ -143,7 +143,7 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     console.error("API: /api/settings - Error processing PUT request:", error)
     if (error instanceof Error && error.message === 'Unauthorized access') {
-      return NextResponse.json({ error: "Not authenticated" }, { 
+      return NextResponse.json({ error: "Not authenticated" }, {
         status: 401,
         headers: {
           'Cache-Control': 'no-store, must-revalidate',
@@ -152,20 +152,13 @@ export async function PUT(req: NextRequest) {
         }
       })
     }
-    return NextResponse.json({ error: "An unexpected error occurred" }, { 
+    return NextResponse.json({ error: "An unexpected error occurred" }, {
       status: 500,
       headers: {
         'Cache-Control': 'no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
-        }
+      }
     })
   }
 }
-
-// Remove the static headers export
-// export const headers = {
-//   'Cache-Control': 'no-store, must-revalidate',
-//   'Pragma': 'no-cache',
-//   'Expires': '0'
-// };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,18 +27,33 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const db = getAdminDb();
-      if (!db) {
+      // Initialize database service
+      console.log(`API: check-username - Initializing database service`);
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        console.error(`API: check-username - Database initialization failed:`, initResult.error);
         return NextResponse.json({ error: 'Database not available' }, { status: 500 });
       }
 
-      // Check if username is already taken
-      const usersRef = db.collection('users');
-      const usernameQuery = await usersRef.where('username', '==', username).limit(1).get();
+      const dbService = getDatabaseService();
 
-      const available = usernameQuery.empty;
+      // Check if username is already taken using efficient findByField query
+      console.log('API: check-username - About to call findByField with:', { collection: 'users', field: 'username', value: username });
+      const existingUsersResult = await dbService.findByField('users', 'username', username, { limit: 1 });
+      console.log('API: check-username - findByField result:', existingUsersResult);
 
-      return NextResponse.json({ 
+      if (!existingUsersResult.success) {
+        console.error('Database error checking username:', existingUsersResult.error);
+        return NextResponse.json({
+          error: 'Database error',
+          details: existingUsersResult.error?.message
+        }, { status: 500 });
+      }
+
+      const existingUsers = existingUsersResult.data || [];
+      const available = existingUsers.length === 0;
+
+      return NextResponse.json({
         available,
         username: username.toLowerCase() // Return normalized username
       });

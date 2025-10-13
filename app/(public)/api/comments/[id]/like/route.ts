@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { getDatabaseService, initializeDatabase } from '@/lib/database'
 
 /**
  * POST /api/comments/[id]/like
@@ -30,67 +30,87 @@ export async function POST(
       )
     }
 
-    const db = getFirestore()
-    
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      );
+    }
+
+    const dbService = getDatabaseService();
+
     // Check if comment exists
-    const commentRef = db.collection('comments').doc(commentId)
-    const commentSnap = await commentRef.get()
-    
-    if (!commentSnap.exists) {
+    const commentResult = await dbService.read('comments', commentId);
+
+    if (!commentResult.success || !commentResult.data) {
       return NextResponse.json(
         { error: 'Comment not found' },
         { status: 404 }
-      )
+      );
     }
 
-    const commentData = commentSnap.data()
-    
+    const commentData = commentResult.data.data || commentResult.data;
+
     // Check if comment is active
     if (commentData?.status !== 'active') {
       return NextResponse.json(
         { error: 'Cannot like inactive comment' },
         { status: 400 }
-      )
+      );
     }
 
     // Check if user has already liked this comment
-    const likeRef = db.collection('commentLikes').doc(`${commentId}_${userId}`)
-    const likeSnap = await likeRef.get()
-    
-    const isCurrentlyLiked = likeSnap.exists
-    const action = isCurrentlyLiked ? 'unlike' : 'like'
-    
-    // Create batch operation for atomic updates
-    const batch = db.batch()
-    
+    const likeQueryResult = await dbService.query({
+      collection: 'comment_likes',
+      filters: [
+        { field: 'comment_id', operator: '==' as const, value: commentId },
+        { field: 'user_id', operator: '==' as const, value: userId }
+      ],
+      pagination: { limit: 1 }
+    });
+
+    const isCurrentlyLiked = likeQueryResult.success && likeQueryResult.data.length > 0;
+    const action = isCurrentlyLiked ? 'unlike' : 'like';
+
     if (isCurrentlyLiked) {
       // Unlike: Remove like document and decrement counter
-      batch.delete(likeRef)
-      batch.update(commentRef, {
-        likes: FieldValue.increment(-1),
-        updatedAt: FieldValue.serverTimestamp()
-      })
+      const likeId = likeQueryResult.data[0].id;
+      await dbService.delete('comment_likes', likeId);
+
+      // Update comment likes count
+      const updatedCommentData = {
+        ...commentData,
+        likes: Math.max(0, (commentData?.likes || 0) - 1),
+        updated_at: new Date()
+      };
+      await dbService.update('comments', commentId, updatedCommentData);
     } else {
       // Like: Create like document and increment counter
-      batch.set(likeRef, {
-        commentId: commentId,
-        userId: userId,
-        userName: session.user.name || 'Anonymous',
-        userAvatar: session.user.image || null,
-        createdAt: FieldValue.serverTimestamp()
-      })
-      batch.update(commentRef, {
-        likes: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp()
-      })
+      const likeData = {
+        comment_id: commentId,
+        user_id: userId,
+        user_name: session.user.name || 'Anonymous',
+        user_avatar: session.user.image || null,
+        created_at: new Date()
+      };
+      await dbService.create('comment_likes', likeData);
+
+      // Update comment likes count
+      const updatedCommentData = {
+        ...commentData,
+        likes: (commentData?.likes || 0) + 1,
+        updated_at: new Date()
+      };
+      await dbService.update('comments', commentId, updatedCommentData);
     }
-    
-    // Execute batch operation
-    await batch.commit()
-    
+
     // Get updated comment data
-    const updatedCommentSnap = await commentRef.get()
-    const updatedComment = updatedCommentSnap.data()
+    const updatedCommentResult = await dbService.read('comments', commentId);
+    const updatedComment = updatedCommentResult.success && updatedCommentResult.data
+      ? (updatedCommentResult.data.data || updatedCommentResult.data)
+      : commentData;
     
     return NextResponse.json({
       success: true,
@@ -141,30 +161,46 @@ export async function GET(
       )
     }
 
-    const db = getFirestore()
-    
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      );
+    }
+
+    const dbService = getDatabaseService();
+
     // Check if comment exists
-    const commentRef = db.collection('comments').doc(commentId)
-    const commentSnap = await commentRef.get()
-    
-    if (!commentSnap.exists) {
+    const commentResult = await dbService.read('comments', commentId);
+
+    if (!commentResult.success || !commentResult.data) {
       return NextResponse.json(
         { error: 'Comment not found' },
         { status: 404 }
-      )
+      );
     }
 
-    const commentData = commentSnap.data()
-    
+    const commentData = commentResult.data.data || commentResult.data;
+
     // Check if user has liked this comment
-    const likeRef = db.collection('commentLikes').doc(`${commentId}_${userId}`)
-    const likeSnap = await likeRef.get()
-    
+    const likeQueryResult = await dbService.query({
+      collection: 'comment_likes',
+      filters: [
+        { field: 'comment_id', operator: '==' as const, value: commentId },
+        { field: 'user_id', operator: '==' as const, value: userId }
+      ],
+      pagination: { limit: 1 }
+    });
+
+    const isLiked = likeQueryResult.success && likeQueryResult.data.length > 0;
+
     return NextResponse.json({
       success: true,
       data: {
         commentId: commentId,
-        liked: likeSnap.exists,
+        liked: isLiked,
         likes: commentData?.likes || 0,
         userId: userId
       }

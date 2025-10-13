@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { 
-  getUserNotifications, 
-  createNotification, 
-  getNotificationStats 
-} from '@/features/notifications/services/notification-service';
+import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 import { UserRole } from '@/features/auth/types';
 import { 
   NotificationType, 
@@ -82,9 +78,28 @@ export async function GET(req: NextRequest) {
       types 
     });
 
-    // Step 3: Get stats if requested
+    // Step 3: Check if notification service is available
+    if (!isNotificationServiceAvailable()) {
+      return NextResponse.json({ 
+        notifications: [],
+        unreadCount: 0,
+        hasMore: false,
+        message: 'Notifications not available in PostgreSQL-only mode'
+      }, { status: 200 });
+    }
+
+    const notificationService = getNotificationService();
+
+    // Step 4: Get stats if requested
     if (stats) {
-      const notificationStats = await getNotificationStats(userId);
+      if (!notificationService) {
+        return NextResponse.json({
+          unreadCount: 0,
+          totalCount: 0,
+          message: 'Notifications not available in PostgreSQL-only mode'
+        }, { status: 200 });
+      }
+      const notificationStats = await notificationService.getNotificationStats(userId);
       console.log('API: /api/notifications - Stats retrieved');
       return NextResponse.json(notificationStats, { 
         status: 200,
@@ -96,9 +111,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Step 4: Fetch notifications via service
+    // Step 5: Fetch notifications via service
     console.log('API: /api/notifications - Fetching notifications from service');
-    const result = await getUserNotifications(userId, {
+    const result = await notificationService.getUserNotifications(userId, {
       limit,
       startAfter,
       unreadOnly,
@@ -212,7 +227,15 @@ export async function POST(req: NextRequest) {
       targetUsers: notificationRequest.userIds?.length || (notificationRequest.userId ? 1 : 0)
     });
 
-    const notification = await createNotification(notificationRequest);
+    // Check if notification service is available
+    if (!isNotificationServiceAvailable()) {
+      return NextResponse.json({ 
+        error: 'Notifications not available in PostgreSQL-only mode' 
+      }, { status: 503 });
+    }
+
+    const notificationService = getNotificationService();
+    const notification = await notificationService.createNotification(notificationRequest);
 
     // Step 6: Return the created notification
     console.log('API: /api/notifications - Notification created successfully', { 
