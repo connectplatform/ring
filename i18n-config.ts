@@ -3,7 +3,7 @@ import { buildMessages } from '@/lib/i18n'
 
 export const routing = defineRouting({
   // A list of all locales that are supported
-  locales: ['en', 'uk'],
+  locales: ['en', 'uk', 'ru'],
   
   // Used when no locale matches
   defaultLocale: 'en',
