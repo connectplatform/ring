@@ -89,6 +89,13 @@ export interface UserProfile {
   preferredWorkTypes?: string[];
   experienceLevel?: string;
   languages?: string[];
+  // Ring Platform specific expertise
+  ringExperience?: number; // Years working with Ring Platform
+  modulesExpertise?: string[]; // Which Ring modules they know
+  backendExpertise?: ('firebase' | 'postgresql' | 'connectplatform')[]; // Database backends
+  blockchainSkills?: string[]; // Smart contracts, token economics
+  aiCustomization?: boolean; // Experience modifying AI agents
+  whitelabelExperience?: number; // Previous white-label deployments
 }
 
 // Match result with detailed scoring

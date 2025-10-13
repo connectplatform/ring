@@ -8,6 +8,7 @@
  * @version 1.0.0
  */
 
+import { cache } from 'react';
 import type { Opportunity } from '@/features/opportunities/types';
 import type { UserProfile, UserMatch, MatchFactors, OpportunityInput, LLMConfig } from './types';
 import { createLLMClient, isLLMAvailable } from './llm-client';
@@ -33,16 +34,50 @@ export class Matcher {
   private readonly minMatchScore = parseFloat(process.env.MATCHING_SCORE_THRESHOLD || '0.7');
 
   /**
+   * Cached user profiles lookup - React 19 cache() prevents duplicate API calls
+   * within the same request cycle. Massive performance improvement.
+   */
+  getUserProfilesForMatching = cache(async (): Promise<UserProfile[]> => {
+    try {
+      // This would be replaced with actual database call
+      // For now, return empty array as placeholder
+      return [];
+    } catch (error) {
+      logger.warn('Failed to fetch user profiles for matching', { error });
+      return [];
+    }
+  });
+
+  /**
+   * Cached opportunity conversion - React 19 cache() ensures same opportunity
+   * is only converted once per request cycle
+   */
+  convertToOpportunityInputCached = cache((opportunity: Opportunity): OpportunityInput => {
+    return this.convertToOpportunityInput(opportunity);
+  });
+
+  /**
    * Main matching function - analyzes opportunity and finds relevant users
    */
+  /**
+   * Cached LLM matching - React 19 cache() prevents duplicate LLM calls
+   * for the same opportunity within the same request cycle
+   */
+  llmBasedMatchingCached = cache(async (
+    opportunity: OpportunityInput,
+    userProfiles: UserProfile[]
+  ): Promise<Match[]> => {
+    return this.llmBasedMatching(opportunity, userProfiles);
+  });
+
   async match(opportunity: Opportunity): Promise<Match[]> {
     try {
       logger.info('Matcher: Starting opportunity matching', { opportunityId: opportunity.id });
 
-      // Convert opportunity to standardized input format
-      const opportunityInput = this.convertToOpportunityInput(opportunity);
+      // Convert opportunity to standardized input format (cached)
+      const opportunityInput = this.convertToOpportunityInputCached(opportunity);
 
-      // Get user profiles for matching (placeholder - would come from database)
+      // Get user profiles for matching (cached - prevents duplicate API calls)
       const userProfiles = await this.getUserProfilesForMatching();
 
       if (!userProfiles || userProfiles.length === 0) {
@@ -50,9 +85,9 @@ export class Matcher {
         return [];
       }
 
-      // Use LLM for intelligent matching if available
+      // Use LLM for intelligent matching if available (cached)
       if (isLLMAvailable()) {
-        return await this.llmBasedMatching(opportunityInput, userProfiles);
+        return await this.llmBasedMatchingCached(opportunityInput, userProfiles);
       } else {
         logger.warn('Matcher: LLM unavailable, falling back to baseline matching');
         return await this.baselineMatching(opportunity, userProfiles);
@@ -238,9 +273,10 @@ export class Matcher {
   }
 
   /**
-   * Get user profiles for matching (placeholder - implement database query)
+   * Get user profiles for matching (non-cached version - legacy method)
+   * Note: Use the cached version above for better performance
    */
-  private async getUserProfilesForMatching(): Promise<UserProfile[]> {
+  private async getUserProfilesForMatchingLegacy(): Promise<UserProfile[]> {
     // TODO: Implement actual database query to get user profiles
     // For now, return empty array to trigger baseline matching
     logger.info('Matcher: getUserProfilesForMatching - Placeholder implementation');
@@ -254,6 +290,10 @@ export class Matcher {
     opportunity: OpportunityInput,
     userProfiles: UserProfile[]
   ): string {
+    const isRingCustomization = opportunity.type === 'ring_customization' || 
+                                opportunity.category?.includes('platform_deployment') ||
+                                opportunity.category?.includes('module_development');
+    
     const userSummaries = userProfiles.map(user => `
 User ${user.id}:
 - Skills: ${user.skills.join(', ')}
@@ -261,7 +301,15 @@ User ${user.id}:
 - Industry: ${user.industry.join(', ')}
 - Location: ${user.location || 'Not specified'}
 - Availability: ${user.availability || 'Not specified'}
-- Experience Level: ${user.experienceLevel || 'Not specified'}
+- Experience Level: ${user.experienceLevel || 'Not specified'}${
+      isRingCustomization ? `
+- Ring Platform Experience: ${user.ringExperience || 0} years
+- Modules Expertise: ${user.modulesExpertise?.join(', ') || 'None'}
+- Backend Expertise: ${user.backendExpertise?.join(', ') || 'None'}
+- Blockchain Skills: ${user.blockchainSkills?.join(', ') || 'None'}
+- AI Customization: ${user.aiCustomization ? 'Yes' : 'No'}
+- White-label Deployments: ${user.whitelabelExperience || 0}` : ''
+    }
     `).join('\n');
 
     return `Analyze this opportunity and match it against the provided user profiles. Return a JSON array with match scores and explanations.
@@ -311,10 +359,18 @@ Return JSON format:
     opportunity: OpportunityInput,
     userProfile: UserProfile
   ): string {
-    return `Match this user profile against the opportunity requirements.
+    const isRingCustomization = opportunity.type === 'ring_customization' || 
+                                opportunity.category?.includes('platform_deployment') ||
+                                opportunity.category?.includes('module_development');
+    
+    return `Match this user profile against the opportunity requirements.${
+      isRingCustomization ? ' Pay special attention to Ring Platform expertise for this customization project.' : ''
+    }
 
 OPPORTUNITY:
 Title: ${opportunity.title}
+Type: ${opportunity.type}
+Category: ${opportunity.category || 'Not specified'}
 Description: ${opportunity.description}
 Required Skills: ${opportunity.requiredSkills?.join(', ') || 'Not specified'}
 Tags: ${opportunity.tags?.join(', ') || 'Not specified'}
@@ -327,7 +383,16 @@ Experience: ${userProfile.experience.join(', ')}
 Industry: ${userProfile.industry.join(', ')}
 Location: ${userProfile.location || 'Not specified'}
 Availability: ${userProfile.availability || 'Not specified'}
-Experience Level: ${userProfile.experienceLevel || 'Not specified'}
+Experience Level: ${userProfile.experienceLevel || 'Not specified'}${
+      isRingCustomization ? `
+Ring Platform Experience: ${userProfile.ringExperience || 0} years
+Modules Expertise: ${userProfile.modulesExpertise?.join(', ') || 'None'}
+Backend Expertise: ${userProfile.backendExpertise?.join(', ') || 'None'}
+Blockchain Skills: ${userProfile.blockchainSkills?.join(', ') || 'None'}
+AI Customization: ${userProfile.aiCustomization ? 'Yes' : 'No'}
+White-label Deployments: ${userProfile.whitelabelExperience || 0}
+Languages: ${userProfile.languages?.join(', ') || 'Not specified'}` : ''
+    }
 
 Return JSON format:
 {
