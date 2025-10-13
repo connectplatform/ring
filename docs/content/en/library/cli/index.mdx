@@ -1,0 +1,561 @@
+---
+title: Ring CLI
+description: Complete guide to the Ring Platform command-line interface for deployment and management
+---
+
+# Ring Platform CLI
+
+The **Ring CLI** is a powerful command-line interface that streamlines deployment, configuration, and management of Ring Platform applications. With simple commands, you can deploy to production, manage configurations, and monitor your platform's health.
+
+## 🚀 Quick Start
+
+### Installation
+
+Install the Ring CLI globally from your Ring Platform directory:
+
+```bash
+# Navigate to your Ring Platform directory
+cd ring-platform.org
+
+# Install globally using npm link
+npm link
+
+# Verify installation
+ring --version
+# Output: 1.0.1
+```
+
+### First Deployment
+
+Deploy to production with a single command:
+
+```bash
+# Deploy using version from package.json
+ring prod
+
+# Deploy specific version
+ring prod --version 0.9.22
+
+# Preview without executing
+ring prod --dry-run
+```
+
+## 📦 Installation Methods
+
+### Method 1: npm link (Recommended for Development)
+
+```bash
+cd ring-platform.org
+npm link
+```
+
+This creates a global symlink to your local Ring Platform installation, perfect for development.
+
+### Method 2: Install Script
+
+```bash
+cd ring-platform.org
+chmod +x install-cli.sh
+./install-cli.sh
+```
+
+### Method 3: npm Scripts
+
+```bash
+cd ring-platform.org
+npm run cli:install
+```
+
+### Uninstalling
+
+```bash
+# Remove global link
+npm unlink -g ring-platform
+
+# Or from any directory
+npm uninstall -g ring-platform
+```
+
+## 🎯 Core Commands
+
+### `ring prod` - Production Deployment
+
+Deploy your Ring Platform to production Kubernetes cluster with automated Docker building, pushing, and deployment.
+
+#### Basic Usage
+
+```bash
+# Deploy with auto-detected version
+ring prod
+
+# Deploy specific version
+ring prod --version 0.9.22
+
+# Skip certain steps
+ring prod --skip-build    # Use existing Docker image
+ring prod --skip-push     # Don't push to registry
+ring prod --skip-deploy   # Only build and push
+
+# Preview commands without execution
+ring prod --dry-run
+```
+
+#### What It Does
+
+1. **Reads Version** - From `package.json` or `--version` flag
+2. **Builds Docker Image** - Multi-platform build with all required arguments
+3. **Pushes to Registry** - Uploads to `ghcr.io/connectplatform/ring`
+4. **Updates Kubernetes** - Sets new image in deployment
+5. **Monitors Rollout** - Watches deployment status
+
+#### Build Arguments
+
+The CLI automatically includes these build arguments from your configuration:
+
+- `AUTH_SECRET` - Auth.js secret for JWT signing
+- `AUTH_GOOGLE_ID` - Google OAuth client ID
+- `AUTH_GOOGLE_SECRET` - Google OAuth client secret
+- `AUTH_APPLE_ID` - Apple Sign-in service ID
+- `AUTH_APPLE_SECRET` - Apple Sign-in JWT secret
+- `AUTH_FIREBASE_PROJECT_ID` - Firebase project identifier
+- `AUTH_FIREBASE_CLIENT_EMAIL` - Firebase service account email
+- `AUTH_FIREBASE_PRIVATE_KEY` - Firebase private key
+- `WALLET_ENCRYPTION_KEY` - Web3 wallet encryption
+- `POLYGON_RPC_URL` - Polygon network RPC endpoint
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - Database configuration
+- `NEXT_PUBLIC_APP_URL` - Public application URL
+- `NEXT_PUBLIC_API_URL` - Public API URL
+
+### `ring config` - Configuration Management
+
+Manage global CLI configuration stored in `~/.ring-platform/config.json`.
+
+#### Setting Configuration
+
+```bash
+# Set individual values
+ring config --set k8s.controlNode=my-k8s-server
+ring config --set database.type=postgresql
+ring config --set k8s.namespace=production
+
+# Set nested values
+ring config --set auth.googleId=your-client-id
+ring config --set web3.polygonRpcUrl=https://polygon-rpc.com
+```
+
+#### Reading Configuration
+
+```bash
+# Get specific value
+ring config --get database.type
+# Output: postgresql
+
+# List all configuration
+ring config --list
+
+# Example output:
+{
+  "k8s": {
+    "controlNode": "k8s-control-01",
+    "namespace": "ring-platform-org",
+    "deployment": "ring-platform",
+    "registry": "ghcr.io/connectplatform/ring"
+  },
+  "database": {
+    "type": "postgresql",
+    "host": "postgres.ring-platform-org.svc.cluster.local",
+    "port": 5432,
+    "name": "ring_platform",
+    "user": "ring_user"
+  },
+  "auth": {
+    "googleId": "your-google-client-id",
+    "appleId": "com.yourcompany.ring-auth"
+  },
+  "web3": {
+    "walletEncryptionKey": "********************************",
+    "polygonRpcUrl": "https://polygon-rpc.com"
+  },
+  "app": {
+    "url": "https://ring-platform.org",
+    "apiUrl": "https://ring-platform.org"
+  }
+}
+```
+
+#### Resetting Configuration
+
+```bash
+# Reset to defaults
+ring config --reset
+# ✅ Configuration reset to defaults
+```
+
+### `ring status` - Deployment Status
+
+Check the health and status of your Ring Platform deployment.
+
+```bash
+# Basic status check
+ring status
+
+# Detailed output
+ring status --verbose
+
+# Check different namespace
+ring status --namespace staging
+```
+
+#### Status Checks Performed
+
+1. **Kubernetes Pods** - Running state and restart count
+2. **Services** - Load balancer and cluster IPs
+3. **Ingress** - SSL certificates and routing rules
+4. **Application Health** - `/api/health` endpoint check
+5. **Database Connectivity** - PostgreSQL connection test
+
+#### Example Output
+
+```
+🔍 Checking Ring Platform Status...
+
+✅ Kubernetes Pods
+   ring-platform-7c5c6fc797-abc123: Running (0 restarts)
+   ring-platform-7c5c6fc797-def456: Running (0 restarts)
+
+✅ Services
+   ring-platform-service: LoadBalancer (10.10.0.41)
+
+✅ Ingress
+   ring-platform-ingress: Active (SSL: Valid)
+
+✅ Application Health
+   https://ring-platform.org/api/health: 200 OK
+
+✅ Database
+   PostgreSQL: Connected (15 active connections)
+
+🎉 All systems operational!
+```
+
+### `ring test` - Database and Service Testing
+
+Run comprehensive tests for database connections, services, and data integrity.
+
+```bash
+# Test PostgreSQL database connection
+ring test --type db-connection
+
+# Test DatabaseService initialization
+ring test --type db-service
+
+# Test user data retrieval
+ring test --type user-data
+
+# Test username query functionality
+ring test --type username
+```
+
+#### Test Types
+
+**`db-connection`** - Tests PostgreSQL connectivity and basic database health:
+- Verifies connection to PostgreSQL server
+- Checks if users table exists
+- Reports user count and database status
+
+**`db-service`** - Tests DatabaseService initialization and operations:
+- Initializes database abstraction layer
+- Tests read operations on users table
+- Validates service configuration and error handling
+
+**`user-data`** - Tests user data retrieval and structure validation:
+- Queries specific user data by ID
+- Validates JSONB data structure
+- Checks wallet, role, and profile information
+
+**`username`** - Tests username query functionality and data structure:
+- Tests username-based queries
+- Validates JSONB query syntax
+- Checks user data structure integrity
+
+#### Example Output
+
+```
+🧪 Running Ring Platform tests...
+
+Testing PostgreSQL connection...
+✅ PostgreSQL connection successful!
+Users table exists: ✅
+User count: 1
+
+✅ Test completed successfully!
+```
+
+## ⚙️ Configuration Reference
+
+### Configuration Structure
+
+The Ring CLI stores configuration in `~/.ring-platform/config.json`:
+
+```json
+{
+  "k8s": {
+    "controlNode": "k8s-control-01",       // SSH host for kubectl commands
+    "namespace": "ring-platform-org",      // Kubernetes namespace
+    "deployment": "ring-platform",         // Deployment name
+    "registry": "ghcr.io/connectplatform/ring"  // Container registry
+  },
+  "database": {
+    "type": "postgresql",                  // Database type (postgresql/firebase)
+    "host": "postgres.ring-platform-org.svc.cluster.local",
+    "port": 5432,
+    "name": "ring_platform",
+    "user": "ring_user",
+    "password": "********"                 // Stored securely
+  },
+  "auth": {
+    "secret": "********************************",
+    "googleId": "919637187324-286nus771ip11266pobu98mgsbkoclc4.apps.googleusercontent.com",
+    "googleSecret": "********************************",
+    "appleId": "com.sonoratek.ring-auth",
+    "appleSecret": "********************************",
+    "firebaseProjectId": "ring-platform-org",
+    "firebaseClientEmail": "firebase-admin@ring-platform-org.iam.gserviceaccount.com",
+    "firebasePrivateKey": "********************************"
+  },
+  "web3": {
+    "walletEncryptionKey": "********************************",
+    "polygonRpcUrl": "https://polygon-rpc.com"
+  },
+  "app": {
+    "url": "https://ring-platform.org",
+    "apiUrl": "https://ring-platform.org"
+  }
+}
+```
+
+### Environment Variables
+
+The CLI respects these environment variables:
+
+- `RING_K8S_CONTROL_NODE` - Override Kubernetes control node
+- `RING_K8S_NAMESPACE` - Override namespace
+- `RING_REGISTRY` - Override container registry
+- `RING_DATABASE_TYPE` - Override database type
+
+## 🔧 Advanced Usage
+
+### Custom Deployment Workflows
+
+#### Blue-Green Deployment
+
+```bash
+# Deploy to staging
+ring config --set k8s.namespace=staging
+ring prod --version 0.9.22
+
+# Test staging
+ring status --namespace staging
+
+# Promote to production
+ring config --set k8s.namespace=production
+ring prod --version 0.9.22
+```
+
+#### Rollback Procedure
+
+```bash
+# Deploy previous version
+ring prod --version 0.9.21
+
+# Or use kubectl directly
+ssh k8s-control-01 'kubectl rollout undo deployment/ring-platform -n ring-platform-org'
+```
+
+### CI/CD Integration
+
+#### GitHub Actions Example
+
+```yaml
+name: Deploy to Production
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install Ring CLI
+        run: npm link
+      
+      - name: Configure CLI
+        run: |
+          ring config --set k8s.controlNode=${{ secrets.K8S_HOST }}
+          ring config --set auth.secret=${{ secrets.AUTH_SECRET }}
+      
+      - name: Deploy
+        run: ring prod --version ${GITHUB_REF#refs/tags/v}
+```
+
+#### Jenkins Pipeline
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Deploy') {
+            steps {
+                sh 'npm link'
+                sh 'ring config --set k8s.controlNode=${K8S_HOST}'
+                sh 'ring prod --version ${BUILD_NUMBER}'
+            }
+        }
+        stage('Verify') {
+            steps {
+                sh 'ring status --verbose'
+            }
+        }
+    }
+}
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Command Not Found
+
+```bash
+# Error: command not found: ring
+
+# Solution 1: Install globally
+cd ring-platform.org
+npm link
+
+# Solution 2: Use npx
+npx ring prod
+```
+
+#### SSH Connection Failed
+
+```bash
+# Error: ssh: connect to host k8s-control-01 port 22: Connection refused
+
+# Solution: Configure SSH
+ssh-add ~/.ssh/your-key
+ring config --set k8s.controlNode=your-actual-host
+```
+
+#### Docker Build Failed
+
+```bash
+# Error: Cannot connect to the Docker daemon
+
+# Solution: Ensure Docker is running
+docker ps  # Test Docker
+docker login ghcr.io  # Login to registry
+```
+
+#### Permission Denied
+
+```bash
+# Error: EACCES: permission denied
+
+# Solution: Fix npm permissions
+sudo npm link
+# Or use a Node version manager like nvm
+```
+
+### Debug Mode
+
+Enable debug output for troubleshooting:
+
+```bash
+# Set debug environment variable
+DEBUG=ring:* ring prod
+
+# Verbose logging
+ring prod --verbose
+
+# Dry run to see commands
+ring prod --dry-run
+```
+
+## 🚦 Best Practices
+
+### 1. Version Management
+
+Always tag your releases:
+
+```bash
+git tag v0.9.22
+git push origin v0.9.22
+ring prod --version 0.9.22
+```
+
+### 2. Configuration Security
+
+Sensitive values in configuration are masked:
+
+```bash
+ring config --set auth.secret=my-secret-key
+ring config --list
+# Shows: "auth.secret": "********************************"
+```
+
+### 3. Deployment Verification
+
+Always verify after deployment:
+
+```bash
+ring prod --version 0.9.22
+ring status --verbose
+```
+
+### 4. Backup Configuration
+
+Backup your CLI configuration:
+
+```bash
+cp ~/.ring-platform/config.json ~/.ring-platform/config.backup.json
+```
+
+## 🔮 Future Commands
+
+Planned enhancements for Ring CLI:
+
+- `ring init` - Initialize new Ring Platform project
+- `ring dev` - Start local development environment
+- `ring migrate` - Database migration management
+- `ring backup` - Backup database and configurations
+- `ring logs` - Stream application logs
+- `ring scale` - Scale deployment replicas
+- `ring rollback` - Rollback to previous version
+- `ring env` - Environment variable management
+- `ring secrets` - Kubernetes secrets management
+
+## 📚 Related Documentation
+
+- [Deployment Guide](/en/library/deployment/docker) - Docker and Kubernetes deployment
+- [Development Setup](/en/library/development/local-setup) - Local development environment
+- [Configuration Guide](/en/library/deployment/environment) - Environment variables
+- [Kubernetes Guide](/en/library/deployment/docker#kubernetes-deployment) - Kubernetes specifics
+
+## 💬 Support
+
+- **GitHub Issues**: [github.com/connectplatform/ring/issues](https://github.com/connectplatform/ring/issues)
+- **Discord Community**: [discord.gg/ring-platform](https://discord.gg/ring-platform)
+- **Documentation**: [ring-platform.org/docs](https://ring-platform.org/docs)
+
+---
+
+*The Ring CLI is continuously evolving. Check for updates with `ring --version` and update with `git pull && npm link`.*
