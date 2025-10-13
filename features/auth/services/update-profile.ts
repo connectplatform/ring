@@ -5,32 +5,29 @@
 // - Intelligent data strategies per environment
 
 import { ProfileFormData, UserRole } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
 
 import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 import { auth } from '@/auth'; // Use the Auth.js v5 handler to get the session
 
 /**
- * Update a user's profile in Firestore, with authentication and role-based access control.
- * 
+ * Update a user's profile in PostgreSQL, with authentication and role-based access control.
+ *
  * User steps:
  * 1. The function is called with updated profile data
  * 2. It authenticates the user using the auth() function
  * 3. If authenticated, it prepares the data for update
- * 4. It updates the user's document in Firestore
+ * 4. It updates the user's document in PostgreSQL
  * 5. It returns a boolean indicating success or failure
- * 
+ *
  * @param data - The partial profile data to update.
  * @returns A promise that resolves to a boolean indicating success or failure.
- * 
+ *
  * Error Handling:
  * - Throws an error if the user is not authenticated
  * - Throws an error if a non-admin user tries to update the role field
- * - Logs Firebase errors and other errors separately
+ * - Logs database errors and other errors separately
  */
 export async function updateProfile(data: Partial<ProfileFormData>): Promise<boolean> {
   console.log('Services: updateProfile - Starting profile update process');
@@ -46,12 +43,15 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
 
     console.log(`Services: updateProfile - User authenticated with ID ${userId} and role ${userRole}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const userRef = adminDb.collection('users').doc(userId);
+    // Step 2: Database setup
+    console.log(`Services: updateProfile - Initializing database service`);
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      console.error(`Services: updateProfile - Database initialization failed:`, initResult.error);
+      throw new Error('Database initialization failed');
+    }
+
+    const dbService = getDatabaseService();
 
     // Step 3: Apply role validation (if needed)
     if (data.role && userRole !== UserRole.ADMIN) {
@@ -64,18 +64,18 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
       updatedAt: new Date(), // Add a timestamp for the update
     };
 
-    // Step 5: Update the Firestore document
-    await userRef.set(updateData, { merge: true });
-    
+    // Step 5: Update the PostgreSQL document
+    const updateResult = await dbService.update('users', userId, updateData);
+    if (!updateResult.success) {
+      console.error(`Services: updateProfile - Failed to update user:`, updateResult.error);
+      throw new Error('Failed to update profile in database');
+    }
+
     console.log('Services: updateProfile - Profile updated successfully for user:', userId);
     return true; // Indicate successful update
 
   } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: updateProfile - Firebase error:', error.code, error.message);
-    } else {
-      console.error('Services: updateProfile - Error updating profile:', error);
-    }
+    console.error('Services: updateProfile - Error updating profile:', error);
     return false; // Indicate failure
   }
 }

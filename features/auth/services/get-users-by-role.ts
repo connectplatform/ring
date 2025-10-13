@@ -5,12 +5,10 @@
 // - Intelligent data strategies per environment
 
 import { UserRole, AuthUser } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -50,47 +48,59 @@ export async function getUsersByRole(
 
     console.log(`Services: getUsersByRole - User authenticated with ID ${currentUserId} and role ${currentUserRole}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    let query = adminDb.collection('users').where('role', '==', role).orderBy('createdAt', 'desc').limit(limit);
-
-    // Apply pagination if lastUserId is provided
-    if (lastUserId) {
-      const lastUserDoc = await adminDb.collection('users').doc(lastUserId).get();
-      query = query.startAfter(lastUserDoc);
+    // Step 2: Database setup
+    console.log('Services: getUsersByRole - Initializing database service');
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      console.error('Services: getUsersByRole - Database initialization failed:', initResult.error);
+      return { users: [], lastVisible: null };
     }
 
-    // Step 3: Retrieve users
-    const snapshot = await query.get();
+    const dbService = getDatabaseService();
+
+    // Step 3: Build query for users with specific role
+    const querySpec = {
+      collection: 'users',
+      filters: [{
+        field: 'role',
+        operator: '==' as const,
+        value: role
+      }],
+      orderBy: [{ field: 'created_at', direction: 'desc' as const }],
+      pagination: {
+        limit: limit,
+        ...(lastUserId && { offset: 0 }) // For simplicity, not implementing cursor-based pagination yet
+      }
+    };
+
+    // Step 4: Execute query
+    const queryResult = await dbService.query(querySpec);
+    if (!queryResult.success) {
+      console.error('Services: getUsersByRole - Query failed:', queryResult.error);
+      return { users: [], lastVisible: null };
+    }
 
     const users: Partial<AuthUser>[] = [];
     let lastVisible: string | null = null;
 
-    snapshot.forEach((doc) => {
-      const userData = doc.data() as AuthUser;
+    for (const doc of queryResult.data) {
+      const userData = doc.data;
       users.push({
         id: doc.id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        photoURL: userData.photoURL,
-        createdAt: userData.createdAt,
+        name: userData?.name,
+        email: userData?.email,
+        role: userData?.role,
+        photoURL: userData?.photoURL || userData?.image,
+        createdAt: userData?.createdAt,
       });
       lastVisible = doc.id;
-    });
+    }
 
     console.log(`Services: getUsersByRole - Retrieved ${users.length} users with role ${role}`);
     return { users, lastVisible };
 
   } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: getUsersByRole - Firebase error:', error.code, error.message);
-    } else {
-      console.error('Services: getUsersByRole - Error retrieving users:', error);
-    }
+    console.error('Services: getUsersByRole - Error retrieving users:', error);
     return { users: [], lastVisible: null }; // Return empty array in case of error
   }
 }

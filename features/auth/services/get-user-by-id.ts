@@ -155,6 +155,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       return {
         ...userData,
         id: userId, // Ensure ID is set
+        photoURL: userData?.photoURL || userData?.image, // Map image to photoURL
         createdAt: convertTimestamp(userData?.createdAt),
         lastLogin: convertTimestamp(userData?.lastLogin),
       } as AuthUser;
@@ -166,7 +167,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
         username: userData?.username,
         email: userData?.email,
         role: userData?.role,
-        photoURL: userData?.photoURL,
+        photoURL: userData?.photoURL || userData?.image,
         phoneNumber: userData?.phoneNumber,
         organization: userData?.organization,
         position: userData?.position,

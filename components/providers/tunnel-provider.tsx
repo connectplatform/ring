@@ -16,6 +16,7 @@ import {
   TunnelHealth,
   TunnelConfig,
 } from '@/lib/tunnel/types';
+import { toast } from '@/hooks/use-toast';
 
 interface TunnelContextType {
   // Connection state
@@ -125,6 +126,16 @@ export function TunnelProvider({
     const handleError = ({ error: err }: { error: Error }) => {
       setError(err);
       setConnectionState(TunnelConnectionState.ERROR);
+
+      // Show unobtrusive blue toast for SSE reconnection
+      if (err.message.includes('SSE') || provider === TunnelProviderType.SSE) {
+        toast({
+          title: '🔄 Reconnecting every 2 sec...',
+          description: 'Attempting to restore real-time connection',
+          variant: 'default',
+          duration: 3000, // Auto-dismiss after 3 seconds
+        });
+      }
     };
     
     const handleHealth = (healthData: TunnelHealth) => {
@@ -190,6 +201,7 @@ export function TunnelProvider({
       currentSubscriptions.clear();
       currentChannelSubscriptions.clear();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, autoConnect, debug, sessionStatus]);
 
   // Connect method

@@ -164,6 +164,14 @@ export function getAdminDb(): Firestore {
     return mockDb;
   }
   
+  // POSTGRESQL MODE: Return mock service when DB_HYBRID_MODE=false
+  // This prevents Firebase initialization when using PostgreSQL-only mode
+  if (process.env.DB_HYBRID_MODE === 'false') {
+    console.log('🔧 Firebase disabled (DB_HYBRID_MODE=false) - returning mock Firestore');
+    const { mockDb } = getMockFirebaseServices();
+    return mockDb;
+  }
+  
   // Early return if already initialized (TRUE SINGLETON)
   if (adminDb) {
     return adminDb;
@@ -197,6 +205,13 @@ export function getAdminAuth(): Auth {
     return mockAuth;
   }
   
+  // POSTGRESQL MODE: Return mock service when DB_HYBRID_MODE=false
+  if (process.env.DB_HYBRID_MODE === 'false') {
+    console.log('🔧 Firebase disabled (DB_HYBRID_MODE=false) - returning mock Auth');
+    const { mockAuth } = getMockFirebaseServices();
+    return mockAuth;
+  }
+  
   // Early return if already initialized (TRUE SINGLETON)
   if (adminAuth) {
     return adminAuth;
@@ -226,6 +241,13 @@ export function getAdminRtdb(): Database {
   // BUILD-TIME OPTIMIZATION: Return mock service during Next.js build
   if (isBuildTime()) {
     logBuildOptimization('Using mock Realtime Database during build-time');
+    const { mockRtdb } = getMockFirebaseServices();
+    return mockRtdb;
+  }
+  
+  // POSTGRESQL MODE: Return mock service when DB_HYBRID_MODE=false
+  if (process.env.DB_HYBRID_MODE === 'false') {
+    console.log('🔧 Firebase disabled (DB_HYBRID_MODE=false) - returning mock Realtime Database');
     const { mockRtdb } = getMockFirebaseServices();
     return mockRtdb;
   }

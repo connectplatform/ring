@@ -7,13 +7,10 @@ import {
   CreditHistoryRequest,
   CreditHistoryResponse,
 } from '@/lib/zod/credit-schemas';
-import { 
-  getCachedDocument,
-  getUserCreditTransactions,
-  runTransaction,
-  updateDocument
-} from '@/lib/services/firebase-service-manager';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import {
+  getDatabaseService,
+  initializeDatabase
+} from '@/lib/database';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
 
@@ -37,15 +34,22 @@ export class UserCreditService {
    */
   async getUserCreditBalance(userId: string): Promise<UserCreditBalance | null> {
     try {
-      // Use cached document for better performance
-      const userDoc = await getCachedDocument('users', userId);
-      
-      if (!userDoc || !userDoc.exists) {
+      // Initialize database service
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        logger.error('Database initialization failed', { userId, error: initResult.error });
+        throw new Error('Database initialization failed');
+      }
+
+      const dbService = getDatabaseService();
+      const userResult = await dbService.read('users', userId);
+
+      if (!userResult.success || !userResult.data) {
         logger.warn('User not found', { userId });
         return null;
       }
-      
-      const userData = userDoc.data();
+
+      const userData = userResult.data.data || userResult.data;
       return userData?.credit_balance || null;
     } catch (error) {
       logger.error('Failed to get user credit balance', { userId, error });
@@ -65,10 +69,34 @@ export class UserCreditService {
         subscription_active: false,
       };
 
-      // Use optimized update document
-      await updateDocument('users', userId, {
-        credit_balance: initialBalance,
-      });
+      // Initialize database service
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        logger.error('Database initialization failed', { userId, error: initResult.error });
+        throw new Error('Database initialization failed');
+      }
+
+      const dbService = getDatabaseService();
+
+      // First read the current user data
+      const userResult = await dbService.read('users', userId);
+      if (!userResult.success || !userResult.data) {
+        throw new Error('User not found');
+      }
+
+      const userData = userResult.data.data || userResult.data;
+
+      // Merge credit balance into existing data
+      const updatedData = {
+        ...userData,
+        credit_balance: initialBalance
+      };
+
+      // Update the user document
+      const updateResult = await dbService.update('users', userId, updatedData);
+      if (!updateResult.success) {
+        throw new Error('Failed to update user document');
+      }
 
       logger.info('Credit balance initialized', { userId });
       return initialBalance;
@@ -82,45 +110,49 @@ export class UserCreditService {
    * Add credits to user balance (airdrop, reimbursement, top-up)
    */
   async addCredits(
-    userId: string, 
+    userId: string,
     request: CreditTopUpRequest,
     type: CreditTransactionType,
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
-      const result = await runTransaction(async (transaction) => {
-        // Get current user data
-        const db = getAdminDb();
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await transaction.get(userRef);
-        
-        if (!userDoc.exists) {
-          throw new Error('User not found');
-        }
+      // Initialize database service
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        throw new Error('Database initialization failed');
+      }
 
-        const userData = userDoc.data();
-        const currentBalance = userData?.credit_balance || {
-          amount: '0',
-          usd_equivalent: '0',
-          last_updated: Date.now(),
-          subscription_active: false,
-        };
+      const dbService = getDatabaseService();
 
-        // Calculate new balance
-        const currentAmount = parseFloat(currentBalance.amount);
-        const addAmount = parseFloat(request.amount);
-        const newAmount = (currentAmount + addAmount).toString();
-        const usdEquivalent = (addAmount * parseFloat(usdRate)).toString();
+      // Get current user data
+      const userResult = await dbService.read('users', userId);
+      if (!userResult.success || !userResult.data) {
+        throw new Error('User not found');
+      }
 
-        // Create transaction record
-        const transactionId = this._generateTransactionId();
-        const creditTransaction: CreditTransaction = {
-          id: transactionId,
-          user_id: userId,
-          type,
-          amount: request.amount,
-          usd_rate: usdRate,
-          usd_equivalent: usdEquivalent,
+      const userData = userResult.data.data || userResult.data;
+      const currentBalance = userData?.credit_balance || {
+        amount: '0',
+        usd_equivalent: '0',
+        last_updated: Date.now(),
+        subscription_active: false,
+      };
+
+      // Calculate new balance
+      const currentAmount = parseFloat(currentBalance.amount);
+      const addAmount = parseFloat(request.amount);
+      const newAmount = (currentAmount + addAmount).toString();
+      const usdEquivalent = (addAmount * parseFloat(usdRate)).toString();
+
+      // Create transaction record
+      const transactionId = this._generateTransactionId();
+      const creditTransaction: CreditTransaction = {
+        id: transactionId,
+        user_id: userId,
+        type,
+        amount: request.amount,
+        usd_rate: usdRate,
+        usd_equivalent: usdEquivalent,
           balance_after: newAmount,
           timestamp: Date.now(),
           description: request.description,
@@ -128,35 +160,49 @@ export class UserCreditService {
           metadata: request.metadata,
         };
 
-        // Update user credit balance
-        const updatedBalance: UserCreditBalance = {
-          ...currentBalance,
-          amount: newAmount,
-          usd_equivalent: (parseFloat(currentBalance.usd_equivalent) + parseFloat(usdEquivalent)).toString(),
-          last_updated: Date.now(),
-          last_transaction_id: transactionId,
-        };
+      // Update user credit balance
+      const updatedBalance: UserCreditBalance = {
+        ...currentBalance,
+        amount: newAmount,
+        usd_equivalent: (parseFloat(currentBalance.usd_equivalent) + parseFloat(usdEquivalent)).toString(),
+        last_updated: Date.now(),
+        last_transaction_id: transactionId,
+      };
 
-        // Save transaction
-        const transactionRef = db.collection('users').doc(userId).collection('credit_transactions').doc(transactionId);
-        transaction.set(transactionRef, creditTransaction);
+      // Update user data with new balance
+      const updatedUserData = {
+        ...userData,
+        credit_balance: updatedBalance,
+        updated_at: new Date()
+      };
 
-        // Update user balance
-        transaction.update(userRef, {
-          credit_balance: updatedBalance,
-        });
+      const updateResult = await dbService.update('users', userId, updatedUserData);
+      if (!updateResult.success) {
+        throw new Error('Failed to update user balance');
+      }
 
-        return { transaction: creditTransaction, newBalance: newAmount };
+      // For now, store credit transactions in the user data as an array
+      // TODO: Create a separate credit_transactions table in the future
+      const existingTransactions = userData?.credit_transactions || [];
+      const updatedTransactions = [...existingTransactions, creditTransaction];
+
+      const transactionUpdateResult = await dbService.update('users', userId, {
+        ...updatedUserData,
+        credit_transactions: updatedTransactions
       });
 
-      logger.info('Credits added successfully', { 
-        userId, 
-        amount: request.amount, 
+      if (!transactionUpdateResult.success) {
+        logger.warn('Failed to save credit transaction record, but balance was updated', { userId, transactionId });
+      }
+
+      logger.info('Credits added successfully', {
+        userId,
+        amount: request.amount,
         type,
-        transactionId: result.transaction.id 
+        transactionId: creditTransaction.id
       });
 
-      return { success: true, ...result };
+      return { success: true, transaction: creditTransaction, newBalance: newAmount };
     } catch (error) {
       logger.error('Failed to add credits', { userId, request, error });
       throw new Error(`Failed to add credits: ${error}`);
@@ -173,25 +219,29 @@ export class UserCreditService {
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
-      const result = await runTransaction(async (transaction) => {
-        // Get current user data
-        const db = getAdminDb();
-        const userRef = db.collection('users').doc(userId);
-        const userDoc = await transaction.get(userRef);
-        
-        if (!userDoc.exists) {
-          throw new Error('User not found');
-        }
+      // Initialize database service
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        throw new Error('Database initialization failed');
+      }
 
-        const userData = userDoc.data();
-        const currentBalance = userData?.credit_balance;
-        
-        if (!currentBalance) {
-          throw new Error('No credit balance found');
-        }
+      const dbService = getDatabaseService();
 
-        // Check sufficient balance
-        const currentAmount = parseFloat(currentBalance.amount);
+      // Get current user data
+      const userResult = await dbService.read('users', userId);
+      if (!userResult.success || !userResult.data) {
+        throw new Error('User not found');
+      }
+
+      const userData = userResult.data.data || userResult.data;
+      const currentBalance = userData?.credit_balance;
+
+      if (!currentBalance) {
+        throw new Error('No credit balance found');
+      }
+
+      // Check sufficient balance
+      const currentAmount = parseFloat(currentBalance.amount);
         const spendAmount = parseFloat(request.amount);
         
         if (currentAmount < spendAmount) {
@@ -219,35 +269,49 @@ export class UserCreditService {
           metadata: request.metadata,
         };
 
-        // Update user credit balance
-        const updatedBalance: UserCreditBalance = {
-          ...currentBalance,
-          amount: newAmount,
-          usd_equivalent: (parseFloat(currentBalance.usd_equivalent) - parseFloat(usdEquivalent)).toString(),
-          last_updated: Date.now(),
-          last_transaction_id: transactionId,
-        };
+      // Update user credit balance
+      const updatedBalance: UserCreditBalance = {
+        ...currentBalance,
+        amount: newAmount,
+        usd_equivalent: (parseFloat(currentBalance.usd_equivalent) - parseFloat(usdEquivalent)).toString(),
+        last_updated: Date.now(),
+        last_transaction_id: transactionId,
+      };
 
-        // Save transaction
-        const transactionRef = db.collection('users').doc(userId).collection('credit_transactions').doc(transactionId);
-        transaction.set(transactionRef, creditTransaction);
+      // Update user data with new balance
+      const updatedUserData = {
+        ...userData,
+        credit_balance: updatedBalance,
+        updated_at: new Date()
+      };
 
-        // Update user balance
-        transaction.update(userRef, {
-          credit_balance: updatedBalance,
-        });
+      const updateResult = await dbService.update('users', userId, updatedUserData);
+      if (!updateResult.success) {
+        throw new Error('Failed to update user balance');
+      }
 
-        return { transaction: creditTransaction, newBalance: newAmount };
+      // For now, store credit transactions in the user data as an array
+      // TODO: Create a separate credit_transactions table in the future
+      const existingTransactions = userData?.credit_transactions || [];
+      const updatedTransactions = [...existingTransactions, creditTransaction];
+
+      const transactionUpdateResult = await dbService.update('users', userId, {
+        ...updatedUserData,
+        credit_transactions: updatedTransactions
       });
 
-      logger.info('Credits spent successfully', { 
-        userId, 
-        amount: request.amount, 
+      if (!transactionUpdateResult.success) {
+        logger.warn('Failed to save credit transaction record, but balance was updated', { userId, transactionId });
+      }
+
+      logger.info('Credits spent successfully', {
+        userId,
+        amount: request.amount,
         type,
-        transactionId: result.transaction.id 
+        transactionId: creditTransaction.id
       });
 
-      return { success: true, ...result };
+      return { success: true, transaction: creditTransaction, newBalance: newAmount };
     } catch (error) {
       logger.error('Failed to spend credits', { userId, request, error });
       throw new Error(`Failed to spend credits: ${error}`);
@@ -258,39 +322,63 @@ export class UserCreditService {
    * Get user credit transaction history
    */
   async getCreditHistory(
-    userId: string, 
+    userId: string,
     request: CreditHistoryRequest
   ): Promise<CreditHistoryResponse> {
     try {
-      // Use optimized cached transaction query
-      let afterDoc = null;
-      if (request.after_id) {
-        const db = getAdminDb();
-        afterDoc = await db.collection('users').doc(userId).collection('credit_transactions').doc(request.after_id).get();
+      // Initialize database service
+      const initResult = await initializeDatabase();
+      if (!initResult.success) {
+        throw new Error('Database initialization failed');
       }
-      
-      const snapshot = await getUserCreditTransactions(userId, {
-        limit: request.limit,
-        type: request.type,
-        startDate: request.start_date,
-        endDate: request.end_date,
-        startAfter: afterDoc
-      });
 
-      const transactions: CreditTransaction[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data() as CreditTransaction;
-        transactions.push(data);
-      });
+      const dbService = getDatabaseService();
+
+      // Get user data
+      const userResult = await dbService.read('users', userId);
+      if (!userResult.success || !userResult.data) {
+        throw new Error('User not found');
+      }
+
+      const userData = userResult.data.data || userResult.data;
+      const allTransactions: CreditTransaction[] = userData?.credit_transactions || [];
+
+      // Filter transactions based on request criteria
+      let filteredTransactions = allTransactions;
+
+      // Filter by type
+      if (request.type) {
+        filteredTransactions = filteredTransactions.filter(t => t.type === request.type);
+      }
+
+      // Filter by date range
+      if (request.start_date || request.end_date) {
+        filteredTransactions = filteredTransactions.filter(t => {
+          const txDate = new Date(t.timestamp);
+          if (request.start_date && txDate < new Date(request.start_date)) return false;
+          if (request.end_date && txDate > new Date(request.end_date)) return false;
+          return true;
+        });
+      }
+
+      // Sort by timestamp descending (most recent first)
+      filteredTransactions.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Apply pagination
+      const startIndex = request.after_id
+        ? filteredTransactions.findIndex(t => t.id === request.after_id) + 1
+        : 0;
+
+      const endIndex = startIndex + (request.limit || 20);
+      const transactions = filteredTransactions.slice(startIndex, endIndex);
 
       // Calculate summary
       const summary = this._calculateSummary(transactions);
-      
+
       // Check for more results
-      const hasMore = snapshot.docs.length === request.limit;
-      const nextCursor = hasMore && transactions.length > 0 
-        ? transactions[transactions.length - 1].id 
+      const hasMore = endIndex < filteredTransactions.length;
+      const nextCursor = hasMore && transactions.length > 0
+        ? transactions[transactions.length - 1].id
         : undefined;
 
       logger.info('Credit history retrieved', { 
