@@ -1,6 +1,5 @@
 import { auth } from '@/auth';
-import { getCachedNewsById } from '@/lib/services/firebase-service-manager';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 /**
  * Gets the like status for a news article for the current authenticated user.
@@ -21,37 +20,50 @@ export async function getNewsLikeStatus(newsId: string): Promise<{ likeCount: nu
 
     // Step 1: Get session (optional for like status - can be viewed without auth)
     const session = await auth();
-    console.log('Services: getNewsLikeStatus - Session checked', { 
-      hasSession: !!session, 
-      userId: session?.user?.id 
+    console.log('Services: getNewsLikeStatus - Session checked', {
+      hasSession: !!session,
+      userId: session?.user?.id
     });
 
-    // Step 2: Validate news article exists and get like count
-    const newsDoc = await getCachedNewsById(newsId);
+    // Step 2: Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      console.error('Services: getNewsLikeStatus - Database initialization failed:', initResult.error);
+      throw new Error('Database initialization failed');
+    }
 
-    if (!newsDoc || !newsDoc.exists) {
+    const dbService = getDatabaseService();
+
+    // Step 3: Get news article from database
+    const newsResult = await dbService.read('news', newsId);
+
+    if (!newsResult.success || !newsResult.data) {
       console.error('Services: getNewsLikeStatus - News article not found', { newsId });
       throw new Error('News article not found');
     }
 
-    const newsData = newsDoc.data();
+    const newsData = newsResult.data.data || newsResult.data;
     const likeCount = newsData?.likes || 0;
 
-    // Step 3: Check if current user liked this article (if authenticated)
+    // Step 4: Check if current user liked this article (if authenticated)
     let isLiked = false;
     if (session?.user?.id) {
-      const db = getFirestore();
-      const userLike = await db.collection('news_likes')
-        .where('newsId', '==', newsId)
-        .where('userId', '==', session.user.id)
-        .get();
-      
-      isLiked = !userLike.empty;
+      // Query news_likes table for user's like
+      const likeQueryResult = await dbService.query({
+        collection: 'news_likes',
+        filters: [
+          { field: 'news_id', operator: '==' as const, value: newsId },
+          { field: 'user_id', operator: '==' as const, value: session.user.id }
+        ],
+        pagination: { limit: 1 }
+      });
+
+      isLiked = likeQueryResult.success && likeQueryResult.data.length > 0;
     }
 
-    console.log('Services: getNewsLikeStatus - Like status retrieved', { 
-      newsId, 
-      likeCount, 
+    console.log('Services: getNewsLikeStatus - Like status retrieved', {
+      newsId,
+      likeCount,
       isLiked,
       hasUser: !!session?.user?.id
     });

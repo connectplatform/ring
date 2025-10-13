@@ -3,7 +3,7 @@
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
 import { auth } from '@/auth'
-import { getFirestore, FieldValue } from 'firebase-admin/firestore'
+import { getDatabaseService, initializeDatabase } from '@/lib/database'
 import { CommentFormData, CommentFilters } from '@/features/comments/types'
 
 interface CreateCommentResult {
@@ -27,7 +27,7 @@ interface GetCommentsResult {
 export async function createComment(formData: CommentFormData): Promise<CreateCommentResult> {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
@@ -51,11 +51,20 @@ export async function createComment(formData: CommentFormData): Promise<CreateCo
       }
     }
 
-    const db = getFirestore()
-    
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return {
+        success: false,
+        error: 'Database initialization failed'
+      };
+    }
+
+    const dbService = getDatabaseService();
+
     // Check if target exists based on targetType
     let targetCollection = ''
-    
+
     switch (formData.targetType) {
       case 'news':
         targetCollection = 'news'
@@ -76,74 +85,95 @@ export async function createComment(formData: CommentFormData): Promise<CreateCo
         }
     }
 
-    const targetDoc = await db.collection(targetCollection).doc(formData.targetId).get()
-    if (!targetDoc.exists) {
+    const targetResult = await dbService.read(targetCollection, formData.targetId);
+    if (!targetResult.success || !targetResult.data) {
       return {
         success: false,
         error: 'Target not found'
-      }
+      };
     }
 
     // Determine comment level
     let level = 0
     if (formData.parentId) {
-      const parentComment = await db.collection('comments').doc(formData.parentId).get()
-      if (!parentComment.exists) {
+      const parentResult = await dbService.read('comments', formData.parentId);
+      if (!parentResult.success || !parentResult.data) {
         return {
           success: false,
           error: 'Parent comment not found'
-        }
+        };
       }
-      level = (parentComment.data()?.level || 0) + 1
-      
+      const parentData = parentResult.data.data || parentResult.data;
+      level = (parentData?.level || 0) + 1;
+
       // Limit nesting depth
       if (level > 3) {
         return {
           success: false,
           error: 'Comment nesting too deep (max 3 levels)'
-        }
+        };
       }
     }
 
     const newComment = {
       content: formData.content.trim(),
-      authorId: session.user.id,
-      authorName: session.user.name || 'Anonymous',
-      authorAvatar: session.user.image || null,
-      targetId: formData.targetId,
-      targetType: formData.targetType,
-      parentId: formData.parentId || null,
+      author_id: session.user.id,
+      author_name: session.user.name || 'Anonymous',
+      author_avatar: session.user.image || null,
+      target_id: formData.targetId,
+      target_type: formData.targetType,
+      parent_id: formData.parentId || null,
       level: level,
       likes: 0,
       replies: 0,
       status: 'active',
-      isEdited: false,
-      isPinned: false,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      is_edited: false,
+      is_pinned: false,
+      created_at: new Date(),
+      updated_at: new Date(),
     }
 
-    const docRef = await db.collection('comments').add(newComment)
-    
+    // Generate comment ID
+    const commentId = crypto.randomUUID();
+
+    // Create the comment with explicit ID
+    const createResult = await dbService.create('comments', newComment, { id: commentId });
+    if (!createResult.success) {
+      return {
+        success: false,
+        error: 'Failed to create comment'
+      };
+    }
+
     // Update parent comment reply count
     if (formData.parentId) {
-      await db.collection('comments').doc(formData.parentId).update({
-        replies: FieldValue.increment(1)
-      })
+      const parentResult = await dbService.read('comments', formData.parentId);
+      if (parentResult.success && parentResult.data) {
+        const parentData = parentResult.data.data || parentResult.data;
+        const updatedParentData = {
+          ...parentData,
+          replies: (parentData?.replies || 0) + 1,
+          updated_at: new Date()
+        };
+        await dbService.update('comments', formData.parentId, updatedParentData);
+      }
     }
-    
-    // Update target's comment count
-    await db.collection(targetCollection).doc(formData.targetId).update({
-      comments: FieldValue.increment(1),
-      updatedAt: FieldValue.serverTimestamp()
-    })
 
-    const createdComment = await docRef.get()
+    // Update target's comment count
+    const targetData = targetResult.data.data || targetResult.data;
+    const updatedTargetData = {
+      ...targetData,
+      comments: (targetData?.comments || 0) + 1,
+      updated_at: new Date()
+    };
+    await dbService.update(targetCollection, formData.targetId, updatedTargetData);
+
     const commentData = {
-      id: docRef.id,
-      ...createdComment.data(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      id: commentId,
+      ...newComment,
+      createdAt: newComment.created_at,
+      updatedAt: newComment.updated_at,
+      editedAt: null,
     }
 
     return {
@@ -163,7 +193,7 @@ export async function createComment(formData: CommentFormData): Promise<CreateCo
 export async function deleteComment(commentId: string): Promise<CreateCommentResult> {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
@@ -171,21 +201,30 @@ export async function deleteComment(commentId: string): Promise<CreateCommentRes
       }
     }
 
-    const db = getFirestore()
-    const commentRef = db.collection('comments').doc(commentId)
-    const comment = await commentRef.get()
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return {
+        success: false,
+        error: 'Database initialization failed'
+      };
+    }
 
-    if (!comment.exists) {
+    const dbService = getDatabaseService();
+
+    // Get comment data
+    const commentResult = await dbService.read('comments', commentId);
+    if (!commentResult.success || !commentResult.data) {
       return {
         success: false,
         error: 'Comment not found'
-      }
+      };
     }
 
-    const commentData = comment.data()
-    
+    const commentData = commentResult.data.data || commentResult.data;
+
     // Check if user owns the comment or is admin
-    if (commentData?.authorId !== session.user.id) {
+    if (commentData?.author_id !== session.user.id) {
       // TODO: Add admin role check
       return {
         success: false,
@@ -194,20 +233,29 @@ export async function deleteComment(commentId: string): Promise<CreateCommentRes
     }
 
     // Soft delete the comment
-    await commentRef.update({
+    const updatedCommentData = {
+      ...commentData,
       status: 'deleted',
       content: '[deleted]',
-      updatedAt: FieldValue.serverTimestamp()
-    })
+      updated_at: new Date()
+    };
+
+    await dbService.update('comments', commentId, updatedCommentData);
 
     // Update target's comment count
-    if (commentData?.targetType && commentData?.targetId) {
-      const targetCollection = getTargetCollection(commentData.targetType)
+    if (commentData?.target_type && commentData?.target_id) {
+      const targetCollection = getTargetCollection(commentData.target_type)
       if (targetCollection) {
-        await db.collection(targetCollection).doc(commentData.targetId).update({
-          comments: FieldValue.increment(-1),
-          updatedAt: FieldValue.serverTimestamp()
-        })
+        const targetResult = await dbService.read(targetCollection, commentData.target_id);
+        if (targetResult.success && targetResult.data) {
+          const targetData = targetResult.data.data || targetResult.data;
+          const updatedTargetData = {
+            ...targetData,
+            comments: (targetData?.comments || 0) - 1,
+            updated_at: new Date()
+          };
+          await dbService.update(targetCollection, commentData.target_id, updatedTargetData);
+        }
       }
     }
 
@@ -227,7 +275,7 @@ export async function deleteComment(commentId: string): Promise<CreateCommentRes
 export async function updateComment(commentId: string, content: string): Promise<CreateCommentResult> {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
@@ -242,21 +290,30 @@ export async function updateComment(commentId: string, content: string): Promise
       }
     }
 
-    const db = getFirestore()
-    const commentRef = db.collection('comments').doc(commentId)
-    const comment = await commentRef.get()
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      return {
+        success: false,
+        error: 'Database initialization failed'
+      };
+    }
 
-    if (!comment.exists) {
+    const dbService = getDatabaseService();
+
+    // Get comment data
+    const commentResult = await dbService.read('comments', commentId);
+    if (!commentResult.success || !commentResult.data) {
       return {
         success: false,
         error: 'Comment not found'
-      }
+      };
     }
 
-    const commentData = comment.data()
-    
+    const commentData = commentResult.data.data || commentResult.data;
+
     // Check if user owns the comment
-    if (commentData?.authorId !== session.user.id) {
+    if (commentData?.author_id !== session.user.id) {
       return {
         success: false,
         error: 'Not authorized to edit this comment'
@@ -264,19 +321,21 @@ export async function updateComment(commentId: string, content: string): Promise
     }
 
     // Update the comment
-    await commentRef.update({
+    const updatedCommentData = {
+      ...commentData,
       content: content.trim(),
-      isEdited: true,
-      editedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    })
+      is_edited: true,
+      edited_at: new Date(),
+      updated_at: new Date()
+    };
 
-    const updatedComment = await commentRef.get()
+    await dbService.update('comments', commentId, updatedCommentData);
+
     const updatedData = {
       id: commentId,
-      ...updatedComment.data(),
-      updatedAt: new Date(),
-      editedAt: new Date()
+      ...updatedCommentData,
+      updatedAt: updatedCommentData.updated_at,
+      editedAt: updatedCommentData.edited_at
     }
 
     return {

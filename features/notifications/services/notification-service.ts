@@ -10,18 +10,10 @@
  * Follows Ring's established service patterns with Firebase Admin SDK
  */
 
-import { FieldValue } from 'firebase-admin/firestore';
-
-import { 
-  getCachedDocument, 
-  getCachedCollectionAdvanced, 
-  createDocument, 
-  updateDocument,
-  deleteDocument,
-  runTransaction,
-  createBatchWriter,
-  executeBatch
-} from '@/lib/services/firebase-service-manager';
+import {
+  getDatabaseService,
+  initializeDatabase
+} from '@/lib/database';
 
 import {
   Notification,
@@ -58,6 +50,14 @@ export async function createNotification(
   console.log('NotificationService: Creating notification', { type: request.type });
 
   try {
+    // Initialize database service
+    const initResult = await initializeDatabase();
+    if (!initResult.success) {
+      throw new Error('Database initialization failed');
+    }
+
+    const dbService = getDatabaseService();
+
     // Handle single user or multiple users
     const userIds = request.userIds || (request.userId ? [request.userId] : []);
     if (userIds.length === 0) {
@@ -70,7 +70,7 @@ export async function createNotification(
     for (const userId of userIds) {
       // Get user preferences
       const preferences = await getUserNotificationPreferences(userId);
-      
+
       // Check if user wants this type of notification
       if (!shouldSendNotification(request.type, preferences)) {
         console.log(`NotificationService: Skipping notification for user ${userId} - disabled in preferences`);
@@ -79,17 +79,17 @@ export async function createNotification(
 
       // Determine channels based on user preferences and request
       const channels = determineChannels(request.channels, preferences);
-      
+
       const notificationData = {
-        userId,
+        user_id: userId,
         type: request.type,
         priority: request.priority || NotificationPriority.NORMAL,
         status: NotificationStatus.PENDING,
-        trigger: NotificationTrigger.USER_ACTION,
+        trigger_type: NotificationTrigger.USER_ACTION,
         title: request.title,
         body: request.body,
-        actionText: request.actionText,
-        actionUrl: request.actionUrl,
+        action_text: request.actionText,
+        action_url: request.actionUrl,
         data: request.data || {},
         channels,
         deliveries: channels.map(channel => ({
@@ -97,19 +97,24 @@ export async function createNotification(
           status: NotificationStatus.PENDING,
           retryCount: 0
         })),
-        createdAt: FieldValue.serverTimestamp(),
-        scheduledFor: request.scheduledFor ? new Date(request.scheduledFor) : null,
-        expiresAt: request.expiresAt ? new Date(request.expiresAt) : null,
-        templateId: request.templateId,
+        scheduled_for: request.scheduledFor ? new Date(request.scheduledFor) : null,
+        expires_at: request.expiresAt ? new Date(request.expiresAt) : null,
+        template_id: request.templateId,
         locale: preferences?.language || 'en'
       };
 
-      // Add to Firestore using optimized createDocument function
-      const docRef = await createDocument('notifications', notificationData);
+      // Create notification in PostgreSQL
+      const createResult = await dbService.create('notifications', notificationData);
+      if (!createResult.success) {
+        console.error('NotificationService: Failed to create notification:', createResult.error);
+        throw new Error('Failed to create notification in database');
+      }
 
       const notification: Notification = {
         ...notificationData,
-        id: docRef.id,
+        id: createResult.data.id,
+        userId,
+        trigger: NotificationTrigger.USER_ACTION,
         createdAt: new Date(),
         scheduledFor: request.scheduledFor,
         expiresAt: request.expiresAt
@@ -125,7 +130,7 @@ export async function createNotification(
 
     console.log(`NotificationService: Created ${notifications.length} notifications`);
     return notifications[0]; // Return first notification for single user case
-  
+
   } catch (error) {
     console.error('NotificationService: Error creating notification:', error);
     throw new Error(`Failed to create notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -151,56 +156,58 @@ export async function getUserNotifications(
   console.log('NotificationService: Getting user notifications', { userId, options });
 
   try {
-    // Build optimized query configuration
-    const queryConfig: any = {
-      where: [{ field: 'userId', operator: '==', value: userId }],
-      orderBy: [{ field: 'createdAt', direction: 'desc' }]
-    };
+    // Build database query
+    const filters: Array<{ field: string; operator: string; value: any }> = [{ field: 'user_id', operator: '==', value: userId }];
+    const orderBy = [{ field: 'created_at', direction: 'desc' as const }];
+    const pagination: any = {};
 
     // Apply filters
     if (options.unreadOnly) {
-      queryConfig.where.push({ field: 'readAt', operator: '==', value: null });
+      filters.push({ field: 'read_at', operator: '==' as const, value: null });
     }
-    
+
     if (options.types && options.types.length > 0) {
-      queryConfig.where.push({ field: 'type', operator: 'in', value: options.types });
+      filters.push({ field: 'type', operator: 'in', value: options.types });
     }
 
     // Apply pagination
     if (options.limit) {
-      queryConfig.limit = options.limit;
-    }
-    
-    if (options.startAfter) {
-      const startAfterDoc = await getCachedDocument('notifications', options.startAfter);
-      if (startAfterDoc && startAfterDoc.exists) {
-        queryConfig.startAfter = startAfterDoc;
-      }
+      pagination.limit = options.limit;
     }
 
-    // Execute optimized query with built-in timeout handling
-    const snapshot = await getCachedCollectionAdvanced('notifications', queryConfig);
-    
-    const notifications = snapshot.docs.map(doc => {
-      const data = doc.data();
+    // Execute database query
+    const dbService = getDatabaseService();
+    const queryResult = await dbService.query({
+      collection: 'notifications',
+      filters,
+      orderBy,
+      pagination
+    });
+
+    if (!queryResult.success) {
+      throw new Error('Failed to query notifications');
+    }
+
+    const notifications = queryResult.data.map(doc => {
+      const data = doc.data;
       return {
         ...data,
         id: doc.id,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        readAt: data.readAt?.toDate() || null,
-        deliveredAt: data.deliveredAt?.toDate() || null
+        createdAt: data?.created_at || new Date(),
+        readAt: data?.read_at || null,
+        deliveredAt: data?.delivered_at || null
       } as unknown as Notification;
     });
 
     // Get the last document for pagination
-    const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    const lastDoc = queryResult.data[queryResult.data.length - 1];
     const nextCursor = lastDoc ? lastDoc.id : null;
 
     return {
       notifications,
       unreadCount: 0, // Will be calculated separately if needed
       totalCount: notifications.length,
-      hasMore: snapshot.docs.length === (options.limit || 20),
+      hasMore: queryResult.data.length === (options.limit || 20),
       lastVisible: lastDoc ? lastDoc.id : undefined
     };
 
@@ -245,21 +252,32 @@ export async function markNotificationAsRead(
   console.log('NotificationService: Marking notification as read', { notificationId, userId });
 
   try {
-    const docSnap = await getCachedDocument('notifications', notificationId);
+    const dbService = getDatabaseService();
 
-    if (!docSnap || !docSnap.exists) {
+    // First read the notification to verify ownership
+    const readResult = await dbService.read('notifications', notificationId);
+
+    if (!readResult.success || !readResult.data) {
       throw new Error('Notification not found');
     }
 
-    const notification = docSnap.data() as Notification;
-    if (notification.userId !== userId) {
+    const notification = readResult.data.data || readResult.data;
+    if (notification.user_id !== userId) {
       throw new Error('Unauthorized access to notification');
     }
 
-    await updateDocument('notifications', notificationId, {
-      readAt: FieldValue.serverTimestamp(),
-      status: NotificationStatus.READ
-    });
+    // Update the notification
+    const updateData = {
+      ...notification,
+      read_at: new Date(),
+      status: NotificationStatus.READ,
+      updated_at: new Date()
+    };
+
+    const updateResult = await dbService.update('notifications', notificationId, updateData);
+    if (!updateResult.success) {
+      throw new Error('Failed to update notification');
+    }
 
   } catch (error) {
     console.error('NotificationService: Error marking notification as read:', error);
@@ -277,33 +295,38 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
   console.log('NotificationService: Marking all notifications as read', { userId });
 
   try {
-    // Use optimized collection query to get unread notifications
-    const queryConfig = {
-      where: [
-        { field: 'userId', operator: '==' as const, value: userId },
-        { field: 'readAt', operator: '==' as const, value: null }
-      ]
-    };
-    
-    const snapshot = await getCachedCollectionAdvanced('notifications', queryConfig);
+    const dbService = getDatabaseService();
 
-    if (snapshot.docs.length === 0) {
+    // Use raw SQL query to update all unread notifications for this user
+    // Since the database abstraction layer might not support bulk updates,
+    // we'll use the query method to find notifications and then update them individually
+    const queryResult = await dbService.query({
+      collection: 'notifications',
+      filters: [
+        { field: 'user_id', operator: '==' as const, value: userId },
+        { field: 'read_at', operator: '==' as const, value: null }
+      ],
+      pagination: { limit: 1000 } // Reasonable limit for bulk operations
+    });
+
+    if (!queryResult.success || queryResult.data.length === 0) {
       return 0;
     }
 
-    // Use optimized batch operations
-    const batch = createBatchWriter();
-    snapshot.docs.forEach(doc => {
-      batch.update(doc.ref, {
-        readAt: FieldValue.serverTimestamp(),
-        status: NotificationStatus.READ
-      });
-    });
+    // Update each notification individually
+    const updatePromises = queryResult.data.map(notification =>
+      dbService.update('notifications', notification.id, {
+        ...notification.data,
+        read_at: new Date(),
+        status: NotificationStatus.READ,
+        updated_at: new Date()
+      })
+    );
 
-    await executeBatch(batch);
-    
-    console.log(`NotificationService: Marked ${snapshot.docs.length} notifications as read`);
-    return snapshot.docs.length;
+    await Promise.all(updatePromises);
+
+    console.log(`NotificationService: Marked ${queryResult.data.length} notifications as read`);
+    return queryResult.data.length;
 
   } catch (error) {
     console.error('NotificationService: Error marking all notifications as read:', error);
@@ -325,20 +348,25 @@ export async function deleteNotification(
   console.log('NotificationService: Deleting notification', { notificationId, userId });
 
   try {
-    // Use optimized getCachedDocument to retrieve notification
-    const docSnap = await getCachedDocument('notifications', notificationId);
+    const dbService = getDatabaseService();
 
-    if (!docSnap || !docSnap.exists) {
+    // First read the notification to verify ownership
+    const readResult = await dbService.read('notifications', notificationId);
+
+    if (!readResult.success || !readResult.data) {
       throw new Error('Notification not found');
     }
 
-    const notification = docSnap.data() as Notification;
-    if (notification.userId !== userId) {
+    const notification = readResult.data.data || readResult.data;
+    if (notification.user_id !== userId) {
       throw new Error('Unauthorized access to notification');
     }
 
-    // Use optimized deleteDocument function
-    await deleteDocument('notifications', notificationId);
+    // Delete the notification
+    const deleteResult = await dbService.delete('notifications', notificationId);
+    if (!deleteResult.success) {
+      throw new Error('Failed to delete notification');
+    }
 
   } catch (error) {
     console.error('NotificationService: Error deleting notification:', error);
@@ -358,16 +386,22 @@ export async function getNotificationStats(
   console.log('NotificationService: Getting notification stats', { userId });
 
   try {
-    // Use optimized collection query with built-in timeout handling
-    const queryConfig = {
-      where: [{ field: 'userId', operator: '==' as const, value: userId }]
-    };
-    
-    const snapshot = await getCachedCollectionAdvanced('notifications', queryConfig);
-    
-    const notifications = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date()
+    const dbService = getDatabaseService();
+
+    // Query all notifications for this user
+    const queryResult = await dbService.query({
+      collection: 'notifications',
+      filters: [{ field: 'user_id', operator: '==' as const, value: userId }],
+      pagination: { limit: 1000 } // Reasonable limit for stats
+    });
+
+    if (!queryResult.success) {
+      throw new Error('Failed to query notifications');
+    }
+
+    const notifications = queryResult.data.map(notification => ({
+      ...notification.data,
+      createdAt: notification.data?.created_at || new Date()
     })) as Notification[];
 
     const now = new Date();
@@ -446,17 +480,18 @@ export async function getUserNotificationPreferences(
   userId: string
 ): Promise<DetailedNotificationPreferences | null> {
   try {
-    // Use optimized getCachedDocument
-    const docSnap = await getCachedDocument('notificationPreferences', userId);
+    // Use database abstraction layer
+    const dbService = getDatabaseService();
+    const result = await dbService.read('notification_preferences', userId);
 
-    if (!docSnap || !docSnap.exists) {
+    if (!result.success || !result.data) {
       return null;
     }
 
-    const data = docSnap.data();
+    const data = result.data.data || result.data;
     return {
       ...data,
-      updatedAt: data?.updatedAt?.toDate() || new Date()
+      updatedAt: data?.updated_at || new Date()
     } as DetailedNotificationPreferences;
 
   } catch (error) {
@@ -477,11 +512,23 @@ export async function updateUserNotificationPreferences(
   preferences: Partial<DetailedNotificationPreferences>
 ): Promise<void> {
   try {
-    // Use optimized updateDocument for updating preferences
-    await updateDocument('notificationPreferences', userId, {
+    const dbService = getDatabaseService();
+
+    // Read current preferences
+    const readResult = await dbService.read('notification_preferences', userId);
+    const currentPrefs = readResult.success && readResult.data ? (readResult.data.data || readResult.data) : {};
+
+    // Update preferences
+    const updatedPrefs = {
+      ...currentPrefs,
       ...preferences,
-      updatedAt: FieldValue.serverTimestamp()
-    });
+      updated_at: new Date()
+    };
+
+    const updateResult = await dbService.update('notification_preferences', userId, updatedPrefs);
+    if (!updateResult.success) {
+      throw new Error('Failed to update notification preferences');
+    }
 
   } catch (error) {
     console.error('NotificationService: Error updating user preferences:', error);
@@ -596,12 +643,16 @@ async function processNotificationDelivery(notification: Notification): Promise<
       notification.status = NotificationStatus.PENDING;
     }
 
-    // Update in Firestore using optimized updateDocument
-    await updateDocument('notifications', notification.id, {
-      status: notification.status,
-      deliveries: notification.deliveries,
-      updatedAt: FieldValue.serverTimestamp()
+    // Update in database using abstraction layer
+    const dbService = getDatabaseService();
+    const updateResult = await dbService.update('notifications', notification.id, {
+      ...notification,
+      updated_at: new Date()
     });
+
+    if (!updateResult.success) {
+      throw new Error('Failed to update notification delivery status');
+    }
 
     console.log('NotificationService: Updated notification delivery status', { id: notification.id, status: notification.status });
 
