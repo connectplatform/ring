@@ -32,7 +32,7 @@ const DEFAULT_LOCALE = 'en' as const
  * Props for the MobileMenu component
  */
 interface MobileMenuProps {
-  navigationLinks: Array<{ href: string; label: string }>
+  navigationLinks: Array<{ href: string; label: string; icon: React.ReactNode; description?: string }>
   theme: string
   toggleTheme: () => void
   locale: string
@@ -104,60 +104,60 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   
   const userRole = getUserRole(user)
   
-  // Define role-based navigation links with modern gradients
-  const getNavigationLinks = useCallback((): NavigationLink[] => {
-    const baseLinks: NavigationLink[] = [
-      {
-        href: ROUTES.HOME(locale as 'en' | 'uk'),
-        label: t('home'),
-        icon: Home,
-        gradient: 'from-blue-500 to-purple-600'
-      },
-      {
-        href: ROUTES.ENTITIES(locale as 'en' | 'uk'),
-        label: t('entities'),
-        icon: Building2,
-        gradient: 'from-green-500 to-teal-600'
-      },
-      {
-        href: ROUTES.OPPORTUNITIES(locale as 'en' | 'uk'),
-        label: t('opportunities'),
-        icon: Briefcase,
-        gradient: 'from-orange-500 to-red-600'
-      },
-      {
-        href: ROUTES.STORE(locale as 'en' | 'uk'),
-        label: t('store'),
-        icon: Store,
-        gradient: 'from-pink-500 to-rose-600'
+  // Use navigation links passed from parent component
+  const allNavigationLinks = React.useMemo((): NavigationLink[] => {
+    // Main navigation items (from desktop nav)  
+    const mainLinks: NavigationLink[] = navigationLinks.map(link => {
+      // Extract icon component from React element
+      let iconComponent: React.ComponentType<{ className?: string }>
+      
+      if (typeof link.icon === 'function') {
+        iconComponent = link.icon as React.ComponentType<{ className?: string }>
+      } else if (React.isValidElement(link.icon) && typeof link.icon.type === 'function') {
+        iconComponent = link.icon.type as React.ComponentType<{ className?: string }>
+      } else {
+        // Fallback to Home icon
+        iconComponent = Home
       }
-    ]
+      
+      return {
+        href: link.href,
+        label: link.label,
+        icon: iconComponent,
+        gradient: 'from-blue-500 to-green-600'
+      }
+    })
 
-    const memberLinks: NavigationLink[] = [
+    // Additional user links for authenticated users
+    const userLinks: NavigationLink[] = user ? [
       {
         href: ROUTES.PROFILE(locale as 'en' | 'uk'),
         label: t('profile'),
         icon: User,
-        requiredRole: UserRole.MEMBER,
         gradient: 'from-indigo-500 to-blue-600'
-      },
-      {
-        href: ROUTES.WALLET(locale as 'en' | 'uk'),
-        label: t('wallet'),
-        icon: Wallet,
-        requiredRole: UserRole.MEMBER,
-        gradient: 'from-yellow-500 to-orange-600'
       },
       {
         href: ROUTES.SETTINGS(locale as 'en' | 'uk'),
         label: t('settings'),
         icon: Settings,
-        requiredRole: UserRole.MEMBER,
         gradient: 'from-gray-500 to-slate-600'
+      },
+      {
+        href: `/${locale}/store/settings`,
+        label: 'Store Settings',
+        icon: Store,
+        gradient: 'from-pink-500 to-rose-600'
+      },
+      {
+        href: ROUTES.MEMBERSHIP(locale as 'en' | 'uk'),
+        label: 'Membership',
+        icon: Heart,
+        gradient: 'from-red-500 to-pink-600'
       }
-    ]
+    ] : []
 
-    const confidentialLinks: NavigationLink[] = [
+    // Confidential links for high-tier users
+    const confidentialLinks: NavigationLink[] = (userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN) ? [
       {
         href: ROUTES.CONFIDENTIAL_ENTITIES(locale as 'en' | 'uk'),
         label: 'Confidential Entities',
@@ -174,32 +174,10 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         badge: 'VIP',
         gradient: 'from-amber-500 to-yellow-600'
       }
-    ]
+    ] : []
 
-    const supportLinks: NavigationLink[] = [
-      {
-        href: ROUTES.ABOUT(locale as 'en' | 'uk'),
-        label: t('about'),
-        icon: Info,
-        gradient: 'from-cyan-500 to-blue-600'
-      },
-      {
-        href: ROUTES.CONTACT(locale as 'en' | 'uk'),
-        label: t('contact'),
-        icon: Phone,
-        gradient: 'from-emerald-500 to-green-600'
-      },
-      {
-        href: ROUTES.TERMS(locale as 'en' | 'uk'),
-        label: t('terms'),
-        icon: FileText,
-        gradient: 'from-slate-500 to-gray-600'
-      }
-    ]
-
-    return [...baseLinks, ...memberLinks, ...confidentialLinks, ...supportLinks]
-      .filter(link => canAccessLink(link, userRole))
-  }, [locale, t, userRole])
+    return [...mainLinks, ...userLinks, ...confidentialLinks]
+  }, [navigationLinks, locale, t, user, userRole])
 
   // Handle authentication
   const handleAuthAction = useCallback(async (provider: 'google' | 'apple' | 'crypto-wallet') => {
@@ -317,35 +295,39 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         {/* Navigation links */}
         <motion.nav variants={itemVariants} className="flex-1 overflow-y-auto">
           <div className="space-y-2">
-            {getNavigationLinks().map((link, index) => (
-              <motion.div
-                key={link.href}
-                variants={itemVariants}
-                custom={index}
-              >
-                <Link href={link.href} onClick={onClose}>
-                  <div className={`group relative p-3 rounded-xl transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r ${link.gradient} hover:shadow-lg cursor-pointer`}>
-                    <div className="absolute inset-0 bg-white/90 dark:bg-black/90 rounded-xl group-hover:bg-white/80 dark:group-hover:bg-black/80 transition-colors" />
-                    <div className="relative flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg bg-gradient-to-br ${link.gradient} text-white`}>
-                          <link.icon className="w-4 h-4" />
+            {allNavigationLinks.map((link, index) => {
+              const IconComponent = link.icon
+              
+              return (
+                <motion.div
+                  key={link.href}
+                  variants={itemVariants}
+                  custom={index}
+                >
+                  <Link href={link.href} onClick={onClose}>
+                    <div className={`group relative p-3 rounded-xl transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r ${link.gradient || 'from-blue-500 to-green-600'} hover:shadow-lg cursor-pointer`}>
+                      <div className="absolute inset-0 bg-white/90 dark:bg-black/90 rounded-xl group-hover:bg-white/80 dark:group-hover:bg-black/80 transition-colors" />
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg bg-gradient-to-br ${link.gradient || 'from-blue-500 to-green-600'} text-white`}>
+                            <IconComponent className="w-4 h-4" />
+                          </div>
+                          <span className="font-medium text-sm">{link.label}</span>
                         </div>
-                        <span className="font-medium text-sm">{link.label}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {link.badge && (
-                          <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full">
-                            {link.badge}
-                          </span>
-                        )}
-                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        <div className="flex items-center space-x-2">
+                          {link.badge && (
+                            <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full">
+                              {link.badge}
+                            </span>
+                          )}
+                          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                  </Link>
+                </motion.div>
+              )
+            })}
           </div>
         </motion.nav>
 

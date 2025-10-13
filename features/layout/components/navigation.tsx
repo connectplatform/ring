@@ -6,22 +6,22 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useTranslations, useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
-import { 
-  Moon, 
-  Sun, 
-  Menu, 
-  User, 
-  LogIn, 
-  Heart, 
-  Store, 
-  Users, 
+import {
+  Moon,
+  Sun,
+  User,
+  LogIn,
+  Heart,
+  Store,
+  Users,
   Briefcase,
   Wallet,
   Settings,
   ShoppingBag,
   Copy,
   Check,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import UnifiedLoginComponent from '@/features/auth/components/unified-login-component'
@@ -30,7 +30,6 @@ import { NotificationCenter } from '@/features/notifications/components/notifica
 import { signIn, signOut, useSession } from "next-auth/react"
 
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -48,33 +47,29 @@ const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-
   ssr: false,
 })
 
-const MobileMenu = dynamic(() => import('./mobile-menu'), {
+const BottomNavigation = dynamic(() => import('./bottom-navigation'), {
   ssr: false,
 })
 
-// Use runtime locale from next-intl
+const DesktopSidebar = dynamic(() => import('./desktop-sidebar'), {
+  ssr: false,
+})
 
 /**
- * Navigation component for the application
+ * Unified Navigation component with two-row layout
+ * Row 1: Logo + Brand | Wallet Balance + Login/User Menu + Notifications + Search
+ * Row 2: Navigation Menu Items (Entities, Opportunities, Store, Wallet, Docs)
  * 
- * This component handles the main navigation bar, including:
- * - Logo and brand name
- * - Navigation links
- * - Theme toggle
- * - Language toggle
- * - Notification center
- * - User authentication status and actions
- * - Mobile menu for responsive design
- *
- * User steps:
- * 1. View the navigation bar with logo and links
- * 2. Toggle between light and dark themes
- * 3. Switch between English and Ukrainian languages
- * 4. View and manage notifications
- * 5. Sign in or out of the application
- * 6. Access user profile or additional options when signed in
- * 7. Use the mobile menu on smaller screens
- *
+ * Features:
+ * - Two-row navigation layout for desktop
+ * - Responsive mobile menu
+ * - Theme toggle with proper theme sync
+ * - Language switcher
+ * - Token balance display for authenticated users
+ * - User menu with profile and settings access
+ * - Shopping cart and favorites
+ * - Real-time notification center
+ * 
  * @returns {React.ReactElement} The rendered Navigation component
  */
 export default function Navigation() {
@@ -106,27 +101,6 @@ export default function Navigation() {
   // Fix hydration mismatch by only rendering auth UI after mount
   useEffect(() => {
     setMounted(true)
-    
-    // React 19 Resource Preloading - Navigation Performance Optimization
-  
-    // Preinit navigation-related scripts
-    // preinit('/scripts/navigation-analytics.js', { as: 'script' })
-    // preinit('/scripts/theme-persistence.js', { as: 'script' })
-    
-    // Preload authentication-related resources
-    //if (!session) {
-      // preload('/api/auth/providers', { as: 'fetch' })
-      // preload('/images/auth-background.webp', { as: 'image' })
-    //}
-    
-    // Preload user-specific resources if authenticated
-    //  if (session?.user) {
-      // preload(`/api/users/${session.user.id}`, { as: 'fetch' })
-      // preload('/api/notifications', { as: 'fetch' })
-      // if (session.user.image) {
-        // preload(session.user.image, { as: 'image' })
-      // }
-    //}
   }, [session])
 
   // Enhanced navigation items with icons and improved organization
@@ -154,6 +128,12 @@ export default function Navigation() {
       label: 'Wallet',
       icon: <Wallet className="h-4 w-4" />,
       description: 'Manage your RING tokens'
+    },
+    {
+      href: ROUTES.DOCS(locale),
+      label: 'Docs',
+      icon: <FileText className="h-4 w-4" />,
+      description: 'Documentation'
     }
   ]
 
@@ -235,8 +215,6 @@ export default function Navigation() {
       setError(tCommon('status.error'))
     }
   }, [tCommon, router, locale])
-
-  // Language switching is now handled by LanguageSwitcher component
 
   const toggleTheme = useCallback(() => {
     setTheme(currentTheme === 'dark' ? 'light' : 'dark')
@@ -346,172 +324,12 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className={`sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'}`}>
-        {/* Main Navigation Row */}
-        <div className="flex justify-between items-center px-4 py-3">
-          <Link href={ROUTES.HOME(locale)} className="flex items-center gap-3" aria-label={tCommon('labels.homeLink')}>
-            <div className="w-10 h-10">
-              <AnimatedLogo />
-            </div>
-            <span className="font-bold text-xl">
-              <span
-                className="bg-gradient-to-r from-blue-500 via-green-400 to-green-500 bg-clip-text text-transparent dark:from-blue-400 dark:via-green-300 dark:to-green-400"
-                style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-              >
-                Ring
-              </span>
-            </span>
-          </Link>
+      {/* Desktop Sidebar Navigation */}
+      {mounted && <DesktopSidebar />}
 
-          {/* Enhanced Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            {mounted ? navigationItems.map(({ href, label, icon, description }) => (
-              <Button 
-                key={href} 
-                variant="ghost" 
-                size="sm"
-                asChild
-                className="flex items-center gap-2 px-3 py-2 h-9 hover:bg-muted/80 transition-all duration-200 group"
-              >
-                <Link href={href} title={description}>
-                  <span className="group-hover:scale-110 transition-transform duration-200">
-                    {icon}
-                  </span>
-                  <span className="font-medium">{label}</span>
-                </Link>
-              </Button>
-            )) : (
-              // Enhanced loading placeholders
-              <>
-                <div className="w-20 h-9 animate-pulse bg-muted/50 rounded-md"></div>
-                <div className="w-24 h-9 animate-pulse bg-muted/50 rounded-md"></div>
-                <div className="w-16 h-9 animate-pulse bg-muted/50 rounded-md"></div>
-                <div className="w-18 h-9 animate-pulse bg-muted/50 rounded-md"></div>
-              </>
-            )}
-            
-            {/* Right Side Actions */}
-            <div className="flex items-center gap-2 ml-4">
-              {/* Theme Toggle */}
-              {mounted ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={toggleTheme} 
-                  aria-label={tCommon('labels.toggleTheme')}
-                  className="h-8 w-8 p-0"
-                >
-                  {currentTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </Button>
-              ) : (
-                <div className="w-8 h-8 animate-pulse bg-muted/50 rounded"></div>
-              )}
-              
-              {/* Language Switcher */}
-              {mounted ? (
-                <LanguageSwitcher />
-              ) : (
-                <div className="w-12 h-8 animate-pulse bg-muted/50 rounded"></div>
-              )}
-              
-              {/* Favorites & MiniCart */}
-              <FavoritesMenu locale={locale} />
-              <MiniCart locale={locale} />
-              
-              {/* Notification Center - Only show when user is authenticated */}
-              {mounted && session && (
-                <NotificationCenter />
-              )}
-              
-              {/* Wallet Balance Section - Only for authenticated users */}
-              <WalletBalanceSection />
-              
-              {/* User Menu or Sign In */}
-              {!mounted ? (
-                <div className="w-24 h-9 animate-pulse bg-muted/50 rounded"></div>
-              ) : status === 'loading' ? (
-                <div className="animate-pulse text-sm">Loading...</div>
-              ) : session ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="flex items-center gap-2 px-3 py-2 h-9"
-                      aria-label={tCommon('labels.userMenu')}
-                    >
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center">
-                        <User className="h-3.5 w-3.5 text-white" />
-                      </div>
-                      <span className="hidden lg:block text-sm font-medium">
-                        {session.user?.name?.split(' ')[0] || 'User'}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    {userMenuItems.map((item) => (
-                      <DropdownMenuItem 
-                        key={item.href}
-                        onSelect={() => router.push(item.href)}
-                        className="flex items-center gap-3 px-3 py-2"
-                      >
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onSelect={handleSignOut}
-                      className="flex items-center gap-3 px-3 py-2 text-red-600 dark:text-red-400"
-                    >
-                      <LogIn className="h-4 w-4 rotate-180" />
-                      <span>{tCommon('actions.signOut')}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  onClick={handleOpenLoginSelector}
-                  className="flex items-center gap-2 px-4 py-2 h-9 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white font-medium"
-                >
-                  <LogIn className="h-4 w-4" />
-                  <span>{tCommon('actions.signIn')}</span>
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          {mounted && (
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden"
-                  aria-label={tCommon('labels.toggleMenu')}
-                >
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right">
-                <MobileMenu
-                  navigationLinks={navigationItems}
-                  theme={currentTheme || 'light'}
-                  toggleTheme={toggleTheme}
-                  locale={locale}
-                  user={session?.user ? session.user : null}
-                  loading={status === 'loading'}
-                  handleGoogleSignIn={handleOpenLoginSelector}
-                  handleSignOut={handleSignOut}
-                  onClose={() => setIsOpen(false)}
-                />
-              </SheetContent>
-            </Sheet>
-          )}
-        </div>
-      </nav>
+      {/* Mobile Bottom Navigation */}
+      {mounted && <BottomNavigation />}
+
       {/* Unified login selector (Google, Apple, Crypto) */}
       <UnifiedLoginComponent open={isLoginDialogOpen} onClose={handleCloseLoginDialog} />
 
@@ -523,4 +341,3 @@ export default function Navigation() {
     </>
   )
 }
-

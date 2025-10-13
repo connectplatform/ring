@@ -24,5 +24,37 @@
   "toggleTheme": "Змінити тему",
   "language": "Мова",
   "help": "Допомога",
-  "support": "Підтримка"
+  "support": "Підтримка",
+  "docs": "Документи",
+  "docs_sidebar": {
+    "sidebar": {
+      "gettingStarted": "Початок роботи",
+      "installation": "Встановлення",
+      "prerequisites": "Передумови",
+      "firstSuccess": "Перший успіх",
+      "nextSteps": "Наступні кроки",
+      "features": "Функції",
+      "authentication": "Аутентифікація",
+      "entities": "Сутності",
+      "opportunities": "Можливості",
+      "store": "Магазин",
+      "wallet": "Гаманець",
+      "messaging": "Обмін повідомленнями",
+      "notifications": "Сповіщення",
+      "apiReference": "API Довідник",
+      "admin": "Адмін",
+      "architecture": "Архітектура",
+      "dataModel": "Модель даних",
+      "security": "Безпека",
+      "realTime": "В режимі реального часу",
+      "deployment": "Розгортання",
+      "docker": "Docker",
+      "vercel": "Vercel",
+      "environment": "Середовище",
+      "examples": "Приклади",
+      "quickStart": "Швидкий старт",
+      "basicSetup": "Базове налаштування",
+      "apiIntegration": "API Інтеграція"
+    }
+  }
 }

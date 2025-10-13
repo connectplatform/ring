@@ -24,5 +24,37 @@
   "toggleTheme": "Toggle Theme",
   "language": "Language",
   "help": "Help",
-  "support": "Support"
+  "support": "Support",
+  "docs": "Docs",
+  "docs_sidebar": {
+    "sidebar": {
+      "gettingStarted": "Getting Started",
+      "installation": "Installation",
+      "prerequisites": "Prerequisites",
+      "firstSuccess": "First Success",
+      "nextSteps": "Next Steps",
+      "features": "Features",
+      "authentication": "Authentication",
+      "entities": "Entities",
+      "opportunities": "Opportunities",
+      "store": "Store",
+      "wallet": "Wallet",
+      "notifications": "Notifications",
+      "messaging": "Messaging",
+      "apiReference": "API Reference",
+      "admin": "Admin",
+      "architecture": "Architecture",
+      "dataModel": "Data Model",
+      "security": "Security",
+      "realTime": "Real-time",
+      "deployment": "Deployment",
+      "docker": "Docker",
+      "vercel": "Vercel",
+      "environment": "Environment",
+      "examples": "Examples",
+      "quickStart": "Quick Start",
+      "basicSetup": "Basic Setup",
+      "apiIntegration": "API Integration"
+    }
+  }
 }
