@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n-config'
+import { useTheme } from 'next-themes'
 import { ProfileContentProps } from '@/types/profile'
+import { LanguageSwitcher } from '@/components/common/language-switcher'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,14 +22,16 @@ import { useFormStatus } from 'react-dom'
 import { useActionState } from 'react'
 import { UserRole, KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import { useAuth } from '@/hooks/use-auth'
-import { useSession } from 'next-auth/react'
-import { 
-  User, 
-  Mail, 
-  Wallet, 
-  Shield, 
-  Calendar, 
-  Edit2, 
+import { useSession, signOut } from 'next-auth/react'
+import { ROUTES } from '@/constants/routes'
+import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import {
+  User,
+  Mail,
+  Wallet,
+  Shield,
+  Calendar,
+  Edit2,
   Save,
   AlertCircle,
   Camera,
@@ -46,7 +51,8 @@ import {
   Briefcase,
   Star,
   Award,
-  Target
+  Target,
+  LogOut
 } from 'lucide-react'
 
 function SubmitButton() {
@@ -78,11 +84,13 @@ export default function ProfileContent({
   session,
   updateProfile 
 }: ProfileContentProps) {
+  const locale = useLocale() as Locale
   const t = useTranslations('modules.profile')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const { getKycStatus, refreshSession } = useAuth()
   const { update: updateSession } = useSession()
+  const { setTheme, theme, systemTheme } = useTheme()
   const [isEditing, setIsEditing] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -91,7 +99,29 @@ export default function ProfileContent({
   const user = initialUser || session?.user
   const kycStatus = getKycStatus()
 
+  // Map KYC status to level for display
+  const getKycLevel = (status: string | null): KYCLevel => {
+    switch (status) {
+      case KYCStatus.APPROVED:
+        return KYCLevel.ENHANCED
+      case KYCStatus.UNDER_REVIEW:
+        return KYCLevel.STANDARD
+      case KYCStatus.PENDING:
+        return KYCLevel.BASIC
+      default:
+        return KYCLevel.NONE
+    }
+  }
+
+  const kycLevel = getKycLevel(kycStatus)
+
   const [usernameMode, setUsernameMode] = useState<'view' | 'edit' | 'checking'>('view')
+
+  // Theme toggle function
+  const toggleTheme = () => {
+    const currentTheme = theme === 'system' ? systemTheme : theme
+    setTheme(currentTheme === 'dark' ? 'light' : 'dark')
+  }
   const [usernameValue, setUsernameValue] = useState(user?.username || '')
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const [usernameError, setUsernameError] = useState<string | null>(null)
@@ -244,6 +274,7 @@ export default function ProfileContent({
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
+      case UserRole.SUPERADMIN: return 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
       case UserRole.ADMIN: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
       case UserRole.CONFIDENTIAL: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
       case UserRole.MEMBER: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
@@ -276,6 +307,8 @@ export default function ProfileContent({
     return (levels.indexOf(level) + 1) * 25
   }
 
+  // Note: getLevelProgress is currently not used in the component but kept for future use
+
   const formatDate = (date: Date | string | null) => {
     if (!date) return 'N/A'
     const d = typeof date === 'string' ? new Date(date) : date
@@ -287,16 +320,25 @@ export default function ProfileContent({
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* Profile Header */}
-      <Card className="mb-6">
+    <div className="min-h-screen bg-background text-foreground overflow-hidden relative transition-colors duration-300">
+      {/* Responsive Layout - Desktop: sidebar + content, Mobile: content only */}
+      <div className="flex flex-col md:flex-row gap-6 min-h-screen">
+        {/* Left Sidebar - Navigation - Hidden on mobile */}
+        <div className="hidden md:block w-[280px] flex-shrink-0">
+          <DesktopSidebar />
+        </div>
+
+        {/* Main Content - Profile Page */}
+        <div className="flex-1 py-8 px-4 md:px-0">
+          {/* Profile Header */}
+          <Card className="mb-6">
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             {/* Avatar Section */}
             <div className="flex flex-col items-center space-y-3">
-              <Avatar 
-                src={user.photoURL} 
-                alt={user.name || 'User'} 
+              <Avatar
+                src={user.photoURL || session?.user?.image}
+                alt={user.name || 'User'}
                 size="2xl"
                 fallback={user.name?.charAt(0) || 'U'}
                 editable={!isEditing}
@@ -340,10 +382,10 @@ export default function ProfileContent({
                 )}
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons - Now includes Sign Out */}
               <div className="flex gap-2">
                 {!isEditing ? (
-                  <Button 
+                  <Button
                     onClick={() => setIsEditing(true)}
                     size="sm"
                   >
@@ -351,7 +393,7 @@ export default function ProfileContent({
                     {t('editProfile')}
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => setIsEditing(false)}
                     size="sm"
@@ -359,13 +401,36 @@ export default function ProfileContent({
                     Cancel
                   </Button>
                 )}
-                <Button 
+                <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push('/settings')}
+                  onClick={() => router.push(ROUTES.SETTINGS(locale))}
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => signOut()}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {t('signOut') || 'Sign Out'}
+                </Button>
+              </div>
+
+              {/* Language and Theme Selection Row - Only visible on mobile */}
+              <div className="md:hidden flex items-center gap-3 mt-3 pt-3 border-t border-border">
+                <span className="text-sm text-muted-foreground">Language:</span>
+                <LanguageSwitcher />
+                <span className="text-sm text-muted-foreground ml-2">Theme:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="h-8"
+                >
+                  {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
                 </Button>
               </div>
             </div>
@@ -676,25 +741,26 @@ export default function ProfileContent({
 
           {/* Verification Tab */}
           <TabsContent value="verification" className="space-y-6">
-            <KYCVerificationSection 
-              user={user}
-              kycStatus={kycStatus}
-              onDocumentUpload={handleKYCDocumentUpload}
-              onStatusRefresh={() => {
-                refreshSession()
-                router.refresh()
-              }}
-            />
+            <div className="text-center py-8">
+              <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">KYC Verification coming soon</p>
+            </div>
           </TabsContent>
 
           {/* Wallet Tab */}
           <TabsContent value="wallet" className="space-y-6">
-            <WalletSection user={user} />
+            <div className="text-center py-8">
+              <Wallet className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Wallet management coming soon</p>
+            </div>
           </TabsContent>
 
           {/* Activity Tab */}
           <TabsContent value="activity" className="space-y-6">
-            <ActivitySection user={user} />
+            <div className="text-center py-8">
+              <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Activity tracking coming soon</p>
+            </div>
           </TabsContent>
         </Tabs>
       ) : (
@@ -707,363 +773,180 @@ export default function ProfileContent({
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-// Supporting Components
+      </div>
 
-function KYCVerificationSection({ 
-  user, 
-  kycStatus, 
-  onDocumentUpload, 
-  onStatusRefresh 
-}: {
-  user: any
-  kycStatus: string | null
-  onDocumentUpload: (document: { type: KYCDocumentType; file: File }) => Promise<void>
-  onStatusRefresh: () => void
-}) {
-  const t = useTranslations('modules.profile.kyc')
-  const [uploading, setUploading] = useState<KYCDocumentType | null>(null)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+      {/* Mobile Layout - Single column, hidden on iPad and desktop */}
+      <div className="block md:hidden px-4 py-8">
+          {mounted ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsTrigger value="overview">{t('overview')}</TabsTrigger>
+                <TabsTrigger value="verification">{t('verification')}</TabsTrigger>
+                <TabsTrigger value="wallet">{t('wallet')}</TabsTrigger>
+                <TabsTrigger value="activity">{t('activity')}</TabsTrigger>
+              </TabsList>
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
-      not_started: { color: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Not Started' },
-      pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock, label: 'Pending' },
-      under_review: { color: 'bg-blue-100 text-blue-800', icon: Eye, label: 'Under Review' },
-      approved: { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Approved' },
-      rejected: { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Rejected' },
-      expired: { color: 'bg-orange-100 text-orange-800', icon: AlertCircle, label: 'Expired' }
-    }
-
-    const config = statusConfig[status] || statusConfig.not_started
-    return (
-      <Badge className={config.color}>
-        <config.icon className="w-3 h-3 mr-1" />
-        {config.label}
-      </Badge>
-    )
-  }
-
-  const handleFileUpload = async (type: KYCDocumentType, file: File) => {
-    setUploadError(null)
-    setUploading(type)
-
-    try {
-      await onDocumentUpload({ type, file })
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Upload failed')
-    } finally {
-      setUploading(null)
-    }
-  }
-
-  const requiredDocuments = [
-    { type: KYCDocumentType.PASSPORT, label: 'Passport', required: true },
-    { type: KYCDocumentType.ID_CARD, label: 'National ID Card', required: false },
-    { type: KYCDocumentType.UTILITY_BILL, label: 'Utility Bill', required: true },
-    { type: KYCDocumentType.BANK_STATEMENT, label: 'Bank Statement', required: false }
-  ]
-
-  const kycVerification = user.kycVerification
-  const currentLevel = kycVerification?.level || KYCLevel.NONE
-  const documents = kycVerification?.documents || []
-
-  return (
-    <div className="space-y-6">
-      {/* KYC Status Overview */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-6 w-6 text-primary" />
-                KYC Verification
-              </CardTitle>
-              <CardDescription>
-                Verify your identity to access enhanced features
-              </CardDescription>
-            </div>
-            {getStatusBadge(kycStatus || 'not_started')}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Verification Level Progress */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Verification Level</span>
-              <span className="font-medium">{currentLevel.toUpperCase()}</span>
-            </div>
-            <Progress 
-              value={((Object.values(KYCLevel).indexOf(currentLevel) + 1) / Object.values(KYCLevel).length) * 100} 
-              className="h-2" 
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>None</span>
-              <span>Basic</span>
-              <span>Standard</span>
-              <span>Enhanced</span>
-            </div>
-          </div>
-
-          {/* Status Information */}
-          {kycVerification && (
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
-              <div>
-                <p className="text-sm text-muted-foreground">Submitted</p>
-                <p className="font-medium">
-                  {kycVerification.submittedAt 
-                    ? new Date(kycVerification.submittedAt).toLocaleDateString()
-                    : 'Not submitted'
-                  }
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Verified</p>
-                <p className="font-medium">
-                  {kycVerification.verifiedAt 
-                    ? new Date(kycVerification.verifiedAt).toLocaleDateString()
-                    : 'Pending'
-                  }
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Document Upload */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Required Documents
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {uploadError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{uploadError}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-3">
-            {requiredDocuments.map(({ type, label, required }) => {
-              const existingDoc = documents.find((d: any) => d.type === type)
-              const isUploading = uploading === type
-
-              return (
-                <div key={type} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <FileText className="w-5 h-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{label}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {required ? 'Required' : 'Optional'}
-                      </p>
+            <TabsContent value="overview" className="space-y-6">
+              {/* Profile Header */}
+              <Card className="mb-6">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col items-center text-center gap-4">
+                    {/* Avatar Section */}
+                    <div className="flex flex-col items-center space-y-3">
+                      <Avatar
+                        src={user.photoURL || session?.user?.image}
+                        alt={user.name || 'User'}
+                        size="xl"
+                        fallback={user.name?.charAt(0) || 'U'}
+                        editable={!isEditing}
+                        onUpload={handleAvatarUpload}
+                        uploading={avatarUploading}
+                        className="border-4 border-border"
+                      />
+                      {uploadError && (
+                        <Alert variant="destructive" className="text-xs">
+                          <AlertDescription className="text-xs">{uploadError}</AlertDescription>
+                        </Alert>
+                      )}
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    {existingDoc ? (
-                      <>
-                        {getStatusBadge(existingDoc.status)}
+                    {/* Profile Info */}
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <h1 className="text-2xl font-bold">{user.name || 'Anonymous User'}</h1>
+                          <Badge className={getRoleBadgeColor(user.role as UserRole)}>
+                            {user.role}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground">{user.email}</p>
+                        {(user as any)?.bio && (
+                          <p className="text-sm mt-2">{(user as any).bio}</p>
+                        )}
+                      </div>
+
+                      {/* Quick Stats */}
+                      <div className="flex flex-col gap-2 text-sm">
+                        <div className="flex items-center justify-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span>{t('joined')} {formatDate('createdAt' in user ? (user as any).createdAt : null)}</span>
+                        </div>
+                        {user.isVerified && (
+                          <div className="flex items-center justify-center gap-2 text-green-600">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Verified Account</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-col gap-2">
+                        {!isEditing ? (
+                          <Button
+                            onClick={() => setIsEditing(true)}
+                            size="sm"
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            {t('editProfile')}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsEditing(false)}
+                            size="sm"
+                          >
+                            Cancel
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(existingDoc.fileUrl, '_blank')}
+                          onClick={() => router.push(ROUTES.SETTINGS(locale))}
                         >
-                          <Download className="w-4 h-4" />
+                          <Settings className="mr-2 h-4 w-4" />
+                          Settings
                         </Button>
-                      </>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="file"
-                          id={`upload-${type}`}
-                          className="hidden"
-                          accept="image/*,application/pdf,.doc,.docx"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              handleFileUpload(type, file)
-                            }
-                          }}
-                          disabled={isUploading}
-                        />
                         <Button
-                          variant="outline"
+                          variant="destructive"
                           size="sm"
-                          onClick={() => document.getElementById(`upload-${type}`)?.click()}
-                          disabled={isUploading}
+                          onClick={() => signOut()}
                         >
-                          {isUploading ? (
-                            <>
-                              <div className="w-4 h-4 mr-2 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-4 h-4 mr-2" />
-                              Upload
-                            </>
-                          )}
+                          <LogOut className="mr-2 h-4 w-4" />
+                          {t('signOut') || 'Sign Out'}
                         </Button>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="p-3 bg-muted/30 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              <strong>Requirements:</strong> Max 10MB per file. 
-              Accepted formats: JPG, PNG, PDF, DOC, DOCX.
-              Documents should be clear, unedited, and show all required information.
-            </p>
-          </div>
-
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={onStatusRefresh}>
-              <Shield className="w-4 h-4 mr-2" />
-              Refresh Status
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function WalletSection({ user }: { user: any }) {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="h-6 w-6 text-primary" />
-            Wallet Information
-          </CardTitle>
-          <CardDescription>
-            View and manage your crypto wallets
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {user.wallets && user.wallets.length > 0 ? (
-            <div className="space-y-4">
-              {user.wallets.map((wallet: any, index: number) => (
-                <div key={index} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={wallet.isDefault ? "default" : "secondary"}>
-                        {wallet.isDefault ? 'Default' : 'Additional'}
-                      </Badge>
-                      {wallet.label && <span className="text-sm text-muted-foreground">{wallet.label}</span>}
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{wallet.balance || '0'} ETH</p>
-                      <p className="text-sm text-muted-foreground">Balance</p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Address</p>
-                    <p className="font-mono text-sm break-all">{wallet.address}</p>
-                  </div>
-                  {wallet.createdAt && (
-                    <div className="mt-2">
-                      <p className="text-xs text-muted-foreground">
-                        Added {new Date(wallet.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                </CardHeader>
+              </Card>
+
+              {/* Overview Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">100%</div>
+                    <p className="text-xs text-muted-foreground">Profile Completion</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{user.role === 'member' ? 'Premium' : 'Basic'}</div>
+                    <p className="text-xs text-muted-foreground">Membership</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{kycLevel}</div>
+                    <p className="text-xs text-muted-foreground">KYC Level</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">3</div>
+                    <p className="text-xs text-muted-foreground">Active Sessions</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Verification Tab */}
+            <TabsContent value="verification" className="space-y-6">
+              <div className="text-center py-8">
+                <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">KYC Verification coming soon</p>
+              </div>
+            </TabsContent>
+
+            {/* Wallet Tab */}
+            <TabsContent value="wallet" className="space-y-6">
+              <div className="text-center py-8">
+                <Wallet className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Wallet management coming soon</p>
+              </div>
+            </TabsContent>
+
+            {/* Activity Tab */}
+            <TabsContent value="activity" className="space-y-6">
+              <div className="text-center py-8">
+                <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Activity tracking coming soon</p>
+              </div>
+            </TabsContent>
+            </Tabs>
           ) : (
-            <div className="text-center py-8">
-              <Wallet className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No wallets connected</p>
-              <Button>
-                Connect Wallet
-              </Button>
+            <div className="space-y-6">
+              {/* Loading fallback that matches server render structure */}
+              <div className="h-10 bg-muted animate-pulse rounded-md"></div>
+              <div className="space-y-4">
+                <div className="h-32 bg-muted animate-pulse rounded-md"></div>
+                <div className="h-32 bg-muted animate-pulse rounded-md"></div>
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+        </div>
+      </div>
 
-function ActivitySection({ user }: { user: any }) {
-  return (
-    <div className="space-y-6">
-      {/* Opportunities Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-6 w-6 text-primary" />
-            Opportunities
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <p className="text-2xl font-bold">{user.postedopportunities?.length || 0}</p>
-              <p className="text-sm text-muted-foreground">Posted</p>
-            </div>
-            <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <p className="text-2xl font-bold">{user.savedopportunities?.length || 0}</p>
-              <p className="text-sm text-muted-foreground">Saved</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-6 w-6 text-primary" />
-            Preferences
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Email Notifications</p>
-                <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-              </div>
-              <Badge variant={user.notificationPreferences?.email ? "default" : "secondary"}>
-                {user.notificationPreferences?.email ? "Enabled" : "Disabled"}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">In-App Notifications</p>
-                <p className="text-sm text-muted-foreground">Show notifications in the app</p>
-              </div>
-              <Badge variant={user.notificationPreferences?.inApp ? "default" : "secondary"}>
-                {user.notificationPreferences?.inApp ? "Enabled" : "Disabled"}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">SMS Notifications</p>
-                <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
-              </div>
-              <Badge variant={user.notificationPreferences?.sms ? "default" : "secondary"}>
-                {user.notificationPreferences?.sms ? "Enabled" : "Disabled"}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

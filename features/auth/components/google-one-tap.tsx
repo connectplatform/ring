@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useGoogleOneTapLogin } from '@react-oauth/google'
 import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { signIn } from 'next-auth/react'
+import { ROUTES } from '@/constants/routes'
 
 interface GoogleOneTapProps {
   disabled?: boolean
@@ -20,6 +22,7 @@ interface GoogleOneTapProps {
  * - No redirects or pre-landing screens
  * - Works alongside traditional Google sign-in button
  * - React 19 and Next.js 15 compatible
+ * - Automatically disabled when auth modal is open
  */
 export function GoogleOneTap({
   disabled = false,
@@ -27,19 +30,45 @@ export function GoogleOneTap({
 }: GoogleOneTapProps) {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const locale = useLocale() as 'en' | 'uk' | 'ru'
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  console.log('🔵 GoogleOneTap component rendered, session status:', status, 'session:', !!session)
-  console.log('🔵 GoogleOneTap disabled:', disabled, 'final disabled state:', status === 'authenticated' || disabled)
-  console.log('🔵 GoogleOneTap client ID:', process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID)
+  // Detect if auth modal/dialog is open by checking for dialog elements
+  useEffect(() => {
+    const checkModalState = () => {
+      // Check if any dialog/modal is currently open
+      const dialogOpen = document.querySelector('[role="dialog"]') !== null
+      const modalOpen = document.querySelector('.modal') !== null
+      setIsModalOpen(dialogOpen || modalOpen)
+    }
 
-  // Check if Google Identity Services script is loaded
-  console.log('🔵 Google GIS loaded:', typeof window !== 'undefined' && window.google)
-  console.log('🔵 GoogleOneTapLogin available:', typeof window !== 'undefined' && window.google?.accounts?.id?.prompt)
+    // Check initially
+    checkModalState()
+
+    // Set up a mutation observer to detect when modals open/close
+    const observer = new MutationObserver(checkModalState)
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['role', 'class']
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  // Cancel One Tap prompt when modal opens
+  useEffect(() => {
+    if (isModalOpen && typeof window !== 'undefined' && window.google?.accounts?.id) {
+      window.google.accounts.id.cancel()
+    }
+  }, [isModalOpen])
+
+  const isDisabled = status === 'authenticated' || disabled || isModalOpen
 
   useGoogleOneTapLogin({
     onSuccess: async (credentialResponse) => {
-      console.log('🟢 Google One Tap Success - Full credential response:', credentialResponse)
-      console.log('🟢 Credential length:', credentialResponse?.credential?.length || 0)
+      console.log('Google One Tap: Authentication successful')
 
       try {
         // Use Auth.js v5 signIn with our custom credentials provider
@@ -48,77 +77,30 @@ export function GoogleOneTap({
           redirect: false,
         })
 
-        console.log('🟢 Sign-in result:', result)
-        console.log('🟢 Sign-in error:', result?.error)
-        console.log('🟢 Sign-in status:', result?.status)
-
         if (result?.ok) {
-          console.log('🟢 Authentication successful, redirecting to:', redirectUrl)
-          // Successful authentication
-          router.push(redirectUrl)
+          console.log('Google One Tap: Sign-in successful, redirecting to status page')
+          // Redirect to "Signing in..." status page with return destination
+          const statusUrl = ROUTES.AUTH_STATUS('login', 'pending', locale)
+          const finalUrl = `${statusUrl}?returnTo=${encodeURIComponent(redirectUrl)}`
+          router.push(finalUrl)
         } else {
-          console.error('🟢 One Tap sign-in failed:', result?.error)
-          console.error('🟢 Full result object:', result)
+          console.error('Google One Tap: Sign-in failed:', result?.error)
         }
       } catch (error) {
-        console.error('🟢 One Tap authentication error:', error)
-        console.error('🟢 Error details:', error)
+        console.error('Google One Tap: Authentication error:', error)
       }
     },
     onError: () => {
-      console.error('🟢 Google One Tap login failed or was cancelled')
+      console.error('Google One Tap: Login failed or was cancelled')
     },
-    disabled: status === 'authenticated' || disabled,
-    auto_select: true,
+    disabled: isDisabled,
+    auto_select: false, // Don't auto-select to avoid interrupting user
     cancel_on_tap_outside: true,
-    use_fedcm_for_prompt: true, // Use Federated Credential Management API when available
+    use_fedcm_for_prompt: true,
   })
 
-  // For debugging: Show a manual test button (temporary)
-  return (
-    <div style={{
-      position: 'fixed',
-      top: '10px',
-      right: '10px',
-      background: 'rgba(0,0,0,0.9)',
-      color: 'white',
-      padding: '15px',
-      borderRadius: '8px',
-      fontSize: '12px',
-      zIndex: 9999,
-      maxWidth: '300px'
-    }}>
-      <div>🔵 Google One Tap Debug:</div>
-      <div>Session: {status}</div>
-      <div>One Tap: {status === 'authenticated' || disabled ? 'Disabled' : 'Active'}</div>
-      <div>GIS Loaded: {typeof window !== 'undefined' && window.google ? 'Yes' : 'No'}</div>
-      <button
-        onClick={() => {
-          console.log('🔴 Manual One Tap test - triggering Google One Tap')
-          if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-            window.google.accounts.id.prompt((notification) => {
-              console.log('🔴 One Tap prompt notification:', notification)
-            })
-          } else {
-            console.log('🔴 Google Identity Services not available')
-          }
-        }}
-        style={{
-          marginTop: '8px',
-          padding: '6px 12px',
-          background: '#4285F4',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '11px',
-          width: '100%'
-        }}
-      >
-        Test One Tap
-      </button>
-    </div>
-  )
+  // No visual component - One Tap is handled by Google's UI
+  return null
 }
 
 declare global {

@@ -15,6 +15,7 @@ import {
   type UserSettings,
   type NotificationPreferences,
 } from "@/features/auth/types"
+import { ensureWallet } from "@/features/wallet/services/ensure-wallet"
 
 // Initialize Google Auth client for ID token verification (server-side only)
 const googleAuthClient = new OAuth2Client(process.env.AUTH_GOOGLE_ID)
@@ -468,18 +469,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
           
           // Handle wallet creation for new OAuth users
           if (account?.provider === "google" || account?.provider === "apple" || account?.provider === "google-one-tap") {
-            // Check if this is a new user (adapter will have just created it)
-            // We can add wallet creation logic here if needed
-            const encryptionKey = process.env.WALLET_ENCRYPTION_KEY
-            
-            if (encryptionKey) {
-              try {
-                console.log('Creating wallet for new user:', user.email)
-                // Wallet creation logic can be added here if needed
-                // For now, we'll let the adapter handle basic user creation
-              } catch (error) {
-                console.error('Failed to create wallet for new user:', error)
-              }
+            // Ensure wallet is created for the authenticated user
+            try {
+              console.log('Ensuring wallet for OAuth user:', user.email)
+              await ensureWallet()
+              console.log('Wallet ensured successfully for OAuth user')
+            } catch (error) {
+              console.error('Failed to ensure wallet for OAuth user:', error)
+              // Don't fail authentication if wallet creation fails
             }
           }
           

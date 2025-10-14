@@ -89,6 +89,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
    */
   const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (!email.trim()) {
       setError(tAuth('errors.emailRequired'))
       return
@@ -200,8 +201,8 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
     return (
       <div className="w-full max-w-md mx-auto">
         <AnimatedLoginContainer>
-          {/* Google One Tap - Automatically shows for signed-in Google users */}
-          <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} />
+          {/* Google One Tap - Disabled on login page to prevent unwanted popup */}
+          {/* <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} /> */}
           
           {emailSent ? (
             <AnimatedItem>
@@ -223,34 +224,39 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
           ) : (
             <AnimatedItem>
               <div className="space-y-4">
-                {/* Google Sign-in with GIS (No redirects!) */}
-                <GoogleSignInButtonGIS
-                  redirectUrl={from || ROUTES.PROFILE(locale)}
-                  className="w-full"
-                  variant="outline"
-                  size="lg"
-                />
+                {/* Container for Google button spanning over secondary options */}
+                <div className="relative">
+                  {/* Google Sign-in with GIS (No redirects!) - spans over both buttons below */}
+                  <div className="mb-4">
+                    <GoogleSignInButtonGIS
+                      redirectUrl={from || ROUTES.PROFILE(locale)}
+                      className="w-full"
+                      variant="outline"
+                      size="lg"
+                    />
+                  </div>
 
-                {/* Secondary Options Row */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => handleSignIn('apple')}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="h-12 text-sm font-medium"
-                  >
-                    <AiFillApple className="mr-2 h-5 w-5" />
-                    {tAuth('signIn.providers.apple')}
-                  </Button>
-                  <Button
-                    onClick={handleCryptoLogin}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="h-12 text-sm font-medium"
-                  >
-                    <FaEthereum className="mr-2 h-5 w-5" />
-                    {tAuth('signIn.providers.metamask')}
-                  </Button>
+                  {/* Secondary Options Row - positioned below the Google button */}
+                  <div className="grid grid-cols-2 gap-3 -mt-2">
+                    <Button
+                      onClick={() => handleSignIn('apple')}
+                      disabled={isLoading}
+                      variant="outline"
+                      className="h-12 text-sm font-medium"
+                    >
+                      <AiFillApple className="mr-2 h-5 w-5" />
+                      {tAuth('signIn.providers.apple')}
+                    </Button>
+                    <Button
+                      onClick={handleCryptoLogin}
+                      disabled={isLoading}
+                      variant="outline"
+                      className="h-12 text-sm font-medium"
+                    >
+                      <FaEthereum className="mr-2 h-5 w-5" />
+                      {tAuth('signIn.providers.metamask')}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Alternative Login Options */}
@@ -265,7 +271,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
 
                 {/* Email Input Form - Only show if Resend provider is available */}
                 {providers?.resend && (
-                  <form onSubmit={handleEmailSignIn} className="space-y-4">
+                  <form onSubmit={handleEmailSignIn} className="space-y-4" noValidate>
                     <div className="relative">
                       <Input
                         type="email"
@@ -323,7 +329,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
     <div className="w-full">
       <AnimatedLoginContainer>
         {/* Google One Tap - Automatically shows for signed-in Google users */}
-        <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} />
+        {/* <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} /> */}
 
         {emailSent ? (
           <AnimatedItem>
@@ -388,7 +394,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
 
               {/* Email Input Form - Only show if Resend provider is available */}
               {providers?.resend && (
-                <form onSubmit={handleEmailSignIn} className="space-y-3">
+                <form onSubmit={handleEmailSignIn} className="space-y-3" noValidate>
                   <div className="relative">
                     <Input
                       type="email"

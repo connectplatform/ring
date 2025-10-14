@@ -1,7 +1,6 @@
 'use client'
 
 import { SessionProvider as NextAuthSessionProvider } from "next-auth/react"
-import { GoogleOAuthProvider } from '@react-oauth/google'
 import type { Session } from 'next-auth'
 
 interface ProvidersProps {
@@ -10,25 +9,22 @@ interface ProvidersProps {
 }
 
 /**
- * Combined Auth.js v5 + Google Identity Services Provider
- * 
+ * Auth.js v5 Session Provider
+ *
  * Features:
  * - Auth.js v5 session management
- * - Google Identity Services context for One Tap and Sign-In button
+ * - Compatible with Google Identity Services (GIS) direct API usage
  * - React 19 compatible
+ *
+ * Note: Removed GoogleOAuthProvider wrapper to avoid conflicts with
+ * GoogleSignInButtonGIS component which uses window.google.accounts.id directly
  */
 export function SessionProvider({ children, session }: ProvidersProps) {
-  console.log('🔶 SessionProvider rendered with clientId:', process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID)
+  console.log('🔶 SessionProvider rendered - Auth.js v5 only (no GoogleOAuthProvider wrapper)')
 
   return (
     <NextAuthSessionProvider session={session}>
-      <GoogleOAuthProvider
-        clientId={process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID!}
-        onScriptLoadError={() => console.error('🔴 Google Identity Services script failed to load')}
-        onScriptLoadSuccess={() => console.log('🟢 Google Identity Services script loaded successfully')}
-      >
-        {children}
-      </GoogleOAuthProvider>
+      {children}
     </NextAuthSessionProvider>
   )
 }

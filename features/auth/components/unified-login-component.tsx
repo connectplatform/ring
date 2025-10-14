@@ -231,13 +231,11 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
           <p className="text-muted-foreground mt-2 text-center">{tAuth('signIn.subtitle')}</p>
         </DialogHeader>
 
-        {/* Google One Tap - Automatically shows for signed-in Google users */}
-        <GoogleOneTap redirectUrl={from || ROUTES.PROFILE(locale)} />
-
-        {/* Debug info */}
-        <div style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '11px', color: '#666' }}>
-          Debug: Check console for One Tap logs
-        </div>
+        {/* Google One Tap - Disabled in favor of GIS button */}
+        {/* <GoogleOneTap
+          disabled={open}
+          redirectUrl={from || ROUTES.PROFILE(locale)}
+        /> */}
 
         <div className="space-y-4">
           {emailSent ? (

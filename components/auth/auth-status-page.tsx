@@ -56,16 +56,26 @@ export default function AuthStatusPage({ action, status, locale, email, token, r
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending
   const IconComponent = config.icon
 
-  // Auto-redirect for signout success
+  // Auto-redirect for signout success and login pending
   useEffect(() => {
     if (action === 'signout' && status === 'success') {
       const timer = setTimeout(() => {
         router.push(ROUTES.LOGIN(locale))
       }, 2000)
-      
+
       return () => clearTimeout(timer)
     }
-  }, [action, status, router, locale])
+
+    // Auto-redirect for login pending to the returnTo URL or profile
+    if (action === 'login' && status === 'pending') {
+      const timer = setTimeout(() => {
+        const redirectTo = returnTo || ROUTES.PROFILE(locale)
+        router.push(redirectTo)
+      }, 2000) // Show "Signing in..." for 2 seconds
+
+      return () => clearTimeout(timer)
+    }
+  }, [action, status, router, locale, returnTo])
 
   // Get action-specific navigation buttons
   const getActionButtons = () => {
@@ -96,6 +106,19 @@ export default function AuthStatusPage({ action, status, locale, email, token, r
                 {t('actions.tryAgain')}
               </Link>
             </Button>
+          )
+        }
+        if (status === 'pending') {
+          buttons.push(
+            <motion.div
+              key="redirect-info"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-sm text-muted-foreground"
+            >
+              {t('redirecting') || 'Redirecting...'}
+            </motion.div>
           )
         }
         if (status === 'success') {
