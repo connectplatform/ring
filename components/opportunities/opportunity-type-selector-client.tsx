@@ -12,6 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useEffect } from 'react'
+import { eventBus } from '@/lib/event-bus.client'
 
 interface OpportunityTypeSelectorClientProps {
   onClose: () => void
@@ -19,51 +21,53 @@ interface OpportunityTypeSelectorClientProps {
   locale: Locale
 }
 
-// Ring Platform Portal - Focused opportunity types
-// Only 4 types: Ring Customization, Technology Request, Developer CV, Technology Offer
+// Ring Platform Portal - Revolutionary TECHNICAL EXCELLENCE Categories
+// Focus: ring_customization (Legion-powered) + ai_instructor (democratize AI access)
+// Other 11 types available but added to UI later per Emperor's command
 const opportunityTypeConfigs = {
   ring_customization: {
     icon: Zap,
-    color: 'from-violet-500 to-purple-500',
-    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20',
-    borderColor: 'border-violet-200 dark:border-violet-800',
+    color: 'from-violet-500 via-purple-500 to-fuchsia-500',
+    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30',
+    borderColor: 'border-violet-300 dark:border-violet-700',
     textColor: 'text-violet-700 dark:text-violet-300',
     accentIcon: Crown,
     requiresMembership: true,
     popular: true,
-    examples: ['platform_deployment', 'module_development', 'branding', 'database_migration', 'localization', 'payment_integration', 'smart_contracts', 'ai_customization', 'token_economics', 'documentation']
+    revolutionary: true,
+    examples: [
+      'platform_deployment',
+      'module_development',
+      'branding',
+      'database_migration',
+      'localization',
+      'payment_integration',
+      'smart_contracts',
+      'ai_customization',
+      'token_economics',
+      'documentation'
+    ]
   },
-  request: {
-    icon: MessageSquare,
-    color: 'from-blue-500 to-cyan-500',
-    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20',
-    borderColor: 'border-blue-200 dark:border-blue-800',
-    textColor: 'text-blue-700 dark:text-blue-300',
+  ai_instructor: {
+    icon: Sparkles,
+    color: 'from-amber-500 via-orange-500 to-red-500',
+    bgColor: 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30',
+    borderColor: 'border-amber-300 dark:border-amber-700',
+    textColor: 'text-amber-700 dark:text-amber-300',
     accentIcon: Target,
     requiresMembership: false,
     popular: true,
-    examples: ['freelancer', 'service', 'advice']
-  },
-  cv: {
-    icon: Zap,
-    color: 'from-violet-500 to-purple-500',
-    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20',
-    borderColor: 'border-violet-200 dark:border-violet-800',
-    textColor: 'text-violet-700 dark:text-violet-300',
-    accentIcon: Crown,
-    requiresMembership: false,
-    popular: true,
-    examples: ['developer_cv', 'portfolio', 'skills']
-  },
-  offer: {
-    icon: Briefcase,
-    color: 'from-green-500 to-emerald-500',
-    bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20',
-    borderColor: 'border-green-200 dark:border-green-800',
-    textColor: 'text-green-700 dark:text-green-300',
-    accentIcon: TrendingUp,
-    requiresMembership: true,
-    examples: ['job', 'contract', 'internship']
+    revolutionary: true,
+    examples: [
+      'legion_instruction_training',
+      'customization_planning_workshop',
+      'ring_architecture_training',
+      'ai_prompt_engineering',
+      'product_owner_education',
+      'legion_best_practices',
+      'autonomous_deployment_guide',
+      'ring_ecosystem_overview'
+    ]
   }
 }
 
@@ -73,6 +77,21 @@ export function OpportunityTypeSelectorClient({ onClose, userRole, locale }: Opp
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [hoveredType, setHoveredType] = useState<string | null>(null)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+
+  // Listen for modal:close-all event from event bus
+  useEffect(() => {
+    const unsubscribe = eventBus.on('modal:close-all', () => {
+      onClose()
+    })
+    
+    // Emit modal opened event
+    eventBus.emit('modal:opened', { modalId: 'opportunity-type-selector', zIndex: 8000 })
+    
+    return () => {
+      unsubscribe()
+      eventBus.emit('modal:closed', { modalId: 'opportunity-type-selector' })
+    }
+  }, [onClose])
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => {
@@ -420,7 +439,16 @@ export function OpportunityTypeSelectorClient({ onClose, userRole, locale }: Opp
   return (
     <>
       {/* Desktop Layout */}
-      <div className="hidden md:block fixed inset-0 z-50 bg-background">
+      <motion.div 
+        className="hidden md:block fixed inset-0 z-[8000] bg-background"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        data-modal="true"
+        role="dialog"
+        aria-label="Select opportunity type"
+      >
         {/* Full-screen header with single close button */}
         <div className="relative w-full bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-b">
           <div className="container mx-auto px-6 py-8">
@@ -456,21 +484,30 @@ export function OpportunityTypeSelectorClient({ onClose, userRole, locale }: Opp
         {/* Full-screen scrollable content */}
         <div className="flex-1 overflow-y-auto">
           <div className="container mx-auto px-6 py-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
               {Object.entries(opportunityTypeConfigs).map(([typeKey, config]) =>
                 renderOpportunityCard(typeKey, config)
               )}
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Mobile Layout - Square grid for 4 opportunity types */}
-      <div className="md:hidden fixed inset-0 z-50 bg-background">
-        {/* Mobile header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-4">
+      {/* Mobile Layout - Slide-up animation optimized for iPhone 11 Pro */}
+      <motion.div 
+        className="md:hidden lg:hidden fixed inset-0 z-[8000] bg-background"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        data-modal="true"
+        role="dialog"
+        aria-label="Select opportunity type"
+      >
+        {/* Mobile header - Ergonomic for iPhone 11 Pro (375x812) */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 safe-area-inset">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">
+            <h1 className="text-lg font-bold">
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 {t('type_selector.title', { defaultValue: 'Create Opportunity' })}
               </span>
@@ -479,27 +516,81 @@ export function OpportunityTypeSelectorClient({ onClose, userRole, locale }: Opp
               variant="outline"
               size="icon"
               onClick={onClose}
-              className="h-10 w-10 rounded-full"
+              className="h-9 w-9 rounded-full shrink-0"
+              aria-label="Close"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Choose the type of opportunity you'd like to create
           </p>
         </div>
 
-        {/* Mobile square grid layout */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        {/* Mobile square grid layout - Optimized for iPhone 11 Pro (375x812) */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe">
           <div className="max-w-md mx-auto">
-            <div className="grid grid-cols-2 gap-4">
+            {/* 2x2 Grid - Perfectly sized for iPhone 11 Pro screen */}
+            <div className="grid grid-cols-2 gap-3">
               {Object.entries(opportunityTypeConfigs).map(([typeKey, config]) =>
                 renderMobileGridCard(typeKey, config)
               )}
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* iPad Layout - Slide-right animation with 280px left indent */}
+      <motion.div
+        className="hidden md:block lg:hidden fixed inset-0 z-[8000] bg-background/95 backdrop-blur-sm"
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        data-modal="true"
+        role="dialog"
+        aria-label="Select opportunity type"
+      >
+        {/* Left space indent (280px for sidebar) */}
+        <div className="flex h-full">
+          <div className="w-[280px] shrink-0" onClick={onClose} />
+          
+          {/* Sliding panel */}
+          <div className="flex-1 bg-background border-l h-full overflow-y-auto">
+            {/* iPad header */}
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {t('type_selector.title', { defaultValue: 'Create Opportunity' })}
+                  </span>
+                </h1>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onClose}
+                  className="h-10 w-10 rounded-full"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Choose the type of opportunity you'd like to create
+              </p>
+            </div>
+
+            {/* iPad grid layout */}
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-2 gap-4 max-w-2xl">
+                {Object.entries(opportunityTypeConfigs).map(([typeKey, config]) =>
+                  renderOpportunityCard(typeKey, config)
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </>
   )
 }
