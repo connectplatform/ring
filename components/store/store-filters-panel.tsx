@@ -1,20 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
+// ... other imports
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n-config'
+import { useOptionalStore } from '@/features/store/context'
+import { useOptionalCurrency } from '@/features/store/currency-context'
+import { PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,469 +23,431 @@ import {
 } from '@/components/ui/collapsible'
 import {
   Search,
-  Filter,
   X,
   ChevronDown,
   Package,
-  DollarSign,
-  Star,
-  User,
-  Store
+  ShoppingCart,
+  CreditCard,
+  Store,
+  Carrot,
+  Apple,
+  Leaf,
+  Milk,
+  Drumstick,
+  Wheat,
+  Cookie,
+  Droplet,
+  Croissant,
+  Coffee,
+  Tractor
 } from 'lucide-react'
 
-interface StoreFilterState {
-  search: string
-  categories: string[]
-  priceMin: string
-  priceMax: string
-  currency: string
-  vendor: string
-  rating: string
-  inStock: boolean | null
-  sortBy: string
-}
-
 interface StoreFiltersPanelProps {
+  locale: Locale
   initialFilters?: Partial<StoreFilterState>
-  resultCount?: number
+  totalRecords?: number
+  filteredRecords?: number
   onFiltersApplied?: (filters: StoreFilterState) => void
 }
 
-// Product categories - these should match the store taxonomy
+// Agricultural Product Categories - GreenFood.live taxonomy
 const productCategories = [
-  'electronics',
-  'clothing',
-  'books',
-  'home-garden',
-  'sports-outdoors',
-  'beauty-personal-care',
-  'automotive',
-  'toys-games',
-  'health-household',
-  'grocery',
-  'industrial-scientific',
+  'fresh-vegetables',
+  'fresh-fruits',
+  'herbs-greens',
+  'dairy-eggs',
+  'meat-poultry',
+  'grains-cereals',
+  'legumes-beans',
+  'nuts-seeds',
+  'honey-sweeteners',
+  'preserves-pickles',
+  'baked-goods',
+  'beverages',
+  'farm-supplies',
   'other'
 ]
 
-const currencies = ['USD', 'EUR', 'UAH', 'GBP', 'DAAR', 'DAARION']
-const ratings = ['4+', '3+', '2+', '1+']
-const sortOptions = [
-  { value: 'name-asc', label: 'Name (A-Z)' },
-  { value: 'name-desc', label: 'Name (Z-A)' },
-  { value: 'price-asc', label: 'Price (Low to High)' },
-  { value: 'price-desc', label: 'Price (High to Low)' },
-  { value: 'rating-desc', label: 'Highest Rated' },
-  { value: 'newest', label: 'Newest First' }
-]
+const currencies = ['USD', 'UAH', 'DAAR', 'DAARION']
+
+interface StoreFiltersPanelPropsWithPersisted extends StoreFiltersPanelProps {
+  persistedFilters?: StoreFilterState // Filters from localStorage/parent
+  priceRangeFromDB?: { minPrice: number; maxPrice: number } | null // Price range from database
+}
 
 export default function StoreFiltersPanel({
+  locale,
   initialFilters,
-  resultCount,
-  onFiltersApplied
-}: StoreFiltersPanelProps) {
+  totalRecords = 0,
+  filteredRecords,
+  onFiltersApplied,
+  persistedFilters,
+  priceRangeFromDB
+}: StoreFiltersPanelPropsWithPersisted) {
   const t = useTranslations('modules.store')
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['search']))
-  const [filters, setFilters] = useState<StoreFilterState>({
-    search: '',
-    categories: [],
-    priceMin: '',
-    priceMax: '',
-    currency: 'USD',
-    vendor: '',
-    rating: '',
-    inStock: null,
-    sortBy: 'name-asc',
-    ...initialFilters
-  })
+  const store = useOptionalStore()
+  const totalItems = store?.totalItems || 0
 
-  const toggleSection = (section: string) => {
-    setOpenSections(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(section)) {
-        newSet.delete(section)
-      } else {
-        newSet.add(section)
-      }
-      return newSet
+  const currencyContext = useOptionalCurrency()
+  const displayCurrency = currencyContext?.currency || 'UAH'
+
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['categories']))
+  const [priceMax, setPriceMax] = useState<number | null>(null)
+
+  // Track if we're currently applying filters to prevent loops
+  const isApplyingFilters = useRef(false)
+  const priceChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition()
+
+  // Initialize filters once
+  const [filters, setFilters] = useState<StoreFilterState>(() =>
+    persistedFilters || {
+      search: '',
+      categories: [],
+      priceMin: PRICE_MIN,
+      priceMax: null,
+      currency: displayCurrency,
+      vendor: '',
+      inStock: null,
+      sortBy: 'name-asc',
+      ...initialFilters
+    }
+  )
+
+  // ✅ Fixed: updateFilters using functional setState pattern
+  const updateFilters = useCallback((updates: Partial<StoreFilterState>) => {
+    startTransition(() => {
+      setFilters(currentFilters => {
+        const newFilters = { ...currentFilters, ...updates }
+        // Mark for notification in useEffect (React 19 pattern)
+        isApplyingFilters.current = true
+        return newFilters
+      })
     })
-  }
+  }, [startTransition])
 
-  const updateFilters = (updates: Partial<StoreFilterState>) => {
-    setFilters(prev => ({ ...prev, ...updates }))
-  }
+  // Notify parent when filters change (React 19 pattern: useEffect instead of setState callback)
+  useEffect(() => {
+    if (isApplyingFilters.current && onFiltersApplied) {
+      onFiltersApplied(filters)
+      isApplyingFilters.current = false
+    }
+  }, [filters, onFiltersApplied])
 
-  const handleClearFilters = () => {
+  // Fetch price range - one time only
+  useEffect(() => {
+    let isCancelled = false
+    const fetchPriceRange = async () => {
+      try {
+        const res = await fetch('/api/store/price-range', { cache: 'no-store' })
+        if (!isCancelled && res.ok) {
+          const data = await res.json()
+          if (data.maxPrice && data.maxPrice > 0) {
+            const dynamicMax = Math.ceil(data.maxPrice)
+            setPriceMax(dynamicMax)
+            // Only update if not already set
+            setFilters(current =>
+              current.priceMax === null
+                ? { ...current, priceMax: dynamicMax }
+                : current
+            )
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch price range:', err)
+      }
+    }
+    void fetchPriceRange()
+    return () => {
+      isCancelled = true
+    }
+  }, []) // ✅ Empty deps, runs once
+
+  // ✅ Debounced price change handler
+  const handlePriceChange = useCallback((values: number[]) => {
+    // Clear existing timeout
+    if (priceChangeTimeoutRef.current) {
+      clearTimeout(priceChangeTimeoutRef.current)
+    }
+    // Update local state immediately for UI responsiveness
+    setFilters(current => ({
+      ...current,
+      priceMin: values[0],
+      priceMax: values[1]
+    }))
+    // Debounce the actual filter application
+    priceChangeTimeoutRef.current = setTimeout(() => {
+      updateFilters({ priceMin: values[0], priceMax: values[1] })
+    }, 300) // 300ms debounce
+  }, [updateFilters])
+
+  // Update currency when context changes
+  useEffect(() => {
+    if (displayCurrency !== filters.currency) {
+      updateFilters({ currency: displayCurrency })
+    }
+  }, [displayCurrency]) // ✅ Removed updateFilters from deps, it's stable now
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (priceChangeTimeoutRef.current) {
+        clearTimeout(priceChangeTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleClearFilters = useCallback(() => {
     const clearedFilters: StoreFilterState = {
       search: '',
       categories: [],
-      priceMin: '',
-      priceMax: '',
-      currency: 'USD',
+      priceMin: PRICE_MIN,
+      priceMax: priceMax,
+      currency: displayCurrency,
       vendor: '',
-      rating: '',
       inStock: null,
       sortBy: 'name-asc'
     }
     setFilters(clearedFilters)
     onFiltersApplied?.(clearedFilters)
-  }
+  }, [priceMax, displayCurrency, onFiltersApplied])
 
-  const handleApplyFilters = () => {
-    onFiltersApplied?.(filters)
-  }
+  const toggleCategory = useCallback((categoryId: string) => {
+    updateFilters({
+      categories: filters.categories.includes(categoryId)
+        ? filters.categories.filter(c => c !== categoryId)
+        : [...filters.categories, categoryId]
+    })
+  }, [filters.categories, updateFilters])
 
-  const toggleCategory = (categoryId: string) => {
-    const newCategories = filters.categories.includes(categoryId)
-      ? filters.categories.filter(c => c !== categoryId)
-      : [...filters.categories, categoryId]
-    updateFilters({ categories: newCategories })
-  }
-
-  const hasActiveFilters = () => {
+  // ✅ Memoize computed values
+  const hasActiveFilters = useMemo(() => {
     return filters.search ||
-           filters.categories.length > 0 ||
-           filters.priceMin ||
-           filters.priceMax ||
-           filters.currency !== 'USD' ||
-           filters.vendor ||
-           filters.rating ||
-           filters.inStock !== null ||
-           filters.sortBy !== 'name-asc'
+      filters.categories.length > 0 ||
+      filters.priceMin !== PRICE_MIN ||
+      filters.priceMax !== priceMax ||
+      filters.currency !== 'USD' ||
+      filters.vendor ||
+      filters.inStock !== null
+  }, [filters, priceMax])
+
+  const displayRecords = filteredRecords !== undefined ? filteredRecords : totalRecords
+
+  // Dummy implementation
+  function getCategoryIcon(category: string) {
+    switch (category) {
+      case 'fresh-vegetables': return <Carrot className="w-4 h-4" />
+      case 'fresh-fruits': return <Apple className="w-4 h-4" />
+      case 'herbs-greens': return <Leaf className="w-4 h-4" />
+      case 'dairy-eggs': return <Milk className="w-4 h-4" />
+      case 'meat-poultry': return <Drumstick className="w-4 h-4" />
+      case 'grains-cereals': return <Wheat className="w-4 h-4" />
+      case 'legumes-beans': return <Cookie className="w-4 h-4" />
+      case 'nuts-seeds': return <Droplet className="w-4 h-4" />
+      case 'honey-sweeteners': return <Croissant className="w-4 h-4" />
+      case 'preserves-pickles': return <Wheat className="w-4 h-4" />
+      case 'baked-goods': return <Croissant className="w-4 h-4" />
+      case 'beverages': return <Coffee className="w-4 h-4" />
+      case 'farm-supplies': return <Tractor className="w-4 h-4" />
+      case 'other': return <Store className="w-4 h-4" />
+      default: return null
+    }
   }
 
-  const getCategoryTranslation = (category: string) => {
-    const categoryMap: { [key: string]: string } = {
-      electronics: 'Electronics',
-      clothing: 'Clothing',
-      books: 'Books',
-      'home-garden': 'Home & Garden',
-      'sports-outdoors': 'Sports & Outdoors',
-      'beauty-personal-care': 'Beauty & Personal Care',
-      automotive: 'Automotive',
-      'toys-games': 'Toys & Games',
-      'health-household': 'Health & Household',
-      grocery: 'Grocery',
-      'industrial-scientific': 'Industrial & Scientific',
-      other: 'Other'
-    }
-    return categoryMap[category] || category
-  }
+  // Handler for toggling section (categories collapsible)
+  const toggleSection = useCallback((section: string) => {
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (next.has(section)) {
+        next.delete(section)
+      } else {
+        next.add(section)
+      }
+      return next
+    })
+  }, [])
 
   return (
-    <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="space-y-2">
-        <Label htmlFor="search" className="text-sm font-medium">Search Products</Label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="search"
-            placeholder="Search by name, description..."
-            value={filters.search}
-            onChange={(e) => updateFilters({ search: e.target.value })}
-            className="pl-9"
-          />
-        </div>
+    <div className="h-screen flex flex-col bg-background border-l border-border relative">
+      {/* Fixed Header - Top Controls */}
+      <div className="flex-shrink-0 p-4 border-b border-border">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Store className="w-5 h-5" />
+          {t('filters.searchLabel')}
+        </h2>
+        {/* Result Count Display */}
+        <p className="text-xs text-muted-foreground mt-1">
+          {hasActiveFilters && filteredRecords !== undefined ? (
+            <>
+              {filteredRecords} {t('filters.filteredOf')} {totalRecords} {t('filters.records')}
+            </>
+          ) : (
+            <>
+              {displayRecords} {t('filters.records')}
+            </>
+          )}
+        </p>
       </div>
 
-      {/* Active Filters Display */}
-      {hasActiveFilters() && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Active Filters</Label>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearFilters}
-              className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Clear all
-            </Button>
+      {/* Scrollable Content Area - Fills remaining vertical space */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-4 p-4">
+          {/* Search Bar */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="search"
+                placeholder={t('filters.searchPlaceholder')}
+                value={filters.search}
+                onChange={(e) => updateFilters({ search: e.target.value })}
+                className="pl-9"
+              />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1">
-            {filters.categories.map(category => (
-              <Badge key={category} variant="secondary" className="text-xs">
-                {getCategoryTranslation(category)}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto w-auto p-0 ml-1 hover:bg-transparent"
-                  onClick={() => toggleCategory(category)}
-                >
-                  <X className="h-2 w-2" />
-                </Button>
-              </Badge>
-            ))}
-            {(filters.priceMin || filters.priceMax) && (
-              <Badge variant="secondary" className="text-xs">
-                💰 {filters.priceMin || '0'} - {filters.priceMax || '∞'} {filters.currency}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto w-auto p-0 ml-1 hover:bg-transparent"
-                  onClick={() => updateFilters({ priceMin: '', priceMax: '' })}
-                >
-                  <X className="h-2 w-2" />
-                </Button>
-              </Badge>
-            )}
-            {filters.rating && (
-              <Badge variant="secondary" className="text-xs">
-                ⭐ {filters.rating} stars
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto w-auto p-0 ml-1 hover:bg-transparent"
-                  onClick={() => updateFilters({ rating: '' })}
-                >
-                  <X className="h-2 w-2" />
-                </Button>
-              </Badge>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Collapsible Filter Sections */}
-      <div className="space-y-3">
-        {/* Categories */}
-        <Collapsible
-          open={openSections.has('categories')}
-          onOpenChange={() => toggleSection('categories')}
-        >
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Categories</span>
-              <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
-                openSections.has('categories') && "transform rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 px-3">
-            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-              {productCategories.map((category) => {
-                const isSelected = filters.categories.includes(category)
-                return (
-                  <Button
-                    key={category}
-                    variant={isSelected ? "default" : "outline"}
-                    size="sm"
-                    className="justify-start h-auto p-2"
-                    onClick={() => toggleCategory(category)}
-                  >
-                    <Package className="w-4 h-4 mr-2" />
-                    <span className="text-xs">{getCategoryTranslation(category)}</span>
-                  </Button>
-                )
-              })}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <Separator />
-
-        {/* Price Range */}
-        <Collapsible
-          open={openSections.has('price')}
-          onOpenChange={() => toggleSection('price')}
-        >
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Price Range</span>
-              <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
-                openSections.has('price') && "transform rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-3 px-3">
-            {/* Currency Selector */}
-            <div>
-              <Label className="text-xs text-muted-foreground">Currency</Label>
-              <Select
-                value={filters.currency}
-                onValueChange={(value) => updateFilters({ currency: value })}
-              >
-                <SelectTrigger className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs text-muted-foreground">Min</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={filters.priceMin}
-                  onChange={(e) => updateFilters({ priceMin: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Max</Label>
-                <Input
-                  type="number"
-                  placeholder="∞"
-                  value={filters.priceMax}
-                  onChange={(e) => updateFilters({ priceMax: e.target.value })}
-                />
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <Separator />
-
-        {/* Rating Filter */}
-        <Collapsible
-          open={openSections.has('rating')}
-          onOpenChange={() => toggleSection('rating')}
-        >
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Rating</span>
-              <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
-                openSections.has('rating') && "transform rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 px-3">
-            <Select
-              value={filters.rating}
-              onValueChange={(value) => updateFilters({ rating: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Any rating" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Any rating</SelectItem>
-                {ratings.map((rating) => (
-                  <SelectItem key={rating} value={rating}>
-                    <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      {rating} stars and above
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <Separator />
-
-        {/* Availability */}
-        <Collapsible
-          open={openSections.has('availability')}
-          onOpenChange={() => toggleSection('availability')}
-        >
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Availability</span>
-              <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
-                openSections.has('availability') && "transform rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 px-3">
+          {/* Active Filters Display */}
+          {hasActiveFilters && (
             <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">{t('filters.activeFilters')}</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearFilters}
+                  className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  {t('filters.clearAll')}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {filters.categories.map(category => (
+                  <Badge key={category} variant="secondary" className="text-xs">
+                    {t(`categories.${category}`)}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto w-auto p-0 ml-1 hover:bg-transparent"
+                      onClick={() => toggleCategory(category)}
+                    >
+                      <X className="h-2 w-2" />
+                    </Button>
+                  </Badge>
+                ))}
+                {(filters.priceMin !== PRICE_MIN || filters.priceMax !== priceMax) && (
+                  <Badge variant="secondary" className="text-xs">
+                    💰 {filters.priceMin} - {filters.priceMax} {filters.currency}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto w-auto p-0 ml-1 hover:bg-transparent"
+                      onClick={() => updateFilters({ priceMin: PRICE_MIN, priceMax: priceMax })}
+                    >
+                      <X className="h-2 w-2" />
+                    </Button>
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Price Range - Always Visible Slider */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">{t('filters.priceRange')}</Label>
+              <span className="text-xs text-muted-foreground">
+                {filters.priceMin} - {filters.priceMax} {displayCurrency}
+              </span>
+            </div>
+
+            {/* Price Slider (debounced) - Safe fallback values to prevent crashes */}
+            <Slider
+              min={PRICE_MIN}
+              max={priceMax || 1000}
+              step={10}
+              value={[
+                Math.max(PRICE_MIN, filters.priceMin ?? PRICE_MIN),
+                Math.min(filters.priceMax ?? priceMax ?? 1000, priceMax ?? 1000)
+              ]}
+              onValueChange={handlePriceChange} // ✅ Now debounced
+              className="w-full"
+            />
+          </div>
+
+          <Separator />
+
+          {/* Availability - Always Visible Toggle */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">{t('filters.availability')}</Label>
+            <div className="flex gap-2">
+              <Button
+                variant={filters.inStock === null ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => updateFilters({ inStock: null })}
+              >
+                {t('filters.all')}
+              </Button>
               <Button
                 variant={filters.inStock === true ? "default" : "outline"}
                 size="sm"
-                className="w-full justify-start"
-                onClick={() => updateFilters({ inStock: filters.inStock === true ? null : true })}
+                className="flex-1"
+                onClick={() => updateFilters({ inStock: true })}
               >
-                <Package className="w-4 h-4 mr-2" />
-                In Stock Only
-              </Button>
-              <Button
-                variant={filters.inStock === false ? "default" : "outline"}
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => updateFilters({ inStock: filters.inStock === false ? null : false })}
-              >
-                <Package className="w-4 h-4 mr-2" />
-                Out of Stock
+                <Package className="w-4 h-4 mr-1" />
+                {t('filters.inStock')}
               </Button>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        <Separator />
-
-        {/* Sort Options */}
-        <Collapsible
-          open={openSections.has('sort')}
-          onOpenChange={() => toggleSection('sort')}
-        >
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Sort By</span>
-              <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
-                openSections.has('sort') && "transform rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 px-3">
-            <Select
-              value={filters.sortBy}
-              onValueChange={(value) => updateFilters({ sortBy: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sort by..." />
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Vendor Upsell Section */}
-      <div className="border-t pt-4">
-        <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Store className="w-4 h-4 text-green-600" />
-            <span className="font-semibold text-sm">Become a Vendor</span>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Sell your products on Ring Platform and reach thousands of customers.
-          </p>
-          <Button size="sm" className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600">
-            <Store className="w-3 h-3 mr-1" />
-            Start Selling
-          </Button>
+
+          <Separator />
+
+          {/* Categories - Open by Default, fills remaining space */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <Collapsible
+              open={openSections.has('categories')}
+              onOpenChange={() => toggleSection('categories')}
+              className="flex flex-col flex-1 min-h-0"
+            >
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between p-3 h-auto flex-shrink-0">
+                  <span className="text-sm font-medium">{t('filters.categories')}</span>
+                  <ChevronDown className={cn(
+                    "h-4 w-4 transition-transform",
+                    openSections.has('categories') && "transform rotate-180"
+                  )} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="grid grid-cols-1 gap-2 pb-4">
+                    {productCategories.map((category) => {
+                      const isSelected = filters.categories.includes(category)
+                      return (
+                        <Button
+                          key={category}
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          className="justify-start h-auto p-2 w-full"
+                          onClick={() => toggleCategory(category)}
+                        >
+                          {getCategoryIcon(category)}
+                          <span className="text-xs ml-2">{t(`categories.${category}`)}</span>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
       </div>
-
-      {/* Apply Filters Button */}
-      <Button className="w-full" onClick={handleApplyFilters}>
-        <Filter className="w-4 h-4 mr-2" />
-        Apply Filters
-        {resultCount !== undefined && (
-          <Badge variant="secondary" className="ml-2">
-            {resultCount}
-          </Badge>
-        )}
-      </Button>
     </div>
   )
 }

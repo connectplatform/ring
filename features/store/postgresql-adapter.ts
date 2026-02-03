@@ -3,6 +3,69 @@ import { getDatabaseService, initializeDatabase } from '@/lib/database'
 import { logger } from '@/lib/logger'
 
 export class PostgreSQLStoreAdapter implements StoreAdapter {
+  /**
+   * Get a single product by ID - O(1) direct database lookup
+   * This is the FAST path for product details pages
+   */
+  async getProductById(id: string): Promise<StoreProduct | null> {
+    try {
+      const initResult = await initializeDatabase()
+      if (!initResult.success) {
+        logger.error('PostgreSQLStoreAdapter: Database initialization failed:', { error: initResult.error })
+        return null
+      }
+
+      const dbService = getDatabaseService()
+      
+      // Direct findById query - O(1) lookup using primary key
+      const result = await dbService.findById('store_products', id)
+      
+      if (!result.success || !result.data) {
+        logger.warn('PostgreSQLStoreAdapter: Product not found:', { id })
+        return null
+      }
+
+      const doc = result.data
+      const data = doc.data
+      
+      // Convert to StoreProduct format
+      return {
+        id: doc.id,
+        name: data?.name || '',
+        description: data?.description || '',
+        price: data?.price?.toString() || '0',
+        currency: (data?.currency as any) || 'USD',
+        inStock: (data?.stock || data?.stock_quantity || 0) > 0,
+        category: data?.category,
+        tags: data?.tags || [],
+        images: data?.pictures || [],
+        sku: data?.sku,
+        slug: data?.slug,
+        longDescription: data?.longDescription,
+        reorderPoint: data?.reorderPoint,
+        vendorTier: data?.vendorTier as any,
+        commissionRate: data?.commissionRate,
+        approvalStatus: data?.approvalStatus as any,
+        approvedBy: data?.approvedBy,
+        approvedAt: data?.approvedAt,
+        rejectionReason: data?.rejectionReason,
+        vendorName: data?.vendorName || data?.vendor_name,
+        productListedAt: ['1'],
+        productOwner: data?.vendorId || data?.vendor_id,
+        ownerEntityId: data?.entity_id,
+        storeId: '1',
+        status: (data?.status as any) || 'active',
+        variants: data?.variants || undefined
+      }
+    } catch (error: any) {
+      logger.error('PostgreSQLStoreAdapter: Error fetching product by ID:', {
+        id,
+        error: error?.message || String(error)
+      })
+      return null
+    }
+  }
+
   async createProduct(productData: Partial<StoreProduct> & { vendorId: string }): Promise<StoreProduct> {
     try {
       // Initialize database service
@@ -89,12 +152,14 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
       const dbService = getDatabaseService()
 
       // Query store_products table
+      // Note: Don't use orderBy for 'created_at' - it's a table column, not JSONB field
+      // API route handles sorting via sortBy parameter
       const queryResult = await dbService.query({
         collection: 'store_products',
         filters: [
           { field: 'status', operator: '==', value: 'active' }
-        ],
-        orderBy: [{ field: 'created_at', direction: 'desc' }]
+        ]
+        // Removed orderBy - API handles sorting
       })
 
       if (!queryResult.success) {
@@ -124,8 +189,11 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
       })
 
       return products
-    } catch (error) {
-      logger.error('PostgreSQLStoreAdapter: Error listing products:', error)
+    } catch (error: any) {
+      logger.error('PostgreSQLStoreAdapter: Error listing products:', {
+        error: error?.message || String(error),
+        stack: error?.stack
+      })
       return []
     }
   }

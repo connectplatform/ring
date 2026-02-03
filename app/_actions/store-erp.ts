@@ -3,43 +3,43 @@
 /**
  * Store ERP Server Actions
  *
- * ERP Extension: Server actions for store operations that require Firebase Admin SDK
- * Provides safe access to vendor data and product enhancements for storefront display
+ * ERP Extension: Server actions for store operations using DatabaseService
+ * READ operations cached with React 19 cache() for performance
  */
 
-import { getCachedDocumentTyped, getCachedCollectionTyped } from '@/lib/services/firebase-service-manager'
+import { cache } from 'react'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import type { StoreProduct } from '@/features/store/types'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
 
-// ERP Extension: Enhanced product with vendor data
-export interface EnhancedProduct extends StoreProduct {
-  id: string // Ensure id property exists
-  vendorProfile?: ExtendedVendorProfile
-  qualityBadges: string[]
-  trustScore: number
-  sustainabilityRating?: number
-  aiRecommended: boolean
-  complianceStatus: {
-    fsma: boolean
-    organic: boolean
-    fairTrade: boolean
-  }
-}
+// Note: EnhancedProduct interface removed - all fields now in StoreProduct
 
 /**
  * Get enhanced products with vendor information for storefront display
+ * READ operation - uses React 19 cache() for performance
  */
-export async function getEnhancedProducts(limit: number = 50): Promise<EnhancedProduct[]> {
+export const getEnhancedProducts = cache(async (limit: number = 50): Promise<StoreProduct[]> => {
   try {
-    // Get all products
-    const products = await getCachedCollectionTyped<StoreProduct>('products', {
-      limit,
-      orderBy: { field: 'createdAt', direction: 'desc' }
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    // Get all products (READ operation - cached)
+    const productsResult = await db.query({
+      collection: 'store_products',
+      orderBy: [{ field: 'createdAt', direction: 'desc' }],
+      pagination: { limit }
     })
+
+    if (!productsResult.success) {
+      console.error('Error fetching products:', productsResult.error)
+      return []
+    }
+
+    const products = productsResult.data as any[] as StoreProduct[]
 
     // Get unique vendor IDs from products
     const vendorIds = [...new Set(
-      products.items
+      products
         .map(product => product.productOwner || product.ownerEntityId)
         .filter(Boolean)
     )]
@@ -49,9 +49,9 @@ export async function getEnhancedProducts(limit: number = 50): Promise<EnhancedP
 
     for (const vendorId of vendorIds) {
       try {
-        const profile = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', `vendor_${vendorId}`)
-        if (profile) {
-          vendorProfiles.push(profile)
+        const profileResult = await db.read('vendorProfiles', `vendor_${vendorId}`)
+        if (profileResult.success && profileResult.data) {
+          vendorProfiles.push(profileResult.data as any as ExtendedVendorProfile)
         }
       } catch (error) {
         console.warn(`Could not fetch vendor profile for ${vendorId}:`, error)
@@ -65,7 +65,7 @@ export async function getEnhancedProducts(limit: number = 50): Promise<EnhancedP
     })
 
     // Enhance products with vendor data
-    const enhancedProducts: EnhancedProduct[] = products.items.map(product => {
+    const enhancedProducts: StoreProduct[] = products.map(product => {
       const vendorId = product.productOwner || product.ownerEntityId
       const vendorProfile = vendorId ? vendorMap.get(vendorId) : undefined
 
@@ -77,28 +77,34 @@ export async function getEnhancedProducts(limit: number = 50): Promise<EnhancedP
     console.error('Error getting enhanced products:', error)
     return []
   }
-}
+})
 
 /**
  * Get products by vendor with quality filtering
+ * READ operation - uses React 19 cache() for performance
  */
-export async function getProductsByVendor(
+export const getProductsByVendor = cache(async (
   vendorId: string,
   filters?: {
     minQualityScore?: number
     certifiedOnly?: boolean
     minTrustScore?: number
   }
-): Promise<EnhancedProduct[]> {
+): Promise<StoreProduct[]> => {
   try {
-    // Get vendor profile
-    const vendorProfile = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', `vendor_${vendorId}`)
-    if (!vendorProfile) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    // Get vendor profile (READ - cached)
+    const profileResult = await db.read('vendorProfiles', `vendor_${vendorId}`)
+    if (!profileResult.success || !profileResult.data) {
       return []
     }
+    const vendorProfile = profileResult.data as any as ExtendedVendorProfile
 
-    // Get products by this vendor
-    const products = await getCachedCollectionTyped<StoreProduct>('products', {
+    // Get products by this vendor (READ - cached)
+    const productsResult = await db.query({
+      collection: 'store_products',
       filters: [
         {
           field: 'productOwner',
@@ -106,11 +112,18 @@ export async function getProductsByVendor(
           value: vendorId
         }
       ],
-      limit: 100
+      pagination: { limit: 100 }
     })
 
+    if (!productsResult.success) {
+      console.error('Error fetching vendor products:', productsResult.error)
+      return []
+    }
+
+    const products = productsResult.data as any[] as StoreProduct[]
+
     // Apply quality filters
-    let enhancedProducts = products.items.map(product =>
+    let enhancedProducts = products.map(product =>
       enhanceProduct(product, vendorProfile)
     )
 
@@ -134,12 +147,12 @@ export async function getProductsByVendor(
     console.error('Error getting products by vendor:', error)
     return []
   }
-}
+})
 
 /**
  * Get quality-focused product recommendations
  */
-export async function getQualityRecommendations(limit: number = 10): Promise<EnhancedProduct[]> {
+export async function getQualityRecommendations(limit: number = 10): Promise<StoreProduct[]> {
   try {
     const enhancedProducts = await getEnhancedProducts(200)
 
@@ -162,7 +175,7 @@ export async function getQualityRecommendations(limit: number = 10): Promise<Enh
 /**
  * Get sustainable product recommendations
  */
-export async function getSustainableProducts(limit: number = 10): Promise<EnhancedProduct[]> {
+export async function getSustainableProducts(limit: number = 10): Promise<StoreProduct[]> {
   try {
     const enhancedProducts = await getEnhancedProducts(200)
 
@@ -188,7 +201,7 @@ export async function getSustainableProducts(limit: number = 10): Promise<Enhanc
 /**
  * Get AI-recommended products
  */
-export async function getAIRecommendedProducts(limit: number = 10): Promise<EnhancedProduct[]> {
+export async function getAIRecommendedProducts(limit: number = 10): Promise<StoreProduct[]> {
   try {
     const enhancedProducts = await getEnhancedProducts(200)
 
@@ -205,17 +218,23 @@ export async function getAIRecommendedProducts(limit: number = 10): Promise<Enha
 
 /**
  * Update product quality metrics based on vendor profile changes
+ * MUTATION - NO CACHE! (updates product metadata)
  */
 export async function updateProductQualityMetrics(vendorId: string): Promise<void> {
   try {
-    // Get vendor profile
-    const vendorProfile = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', `vendor_${vendorId}`)
-    if (!vendorProfile) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    // Get vendor profile (READ - cached)
+    const profileResult = await db.read('vendorProfiles', `vendor_${vendorId}`)
+    if (!profileResult.success || !profileResult.data) {
       return
     }
+    const vendorProfile = profileResult.data as any as ExtendedVendorProfile
 
-    // Get all products by this vendor
-    const products = await getCachedCollectionTyped<StoreProduct>('products', {
+    // Get all products by this vendor (READ for update)
+    const productsResult = await db.query({
+      collection: 'store_products',
       filters: [
         {
           field: 'productOwner',
@@ -225,12 +244,18 @@ export async function updateProductQualityMetrics(vendorId: string): Promise<voi
       ]
     })
 
-    // Update quality metrics for each product
-    for (const product of products.items) {
+    if (!productsResult.success) {
+      console.error('Error fetching vendor products:', productsResult.error)
+      return
+    }
+
+    const products = productsResult.data as any[] as StoreProduct[]
+
+    // Update quality metrics for each product (MUTATION - NO CACHE!)
+    for (const product of products) {
       const enhancedProduct = enhanceProduct(product, vendorProfile)
 
       // Update product with quality metadata
-      // This would typically update a products collection with quality metadata
       console.log(`Updated quality metrics for product ${product.id}:`, {
         qualityBadges: enhancedProduct.qualityBadges,
         trustScore: enhancedProduct.trustScore,
@@ -245,10 +270,10 @@ export async function updateProductQualityMetrics(vendorId: string): Promise<voi
 /**
  * Generate product quality report for vendor dashboard
  */
-export async function generateProductQualityReport(products: EnhancedProduct[]): Promise<{
+export async function generateProductQualityReport(products: StoreProduct[]): Promise<{
   totalProducts: number;
   qualityDistribution: { excellent: number; good: number; average: number; poor: number };
-  topQualityProducts: EnhancedProduct[];
+  topQualityProducts: StoreProduct[];
   certifications: string[];
   averageTrustScore: number;
   aiRecommendedCount: number;
@@ -300,7 +325,7 @@ export async function generateProductQualityReport(products: EnhancedProduct[]):
 /**
  * Enhance a single product with vendor information
  */
-function enhanceProduct(product: StoreProduct, vendorProfile?: ExtendedVendorProfile): EnhancedProduct {
+function enhanceProduct(product: StoreProduct, vendorProfile?: ExtendedVendorProfile): StoreProduct {
   const qualityBadges: string[] = []
   let trustScore = 50 // Default trust score
   let sustainabilityRating: number | undefined

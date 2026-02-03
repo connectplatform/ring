@@ -3,15 +3,12 @@
  * 
  * Manages automated vendor payouts, commission calculations,
  * multi-party payment splitting, and dispute escrow management.
+ * 
+ * NOTE: NO cache() - financial operations require real-time accuracy
  */
 
-import { 
-  getCachedDocumentTyped,
-  updateDocumentTyped,
-  createDocumentTyped,
-  runTransaction,
-  getCachedCollectionTyped
-} from '@/lib/services/firebase-service-manager'
+import { cache } from 'react'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { Order, VendorOrder } from '@/features/store/types'
 import { 
   VendorProfile,
@@ -121,19 +118,22 @@ export async function createSettlement(
   order: Order,
   vendorOrder: VendorOrder
 ): Promise<Settlement> {
-  const vendor = await getCachedDocumentTyped<VendorProfile>(
-    'vendorProfiles',
-    `vendor_${vendorOrder.vendorId}`
-  )
+  await initializeDatabase()
+  const db = getDatabaseService()
   
-  if (!vendor) {
+  const vendorResult = await db.findById('vendorProfiles', `vendor_${vendorOrder.vendorId}`)
+  if (!vendorResult.success || !vendorResult.data) {
     throw new Error(`Vendor not found: ${vendorOrder.vendorId}`)
   }
+  const vendor = (vendorResult.data.data || vendorResult.data) as VendorProfile
   
-  const merchantConfig = await getCachedDocumentTyped<MerchantConfiguration>(
-    'merchantConfigs',
-    vendor.storeMerchantConfigID || ''
-  )
+  let merchantConfig: MerchantConfiguration | null = null
+  if (vendor.storeMerchantConfigID) {
+    const configResult = await db.findById('merchantConfigs', vendor.storeMerchantConfigID)
+    if (configResult.success && configResult.data) {
+      merchantConfig = (configResult.data.data || configResult.data) as MerchantConfiguration
+    }
+  }
   
   // Calculate commission
   const commission = calculateCommission(vendorOrder, vendor, merchantConfig)
@@ -165,7 +165,7 @@ export async function createSettlement(
     }
   }
   
-  await createDocumentTyped('settlements', settlement.id, settlement)
+  await db.create('settlements', settlement, { id: settlement.id })
   
   return settlement
 }
@@ -212,40 +212,51 @@ function calculateSettlementDate(
  * Process due settlements for payout
  */
 export async function processDueSettlements(): Promise<PayoutBatch> {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
   const now = new Date().toISOString()
   
   // Get all pending settlements that are due
-  const dueSettlements = await getCachedCollectionTyped<Settlement>(
-    'settlements',
-    {
-      filters: [
-        { field: 'status', operator: '==', value: 'pending' },
-        { field: 'scheduledFor', operator: '<=', value: now }
-      ],
-      limit: 100 // Process in batches
-    }
-  )
+  const result = await db.query({
+    collection: 'settlements',
+    filters: [
+      { field: 'status', operator: '=', value: 'pending' },
+      { field: 'scheduledFor', operator: '<=', value: now }
+    ],
+    pagination: { limit: 100 }
+  })
   
-  if (dueSettlements.items.length === 0) {
+  if (!result.success || !result.data) {
+    return null
+  }
+  
+  const settlements = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+  const dueSettlements = settlements.map(item => ({
+    id: item.id,
+    ...(item.data || item)
+  })) as Settlement[]
+  
+  if (dueSettlements.length === 0) {
     return null
   }
   
   // Create payout batch
   const batch: PayoutBatch = {
     id: `batch_${Date.now()}`,
-    settlements: dueSettlements.items.map(s => s.id),
-    totalAmount: dueSettlements.items.reduce((sum, s) => sum + s.netPayout, 0),
-    currency: dueSettlements.items[0].currency, // Assume same currency for now
+    settlements: dueSettlements.map(s => s.id),
+    totalAmount: dueSettlements.reduce((sum, s) => sum + s.netPayout, 0),
+    currency: dueSettlements[0].currency,
     status: 'created',
     createdAt: now,
     completedCount: 0,
     failedCount: 0
   }
   
-  await createDocumentTyped('payoutBatches', batch.id, batch)
+  await db.create('payoutBatches', batch, { id: batch.id })
   
   // Process each settlement
-  for (const settlement of dueSettlements.items) {
+  for (const settlement of dueSettlements) {
     try {
       await processSettlement(settlement, batch.id)
       batch.completedCount++
@@ -254,7 +265,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
       batch.failedCount++
       
       // Mark settlement as failed
-      await updateDocumentTyped('settlements', settlement.id, {
+      await db.update('settlements', settlement.id, {
         status: 'failed',
         failureReason: error.message
       })
@@ -265,7 +276,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
   const batchStatus = batch.failedCount === 0 ? 'completed' : 
                       batch.completedCount === 0 ? 'failed' : 'partial'
   
-  await updateDocumentTyped('payoutBatches', batch.id, {
+  await db.update('payoutBatches', batch.id, {
     status: batchStatus,
     processedAt: new Date().toISOString(),
     completedCount: batch.completedCount,
@@ -282,22 +293,29 @@ async function processSettlement(
   settlement: Settlement,
   batchId: string
 ): Promise<void> {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
   // Update settlement status to processing
-  await updateDocumentTyped('settlements', settlement.id, {
+  await db.update('settlements', settlement.id, {
     status: 'processing'
   })
   
   try {
     // Get vendor's merchant configuration
-    const vendor = await getCachedDocumentTyped<VendorProfile>(
-      'vendorProfiles',
-      `vendor_${settlement.vendorId}`
-    )
+    const vendorResult = await db.findById('vendorProfiles', `vendor_${settlement.vendorId}`)
+    if (!vendorResult.success || !vendorResult.data) {
+      throw new Error('Vendor not found')
+    }
+    const vendor = (vendorResult.data.data || vendorResult.data) as VendorProfile
     
-    const merchantConfig = await getCachedDocumentTyped<MerchantConfiguration>(
-      'merchantConfigs',
-      vendor?.storeMerchantConfigID || ''
-    )
+    let merchantConfig: MerchantConfiguration | null = null
+    if (vendor.storeMerchantConfigID) {
+      const configResult = await db.findById('merchantConfigs', vendor.storeMerchantConfigID)
+      if (configResult.success && configResult.data) {
+        merchantConfig = (configResult.data.data || configResult.data) as MerchantConfiguration
+      }
+    }
     
     if (!merchantConfig || !merchantConfig.walletId) {
       throw new Error('Merchant configuration or wallet not found')
@@ -322,7 +340,7 @@ async function processSettlement(
     }
     
     // Update settlement as completed
-    await updateDocumentTyped('settlements', settlement.id, {
+    await db.update('settlements', settlement.id, {
       status: 'completed',
       processedAt: new Date().toISOString(),
       transactionId,
@@ -397,7 +415,10 @@ export async function holdSettlement(
   settlementId: string,
   reason: string
 ): Promise<void> {
-  await updateDocumentTyped('settlements', settlementId, {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  await db.update('settlements', settlementId, {
     status: 'held',
     metadata: {
       holdReason: reason,
@@ -412,10 +433,17 @@ export async function holdSettlement(
 export async function releaseHeldSettlement(
   settlementId: string
 ): Promise<void> {
-  const settlement = await getCachedDocumentTyped<Settlement>('settlements', settlementId)
+  await initializeDatabase()
+  const db = getDatabaseService()
   
-  if (!settlement || settlement.status !== 'held') {
+  const settlementResult = await db.findById('settlements', settlementId)
+  if (!settlementResult.success || !settlementResult.data) {
     throw new Error('Settlement not found or not held')
+  }
+  
+  const settlement = (settlementResult.data.data || settlementResult.data) as Settlement
+  if (settlement.status !== 'held') {
+    throw new Error('Settlement not held')
   }
   
   // Reschedule for next payout cycle
@@ -424,7 +452,7 @@ export async function releaseHeldSettlement(
     0 // No additional hold period
   )
   
-  await updateDocumentTyped('settlements', settlementId, {
+  await db.update('settlements', settlementId, {
     status: 'pending',
     scheduledFor: newScheduledDate,
     metadata: {
@@ -436,73 +464,107 @@ export async function releaseHeldSettlement(
 
 /**
  * Get vendor payout history
+ * Cached for performance
  */
-export async function getVendorPayoutHistory(
+export const getVendorPayoutHistory = cache(async (
   vendorId: string,
   limit: number = 50
-): Promise<Settlement[]> {
-  const settlements = await getCachedCollectionTyped<Settlement>(
-    'settlements',
-    {
-      filters: [
-        { field: 'vendorId', operator: '==', value: vendorId },
-        { field: 'status', operator: '==', value: 'completed' }
-      ],
-      orderBy: { field: 'processedAt', direction: 'desc' },
-      limit
-    }
-  )
+): Promise<Settlement[]> => {
+  await initializeDatabase()
+  const db = getDatabaseService()
   
-  return settlements.items
-}
+  const result = await db.query({
+    collection: 'settlements',
+    filters: [
+      { field: 'vendorId', operator: '=', value: vendorId },
+      { field: 'status', operator: '=', value: 'completed' }
+    ],
+    orderBy: [{ field: 'processedAt', direction: 'desc' }],
+    pagination: { limit }
+  })
+  
+  if (!result.success || !result.data) {
+    return []
+  }
+  
+  const settlements = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+  return settlements.map(item => ({
+    id: item.id,
+    ...(item.data || item)
+  })) as Settlement[]
+})
 
 /**
  * Get vendor pending payouts
+ * Cached for performance
  */
-export async function getVendorPendingPayouts(
+export const getVendorPendingPayouts = cache(async (
   vendorId: string
-): Promise<{ settlements: Settlement[], total: number }> {
-  const settlements = await getCachedCollectionTyped<Settlement>(
-    'settlements',
-    {
-      filters: [
-        { field: 'vendorId', operator: '==', value: vendorId },
-        { field: 'status', operator: '==', value: 'pending' }
-      ],
-      orderBy: { field: 'scheduledFor', direction: 'asc' }
-    }
-  )
+): Promise<{ settlements: Settlement[], total: number }> => {
+  await initializeDatabase()
+  const db = getDatabaseService()
   
-  const total = settlements.items.reduce((sum, s) => sum + s.netPayout, 0)
+  const result = await db.query({
+    collection: 'settlements',
+    filters: [
+      { field: 'vendorId', operator: '=', value: vendorId },
+      { field: 'status', operator: '=', value: 'pending' }
+    ],
+    orderBy: [{ field: 'scheduledFor', direction: 'asc' }]
+  })
+  
+  if (!result.success || !result.data) {
+    return { settlements: [], total: 0 }
+  }
+  
+  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+  const settlements = data.map(item => ({
+    id: item.id,
+    ...(item.data || item)
+  })) as Settlement[]
+  
+  const total = settlements.reduce((sum, s) => sum + s.netPayout, 0)
   
   return {
-    settlements: settlements.items,
+    settlements,
     total
   }
-}
+})
 
 /**
  * Calculate platform revenue from commissions
+ * Cached for performance
  */
-export async function calculatePlatformRevenue(
+export const calculatePlatformRevenue = cache(async (
   startDate: string,
   endDate: string
-): Promise<{ total: number, breakdown: Record<string, number> }> {
-  const settlements = await getCachedCollectionTyped<Settlement>(
-    'settlements',
-    {
-      filters: [
-        { field: 'status', operator: '==', value: 'completed' },
-        { field: 'processedAt', operator: '>=', value: startDate },
-        { field: 'processedAt', operator: '<=', value: endDate }
-      ]
-    }
-  )
+): Promise<{ total: number, breakdown: Record<string, number> }> => {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  const result = await db.query({
+    collection: 'settlements',
+    filters: [
+      { field: 'status', operator: '=', value: 'completed' },
+      { field: 'processedAt', operator: '>=', value: startDate },
+      { field: 'processedAt', operator: '<=', value: endDate }
+    ]
+  })
+  
+  if (!result.success || !result.data) {
+    return { total: 0, breakdown: {} }
+  }
+  
+  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+  const settlements = data.map(item => ({
+    id: item.id,
+    ...(item.data || item)
+  })) as Settlement[]
   
   const breakdown: Record<string, number> = {}
   let total = 0
   
-  for (const settlement of settlements.items) {
+  for (const settlement of settlements) {
     const commission = settlement.commission
     total += commission
     
@@ -514,4 +576,4 @@ export async function calculatePlatformRevenue(
   }
   
   return { total, breakdown }
-}
+})

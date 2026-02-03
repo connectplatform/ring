@@ -31,18 +31,23 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 
 		setSubmitting(true)
 		try {
-			// Create order with billing data
+			// Create order with billing data (Phase 2: Include variants!)
 			const items = cartItems.map(i => ({
 				productId: i.product.id,
 				name: i.product.name,
 				price: i.product.price,
 				currency: 'UAH', // Convert to UAH for WayForPay
-				quantity: i.quantity
+				quantity: i.quantity,
+				// Phase 2: Include selected variants and final price
+				selectedVariants: i.selectedVariants,
+				finalPrice: i.finalPrice
 			}))
 			
-			const cartTotal = cartItems.reduce((sum, item) => 
-				sum + (parseFloat(item.product.price) * item.quantity), 0
-			)
+			// Phase 2: Use finalPrice for total calculation if available
+			const cartTotal = cartItems.reduce((sum, item) => {
+				const price = item.finalPrice || parseFloat(item.product.price)
+				return sum + (price * item.quantity)
+			}, 0)
 			
 			const shippingCost = billingData.shippingMethod === 'pickup' ? 0 : 65
 			const total = cartTotal + shippingCost
@@ -145,6 +150,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 					currency: 'UAH',
 					expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours
 					ctaText: t('specialOfferCta', { default: 'Apply Offer' }) as unknown as string,
+					dismissText: t('dismiss', { default: 'Dismiss' }) as unknown as string,
 					onClick: () => setShowOffer(false)
 				}}
 				open={showOffer}

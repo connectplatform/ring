@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { SlidingPopup } from '@/components/common/widgets/modal'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 type Currency = 'RING' | 'DAAR' | 'DAARION' | 'UAH' | 'USD' | 'EUR'
@@ -23,6 +23,8 @@ export interface SpecialOffer {
   expiresAt?: string | number | Date
   /** CTA button text */
   ctaText?: string
+  /** Dismiss button text (for localization) */
+  dismissText?: string
   /** Where the CTA navigates to. If onClick provided, it takes precedence */
   href?: string
   /** Custom handler for CTA click */
@@ -125,16 +127,17 @@ export function SpecialOfferModal({
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
+        {/* Buttons: Stacked on mobile (80% width), inline on iPad/Desktop */}
+        <div className="mt-4 flex flex-col md:flex-row items-stretch md:items-center gap-2">
           {offer.onClick ? (
-            <Button onClick={offer.onClick}>{offer.ctaText || 'View Deal'}</Button>
+            <Button onClick={offer.onClick} className="w-4/5 mx-auto md:w-auto md:mx-0">{offer.ctaText || 'View Deal'}</Button>
           ) : offer.href ? (
-            <Button asChild>
+            <Button asChild className="w-4/5 mx-auto md:w-auto md:mx-0">
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href={offer.href}>{offer.ctaText || 'View Deal'}</a>
             </Button>
           ) : null}
-          <Button variant="ghost" onClick={close}>Dismiss</Button>
+          <Button variant="ghost" onClick={close} className="w-4/5 mx-auto md:w-auto md:mx-0">{offer.dismissText || 'Dismiss'}</Button>
         </div>
       </div>
     </div>
@@ -142,16 +145,46 @@ export function SpecialOfferModal({
 
   if (floating) {
     return (
-      <div className="pointer-events-none fixed bottom-4 left-4 z-50 w-[92vw] max-w-[380px] sm:bottom-6 sm:left-6">
-        <SlidingPopup
-          isOpen={visible}
-          onCloseAction={async () => close()}
-        >
-          <div className="pointer-events-auto rounded-md border bg-background p-4 shadow-xl">
-            {content}
-          </div>
-        </SlidingPopup>
-      </div>
+      <AnimatePresence>
+        {visible && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-50"
+              onClick={close}
+            />
+            
+            {/* Mobile: Slide from bottom (auto-height, nav padding), iPad/Desktop: Centered */}
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 pb-20 z-50 md:pb-0 md:inset-0 md:m-auto md:w-[92vw] md:max-w-[500px] md:h-fit md:flex md:items-center md:justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-card border-t md:border md:rounded-xl shadow-2xl overflow-hidden">
+                {/* Close Button */}
+                <button
+                  onClick={close}
+                  className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 hover:bg-background flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors z-10"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+                
+                {/* Content */}
+                <div className="p-6">
+                  {content}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     )
   }
 

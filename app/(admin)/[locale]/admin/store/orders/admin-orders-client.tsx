@@ -209,6 +209,6 @@ function getStatusColor(status: string): string {
     case 'shipped': return 'text-purple-600';
     case 'completed': return 'text-green-800';
     case 'canceled': return 'text-red-600';
-    default: return 'text-gray-600';
+    default: return 'text-muted-foreground';
   }
 }

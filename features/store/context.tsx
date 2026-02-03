@@ -2,21 +2,21 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, use } from 'react'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import type { StoreProduct, CartItem, CheckoutInfo } from './types'
-import type { EnhancedProduct } from './services/vendor-product-integration'
 import { getClientStoreService } from './client'
+import { generateProductEmbedding } from '@/lib/vector-search'
 
 interface StoreContextType {
   // Legacy support
   products: StoreProduct[]
 
   // ERP Extension: Enhanced products with vendor data
-  enhancedProducts: EnhancedProduct[]
-  qualityRecommendations: EnhancedProduct[]
-  sustainableProducts: EnhancedProduct[]
-  aiRecommendedProducts: EnhancedProduct[]
+  enhancedProducts: StoreProduct[]
+  qualityRecommendations: StoreProduct[]
+  sustainableProducts: StoreProduct[]
+  aiRecommendedProducts: StoreProduct[]
 
   cartItems: CartItem[]
-  addToCart: (product: StoreProduct | EnhancedProduct) => void
+  addToCart: (product: StoreProduct) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -46,10 +46,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<StoreProduct[]>([])
 
   // ERP Extension: Enhanced products with vendor data
-  const [enhancedProducts, setEnhancedProducts] = useState<EnhancedProduct[]>([])
-  const [qualityRecommendations, setQualityRecommendations] = useState<EnhancedProduct[]>([])
-  const [sustainableProducts, setSustainableProducts] = useState<EnhancedProduct[]>([])
-  const [aiRecommendedProducts, setAiRecommendedProducts] = useState<EnhancedProduct[]>([])
+  const [enhancedProducts, setEnhancedProducts] = useState<StoreProduct[]>([])
+  const [qualityRecommendations, setQualityRecommendations] = useState<StoreProduct[]>([])
+  const [sustainableProducts, setSustainableProducts] = useState<StoreProduct[]>([])
+  const [aiRecommendedProducts, setAiRecommendedProducts] = useState<StoreProduct[]>([])
   const [isLoadingEnhanced, setIsLoadingEnhanced] = useState(false)
 
   const [rawCart, setRawCart] = useLocalStorage<{ id: string; qty: number }[]>(`ring_cart`, [])
@@ -62,41 +62,73 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return
       setService(s)
 
-      // Load legacy products
-      const list = await s.list()
-      if (!mounted) return
-      setProducts(Array.isArray(list) ? list : [])
+      // Load products once and use for both legacy and enhanced
+      setIsLoadingEnhanced(true)
+      try {
+        const list = await s.list()
+        if (!mounted) return
+        
+        const productList = Array.isArray(list) ? list : []
+        setProducts(productList)
 
-      // Load enhanced products (ERP Extension)
-      await loadEnhancedProducts(s)
+        // Generate embeddings for products (fast, local operation)
+        const enhancedWithEmbeddings = productList.map(product => ({
+          ...product,
+          embedding: generateProductEmbedding({
+            name: product.name,
+            description: product.description,
+            category: product.category,
+            tags: product.tags
+          })
+        }))
+        setEnhancedProducts(enhancedWithEmbeddings)
+        
+        // Set recommendations from the same product list (no additional DB calls)
+        // Quality: products with high ratings or organic tags
+        const qualityProducts = enhancedWithEmbeddings.filter(p => 
+          p.tags?.includes('organic') || p.tags?.includes('premium') || p.rating && p.rating >= 4.5
+        ).slice(0, 10)
+        setQualityRecommendations(qualityProducts.length > 0 ? qualityProducts : enhancedWithEmbeddings.slice(0, 10))
+        
+        // Sustainable: products with eco/sustainable tags
+        const sustainableList = enhancedWithEmbeddings.filter(p =>
+          p.tags?.includes('eco') || p.tags?.includes('sustainable') || p.tags?.includes('organic')
+        ).slice(0, 10)
+        setSustainableProducts(sustainableList.length > 0 ? sustainableList : enhancedWithEmbeddings.slice(0, 10))
+        
+        // AI Recommended: random selection for now (can be enhanced later)
+        const shuffled = [...enhancedWithEmbeddings].sort(() => Math.random() - 0.5)
+        setAiRecommendedProducts(shuffled.slice(0, 10))
+      } catch (error) {
+        console.error('Error loading products:', error)
+      } finally {
+        setIsLoadingEnhanced(false)
+      }
     })()
     return () => { mounted = false }
   }, [])
 
-  // ERP Extension: Load enhanced products with vendor data
+  // ERP Extension: Refresh products (for manual refresh only)
   const loadEnhancedProducts = async (storeService: any) => {
-    if (!storeService?.listEnhanced) return
+    // This is now only used for manual refresh, not initial load
+    if (!storeService) return
 
     try {
       setIsLoadingEnhanced(true)
-
-      // Load enhanced products
-      const enhanced = await storeService.listEnhanced()
-      setEnhancedProducts(Array.isArray(enhanced) ? enhanced : [])
-
-      // Load recommendations
-      const [quality, sustainable, ai] = await Promise.all([
-        storeService.getQualityRecommendations(10),
-        storeService.getSustainableProducts(10),
-        storeService.getAIRecommendedProducts(10)
-      ])
-
-      setQualityRecommendations(Array.isArray(quality) ? quality : [])
-      setSustainableProducts(Array.isArray(sustainable) ? sustainable : [])
-      setAiRecommendedProducts(Array.isArray(ai) ? ai : [])
+      const productList = await storeService.list()
+      const enhancedWithEmbeddings = Array.isArray(productList) ? productList.map(product => ({
+        ...product,
+        embedding: generateProductEmbedding({
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          tags: product.tags
+        })
+      })) : []
+      setEnhancedProducts(enhancedWithEmbeddings)
+      setProducts(Array.isArray(productList) ? productList : [])
     } catch (error) {
-      console.error('Error loading enhanced products:', error)
-      // Fallback to basic products if enhanced loading fails
+      console.error('Error refreshing products:', error)
     } finally {
       setIsLoadingEnhanced(false)
     }
@@ -121,7 +153,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [rawCart, products])
 
-  const addToCart = (product: StoreProduct | EnhancedProduct) => {
+  const addToCart = (product: StoreProduct) => {
     setRawCart(prev => {
       const found = prev.find(i => i.id === product.id)
       if (found) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)

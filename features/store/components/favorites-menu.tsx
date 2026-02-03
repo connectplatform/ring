@@ -11,7 +11,7 @@ import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n-config'
 
 export function FavoritesMenu({ locale }: { locale: Locale }) {
-  const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
+  const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])
   const store = useOptionalStore()
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -38,16 +38,20 @@ export function FavoritesMenu({ locale }: { locale: Locale }) {
   }, [])
 
   const resolved = React.useMemo(() => {
-    const list = store?.products || []
+    // Try enhanced products first, then fall back to legacy products
+    const enhancedList = store?.enhancedProducts || []
+    const legacyList = store?.products || []
+    const allProducts = [...enhancedList, ...legacyList]
+
     return favorites
-      .map(id => list.find(p => p.id === id))
-      .filter(Boolean) as Array<{ id: string; name: string }>
-  }, [favorites, store?.products])
+      .map(id => allProducts.find(p => p.id === id))
+      .filter(Boolean) as Array<{ id: string; name: string; price?: string | number; currency?: string }>
+  }, [favorites, store?.enhancedProducts, store?.products])
 
   return (
     <div className="relative" ref={containerRef}>
       <button
-        className="inline-flex items-center gap-1"
+        className="inline-flex items-center gap-1 hover:bg-accent/50 rounded p-1 transition-colors"
         onMouseEnter={() => setOpen(true)}
         onFocus={() => setOpen(true)}
         aria-expanded={open}
@@ -57,24 +61,61 @@ export function FavoritesMenu({ locale }: { locale: Locale }) {
         <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">{mounted ? favorites.length : 0}</span>
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-popover border rounded shadow p-3 z-50" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-          {resolved.length === 0 ? (
-            <div className="text-sm text-muted-foreground">{t('empty')}</div>
-          ) : (
-            <div className="space-y-2">
-              {resolved.slice(0, 8).map(p => (
-                <Link key={p.id} href={`${ROUTES.STORE(locale)}/${p.id}`} className="block text-sm underline truncate" onClick={() => setOpen(false)}>
-                  {p.name}
-                </Link>
-              ))}
-              {resolved.length > 8 && (
-                <div className="text-xs text-muted-foreground">+{resolved.length - 8} more</div>
-              )}
-              <div className="flex gap-3 text-sm">
-                <Link className="underline" href={ROUTES.STORE(locale)} onClick={() => setOpen(false)}>{t('browseStore')}</Link>
-              </div>
+        <div className="fixed left-0 top-[140px] w-[280px] bottom-[80px] bg-popover/95 backdrop-blur-sm border-r border-l border-border z-40 overflow-y-auto" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Heart className="h-5 w-5" />
+              <span className="font-semibold">{t('button')}</span>
+              <Badge variant="secondary">{resolved.length} items</Badge>
             </div>
-          )}
+            {resolved.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-8">
+                {t('empty')}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {resolved.map(p => (
+                  <div key={p.id} className="p-3 bg-background/50 rounded-lg border">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`${ROUTES.STORE(locale)}/${p.id}`}
+                          className="block font-medium text-sm hover:text-primary transition-colors truncate"
+                          onClick={() => setOpen(false)}
+                        >
+                          {p.name}
+                        </Link>
+                        {p.price && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {typeof p.price === 'number' ? p.price.toFixed(2) : p.price} {p.currency || 'DAAR'}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          // Remove from favorites
+                          setFavorites(favorites.filter(id => id !== p.id))
+                        }}
+                        className="text-destructive hover:text-destructive/80 text-sm ml-2 flex-shrink-0"
+                        title="Remove from favorites"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="border-t pt-3 mt-4">
+                  <Link
+                    className="w-full text-center py-2 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium block"
+                    href={ROUTES.STORE(locale)}
+                    onClick={() => setOpen(false)}
+                  >
+                    {t('browseStore')}
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

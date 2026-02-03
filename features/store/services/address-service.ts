@@ -1,10 +1,12 @@
-// 🚀 OPTIMIZED SERVICE: Store shipping address management (Server-side)
-// - Direct Firebase operations via service manager
-// - React 19 cache() for request deduplication
-// - Firestore subcollection for user addresses
-// - Used in API routes and server actions only
+/**
+ * Store Shipping Address Management (Server-side)
+ * 
+ * - React 19 cache() for read operations
+ * - PostgreSQL DatabaseService for all operations
+ * - Used in API routes and server actions only
+ */
 
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { cache } from 'react'
 
@@ -25,17 +27,23 @@ export interface UserAddress {
 export const AddressService = {
   list: cache(async (userId: string): Promise<UserAddress[]> => {
     try {
-      const { db } = getFirebaseServiceManager()
-      const snapshot = await db
-        .collection('users')
-        .doc(userId)
-        .collection('addresses')
-        .orderBy('createdAt', 'desc')
-        .get()
+      await initializeDatabase()
+      const db = getDatabaseService()
       
-      return snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
+      const result = await db.query({
+        collection: 'user_addresses',
+        filters: [{ field: 'userId', operator: '=', value: userId }],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }]
+      })
+      
+      if (!result.success || !result.data) {
+        return []
+      }
+      
+      const addresses = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+      return addresses.map(item => ({
+        id: item.id,
+        ...(item.data || item)
       } as UserAddress))
     } catch (error) {
       logger.error('AddressService: Error listing addresses', { userId, error })
@@ -45,23 +53,30 @@ export const AddressService = {
 
   async create(userId: string, address: Omit<UserAddress, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const { db } = getFirebaseServiceManager()
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       const now = new Date().toISOString()
-      const docRef = await db
-        .collection('users')
-        .doc(userId)
-        .collection('addresses')
-        .add({
-          ...address,
-          createdAt: now,
-          updatedAt: now
-        })
-
-      if (address.isDefault) {
-        await this.setDefault(userId, docRef.id)
+      const addressData = {
+        userId,
+        ...address,
+        createdAt: now,
+        updatedAt: now
       }
       
-      return docRef.id
+      const result = await db.create('user_addresses', addressData)
+      
+      if (!result.success || !result.data) {
+        throw new Error('Failed to create address')
+      }
+      
+      const addressId = result.data.id || `address_${Date.now()}`
+
+      if (address.isDefault) {
+        await this.setDefault(userId, addressId)
+      }
+      
+      return addressId
     } catch (error) {
       logger.error('AddressService: Error creating address', { userId, error })
       throw error
@@ -70,17 +85,14 @@ export const AddressService = {
 
   async update(userId: string, addressId: string, update: Partial<UserAddress>): Promise<void> {
     try {
-      const { db } = getFirebaseServiceManager()
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       const now = new Date().toISOString()
-      await db
-        .collection('users')
-        .doc(userId)
-        .collection('addresses')
-        .doc(addressId)
-        .update({ 
-          ...update, 
-          updatedAt: now 
-        })
+      await db.update('user_addresses', addressId, {
+        ...update,
+        updatedAt: now
+      })
       
       if (update.isDefault) {
         await this.setDefault(userId, addressId)
@@ -93,13 +105,10 @@ export const AddressService = {
 
   async remove(userId: string, addressId: string): Promise<void> {
     try {
-      const { db } = getFirebaseServiceManager()
-      await db
-        .collection('users')
-        .doc(userId)
-        .collection('addresses')
-        .doc(addressId)
-        .delete()
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.delete('user_addresses', addressId)
     } catch (error) {
       logger.error('AddressService: Error removing address', { userId, addressId, error })
       throw error

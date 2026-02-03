@@ -3,15 +3,11 @@
  * 
  * Manages real-time inventory updates across multiple stores,
  * handles reservations for pending orders, and prevents overselling.
+ * 
+ * Uses PostgreSQL transactions for atomic inventory operations
  */
 
-import { 
-  getCachedDocumentTyped,
-  updateDocumentTyped,
-  runTransaction,
-  getCachedCollectionTyped,
-  createDocumentTyped
-} from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { StoreProduct } from '@/features/store/types'
 import { InventorySyncStrategy, StoreEvent } from '@/constants/store'
 import { publishEvent } from '@/lib/events/event-bus.server'
@@ -61,13 +57,14 @@ export async function updateInventoryLevels(
   quantityChange: number,
   operation: 'add' | 'subtract' | 'set'
 ): Promise<void> {
-  await runTransaction(async (transaction) => {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  await db.transaction(async (transaction) => {
     // Get current inventory level
     const inventoryId = `${productId}_${storeId}`
-    const currentLevel = await getCachedDocumentTyped<InventoryLevel>(
-      'inventoryLevels',
-      inventoryId
-    )
+    const currentLevelDoc = await transaction.read('inventoryLevels', inventoryId)
+    const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
     let newAvailable: number
     
@@ -91,19 +88,15 @@ export async function updateInventoryLevels(
 
     // Update inventory level
     if (currentLevel) {
-      await updateDocumentTyped('inventoryLevels', inventoryId, newLevel)
+      await transaction.update('inventoryLevels', inventoryId, newLevel)
     } else {
-      await createDocumentTyped('inventoryLevels', inventoryId, newLevel)
+      await transaction.create('inventoryLevels', newLevel, { id: inventoryId })
     }
 
     // Update product stock status
-    const product = await getCachedDocumentTyped<StoreProduct>('products', productId)
-    if (product) {
-      await updateDocumentTyped(
-        'products',
-        productId,
-        { inStock: newAvailable > 0 }
-      )
+    const productDoc = await transaction.read('store_products', productId)
+    if (productDoc) {
+      await transaction.update('store_products', productId, { inStock: newAvailable > 0 })
     }
   })
 
@@ -124,6 +117,9 @@ export async function reserveInventory(
   quantity: number,
   reservationMinutes: number = 15
 ): Promise<InventoryReservation> {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
   const reservationId = `res_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const now = new Date()
   const expiresAt = new Date(now.getTime() + reservationMinutes * 60000)
@@ -139,13 +135,11 @@ export async function reserveInventory(
     status: 'active'
   }
 
-  await runTransaction(async (transaction) => {
+  await db.transaction(async (transaction) => {
     // Get current inventory level
     const inventoryId = `${productId}_${storeId}`
-    const currentLevel = await getCachedDocumentTyped<InventoryLevel>(
-      'inventoryLevels',
-      inventoryId
-    )
+    const currentLevelDoc = await transaction.read('inventoryLevels', inventoryId)
+    const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
     if (!currentLevel || currentLevel.available < quantity) {
       throw new Error(`Insufficient inventory for product ${productId}`)
@@ -159,10 +153,10 @@ export async function reserveInventory(
       syncVersion: currentLevel.syncVersion + 1
     }
 
-    await updateDocumentTyped('inventoryLevels', inventoryId, updatedLevel)
+    await transaction.update('inventoryLevels', inventoryId, updatedLevel)
 
     // Create reservation
-    await createDocumentTyped('inventoryReservations', reservationId, reservation)
+    await transaction.create('inventoryReservations', reservation, { id: reservationId })
   })
 
   return reservation
@@ -175,18 +169,25 @@ export async function releaseReservation(
   reservationId: string,
   fulfilled: boolean = false
 ): Promise<void> {
-  const reservation = await getCachedDocumentTyped<InventoryReservation>(
-    'inventoryReservations',
-    reservationId
-  )
-
-  if (!reservation || reservation.status !== 'active') {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  // Get reservation first
+  const reservationResult = await db.findById('inventoryReservations', reservationId)
+  if (!reservationResult.success || !reservationResult.data) {
     return // Already processed or doesn't exist
   }
+  
+  const reservationData = reservationResult.data.data || reservationResult.data
+  const reservation = { id: reservationId, ...reservationData } as InventoryReservation
 
-  await runTransaction(async (transaction) => {
+  if (reservation.status !== 'active') {
+    return // Already processed
+  }
+
+  await db.transaction(async (transaction) => {
     // Update reservation status
-    await updateDocumentTyped(
+    await transaction.update(
       'inventoryReservations',
       reservationId,
       { 
@@ -198,10 +199,8 @@ export async function releaseReservation(
     if (!fulfilled) {
       // Return reserved inventory to available pool
       const inventoryId = `${reservation.productId}_${reservation.storeId}`
-      const currentLevel = await getCachedDocumentTyped<InventoryLevel>(
-        'inventoryLevels',
-        inventoryId
-      )
+      const currentLevelDoc = await transaction.read('inventoryLevels', inventoryId)
+      const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
       if (currentLevel) {
         const updatedLevel: Partial<InventoryLevel> = {
@@ -211,7 +210,7 @@ export async function releaseReservation(
           syncVersion: currentLevel.syncVersion + 1
         }
 
-        await updateDocumentTyped('inventoryLevels', inventoryId, updatedLevel)
+        await transaction.update('inventoryLevels', inventoryId, updatedLevel)
       }
     }
   })
@@ -224,8 +223,17 @@ export async function syncInventoryAcrossStores(
   productId: string,
   strategy: InventorySyncStrategy = InventorySyncStrategy.MASTER
 ): Promise<void> {
-  const product = await getCachedDocumentTyped<StoreProduct>('products', productId)
-  if (!product || !product.productListedAt) {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  const productResult = await db.findById('store_products', productId)
+  if (!productResult.success || !productResult.data) {
+    return
+  }
+  
+  const productData = productResult.data.data || productResult.data
+  const product = { id: productId, ...productData } as StoreProduct
+  if (!product.productListedAt) {
     return
   }
 
@@ -257,10 +265,13 @@ async function syncFromMasterStore(
   masterStoreId: string,
   storeIds: string[]
 ): Promise<void> {
-  const masterInventory = await getCachedDocumentTyped<InventoryLevel>(
-    'inventoryLevels',
-    `${productId}_${masterStoreId}`
-  )
+  const db = getDatabaseService()
+  
+  const masterResult = await db.findById('inventoryLevels', `${productId}_${masterStoreId}`)
+  if (!masterResult.success || !masterResult.data) {
+    return
+  }
+  const masterInventory = (masterResult.data.data || masterResult.data) as InventoryLevel
 
   if (!masterInventory) {
     return
@@ -283,11 +294,16 @@ async function distributeInventoryEvenly(
   productId: string,
   storeIds: string[]
 ): Promise<void> {
+  const db = getDatabaseService()
+  
   // Get total inventory across all stores
   const inventoryLevels = await Promise.all(
-    storeIds.map(storeId =>
-      getCachedDocumentTyped<InventoryLevel>('inventoryLevels', `${productId}_${storeId}`)
-    )
+    storeIds.map(async storeId => {
+      const result = await db.findById('inventoryLevels', `${productId}_${storeId}`)
+      return result.success && result.data 
+        ? (result.data.data || result.data) as InventoryLevel
+        : null
+    })
   )
 
   const totalInventory = inventoryLevels.reduce(
@@ -314,15 +330,17 @@ async function maintainReservedLevels(
   productId: string,
   storeIds: string[]
 ): Promise<void> {
+  const db = getDatabaseService()
+  
   // This strategy maintains a minimum reserved level at each store
   // and redistributes excess inventory as needed
   const MIN_RESERVED = 5 // Configurable minimum per store
 
   for (const storeId of storeIds) {
-    const inventory = await getCachedDocumentTyped<InventoryLevel>(
-      'inventoryLevels',
-      `${productId}_${storeId}`
-    )
+    const inventoryResult = await db.findById('inventoryLevels', `${productId}_${storeId}`)
+    const inventory = inventoryResult.success && inventoryResult.data
+      ? (inventoryResult.data.data || inventoryResult.data) as InventoryLevel
+      : null
 
     if (!inventory || inventory.available < MIN_RESERVED) {
       // Try to transfer from other stores with excess
@@ -339,24 +357,30 @@ async function requestInventoryTransfer(
   toStoreId: string,
   quantity: number
 ): Promise<void> {
+  const db = getDatabaseService()
+  
   // Find stores with excess inventory
-  const inventoryLevels = await getCachedCollectionTyped<InventoryLevel>(
-    'inventoryLevels',
-    {
-      filters: [
-        { field: 'productId', operator: '==', value: productId },
-        { field: 'available', operator: '>', value: quantity }
-      ],
-      orderBy: { field: 'available', direction: 'desc' },
-      limit: 1
-    }
-  )
+  const result = await db.query({
+    collection: 'inventoryLevels',
+    filters: [
+      { field: 'productId', operator: '=', value: productId },
+      { field: 'available', operator: '>', value: quantity }
+    ],
+    orderBy: [{ field: 'available', direction: 'desc' }],
+    pagination: { limit: 1 }
+  })
 
-  if (inventoryLevels.items.length === 0) {
+  if (!result.success || !result.data) {
     return // No stores with sufficient excess
   }
 
-  const sourceStore = inventoryLevels.items[0]
+  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+  if (data.length === 0) {
+    return
+  }
+
+  const sourceStoreItem = data[0]
+  const sourceStore = { id: sourceStoreItem.id, ...(sourceStoreItem.data || sourceStoreItem) } as InventoryLevel
   
   // Create transfer record
   const transfer: InventoryTransfer = {
@@ -369,7 +393,7 @@ async function requestInventoryTransfer(
     initiatedAt: new Date().toISOString()
   }
 
-  await createDocumentTyped('inventoryTransfers', transfer.id, transfer)
+  await db.create('inventoryTransfers', transfer, { id: transfer.id })
   
   // In a real system, this would trigger a fulfillment workflow
   // For now, we'll just update the inventory levels
@@ -382,41 +406,54 @@ async function requestInventoryTransfer(
 export async function processInventoryTransfer(
   transferId: string
 ): Promise<void> {
-  const transfer = await getCachedDocumentTyped<InventoryTransfer>(
-    'inventoryTransfers',
-    transferId
-  )
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  // Get transfer first
+  const transferResult = await db.findById('inventoryTransfers', transferId)
+  if (!transferResult.success || !transferResult.data) {
+    return
+  }
+  
+  const transferData = transferResult.data.data || transferResult.data
+  const transfer = { id: transferId, ...transferData } as InventoryTransfer
 
-  if (!transfer || transfer.status !== 'pending') {
+  if (transfer.status !== 'pending') {
     return
   }
 
-  await runTransaction(async (transaction) => {
+  await db.transaction(async (transaction) => {
     // Subtract from source store
-    await updateInventoryLevels(
-      transfer.productId,
-      transfer.fromStoreId,
-      transfer.quantity,
-      'subtract'
-    )
+    const sourceId = `${transfer.productId}_${transfer.fromStoreId}`
+    const sourceLevelDoc = await transaction.read('inventoryLevels', sourceId)
+    const sourceLevel = sourceLevelDoc?.data as InventoryLevel | undefined
+    
+    if (sourceLevel) {
+      await transaction.update('inventoryLevels', sourceId, {
+        available: Math.max(0, sourceLevel.available - transfer.quantity),
+        syncVersion: sourceLevel.syncVersion + 1,
+        lastUpdated: new Date().toISOString()
+      })
+    }
 
     // Add to destination store
-    await updateInventoryLevels(
-      transfer.productId,
-      transfer.toStoreId,
-      transfer.quantity,
-      'add'
-    )
+    const destId = `${transfer.productId}_${transfer.toStoreId}`
+    const destLevelDoc = await transaction.read('inventoryLevels', destId)
+    const destLevel = destLevelDoc?.data as InventoryLevel | undefined
+    
+    if (destLevel) {
+      await transaction.update('inventoryLevels', destId, {
+        available: destLevel.available + transfer.quantity,
+        syncVersion: destLevel.syncVersion + 1,
+        lastUpdated: new Date().toISOString()
+      })
+    }
 
     // Update transfer status
-          await updateDocumentTyped(
-        'inventoryTransfers',
-        transferId,
-        {
-          status: 'completed',
-          completedAt: new Date().toISOString()
-        }
-      )
+    await transaction.update('inventoryTransfers', transferId, {
+      status: 'completed',
+      completedAt: new Date().toISOString()
+    })
   })
 }
 
@@ -424,21 +461,30 @@ export async function processInventoryTransfer(
  * Clean up expired reservations
  */
 export async function cleanupExpiredReservations(): Promise<void> {
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
   const now = new Date().toISOString()
   
-  const expiredReservations = await getCachedCollectionTyped<InventoryReservation>(
-    'inventoryReservations',
-    {
-      filters: [
-        { field: 'status', operator: '==', value: 'active' },
-        { field: 'expiresAt', operator: '<', value: now }
-      ]
-    }
-  )
+  const result = await db.query({
+    collection: 'inventoryReservations',
+    filters: [
+      { field: 'status', operator: '=', value: 'active' },
+      { field: 'expiresAt', operator: '<', value: now }
+    ]
+  })
 
-  for (const reservation of expiredReservations.items) {
+  if (!result.success || !result.data) {
+    return
+  }
+
+  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+  const expiredReservations = data.map(item => ({
+    id: item.id,
+    ...(item.data || item)
+  })) as InventoryReservation[]
+
+  for (const reservation of expiredReservations) {
     await releaseReservation(reservation.id, false)
   }
 }
-
-// createDocumentTyped is now imported from firebase-helpers

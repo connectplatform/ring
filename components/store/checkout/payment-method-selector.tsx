@@ -133,20 +133,20 @@ export default function PaymentMethodSelector({
         
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="text-gray-600">{t('subtotal')}</span>
+              <span className="text-muted-foreground">{t('subtotal')}</span>
             <span className="font-medium">{formatPrice(order.subtotal, 'UAH')}</span>
           </div>
           
           {order.tax && order.tax > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-600">{t('tax')}</span>
+              <span className="text-muted-foreground">{t('tax')}</span>
               <span className="font-medium">{formatPrice(order.tax, 'UAH')}</span>
             </div>
           )}
           
           {order.shipping && order.shipping > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-600">{t('shipping')}</span>
+              <span className="text-muted-foreground">{t('shipping')}</span>
               <span className="font-medium">{formatPrice(order.shipping, 'UAH')}</span>
             </div>
           )}
@@ -197,7 +197,7 @@ export default function PaymentMethodSelector({
                   
                   <div className="flex-grow">
                     <div className="flex items-center space-x-2">
-                      <IconComponent className="w-5 h-5 text-gray-600" />
+                      <IconComponent className="w-5 h-5 text-muted-foreground" />
                       <span className="font-medium">{t(method.nameKey)}</span>
                       {method.recommended && (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
@@ -210,7 +210,7 @@ export default function PaymentMethodSelector({
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {t(method.descriptionKey)}
                     </p>
                   </div>
@@ -233,7 +233,7 @@ export default function PaymentMethodSelector({
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-muted-foreground hover:bg-gray-50 transition-colors"
           disabled={isPending}
         >
           {t('back')}
@@ -263,7 +263,7 @@ export default function PaymentMethodSelector({
       </div>
 
       {/* Security Notice */}
-      <div className="flex items-start space-x-2 text-sm text-gray-600">
+          <div className="flex items-start space-x-2 text-sm text-muted-foreground">
         <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <p>{t('securityNotice')}</p>
       </div>

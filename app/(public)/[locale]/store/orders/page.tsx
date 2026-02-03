@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState, use } from 'react'
 import type { Locale } from '@/i18n-config'
 import { useInView } from '@/hooks/use-intersection-observer'
+import StoreWrapper from '@/components/wrappers/store-wrapper'
 
 export default function MyOrdersPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const resolvedParams = use(params)
@@ -34,9 +35,9 @@ export default function MyOrdersPage({ params }: { params: Promise<{ locale: Loc
   useEffect(() => { if (inView && lastVisible && !loading) void load(false) }, [inView, lastVisible, loading, load])
 
   return (
-    <div data-locale={resolvedParams.locale}
-    >
-      <h1 className="text-2xl font-semibold mb-4">My Orders</h1>
+    <StoreWrapper locale={resolvedParams.locale}>
+      <div data-locale={resolvedParams.locale}>
+        <h1 className="text-2xl font-semibold mb-4">My Orders</h1>
       {items.length === 0 ? (
         <div className="text-muted-foreground">{loading ? 'Loading…' : 'No orders yet.'}</div>
       ) : (
@@ -51,7 +52,8 @@ export default function MyOrdersPage({ params }: { params: Promise<{ locale: Loc
           <div ref={ref} className="h-10" />
         </div>
       )}
-    </div>
+      </div>
+    </StoreWrapper>
   )
 }
 

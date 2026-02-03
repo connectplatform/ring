@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRole } from '@/features/auth/types'
+import { useOptionalCurrency } from '@/features/store/currency-context'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddressManager } from './address-manager'
 import { ShippingMethodSelector, type ShippingMethod } from './shipping-method-selector'
@@ -62,6 +63,11 @@ export function PrebillingPage({
 }: PrebillingPageProps) {
   const t = useTranslations('modules.store.checkout')
   const { user, role, isAuthenticated } = useAuth()
+  const currencyContext = useOptionalCurrency()
+  
+  // Currency conversion helpers
+  const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
+  const formatPrice = currencyContext?.formatPrice || ((price: number) => `${price.toFixed(2)} ₴`)
   
   // Form state
   const [firstName, setFirstName] = useState('')
@@ -195,9 +201,9 @@ export function PrebillingPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="space-y-8">
           
           {/* Authentication Section for Visitors */}
           {role === UserRole.VISITOR && (
@@ -411,19 +417,40 @@ export function PrebillingPage({
             <CardContent className="space-y-4">
               {/* Cart Items */}
               <div className="space-y-3">
-                {cartItems.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center text-sm">
-                    <div className="flex-1">
-                      <div className="font-medium">{item.product.name}</div>
-                      <div className="text-gray-500">
-                        {t('quantity')}: {item.quantity}
+                {cartItems.map((item, index) => {
+                  // Phase 2: Use finalPrice if available (includes variant modifiers)
+                  const displayPrice = item.finalPrice || parseFloat(item.product.price)
+                  const itemTotal = displayPrice * item.quantity
+                  
+                  return (
+                    <div key={index} className="flex justify-between items-start text-sm pb-3 border-b last:border-b-0 last:pb-0">
+                      <div className="flex-1">
+                        <div className="font-medium">{item.product.name}</div>
+                        
+                        {/* Phase 2: Display selected variants */}
+                        {item.selectedVariants && Object.keys(item.selectedVariants).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {Object.entries(item.selectedVariants).map(([name, value]) => (
+                              <span 
+                                key={name}
+                                className="inline-flex items-center px-1.5 py-0.5 bg-muted rounded text-xs"
+                              >
+                                {name}: <span className="ml-0.5 font-medium">{String(value)}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div className="text-muted-foreground mt-1">
+                          {t('quantity')}: {item.quantity} × {formatPrice(convertPrice(displayPrice))}
+                        </div>
+                      </div>
+                      <div className="font-medium ml-4">
+                        {formatPrice(convertPrice(itemTotal))}
                       </div>
                     </div>
-                    <div className="font-medium">
-                      ₴{(parseFloat(item.product.price) * item.quantity).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
               
               <Separator />
@@ -432,19 +459,19 @@ export function PrebillingPage({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>{t('subtotal')}</span>
-                  <span>₴{cartTotal.toFixed(2)}</span>
+                  <span>{formatPrice(convertPrice(cartTotal))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t('shipping')}</span>
                   <span>
-                    {shippingMethod === 'pickup' ? t('free') : '₴65.00'}
+                    {shippingMethod === 'pickup' ? t('free') : formatPrice(convertPrice(65))}
                   </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>{t('total')}</span>
                   <span>
-                    ₴{(cartTotal + (shippingMethod === 'pickup' ? 0 : 65)).toFixed(2)}
+                    {formatPrice(convertPrice(cartTotal + (shippingMethod === 'pickup' ? 0 : 65)))}
                   </span>
                 </div>
               </div>
@@ -458,7 +485,7 @@ export function PrebillingPage({
           <Button
             onClick={handleProceed}
             disabled={!isFormValid || isLoading}
-            className="w-full h-12 text-lg"
+            className="w-full h-12 text-lg mb-20 md:mb-0"
           >
             {isLoading ? t('processing') : t('proceedToPayment')}
           </Button>

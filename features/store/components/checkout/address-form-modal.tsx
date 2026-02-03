@@ -62,10 +62,10 @@ export function AddressFormModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-lg font-semibold">{title}</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <Button
             onClick={onClose}
             size="sm"
@@ -161,7 +161,7 @@ export function AddressFormModal({
           <div className="flex items-center justify-between py-2">
             <div className="space-y-0.5">
               <Label htmlFor="isDefault">{t('setAsDefault')}</Label>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 {t('defaultAddressDescription')}
               </p>
             </div>

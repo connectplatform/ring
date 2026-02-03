@@ -1,27 +1,28 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ethers } from 'ethers'
-import { useWeb3 } from '@/contexts/web3-context'
-import { 
-  RING_TOKEN_ADDRESS, 
-  WPOL_ADDRESS, 
-  USDT_ADDRESS, 
+import { useAccount, useBalance, useReadContract, useBlockNumber } from 'wagmi'
+import { formatUnits } from 'viem'
+import {
+  RING_TOKEN_ADDRESS,
+  WPOL_ADDRESS,
+  USDT_ADDRESS,
   USDC_ADDRESS,
-  TOKEN_CONFIGS,
-  POLYGON_RPC_URL
+  TOKEN_CONFIGS
 } from '@/constants/web3'
 import type { TokenBalance, WalletBalances } from '@/features/wallet/types'
 import { eventBus } from '@/lib/event-bus.client'
 
-// Global singleton state to prevent multiple instances
-let globalTokenBalances: WalletBalances = { RING: '0', POL: '0', USDT: '0', USDC: '0' }
-let globalIsLoading = true
-let globalLastFetchTime = 0
-let globalIsFetching = false
-const globalSubscribers: Set<(balances: WalletBalances, loading: boolean) => void> = new Set()
-let globalInterval: NodeJS.Timeout | null = null
-let globalCurrentAddress: string | null = null
+// ERC20 ABI for balanceOf calls
+const ERC20_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
 
 // Throttle fetch to prevent excessive RPC calls (8 seconds)
 const FETCH_THROTTLE_MS = 8000
@@ -29,272 +30,144 @@ const FETCH_THROTTLE_MS = 8000
 const AUTO_REFRESH_INTERVAL = 180000
 // Debounce push-initiated refreshes to avoid bursts (e.g., 1s)
 const PUSH_DEBOUNCE_MS = 1000
-let pushDebounceTimer: any = null
 
 /**
- * Global fetch function shared by all hook instances
- */
-const globalFetchTokenBalances = async (
-  provider: ethers.BrowserProvider | ethers.JsonRpcProvider,
-  address: string,
-  isConnected: boolean,
-  force: boolean = false
-): Promise<void> => {
-  // Check throttling
-  const now = Date.now()
-  if (!force && globalIsFetching) {
-    console.log('📊 GLOBAL: Token balance fetch already in progress')
-    return
-  }
-  
-  if (!force && now - globalLastFetchTime < FETCH_THROTTLE_MS) {
-    console.log(`📊 GLOBAL: Token balance fetch throttled, last fetch was ${now - globalLastFetchTime}ms ago`)
-    return
-  }
-
-  if (!isConnected || !address) {
-    console.log('📊 GLOBAL: Not fetching - wallet not connected')
-    globalTokenBalances = { RING: '0', POL: '0', USDT: '0', USDC: '0' }
-    globalIsLoading = false
-    // Notify all subscribers
-    globalSubscribers.forEach(callback => callback(globalTokenBalances, false))
-    return
-  }
-
-  // Address changed - reset state
-  if (address !== globalCurrentAddress) {
-    console.log(`📊 GLOBAL: Address changed from ${globalCurrentAddress} to ${address}`)
-    globalCurrentAddress = address
-    globalTokenBalances = { RING: '0', POL: '0', USDT: '0', USDC: '0' }
-    globalIsLoading = true
-  }
-
-  globalIsFetching = true
-  globalLastFetchTime = now
-  
-  console.log(`📊 GLOBAL: Fetching token balances for address: ${address} (${globalSubscribers.size} subscribers)`)
-
-  try {
-    const balances: WalletBalances = {}
-    
-    // Fetch native POL balance
-    try {
-      const polBalance = await provider.getBalance(address)
-      balances.POL = ethers.formatEther(polBalance)
-    } catch (err) {
-      console.error('Error fetching POL balance:', err)
-      balances.POL = '0'
-    }
-
-    // Fetch RING token balance (if deployed)
-    if (RING_TOKEN_ADDRESS && RING_TOKEN_ADDRESS !== '0x0000000000000000000000000000000000000000') {
-      try {
-        const ringContract = new ethers.Contract(
-          RING_TOKEN_ADDRESS,
-          ['function balanceOf(address) view returns (uint256)'],
-          provider
-        )
-        const ringBalance = await ringContract.balanceOf(address)
-        balances.RING = ethers.formatEther(ringBalance)
-      } catch (err) {
-        console.error('Error fetching RING balance:', err)
-        balances.RING = '0'
-      }
-    } else {
-      balances.RING = '0'
-    }
-
-    // Fetch USDT balance
-    try {
-      const usdtContract = new ethers.Contract(
-        USDT_ADDRESS,
-        ['function balanceOf(address) view returns (uint256)'],
-        provider
-      )
-      const usdtBalance = await usdtContract.balanceOf(address)
-      balances.USDT = ethers.formatUnits(usdtBalance, 6) // USDT has 6 decimals
-    } catch (err) {
-      console.error('Error fetching USDT balance:', err)
-      balances.USDT = '0'
-    }
-
-    // Fetch USDC balance
-    try {
-      const usdcContract = new ethers.Contract(
-        USDC_ADDRESS,
-        ['function balanceOf(address) view returns (uint256)'],
-        provider
-      )
-      const usdcBalance = await usdcContract.balanceOf(address)
-      balances.USDC = ethers.formatUnits(usdcBalance, 6) // USDC has 6 decimals
-    } catch (err) {
-      console.error('Error fetching USDC balance:', err)
-      balances.USDC = '0'
-    }
-
-    globalTokenBalances = balances
-    globalIsLoading = false
-    
-    console.log(`📊 GLOBAL: Token balances fetched (${globalSubscribers.size} subscribers):`, balances)
-    
-    // Notify all subscribers
-    globalSubscribers.forEach(callback => callback(balances, false))
-  } catch (error) {
-    console.error('📊 GLOBAL: Error fetching token balances:', error)
-    globalIsLoading = false
-    // Notify all subscribers of the error state
-    globalSubscribers.forEach(callback => callback(globalTokenBalances, false))
-  } finally {
-    globalIsFetching = false
-  }
-}
-
-/**
- * Hook to fetch and manage token balances with global singleton pattern
+ * Hook to fetch and manage token balances using wagmi
  */
 export function useTokenBalance() {
-  const { provider, address, isConnected } = useWeb3()
-  const [tokenBalances, setTokenBalances] = useState<WalletBalances>(globalTokenBalances)
-  const [isLoading, setIsLoading] = useState(globalIsLoading)
-  const [tokenList, setTokenList] = useState<TokenBalance[]>([])
-  
-  // Create stable subscriber callback
-  const subscriberCallback = useCallback((balances: WalletBalances, loading: boolean) => {
-    setTokenBalances(balances)
-    setIsLoading(loading)
-  }, [])
+  const { address, isConnected } = useAccount()
+  const { data: blockNumber } = useBlockNumber({ watch: true })
 
-  // Subscribe to global state on mount
-  useEffect(() => {
-    console.log(`📊 HOOK: New useTokenBalance instance mounted (${globalSubscribers.size + 1} total)`)
-    globalSubscribers.add(subscriberCallback)
-    
-    // Set initial state from global
-    setTokenBalances(globalTokenBalances)
-    setIsLoading(globalIsLoading)
-    
-    return () => {
-      console.log(`📊 HOOK: useTokenBalance instance unmounting (${globalSubscribers.size - 1} remaining)`)
-      globalSubscribers.delete(subscriberCallback)
-      
-      // Clean up global interval if no subscribers left
-      if (globalSubscribers.size === 0 && globalInterval) {
-        console.log('📊 GLOBAL: No subscribers left, clearing interval')
-        clearInterval(globalInterval)
-        globalInterval = null
-      }
-    }
-  }, [subscriberCallback])
+  // Native POL balance
+  const { data: polBalance, isLoading: polLoading, refetch: refetchPol } = useBalance({
+    address: address as `0x${string}`,
+    query: {
+      enabled: !!address && isConnected,
+    },
+  })
 
-  // Fetch token balances
-  const fetchTokenBalances = useCallback(async (force: boolean = false) => {
-    if (!isConnected || !address) {
-      console.log('📊 HOOK: Not fetching - wallet not connected')
-      return
-    }
+  // RING token balance
+  const { data: ringBalance, isLoading: ringLoading, refetch: refetchRing } = useReadContract({
+    address: RING_TOKEN_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address && isConnected && !!RING_TOKEN_ADDRESS,
+    },
+  })
 
-    const currentProvider = provider || new ethers.JsonRpcProvider(POLYGON_RPC_URL)
-    await globalFetchTokenBalances(currentProvider, address, isConnected, force)
-  }, [provider, address, isConnected])
+  // USDT token balance
+  const { data: usdtBalance, isLoading: usdtLoading, refetch: refetchUsdt } = useReadContract({
+    address: USDT_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address && isConnected,
+    },
+  })
+
+  // USDC token balance
+  const { data: usdcBalance, isLoading: usdcLoading, refetch: refetchUsdc } = useReadContract({
+    address: USDC_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address && isConnected,
+    },
+  })
+
+  // Combine all balances
+  const tokenBalances: WalletBalances = {
+    POL: polBalance ? formatUnits(polBalance.value, polBalance.decimals) : '0',
+    RING: ringBalance ? formatUnits(ringBalance as bigint, 18) : '0',
+    USDT: usdtBalance ? formatUnits(usdtBalance as bigint, 6) : '0',
+    USDC: usdcBalance ? formatUnits(usdcBalance as bigint, 6) : '0',
+  }
+
+  // Combined loading state
+  const isLoading = polLoading || ringLoading || usdtLoading || usdcLoading
 
   // Convert balances to token list
-  useEffect(() => {
-    const tokens: TokenBalance[] = []
-    
-    if (tokenBalances.RING) {
-      tokens.push({
-        symbol: 'RING',
-        name: 'Ring Token',
-        balance: tokenBalances.RING,
-        decimals: 18,
-        tokenAddress: RING_TOKEN_ADDRESS,
-      })
-    }
-    
-    if (tokenBalances.POL) {
-      tokens.push({
-        symbol: 'POL',
-        name: 'Polygon',
-        balance: tokenBalances.POL,
-        decimals: 18,
-        tokenAddress: WPOL_ADDRESS,
-      })
-    }
-    
-    if (tokenBalances.USDT) {
-      tokens.push({
-        symbol: 'USDT',
-        name: 'Tether USD',
-        balance: tokenBalances.USDT,
-        decimals: 6,
-        tokenAddress: USDT_ADDRESS,
-      })
-    }
-    
-    if (tokenBalances.USDC) {
-      tokens.push({
-        symbol: 'USDC',
-        name: 'USD Coin',
-        balance: tokenBalances.USDC,
-        decimals: 6,
-        tokenAddress: USDC_ADDRESS,
-      })
-    }
-    
-    setTokenList(tokens)
-  }, [tokenBalances])
+  const tokenList: TokenBalance[] = []
 
-  // Initial fetch and setup auto-refresh (only first subscriber sets up interval)
-  useEffect(() => {
-    if (!isConnected || !address) return
-
-    // Initial fetch
-    fetchTokenBalances()
-
-    // Set up auto-refresh interval only if not already set
-    if (!globalInterval && globalSubscribers.size === 1) {
-      console.log('📊 GLOBAL: Setting up auto-refresh interval (first subscriber)')
-      globalInterval = setInterval(() => {
-        console.log('📊 GLOBAL: Auto-refresh triggered')
-        fetchTokenBalances()
-      }, AUTO_REFRESH_INTERVAL)
-    }
-
-    // Listen to event-bus balance refresh signals (server push or connection events)
-    const off = eventBus.on('wallet:balance:refresh', () => {
-      if (pushDebounceTimer) clearTimeout(pushDebounceTimer)
-      pushDebounceTimer = setTimeout(() => {
-        console.log('📊 GLOBAL: Push-initiated balance refresh')
-        fetchTokenBalances(true)
-      }, PUSH_DEBOUNCE_MS)
+  if (tokenBalances.RING && tokenBalances.RING !== '0') {
+    tokenList.push({
+      symbol: 'RING',
+      name: 'Ring Token',
+      balance: tokenBalances.RING,
+      decimals: 18,
+      tokenAddress: RING_TOKEN_ADDRESS,
     })
+  }
 
-    // Optional: Listen to browser visibility to refresh on focus
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchTokenBalances()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibility)
+  if (tokenBalances.POL && tokenBalances.POL !== '0') {
+    tokenList.push({
+      symbol: 'POL',
+      name: 'Polygon',
+      balance: tokenBalances.POL,
+      decimals: 18,
+      tokenAddress: WPOL_ADDRESS,
+    })
+  }
 
-    return () => {
-      // Interval cleanup is handled in the subscriber cleanup
-      off()
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
-  }, [isConnected, address, fetchTokenBalances])
+  if (tokenBalances.USDT && tokenBalances.USDT !== '0') {
+    tokenList.push({
+      symbol: 'USDT',
+      name: 'Tether USD',
+      balance: tokenBalances.USDT,
+      decimals: 6,
+      tokenAddress: USDT_ADDRESS,
+    })
+  }
+
+  if (tokenBalances.USDC && tokenBalances.USDC !== '0') {
+    tokenList.push({
+      symbol: 'USDC',
+      name: 'USD Coin',
+      balance: tokenBalances.USDC,
+      decimals: 6,
+      tokenAddress: USDC_ADDRESS,
+    })
+  }
 
   // Manual refresh function
   const refresh = useCallback(async () => {
     console.log('📊 HOOK: Manual refresh requested')
-    await fetchTokenBalances(true) // Force refresh
-  }, [fetchTokenBalances])
+    await Promise.all([
+      refetchPol(),
+      refetchRing(),
+      refetchUsdt(),
+      refetchUsdc(),
+    ])
+  }, [refetchPol, refetchRing, refetchUsdt, refetchUsdc])
+
+  // Auto-refresh on block changes
+  useEffect(() => {
+    if (blockNumber && isConnected && address) {
+      console.log('📊 HOOK: Block changed, refreshing balances')
+      refresh()
+    }
+  }, [blockNumber, isConnected, address, refresh])
+
+  // Listen to event-bus balance refresh signals
+  useEffect(() => {
+    const off = eventBus.on('wallet:balance:refresh', () => {
+      console.log('📊 HOOK: Event-bus balance refresh triggered')
+      refresh()
+    })
+
+    return () => {
+      off()
+    }
+  }, [refresh])
 
   return {
     tokenBalances,
     tokenList,
     isLoading,
     refresh,
-    fetchTokenBalances,
   }
 }

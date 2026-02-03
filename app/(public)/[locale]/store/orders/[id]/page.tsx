@@ -1,5 +1,6 @@
 import React from 'react'
 import { Order } from '@/features/store/types'
+import StoreWrapper from '@/components/wrappers/store-wrapper'
 
 async function getOrder(id: string): Promise<Order | null> {
   try {
@@ -23,22 +24,24 @@ export default async function OrderDetailsPage({ params }: { params: { id: strin
   const order = await getOrder(params.id)
   if (!order) return <div>Order not found</div>
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-4">Order #{order.id}</h1>
-      <div className="space-y-2">
-        <div className="text-sm">Status: {order.status}</div>
-        <div className="text-sm">Created: {order.createdAt}</div>
-        <div className="text-sm font-medium">Items</div>
-        <div className="space-y-1">
-          {order.items?.map((item, idx) => (
-            <div key={idx} className="flex items-center justify-between text-sm">
-              <div>{item.name} × {item.quantity}</div>
-              <div>{item.price} {item.currency}</div>
-            </div>
-          ))}
+    <StoreWrapper locale="en">
+      <div>
+        <h1 className="text-2xl font-semibold mb-4">Order #{order.id}</h1>
+        <div className="space-y-2">
+          <div className="text-sm">Status: {order.status}</div>
+          <div className="text-sm">Created: {order.createdAt}</div>
+          <div className="text-sm font-medium">Items</div>
+          <div className="space-y-1">
+            {order.items?.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between text-sm">
+                <div>{item.name} × {item.quantity}</div>
+                <div>{item.price} {item.currency}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </StoreWrapper>
   )
 }
 

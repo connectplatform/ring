@@ -1,5 +1,5 @@
 import type { StoreAdapter, StoreProduct, CartItem, CheckoutInfo } from './types'
-import { VendorProductIntegrationService, type EnhancedProduct } from './services/vendor-product-integration'
+import { VendorProductIntegrationService } from './services/vendor-product-integration'
 
 export class RingStoreService {
   private adapter: StoreAdapter
@@ -11,7 +11,7 @@ export class RingStoreService {
   /**
    * ERP Extension: Get enhanced products with vendor quality data
    */
-  async listEnhanced(): Promise<EnhancedProduct[]> {
+  async listEnhanced(): Promise<StoreProduct[]> {
     try {
       return await VendorProductIntegrationService.getEnhancedProducts()
     } catch (error) {
@@ -42,21 +42,21 @@ export class RingStoreService {
   /**
    * ERP Extension: Get quality-focused product recommendations
    */
-  async getQualityRecommendations(limit: number = 10): Promise<EnhancedProduct[]> {
+  async getQualityRecommendations(limit: number = 10): Promise<StoreProduct[]> {
     return VendorProductIntegrationService.getQualityRecommendations(limit)
   }
 
   /**
    * ERP Extension: Get sustainable product recommendations
    */
-  async getSustainableProducts(limit: number = 10): Promise<EnhancedProduct[]> {
+  async getSustainableProducts(limit: number = 10): Promise<StoreProduct[]> {
     return VendorProductIntegrationService.getSustainableProducts(limit)
   }
 
   /**
    * ERP Extension: Get AI-recommended products
    */
-  async getAIRecommendedProducts(limit: number = 10): Promise<EnhancedProduct[]> {
+  async getAIRecommendedProducts(limit: number = 10): Promise<StoreProduct[]> {
     return VendorProductIntegrationService.getAIRecommendedProducts(limit)
   }
 

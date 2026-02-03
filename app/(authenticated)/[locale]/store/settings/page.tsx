@@ -5,9 +5,12 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
+import SettingsWrapper from '@/components/wrappers/settings-wrapper'
 import StoreSettingsClient from './store-settings-client'
 
-export const dynamic = 'force-dynamic'
+// Allow caching for store settings with short revalidation for configuration updates
+export const dynamic = "auto"
+export const revalidate = 60 // 1 minute for store configuration data
 
 // Define the type for the store settings route params
 type StoreSettingsParams = {};
@@ -66,34 +69,36 @@ export default async function StoreSettingsPage(props: LocalePageProps<StoreSett
     console.log('StoreSettingsPage: Rendering store settings client');
 
     return (
-      <>
-        {/* React 19 Native Document Metadata - Authenticated Page */}
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <link rel="canonical" href={canonicalUrl} />
-        
-        {/* Authenticated page security meta tags */}
-        <meta name="robots" content="noindex, nofollow" />
-        <meta name="googlebot" content="noindex, nofollow" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <SettingsWrapper locale={locale}>
+        <>
+          {/* React 19 Native Document Metadata - Authenticated Page */}
+          <title>{title}</title>
+          <meta name="description" content={description} />
+          <link rel="canonical" href={canonicalUrl} />
+          
+          {/* Authenticated page security meta tags */}
+          <meta name="robots" content="noindex, nofollow" />
+          <meta name="googlebot" content="noindex, nofollow" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <Suspense fallback={
-          <div className="container mx-auto px-4 py-8">
-            <div className="animate-pulse space-y-6">
-              <div className="h-8 bg-muted rounded w-1/3"></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="h-64 bg-muted rounded"></div>
-                <div className="h-64 bg-muted rounded"></div>
+          <Suspense fallback={
+            <div className="container mx-auto px-0 py-0">
+              <div className="animate-pulse space-y-6">
+                <div className="h-8 bg-muted rounded w-1/3"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="h-64 bg-muted rounded"></div>
+                  <div className="h-64 bg-muted rounded"></div>
+                </div>
               </div>
             </div>
-          </div>
-        }>
-          <StoreSettingsClient 
-            locale={locale}
-            searchParams={searchParams}
-          />
-        </Suspense>
-      </>
+          }>
+            <StoreSettingsClient 
+              locale={locale}
+              searchParams={searchParams}
+            />
+          </Suspense>
+        </>
+      </SettingsWrapper>
     )
 
   } catch (e) {
@@ -104,7 +109,7 @@ export default async function StoreSettingsPage(props: LocalePageProps<StoreSett
         <title>Store Settings Error | Ring Platform</title>
         <meta name="robots" content="noindex, nofollow" />
         
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-0 py-0">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Store Settings Error</h1>
             <p className="text-muted-foreground mb-4">

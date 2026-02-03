@@ -12,20 +12,7 @@
 import type { StoreProduct } from '@/features/store/types'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
 
-// ERP Extension: Enhanced product with vendor data
-export interface EnhancedProduct extends StoreProduct {
-  id: string // Ensure id property exists
-  vendorProfile?: ExtendedVendorProfile
-  qualityBadges: string[]
-  trustScore: number
-  sustainabilityRating?: number
-  aiRecommended: boolean
-  complianceStatus: {
-    fsma: boolean
-    organic: boolean
-    fairTrade: boolean
-  }
-}
+// Note: EnhancedProduct interface removed - all fields now in StoreProduct
 
 import {
   getEnhancedProducts as getEnhancedProductsServerAction,
@@ -45,14 +32,14 @@ export class VendorProductIntegrationService {
   /**
    * Get enhanced products with vendor information for storefront display
    */
-  static async getEnhancedProducts(limit: number = 50): Promise<EnhancedProduct[]> {
+  static async getEnhancedProducts(limit: number = 50): Promise<StoreProduct[]> {
     return getEnhancedProductsServerAction(limit)
   }
 
   /**
    * Enhance a single product with vendor information
    */
-  static enhanceProduct(product: StoreProduct, vendorProfile?: ExtendedVendorProfile): EnhancedProduct {
+  static enhanceProduct(product: StoreProduct, vendorProfile?: ExtendedVendorProfile): StoreProduct {
     const qualityBadges: string[] = []
     let trustScore = 50 // Default trust score
     let sustainabilityRating: number | undefined
@@ -113,28 +100,28 @@ export class VendorProductIntegrationService {
       certifiedOnly?: boolean
       minTrustScore?: number
     }
-  ): Promise<EnhancedProduct[]> {
+  ): Promise<StoreProduct[]> {
     return getProductsByVendorServerAction(vendorId, filters)
   }
 
   /**
    * Get quality-focused product recommendations
    */
-  static async getQualityRecommendations(limit: number = 10): Promise<EnhancedProduct[]> {
+  static async getQualityRecommendations(limit: number = 10): Promise<StoreProduct[]> {
     return getQualityRecommendationsServerAction(limit)
   }
 
   /**
    * Get sustainable product recommendations
    */
-  static async getSustainableProducts(limit: number = 10): Promise<EnhancedProduct[]> {
+  static async getSustainableProducts(limit: number = 10): Promise<StoreProduct[]> {
     return getSustainableProductsServerAction(limit)
   }
 
   /**
    * Get AI-recommended products
    */
-  static async getAIRecommendedProducts(limit: number = 10): Promise<EnhancedProduct[]> {
+  static async getAIRecommendedProducts(limit: number = 10): Promise<StoreProduct[]> {
     return getAIRecommendedProductsServerAction(limit)
   }
 
@@ -148,10 +135,10 @@ export class VendorProductIntegrationService {
   /**
    * Generate product quality report for vendor dashboard
    */
-  static generateProductQualityReport(products: EnhancedProduct[]): {
+  static generateProductQualityReport(products: StoreProduct[]): {
     totalProducts: number
     qualityDistribution: { excellent: number; good: number; average: number; poor: number }
-    topQualityProducts: EnhancedProduct[]
+    topQualityProducts: StoreProduct[]
     certifications: string[]
     averageTrustScore: number
     aiRecommendedCount: number

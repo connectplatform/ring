@@ -5,6 +5,7 @@ import { UserRole } from '@/features/auth/types'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { ROUTES } from '@/constants/routes'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
+import AdminWrapper from '@/components/wrappers/admin-wrapper'
 import dynamicImport from 'next/dynamic'
 import { logger } from '@/lib/logger'
 import { type AdminOrdersSearchParams } from '@/features/store/types'
@@ -88,17 +89,19 @@ export default async function AdminOrdersPage({
   });
 
   return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
-    }>
-      <AdminOrdersClient 
-        initialOrders={orders}
-        currentStatusFilter={statusFilter}
-        locale={locale}
-      />
-    </Suspense>
+    <AdminWrapper locale={locale} pageContext="store">
+      <Suspense fallback={
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
+        </div>
+      }>
+        <AdminOrdersClient 
+          initialOrders={orders}
+          currentStatusFilter={statusFilter}
+          locale={locale}
+        />
+      </Suspense>
+    </AdminWrapper>
   );
 }
 

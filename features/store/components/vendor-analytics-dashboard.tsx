@@ -89,7 +89,7 @@ export function VendorAnalyticsDashboard({
                 {card.value}
               </span>
             </div>
-            <h3 className="text-sm font-medium text-gray-700">{card.title}</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
           </div>
         ))}
       </div>
@@ -175,29 +175,29 @@ export function VendorAnalyticsDashboard({
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Order Fulfillment Time</span>
+              <span className="text-sm text-muted-foreground">Order Fulfillment Time</span>
               <span className="font-medium">{analytics.orderFulfillmentTime.toFixed(1)}h</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Return Rate</span>
+              <span className="text-sm text-muted-foreground">Return Rate</span>
               <span className="font-medium">{analytics.returnRate.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Market Share</span>
+              <span className="text-sm text-muted-foreground">Market Share</span>
               <span className="font-medium">{analytics.marketShare.toFixed(1)}%</span>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Inventory Turnover</span>
+              <span className="text-sm text-muted-foreground">Inventory Turnover</span>
               <span className="font-medium">{vendorProfile.operationalMetrics.inventoryTurnover.toFixed(1)}x</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Quality Pass Rate</span>
+              <span className="text-sm text-muted-foreground">Quality Pass Rate</span>
               <span className="font-medium">{vendorProfile.operationalMetrics.qualityControlPassRate.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Supplier Reliability</span>
+              <span className="text-sm text-muted-foreground">Supplier Reliability</span>
               <span className="font-medium">{vendorProfile.operationalMetrics.supplierReliability.toFixed(1)}%</span>
             </div>
           </div>

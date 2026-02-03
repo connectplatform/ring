@@ -4,6 +4,7 @@ const MOCK_PRODUCTS: StoreProduct[] = [
   { id: 'p1', name: 'DAAR Hoodie', description: 'Cozy zip hoodie', price: '25', currency: 'DAAR', inStock: true },
   { id: 'p2', name: 'DAARION Tee', description: 'Soft cotton tee', price: '12', currency: 'DAARION', inStock: true },
   { id: 'p3', name: 'Sticker Pack', description: 'Laptop sticker set', price: '3', currency: 'DAAR', inStock: true },
+  { id: 'f7eed788-2c1c-4750-b5f4-28e762491fc0', name: 'Ring Platform Organic Honey', description: 'Pure organic honey from sustainable apiaries', price: '14.99', currency: 'RING', inStock: true },
 ]
 
 export class MockStoreAdapter implements StoreAdapter {

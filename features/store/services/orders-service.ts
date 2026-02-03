@@ -1,64 +1,74 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
-
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Direct optimized function calls instead of service manager wrapper
-// - Enhanced error handling and performance monitoring
-// - Build-time phase detection and intelligent caching strategies
+/**
+ * Store Orders Service
+ * 
+ * PostgreSQL DatabaseService for all order operations
+ * React 19 cache() for read operations
+ * No cache() for mutations (order state changes)
+ */
 
 import { z } from 'zod'
+import { cache } from 'react'
 import { orderCreateSchema } from '@/lib/zod'
-import { 
-  getCachedDocument, 
-  getCachedCollectionAdvanced, 
-  createDocument, 
-  updateDocument,
-  getUserOrders 
-} from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import type { StorePayment, VendorSettlement } from '@/features/store/types'
 
 export const StoreOrdersService = {
-  async listOrdersForUser(userId: string, opts?: { limit?: number; startAfter?: string }) {
+  listOrdersForUser: cache(async (userId: string, opts?: { limit?: number; startAfter?: string }) => {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
       
-      // Use optimized getUserOrders function from firebase-service-manager
-      const snapshot = await getUserOrders(userId, undefined, limit)
+      const result = await db.query({
+        collection: 'orders',
+        filters: [{ field: 'userId', operator: '=', value: userId }],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        pagination: { limit }
+      })
       
-      const items = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
+      if (!result.success || !result.data) {
+        return { items: [], lastVisible: null }
+      }
+      
+      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+      const items = data.map(item => ({
+        id: item.id,
+        ...(item.data || item)
       }))
       
-      const lastVisible = snapshot.docs.length > 0 
-        ? snapshot.docs[snapshot.docs.length - 1].id 
-        : null
+      const lastVisible = items.length > 0 ? items[items.length - 1].id : null
         
       return { items, lastVisible }
     } catch (error) {
       console.error('[StoreOrdersService] Error listing user orders:', error)
       throw new Error('Failed to retrieve user orders')
     }
-  },
+  }),
 
-  async getOrderById(id: string) {
+  getOrderById: cache(async (id: string) => {
     try {
-      const doc = await getCachedDocument('orders', id)
-      if (!doc || !doc.exists) return null
+      await initializeDatabase()
+      const db = getDatabaseService()
       
-      return { id: doc.id, ...doc.data() }
+      const result = await db.findById('orders', id)
+      if (!result.success || !result.data) return null
+      
+      const data = result.data.data || result.data
+      return { id, ...data }
     } catch (error) {
       console.error('[StoreOrdersService] Error getting order by ID:', error)
       throw new Error('Failed to retrieve order')
     }
-  },
+  }),
 
   async createOrder(userId: string, data: z.infer<typeof orderCreateSchema>) {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       const now = new Date().toISOString()
+      const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const orderData = { 
         ...data, 
         userId, 
@@ -66,57 +76,66 @@ export const StoreOrdersService = {
         createdAt: now 
       }
       
-      const docRef = await createDocument('orders', orderData)
-      return { orderId: docRef.id }
+      const result = await db.create('orders', orderData, { id: orderId })
+      if (!result.success) {
+        throw new Error('Failed to create order')
+      }
+      
+      return { orderId }
     } catch (error) {
       console.error('[StoreOrdersService] Error creating order:', error)
       throw new Error('Failed to create order')
     }
   },
 
-  async adminListAllOrders(opts?: { 
+  adminListAllOrders: cache(async (opts?: { 
     limit?: number; 
     startAfter?: string; 
     statusFilter?: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled';
-  }) {
+  }) => {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
       
-      // Build query configuration
-      const queryConfig: any = {
-        orderBy: [{ field: 'createdAt', direction: 'desc' }],
-        limit
-      }
-      
-      // Apply status filter if provided
+      const filters: any[] = []
       if (opts?.statusFilter) {
-        queryConfig.where = [{ field: 'status', operator: '==', value: opts.statusFilter }]
+        filters.push({ field: 'status', operator: '=', value: opts.statusFilter })
       }
       
-      // TODO: Implement pagination with startAfter for advanced collection queries
-      // This would require enhancing getCachedCollectionAdvanced to support document cursors
+      const result = await db.query({
+        collection: 'orders',
+        filters,
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        pagination: { limit }
+      })
       
-      const snapshot = await getCachedCollectionAdvanced('orders', queryConfig)
+      if (!result.success || !result.data) {
+        return { items: [], lastVisible: null }
+      }
       
-      const items = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
+      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+      const items = data.map(item => ({
+        id: item.id,
+        ...(item.data || item)
       }))
       
-      const lastVisible = snapshot.docs.length > 0 
-        ? snapshot.docs[snapshot.docs.length - 1].id 
-        : null
+      const lastVisible = items.length > 0 ? items[items.length - 1].id : null
         
       return { items, lastVisible }
     } catch (error) {
       console.error('[StoreOrdersService] Error listing all orders:', error)
       throw new Error('Failed to retrieve orders')
     }
-  },
+  }),
 
   async adminUpdateOrderStatus(id: string, status: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled') {
     try {
-      await updateDocument('orders', id, { 
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', id, { 
         status, 
         updatedAt: new Date().toISOString() 
       })
@@ -130,7 +149,10 @@ export const StoreOrdersService = {
 
   async updateOrderPaymentStatus(id: string, paymentData: StorePayment) {
     try {
-      await updateDocument('orders', id, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', id, {
         payment: paymentData,
         updatedAt: new Date().toISOString()
       })
@@ -144,7 +166,10 @@ export const StoreOrdersService = {
 
   async updateOrderSettlements(id: string, settlements: VendorSettlement[]) {
     try {
-      await updateDocument('orders', id, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', id, {
         vendorSettlements: settlements,
         updatedAt: new Date().toISOString()
       })
@@ -156,12 +181,16 @@ export const StoreOrdersService = {
     }
   },
 
-  async getOrderWithPaymentDetails(id: string) {
+  getOrderWithPaymentDetails: cache(async (id: string) => {
     try {
-      const doc = await getCachedDocument('orders', id)
-      if (!doc || !doc.exists) return null
+      await initializeDatabase()
+      const db = getDatabaseService()
       
-      const orderData: any = { id: doc.id, ...doc.data() }
+      const result = await db.findById('orders', id)
+      if (!result.success || !result.data) return null
+      
+      const data = result.data.data || result.data
+      const orderData: any = { id, ...data }
       
       // Ensure payment data is included
       if (!orderData.payment) {
@@ -176,6 +205,6 @@ export const StoreOrdersService = {
       console.error('[StoreOrdersService] Error getting order with payment details:', error)
       throw new Error('Failed to retrieve order payment details')
     }
-  }
+  })
 }
 

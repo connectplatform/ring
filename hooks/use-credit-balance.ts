@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, use, useMemo } from 'react'
+import { useState, useEffect, useCallback, use, useMemo, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { logger } from '@/lib/logger'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
+import { useTunnelSubscription } from './use-tunnel-subscription'
 
 interface CreditBalanceData {
   balance: {
@@ -33,6 +34,8 @@ interface UseCreditBalanceReturn {
   error: string | null
   refresh: () => Promise<void>
   lastRefreshed: number | null
+  // Tunnel status
+  isTunnelConnected: boolean
 }
 
 interface UseCreditBalancePromiseReturn {
@@ -42,6 +45,13 @@ interface UseCreditBalancePromiseReturn {
 
 /**
  * Hook for managing user's RING credit balance
+ * 
+ * OPTIMIZED: Uses Tunnel push updates instead of polling
+ * - Initial fetch via API (one-time)
+ * - Subsequent updates pushed via Tunnel (real-time)
+ * - Fallback to polling only if tunnel unavailable
+ * 
+ * @see AI-CONTEXT: tunnel-protocol-firebase-rtdb-analog-2025-11-07
  */
 export function useCreditBalance(): UseCreditBalanceReturn {
   const { data: session, status } = useSession()
@@ -50,6 +60,37 @@ export function useCreditBalance(): UseCreditBalanceReturn {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastRefreshed, setLastRefreshed] = useState<number | null>(null)
+  const initialFetchDone = useRef(false)
+
+  // Stable callback for tunnel messages - uses ref pattern to avoid re-subscriptions
+  const handleTunnelMessage = useCallback((newData: CreditBalanceData) => {
+    setData(newData)
+    setLastRefreshed(Date.now())
+    logger.info('Credit balance updated via tunnel', {
+      amount: newData.balance.amount,
+      subscriptionActive: newData.subscription.active
+    })
+  }, [])
+
+  // Subscribe to tunnel for real-time balance updates
+  // Note: onMessage is now a stable reference to prevent re-subscription loops
+  const {
+    data: tunnelData,
+    isConnected: isTunnelConnected,
+    error: tunnelError
+  } = useTunnelSubscription<CreditBalanceData>({
+    channel: 'credit:balance',
+    enabled: status === 'authenticated' && !!session?.user,
+    onMessage: handleTunnelMessage
+  })
+
+  // Update data when tunnel pushes updates
+  useEffect(() => {
+    if (tunnelData) {
+      setData(tunnelData)
+      setLastRefreshed(Date.now())
+    }
+  }, [tunnelData])
 
   const fetchBalance = useCallback(async (isRefresh = false) => {
     // Only fetch if user is authenticated
@@ -77,10 +118,11 @@ export function useCreditBalance(): UseCreditBalanceReturn {
         setData(response.data)
         setLastRefreshed(Date.now())
 
-        logger.info('Credit balance fetched', {
+        logger.info('Credit balance fetched via API', {
           amount: response.data.balance.amount,
           subscriptionActive: response.data.subscription.active,
-          isRefresh
+          isRefresh,
+          tunnelConnected: isTunnelConnected
         })
       } else {
         throw new Error(response.error || 'Failed to fetch balance')
@@ -114,34 +156,44 @@ export function useCreditBalance(): UseCreditBalanceReturn {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [])
+  }, [isTunnelConnected, session?.user, status])
 
   const refresh = useCallback(async () => {
     await fetchBalance(true)
   }, [fetchBalance])
 
-  // Initial load - only when authenticated
+  // Initial load - only when authenticated (ONE TIME)
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (status === 'authenticated' && session?.user && !initialFetchDone.current) {
+      initialFetchDone.current = true
       fetchBalance()
-    } else {
+    } else if (status === 'unauthenticated') {
       // Reset data when user becomes unauthenticated
       setData(null)
       setError(null)
       setLastRefreshed(null)
+      initialFetchDone.current = false
     }
   }, [fetchBalance, status, session?.user])
 
-  // Auto-refresh every 30 seconds for balance updates - only when authenticated
+  // FALLBACK: Only poll if tunnel is NOT connected (every 60s instead of 30s)
   useEffect(() => {
+    // Skip polling if tunnel is connected - tunnel will push updates
+    if (isTunnelConnected) {
+      logger.debug('Tunnel connected - polling disabled')
+      return
+    }
+
     if (!data || status !== 'authenticated' || !session?.user) return
 
+    logger.debug('Tunnel not connected - falling back to polling')
+    
     const interval = setInterval(() => {
       fetchBalance(true)
-    }, 30000) // 30 seconds
+    }, 60000) // 60 seconds fallback polling (was 30s)
 
     return () => clearInterval(interval)
-  }, [data, fetchBalance, status, session?.user])
+  }, [data, fetchBalance, isTunnelConnected, status, session?.user])
 
   return {
     balance: data?.balance || null,
@@ -149,9 +201,10 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     limits: data?.limits || null,
     isLoading,
     isRefreshing,
-    error,
+    error: error || tunnelError,
     refresh,
     lastRefreshed,
+    isTunnelConnected
   }
 }
 

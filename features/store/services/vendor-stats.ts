@@ -2,12 +2,11 @@
  * Vendor Statistics Service
  * 
  * Service for calculating and retrieving vendor dashboard statistics
+ * Uses React 19 cache() for read operations
  */
 
-import { 
-  getCachedDocumentTyped,
-  getCachedCollectionTyped 
-} from '@/lib/services/firebase-service-manager'
+import { cache } from 'react'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { VendorProfile, VendorDashboardStats } from '@/features/store/types/vendor'
 import { Order } from '@/features/store/types'
 import { StoreProduct } from '@/features/store/types'
@@ -15,13 +14,20 @@ import { getVendorPendingPayouts, getVendorPayoutHistory } from './settlement'
 
 /**
  * Get comprehensive dashboard statistics for a vendor
+ * Cached for performance
  */
-export async function getVendorDashboardStats(entityId: string): Promise<VendorDashboardStats> {
+export const getVendorDashboardStats = cache(async (entityId: string): Promise<VendorDashboardStats> => {
   try {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
     const vendorId = `vendor_${entityId}`
     
     // Get vendor profile
-    const vendor = await getCachedDocumentTyped<VendorProfile>('vendorProfiles', vendorId)
+    const vendorResult = await db.findById('vendorProfiles', vendorId)
+    const vendor = vendorResult.success && vendorResult.data 
+      ? (vendorResult.data.data || vendorResult.data) as VendorProfile
+      : null
     
     // Get orders for this vendor
     const orders = await getVendorOrders(entityId)
@@ -116,51 +122,61 @@ export async function getVendorDashboardStats(entityId: string): Promise<VendorD
       growthRate: 0
     }
   }
-}
+})
 
 /**
  * Get orders for a vendor
+ * Cached for performance
  */
-async function getVendorOrders(entityId: string): Promise<Order[]> {
+const getVendorOrders = cache(async (entityId: string): Promise<Order[]> => {
   try {
-    const orders = await getCachedCollectionTyped<Order>(
-      'orders',
-      {
-        filters: [
-          { field: 'vendorOrders', operator: 'array-contains', value: { vendorId: entityId } }
-        ],
-        orderBy: { field: 'createdAt', direction: 'desc' },
-        limit: 1000
-      }
-    )
+    const db = getDatabaseService()
+    const result = await db.query({
+      collection: 'orders',
+      filters: [
+        { field: 'vendorOrders', operator: 'array-contains', value: { vendorId: entityId } }
+      ],
+      orderBy: [{ field: 'createdAt', direction: 'desc' }],
+      pagination: { limit: 1000 }
+    })
     
-    return orders.items
+    if (!result.success || !result.data) {
+      return []
+    }
+    
+    const orders = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    return orders
   } catch (error) {
     console.error('Error fetching vendor orders:', error)
     return []
   }
-}
+})
 
 /**
  * Get products for a vendor
+ * Cached for performance
  */
-async function getVendorProducts(entityId: string): Promise<StoreProduct[]> {
+const getVendorProducts = cache(async (entityId: string): Promise<StoreProduct[]> => {
   try {
-    const products = await getCachedCollectionTyped<StoreProduct>(
-      'products',
-      {
-        filters: [
-          { field: 'ownerEntityId', operator: '==', value: entityId }
-        ]
-      }
-    )
+    const db = getDatabaseService()
+    const result = await db.query({
+      collection: 'store_products',
+      filters: [
+        { field: 'ownerEntityId', operator: '=', value: entityId }
+      ]
+    })
     
-    return products.items
+    if (!result.success || !result.data) {
+      return []
+    }
+    
+    const products = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    return products
   } catch (error) {
     console.error('Error fetching vendor products:', error)
     return []
   }
-}
+})
 
 /**
  * Calculate total sales from orders

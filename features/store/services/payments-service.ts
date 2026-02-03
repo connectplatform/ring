@@ -1,10 +1,13 @@
-// 🚀 OPTIMIZED SERVICE: Server-side payment orchestration
-// - Direct Firebase operations via service manager
-// - Enhanced error handling and performance monitoring
-// - WayForPay integration for Ukrainian market
-// - Used in API routes and server actions only
+/**
+ * Server-side Payment Orchestration
+ * 
+ * - Enhanced error handling and performance monitoring
+ * - WayForPay integration for Ukrainian market
+ * - PostgreSQL DatabaseService for order updates
+ * - Used in API routes and server actions only
+ */
 
-import { updateDocument } from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import type { StorePayment, VendorSettlement } from '@/features/store/types'
 
 // Payment orchestration service for Store domain
@@ -59,7 +62,10 @@ export const StorePaymentsService = {
 
   async markOrderPaidStripe(orderId: string, stripeSessionId: string) {
     try {
-      await updateDocument('orders', orderId, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', orderId, {
         payment: { method: 'stripe', status: 'paid', stripeSessionId },
         status: 'paid',
         updatedAt: new Date().toISOString()
@@ -74,7 +80,10 @@ export const StorePaymentsService = {
 
   async markOrderFailedStripe(orderId: string, stripeSessionId: string) {
     try {
-      await updateDocument('orders', orderId, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', orderId, {
         payment: { method: 'stripe', status: 'failed', stripeSessionId },
         updatedAt: new Date().toISOString()
       })
@@ -88,7 +97,10 @@ export const StorePaymentsService = {
 
   async recordCryptoPayment(orderId: string, txHash: string) {
     try {
-      await updateDocument('orders', orderId, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', orderId, {
         payment: { method: 'crypto', status: 'paid', txHash },
         status: 'paid',
         updatedAt: new Date().toISOString()
@@ -103,7 +115,10 @@ export const StorePaymentsService = {
 
   async markOrderPaidWayForPay(orderId: string, wayforpayOrderId: string, paymentData: Partial<StorePayment>) {
     try {
-      await updateDocument('orders', orderId, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', orderId, {
         payment: {
           method: 'wayforpay',
           status: 'paid',
@@ -123,7 +138,10 @@ export const StorePaymentsService = {
 
   async markOrderFailedWayForPay(orderId: string, wayforpayOrderId: string, reason: string) {
     try {
-      await updateDocument('orders', orderId, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
+      await db.update('orders', orderId, {
         payment: {
           method: 'wayforpay',
           status: 'failed',
@@ -142,8 +160,11 @@ export const StorePaymentsService = {
 
   async processVendorSettlements(orderId: string, settlements: VendorSettlement[]) {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       // Update order with settlement data
-      await updateDocument('orders', orderId, {
+      await db.update('orders', orderId, {
         vendorSettlements: settlements,
         updatedAt: new Date().toISOString()
       })
@@ -154,7 +175,7 @@ export const StorePaymentsService = {
       return { ok: true, orderId, settlementCount: settlements.length }
     } catch (error) {
       console.error('[StorePaymentsService] Error processing vendor settlements:', error)
-      throw new Error('Failed to process vendor settlements')
+      throw new Error('Failed to update vendor settlements')
     }
   }
 }

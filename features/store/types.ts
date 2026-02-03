@@ -60,6 +60,24 @@ export type TokenCurrency = 'RING' | 'DAAR' | 'DAARION'
 export type FiatCurrency = 'UAH' | 'USD' | 'EUR'
 export type StoreCurrency = TokenCurrency | FiatCurrency
 
+// Product Variant Types
+export interface VariantOption {
+  value: string
+  label: string
+  available: boolean
+  stock?: number
+  priceModifier?: number
+  colorHex?: string
+}
+
+export interface ProductVariant {
+  name: string
+  options: VariantOption[]
+}
+
+export type VendorTier = 'NEW' | 'BASIC' | 'VERIFIED' | 'TRUSTED' | 'PREMIUM'
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
 export interface StoreProduct {
   id: string
   name: string
@@ -70,13 +88,23 @@ export interface StoreProduct {
   category?: string
   tags?: string[]
 
+  // P0 Critical Fields (Phase 2: Multi-vendor marketplace - 2025-11-04)
+  sku?: string // Stock Keeping Unit (inventory tracking, barcode scanning)
+  slug?: string // SEO-friendly URL
+  longDescription?: string // Rich product content for detail pages
+  reorderPoint?: number // Auto-reorder trigger level
+  vendorTier?: VendorTier // Vendor trust tier
+  commissionRate?: number // Platform commission % (12-20)
+  approvalStatus?: ApprovalStatus // Main Store moderation status
+  approvedBy?: string // Admin who approved
+  approvedAt?: string // Approval timestamp
+  rejectionReason?: string // Rejection reason if rejected
+
   // Extended product fields for detailed product pages
-  slug?: string
-  longDescription?: string
   images?: string[]
   vendorName?: string
   stock?: number
-  sku?: string
+  allowPreorder?: boolean // Allow preorders when out of stock (stock=0)
   featured?: boolean
   rating?: number
   reviewCount?: number
@@ -92,6 +120,9 @@ export interface StoreProduct {
     included?: boolean
   }
 
+  // Product Variants (Phase 1: Product page wiring)
+  variants?: ProductVariant[]
+
   relatedProductIds?: string[]
 
   // Multi-vendor fields
@@ -105,12 +136,30 @@ export interface StoreProduct {
   commissionStructure?: CommissionStructure
   fulfillmentOptions?: FulfillmentOptions
   productCompliance?: ProductCompliance
+  // AI-powered features (vector search for similar products)
+  embedding?: number[] // 128D vector embedding for semantic similarity
+
+  // ERP Extension: Vendor and quality data
+  vendorProfile?: any // ExtendedVendorProfile - vendor information
+  qualityBadges?: string[] // Quality certification badges
+  trustScore?: number // Vendor trust score (0-100)
+  sustainabilityRating?: number // Environmental impact rating
+  aiRecommended?: boolean // AI recommendation flag
+  complianceStatus?: {
+    fsma?: boolean
+    organic?: boolean
+    fairTrade?: boolean
+  }
+
   status?: ProductStatus
 }
 
 export interface CartItem {
   product: StoreProduct
   quantity: number
+  selectedVariants?: Record<string, string> // Phase 2: variant name -> value
+  finalPrice?: number // Price including variant modifiers
+  isPreorder?: boolean // Flag for preorder items (stock=0 at time of cart add)
 }
 
 export interface CheckoutInfo {

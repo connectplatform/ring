@@ -184,13 +184,13 @@ export default function PaymentProcessingClient({
           </h1>
           
           {/* Status Description */}
-          <p className="text-gray-600 text-center mb-6">
+              <p className="text-muted-foreground text-center mb-6">
             {getStatusDescription()}
           </p>
           
           {/* Order ID */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <p className="text-sm text-gray-600 mb-1">{t('orderId')}</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('orderId')}</p>
             <p className="font-mono text-lg font-medium">{orderId}</p>
           </div>
           
@@ -252,7 +252,7 @@ export default function PaymentProcessingClient({
             {/* Cancel/Back Button */}
             <button
               onClick={handleCancel}
-              className="w-full px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full px-6 py-3 border border-gray-300 text-muted-foreground rounded-lg hover:bg-gray-50 transition-colors"
             >
               {status === 'processing' ? t('cancel') : t('backToStore')}
             </button>

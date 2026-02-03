@@ -3,15 +3,12 @@
  * 
  * Handles automated vendor payouts with tier-based commission calculation.
  * Processes settlements after successful payments and manages payout tracking.
+ * 
+ * NOTE: NO cache() - financial mutations require real-time accuracy
  */
 
 import { logger } from '@/lib/logger'
-import { 
-  createDocument, 
-  updateDocument, 
-  getCachedDocument,
-  getCachedCollectionAdvanced 
-} from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import type { VendorSettlement } from '@/features/store/types'
 
 export interface SettlementPaymentData {
@@ -40,15 +37,19 @@ export const VendorSettlementService = {
    */
   async processSettlements(orderId: string, paymentData: SettlementPaymentData) {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       logger.info('VendorSettlement: Processing settlements for order', { orderId })
       
       // Get order with settlement data
-      const orderDoc = await getCachedDocument('orders', orderId)
-      if (!orderDoc || !orderDoc.exists) {
+      const orderResult = await db.findById('orders', orderId)
+      if (!orderResult.success || !orderResult.data) {
         throw new Error('Order not found')
       }
       
-      const order = { id: orderDoc.id, ...orderDoc.data() } as any
+      const orderData = orderResult.data.data || orderResult.data
+      const order = { id: orderId, ...orderData } as any
       
       if (!order.vendorSettlements || order.vendorSettlements.length === 0) {
         logger.warn('VendorSettlement: No settlements found for order', { orderId })
@@ -69,10 +70,16 @@ export const VendorSettlementService = {
             createdAt: new Date().toISOString()
           }
           
-          const settlementRef = await createDocument('vendor_settlements', settlementRecord)
+          const createResult = await db.create('vendor_settlements', settlementRecord)
+          
+          if (!createResult.success) {
+            throw new Error('Failed to create settlement record')
+          }
+          
+          const settlementId = createResult.data?.id || `settlement_${Date.now()}`
           
           logger.info('VendorSettlement: Created settlement record', {
-            settlementId: settlementRef.id,
+            settlementId,
             vendorId: settlement.vendorId,
             netAmount: settlement.netAmount
           })
@@ -86,13 +93,13 @@ export const VendorSettlementService = {
             status: 'completed',
             processedAt: new Date().toISOString(),
             payoutMethod: 'wallet', // Will be configurable
-            payoutReference: settlementRef.id
+            payoutReference: settlementId
           }
           
           processedSettlements.push(processedSettlement)
           
           // Update settlement status
-          await updateDocument('vendor_settlements', settlementRef.id, {
+          await db.update('vendor_settlements', settlementId, {
             status: 'completed',
             processedAt: new Date().toISOString()
           })
@@ -108,7 +115,7 @@ export const VendorSettlementService = {
       
       // Update order with processed settlements
       if (processedSettlements.length > 0) {
-        await updateDocument('orders', orderId, {
+        await db.update('orders', orderId, {
           vendorSettlements: processedSettlements,
           settlementsProcessedAt: new Date().toISOString()
         })
@@ -140,6 +147,9 @@ export const VendorSettlementService = {
    */
   async updateVendorBalance(vendorId: string, amount: number) {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       // This will be integrated with the wallet/credit system
       logger.info('VendorSettlement: Updating vendor balance', {
         vendorId,
@@ -147,10 +157,11 @@ export const VendorSettlementService = {
       })
       
       // For now, just track in vendor stats
-      const vendorDoc = await getCachedDocument('vendor_profiles', vendorId)
-      if (vendorDoc && vendorDoc.exists) {
-        const currentBalance = (vendorDoc.data() as any)?.pendingBalance || 0
-        await updateDocument('vendor_profiles', vendorId, {
+      const vendorResult = await db.findById('vendor_profiles', vendorId)
+      if (vendorResult.success && vendorResult.data) {
+        const vendorData = vendorResult.data.data || vendorResult.data
+        const currentBalance = vendorData?.pendingBalance || 0
+        await db.update('vendor_profiles', vendorId, {
           pendingBalance: currentBalance + amount,
           lastPayoutUpdate: new Date().toISOString()
         })
@@ -176,28 +187,37 @@ export const VendorSettlementService = {
     status?: VendorSettlement['status']
   }) {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       const limit = Math.min(options?.limit || 50, 100)
       
-      const queryConfig: any = {
-        where: [{ field: 'vendorId', operator: '==', value: vendorId }],
-        orderBy: [{ field: 'createdAt', direction: 'desc' }],
-        limit
-      }
+      const filters: any[] = [{ field: 'vendorId', operator: '=', value: vendorId }]
       
       if (options?.status) {
-        queryConfig.where.push({ field: 'status', operator: '==', value: options.status })
+        filters.push({ field: 'status', operator: '=', value: options.status })
       }
       
-      const snapshot = await getCachedCollectionAdvanced('vendor_settlements', queryConfig)
+      const result = await db.query({
+        collection: 'vendor_settlements',
+        filters,
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        pagination: { limit }
+      })
       
-      const settlements = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as any)
-      })) as unknown as VendorSettlement[]
+      if (!result.success || !result.data) {
+        return { settlements: [], hasMore: false }
+      }
+      
+      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+      const settlements = data.map(item => ({
+        id: item.id,
+        ...(item.data || item)
+      })) as VendorSettlement[]
       
       return {
         settlements,
-        hasMore: snapshot.docs.length === limit
+        hasMore: settlements.length === limit
       }
       
     } catch (error) {
@@ -263,35 +283,44 @@ export const VendorSettlementService = {
    */
   async processBulkPayouts(vendorIds?: string[]) {
     try {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      
       logger.info('VendorSettlement: Starting bulk payout processing', {
         vendorCount: vendorIds?.length || 'all'
       })
       
       // Get pending settlements
-      const queryConfig: any = {
-        where: [{ field: 'status', operator: '==', value: 'pending' }],
-        orderBy: [{ field: 'createdAt', direction: 'asc' }],
-        limit: 100
-      }
+      const filters: any[] = [{ field: 'status', operator: '=', value: 'pending' }]
       
       if (vendorIds && vendorIds.length > 0) {
-        queryConfig.where.push({ field: 'vendorId', operator: 'in', value: vendorIds })
+        filters.push({ field: 'vendorId', operator: 'in', value: vendorIds })
       }
       
-      const snapshot = await getCachedCollectionAdvanced('vendor_settlements', queryConfig)
+      const result = await db.query({
+        collection: 'vendor_settlements',
+        filters,
+        orderBy: [{ field: 'createdAt', direction: 'asc' }],
+        pagination: { limit: 100 }
+      })
       
+      if (!result.success || !result.data) {
+        return { processedCount: 0, failedCount: 0 }
+      }
+      
+      const settlements = Array.isArray(result.data) ? result.data : (result.data as any).data || []
       let processedCount = 0
       let failedCount = 0
       
-      for (const doc of snapshot.docs) {
-        const settlement = { id: doc.id, ...doc.data() } as any
+      for (const item of settlements) {
+        const settlement = { id: item.id, ...(item.data || item) } as any
         
         try {
           // Process individual payout
           await this.updateVendorBalance(settlement.vendorId, settlement.netAmount)
           
           // Mark as completed
-          await updateDocument('vendor_settlements', doc.id, {
+          await db.update('vendor_settlements', settlement.id, {
             status: 'completed',
             processedAt: new Date().toISOString(),
             payoutMethod: 'bulk_processing'
@@ -300,7 +329,7 @@ export const VendorSettlementService = {
           processedCount++
         } catch (error) {
           logger.error('VendorSettlement: Failed to process payout', {
-            settlementId: doc.id,
+            settlementId: settlement.id,
             vendorId: settlement.vendorId,
             error
           })
@@ -311,14 +340,14 @@ export const VendorSettlementService = {
       logger.info('VendorSettlement: Bulk payout processing completed', {
         processedCount,
         failedCount,
-        totalCount: snapshot.docs.length
+        totalCount: settlements.length
       })
       
       return {
         success: true,
         processedCount,
         failedCount,
-        totalCount: snapshot.docs.length
+        totalCount: settlements.length
       }
       
     } catch (error) {

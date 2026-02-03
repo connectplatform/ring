@@ -3,11 +3,14 @@
 /**
  * Vendor Quality Server Actions
  *
- * ERP Extension: Server actions for vendor quality operations that require Firebase Admin SDK
- * Provides safe access to vendor quality data and compliance tracking
+ * ERP Extension: Server actions for vendor quality using DatabaseService
+ * MUTATIONS - NO CACHE! (quality updates affect compliance)
+ * READS - Use React 19 cache() for performance
  */
 
-import { getCachedDocumentTyped, updateDocumentTyped } from '@/lib/services/firebase-service-manager'
+import { cache } from 'react'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { revalidatePath } from 'next/cache'
 import type {
   ExtendedVendorProfile,
   VendorQualityProfile,
@@ -18,13 +21,18 @@ import type {
 
 /**
  * Update vendor quality profile with latest metrics
+ * MUTATION - NO CACHE! (affects vendor compliance and product quality)
  */
 export async function updateQualityProfile(vendorId: string, updates: Partial<VendorQualityProfile>): Promise<void> {
   try {
-    const vendor = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', vendorId)
-    if (!vendor) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const vendorResult = await db.read('vendorProfiles', vendorId)
+    if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
+    const vendor = vendorResult.data as any as ExtendedVendorProfile
 
     const updatedQualityProfile = {
       ...vendor.qualityProfile,
@@ -32,19 +40,27 @@ export async function updateQualityProfile(vendorId: string, updates: Partial<Ve
       lastInspectionDate: new Date().toISOString()
     }
 
-    // Recalculate quality score (import the calculation logic)
+    // Recalculate quality score
     const qualityScore = calculateQualityScore({
       ...vendor,
       qualityProfile: updatedQualityProfile
     })
 
-    await updateDocumentTyped('vendorProfiles', vendorId, {
+    const updateResult = await db.update('vendorProfiles', vendorId, {
       qualityProfile: {
         ...updatedQualityProfile,
         qualityScore
       },
       updatedAt: new Date().toISOString()
     })
+    
+    if (!updateResult.success) {
+      throw updateResult.error || new Error('Failed to update quality profile')
+    }
+    
+    // Revalidate vendor pages (React 19 pattern)
+    revalidatePath(`/[locale]/vendor/${vendorId}`)
+    revalidatePath('/[locale]/vendors')
   } catch (error) {
     console.error('Error updating vendor quality profile:', error)
     throw error
@@ -53,16 +69,21 @@ export async function updateQualityProfile(vendorId: string, updates: Partial<Ve
 
 /**
  * Add certification to vendor profile
+ * MUTATION - NO CACHE!
  */
 export async function addCertification(
   vendorId: string,
   certification: Omit<Certification, 'id'>
 ): Promise<void> {
   try {
-    const vendor = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', vendorId)
-    if (!vendor) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const vendorResult = await db.read('vendorProfiles', vendorId)
+    if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
+    const vendor = vendorResult.data as any as ExtendedVendorProfile
 
     const newCertification: Certification = {
       ...certification,
@@ -82,16 +103,21 @@ export async function addCertification(
 
 /**
  * Update compliance status
+ * MUTATION - NO CACHE!
  */
 export async function updateComplianceStatus(
   vendorId: string,
   complianceUpdates: Partial<VendorCompliance>
 ): Promise<void> {
   try {
-    const vendor = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', vendorId)
-    if (!vendor) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const vendorResult = await db.read('vendorProfiles', vendorId)
+    if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
+    const vendor = vendorResult.data as any as ExtendedVendorProfile
 
     const updatedCompliance = {
       ...vendor.compliance,
@@ -101,13 +127,21 @@ export async function updateComplianceStatus(
     // Recalculate compliance rating
     const complianceRating = calculateComplianceScore(updatedCompliance)
 
-    await updateDocumentTyped('vendorProfiles', vendorId, {
+    const updateResult = await db.update('vendorProfiles', vendorId, {
       compliance: {
         ...updatedCompliance,
         complianceRating
       },
       updatedAt: new Date().toISOString()
     })
+    
+    if (!updateResult.success) {
+      throw updateResult.error || new Error('Failed to update compliance status')
+    }
+    
+    // Revalidate vendor pages (React 19 pattern)
+    revalidatePath(`/[locale]/vendor/${vendorId}`)
+    revalidatePath('/[locale]/vendors')
   } catch (error) {
     console.error('Error updating compliance status:', error)
     throw error
@@ -116,16 +150,21 @@ export async function updateComplianceStatus(
 
 /**
  * Record compliance violation
+ * MUTATION - NO CACHE!
  */
 export async function recordComplianceViolation(
   vendorId: string,
   violation: Omit<ComplianceViolation, 'id' | 'dateReported'>
 ): Promise<void> {
   try {
-    const vendor = await getCachedDocumentTyped<ExtendedVendorProfile>('vendorProfiles', vendorId)
-    if (!vendor) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const vendorResult = await db.read('vendorProfiles', vendorId)
+    if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
+    const vendor = vendorResult.data as any as ExtendedVendorProfile
 
     const newViolation: ComplianceViolation = {
       ...violation,

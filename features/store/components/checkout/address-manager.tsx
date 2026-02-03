@@ -191,7 +191,7 @@ export function AddressManager({
                       <Check className="h-4 w-4 text-blue-600" />
                     )}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     <p>{address.addressLine1}</p>
                     {address.addressLine2 && <p>{address.addressLine2}</p>}
                     <p>

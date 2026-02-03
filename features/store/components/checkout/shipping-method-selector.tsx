@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useOptionalCurrency } from '@/features/store/currency-context'
 import { Truck, Clock, MapPin, Package } from 'lucide-react'
 import { NovaPostSelector, type NovaPostLocation } from '@/features/store/components/shipping/nova-post-selector'
 
@@ -33,6 +34,11 @@ export function ShippingMethodSelector({
   className = ''
 }: ShippingMethodSelectorProps) {
   const t = useTranslations('modules.store.checkout')
+  const currencyContext = useOptionalCurrency()
+  
+  // Currency conversion helpers
+  const convertPrice = currencyContext?.convertPrice || ((price: number) => price)
+  const formatPrice = currencyContext?.formatPrice || ((price: number) => `${price.toFixed(2)} ₴`)
   
   const shippingOptions: ShippingOption[] = [
     {
@@ -83,30 +89,30 @@ export function ShippingMethodSelector({
             key={option.id}
             className={`border rounded-lg p-4 cursor-pointer transition-all ${
               selectedMethod === option.id
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:border-primary/50'
             }`}
             onClick={() => onMethodSelect(option.id)}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${
-                  selectedMethod === option.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  selectedMethod === option.id ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
                 }`}>
                   {option.icon}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{option.name}</span>
-                    <span className="text-sm text-gray-500">({option.estimatedDays})</span>
+                    <span className="text-sm text-muted-foreground">({option.estimatedDays})</span>
                   </div>
-                  <p className="text-sm text-gray-600">{option.description}</p>
+                  <p className="text-sm text-muted-foreground">{option.description}</p>
                 </div>
               </div>
               
               <div className="text-right">
                 <div className="font-semibold">
-                  {option.price === 0 ? t('free') : `₴${option.price}`}
+                  {option.price === 0 ? t('free') : formatPrice(convertPrice(option.price))}
                 </div>
               </div>
             </div>
@@ -116,7 +122,7 @@ export function ShippingMethodSelector({
 
       {/* Nova Post Location Selector */}
       {selectedMethod === 'nova-post' && onLocationSelect && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+        <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
           <h4 className="font-medium mb-3">{t('selectNovaPostLocation')}</h4>
           <NovaPostSelector
             selected={selectedLocation}
@@ -125,7 +131,7 @@ export function ShippingMethodSelector({
           {selectedLocation && (
             <div className="mt-3 p-3 bg-white rounded border text-sm">
               <div className="font-medium">{selectedLocation.name}</div>
-              <div className="text-gray-600">
+              <div className="text-muted-foreground">
                 {selectedLocation.settlement?.name}{selectedLocation.settlement?.region ? `, ${selectedLocation.settlement.region}` : ''}
               </div>
               <div className="text-gray-500">
@@ -140,7 +146,7 @@ export function ShippingMethodSelector({
       {selectedMethod === 'pickup' && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-medium mb-2">{t('pickupLocation')}</h4>
-          <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
             <p>{t('pickupAddress')}</p>
             <p className="mt-1">{t('pickupHours')}</p>
           </div>

@@ -91,12 +91,12 @@ export default function CheckoutStatusPage({ status, locale, orderId }: Checkout
           </div>
 
           {/* Status Title */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              <h1 className="text-2xl font-bold text-foreground mb-4">
             {t(`${status}.title`)}
           </h1>
 
           {/* Status Description */}
-          <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
             {t(`${status}.description`)}
           </p>
 
@@ -106,7 +106,7 @@ export default function CheckoutStatusPage({ status, locale, orderId }: Checkout
               <p className="text-sm text-gray-600 mb-1">
                 {t('orderId')}
               </p>
-              <p className="font-mono text-lg font-medium text-gray-900">
+              <p className="font-mono text-lg font-medium text-foreground">
                 {orderId}
               </p>
             </div>
@@ -143,7 +143,7 @@ export default function CheckoutStatusPage({ status, locale, orderId }: Checkout
                 </Link>
                 <Link 
                   href={ROUTES.STORE(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {tCart('continueShopping')}
                 </Link>
@@ -161,7 +161,7 @@ export default function CheckoutStatusPage({ status, locale, orderId }: Checkout
                 </Link>
                 <Link 
                   href={ROUTES.STORE(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {tCart('continueShopping')}
                 </Link>
@@ -179,7 +179,7 @@ export default function CheckoutStatusPage({ status, locale, orderId }: Checkout
                 </Link>
                 <Link 
                   href={ROUTES.STORE(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {tCart('continueShopping')}
                 </Link>
@@ -199,7 +199,7 @@ export default function CheckoutStatusPage({ status, locale, orderId }: Checkout
                 )}
                 <Link 
                   href={ROUTES.STORE(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {tCart('continueShopping')}
                 </Link>

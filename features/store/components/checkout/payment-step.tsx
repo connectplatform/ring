@@ -71,10 +71,10 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
               option.enabled 
                 ? `cursor-pointer ${
                     method === option.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
                   }`
-                : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                : 'border-border bg-muted opacity-60 cursor-not-allowed'
             }`}
             onClick={() => option.enabled && setMethod(option.id)}
           >
@@ -82,8 +82,8 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${
                   method === option.id && option.enabled
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-gray-100 text-gray-600'
+                    ? 'bg-primary/20 text-primary'
+                    : 'bg-muted text-muted-foreground'
                 }`}>
                   {option.icon}
                 </div>
@@ -91,18 +91,18 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{option.name}</span>
                     {!option.enabled && (
-                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
                         {t('comingSoon')}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">{option.description}</p>
+                  <p className="text-sm text-muted-foreground">{option.description}</p>
                   {option.badges && (
                     <div className="flex items-center gap-2 mt-2">
                       {option.badges.map((badge) => (
                         <span
                           key={badge}
-                          className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
+                          className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded"
                         >
                           {badge}
                         </span>
@@ -118,7 +118,7 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
                   checked={method === option.id}
                   onChange={() => option.enabled && setMethod(option.id)}
                   disabled={!option.enabled}
-                  className="h-4 w-4 text-blue-600"
+                  className="h-4 w-4 text-primary accent-primary"
                 />
               </div>
             </div>
@@ -133,12 +133,12 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
 
       {/* WayForPay Specific Info */}
       {method === 'wayforpay' && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+        <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
           <div className="flex items-center gap-2 mb-2">
-            <CreditCard className="h-4 w-4 text-blue-600" />
-            <span className="font-medium text-blue-900">{t('secureCardPayment')}</span>
+            <CreditCard className="h-4 w-4 text-primary" />
+            <span className="font-medium">{t('secureCardPayment')}</span>
           </div>
-          <p className="text-sm text-blue-700">
+          <p className="text-sm text-muted-foreground">
             {t('wayforpaySecurityNote')}
           </p>
         </div>
