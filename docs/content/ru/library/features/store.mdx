@@ -1,0 +1,215 @@
+---
+title: Store
+description: Store documentation for Ring Platform
+---
+
+# Multi-vendor Store
+
+Complete e-commerce solution with vendor management, automated settlements, and integrated payment processing.
+
+## Overview
+
+Ring Platform's multi-vendor store enables entities to sell products and services while providing customers with a unified shopping experience across multiple vendors.
+
+## Key Features
+
+### Vendor Management
+- **Vendor Onboarding** - Streamlined application and approval process
+- **Vendor Dashboard** - Comprehensive management interface
+- **Performance Analytics** - Sales metrics and insights
+- **Automated Settlements** - Daily payment processing
+
+### Product Catalog
+- **Product Management** - Easy product creation and editing
+- **Inventory Tracking** - Real-time stock management
+- **Category Organization** - Structured product categorization
+- **Search and Filtering** - Advanced product discovery
+
+### Order Processing
+- **Order Management** - Complete order lifecycle tracking
+- **Payment Integration** - WayForPay payment gateway
+- **Shipping Integration** - Multiple shipping provider support
+- **Customer Communication** - Automated order updates
+
+## Vendor Features
+
+### Store Setup
+// Apply to become vendor
+
+<Code language="typescript" title="TypeScript">
+{`const vendorApplication = await applyForVendor({
+  entityId: 'entity-123',
+  businessInfo: {
+    name: 'Tech Gadgets Store',
+    description: 'Premium technology products',
+    category: 'ELECTRONICS',
+    website: 'https://techgadgets.com'
+  },
+  documents: {
+    businessLicense: 'license.pdf',
+    taxCertificate: 'tax-cert.pdf'
+  }
+})`}
+</Code>
+
+### Product Management
+// Create product listing
+
+<Code language="typescript" title="TypeScript">
+{`const product = await createProduct({
+  vendorId: 'vendor-456',
+  name: 'Wireless Bluetooth Headphones',
+  description: 'Premium noise-canceling headphones',
+  price: 199.99,
+  currency: 'USD',
+  category: 'ELECTRONICS',
+  inventory: {
+    quantity: 50,
+    sku: 'WBH-001',
+    trackInventory: true
+  },
+  images: [
+    'https://example.com/headphones-1.jpg',
+    'https://example.com/headphones-2.jpg'
+  ],
+  specifications: {
+    'Battery Life': '30 hours',
+    'Connectivity': 'Bluetooth 5.0',
+    'Weight': '250g'
+  }
+})`}
+</Code>
+
+### Order Fulfillment
+// Process vendor orders
+
+<Code language="typescript" title="TypeScript">
+{`const orders = await getVendorOrders(vendorId, {
+  status: 'PENDING',
+  limit: 20
+})
+
+// Update order status
+await updateOrderStatus(orderId, {
+  status: 'PROCESSING',
+  trackingNumber: 'TRK123456789',
+  estimatedDelivery: '2024-01-15'
+})`}
+</Code>
+
+## Customer Experience
+
+### Shopping Flow
+1. **Product Discovery** - Browse and search products
+2. **Product Details** - Comprehensive product information
+3. **Add to Cart** - Multi-vendor cart management
+4. **Checkout** - Unified checkout across vendors
+5. **Payment** - Secure payment processing
+6. **Order Tracking** - Real-time order status updates
+
+### Shopping Cart
+// Add products from multiple vendors
+
+<Code language="typescript" title="TypeScript">
+{`await addToCart({
+  productId: 'prod-123',
+  vendorId: 'vendor-456',
+  quantity: 2,
+  options: {
+    color: 'Black',
+    size: 'Large'
+  }
+})
+
+// Checkout with multiple vendors
+const checkout = await processCheckout({
+  items: cartItems,
+  shippingAddress: customerAddress,
+  paymentMethod: 'wayforpay'
+})`}
+</Code>
+
+## Payment Integration
+
+### WayForPay Gateway
+- **Ukrainian Payment Gateway** - Local payment processing
+- **Multiple Payment Methods** - Cards, bank transfers, digital wallets
+- **Secure Processing** - PCI DSS compliant
+- **Automatic Settlements** - Daily vendor payouts
+
+### Payment Flow
+// Process payment
+
+<Code language="typescript" title="TypeScript">
+{`const payment = await processPayment({
+  orderId: 'order-789',
+  amount: 299.98,
+  currency: 'UAH',
+  paymentMethod: 'card',
+  customer: {
+    email: 'customer@example.com',
+    phone: '+380123456789'
+  }
+})
+
+// Handle payment webhook
+app.post('/webhooks/wayforpay', async (req, res) => {
+  const paymentResult = await verifyPaymentWebhook(req.body)
+  
+  if (paymentResult.status === 'success') {
+    await updateOrderStatus(paymentResult.orderId, 'PAID')
+    await notifyVendor(paymentResult.vendorId, 'NEW_ORDER')
+  }
+})`}
+</Code>
+
+## Vendor Analytics
+
+### Performance Metrics
+- **Sales Volume** - Daily, weekly, monthly sales
+- **Product Performance** - Best-selling products
+- **Customer Analytics** - Customer behavior insights
+- **Revenue Tracking** - Detailed financial reporting
+
+### Dashboard Features
+// Get vendor analytics
+
+<Code language="typescript" title="TypeScript">
+{`const analytics = await getVendorAnalytics(vendorId, {
+  period: '30d',
+  metrics: ['sales', 'orders', 'customers', 'revenue']
+})
+
+console.log('Total Sales:', analytics.sales.total)
+console.log('Average Order Value:', analytics.orders.averageValue)
+console.log('Top Products:', analytics.products.topSelling)`}
+</Code>
+
+## Automated Settlements
+
+### Daily Payouts
+- **Automatic Processing** - Daily settlement calculations
+- **Commission Deduction** - Platform fee handling
+- **Bank Integration** - Direct bank transfers
+- **Settlement Reports** - Detailed payout statements
+
+### Settlement Flow
+<Code language="typescript" title="TypeScript">
+{`// Daily settlement process (automated)
+const settlements = await processDailySettlements()
+
+settlements.forEach(async (settlement) => {
+  await transferToVendor({
+    vendorId: settlement.vendorId,
+    amount: settlement.netAmount,
+    currency: settlement.currency,
+    reference: settlement.settlementId
+  })
+  
+  await sendSettlementReport(settlement)
+})`}
+</Code>
+
+---
+
+*Ready to set up your store? Check our [API Reference](/ru/library/api/store) for implementation details.*

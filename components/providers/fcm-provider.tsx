@@ -78,7 +78,7 @@ export function FCMProvider({ children }: FCMProviderProps) {
     if (session?.user?.id && isEnabled) {
       fetchTokenCount()
     }
-  }, [session, isEnabled])
+  }, [session?.user?.id, isEnabled])
 
   const enableNotifications = async (): Promise<boolean> => {
     try {
@@ -254,7 +254,7 @@ export function FCMPermissionPrompt() {
           </div>
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <h3 className="text-sm font-medium text-foreground">
             Enable Push Notifications
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -269,7 +269,7 @@ export function FCMPermissionPrompt() {
             </button>
             <button
               onClick={handleDismiss}
-              className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-muted-foreground bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Not now
             </button>

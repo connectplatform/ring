@@ -1,0 +1,106 @@
+{
+  "title": "Notifications",
+  "status": {
+    "topic": "Topic",
+    "notificationId": "Notification ID",
+    "subscriptionId": "Subscription ID",
+    "deviceRegistered": "Device Registered",
+    "failureReason": "Failure Reason",
+    "denialReason": "Denial Reason",
+    "cancellationReason": "Cancellation Reason",
+    "needHelp": "Need help? Contact our support team",
+    "actions": {
+      "manageNotifications": "Manage Notifications",
+      "manageSubscriptions": "Manage Subscriptions",
+      "viewNotifications": "View Notifications",
+      "viewAllNotifications": "View All Notifications",
+      "backToApp": "Back to App",
+      "retryPermission": "Retry Permission",
+      "retrySubscription": "Retry Subscription",
+      "retrySending": "Retry Sending",
+      "resubscribe": "Resubscribe",
+      "getHelp": "Get Help",
+      "viewSupportedBrowsers": "View Supported Browsers",
+      "checkSettings": "Check Settings",
+      "checkStatus": "Check Status",
+      "contactSupport": "Contact Support"
+    },
+    "permission": {
+      "granted": {
+        "title": "Notifications Enabled!",
+        "description": "You will now receive push notifications from Ring Platform. You can manage your notification preferences anytime."
+      },
+      "denied": {
+        "title": "Notifications Blocked",
+        "description": "Push notifications have been blocked for this site. To enable them, please check your browser settings or click the permission icon in your address bar."
+      },
+      "pending": {
+        "title": "Permission Required",
+        "description": "Please allow notifications to receive important updates and messages from Ring Platform.",
+        "waiting": "Waiting for your permission..."
+      },
+      "unsupported": {
+        "title": "Notifications Not Supported",
+        "description": "Your browser or device doesn't support push notifications. Please use a modern browser for the best experience.",
+        "browserInfo": "Supported browsers include Chrome, Firefox, Safari, and Edge on desktop and mobile."
+      }
+    },
+    "subscribe": {
+      "subscribed": {
+        "title": "Successfully Subscribed!",
+        "description": "You are now subscribed to notifications and will receive relevant updates.",
+        "activeSubscription": "Your subscription is active and notifications are enabled."
+      },
+      "unsubscribed": {
+        "title": "Subscription Cancelled",
+        "description": "You have been unsubscribed from notifications. You can resubscribe anytime if you change your mind."
+      },
+      "failed": {
+        "title": "Subscription Failed",
+        "description": "We couldn't subscribe you to notifications due to a technical issue. Please try again or contact support."
+      },
+      "pending": {
+        "title": "Subscription Processing",
+        "description": "Your subscription request is being processed. This should complete shortly."
+      }
+    },
+    "send": {
+      "sent": {
+        "title": "Notification Sent",
+        "description": "Your notification has been successfully sent to all subscribers."
+      },
+      "delivered": {
+        "title": "Notification Delivered!",
+        "description": "Your notification has been delivered to the recipient's device.",
+        "deliveryConfirmed": "Delivery confirmed by the notification service."
+      },
+      "failed": {
+        "title": "Send Failed",
+        "description": "We couldn't send your notification due to a technical issue. Please try again."
+      },
+      "pending": {
+        "title": "Sending Notification",
+        "description": "Your notification is being sent. This may take a few moments."
+      }
+    },
+    "deliver": {
+      "delivered": {
+        "title": "Message Delivered",
+        "description": "Your message has been successfully delivered to the recipient.",
+        "deliveryConfirmed": "The message was delivered to the recipient's device."
+      },
+      "read": {
+        "title": "Message Read",
+        "description": "Your message has been read by the recipient."
+      },
+      "failed": {
+        "title": "Delivery Failed",
+        "description": "Your message couldn't be delivered. This may be due to device settings or connectivity issues."
+      },
+      "cancelled": {
+        "title": "Delivery Cancelled",
+        "description": "Message delivery was cancelled before reaching the recipient."
+      }
+    }
+  }
+}

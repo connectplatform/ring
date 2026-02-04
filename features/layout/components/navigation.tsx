@@ -38,6 +38,7 @@ import { FavoritesMenu } from '@/features/store/components/favorites-menu'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
 import { useCreditBalance } from '@/hooks/use-credit-balance'
 import { toast } from '@/hooks/use-toast'
+import MobileAvatarButton from './mobile-avatar-button'
 import type { Locale } from '@/i18n-config'
 
 // React 19 Resource Preloading APIs
@@ -51,7 +52,7 @@ const BottomNavigation = dynamic(() => import('./bottom-navigation'), {
   ssr: false,
 })
 
-const DesktopSidebar = dynamic(() => import('./desktop-sidebar'), {
+const DesktopSidebar = dynamic(() => import('@/components/navigation/desktop-sidebar'), {
   ssr: false,
 })
 
@@ -85,6 +86,7 @@ export default function Navigation() {
   
   const [isOpen, setIsOpen] = useState(false)
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [showHeader, setShowHeader] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -329,6 +331,9 @@ export default function Navigation() {
 
       {/* Mobile Bottom Navigation */}
       {mounted && <BottomNavigation />}
+
+      {/* Mobile Avatar Button - Top Right Corner */}
+      {mounted && <MobileAvatarButton />}
 
       {/* Unified login selector (Google, Apple, Crypto) */}
       <UnifiedLoginComponent open={isLoginDialogOpen} onClose={handleCloseLoginDialog} />

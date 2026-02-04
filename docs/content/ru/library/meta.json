@@ -1,0 +1,16 @@
+{
+  "title": "Документация платформы",
+  "pages": [
+    "welcome",
+    "index",
+    "getting-started",
+    "architecture",
+    "features",
+    "api",
+    "cli",
+    "customization",
+    "deployment",
+    "development",
+    "examples"
+  ]
+}

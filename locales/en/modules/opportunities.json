@@ -174,12 +174,12 @@
     },
     "ring_customization": {
       "title": "Ring Customization",
-      "description": "Legion-powered Ring Platform cloning & customization - Autonomous deployment with AI orchestration",
+      "description": "Need help with Ring customization",
       "examples": {
         "platform_deployment": "Full platform deployment",
         "module_development": "Custom module development",
         "branding": "Brand/theme customization",
-        "database_migration": "Database migration (Firebase → PostgreSQL → ConnectPlatform)",
+        "database_migration": "Database migration",
         "localization": "Multi-lingual localization",
         "payment_integration": "Payment gateway integration",
         "smart_contracts": "Custom smart contract development",
@@ -189,22 +189,6 @@
       },
       "button": "Create Ring Project",
       "upgrade_button": "Upgrade to Member"
-    },
-    "ai_instructor": {
-      "title": "AI Instructor",
-      "description": "Teach product owners how to properly instruct Legion for Ring customizations - Democratize AI access",
-      "examples": {
-        "legion_instruction_training": "How to describe needs to Legion AI",
-        "customization_planning_workshop": "Plan Ring customization with AI guidance",
-        "ring_architecture_training": "Understand Ring Platform architecture",
-        "ai_prompt_engineering": "Master AI prompt engineering for Legion",
-        "product_owner_education": "Product owner education for AI platforms",
-        "legion_best_practices": "Legion best practices and workflows",
-        "autonomous_deployment_guide": "Guide to autonomous Ring deployment",
-        "ring_ecosystem_overview": "Complete Ring ecosystem training"
-      },
-      "button": "Offer AI Instruction",
-      "upgrade_button": "Join as Instructor"
     }
   },
   "addRequest": "Create Request",
@@ -255,14 +239,6 @@
   "resource": "Resource",
   "event": "Event",
   "ring_customization": "Ring Customization",
-  "ai_instructor": "AI Instructor",
-  "collective_need": "Collective Need",
-  "platform_mentorship": "Platform Mentorship",
-  "regional_deployment": "Regional Deployment",
-  "language_localization": "Language Localization",
-  "ring_certification": "Ring Certification",
-  "ecosystem_contribution": "Ecosystem Contribution",
-  "success_story": "Success Story",
   "request": "Technology Request",
   "offer": "Technology Offer",
   "mentorship": "Developer CV",

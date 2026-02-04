@@ -1,0 +1,202 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Architecture Overview
+
+Ring Platform's architecture is designed for maximum performance, scalability, and developer experience using the latest versions of every framework.
+
+## Platform Overview
+
+<Mermaid title="Ring Platform Architecture">
+{`mindmap
+  root((Ring Platform Architecture))
+    Frontend Layer
+      React 19 Server Components
+      Next.js 15 App Router
+      Tailwind CSS 4
+      TypeScript 5.x
+    Backend Services
+      Auth.js v5 Multi-Provider
+      PostgreSQL Primary DB
+      Firebase Optional
+      Edge Runtime API
+    Real-Time Layer
+      WebSocket Transport
+      Server-Sent Events
+      Tunnel Protocol
+      Connection Pooling
+    Web3 Integration
+      Wagmi + Viem
+      RainbowKit Wallet UI
+      Multi-Chain Support
+      Smart Contract Layer
+    Infrastructure
+      Vercel Deployment
+      CDN Edge Network
+      Serverless Functions
+      Database Migrations`}
+</Mermaid>
+
+## High-Level Data Flow
+
+<Mermaid>
+{`flowchart LR
+    Client[Client Layer<br/>React 19 + Next.js 15] --> Auth[Authentication Layer<br/>Auth.js v5]
+    Client --> API[API Layer<br/>Server Actions + REST]
+    
+    Auth --> Session[Session Store<br/>JWT + Cookies]
+    
+    API --> DB[(Database<br/>PostgreSQL Primary<br/>Firebase Optional)]
+    API --> RT[Real-Time Layer<br/>WebSocket + SSE]
+    API --> Web3[Web3 Layer<br/>Wagmi + Viem]
+    
+    RT --> Tunnel[Tunnel Transport<br/>Connection Pool]
+    Web3 --> Blockchain[Blockchain Networks<br/>Multi-Chain]
+    
+    DB --> Cache[Query Cache<br/>Edge Runtime]
+    Tunnel --> Client
+    
+    style Client fill:#e1f5ff
+    style Auth fill:#fff4e1
+    style API fill:#e8f5e9
+    style DB fill:#f3e5f5
+    style RT fill:#ffe0e0
+    style Web3 fill:#fff9c4`}
+</Mermaid>
+
+## Request Lifecycle Architecture
+
+<Mermaid>
+{`sequenceDiagram
+    participant User
+    participant Browser
+    participant Edge as Edge Runtime
+    participant Server as Next.js Server
+    participant Auth as Auth.js
+    participant DB as PostgreSQL
+    participant RT as Real-Time Layer
+    
+    User->>Browser: Request Page
+    Browser->>Edge: HTTP Request
+    Edge->>Server: Forward to Server
+    Server->>Auth: Verify Session
+    Auth-->>Server: Session Valid
+    Server->>DB: Fetch Data
+    DB-->>Server: Return Data
+    Server->>RT: Subscribe to Updates
+    RT-->>Browser: WebSocket Connection
+    Server-->>Edge: Render Response
+    Edge-->>Browser: Serve Page
+    Browser-->>User: Display UI
+    RT->>Browser: Real-Time Updates
+    Browser->>User: Live Data Updates`}
+</Mermaid>
+
+## Complete System Flow
+
+### User Journey & Data Flow
+
+<Mermaid>
+{`flowchart TD
+    Start([User Visits Platform]) --> Auth{Authenticated?}
+    Auth -->|No| Login[Login Page]
+    Auth -->|Yes| Dashboard[User Dashboard]
+
+    Login --> OAuth[OAuth / Magic Link]
+    OAuth --> AuthVerify{Auth Successful?}
+    AuthVerify -->|Yes| Dashboard
+    AuthVerify -->|No| Login
+
+    Dashboard --> Features{Select Feature}
+
+    Features -->|Browse| Opportunities[Opportunities Feed]
+    Features -->|Search| Entities[Entities Directory]
+    Features -->|Shop| Store[Multi-vendor Store]
+    Features -->|Finance| Wallet[RING Wallet]
+    Features -->|NFTs| NFTMarket[NFT Marketplace]
+
+    Opportunities --> AIMatch[AI Matching Engine]
+    AIMatch --> Score[8-factor Scoring]
+    Score --> Notify[Real-time Notifications]
+
+    Entities --> Search[Full-text Search]
+    Search --> Filter[Advanced Filters]
+    Filter --> Results[Filtered Results]
+
+    Store --> Browse[Browse Products]
+    Browse --> Cart[Shopping Cart]
+    Cart --> CheckoutFlow[Checkout]
+
+    Wallet --> Balance[Check Balance]
+    Balance --> Topup{Need Funds?}
+    Topup -->|Yes| TopupFlow[Top-up Flow]
+    Topup -->|No| Transfer[Transfer/Stake]
+
+    NFTMarket --> Mint[Mint NFT]
+    Mint --> List[List for Sale]
+    List --> Trade[Trade/Transfer]
+
+    CheckoutFlow --> PaySelect{Payment Method}
+    PaySelect -->|WayForPay| Fiat[Card Payment]
+    PaySelect -->|RING| Crypto[Token Payment]
+
+    Fiat --> PayProcess[WayForPay Processing]
+    Crypto --> BlockchainTx[Blockchain Transaction]
+
+    PayProcess --> Confirm[Order Confirmation]
+    BlockchainTx --> Confirm
+    TopupFlow --> BlockchainTx
+
+    Confirm --> DB[(PostgreSQL)]
+    DB --> WebSocket[WebSocket/SSE]
+    WebSocket --> RealTime[Real-time Updates]
+    RealTime --> Dashboard`}
+</Mermaid>
+
+## Component Architecture Principles
+
+### Separation of Concerns & Hierarchy
+Ring Platform establishes modern component architecture patterns that ensure maintainability, reusability, and proper separation of concerns.
+
+<Mermaid>
+{`flowchart TD
+    A[Hooks Layer] --> B[Feature Components]
+    B --> C[Page Components]
+    D[Data Access] --> A
+    E[UI Primitives] --> B
+
+    A[useCreditBalance<br/>useAuth<br/>useRealtime]
+    B[WalletSection<br/>KYCUpload<br/>MobileAvatarButton]
+    C[Profile Page<br/>Wallet Page<br/>Dashboard]`}
+</Mermaid>
+
+### Architectural Patterns
+
+#### 🎯 **Component Hierarchy Rules**
+- **Hooks Layer**: Data access, business logic, and state management
+- **Feature Components**: Reusable UI components with specific business functionality
+- **Page Components**: Route-level components that compose feature components
+
+#### 📱 **Mobile Architecture Excellence**
+- **Navigation Revolution**: Top-right gradient avatar button + 9-dots fullscreen menu
+- **Reusable Components**: Feature components designed for cross-context usage
+- **Performance Optimized**: Mobile-specific rendering and interaction patterns
+- **Accessibility First**: WCAG compliant touch targets and interactions
+
+#### 🏗️ **Key Architectural Achievements**
+- **Component Separation**: Eliminated page component imports in feature components
+- **Reusable Wallet**: WalletSection component used in profiles and dedicated wallet pages
+- **Mobile Innovation**: Revolutionary navigation with fullscreen modal system
+- **Performance Standards**: 60fps animations and efficient mobile rendering
+
+### Anti-Patterns Avoided
+- ❌ Page components importing feature components
+- ❌ Feature components with direct service calls
+- ❌ Tight coupling between unrelated feature domains
+- ❌ Direct Firebase calls in presentation components
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="info">See sections for Auth, Realtime, Security, and Data Model.</Callout>

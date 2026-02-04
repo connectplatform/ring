@@ -1,10 +1,9 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
-
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+/**
+ * Create Opportunity Service
+ * 
+ * Server-side mutation (NO cache() - mutations must always execute)
+ * PostgreSQL via DatabaseService abstraction
+ */
 import { Opportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
@@ -237,11 +236,12 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     }
 
     // Step 3: Create the new opportunity document with ES2022 logical assignment
+    const now = new Date().toISOString()
     const newOpportunityData: any = {
       ...data,
       createdBy: userId,
-      dateCreated: FieldValue.serverTimestamp(),
-      dateUpdated: FieldValue.serverTimestamp(),
+      dateCreated: now,
+      dateUpdated: now,
     };
 
     // ES2022 ??= logical assignment - set default values if not provided
@@ -347,8 +347,8 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     const opportunityData: Opportunity = {
       ...rawData,
       id: docRef.id,
-      dateCreated: rawData.dateCreated || Timestamp.now(),
-      dateUpdated: rawData.dateUpdated || Timestamp.now(),
+      dateCreated: rawData.dateCreated || new Date().toISOString(),
+      dateUpdated: rawData.dateUpdated || new Date().toISOString(),
     } as Opportunity;
 
     let createdOpportunity;

@@ -1,19 +1,17 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Create Entity Service
+ * 
+ * Creates new entity with validation and role-based access control
+ * Uses DatabaseService abstraction layer
+ */
 
-import { getAdminRtdb, getAdminRtdbRef, setAdminRtdbData, setAdminRtdbOnDisconnect, getAdminRtdbServerTimestamp } from '@/lib/firebase-admin.server';
-import { db } from '@/lib/database/DatabaseService';
-import { Entity } from '@/features/entities/types';
-import { auth } from '@/auth';
-import { UserRole } from '@/features/auth/types';
-import { CollectionReference, FieldValue } from 'firebase-admin/firestore';
-import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors';
-import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
-import { invalidateEntitiesCache } from '@/lib/cached-data';
-import { entityConverter } from '@/lib/converters/entity-converter';
+import { db } from '@/lib/database/DatabaseService'
+import { Entity } from '@/features/entities/types'
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
+import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors'
+import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils'
+import { invalidateEntitiesCache } from '@/lib/cached-data'
 
 /**
  * Type definition for the data required to create a new entity.
@@ -145,8 +143,8 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     const newEntityData: any = {
       ...data,
       addedBy: userId,
-      dateAdded: FieldValue.serverTimestamp(),
-      lastUpdated: FieldValue.serverTimestamp(),
+      dateAdded: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
     };
     
     // ES2022 ??= logical assignment - set default values if not provided
@@ -231,12 +229,8 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
           collection: 'entities',
           id: entityId
         });
-
-        if (entityResult.success && entityResult.data) {
-          await setupPresenceDetection(entityId, entityResult.data);
-        }
       } catch (error) {
-        // Log presence detection error but don't fail the entire operation
+        // Log any post-creation errors but don't fail the entire operation
         logRingError(error, `Services: createEntity - Presence detection setup failed for entity ${entityId}`);
       }
     }
@@ -269,61 +263,6 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
   }
 }
 
-/**
- * Sets up presence detection for an entity using Firebase Realtime Database.
- *
- * @param {string} entityId - The ID of the entity to set up presence detection for
- * @param {any} entityData - The entity data from db.command() result
- * @throws {EntityDatabaseError} If realtime database operations fail
- */
-async function setupPresenceDetection(entityId: string, entityData: any): Promise<void> {
-  try {
-    console.log('Services: createEntity - Enabling presence detection for eligible user roles.');
-
-    const onlineRef = getAdminRtdbRef(`entities/${entityId}/online`);
-    const lastOnlineRef = getAdminRtdbRef(`entities/${entityId}/lastOnline`);
-    const connectedRef = getAdminRtdbRef('.info/connected');
-
-    connectedRef.on('value', (snapshot) => {
-      if (snapshot.val() === true) {
-        console.log('Services: Realtime presence - Connected to Firebase Realtime Database.');
-
-        setAdminRtdbData(`entities/${entityId}/online`, true);
-
-        const onDisconnect = setAdminRtdbOnDisconnect(`entities/${entityId}/online`);
-        onDisconnect.set(false);
-
-        const lastOnlineDisconnect = setAdminRtdbOnDisconnect(`entities/${entityId}/lastOnline`);
-        lastOnlineDisconnect.set(getAdminRtdbServerTimestamp());
-
-        // Use db.command() to update entity online status
-        db().execute('update', {
-          collection: 'entities',
-          id: entityId,
-          data: { onlineStatus: true }
-        }).then((result) => {
-          if (result.success) {
-            console.log('Services: Firestore - Entity updated to online.');
-          } else {
-            logRingError(result.error, `Services: Firestore - Failed to update entity ${entityId} online status`);
-          }
-        }).catch((error) => {
-          logRingError(error, `Services: Firestore - Failed to update entity ${entityId} online status`);
-        });
-      } else {
-        console.log('Services: Realtime presence - Not connected.');
-      }
-    });
-  } catch (error) {
-    throw new EntityDatabaseError(
-      'Failed to set up presence detection',
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        timestamp: Date.now(),
-        entityId,
-        operation: 'setupPresenceDetection'
-      }
-    );
-  }
-}
+// Note: Presence detection previously handled by Firebase RTDB has been removed
+// Consider implementing presence detection via PostgreSQL or separate real-time service if needed
 

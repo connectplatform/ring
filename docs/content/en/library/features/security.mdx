@@ -1,0 +1,545 @@
+---
+title: Security & Compliance
+description: Authentication, authorization, data protection, and compliance patterns
+---
+
+# Security & Compliance
+
+Comprehensive security framework with role-based access control, GDPR compliance, and enterprise-grade data protection for Ring Platform.
+
+## Overview
+
+Ring Platform implements a multi-layered security approach:
+
+- **Authentication**: Auth.js v5 with magic links and multi-provider OAuth
+- **Authorization**: Hierarchical role-based access control (5-tier system)
+- **Data Protection**: GDPR/CCPA compliance with audit logging
+- **Compliance**: PCI DSS for payments, SOC 2 security standards
+- **Infrastructure**: Firebase security rules and encrypted data storage
+
+## Authentication Security
+
+### Auth.js v5 Implementation
+
+**Magic Link Authentication** - Primary authentication method:
+
+// lib/auth.ts - Auth.js v5 configuration
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
+import { Resend } from 'next-auth/providers/resend'
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    Resend({
+      server: process.env.EMAIL_SERVER,
+      from: 'noreply@ring.ck.ua',
+      maxAge: 15 * 60, // 15 minutes
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    })
+  ],
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = await getUserRole(user.id)
+      }
+      return token
+    },
+    async session({ session, token }) {
+      session.user.role = token.role
+      return session
+    }
+  }
+})`}
+</Code>
+
+#### Security Features
+- **Time-limited tokens**: 15-minute expiration for magic links
+- **Single-use tokens**: Automatic invalidation after use
+- **Rate limiting**: 5 requests/minute per IP
+- **Email verification**: Required for account creation
+
+### Multi-Provider OAuth
+
+**Secure OAuth integration with provider validation:**
+
+// Secure OAuth configuration
+
+<Code language="typescript" title="TypeScript">
+{`const oauthProviders = {
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    authorization: {
+      params: {
+        prompt: 'consent',
+        access_type: 'offline',
+        scope: 'openid email profile'
+      }
+    }
+  },
+  apple: {
+    clientId: process.env.APPLE_CLIENT_ID,
+    clientSecret: process.env.APPLE_CLIENT_SECRET,
+    authorization: {
+      params: {
+        scope: 'name email'
+      }
+    }
+  }
+}`}
+</Code>
+
+## Role-Based Access Control
+
+### Hierarchical Role System
+
+**5-tier role hierarchy with escalating permissions:**
+
+// Role hierarchy definition
+
+<Code language="typescript" title="TypeScript">
+{`export enum UserRole {
+  VISITOR = 0,      // Public content only
+  SUBSCRIBER = 1,   // Basic authenticated features
+  MEMBER = 2,       // Entity creation, paid features
+  CONFIDENTIAL = 3, // Confidential entities/opportunities
+  ADMIN = 4         // Full system administration
+}
+
+// Permission matrix
+const rolePermissions = {
+  [UserRole.VISITOR]: ['read:public'],
+  [UserRole.SUBSCRIBER]: ['read:public', 'read:authenticated'],
+  [UserRole.MEMBER]: ['read:public', 'read:authenticated', 'write:entities'],
+  [UserRole.CONFIDENTIAL]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
+  [UserRole.ADMIN]: ['*']
+}`}
+</Code>
+
+### Server-Side Validation
+
+**Always validate roles on the server-side:**
+
+// Server action with role validation
+
+<Code language="typescript" title="TypeScript">
+{`'use server'
+
+import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+export async function createEntity(formData: FormData) {
+  const session = await auth()
+
+  // Authentication check
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
+
+  // Authorization check
+  if (session.user.role < UserRole.MEMBER) {
+    throw new Error('Insufficient permissions')
+  }
+
+  // Business logic...
+  const entity = await createEntityInDb(formData)
+  return entity
+}`}
+</Code>
+
+### Entity Ownership Protection
+
+**Users can only modify their own entities:**
+
+// Entity ownership validation
+
+<Code language="typescript" title="TypeScript">
+{`export async function updateEntity(entityId: string, data: UpdateData) {
+  const session = await auth()
+
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Get entity and verify ownership
+  const entity = await getEntity(entityId)
+
+  if (entity.userId !== session.user.id && session.user.role < UserRole.ADMIN) {
+    throw new Error('Forbidden: Not entity owner')
+  }
+
+  return updateEntityInDb(entityId, data)
+}`}
+</Code>
+
+## Data Protection & GDPR Compliance
+
+### Right to Deletion
+
+**30-day grace period with complete data removal:**
+
+// GDPR-compliant data deletion
+
+<Code language="typescript" title="TypeScript">
+{`export async function deleteUserData(userId: string) {
+  // Step 1: Mark for deletion (grace period)
+  await markUserForDeletion(userId, 30) // 30 days
+
+  // Step 2: Soft delete (during grace period)
+  await softDeleteUser(userId)
+
+  // Step 3: Hard delete (after grace period)
+  setTimeout(async () => {
+    await hardDeleteUser(userId)
+  }, 30 * 24 * 60 * 60 * 1000) // 30 days
+}`}
+</Code>
+
+### Data Minimization
+
+**Collect only necessary data with clear purposes:**
+
+// Minimal data collection
+
+<Code language="typescript" title="TypeScript">
+{`interface UserProfile {
+  id: string
+  email: string           // Required for auth
+  name?: string          // Optional, for personalization
+  role: UserRole         // Required for authorization
+  createdAt: Date       // Required for audit
+  // No unnecessary fields
+}`}
+</Code>
+
+### Consent Management
+
+**Explicit consent tracking for data processing:**
+
+// Consent tracking
+
+<Code language="typescript" title="TypeScript">
+{`interface UserConsent {
+  userId: string
+  consentType: 'marketing' | 'analytics' | 'payments'
+  consented: boolean
+  timestamp: Date
+  ipAddress: string
+  userAgent: string
+}
+
+// Consent validation
+export async function validateConsent(userId: string, type: string) {
+  const consent = await getUserConsent(userId, type)
+  if (!consent?.consented) {
+    throw new Error(`User has not consented to ${type} data processing`)
+  }
+}`}
+</Code>
+
+## PCI DSS Compliance
+
+### Payment Data Security
+
+**Never store payment card data:**
+
+// PCI DSS compliant payment processing
+
+<Code language="typescript" title="TypeScript">
+{`export async function processPayment(amount: number, currency: string) {
+  // Generate WayForPay payment URL
+  const paymentUrl = await createWayForPayPayment({
+    amount,
+    currency,
+    returnUrl: '/payment/success',
+    webhookUrl: '/api/payments/webhook'
+  })
+
+  // Redirect to hosted payment form (no card data stored)
+  return paymentUrl
+}`}
+</Code>
+
+### Secure Webhook Processing
+
+**Webhook signature verification and duplicate prevention:**
+
+// Secure webhook handler
+
+<Code language="typescript" title="TypeScript">
+{`export async function handleWayForPayWebhook(webhookData: any) {
+  // Verify HMAC signature
+  const isValid = verifyWayForPaySignature(webhookData)
+  if (!isValid) {
+    throw new Error('Invalid webhook signature')
+  }
+
+  // Prevent duplicate processing
+  const processed = await checkWebhookProcessed(webhookData.orderReference)
+  if (processed) {
+    return { status: 'already_processed' }
+  }
+
+  // Process payment
+  await processPaymentUpdate(webhookData)
+
+  // Mark as processed
+  await markWebhookProcessed(webhookData.orderReference)
+
+  return { status: 'success' }
+}`}
+</Code>
+
+## API Security
+
+### Rate Limiting
+
+**Protect against abuse with comprehensive rate limiting:**
+
+// Rate limiting configuration
+
+<Code language="typescript" title="TypeScript">
+{`const rateLimits = {
+  auth: {
+    window: '1m',      // 1 minute
+    max: 5            // 5 requests per minute
+  },
+  entityCreation: {
+    window: '1h',     // 1 hour
+    max: 10           // 10 entities per hour
+  },
+  messaging: {
+    window: '1m',     // 1 minute
+    max: 100          // 100 messages per minute
+  },
+  api: {
+    window: '1h',     // 1 hour
+    max: 1000         // 1000 requests per hour
+  }
+}`}
+</Code>
+
+### Input Validation
+
+**Comprehensive input validation with Zod schemas:**
+
+<Code language="typescript" title="import { z } from 'zod'">
+{`// Input validation schemas
+const createEntitySchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum(['technology', 'healthcare', 'finance']),
+  description: z.string().max(500).optional()
+})
+
+const createMessageSchema = z.object({
+  content: z.string().min(1).max(1000),
+  conversationId: z.string().uuid(),
+  attachments: z.array(z.string().url()).max(5).optional()
+})
+
+// Server-side validation
+export async function createEntity(data: unknown) {
+  const validated = createEntitySchema.parse(data)
+  return createEntityInDb(validated)
+}`}
+</Code>
+
+### Secure Error Handling
+
+**Don't expose internal system details:**
+
+// Secure error responses
+
+<Code language="typescript" title="TypeScript">
+{`export async function handleApiError(error: unknown) {
+  // Log detailed error for debugging
+  console.error('API Error:', {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date(),
+    userAgent: getUserAgent(),
+    ipAddress: getClientIP()
+  })
+
+  // Return generic error to client
+  if (error instanceof ValidationError) {
+    return { error: 'Invalid input data', code: 'VALIDATION_ERROR' }
+  }
+
+  if (error instanceof PermissionError) {
+    return { error: 'Access denied', code: 'PERMISSION_DENIED' }
+  }
+
+  // Generic error for unknown issues
+  return { error: 'Internal server error', code: 'INTERNAL_ERROR' }
+}`}
+</Code>
+
+## Audit Logging
+
+### Comprehensive Audit Trail
+
+**Log all security-relevant events:**
+
+// Audit logging interface
+
+<Code language="typescript" title="TypeScript">
+{`interface AuditLog {
+  id: string
+  timestamp: Date
+  userId: string
+  action: string
+  resource: string
+  resourceId: string
+  ipAddress: string
+  userAgent: string
+  metadata: Record<string, any>
+}
+
+// Security event logging
+export async function logSecurityEvent(
+  userId: string,
+  action: string,
+  resource: string,
+  resourceId: string,
+  metadata: any = {}
+) {
+  const auditLog: AuditLog = {
+    id: generateId(),
+    timestamp: new Date(),
+    userId,
+    action,
+    resource,
+    resourceId,
+    ipAddress: getClientIP(),
+    userAgent: getUserAgent(),
+    metadata
+  }
+
+  await saveAuditLog(auditLog)
+}
+
+// Events to log
+const securityEvents = [
+  'authentication.success',
+  'authentication.failure',
+  'authorization.denied',
+  'entity.created',
+  'entity.updated',
+  'entity.deleted',
+  'payment.processed',
+  'payment.failed',
+  'user.deleted',
+  'role.changed'
+]`}
+</Code>
+
+## Security Monitoring
+
+### Real-time Security Monitoring
+
+**Monitor and alert on security events:**
+
+// Security monitoring dashboard
+
+<Code language="typescript" title="TypeScript">
+{`const securityMetrics = {
+  failedAuthAttempts: () => {
+    return countFailedAuthentications('24h')
+  },
+
+  suspiciousActivities: () => {
+    return detectSuspiciousPatterns()
+  },
+
+  rateLimitViolations: () => {
+    return countRateLimitViolations('1h')
+  },
+
+  unauthorizedAccess: () => {
+    return countUnauthorizedAccess('24h')
+  }
+}
+
+// Automated alerts
+const securityAlerts = {
+  bruteForce: {
+    condition: 'failedAuthAttempts > 10',
+    action: 'block_ip',
+    duration: '1h'
+  },
+
+  rateLimit: {
+    condition: 'rateLimitViolations > 100',
+    action: 'alert_admin',
+    severity: 'medium'
+  },
+
+  unauthorized: {
+    condition: 'unauthorizedAccess > 5',
+    action: 'alert_admin',
+    severity: 'high'
+  }
+}`}
+</Code>
+
+## Compliance Checklists
+
+### GDPR Compliance Checklist
+- [x] Data minimization implemented
+- [x] Explicit consent collection
+- [x] Right to deletion (30-day grace period)
+- [x] Audit logging for data access
+- [x] Data portability support
+- [x] Privacy policy published
+- [x] Data processing register maintained
+
+### PCI DSS Compliance Checklist
+- [x] No card data storage
+- [x] Encrypted data transmission (HTTPS)
+- [x] Secure webhook signatures
+- [x] Rate limiting on payment endpoints
+- [x] Regular security assessments
+- [x] Incident response plan
+- [x] Access control for payment systems
+
+### SOC 2 Security Checklist
+- [x] Multi-factor authentication
+- [x] Role-based access control
+- [x] Regular security audits
+- [x] Incident response procedures
+- [x] Change management processes
+- [x] Business continuity planning
+- [x] Security awareness training
+
+## Security Best Practices
+
+### Development Security
+- **Code Reviews**: All security-related changes require review
+- **Security Testing**: Automated security scans in CI/CD
+- **Dependency Management**: Regular security updates
+- **Secret Management**: Secure storage of credentials
+
+### Production Security
+- **Environment Segregation**: Separate dev/staging/production
+- **Access Control**: Principle of least privilege
+- **Monitoring**: Real-time security monitoring
+- **Incident Response**: Documented response procedures
+
+### User Security Education
+- **Password Policies**: Strong password requirements
+- **Two-Factor Authentication**: Optional 2FA for enhanced security
+- **Security Notifications**: Alert users of suspicious activities
+- **Privacy Controls**: User data control and preferences
+
+---
+
+*Ring Platform's security framework provides enterprise-grade protection while maintaining excellent user experience and full regulatory compliance.*

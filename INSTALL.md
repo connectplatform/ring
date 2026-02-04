@@ -1,54 +1,65 @@
 # 🚀 Ring Platform Installation Guide
 
-Complete installation and setup guide for Ring Platform with multiple deployment options.
+Complete installation and setup guide for Ring Platform - the open-source white-label professional networking platform.
 
 ---
 
 ## 📋 **Prerequisites**
 
 ### System Requirements
-- **Node.js** v22.9.0 or later
-- **npm** v10.8.3 or later  
+- **Node.js** v20.0.0 or later (v22+ recommended)
+- **npm** v10.0.0 or later  
 - **Git** (latest version)
+- **OpenSSL** (for key generation)
 - **Terminal** with Unicode support (for best experience)
 
-### Required Services
-- **Firebase Project** with Firestore and Authentication enabled
-- **OAuth Providers** (Google, Apple - optional)
-- **Vercel Account** (for production deployment)
+### Optional Services (Configure After Installation)
+- **Firebase Project** - For database and authentication
+- **PostgreSQL** - For production Kubernetes deployments
+- **OAuth Providers** - Google, Apple (optional)
+- **WayForPay Account** - For payment processing
 
 ---
 
 ## 🎯 **Installation Options**
 
-Ring Platform offers three installation approaches depending on your needs:
+Ring Platform offers multiple installation approaches depending on your needs:
 
-### 🌟 **Option 1: Universal Setup Script (Recommended)**
+### 🌟 **Option 1: One-Command Installation (Recommended)**
 
-The most comprehensive and user-friendly approach with beautiful 80s-style interface:
+The fastest way to get started with Ring Platform:
 
 ```bash
-# Clone the repository
-git clone https://github.com/connectplatform/ring.git
-cd ring
-
-# Development setup
-./setup.sh
-
-# Production deployment  
-./setup.sh prod
+git clone https://github.com/connectplatform/ring.git && cd ring && ./install.sh
 ```
 
-**Features:**
-- 🎨 Beautiful 80s-style MOTD with retro ASCII art
-- 🔍 Automatic OS detection (macOS/Linux)
-- 📦 Auto-installs required packages (Node.js, Firebase CLI, Vercel CLI)
-- 🔑 Interactive environment variable configuration
-- 🔥 Firebase project setup guidance
-- 🔐 OAuth provider setup (Google, Apple)
-- 🌐 Automatic AUTH_SECRET generation
-- 💻 IDE configuration (Cursor/VS Code)
-- 🚀 Production deployment options
+This single command will:
+1. Clone the repository
+2. Run the interactive installer
+3. Configure your Ring clone
+4. Generate all required configuration files
+5. Install dependencies
+6. Prepare your development environment
+
+**Installer Features:**
+- 🎨 Beautiful ASCII art welcome screen
+- 🔍 Automatic system requirements check
+- 📝 Interactive clone configuration (name, branding, domain)
+- 🔐 Automatic secret key generation (AUTH_SECRET, WALLET_ENCRYPTION_KEY)
+- 📁 Creates `ring-config.json` for clone customization
+- 📁 Creates `.env.local` with secure defaults
+- 📦 Installs all npm dependencies
+- 🚀 Option to start dev server immediately
+
+### **Installation Script Options**
+
+```bash
+./install.sh                      # Interactive installation (recommended)
+./install.sh --quick              # Quick setup with sensible defaults
+./install.sh --clone-name myapp   # Pre-set your clone name
+./install.sh --verbose            # Show detailed output
+./install.sh --help               # Show all options
+```
 
 ---
 

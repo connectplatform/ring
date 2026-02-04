@@ -1,0 +1,1109 @@
+---
+title: Store API
+description: Complete API documentation for Ring Platform's multi-vendor marketplace with vendor management, product catalog, order processing, and WayForPay integration
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Store API
+
+Ring Platform provides a comprehensive multi-vendor marketplace with **12 REST endpoints** for vendor management, product catalog, order processing, and automated settlements. The system integrates with WayForPay for secure payment processing and supports both RING token and traditional currency transactions.
+
+<Callout type="info" title="💰 Dual Payment System">
+Built-in integration with **WayForPay** for traditional payments and **RING tokens** for cryptocurrency transactions, providing maximum flexibility for vendors and customers.
+</Callout>
+
+## 🏗️ System Architecture
+
+### Store Flow Architecture
+
+```
+Product Listing → Order Creation → Payment Processing → Fulfillment → Settlement
+                                      ↓
+                            WayForPay API / RING Token Transfer
+```
+
+### Multi-Vendor Features
+
+- **Vendor Onboarding**: Application and verification process
+- **Product Management**: Catalog management with inventory tracking
+- **Order Processing**: Automated fulfillment workflows
+- **Payment Integration**: Dual payment system (WayForPay + RING)
+- **Settlement Automation**: Vendor payouts and fee collection
+- **Analytics Dashboard**: Sales tracking and performance metrics
+
+### Security & Trust
+
+- **Vendor Verification**: Multi-step verification process
+- **Trust Scoring**: Automated vendor reputation system
+- **Fraud Prevention**: Payment validation and chargeback protection
+- **Escrow System**: Secure fund holding during transactions
+
+## 📋 API Endpoints Reference
+
+### `GET /api/store/products`
+
+List products with advanced filtering, search, and pagination.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Products per page (default: 20, max: 100) |
+| `search` | string | No | Search in product name, description, tags |
+| `category` | string | No | Filter by category |
+| `vendorId` | string | No | Filter by specific vendor |
+| `minPrice` | number | No | Minimum price filter |
+| `maxPrice` | number | No | Maximum price filter |
+| `currency` | string | No | Filter by currency (RING, USD, EUR, UAH) |
+| `inStock` | boolean | No | Show only in-stock products |
+| `sortBy` | string | No | Sort by: `price`, `createdAt`, `rating`, `popularity` |
+| `sortOrder` | string | No | Sort order: `asc`, `desc` |
+| `featured` | boolean | No | Show only featured products |
+
+#### Example Request
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/store/products?page=1&limit=12&category=software&minPrice=10&maxPrice=500&sortBy=popularity&sortOrder=desc" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"products": [
+    {
+      "id": "prod_123456",
+      "name": "AI Development Toolkit",
+      "description": "Complete toolkit for AI-powered application development",
+      "price": 299.99,
+      "currency": "USD",
+      "category": "software",
+      "vendor": {
+        "id": "vendor_789",
+        "name": "TechCorp Solutions",
+        "verified": true,
+        "trustScore": 4.8
+      },
+      "images": [
+        "https://cdn.ring-platform.org/products/prod_123456/main.jpg",
+        "https://cdn.ring-platform.org/products/prod_123456/thumb.jpg"
+      ],
+      "inventory": {
+        "quantity": 25,
+        "lowStockThreshold": 5,
+        "backorderAllowed": true
+      },
+      "rating": {
+        "average": 4.7,
+        "count": 89
+      },
+      "tags": ["AI", "development", "toolkit", "machine-learning"],
+      "featured": true,
+      "status": "active",
+      "createdAt": "2025-09-15T10:30:00Z",
+      "updatedAt": "2025-10-10T14:20:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 12,
+    "total": 156,
+    "totalPages": 13,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "filters": {
+    "applied": {
+      "category": "software",
+      "minPrice": 10,
+      "maxPrice": 500
+    },
+    "available": {
+      "categories": ["software", "consulting", "hardware"],
+      "priceRange": {
+        "min": 5,
+        "max": 5000
+      },
+      "currencies": ["RING", "USD", "EUR", "UAH"]
+    }
+  }
+}`}
+</Code>
+
+### `GET /api/store/products/{id}`
+
+Get detailed information about a specific product.
+
+#### Response
+
+<Code language="json" title="{">
+{`"product": {
+    "id": "prod_123456",
+    "name": "AI Development Toolkit",
+    "description": "Complete toolkit for AI-powered application development with pre-built models, training data, and deployment tools.",
+    "longDescription": "This comprehensive toolkit includes everything you need to build AI-powered applications...",
+    "price": 299.99,
+    "currency": "USD",
+    "category": "software",
+    "subcategory": "development-tools",
+    "vendor": {
+      "id": "vendor_789",
+      "name": "TechCorp Solutions",
+      "description": "Leading provider of AI development solutions",
+      "verified": true,
+      "trustScore": 4.8,
+      "memberSince": "2024-03-15T00:00:00Z",
+      "totalSales": 1250,
+      "responseTime": "2 hours"
+    },
+    "images": [
+      {
+        "url": "https://cdn.ring-platform.org/products/prod_123456/main.jpg",
+        "alt": "AI Development Toolkit Interface",
+        "order": 1
+      }
+    ],
+    "inventory": {
+      "quantity": 25,
+      "lowStockThreshold": 5,
+      "backorderAllowed": true,
+      "estimatedRestockDate": null
+    },
+    "shipping": {
+      "weight": 0.5,
+      "dimensions": {
+        "length": 30,
+        "width": 20,
+        "height": 5
+      },
+      "freeShipping": true,
+      "shippingCost": 0
+    },
+    "specifications": {
+      "compatibility": ["Windows 10+", "macOS 12+", "Linux"],
+      "license": "Perpetual",
+      "updates": "1 year included",
+      "support": "Email and chat support"
+    },
+    "rating": {
+      "average": 4.7,
+      "count": 89,
+      "distribution": {
+        "5": 67,
+        "4": 15,
+        "3": 4,
+        "2": 2,
+        "1": 1
+      }
+    },
+    "reviews": [
+      {
+        "id": "review_456",
+        "userId": "user_123",
+        "userName": "John Developer",
+        "rating": 5,
+        "title": "Excellent toolkit!",
+        "content": "This toolkit saved us months of development time...",
+        "createdAt": "2025-10-01T09:15:00Z",
+        "verified": true
+      }
+    ],
+    "tags": ["AI", "development", "toolkit", "machine-learning"],
+    "featured": true,
+    "status": "active",
+    "salesCount": 234,
+    "viewCount": 1250,
+    "createdAt": "2025-09-15T10:30:00Z",
+    "updatedAt": "2025-10-10T14:20:00Z"
+  },
+  "relatedProducts": [
+    // Array of related products
+  ],
+  "recentPurchases": 12
+}`}
+</Code>
+
+### `POST /api/store/products`
+
+Create a new product (vendor only).
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"name": "Custom AI Consulting Service",
+  "description": "Expert AI consulting for your business needs",
+  "price": 150.00,
+  "currency": "USD",
+  "category": "consulting",
+  "inventory": {
+    "quantity": -1,  // -1 for unlimited digital products
+    "backorderAllowed": false
+  },
+  "images": [
+    {
+      "url": "https://cdn.ring-platform.org/products/new/upload1.jpg",
+      "alt": "AI Consulting Service",
+      "order": 1
+    }
+  ],
+  "specifications": {
+    "delivery": "Digital delivery within 24 hours",
+    "format": "PDF report + 1-hour consultation call",
+    "revisions": "2 revisions included"
+  },
+  "tags": ["consulting", "AI", "business", "strategy"],
+  "featured": false
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"product": {
+    "id": "prod_123457",
+    "name": "Custom AI Consulting Service",
+    "status": "pending",  // Requires admin approval
+    "createdAt": "2025-10-16T11:00:00Z"
+  },
+  "message": "Product created successfully. It will be reviewed by our team before going live."
+}`}
+</Code>
+
+### `PUT /api/store/products/{id}`
+
+Update product information (vendor only).
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"name": "Premium AI Consulting Service",
+  "price": 175.00,
+  "inventory": {
+    "quantity": 10
+  },
+  "specifications": {
+    "delivery": "Digital delivery within 12 hours",
+    "revisions": "3 revisions included"
+  }
+}`}
+</Code>
+
+### `GET /api/store/orders`
+
+List orders with filtering (different views for customers vs vendors).
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Orders per page (default: 20) |
+| `status` | string | No | Filter by status: `pending`, `paid`, `shipped`, `delivered`, `cancelled` |
+| `type` | string | No | View type: `purchases` (customer), `sales` (vendor) |
+| `dateFrom` | string | No | ISO date - orders from this date |
+| `dateTo` | string | No | ISO date - orders to this date |
+| `minAmount` | number | No | Minimum order amount |
+| `maxAmount` | number | No | Maximum order amount |
+
+#### Response
+
+<Code language="json" title="{">
+{`"orders": [
+    {
+      "id": "order_789123",
+      "customer": {
+        "id": "user_456",
+        "name": "Jane Customer",
+        "email": "jane@example.com"
+      },
+      "vendor": {
+        "id": "vendor_789",
+        "name": "TechCorp Solutions"
+      },
+      "items": [
+        {
+          "productId": "prod_123456",
+          "name": "AI Development Toolkit",
+          "quantity": 1,
+          "price": 299.99,
+          "currency": "USD"
+        }
+      ],
+      "totalAmount": 299.99,
+      "currency": "USD",
+      "status": "paid",
+      "paymentMethod": "wayforpay",
+      "shippingAddress": {
+        "street": "123 Main St",
+        "city": "San Francisco",
+        "state": "CA",
+        "zipCode": "94105",
+        "country": "US"
+      },
+      "trackingNumber": "TR123456789",
+      "createdAt": "2025-10-15T14:30:00Z",
+      "paidAt": "2025-10-15T14:35:00Z",
+      "shippedAt": null,
+      "deliveredAt": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 45,
+    "totalPages": 3
+  },
+  "summary": {
+    "totalOrders": 45,
+    "totalRevenue": 15420.50,
+    "pendingOrders": 3,
+    "completedOrders": 42
+  }
+}`}
+</Code>
+
+### `POST /api/store/orders`
+
+Create a new order from cart/checkout.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"items": [
+    {
+      "productId": "prod_123456",
+      "quantity": 1
+    },
+    {
+      "productId": "prod_123457",
+      "quantity": 2
+    }
+  ],
+  "shippingAddress": {
+    "street": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zipCode": "94105",
+    "country": "US"
+  },
+  "billingAddress": {
+    "sameAsShipping": true
+  },
+  "paymentMethod": "wayforpay",
+  "notes": "Please handle with care"
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"order": {
+    "id": "order_789124",
+    "status": "pending",
+    "totalAmount": 649.99,
+    "currency": "USD",
+    "createdAt": "2025-10-16T12:00:00Z"
+  },
+  "payment": {
+    "url": "https://wayforpay.com/payment/order_789124",
+    "expiresAt": "2025-10-16T12:30:00Z"
+  }
+}`}
+</Code>
+
+### `PUT /api/store/orders/{id}/status`
+
+Update order status (vendor or admin only).
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"status": "shipped",
+  "trackingNumber": "TR123456789",
+  "carrier": "UPS",
+  "estimatedDelivery": "2025-10-20T00:00:00Z",
+  "notes": "Package shipped successfully"
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"order": {
+    "id": "order_789123",
+    "status": "shipped",
+    "shippedAt": "2025-10-16T13:00:00Z",
+    "trackingNumber": "TR123456789"
+  },
+  "notificationSent": true
+}`}
+</Code>
+
+### `GET /api/store/vendors`
+
+List verified vendors with filtering.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Vendors per page (default: 20) |
+| `search` | string | No | Search by vendor name or description |
+| `category` | string | No | Filter by specialization |
+| `minRating` | number | No | Minimum trust score (1-5) |
+| `verified` | boolean | No | Show only verified vendors |
+| `sortBy` | string | No | Sort by: `name`, `rating`, `joinedDate`, `sales` |
+
+#### Response
+
+<Code language="json" title="{">
+{`"vendors": [
+    {
+      "id": "vendor_789",
+      "name": "TechCorp Solutions",
+      "description": "Leading provider of AI and software development solutions",
+      "logo": "https://cdn.ring-platform.org/vendors/vendor_789/logo.jpg",
+      "verified": true,
+      "trustScore": 4.8,
+      "totalSales": 1250,
+      "memberSince": "2024-03-15T00:00:00Z",
+      "responseTime": "2 hours",
+      "categories": ["software", "consulting", "AI"],
+      "stats": {
+        "totalProducts": 45,
+        "activeProducts": 42,
+        "totalOrders": 1250,
+        "completionRate": 98.5,
+        "avgRating": 4.8,
+        "totalReviews": 234
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 156,
+    "totalPages": 8
+  }
+}`}
+</Code>
+
+### `POST /api/store/vendors/apply`
+
+Apply to become a vendor.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"businessName": "My Tech Solutions LLC",
+  "businessType": "LLC",
+  "description": "We provide cutting-edge software development services",
+  "website": "https://mytechsolutions.com",
+  "categories": ["software", "consulting"],
+  "contact": {
+    "email": "business@mytechsolutions.com",
+    "phone": "+1-555-0123"
+  },
+  "documents": [
+    {
+      "type": "business_license",
+      "url": "https://cdn.ring-platform.org/uploads/license.pdf"
+    },
+    {
+      "type": "tax_id",
+      "url": "https://cdn.ring-platform.org/uploads/tax_id.pdf"
+    }
+  ]
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"application": {
+    "id": "app_456789",
+    "status": "pending_review",
+    "submittedAt": "2025-10-16T14:00:00Z"
+  },
+  "message": "Application submitted successfully. Our team will review it within 2-3 business days."
+}`}
+</Code>
+
+### `GET /api/store/cart`
+
+Get current user's shopping cart.
+
+#### Response
+
+<Code language="json" title="{">
+{`"cart": {
+    "id": "cart_123456",
+    "items": [
+      {
+        "productId": "prod_123456",
+        "name": "AI Development Toolkit",
+        "price": 299.99,
+        "currency": "USD",
+        "quantity": 1,
+        "image": "https://cdn.ring-platform.org/products/prod_123456/thumb.jpg"
+      }
+    ],
+    "subtotal": 299.99,
+    "tax": 23.99,
+    "shipping": 0,
+    "total": 323.98,
+    "currency": "USD",
+    "itemCount": 1
+  }
+}`}
+</Code>
+
+### `POST /api/store/cart/items`
+
+Add item to cart.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"productId": "prod_123456",
+  "quantity": 1
+}`}
+</Code>
+
+### `GET /api/store/reviews`
+
+Get product reviews with filtering.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `productId` | string | Yes | Product ID to get reviews for |
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Reviews per page (default: 10) |
+| `rating` | number | No | Filter by rating (1-5) |
+| `verified` | boolean | No | Show only verified purchases |
+| `sortBy` | string | No | Sort by: `newest`, `oldest`, `rating`, `helpful` |
+
+## 💰 Payment Integration
+
+### WayForPay Integration
+
+Ring Platform integrates with WayForPay for secure payment processing.
+
+#### Supported Payment Methods
+
+- **Credit/Debit Cards**: Visa, Mastercard, American Express
+- **Digital Wallets**: Apple Pay, Google Pay
+- **Bank Transfers**: Direct bank account payments
+- **Cryptocurrency**: RING tokens via smart contracts
+
+#### Payment Flow
+
+// Client-side payment initiation
+
+<Code language="typescript" title="TypeScript">
+{`const initiatePayment = async (orderId: string) => {
+  const response = await fetch(`/api/store/orders/${orderId}/payment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      method: 'wayforpay',
+      returnUrl: `${window.location.origin}/order/${orderId}/success`,
+      cancelUrl: `${window.location.origin}/order/${orderId}/cancel`
+    })
+  })
+
+  const { paymentUrl } = await response.json()
+
+  // Redirect to WayForPay
+  window.location.href = paymentUrl
+}`}
+</Code>
+
+#### Payment Webhook Handling
+
+// Server-side webhook handler
+
+<Code language="typescript" title="TypeScript">
+{`export async function POST(request: Request) {
+  const payload = await request.json()
+
+  // Verify webhook signature
+  const isValid = verifyWayForPaySignature(payload)
+
+  if (!isValid) {
+    return Response.json({ error: 'Invalid signature' }, { status: 400 })
+  }
+
+  // Process payment confirmation
+  if (payload.transactionStatus === 'Approved') {
+    await updateOrderStatus(payload.orderReference, 'paid')
+    await triggerOrderFulfillment(payload.orderReference)
+  }
+
+  return Response.json({ status: 'processed' })
+}`}
+</Code>
+
+### RING Token Payments
+
+For cryptocurrency payments using RING tokens.
+
+#### Smart Contract Integration
+
+// Client-side RING token payment
+
+<Code language="typescript" title="TypeScript">
+{`const payWithRing = async (orderId: string, amount: number) => {
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const ringContract = new ethers.Contract(
+    RING_TOKEN_ADDRESS,
+    RING_ABI,
+    signer
+  )
+
+  // Approve marketplace contract to spend RING tokens
+  const approveTx = await ringContract.approve(
+    MARKETPLACE_CONTRACT,
+    ethers.parseEther(amount.toString())
+  )
+  await approveTx.wait()
+
+  // Execute payment
+  const paymentTx = await marketplaceContract.payWithRing(
+    orderId,
+    ethers.parseEther(amount.toString())
+  )
+  await paymentTx.wait()
+
+  // Confirm payment on backend
+  await fetch(`/api/store/orders/${orderId}/confirm-payment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      transactionHash: paymentTx.hash,
+      method: 'ring'
+    })
+  })
+}`}
+</Code>
+
+## 🔧 Implementation Examples
+
+### Product Catalog Component
+
+// components/store/ProductCatalog.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+interface Product {
+  id: string
+  name: string
+  price: number
+  currency: string
+  vendor: { name: string; trustScore: number }
+  rating: { average: number; count: number }
+  images: string[]
+}
+
+export function ProductCatalog() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState({
+    category: '',
+    minPrice: 0,
+    maxPrice: 1000,
+    sortBy: 'popularity'
+  })
+
+  useEffect(() => {
+    fetchProducts()
+  }, [filters])
+
+  const fetchProducts = async () => {
+    try {
+      const queryParams = new URLSearchParams(filters as any)
+      const response = await fetch(`/api/store/products?${queryParams}`)
+      const data = await response.json()
+      setProducts(data.products)
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addToCart = async (productId: string) => {
+    try {
+      await fetch('/api/store/cart/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity: 1 })
+      })
+      // Show success message
+    } catch (error) {
+      console.error('Failed to add to cart:', error)
+    }
+  }
+
+  if (loading) return <div>Loading products...</div>
+
+  return (
+    <div className="product-catalog">
+      <div className="filters">
+        {/* Filter controls */}
+      </div>
+
+      <div className="products-grid">
+        {products.map(product => (
+          <Card key={product.id} className="product-card">
+            <CardHeader>
+              <img src={product.images[0]} alt={product.name} />
+              <CardTitle>{product.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="price">
+                {product.currency} {product.price}
+              </div>
+              <div className="vendor">
+                by {product.vendor.name} ({product.vendor.trustScore}⭐)
+              </div>
+              <div className="rating">
+                {product.rating.average}⭐ ({product.rating.count} reviews)
+              </div>
+              <button
+                onClick={() => addToCart(product.id)}
+                className="add-to-cart-btn"
+              >
+                Add to Cart
+              </button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+### Checkout Process Component
+
+// components/store/CheckoutProcess.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState } from 'react'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements } from '@stripe/react-stripe-js'
+
+interface CheckoutData {
+  items: CartItem[]
+  shippingAddress: Address
+  paymentMethod: 'wayforpay' | 'ring'
+}
+
+export function CheckoutProcess({ cart }: { cart: Cart }) {
+  const [checkoutData, setCheckoutData] = useState<CheckoutData>({
+    items: cart.items,
+    shippingAddress: {},
+    paymentMethod: 'wayforpay'
+  })
+  const [processing, setProcessing] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setProcessing(true)
+
+    try {
+      if (checkoutData.paymentMethod === 'ring') {
+        await processRingPayment(checkoutData)
+      } else {
+        await processWayForPayPayment(checkoutData)
+      }
+
+      // Redirect to success page
+      window.location.href = '/store/order/success'
+    } catch (error) {
+      console.error('Checkout failed:', error)
+      // Show error message
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const processWayForPayPayment = async (data: CheckoutData) => {
+    const response = await fetch('/api/store/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+
+    const { payment } = await response.json()
+
+    // Redirect to WayForPay
+    window.location.href = payment.url
+  }
+
+  const processRingPayment = async (data: CheckoutData) => {
+    // Handle RING token payment
+    const provider = new ethers.BrowserProvider(window.ethereum)
+    const signer = await provider.getSigner()
+
+    // RING payment logic here
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="checkout-form">
+      <div className="shipping-section">
+        <h3>Shipping Address</h3>
+        {/* Address form fields */}
+      </div>
+
+      <div className="payment-section">
+        <h3>Payment Method</h3>
+        <div className="payment-options">
+          <label>
+            <input
+              type="radio"
+              value="wayforpay"
+              checked={checkoutData.paymentMethod === 'wayforpay'}
+              onChange={(e) => setCheckoutData({
+                ...checkoutData,
+                paymentMethod: e.target.value as 'wayforpay'
+              })}
+            />
+            Credit Card / Digital Wallet
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="ring"
+              checked={checkoutData.paymentMethod === 'ring'}
+              onChange={(e) => setCheckoutData({
+                ...checkoutData,
+                paymentMethod: e.target.value as 'ring'
+              })}
+            />
+            RING Tokens
+          </label>
+        </div>
+      </div>
+
+      <div className="order-summary">
+        <h3>Order Summary</h3>
+        {/* Order items and totals */}
+      </div>
+
+      <button
+        type="submit"
+        disabled={processing}
+        className="checkout-btn"
+      >
+        {processing ? 'Processing...' : 'Complete Order'}
+      </button>
+    </form>
+  )
+}`}
+</Code>
+
+## 🚨 Error Handling
+
+### Common Store Error Responses
+
+// Product Not Found
+
+<Code language="json" title="configuration">
+{`{
+  "error": "NotFoundError",
+  "message": "Product not found",
+  "productId": "prod_123456",
+  "statusCode": 404
+}
+
+// Insufficient Stock
+{
+  "error": "InsufficientStockError",
+  "message": "Product is out of stock",
+  "productId": "prod_123456",
+  "availableQuantity": 0,
+  "statusCode": 409
+}
+
+// Payment Failed
+{
+  "error": "PaymentError",
+  "message": "Payment processing failed",
+  "paymentMethod": "wayforpay",
+  "errorCode": "DECLINED",
+  "statusCode": 402
+}
+
+// Vendor Not Verified
+{
+  "error": "VendorNotVerifiedError",
+  "message": "Vendor account is not verified",
+  "vendorId": "vendor_789",
+  "statusCode": 403
+}`}
+</Code>
+
+## 🔒 Security Considerations
+
+### Vendor Verification
+- **Multi-step KYC**: Business documentation and identity verification
+- **Trust Scoring**: Automated reputation system based on sales performance
+- **Escrow Protection**: Funds held until successful delivery
+- **Fraud Monitoring**: Automated detection of suspicious activities
+
+### Payment Security
+- **PCI DSS Compliance**: Secure payment processing standards
+- **Tokenization**: Sensitive payment data never stored
+- **SSL/TLS Encryption**: All payment communications encrypted
+- **3D Secure**: Additional authentication for high-value transactions
+
+### Data Protection
+- **GDPR Compliance**: User data protection and privacy rights
+- **Data Encryption**: Sensitive data encrypted at rest and in transit
+- **Audit Logging**: All store activities logged for compliance
+- **Regular Security Audits**: Third-party security assessments
+
+## 📊 Analytics & Reporting
+
+### Sales Analytics
+
+// Track store events
+
+<Code language="typescript" title="TypeScript">
+{`import { trackEvent } from '@/lib/analytics'
+
+const trackPurchase = (order: Order) => {
+  trackEvent('purchase_completed', {
+    orderId: order.id,
+    totalAmount: order.totalAmount,
+    currency: order.currency,
+    paymentMethod: order.paymentMethod,
+    vendorId: order.vendor.id,
+    products: order.items.map(item => ({
+      productId: item.productId,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    }))
+  })
+}
+
+const trackProductView = (product: Product) => {
+  trackEvent('product_viewed', {
+    productId: product.id,
+    productName: product.name,
+    vendorId: product.vendor.id,
+    category: product.category,
+    price: product.price,
+    currency: product.currency
+  })
+}`}
+</Code>
+
+### Vendor Dashboard Metrics
+
+// Vendor performance tracking
+
+<Code language="typescript" title="TypeScript">
+{`const getVendorMetrics = async (vendorId: string) => {
+  const response = await fetch(`/api/store/vendors/${vendorId}/analytics`)
+  const data = await response.json()
+
+  return {
+    totalSales: data.totalSales,
+    totalRevenue: data.totalRevenue,
+    averageOrderValue: data.averageOrderValue,
+    conversionRate: data.conversionRate,
+    customerSatisfaction: data.customerSatisfaction,
+    topProducts: data.topProducts,
+    salesByCategory: data.salesByCategory,
+    monthlyRevenue: data.monthlyRevenue
+  }
+}`}
+</Code>
+
+## 🎛️ Configuration
+
+### Environment Variables
+
+WayForPay Configuration RING Token Configuration Store Settings File Storage
+
+<Code language="bash" title="terminal">
+{`WAYFORPAY_MERCHANT_ID=your-merchant-id
+WAYFORPAY_SECRET_KEY=your-secret-key
+WAYFORPAY_TEST_MODE=false
+
+RING_TOKEN_CONTRACT_ADDRESS=0x...
+RING_MARKETPLACE_CONTRACT_ADDRESS=0x...
+POLYGON_RPC_URL=https://polygon-rpc.com
+
+STORE_VENDOR_APPLICATION_FEE=50
+STORE_TRANSACTION_FEE_PERCENT=2.5
+STORE_MIN_ORDER_AMOUNT=5
+STORE_MAX_ORDER_AMOUNT=50000
+
+STORE_FILE_STORAGE_PROVIDER=cloudflare_r2
+STORE_FILE_MAX_SIZE=104857600
+STORE_IMAGE_MAX_SIZE=5242880`}
+</Code>
+
+### Database Schema
+
+<Code language="sql" title="-- Products table">
+{`CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID NOT NULL REFERENCES vendors(id),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'USD',
+  category VARCHAR(50),
+  inventory_quantity INTEGER DEFAULT -1,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Orders table
+CREATE TABLE orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES users(id),
+  vendor_id UUID NOT NULL REFERENCES vendors(id),
+  total_amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'USD',
+  status VARCHAR(20) DEFAULT 'pending',
+  payment_method VARCHAR(20),
+  payment_id VARCHAR(255),
+  shipping_address JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  paid_at TIMESTAMP,
+  shipped_at TIMESTAMP,
+  delivered_at TIMESTAMP
+);
+
+-- Vendors table
+CREATE TABLE vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  business_name VARCHAR(255) NOT NULL,
+  description TEXT,
+  verified BOOLEAN DEFAULT FALSE,
+  trust_score DECIMAL(3,2) DEFAULT 0.00,
+  total_sales INTEGER DEFAULT 0,
+  member_since TIMESTAMP DEFAULT NOW()
+);`}
+</Code>
+
+---
+
+*Ring Platform's Store API delivers enterprise-grade e-commerce functionality with multi-vendor support, secure payments, and comprehensive vendor management.*

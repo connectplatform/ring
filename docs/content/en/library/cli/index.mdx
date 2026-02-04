@@ -13,68 +13,65 @@ The **Ring CLI** is a powerful command-line interface that streamlines deploymen
 
 Install the Ring CLI globally from your Ring Platform directory:
 
-```bash
-# Navigate to your Ring Platform directory
-cd ring-platform.org
+Navigate to your Ring Platform directory Install globally using npm link Verify installation Output: 1.0.1
 
-# Install globally using npm link
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
+
 npm link
 
-# Verify installation
-ring --version
-# Output: 1.0.1
-```
+ring --version`}
+</Code>
 
 ### First Deployment
 
 Deploy to production with a single command:
 
-```bash
-# Deploy using version from package.json
-ring prod
+Deploy using version from package.json Deploy specific version Preview without executing
 
-# Deploy specific version
+<Code language="bash" title="terminal">
+{`ring prod
+
 ring prod --version 0.9.22
 
-# Preview without executing
-ring prod --dry-run
-```
+ring prod --dry-run`}
+</Code>
 
 ## 📦 Installation Methods
 
 ### Method 1: npm link (Recommended for Development)
 
-```bash
-cd ring-platform.org
-npm link
-```
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
+npm link`}
+</Code>
 
 This creates a global symlink to your local Ring Platform installation, perfect for development.
 
 ### Method 2: Install Script
 
-```bash
-cd ring-platform.org
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
 chmod +x install-cli.sh
-./install-cli.sh
-```
+./install-cli.sh`}
+</Code>
 
 ### Method 3: npm Scripts
 
-```bash
-cd ring-platform.org
-npm run cli:install
-```
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
+npm run cli:install`}
+</Code>
 
 ### Uninstalling
 
-```bash
-# Remove global link
-npm unlink -g ring-platform
+Remove global link Or from any directory
 
-# Or from any directory
-npm uninstall -g ring-platform
-```
+<Code language="bash" title="terminal">
+{`npm unlink -g ring-platform
+
+npm uninstall -g ring-platform`}
+</Code>
 
 ## 🎯 Core Commands
 
@@ -84,21 +81,19 @@ Deploy your Ring Platform to production Kubernetes cluster with automated Docker
 
 #### Basic Usage
 
-```bash
-# Deploy with auto-detected version
-ring prod
+Deploy with auto-detected version Deploy specific version Skip certain steps Preview commands without execution
 
-# Deploy specific version
+<Code language="bash" title="terminal">
+{`ring prod
+
 ring prod --version 0.9.22
 
-# Skip certain steps
 ring prod --skip-build    # Use existing Docker image
 ring prod --skip-push     # Don't push to registry
 ring prod --skip-deploy   # Only build and push
 
-# Preview commands without execution
-ring prod --dry-run
-```
+ring prod --dry-run`}
+</Code>
 
 #### What It Does
 
@@ -132,28 +127,26 @@ Manage global CLI configuration stored in `~/.ring-platform/config.json`.
 
 #### Setting Configuration
 
-```bash
-# Set individual values
-ring config --set k8s.controlNode=my-k8s-server
+Set individual values Set nested values
+
+<Code language="bash" title="terminal">
+{`ring config --set k8s.controlNode=my-k8s-server
 ring config --set database.type=postgresql
 ring config --set k8s.namespace=production
 
-# Set nested values
 ring config --set auth.googleId=your-client-id
-ring config --set web3.polygonRpcUrl=https://polygon-rpc.com
-```
+ring config --set web3.polygonRpcUrl=https://polygon-rpc.com`}
+</Code>
 
 #### Reading Configuration
 
-```bash
-# Get specific value
-ring config --get database.type
-# Output: postgresql
+Get specific value Output: postgresql List all configuration Example output:
 
-# List all configuration
+<Code language="bash" title="terminal">
+{`ring config --get database.type
+
 ring config --list
 
-# Example output:
 {
   "k8s": {
     "controlNode": "k8s-control-01",
@@ -180,31 +173,30 @@ ring config --list
     "url": "https://ring-platform.org",
     "apiUrl": "https://ring-platform.org"
   }
-}
-```
+}`}
+</Code>
 
 #### Resetting Configuration
 
-```bash
-# Reset to defaults
-ring config --reset
-# ✅ Configuration reset to defaults
-```
+Reset to defaults ✅ Configuration reset to defaults
+
+<Code language="bash" title="terminal">
+{`ring config --reset`}
+</Code>
 
 ### `ring status` - Deployment Status
 
 Check the health and status of your Ring Platform deployment.
 
-```bash
-# Basic status check
-ring status
+Basic status check Detailed output Check different namespace
 
-# Detailed output
+<Code language="bash" title="terminal">
+{`ring status
+
 ring status --verbose
 
-# Check different namespace
-ring status --namespace staging
-```
+ring status --namespace staging`}
+</Code>
 
 #### Status Checks Performed
 
@@ -242,19 +234,17 @@ ring status --namespace staging
 
 Run comprehensive tests for database connections, services, and data integrity.
 
-```bash
-# Test PostgreSQL database connection
-ring test --type db-connection
+Test PostgreSQL database connection Test DatabaseService initialization Test user data retrieval Test username query functionality
 
-# Test DatabaseService initialization
+<Code language="bash" title="terminal">
+{`ring test --type db-connection
+
 ring test --type db-service
 
-# Test user data retrieval
 ring test --type user-data
 
-# Test username query functionality
-ring test --type username
-```
+ring test --type username`}
+</Code>
 
 #### Test Types
 
@@ -297,9 +287,8 @@ User count: 1
 
 The Ring CLI stores configuration in `~/.ring-platform/config.json`:
 
-```json
-{
-  "k8s": {
+<Code language="json" title="{">
+{`"k8s": {
     "controlNode": "k8s-control-01",       // SSH host for kubectl commands
     "namespace": "ring-platform-org",      // Kubernetes namespace
     "deployment": "ring-platform",         // Deployment name
@@ -331,8 +320,8 @@ The Ring CLI stores configuration in `~/.ring-platform/config.json`:
     "url": "https://ring-platform.org",
     "apiUrl": "https://ring-platform.org"
   }
-}
-```
+}`}
+</Code>
 
 ### Environment Variables
 
@@ -349,36 +338,34 @@ The CLI respects these environment variables:
 
 #### Blue-Green Deployment
 
-```bash
-# Deploy to staging
-ring config --set k8s.namespace=staging
+Deploy to staging Test staging Promote to production
+
+<Code language="bash" title="terminal">
+{`ring config --set k8s.namespace=staging
 ring prod --version 0.9.22
 
-# Test staging
 ring status --namespace staging
 
-# Promote to production
 ring config --set k8s.namespace=production
-ring prod --version 0.9.22
-```
+ring prod --version 0.9.22`}
+</Code>
 
 #### Rollback Procedure
 
-```bash
-# Deploy previous version
-ring prod --version 0.9.21
+Deploy previous version Or use kubectl directly
 
-# Or use kubectl directly
-ssh k8s-control-01 'kubectl rollout undo deployment/ring-platform -n ring-platform-org'
-```
+<Code language="bash" title="terminal">
+{`ring prod --version 0.9.21
+
+ssh k8s-control-01 'kubectl rollout undo deployment/ring-platform -n ring-platform-org'`}
+</Code>
 
 ### CI/CD Integration
 
 #### GitHub Actions Example
 
-```yaml
-name: Deploy to Production
-on:
+<Code language="yaml" title="name: Deploy to Production">
+{`on:
   push:
     tags:
       - 'v*'
@@ -403,14 +390,13 @@ jobs:
           ring config --set auth.secret=${{ secrets.AUTH_SECRET }}
       
       - name: Deploy
-        run: ring prod --version ${GITHUB_REF#refs/tags/v}
-```
+        run: ring prod --version ${GITHUB_REF#refs/tags/v}`}
+</Code>
 
 #### Jenkins Pipeline
 
-```groovy
-pipeline {
-    agent any
+<Code language="groovy" title="pipeline {">
+{`agent any
     stages {
         stage('Deploy') {
             steps {
@@ -425,8 +411,8 @@ pipeline {
             }
         }
     }
-}
-```
+}`}
+</Code>
 
 ## 🐛 Troubleshooting
 
@@ -434,61 +420,54 @@ pipeline {
 
 #### Command Not Found
 
-```bash
-# Error: command not found: ring
+Error: command not found: ring Solution 1: Install globally Solution 2: Use npx
 
-# Solution 1: Install globally
-cd ring-platform.org
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
 npm link
 
-# Solution 2: Use npx
-npx ring prod
-```
+npx ring prod`}
+</Code>
 
 #### SSH Connection Failed
 
-```bash
-# Error: ssh: connect to host k8s-control-01 port 22: Connection refused
+Error: ssh: connect to host k8s-control-01 port 22: Connection refused Solution: Configure SSH
 
-# Solution: Configure SSH
-ssh-add ~/.ssh/your-key
-ring config --set k8s.controlNode=your-actual-host
-```
+<Code language="bash" title="terminal">
+{`ssh-add ~/.ssh/your-key
+ring config --set k8s.controlNode=your-actual-host`}
+</Code>
 
 #### Docker Build Failed
 
-```bash
-# Error: Cannot connect to the Docker daemon
+Error: Cannot connect to the Docker daemon Solution: Ensure Docker is running
 
-# Solution: Ensure Docker is running
-docker ps  # Test Docker
-docker login ghcr.io  # Login to registry
-```
+<Code language="bash" title="terminal">
+{`docker ps  # Test Docker
+docker login ghcr.io  # Login to registry`}
+</Code>
 
 #### Permission Denied
 
-```bash
-# Error: EACCES: permission denied
+Error: EACCES: permission denied Solution: Fix npm permissions Or use a Node version manager like nvm
 
-# Solution: Fix npm permissions
-sudo npm link
-# Or use a Node version manager like nvm
-```
+<Code language="bash" title="terminal">
+{`sudo npm link`}
+</Code>
 
 ### Debug Mode
 
 Enable debug output for troubleshooting:
 
-```bash
-# Set debug environment variable
-DEBUG=ring:* ring prod
+Set debug environment variable Verbose logging Dry run to see commands
 
-# Verbose logging
+<Code language="bash" title="terminal">
+{`DEBUG=ring:* ring prod
+
 ring prod --verbose
 
-# Dry run to see commands
-ring prod --dry-run
-```
+ring prod --dry-run`}
+</Code>
 
 ## 🚦 Best Practices
 
@@ -496,38 +475,37 @@ ring prod --dry-run
 
 Always tag your releases:
 
-```bash
-git tag v0.9.22
+<Code language="bash" title="terminal">
+{`git tag v0.9.22
 git push origin v0.9.22
-ring prod --version 0.9.22
-```
+ring prod --version 0.9.22`}
+</Code>
 
 ### 2. Configuration Security
 
 Sensitive values in configuration are masked:
 
-```bash
-ring config --set auth.secret=my-secret-key
-ring config --list
-# Shows: "auth.secret": "********************************"
-```
+Shows: "auth.secret": "********************************"
+
+<Code language="bash" title="ring config --set auth.secret=my-secret-key">
+{`ring config --list`}
+</Code>
 
 ### 3. Deployment Verification
 
 Always verify after deployment:
 
-```bash
-ring prod --version 0.9.22
-ring status --verbose
-```
+<Code language="bash" title="ring prod --version 0.9.22">
+{`ring status --verbose`}
+</Code>
 
 ### 4. Backup Configuration
 
 Backup your CLI configuration:
 
-```bash
-cp ~/.ring-platform/config.json ~/.ring-platform/config.backup.json
-```
+<Code language="bash" title="terminal">
+{`cp ~/.ring-platform/config.json ~/.ring-platform/config.backup.json`}
+</Code>
 
 ## 🔮 Future Commands
 

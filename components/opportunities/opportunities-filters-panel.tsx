@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useOptimistic } from 'react'
+import { useState, useOptimistic, useTransition, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -105,6 +105,9 @@ export default function OpportunitiesFiltersPanel({
   const t = useTranslations('modules.opportunities')
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['types']))
 
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition()
+
   // React 19 useOptimistic for instant filter feedback
   const [optimisticOpportunities, addOptimisticFilter] = useOptimistic(
     opportunities,
@@ -208,9 +211,11 @@ export default function OpportunitiesFiltersPanel({
     })
   }
 
-  const updateFilters = (updates: Partial<FilterState>) => {
+  const updateFilters = useCallback((updates: Partial<FilterState>) => {
+    startTransition(() => {
     setFilters(prev => ({ ...prev, ...updates }))
-  }
+    })
+  }, [startTransition])
 
   const handleClearFilters = () => {
     const clearedFilters: FilterState = {

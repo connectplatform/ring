@@ -1,0 +1,43 @@
+---
+title: Real Time
+description: Real Time documentation for Ring Platform
+---
+
+# Realtime Transport
+
+- Tunnel transport abstraction (WebSocket / SSE fallback)
+- Presence, typing indicators, push notifications
+- Edge Runtime compatible (SSE primary on Vercel)
+
+## WebSocket & SSE Implementation
+
+### Real-time Communication Architecture
+
+<Mermaid>
+{`sequenceDiagram
+    participant Client as Web Client
+    participant LB as Load Balancer
+    participant WS as WebSocket Service
+    participant Redis as Redis Pub/Sub
+    participant DB as PostgreSQL
+
+    Client->>LB: Connect WebSocket
+    LB->>WS: Route to Available Instance
+    WS->>Client: Connection Established
+
+    loop Real-time Updates
+        DB->>Redis: Publish Event (New Opportunity)
+        Redis->>WS: Broadcast to Subscribers
+        WS->>Client: Push Update via WebSocket
+        Client->>Client: Update UI (Optimistic)
+    end
+
+    Client->>WS: Send Message
+    WS->>DB: Store Message
+    DB-->>WS: Confirm
+    WS->>Redis: Publish to Recipients
+    Redis->>WS: Broadcast
+    WS->>Client: Deliver Message
+
+    Note over Client,DB: Tunnel Transport Protocol<br/>Fallback: SSE → Long Polling`}
+</Mermaid>

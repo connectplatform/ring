@@ -1,0 +1,16 @@
+{
+  "title": "Разработка",
+  "pages": [
+    "index",
+    "local-setup",
+    "code-structure",
+    "best-practices",
+    "workflow",
+    "code-style",
+    "performance",
+    "testing",
+    "deployment",
+    "debugging",
+    "contributing"
+  ]
+}

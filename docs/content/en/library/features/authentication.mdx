@@ -64,19 +64,19 @@ Before setting up Apple Sign-in, ensure you have:
 
 Add these variables to your `.env.local`:
 
-```bash
-# Apple Sign-in Configuration
-AUTH_APPLE_ID=com.sonoratek.ring-auth
-AUTH_APPLE_SECRET=<JWT_TOKEN_GENERATED_FROM_PRIVATE_KEY>
-```
+Apple Sign-in Configuration
+
+<Code language="bash" title="terminal">
+{`AUTH_APPLE_ID=com.sonoratek.ring-auth
+AUTH_APPLE_SECRET=<JWT_TOKEN_GENERATED_FROM_PRIVATE_KEY>`}
+</Code>
 
 ##### JWT Generation
 
 Apple requires a JWT signed with your private key. Use this Node.js script:
 
-```javascript
-import jwt from 'jsonwebtoken';
-import fs from 'fs';
+<Code language="javascript" title="import jwt from 'jsonwebtoken';">
+{`import fs from 'fs';
 
 const privateKey = fs.readFileSync('AuthKey_YD444LWM9J.p8');
 const teamId = 'X9EQDPCJU6'; // Your Team ID
@@ -98,17 +98,17 @@ const token = jwt.sign(
   }
 );
 
-console.log(token); // Use this as AUTH_APPLE_SECRET
-```
+console.log(token); // Use this as AUTH_APPLE_SECRET`}
+</Code>
 
 ##### Auth.js v5 Configuration
 
 Apple Sign-in is automatically configured in your `auth.config.ts`:
 
-```typescript
 import AppleProvider from 'next-auth/providers/apple'
 
-export default {
+<Code language="typescript" title="TypeScript">
+{`export default {
   providers: [
     AppleProvider({
       // Uses AUTH_APPLE_ID and AUTH_APPLE_SECRET from environment
@@ -116,15 +116,13 @@ export default {
     }),
     // ... other providers
   ]
-}
-```
+}`}
+</Code>
 
 ##### Usage in Components
 
-```typescript
-'use client'
-
-import { signIn } from 'next-auth/react'
+<Code language="typescript" title="'use client'">
+{`import { signIn } from 'next-auth/react'
 
 export function AppleSignInButton() {
   return (
@@ -136,8 +134,8 @@ export function AppleSignInButton() {
       Continue with Apple
     </button>
   )
-}
-```
+}`}
+</Code>
 
 ##### User Experience Features
 
@@ -180,8 +178,8 @@ export function AppleSignInButton() {
 ## Implementation
 
 ### Authentication Setup
-```typescript
-import { auth } from '@/auth'
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { signIn, signOut } from 'next-auth/react'
 
 // Server-side authentication
@@ -202,13 +200,14 @@ export function LoginButton() {
       Sign in with Google
     </button>
   )
-}
-```
+}`}
+</Code>
 
 ### Role-Based Access
-```typescript
 // Check user role
-const hasAccess = (session: Session, requiredRole: Role) => {
+
+<Code language="typescript" title="TypeScript">
+{`const hasAccess = (session: Session, requiredRole: Role) => {
   const roleHierarchy = ['VISITOR', 'SUBSCRIBER', 'MEMBER', 'CONFIDENTIAL', 'ADMIN']
   const userRoleIndex = roleHierarchy.indexOf(session.user.role)
   const requiredRoleIndex = roleHierarchy.indexOf(requiredRole)
@@ -225,8 +224,8 @@ export async function GET(request: Request) {
   }
   
   // Handle authenticated request
-}
-```
+}`}
+</Code>
 
 ---
 

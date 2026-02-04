@@ -1,19 +1,15 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Get Confidential Entities Service
+ * 
+ * Retrieves confidential entities with pagination and filtering
+ * Uses PostgreSQL DatabaseService abstraction
+ */
 
-import { Entity } from '@/features/entities/types';
-import { UserRole } from '@/features/auth/types';
-import { auth } from '@/auth';
-import { QuerySnapshot, Query, DocumentSnapshot } from 'firebase-admin/firestore';
-import { entityConverter } from '@/lib/converters/entity-converter';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { Entity } from '@/features/entities/types'
+import { UserRole } from '@/features/auth/types'
+import { auth } from '@/auth'
+import { cache } from 'react'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 interface getConfidentialEntitiesParams {
   page: number;
@@ -32,81 +28,66 @@ interface getConfidentialEntitiesResult {
   totalEntities: number;
 }
 
-export async function getConfidentialEntities(
+/**
+ * React 19 cache() wrapper for request deduplication
+ * Prevents redundant queries when called multiple times in same request cycle
+ */
+export const getConfidentialEntities = cache(async (
   params: getConfidentialEntitiesParams
-): Promise<getConfidentialEntitiesResult> {try {
-  const phase = getCurrentPhase();
-console.log('Services: getConfidentialEntities - Starting...', params);
+): Promise<getConfidentialEntitiesResult> => {
+  try {
+    console.log('Services: getConfidentialEntities - Starting...', params);
 
-
-    const { limit, startAfter, sort, filter, userRole } = params;
+    const { limit, startAfter, sort, filter, userRole, page } = params;
 
     // Validate role: only CONFIDENTIAL or ADMIN allowed here
     if (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
       throw new Error('Invalid or missing user role for confidential access');
     }
 
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-confidential-entities`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        // Generic cache fallback for build time
-        return null;
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
+    // Step 1: Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // Step 1: Access Firestore and initialize collection with converter
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const entitiesCollection = adminDb.collection('entities').withConverter(entityConverter);
+    // Step 2: Build database query filters
+    const dbFilters: any[] = [
+      { field: 'isConfidential', operator: '=', value: true }
+    ]
 
-    // Step 2: Build the base query for confidential entities
-    let baseQuery = entitiesCollection.where('isConfidential', '==', true);
-
-    // Apply filter if provided
+    // Apply status filter if provided
     if (filter) {
-      baseQuery = baseQuery.where('status', '==', filter);
+      dbFilters.push({ field: 'status', operator: '=', value: filter })
     }
 
-    // Apply sorting
-    const [sortField, sortDirection] = sort.split(':');
-    baseQuery = baseQuery.orderBy(sortField, sortDirection as 'asc' | 'desc');
+    // Parse sorting
+    const [sortField, sortDirection] = sort.split(':')
 
     // Step 3: Get total count for pagination
-    const totalSnapshot = await baseQuery.count().get();
-    const totalEntities = totalSnapshot.data().count;
-    const totalPages = Math.ceil(totalEntities / limit);
+    const countResult = await db.count('entities', dbFilters)
+    const totalEntities = countResult.success ? (countResult.data || 0) : 0
+    const totalPages = Math.ceil(totalEntities / limit)
 
-    // Step 4: Build the paginated query
-    let query: Query<Entity> = baseQuery.limit(limit);
+    // Step 4: Execute paginated query
+    const result = await db.query({
+      collection: 'entities',
+      filters: dbFilters,
+      orderBy: [{ field: sortField, direction: sortDirection as 'asc' | 'desc' }],
+      pagination: { limit, offset: (page - 1) * limit }
+    })
 
-    if (startAfter) {
-      console.log(`Services: getConfidentialEntities - Paginating after entity ID: ${startAfter}`);
-      const startAfterDoc = await entitiesCollection.doc(startAfter).get();
-      if (startAfterDoc.exists) {
-        query = query.startAfter(startAfterDoc);
-      } else {
-        console.warn(`Services: getConfidentialEntities - Start-after document ${startAfter} does not exist`);
-      }
+    if (!result.success || !result.data) {
+      console.error('Services: getConfidentialEntities - Query failed:', result.error)
+      throw new Error('Failed to fetch confidential entities')
     }
 
-    // Step 5: Execute the query and process results
-    const snapshot: QuerySnapshot<Entity> = await query.get();
+    // Step 5: Extract entities from result
+    const rawEntities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    const entities: Entity[] = rawEntities.map((doc: any) => ({
+      ...(doc.data || doc),
+      id: doc.id
+    }))
 
-    const entities: Entity[] = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id,
-    }));
-
-    const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
+    const lastVisible = entities.length > 0 ? entities[entities.length - 1].id : null
 
     console.log('Services: getConfidentialEntities - Results:', {
       entitiesCount: entities.length,
@@ -127,4 +108,4 @@ console.log('Services: getConfidentialEntities - Starting...', params);
       ? error 
       : new Error('Unknown error occurred while fetching confidential entities');
   }
-}
+});

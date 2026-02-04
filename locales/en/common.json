@@ -16,6 +16,7 @@
     "upload": "Upload",
     "share": "Share",
     "remove": "Remove",
+    "back": "Back",
     "signIn": "Sign In",
     "signOut": "Sign Out",
     "signUp": "Sign Up"
@@ -44,7 +45,8 @@
     "userMenu": "User menu",
     "homeLink": "Home",
     "toggleTheme": "Toggle theme",
-    "toggleMenu": "Toggle menu"
+    "toggleMenu": "Toggle menu",
+    "popular": "Popular"
   },
   "footer": {
     "aboutUs": "About Us",
@@ -53,6 +55,7 @@
     "entities": "Entities",
     "opportunities": "Opportunities",
     "contacts": "Contact",
+    "documentation": "Documentation",
     "privacyPolicy": "Privacy Policy",
     "termsOfService": "Terms of Service",
     "addressFull": "195 Shevhenko Blvd, Cherkasy, Ukraine",
@@ -64,6 +67,37 @@
   },
   "messages": {
     "welcome": "Welcome, {name}!"
+  },
+  "activeFilters": {
+    "verification": "Verification",
+    "verificationStatus": "Verification Status",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "pending": "Pending Verification"
+  },
+  "membership": {
+    "title": "Membership",
+    "benefits": {
+      "priority": "Priority listing and visibility",
+      "ai": "Advanced AI matching algorithms",
+      "badge": "Verified badge and trust signals",
+      "analytics": "Comprehensive analytics and insights",
+      "collaboration": "Enhanced collaboration tools",
+      "support": "Premium customer support"
+    }
+  },
+  "ring_customization_upsell": {
+    "title": "Need Ring Customization?",
+    "description": "Upgrade to Member to post your Ring platform customization project and connect with expert developers",
+    "button": "Become a Member",
+    "benefits": {
+      "post_project": "Post your Ring customization project",
+      "find_developers": "Connect with Ring expert developers",
+      "ai_matching": "AI matches your project with specialists",
+      "verified_badge": "Verified project owner badge",
+      "priority_listing": "Priority project visibility",
+      "developer_pool": "Access to Ring developer network"
+    }
   }
 }
 

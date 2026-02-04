@@ -15,23 +15,23 @@ const WAYFORPAY_MERCHANT_ACCOUNT = process.env.WAYFORPAY_MERCHANT_ACCOUNT;
 const WAYFORPAY_SECRET_KEY = process.env.WAYFORPAY_SECRET_KEY;
 const WAYFORPAY_DOMAIN = process.env.WAYFORPAY_DOMAIN;
 
-// Membership pricing configuration
+// Membership pricing configuration (₴299 UAH for MEMBER upgrade)
 export const MEMBERSHIP_PRICES = {
   [UserRole.SUBSCRIBER]: {
-    amount: 9.99,
-    currency: 'USD',
-    description: 'Ring Platform Subscriber Membership',
-    duration: '1 month'
+    amount: 0,
+    currency: 'UAH',
+    description: 'Ring Platform Subscriber (Free)',
+    duration: 'lifetime'
   },
   [UserRole.MEMBER]: {
-    amount: 29.99,
-    currency: 'USD',
-    description: 'Ring Platform Member Membership',
+    amount: 299,
+    currency: 'UAH',
+    description: 'Ring Platform Member Upgrade',
     duration: '1 month'
   },
   [UserRole.CONFIDENTIAL]: {
-    amount: 99.99,
-    currency: 'USD',
+    amount: 999,
+    currency: 'UAH',
     description: 'Ring Platform Confidential Membership',
     duration: '1 month'
   }

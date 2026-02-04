@@ -13,8 +13,9 @@ import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 
-// Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = 'force-dynamic'
+// Allow caching for user profiles with shorter revalidation for freshness
+export const dynamic = "auto"
+export const revalidate = 120 // 2 minutes for user profile data
 
 // Define the type for profile route params
 type ProfileParams = {};
@@ -74,12 +75,46 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
 
     if (session.user) {
       // Fetch complete user data from database including username
-      const fullUserData = await getUserById(session.user.id);
+      let fullUserData = null;
+      try {
+        fullUserData = await getUserById(session.user.id);
+        console.log('ProfilePage: User data fetched successfully:', !!fullUserData);
+      } catch (fetchError) {
+        console.error('ProfilePage: Error fetching user data:', fetchError);
+      }
 
       if (!fullUserData) {
-        console.error('ProfilePage: Failed to fetch user data from database');
-        error = 'Failed to load complete user profile'
-      } else {
+        console.warn('ProfilePage: Could not fetch complete user profile from database, using session data only');
+        // Use session data as fallback - don't set error, let user access basic profile
+        fullUserData = {
+          id: session.user.id,
+          name: session.user.name,
+          email: session.user.email,
+          role: session.user.role,
+          photoURL: session.user.image,
+          createdAt: new Date(),
+          lastLogin: new Date(),
+          // Add other default fields
+          bio: '',
+          username: null,
+          phoneNumber: null,
+          organization: null,
+          position: null,
+          wallets: [],
+          isVerified: session.user.isVerified || false,
+          canPostConfidentialOpportunities: false,
+          canViewConfidentialOpportunities: false,
+          postedOpportunities: [],
+          savedOpportunities: [],
+          notificationPreferences: {
+            email: true,
+            inApp: true,
+            sms: false,
+          },
+        } as any;
+      }
+
+      if (fullUserData) {
         console.log('ProfilePage: Ensuring user wallet');
         let walletAddress = ''
         try {
@@ -96,7 +131,25 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
           userWalletBalance = await getUserWalletBalance();
         } catch (balanceError) {
           console.error('Error fetching wallet balance:', balanceError);
-          userWalletBalance = '0';
+
+          // If user document doesn't exist, create it with basic wallet info
+          if (balanceError.message?.includes('User document not found')) {
+            console.log('ProfilePage: User document not found, creating initial user document');
+            try {
+              // Create initial user document with wallet
+              const { createInitialUserDocument } = await import('@/features/auth/services/user-migration');
+              await createInitialUserDocument(session.user as AuthUser);
+
+              // Try to fetch balance again after creating the document
+              userWalletBalance = await getUserWalletBalance();
+              console.log('ProfilePage: Successfully created user document and fetched balance');
+            } catch (migrationError) {
+              console.error('ProfilePage: Failed to create user document:', migrationError);
+              userWalletBalance = '0';
+            }
+          } else {
+            userWalletBalance = '0';
+          }
         }
 
         // Merge session data with complete database data

@@ -13,10 +13,9 @@ export async function createListingOnChainAndActivateClient(
   const adapter = createEvmMarketplaceAdapter({
     marketContract: { address: DEFAULT_MARKET_CONFIG.addresses.MARKET, abi: marketAbi as any[] },
     getSigner: async () => {
-      const { BrowserProvider } = await import('ethers')
-      // @ts-ignore
-      const provider = new BrowserProvider(window.ethereum)
-      return provider.getSigner()
+      // Wagmi handles signer automatically through hooks
+      // This adapter now uses wagmi's writeContract directly
+      return null // Not needed with wagmi
     }
   })
 

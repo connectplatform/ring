@@ -1,0 +1,104 @@
+{
+  "actions": {
+    "add": "Добавить",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "submit": "Отправить",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "sort": "Сортировать",
+    "close": "Закрыть",
+    "continue": "Продолжить",
+    "retry": "Повторить",
+    "download": "Скачать",
+    "upload": "Загрузить",
+    "share": "Поделиться",
+    "remove": "Удалить",
+    "back": "Назад",
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "signUp": "Зарегистрироваться"
+  },
+  "status": {
+    "loading": "Загрузка...",
+    "saving": "Сохранение...",
+    "success": "Успешно",
+    "error": "Ошибка"
+  },
+  "loading": "Загрузка...",
+  "labels": {
+    "name": "Имя",
+    "email": "Электронная почта",
+    "phone": "Телефон",
+    "address": "Адрес",
+    "title": "Заголовок",
+    "category": "Категория",
+    "tags": "Теги",
+    "language": "Язык",
+    "theme": "Тема",
+    "profile": "Профиль",
+    "settings": "Настройки",
+    "privacy": "Приватность",
+    "terms": "Условия",
+    "userMenu": "Меню пользователя",
+    "homeLink": "Главная",
+    "toggleTheme": "Переключить тему",
+    "toggleMenu": "Открыть/закрыть меню",
+    "popular": "Популярное"
+  },
+  "footer": {
+    "aboutUs": "About Us",
+    "aboutUsDescription": "About our platform and services",
+    "quickLinks": "Quick Links",
+    "entities": "Entities",
+    "opportunities": "Opportunities",
+    "contacts": "Contact",
+    "documentation": "Documentation",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "addressFull": "195 Shevhenko Blvd, Cherkasy, Ukraine",
+    "emailFull": "contact@ring.ck.ua",
+    "phoneFull": "+38 097 532 8801",
+    "followUs": "Follow Us",
+    "toggleTheme": "Toggle theme",
+    "copyright": "© {year} Ring"
+  },
+  "messages": {
+    "welcome": "Welcome, {name}!"
+  },
+  "activeFilters": {
+    "verification": "Верификация",
+    "verificationStatus": "Статус верификации",
+    "verified": "Верифицировано",
+    "unverified": "Не верифицировано",
+    "pending": "Ожидает верификации"
+  },
+  "membership": {
+    "title": "Членство",
+    "benefits": {
+      "priority": "Приоритетное размещение и видимость",
+      "ai": "Продвинутые алгоритмы AI-поиска",
+      "badge": "Значок верифицированной организации",
+      "analytics": "Комплексная аналитика и инсайты",
+      "collaboration": "Улучшенные инструменты сотрудничества",
+      "support": "Приоритетная поддержка клиентов"
+    }
+  },
+  "ring_customization_upsell": {
+    "title": "Нужна настройка Ring?",
+    "description": "Обновитесь до Члена, чтобы опубликовать ваш проект настройки платформы Ring и связаться с экспертами-разработчиками",
+    "button": "Стать Членом",
+    "benefits": {
+      "post_project": "Опубликуйте ваш проект настройки Ring",
+      "find_developers": "Свяжитесь с экспертами Ring",
+      "ai_matching": "AI находит специалистов для вашего проекта",
+      "verified_badge": "Значок верифицированного владельца проекта",
+      "priority_listing": "Приоритетная видимость проекта",
+      "developer_pool": "Доступ к сети Ring-разработчиков"
+    }
+  }
+}
+
+

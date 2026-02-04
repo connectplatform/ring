@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useTransition } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { NewsArticle, NewsStatus, NewsVisibility, NewsCategory } from '@/features/news/types'
@@ -195,6 +195,9 @@ export function BulkOperationsManager({
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<NewsStatus | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<NewsCategory | 'all'>('all')
+
+  // React 19 useTransition for non-blocking bulk operations
+  const [isPending, startTransition] = useTransition()
 
   // Bulk operation states
   const [publishState, publishAction] = useActionState(bulkPublishAction, null)

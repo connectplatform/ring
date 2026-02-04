@@ -4,9 +4,16 @@
 // Avoids introducing heavy dependencies and supports typed payloads.
 
 type EventMap = {
+  // Wallet events
   'wallet:balance:refresh': { reason: string; address?: string | null };
   'wallet:connected': { address: string | null };
   'wallet:disconnected': { };
+  
+  // Modal/Popup management events
+  'modal:close-all': { excludeModal?: string };
+  'modal:opened': { modalId: string; zIndex: number };
+  'modal:closed': { modalId: string };
+  'popup:close-all': { };
 };
 
 type EventKey = keyof EventMap;

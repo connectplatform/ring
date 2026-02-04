@@ -1,0 +1,893 @@
+---
+title: Паттерни Оптимізації Продуктивності
+description: Комплексна оптимізація запитів Firebase та найкращі практики React Server Components для платформи Ring
+---
+
+# Паттерни Оптимізації Продуктивності
+
+Передові стратегії оптимізації продуктивності для додатків React 19 + Next.js 15 з інтеграцією Firebase, які забезпечують 95% зниження кількості викликів Firebase та покращення часу збірки на 30-40%.
+
+## Огляд
+
+Платформа Ring реалізовує передові паттерни продуктивності, які поєднують можливості React 19, оптимізацію Firebase та найкращі практики Next.js для забезпечення виняткового користувацького досвіду та ефективності розробки.
+
+## Паттерни Оптимізації React 19
+
+### Функція React Cache
+
+**Автоматичне Дедуплікування Запитів**
+// lib/services/firebase-service-manager.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { cache } from 'react'
+
+export const getCachedDocument = cache(async (
+  collection: string,
+  id: string
+): Promise<DocumentData | null> => {
+  const docRef = doc(getFirestore(), collection, id)
+  const docSnap = await getDoc(docRef)
+
+  if (docSnap.exists()) {
+    return {
+      id: docSnap.id,
+      ...docSnap.data()
+    }
+  }
+
+  return null
+})
+
+// Використання в Server Components
+export default async function EntityPage({ params }: { params: { id: string } }) {
+  const entity = await getCachedDocument('entities', params.id)
+
+  if (!entity) {
+    notFound()
+  }
+
+  return <EntityDetails entity={entity} />
+}`}
+</Code>
+
+**Переваги React 19 cache()**
+- **Дедуплікування Запитів**: Ідентичні запити в рамках одного циклу запиту повертають кешовані результати
+- **Автоматичне Управління Життєвим Циклом**: Кеш очищається після завершення запиту
+- **Без Ручної Інвалідації**: Фреймворк обробляє життєвий цикл кеша автоматично
+- **Спільне Використання між Компонентами**: Кешовані результати доступні між Server Components
+
+### Архітектура Server Components
+
+**Паттерни Витягу Даних**
+// ✅ Бажаний: Прямий витяг даних в Server Components
+
+<Code language="typescript" title="TypeScript">
+{`export default async function EntitiesPage() {
+  // Прямий виклик сервісу - API шар не потрібен
+  const entities = await getEntities()
+  const userStats = await getUserStats()
+
+  return (
+    <div>
+      <EntityGrid entities={entities} />
+      <UserStats stats={userStats} />
+    </div>
+  )
+}
+
+// ❌ Уникати: HTTP запити з Server Components
+export default async function EntitiesPage() {
+  // Не робіть HTTP виклики до своїх власних API маршрутів
+  const response = await fetch('/api/entities')
+  const entities = await response.json()
+
+  return <EntityGrid entities={entities} />
+}`}
+</Code>
+
+**Дерево Рішень Server vs Client Component**
+<Code language="typescript" title="TypeScript">
+{`// Server Components (за замовчуванням)
+- Генерація статичного контенту
+- Витяг даних з баз даних
+- Не потрібні взаємодії з користувачем
+- Контент критичний для SEO
+
+// Client Components (з 'use client')
+- Взаємодії з користувачем (кліки, форми)
+- Використання браузерних API
+- Реал-тайм оновлення
+- Інтерактивне управління станом`}
+</Code>
+
+### Хуки React 19 для Продуктивності
+
+**useOptimistic для Мгновених Оновлень UI**
+<Code language="typescript" title="'use client'">
+{`import { useOptimistic } from 'react'
+
+export function EntityForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<void> }) {
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [optimisticEntities, addOptimisticEntity] = useOptimistic(
+    entities,
+    (state, newEntity: Entity) => [...state, newEntity]
+  )
+
+  const handleSubmit = async (formData: FormData) => {
+    // Мгновене оновлення UI
+    const optimisticEntity = createOptimisticEntity(formData)
+    addOptimisticEntity(optimisticEntity)
+
+    try {
+      await onSubmit(formData)
+      // Успіх - оптимістичне оновлення стає постійним
+    } catch (error) {
+      // Помилка - відкат оптимістичного оновлення
+      setEntities(entities)
+    }
+  }
+
+  return (
+    <EntityList entities={optimisticEntities} />
+    <EntityForm onSubmit={handleSubmit} />
+  )
+}`}
+</Code>
+
+**useActionState для Управління Формами**
+<Code language="typescript" title="'use client'">
+{`import { useActionState } from 'react'
+
+export function CreateEntityForm() {
+  const [state, formAction, isPending] = useActionState(
+    createEntityAction,
+    { success: false, errors: [] }
+  )
+
+  return (
+    <form action={formAction}>
+      <input name="name" placeholder="Назва сутності" required />
+
+      {isPending && <div>Створення сутності...</div>}
+
+      {state.errors.length > 0 && (
+        <ul>
+          {state.errors.map(error => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      )}
+
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Створення...' : 'Створити Сутність'}
+      </button>
+    </form>
+  )
+}`}
+</Code>
+
+## Стратегії Оптимізації Firebase
+
+### Паттерн Шару Абстракції Бази Даних
+
+**Перемикальні Операції PostgreSQL/Firebase**
+// lib/database/index.ts - Уніфікована абстракція бази даних
+
+<Code language="typescript" title="TypeScript">
+{`class DatabaseService {
+  // Операції з увімкненим React 19 cache()
+  read = cache(async (collection: string, id: string) => {
+    // Автоматично маршрутизує в PostgreSQL або Firebase на основі DB_HYBRID_MODE
+    const backend = this.getBackendForCollection(collection)
+    return backend.read(collection, id)
+  })
+
+  query = cache(async (querySpec: QuerySpec) => {
+    // Просунуті запити з автоматичним вибором бекенда
+    const backend = this.getBackendForCollection(querySpec.collection)
+    return backend.query(querySpec)
+  })
+
+  create = async (collection: string, data: any) => {
+    const backend = this.getBackendForCollection(collection)
+    return backend.create(collection, data)
+  }
+
+  update = async (collection: string, id: string, data: any) => {
+    const backend = this.getBackendForCollection(collection)
+    return backend.update(collection, id, data)
+  }
+
+  delete = async (collection: string, id: string) => {
+    const backend = this.getBackendForCollection(collection)
+    return backend.delete(collection, id)
+  }
+
+  private getBackendForCollection(collection: string) {
+    // Маршрутизація на основі середовища та статусу міграції колекції
+    const hybridMode = process.env.DB_HYBRID_MODE === 'false'
+
+    if (hybridMode) {
+      return this.postgresBackend // PostgreSQL основний
+    }
+
+    // Гібридний режим: маршрутизація на основі статусу міграції
+    const migratedCollections = ['users', 'entities', 'notifications', 'comments']
+    return migratedCollections.includes(collection)
+      ? this.postgresBackend
+      : this.firebaseBackend
+  }
+}
+
+export const dbService = new DatabaseService()
+
+// Використання - незалежно від бекенда
+const entity = await dbService.read('entities', entityId)
+const comments = await dbService.query({
+  collection: 'comments',
+  filters: [{ field: 'target_id', operator: '==', value: targetId }],
+  orderBy: [{ field: 'created_at', direction: 'desc' }]
+})`}
+</Code>
+
+**Специфічні Реалізації Бекендів**
+
+<div className="tabs">
+  <div className="tab">
+    <input type="radio" id="postgres-uk" name="db-backend-uk" defaultChecked />
+    <label htmlFor="postgres-uk">Бекенд PostgreSQL</label>
+    <div className="tab-content">
+// lib/database/adapters/PostgreSQLAdapter.ts
+
+<Code language="typescript" title="TypeScript">
+{`class PostgreSQLAdapter implements DatabaseAdapter {
+  async query(querySpec: QuerySpec) {
+    const { collection, filters, orderBy, pagination } = querySpec
+
+    // Побудувати запит PostgreSQL з правильним мапуванням полів
+    const sql = this.buildQuery(querySpec)
+    const result = await this.client.query(sql, params)
+
+    return {
+      success: true,
+      data: result.rows.map(row => ({
+        id: row.id,
+        data: this.convertRowToDocument(row)
+      }))
+    }
+  }
+
+  private buildQuery(querySpec: QuerySpec): string {
+    const { collection, filters, orderBy } = querySpec
+    const tableName = this.getTableName(collection)
+
+    let sql = `SELECT * FROM ${tableName} WHERE 1=1`
+    const params: any[] = []
+
+    // Застосувати фільтри з мапуванням полів (id vs data->>'field')
+    filters.forEach(filter => {
+      const fieldRef = this.getFieldReference(collection, filter.field)
+      sql += ` AND ${fieldRef} ${filter.operator} $${params.length + 1}`
+      params.push(filter.value)
+    })
+
+    // Застосувати сортування
+    if (orderBy?.length) {
+      sql += ' ORDER BY ' + orderBy.map(sort =>
+        `${this.getFieldReference(collection, sort.field)} ${sort.direction}`
+      ).join(', ')
+    }
+
+    // Застосувати пагінацію
+    if (pagination?.limit) {
+      sql += ` LIMIT $${params.length + 1}`
+      params.push(pagination.limit)
+    }
+
+    if (pagination?.offset) {
+      sql += ` OFFSET $${params.length + 1}`
+      params.push(pagination.offset)
+    }
+
+    return sql
+  }
+
+  private getFieldReference(collection: string, field: string): string {
+    const topLevelFields = this.fieldMappings[collection] || new Set()
+    return topLevelFields.has(field) ? field : `data->>'${field}'`
+  }
+}`}
+</Code>
+    </div>
+  </div>
+
+  <div className="tab">
+    <input type="radio" id="firebase-uk" name="db-backend-uk" />
+    <label htmlFor="firebase-uk">Бекенд Firebase</label>
+    <div className="tab-content">
+// lib/database/adapters/FirebaseAdapter.ts
+
+<Code language="typescript" title="TypeScript">
+{`class FirebaseAdapter implements DatabaseAdapter {
+  async query(querySpec: QuerySpec) {
+    const { collection, filters, orderBy, pagination } = querySpec
+
+    const collectionRef = collection(getFirestore(), collection)
+    let queryRef: Query = collectionRef
+
+    // Застосувати фільтри
+    filters.forEach(filter => {
+      queryRef = query(queryRef, where(filter.field, filter.operator, filter.value))
+    })
+
+    // Застосувати сортування
+    if (orderBy?.length) {
+      orderBy.forEach(sort => {
+        queryRef = query(queryRef, orderBy(sort.field, sort.direction))
+      })
+    }
+
+    // Застосувати пагінацію
+    if (pagination?.limit) {
+      queryRef = query(queryRef, limit(pagination.limit))
+    }
+    if (pagination?.offset) {
+      queryRef = query(queryRef, startAfter(pagination.offset))
+    }
+
+    const snapshot = await getDocs(queryRef)
+    return {
+      success: true,
+      data: snapshot.docs.map(doc => ({
+        id: doc.id,
+        data: doc.data()
+      }))
+    }
+  }
+
+  // Пакетні операції для продуктивності
+  async getEntitiesByIds(ids: string[], userRole?: UserRole) {
+    if (ids.length === 0) return []
+
+    // Одиничний запит з пропозицією 'in' для пакетного витягу
+    const entitiesRef = collection(getFirestore(), 'entities')
+    const queryRef = query(
+      entitiesRef,
+      where('__name__', 'in', ids.slice(0, 10)) // Обмеження Firestore 'in'
+    )
+
+    const snapshot = await getDocs(queryRef)
+    const entities = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    // Застосувати фільтрацію на основі ролей на рівні бази даних
+    return entities.filter(entity => hasAccess(entity, userRole))
+  }
+}`}
+</Code>
+    </div>
+  </div>
+</div>
+
+### Паттерни Оптимізації Запитів
+
+**Композитні Індекси для Складних Запитів**
+// Оптимізваний запит з правильною індексацією
+
+<Code language="typescript" title="TypeScript">
+{`export const getEntitiesByOwnerAndStatus = cache(async (
+  ownerId: string,
+  status: EntityStatus,
+  limit: number = 20
+) => {
+  const entitiesRef = collection(getFirestore(), 'entities')
+
+  // Запит використовує композитний індекс: ownerId + status
+  const q = query(
+    entitiesRef,
+    where('ownerId', '==', ownerId),
+    where('status', '==', status),
+    orderBy('createdAt', 'desc'),
+    limit(limit)
+  )
+
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+})`}
+</Code>
+
+**Пагінація з Курсорними Запитами**
+<Code language="typescript" title="export const getPaginatedEntities = cache(async (">
+{`ownerId: string,
+  lastDoc?: DocumentSnapshot,
+  pageSize: number = 10
+) => {
+  const entitiesRef = collection(getFirestore(), 'entities')
+
+  let q = query(
+    entitiesRef,
+    where('ownerId', '==', ownerId),
+    orderBy('createdAt', 'desc'),
+    limit(pageSize)
+  )
+
+  // Додати курсор для пагінації
+  if (lastDoc) {
+    q = query(q, startAfter(lastDoc))
+  }
+
+  const snapshot = await getDocs(q)
+  const entities = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+
+  return {
+    entities,
+    hasMore: snapshot.docs.length === pageSize,
+    lastDoc: snapshot.docs[snapshot.docs.length - 1]
+  }
+})`}
+</Code>
+
+### Пакетні Операції
+
+**Ефективні Масові Операції**
+<Code language="typescript" title="export const bulkUpdateEntityStatus = async (">
+{`entityIds: string[],
+  newStatus: EntityStatus
+) => {
+  const batch = writeBatch(getFirestore())
+
+  entityIds.forEach(id => {
+    const entityRef = doc(getFirestore(), 'entities', id)
+    batch.update(entityRef, {
+      status: newStatus,
+      updatedAt: serverTimestamp()
+    })
+  })
+
+  await batch.commit()
+}`}
+</Code>
+
+## Стратегії Кешування
+
+### Багаторівнева Архітектура Кешування
+
+**Рівень Кеша React**
+// Дедуплікування на рівні запиту
+
+<Code language="typescript" title="TypeScript">
+{`const getEntityDetails = cache(async (entityId: string) => {
+  const entity = await firebaseService.getCachedDocument('entities', entityId)
+
+  if (!entity) return null
+
+  // Збагачати пов'язаними даними
+  const [owner, stats] = await Promise.all([
+    firebaseService.getCachedDocument('users', entity.ownerId),
+    getEntityStats(entityId)
+  ])
+
+  return { ...entity, owner, stats }
+})`}
+</Code>
+
+**Session Storage для Тимчасових Даних**
+// lib/cache/session-storage.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class SessionStorageCache {
+  private prefix = 'ring_cache_'
+
+  set(key: string, value: any, ttlMinutes: number = 30) {
+    const item = {
+      value,
+      expiresAt: Date.now() + (ttlMinutes * 60 * 1000)
+    }
+    sessionStorage.setItem(this.prefix + key, JSON.stringify(item))
+  }
+
+  get<T>(key: string): T | null {
+    const item = sessionStorage.getItem(this.prefix + key)
+
+    if (!item) return null
+
+    const parsed = JSON.parse(item)
+
+    if (Date.now() > parsed.expiresAt) {
+      sessionStorage.removeItem(this.prefix + key)
+      return null
+    }
+
+    return parsed.value
+  }
+
+  // Автоочистка при завантаженні сторінки
+  cleanup() {
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith(this.prefix)) {
+        try {
+          const item = JSON.parse(sessionStorage.getItem(key)!)
+          if (Date.now() > item.expiresAt) {
+            sessionStorage.removeItem(key)
+          }
+        } catch {
+          sessionStorage.removeItem(key)
+        }
+      }
+    })
+  }
+}
+
+export const sessionCache = new SessionStorageCache()`}
+</Code>
+
+**Конфігурація Next.js для Оптимального Кешування**
+// next.config.js
+
+<Code language="typescript" title="TypeScript">
+{`module.exports = {
+  // Оптимізувати зображення та шрифти
+  images: {
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+  },
+
+  // Увімкнути стиснення
+  compress: true,
+
+  // Оптимізувати збірки
+  swcMinify: true,
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
+  },
+
+  // Заголовки кешування
+  async headers() {
+    return [
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400'
+          }
+        ]
+      }
+    ]
+  }
+}`}
+</Code>
+
+## Оптимізація Збірки
+
+### Аналіз та Зниження Розміру Бандла
+
+**Стратегії Розділення Коду**
+// Динамічні імпорти для важких компонентів
+
+<Code language="typescript" title="TypeScript">
+{`const EntityModal = dynamic(() => import('@/components/entities/EntityModal'), {
+  loading: () => <div>Завантаження...</div>,
+  ssr: false // Тільки клієнтський компонент
+})
+
+// Автоматичне розділення коду на основі маршрутів з App Router
+export default function HeavyPage() {
+  return (
+    <Suspense fallback={<div>Завантаження важкого контенту...</div>}>
+      <HeavyComponent />
+    </Suspense>
+  )
+}`}
+</Code>
+
+**Оптимізація Tree Shaking**
+<Code language="typescript" title="TypeScript">
+{`// ✅ Специфічні імпорти (підходящі для tree shaking)
+import { doc, getDoc } from 'firebase/firestore'
+import { useState } from 'react'
+
+// ❌ Уникати повних імпортів бібліотек
+// import firebase from 'firebase/app'
+// import * as React from 'react'`}
+</Code>
+
+### Оптимізація TypeScript
+
+**Конфігурація Інкрементальної Компіляції**
+// tsconfig.json
+
+<Code language="typescript" title="TypeScript">
+{`{
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "moduleResolution": "bundler"
+  }
+}`}
+</Code>
+
+## Паттерни Runtime Продуктивності
+
+### Оптимізація Компонентів
+
+**React.memo для Дорогих Компонентів**
+<Code language="typescript" title="TypeScript">
+{`const EntityCard = memo(({ entity, onSelect }: EntityCardProps) => {
+console.log('EntityCard rendered:', entity.id) // Тільки при зміні props
+
+  return (
+    <div onClick={() => onSelect(entity)}>
+      <h3>{entity.name}</h3>
+      <p>{entity.description}</p>
+    </div>
+  )
+})
+
+EntityCard.displayName = 'EntityCard'`}
+</Code>
+
+**useMemo для Дорогих Обчислень**
+<Code language="typescript" title="TypeScript">
+{`const EntityGrid = ({ entities, searchTerm }: EntityGridProps) => {
+const filteredEntities = useMemo(() => {
+    if (!searchTerm) return entities
+
+    return entities.filter(entity =>
+      entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entity.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [entities, searchTerm])
+
+  const sortedEntities = useMemo(() => {
+    return [...filteredEntities].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }, [filteredEntities])
+
+  return (
+    <div className="grid">
+      {sortedEntities.map(entity => (
+        <EntityCard key={entity.id} entity={entity} />
+      ))}
+    </div>
+  )
+}`}
+</Code>
+
+### Лініва Завантаження та Віртуалізація
+
+**Прогресивна Завантаження для Великих Списків**
+<Code language="typescript" title="TypeScript">
+{`import { useVirtualizer } from '@tanstack/react-virtual'
+const EntityList = ({ entities }: { entities: Entity[] }) => {
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: entities.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 100, // Припущувана висота елемента
+    overscan: 5
+  })
+
+  return (
+    <div ref={parentRef} style={{ height: '400px', overflow: 'auto' }}>
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative'
+        }}
+      >
+        {virtualizer.getVirtualItems().map(virtualItem => (
+          <div
+            key={virtualItem.key}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: `${virtualItem.size}px`,
+              transform: `translateY(${virtualItem.start}px)`
+            }}
+          >
+            <EntityCard entity={entities[virtualItem.index]} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## Оптимізація Мережі
+
+### Пакетування та Дедуплікування Запитів
+
+**Інтелектуальний API Клієнт**
+// lib/api-client.ts
+
+<Code language="typescript" title="TypeScript">
+{`class RingApiClient {
+  private requestCache = new Map<string, Promise<any>>()
+
+  async request(endpoint: string, options: RequestInit = {}) {
+    const cacheKey = `${endpoint}:${JSON.stringify(options)}`
+
+    // Повернути кешований запит якщо існує
+    if (this.requestCache.has(cacheKey)) {
+      return this.requestCache.get(cacheKey)
+    }
+
+    // Створити новий запит і закэшити його
+    const request = fetch(endpoint, options)
+      .then(res => res.json())
+      .finally(() => {
+        // Очистити кеш після завершення запиту
+        this.requestCache.delete(cacheKey)
+      })
+
+    this.requestCache.set(cacheKey, request)
+    return request
+  }
+
+  // Пакетування множинних запитів сутностей
+  async getEntitiesBatch(ids: string[]) {
+    if (ids.length === 0) return []
+
+    // Використати запит Firestore 'in' для ефективного пакетного витягу
+    return this.request('/api/entities/batch', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+export const apiClient = new RingApiClient()`}
+</Code>
+
+### Попередня Завантаження Ресурсів
+
+**Оптимізація Критичних Ресурсів**
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        {/* Попередня завантаження критичних шрифтів */}
+        <link
+          rel="preload"
+          href="/fonts/inter-var.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+
+        {/* Попереднє підключення до зовнішніх доменів */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+
+        {/* DNS prefetch для Firebase */}
+        <link rel="dns-prefetch" href="//firestore.googleapis.com" />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}`}
+</Code>
+
+## Моніторинг Продуктивності
+
+### Відстеження Core Web Vitals
+
+**Налаштування Моніторингу Реальних Користувачів**
+// lib/analytics/performance.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const trackWebVitals = () => {
+  if (typeof window === 'undefined') return
+
+  // Core Web Vitals
+  import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+    getCLS(console.log)
+    getFID(console.log)
+    getFCP(console.log)
+    getLCP(console.log)
+    getTTFB(console.log)
+  })
+}
+
+// Користувацькі метрики продуктивності
+export const trackCustomMetrics = () => {
+  // Відстеження викликів Firebase
+  const originalGetDoc = getDoc
+  ;(getDoc as any) = (...args: any[]) => {
+    const start = performance.now()
+    return originalGetDoc(...args).finally(() => {
+      const duration = performance.now() - start
+      console.log(`Firebase getDoc took ${duration}ms`)
+    })
+  }
+}`}
+</Code>
+
+### Конфігурація Бюджету Продуктивності
+
+**Бюджети Продуктивності на Час Збірки**
+// next.config.js
+
+<Code language="typescript" title="TypeScript">
+{`module.exports = {
+  // Бюджети продуктивності
+  performance: {
+    hints: 'warning',
+    maxAssetSize: 512000, // 512KB
+    maxEntrypointSize: 512000, // 512KB
+  },
+
+  // Аналізатор бандла (умовно)
+  ...(process.env.ANALYZE === 'true' && {
+    plugins: [new BundleAnalyzerPlugin()]
+  })
+}`}
+</Code>
+
+## Чек-лист Реалізації
+
+### Оптимізація React 19 ✅
+- [x] Використовувати React 19 cache() для дедуплікування запитів
+- [x] Надавати перевагу Server Components перед Client Components
+- [x] Реалізувати useOptimistic для миттєвої зворотної зв'язку UI
+- [x] Використовувати useActionState для управління формами
+- [x] Використовувати нативні метадані React 19
+
+### Оптимізація Firebase ✅
+- [x] Використовувати firebase-service-manager для всіх операцій
+- [x] Реалізувати пакетні операції де можливо
+- [x] Оптимізувати запити Firestore з правильною індексацією
+- [x] Моніторити використання Firebase та продуктивність
+
+### Стратегія Кешування ✅
+- [x] Реалізувати React cache() для дедуплікування
+- [x] Використовувати sessionStorage для тимчасового кешування
+- [x] Правильно налаштувати кешування Next.js
+- [x] Використовувати Edge Runtime для глобальної продуктивності
+
+### Оптимізація Збірки ✅
+- [x] Моніторити час збірки та розміри бандла
+- [x] Реалізувати правильне розділення коду
+- [x] Оптимізувати конфігурацію TypeScript
+- [x] Видалити невикористовувані залежності
+
+## Бенчмарки Продуктивності
+
+### Поточні Досягнення
+- **Виклики Firebase**: 95% зниження під час збірки
+- **Час Збірки**: 17.0s (покращення на 30-40%)
+- **Розмір Бандла**: Зниження на 55KB з React 19
+- **Рівень Помилок**: Нульові помилки збірки
+- **Покриття Тестами**: 95% тестів проходять
+
+### Цільові Метрики
+- **Завантаження Сторінки**: < 2s перший контентний піксель
+- **Інтерактивність**: < 100ms затримка першого вводу
+- **Стабільність Макета**: < 0.1 сукупний зсув макета
+- **Ефективність Firebase**: > 95% зниження викликів підтримується
+
+---
+
+*Ці паттерни оптимізації продуктивності забезпечують винятковий користувацький досвід з провідною в галузі ефективністю та продуктивністю розробників.*

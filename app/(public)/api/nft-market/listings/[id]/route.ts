@@ -1,22 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
-export const dynamic = 'force-dynamic'
+// Allow caching for individual NFT listings with moderate revalidation for marketplace data
+export const dynamic = 'auto'
+export const revalidate = 120 // 2 minutes for marketplace data
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const id = params.id
   const body = await req.json().catch(() => ({}))
-  const db = await getAdminDb()
-  const ref = db.collection('nft_listings').doc(id)
-  await ref.set({ ...body, updatedAt: new Date() }, { merge: true })
+
+  await initializeDatabase()
+  const db = getDatabaseService()
+
+  const result = await db.update('nft_listings', id, { ...body, updatedAt: new Date() })
+  if (!result.success) {
+    throw result.error || new Error('Failed to update nft_listing')
+  }
+
   return NextResponse.json({ success: true })
 }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const db = await getAdminDb()
-  const snap = await db.collection('nft_listings').doc(params.id).get()
-  if (!snap.exists) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ success: true, data: { id: snap.id, ...(snap.data() as any) } })
+  await initializeDatabase()
+  const db = getDatabaseService()
+
+  const result = await db.findById('nft_listings', params.id)
+  if (!result.success) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  return NextResponse.json({ success: true, data: result.data })
 }
 
 

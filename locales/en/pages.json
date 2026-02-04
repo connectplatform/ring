@@ -1,12 +1,104 @@
 {
+  "login": {
+    "title": "Welcome back",
+    "subtitle": "Sign in to continue to Ring"
+  },
+  "marketplace": {
+    "title": "MV Marketplace",
+    "subtitle": "Marketplace for Ring-powered site development and services. Become a MEMBER-level vendor and offer your expertise.",
+    "tabs": {
+      "vendors": "Browse Vendors",
+      "services": "Service Packages"
+    },
+    "search": {
+      "placeholder": "Search",
+      "allCategories": "All Categories",
+      "allAvailability": "All Availability",
+      "availableNow": "Available Now",
+      "currentlyBusy": "Currently Busy",
+      "sortBy": "Sort by",
+      "highestRated": "Highest Rated",
+      "mostReviews": "Most Reviews",
+      "hourlyRate": "Hourly Rate",
+      "price": "Price"
+    },
+    "vendor": {
+      "featured": "Featured",
+      "verified": "Verified",
+      "busy": "Busy",
+      "specialties": "Specialties:",
+      "skills": "Skills:",
+      "projects": "projects",
+      "message": "Message",
+      "hireNow": "Hire Now",
+      "unavailable": "Unavailable",
+      "more": "more"
+    },
+    "service": {
+      "featured": "Featured",
+      "orderService": "Order Service"
+    },
+    "empty": {
+      "title": "No {type} found",
+      "description": "Try adjusting your search criteria or check back later."
+    },
+    "categories": {
+      "platformSetup": "Platform Setup",
+      "web3Integration": "Web3 Integration",
+      "security": "Security",
+      "uiUx": "UI/UX"
+    }
+  },
   "home": {
     "hero": {
-      "title": "Welcome to {platform}",
-      "subtitle": "A community platform for innovators in Cherkasy region",
-      "description": "Ring brings together organizations, founders, engineers, and creators. Explore entities in the ecosystem, discover opportunities like jobs, grants, and collaborations, and communicate securely with modern messaging and notifications.",
+      "title": "The World's First Free Self-Modifying AI-Orchestrated Platform",
+      "subtitle": "Deploy a custom platform to solve any collective need in days. No developers required.",
+      "trinityUkraine": "Built by Trinity Ukraine 🇺🇦 - Our gift to the world with gratitude for helping us prove our right to independence",
+      "description": "",
+      "features": [
+        "20+ integrated modules: Entities, Opportunities, Store, Wallet, NFT Market, Staking...",
+        "Works with Firebase, PostgreSQL, or ConnectPlatform backend",
+        "Own RING token economy for opportunity listings, services, AI modifications",
+        "AI agents analyze and notify matches automatically",
+        "Future vision: Platform that writes its own modules per owner's prompt",
+        "Weapon of peace to end technology deficit globally"
+      ],
+      "gitClone": "git clone https://github.com/connectplatform/ring",
+      "gitCloneText": "Clone Ring now, it's free forever:",
       "cta": "Get Started",
       "learnMore": "Learn More"
     },
+  "trinityUkraine": {
+    "title": "Trinity Ukraine - Our Gift to the World",
+    "subtitle": "Built by Trinity Ukraine 🇺🇦 - Our gift to the world with gratitude for helping us prove our right to independence",
+    "mission": "Our Mission",
+    "missionText": "Technology should unite, not divide. Ring enables anyone, anywhere to solve collective needs without expensive developers or vendor lock-in.",
+    "philosophy": "Our Philosophy",
+    "philosophyText": "Ukrainian farmers can deploy the same sophisticated platform as Silicon Valley startups. African artisans access the same AI-powered marketplace as Amazon.",
+    "originStory": "Our Origin Story",
+    "originSubtitle": "How Trinity Ukraine built Ring during Ukraine's struggle for independence",
+    "beginning": "The Beginning",
+    "beginningText": "As Russia invaded Ukraine, we witnessed how technology could be a weapon of oppression. Centralized platforms controlled by foreign entities could be shut down or manipulated. We decided to build something different.",
+    "building": "Building Ring",
+    "buildingText": "Working from basements and cafes during air raids, we developed Ring - a platform that puts power back in the hands of communities. No more vendor lock-in, no more expensive developers, no more centralized control.",
+    "impact": "Global Impact",
+    "impactText": "Ring deployments are helping communities worldwide. From agricultural cooperatives in Ukraine to artisan marketplaces in Kenya, Ring is proving that sophisticated technology can be accessible to everyone.",
+    "globalImpact": "Global Impact",
+    "globalImpactSubtitle": "Ring deployments around the world",
+    "worldMapTitle": "Interactive World Map Coming Soon",
+    "worldMapText": "See Ring deployments, use cases per region, and success metrics from live deployments worldwide.",
+    "futureVision": "Future Vision",
+    "futureQuote": "Imagine asking your Ring platform: 'Add a blockchain-verified certificate system for educational courses' - and watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform. This is our roadmap.",
+    "roadmap2025q2": "AI-powered opportunity matching (✅ Complete)",
+    "roadmap2025q3": "Autonomous module customization (voice/text prompts)",
+    "roadmap2026q1": "Complete autonomous platform evolution",
+    "meetTeam": "Meet the Trinity Ukraine Team",
+    "teamSubtitle": "Photos and bios of Trinity Ukraine founders/developers",
+    "joinMission": "Join Our Mission",
+    "joinMissionText": "Help us democratize technology access worldwide. Whether you're a developer, organization, or community leader - there's a place for you in the Ring ecosystem.",
+    "cloneRing": "Clone Ring Now",
+    "findProjects": "Find Ring Projects"
+  },
     "links": {
       "entities": "Explore Entities",
       "entitiesDescription": "Browse companies, startups, communities, and institutions shaping the ecosystem.",

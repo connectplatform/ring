@@ -318,7 +318,7 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Prevent caching for this route
- * This is important in Next.js 15 as the default caching behavior has changed
+ * Allow caching for user profile data with moderate revalidation for profile updates
  */
-export const dynamic = 'force-dynamic';
+export const dynamic = 'auto'
+export const revalidate = 120 // 2 minutes for profile data

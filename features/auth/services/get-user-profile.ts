@@ -1,116 +1,94 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Get User Profile Service
+ * 
+ * Retrieves user profile from PostgreSQL database
+ * Uses React 19 cache() for request deduplication
+ */
 
-import { AuthUser, UserRole, Wallet, NotificationPreferences, UserSettings } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
-
-import { auth } from '@/auth'; // Auth.js v5 session handler
+import { AuthUser, UserRole, Wallet, NotificationPreferences, UserSettings } from '@/features/auth/types'
+import { cache } from 'react'
+import { auth } from '@/auth'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 /**
- * Retrieve a user's profile from Firestore, with authentication.
+ * Retrieve user profile from PostgreSQL database
  * 
- * User steps:
- * 1. User accesses a page or component that requires their profile
- * 2. Frontend calls this function to fetch the user's profile
- * 3. Function authenticates the user
- * 4. If authenticated, the function retrieves the user's profile from Firestore
- * 
- * @param userId - The ID of the user whose profile to fetch
- * @returns A promise that resolves to the AuthUser object or null if not found.
- * 
- * Error handling:
- * - Throws an error if the user is not authenticated
- * - Returns null if there's an error retrieving the profile from Firestore
+ * @param userId - User ID to fetch
+ * @returns AuthUser object or null if not found
  */
 export async function getUserProfile(userId: string): Promise<AuthUser | null> {
-  console.log('Services: getUserProfile - Starting profile retrieval process');
+  console.log('getUserProfile: Starting for user', userId)
 
   try {
-    // Step 1: Authenticate and get user session
-    const session = await auth();
+    // Authenticate
+    const session = await auth()
     if (!session || !session.user) {
-      throw new Error('Unauthorized access');
+      throw new Error('Unauthorized')
     }
 
-    const { id: sessionUserId, role: sessionUserRole } = session.user;
+    console.log('getUserProfile: Authenticated')
 
-    console.log(`Services: getUserProfile - User authenticated with ID ${sessionUserId} and role ${sessionUserRole}`);
+    // Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // Step 2: Retrieve the user document using optimized firebase-service-manager
-    const phase = getCurrentPhase();
-    const userDoc = await getCachedDocument('userProfiles', userId);
+    // Read user document
+    const result = await db.findById('users', userId)
 
-    if (!userDoc || !userDoc.exists) {
-      console.log(`Services: getUserProfile - User document not found for ID: ${userId}`);
-      return null;
+    if (!result.success || !result.data) {
+      console.log('getUserProfile: User not found')
+      return null
     }
 
-    const userData = userDoc.data();
+    const userData = result.data as any
+    const data = userData.data || userData
 
-    if (!userData) {
-      console.log(`Services: getUserProfile - User data is empty for ID: ${userId}`);
-      return null;
-    }
-
-    // Step 4: Extract and return the user profile
+    // Build AuthUser object
     const userProfile: AuthUser = {
       id: userId,
-      email: userData.email,
-      emailVerified: userData.emailVerified ? new Date(userData.emailVerified) : null,
-      name: userData.name || null,
-      role: userData.role as UserRole,
-      photoURL: userData.photoURL || null,
-      wallets: (userData.wallets || []) as Wallet[],
-      authProvider: userData.authProvider,
-      authProviderId: userData.authProviderId,
-      isVerified: userData.isVerified,
-      createdAt: new Date(userData.createdAt),
-      lastLogin: new Date(userData.lastLogin),
-      bio: userData.bio || undefined,
-      canPostconfidentialOpportunities: userData.canPostconfidentialOpportunities,
-      canViewconfidentialOpportunities: userData.canViewconfidentialOpportunities,
-      postedopportunities: userData.postedopportunities || [],
-      savedopportunities: userData.savedopportunities || [],
-      nonce: userData.nonce,
-      nonceExpires: userData.nonceExpires,
-      notificationPreferences: userData.notificationPreferences as NotificationPreferences || {
+      globalUserId: data.global_user_id || userId,
+      email: data.email,
+      emailVerified: data.emailVerified ? new Date(data.emailVerified) : null,
+      name: data.name || null,
+      role: data.role as UserRole,
+      photoURL: data.photoURL || null,
+      wallets: (data.wallets || []) as Wallet[],
+      authProvider: data.authProvider,
+      authProviderId: data.authProviderId,
+      isVerified: data.isVerified || false,
+      createdAt: new Date(data.createdAt || Date.now()),
+      lastLogin: new Date(data.lastLogin || Date.now()),
+      accountStatus: (data.account_status as 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED') || 'ACTIVE',
+      bio: data.bio || undefined,
+      canPostconfidentialOpportunities: data.canPostconfidentialOpportunities || false,
+      canViewconfidentialOpportunities: data.canViewconfidentialOpportunities || false,
+      postedopportunities: data.postedopportunities || [],
+      savedopportunities: data.savedopportunities || [],
+      nonce: data.nonce,
+      nonceExpires: data.nonceExpires,
+      notificationPreferences: data.notificationPreferences as NotificationPreferences || {
         email: true,
         inApp: true,
         sms: false,
       },
-      settings: userData.settings as UserSettings || {
+      settings: data.settings as UserSettings || {
         language: 'en',
-        theme: 'light',
-        notifications: false,
+        theme: 'system',
+        notifications: true,
         notificationPreferences: {
           email: true,
           inApp: true,
           sms: false,
         },
       },
-    };
+    }
 
-    console.log('Services: getUserProfile - Profile retrieved successfully for user:', userId);
-    return userProfile;
+    console.log('getUserProfile: Success')
+    return userProfile
 
   } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: getUserProfile - Firebase error:', error.code, error.message);
-    } else {
-      console.error('Services: getUserProfile - Error retrieving profile:', error);
-    }
-    return null; // Indicate failure by returning null
+    console.error('getUserProfile: Error:', error)
+    return null
   }
 }
 

@@ -2,7 +2,7 @@ import React from 'react'
 import { NotificationProvider } from '@/features/notifications/components/notification-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
-import Navigation from '@/features/layout/components/navigation'
+import Navigation from '@/components/navigation/navigation'
 import Footer from '@/features/layout/components/footer'
 import { routing } from '@/i18n-config'
 import { notFound } from 'next/navigation'
@@ -28,12 +28,13 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const messages = await buildMessages(locale)
   
   return (
-    <I18nProvider locale={locale} messages={messages}>
+    <I18nProvider locale={locale} messages={messages} key={`i18n-${locale}`}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <NotificationProvider>
           <div className="flex flex-col min-h-screen">
-            <Navigation />
+            <Navigation key={`nav-${locale}`} />
             <main className="flex-grow">{children}</main>
+            <Footer key={`footer-${locale}`} />
           </div>
         </NotificationProvider>
       </ThemeProvider>

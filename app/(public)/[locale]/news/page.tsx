@@ -1,41 +1,139 @@
 import React from 'react';
 import { Metadata } from 'next';
+import Link from 'next/link';
 import { NewsList } from '@/features/news/components/news-list';
-import { getCachedNewsCollection, getCachedNewsCategoriesCollection } from '@/lib/services/firebase-service-manager';
-import { NewsArticle, NewsCategoryInfo } from '@/features/news/types';
+import { FeaturedCarousel } from '@/features/news/components/featured-carousel';
+import NewsPageWrapper from '@/components/wrappers/news-page-wrapper';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types';
 import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config';
 import { getSEOMetadata } from '@/lib/seo-metadata';
+import { Rss } from 'lucide-react';
+
+const categoryInfo: Record<NewsCategory, { name: string; description: string; color: string; icon: string; articleCount: number }> = {
+  'platform-updates': {
+    name: 'Platform Updates',
+    description: 'Latest updates, features, and improvements to Ring Platform',
+    color: 'bg-blue-500',
+    icon: '🚀',
+    articleCount: 0
+  },
+  'partnerships': {
+    name: 'Partnerships',
+    description: 'Collaborations, integrations, and partnership announcements',
+    color: 'bg-green-500',
+    icon: '🤝',
+    articleCount: 0
+  },
+  'community': {
+    name: 'Community',
+    description: 'Community highlights, events, and member stories',
+    color: 'bg-purple-500',
+    icon: '👥',
+    articleCount: 0
+  },
+  'industry-news': {
+    name: 'Industry News',
+    description: 'Web3, blockchain, and decentralized technology news',
+    color: 'bg-orange-500',
+    icon: '📰',
+    articleCount: 0
+  },
+  'events': {
+    name: 'Events',
+    description: 'Upcoming events, webinars, and community gatherings',
+    color: 'bg-pink-500',
+    icon: '📅',
+    articleCount: 0
+  },
+  'announcements': {
+    name: 'Announcements',
+    description: 'Important announcements and platform communications',
+    color: 'bg-yellow-500',
+    icon: '📢',
+    articleCount: 0
+  },
+  'press-releases': {
+    name: 'Press Releases',
+    description: 'Official press releases and media communications',
+    color: 'bg-indigo-500',
+    icon: '📄',
+    articleCount: 0
+  },
+  'tutorials': {
+    name: 'Tutorials',
+    description: 'How-to guides, tutorials, and educational content',
+    color: 'bg-teal-500',
+    icon: '📚',
+    articleCount: 0
+  },
+  'other': {
+    name: 'Other',
+    description: 'Miscellaneous articles and content',
+    color: 'bg-gray-500',
+    icon: '📝',
+    articleCount: 0
+  }
+}
 
 type NewsParams = {};
 
-export const dynamic = 'force-dynamic';
+// Allow caching for better performance - news listings can be cached with periodic refresh
+export const dynamic = "auto"
+export const revalidate = 300 // 5 minutes for news content
 
+/**
+ * Get initial news articles
+ * Server Component - native async/await (React 19 pattern)
+ */
 async function getInitialNews(): Promise<NewsArticle[]> {
   try {
-    const snapshot = await getCachedNewsCollection({
-      where: [
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const result = await db.query({
+      collection: 'news',
+      filters: [
         { field: 'status', operator: '==', value: 'published' },
         { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
-      limit: 12
+      pagination: { limit: 12 }
     });
     
-    return snapshot.docs.map(doc => doc.data());
+    if (!result.success) {
+      console.error('Error fetching news:', result.error)
+      return []
+    }
+    
+    return result.data as any[] as NewsArticle[];
   } catch (error) {
     console.error('Error fetching initial news:', error);
     return [];
   }
 }
 
+/**
+ * Get news categories
+ * Server Component - native async/await (React 19 pattern)
+ */
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
-    const snapshot = await getCachedNewsCategoriesCollection({
-      orderBy: { field: 'name', direction: 'asc' }
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const result = await db.query({
+      collection: 'newsCategories',
+      orderBy: [{ field: 'name', direction: 'asc' }]
     });
     
-    return snapshot.docs.map(doc => doc.data());
+    if (!result.success) {
+      console.error('Error fetching categories:', result.error)
+      return []
+    }
+    
+    return result.data as any[] as NewsCategoryInfo[];
   } catch (error) {
     console.error('Error fetching news categories:', error);
     return [];
@@ -109,77 +207,51 @@ export default async function NewsPage(props: LocalePageProps<NewsParams>) {
       <meta name="robots" content="index, follow" />
       <meta name="author" content="Ring Platform" />
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4">
-            {translations.news?.title || 'News & Updates'}
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-3xl">
-            {translations.news?.description || 'Stay informed with the latest news, platform updates, partnership announcements, and community highlights from Ring Platform.'}
-          </p>
-        </div>
-
-        {/* Featured Articles Section */}
-        {initialArticles.some(article => article.featured) && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-6">
-              {translations.news?.featuredStories || 'Featured Stories'}
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {initialArticles
-                .filter(article => article.featured)
-                .slice(0, 2)
-                .map((article) => (
-                  <div key={article.id} className="lg:col-span-1">
-                    <div className="bg-card rounded-lg border p-6 hover:shadow-lg transition-shadow">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          {translations.news?.featured || 'Featured'}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {article.category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                      </div>
-                      <h3 className="text-xl font-semibold mb-2 line-clamp-2">
-                        {article.title}
-                      </h3>
-                      <p className="text-muted-foreground mb-4 line-clamp-3">
-                        {article.excerpt}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          {translations.news?.byAuthor || 'By'} {article.authorName}
-                        </span>
-                        <a 
-                          href={`/${locale}/news/${article.slug}`}
-                          className="text-primary hover:underline font-medium"
-                        >
-                          {translations.news?.readMore || 'Read more'} →
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+      {/* Perfect 3-Column Responsive Layout Wrapper */}
+      <NewsPageWrapper 
+        locale={locale}
+        categoryInfo={categoryInfo}
+        translations={translations}
+      >
+        {/* Content Header */}
+        <div className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm mb-8">
+          <div className="container mx-auto px-6 py-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                {translations.news?.title || 'News & Updates'}
+              </h1>
+              <p className="text-xl text-muted-foreground max-w-3xl">
+                {translations.news?.description || 'Stay informed with the latest news, platform updates, partnership announcements, and community highlights from Ring Platform.'}
+              </p>
             </div>
           </div>
-        )}
-
-        {/* All Articles */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-6">
-            {translations.news?.allArticles || 'All Articles'}
-          </h2>
-          <NewsList 
-            initialArticles={initialArticles}
-            categories={categories}
-            showFilters={true}
-            showSearch={true}
-            limit={12}
-            locale={locale}
-          />
         </div>
-      </div>
+
+        {/* Main Content */}
+        <div className="container mx-auto px-6 max-w-5xl">
+          {/* Featured Articles Carousel */}
+          <FeaturedCarousel
+            articles={initialArticles}
+            locale={locale}
+            translations={translations}
+          />
+
+          {/* All Articles */}
+          <div className="mt-12">
+            <h2 className="text-2xl font-semibold mb-6">
+              {translations.news?.allArticles || 'All Articles'}
+            </h2>
+            <NewsList
+              initialArticles={initialArticles}
+              categories={categories}
+              showFilters={true}
+              showSearch={true}
+              limit={12}
+              locale={locale}
+            />
+          </div>
+        </div>
+      </NewsPageWrapper>
     </>
   );
 } 

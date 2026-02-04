@@ -1,0 +1,210 @@
+# =============================================================================
+# Ring Platform - Production Docker Image Template
+# =============================================================================
+# Multi-stage build for Next.js 15 + React 19 professional networking platform
+#
+# USAGE: Copy this file to Dockerfile and customize for your Ring clone
+#
+# Replace the following placeholders:
+# - YOUR_CLONE_NAME: Your Ring clone name (e.g., greenfood, wellness)
+# - YOUR_DOMAIN: Your production domain (e.g., app.greenfood.live)
+# - YOUR_EMAIL: Your contact email
+#
+# =============================================================================
+#
+# BUILD COMMAND EXAMPLE:
+# docker build \
+#   --platform linux/amd64 \
+#   --build-arg AUTH_SECRET="your-auth-secret" \
+#   --build-arg NEXT_PUBLIC_AUTH_GOOGLE_ID="your-client-id" \
+#   --build-arg DB_HOST="postgres.your-namespace.svc.cluster.local" \
+#   --build-arg DB_PORT="5432" \
+#   --build-arg DB_NAME="ring_YOUR_CLONE_NAME" \
+#   --build-arg DB_USER="ring_user" \
+#   --build-arg NEXT_PUBLIC_APP_URL="https://YOUR_DOMAIN" \
+#   --build-arg NEXT_PUBLIC_API_URL="https://YOUR_DOMAIN" \
+#   -t ghcr.io/YOUR_ORG/ring:v1.0.0-YOUR_CLONE_NAME-amd64 .
+#
+# =============================================================================
+# CRITICAL: Sensitive secrets are injected at RUNTIME via Kubernetes secrets!
+# =============================================================================
+
+# Build Stage
+FROM node:22-alpine AS builder
+
+LABEL maintainer="Ring Platform <YOUR_EMAIL>"
+LABEL version="1.0.0"
+LABEL description="Ring Platform - YOUR_CLONE_NAME Clone"
+
+# Build arguments
+ARG NODE_ENV=production
+ARG NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN
+ARG NEXT_PUBLIC_API_URL=https://YOUR_DOMAIN
+ARG NEXTAUTH_URL=https://YOUR_DOMAIN
+
+# =============================================================================
+# Authentication Configuration
+# =============================================================================
+ARG AUTH_SECRET
+ARG NEXT_PUBLIC_AUTH_GOOGLE_ID
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+# =============================================================================
+# Firebase Client SDK (public, safe to bake into build)
+# =============================================================================
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ARG NEXT_PUBLIC_FIREBASE_API_KEY
+ARG NEXT_PUBLIC_FIREBASE_APP_ID
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ARG NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ARG NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+ARG NEXT_PUBLIC_FIREBASE_VAPID_KEY
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+ARG DB_BACKEND_MODE=k8s-postgres-fcm
+ARG DB_HOST
+ARG DB_PORT=5432
+ARG DB_NAME=ring_YOUR_CLONE_NAME
+ARG DB_USER=ring_user
+ARG DB_POOL_SIZE=20
+ARG DB_TIMEOUT=30000
+ARG DB_RETRIES=3
+ARG DB_SSL=false
+
+# =============================================================================
+# Payment & Commerce
+# =============================================================================
+ARG WAYFORPAY_MERCHANT_ACCOUNT
+ARG WAYFORPAY_DOMAIN
+
+# =============================================================================
+# AI/LLM Configuration
+# =============================================================================
+ARG LLM_PROVIDER=openai
+
+# =============================================================================
+# Web3 Configuration
+# =============================================================================
+ARG POLYGON_RPC_URL=https://polygon-rpc.com
+
+# Set environment variables
+ENV NODE_ENV=${NODE_ENV}
+ENV NEXT_TELEMETRY_DISABLED=${NEXT_TELEMETRY_DISABLED}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXTAUTH_URL=${NEXTAUTH_URL}
+ENV AUTH_SECRET=${AUTH_SECRET}
+ENV NEXT_PUBLIC_AUTH_GOOGLE_ID=${NEXT_PUBLIC_AUTH_GOOGLE_ID}
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+ENV NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+ENV NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+ENV NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+ENV NEXT_PUBLIC_FIREBASE_VAPID_KEY=${NEXT_PUBLIC_FIREBASE_VAPID_KEY}
+ENV DB_BACKEND_MODE=${DB_BACKEND_MODE}
+ENV DB_HOST=${DB_HOST}
+ENV DB_PORT=${DB_PORT}
+ENV DB_NAME=${DB_NAME}
+ENV DB_USER=${DB_USER}
+ENV DB_POOL_SIZE=${DB_POOL_SIZE}
+ENV DB_TIMEOUT=${DB_TIMEOUT}
+ENV DB_RETRIES=${DB_RETRIES}
+ENV DB_SSL=${DB_SSL}
+ENV WAYFORPAY_MERCHANT_ACCOUNT=${WAYFORPAY_MERCHANT_ACCOUNT}
+ENV WAYFORPAY_DOMAIN=${WAYFORPAY_DOMAIN}
+ENV LLM_PROVIDER=${LLM_PROVIDER}
+ENV POLYGON_RPC_URL=${POLYGON_RPC_URL}
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Install system dependencies
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    git \
+    && corepack enable \
+    && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy package files for better Docker layer caching
+COPY package*.json ./
+COPY pnpm-lock.yaml* ./
+
+# Install dependencies
+RUN if [ -f pnpm-lock.yaml ]; then \
+        pnpm install --frozen-lockfile --production=false; \
+    else \
+        npm ci --include=dev --legacy-peer-deps; \
+    fi
+
+# Copy source code
+COPY . .
+
+# Copy environment template
+COPY env.local.template .env.local.template
+
+# Build the application
+RUN npm run build
+
+# =============================================================================
+# Runtime Stage
+# =============================================================================
+FROM node:22-alpine AS runtime
+
+LABEL maintainer="Ring Platform <YOUR_EMAIL>"
+LABEL version="1.0.0"
+LABEL description="Ring Platform Runtime - YOUR_CLONE_NAME Clone"
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    libc6-compat \
+    dumb-init \
+    curl \
+    && addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+WORKDIR /app
+
+# Copy built application from builder stage
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json* ./
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
+COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
+
+# Install production dependencies
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
+
+# Create necessary directories
+RUN mkdir -p /app/log /app/tmp && \
+    chown -R nextjs:nodejs /app/log /app/tmp
+
+USER nextjs
+
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/api/health || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "server.js"]

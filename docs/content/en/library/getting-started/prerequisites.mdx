@@ -1,0 +1,542 @@
+---
+title: Prerequisites
+description: Complete prerequisites and setup requirements for Ring Platform development and deployment
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Prerequisites
+
+This comprehensive guide covers all requirements for setting up Ring Platform for development and production deployment. Ring Platform is built with modern web technologies and requires specific system configurations for optimal performance.
+
+<Callout type="info" title="⏱️ Estimated Setup Time">
+**15-30 minutes** for complete setup, depending on your experience level and internet connection.
+</Callout>
+
+## 🖥️ System Requirements
+
+### Minimum Hardware Requirements
+
+| Component | Development | Production |
+|-----------|-------------|------------|
+| **CPU** | 4 cores (Intel i5/AMD Ryzen 5) | 8+ cores (Intel i7/AMD Ryzen 7) |
+| **RAM** | 8GB | 16GB+ |
+| **Storage** | 10GB free space | 50GB+ SSD |
+| **Network** | 10 Mbps | 100 Mbps+ |
+
+### Supported Operating Systems
+
+- **macOS**: 12.0+ (Monterey or later)
+- **Linux**: Ubuntu 20.04+, CentOS 8+, Debian 11+
+- **Windows**: 10/11 with WSL2 (Windows Subsystem for Linux)
+- **Docker**: For containerized development and deployment
+
+<Callout type="warning" title="Windows Users">
+While Ring Platform works on Windows with WSL2, we recommend using Linux or macOS for the best development experience. Some features may have limited Windows support.
+</Callout>
+
+## 🟢 Node.js & Package Management
+
+### Required Versions
+
+Ring Platform requires **Node.js 18.17+** and **npm 8.19+** (or equivalent package managers).
+
+Check current versions
+
+<Code language="bash" title="terminal">
+{`node --version    # Should show v18.17.0 or higher
+npm --version     # Should show 8.19.0 or higher`}
+</Code>
+
+### Recommended Setup
+
+#### Option 1: Node Version Manager (Recommended)
+
+**macOS/Linux with nvm:**
+
+Install nvm:
+
+<Code language="bash" title="terminal">
+{`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash`}
+</Code>
+
+Restart terminal or run:
+
+<Code language="bash" title="terminal">
+{`source ~/.bashrc`}
+</Code>
+
+Install and use Node.js 18:
+
+<Code language="bash" title="terminal">
+{`nvm install 18
+nvm use 18
+nvm alias default 18`}
+</Code>
+
+**Windows with nvm-windows:**
+
+Download and install from https://github.com/coreybutler/nvm-windows/releases
+
+Then install Node.js 18:
+
+<Code language="powershell" title="terminal">
+{`nvm install 18
+nvm use 18`}
+</Code>
+
+#### Option 2: Official Installers
+
+Download from [nodejs.org](https://nodejs.org/) and install Node.js 18 LTS.
+
+#### Option 3: Package Managers
+
+**macOS with Homebrew:**
+<Code language="bash" title="terminal">
+{`brew install node@18
+brew link node@18`}
+</Code>
+
+**Ubuntu/Debian:**
+<Code language="bash" title="terminal">
+{`curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs`}
+</Code>
+
+### Package Manager Configuration
+
+Configure npm for better performance Optional: Use yarn for faster installs
+
+<Code language="bash" title="terminal">
+{`npm config set fund false
+npm config set audit false
+
+npm install -g yarn`}
+</Code>
+
+## 🗄️ Database Setup
+
+Ring Platform supports multiple database backends with **PostgreSQL as the primary recommendation**.
+
+### Option 1: PostgreSQL (Recommended for Production)
+
+#### Local Development Setup
+
+**macOS with Homebrew:**
+Create database
+
+<Code language="bash" title="terminal">
+{`brew install postgresql@15
+brew services start postgresql@15
+
+createdb ring_platform`}
+</Code>
+
+**Ubuntu/Debian:**
+Start service Create database
+
+<Code language="bash" title="terminal">
+{`sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+sudo -u postgres createdb ring_platform`}
+</Code>
+
+**Docker (Cross-platform):**
+Run PostgreSQL in Docker:
+
+For persistent data:
+
+<Code language="bash" title="terminal">
+{`docker run --name ring-postgres \
+  -e POSTGRES_DB=ring_platform \
+  -e POSTGRES_USER=ring_user \
+  -e POSTGRES_PASSWORD=your_password \
+  -p 5432:5432 \
+  -d postgres:15
+
+docker run --name ring-postgres \
+  -e POSTGRES_DB=ring_platform \
+  -e POSTGRES_USER=ring_user \
+  -e POSTGRES_PASSWORD=your_password \
+  -v ring_data:/var/lib/postgresql/data \
+  -p 5432:5432 \
+  -d postgres:15`}
+</Code>
+
+#### Cloud PostgreSQL Options
+
+- **Supabase**: Managed PostgreSQL with real-time features
+- **Neon**: Serverless PostgreSQL
+- **AWS RDS**: Enterprise PostgreSQL hosting
+- **Google Cloud SQL**: Managed PostgreSQL service
+- **Azure Database**: Microsoft PostgreSQL offering
+
+### Option 2: Firebase (Development/Legacy)
+
+While Firebase is still supported for compatibility, **PostgreSQL is strongly recommended** for new deployments.
+
+<Code language="bash" title="terminal">
+{`# Firebase setup will be covered in environment configuration`}
+</Code>
+
+## 🔐 Authentication Providers
+
+Ring Platform uses **Auth.js v5** with multiple OAuth providers for secure authentication.
+
+### Google OAuth Setup
+
+1. **Create Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+
+2. **Enable Google+ API**
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Google+ API" and enable it
+
+3. **Create OAuth Credentials**
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
+   - Choose "Web application"
+   - Add authorized origins:
+     - `http://localhost:3000` (development)
+     - `https://yourdomain.com` (production)
+   - Add authorized redirect URIs:
+     - `http://localhost:3000/api/auth/callback/google`
+     - `https://yourdomain.com/api/auth/callback/google`
+
+4. **Get Client ID and Secret**
+   - Copy the Client ID and Client Secret
+
+### Apple Sign-in Setup (Optional)
+
+Required for iOS app integration:
+
+1. **Apple Developer Account**
+   - Paid developer account ($99/year)
+   - Access to [Apple Developer Portal](https://developer.apple.com/)
+
+2. **Create App ID**
+   - Certificates, Identifiers & Profiles > Identifiers
+   - Create new App ID with Sign in with Apple capability
+
+3. **Create Service ID**
+   - Create Services ID for web authentication
+   - Configure return URLs for your domain
+
+4. **Generate Private Key**
+   - Create new key with Sign in with Apple capability
+   - Download the `.p8` file (keep secure!)
+
+### Additional OAuth Providers (Optional)
+
+- **GitHub**: Developer-focused authentication
+- **Discord**: Community platform integration
+- **Twitter/X**: Social media authentication
+
+## 🔑 Web3 Wallet Integration
+
+For blockchain features including NFT marketplace and RING token operations.
+
+### MetaMask Setup
+
+Install MetaMask browser extension:
+
+Visit: https://metamask.io/download/
+
+Or install via package manager:
+
+**macOS/Linux:**
+
+Download from official website
+
+<Code language="bash" title="terminal">
+{`brew install --cask metamask`}
+</Code>
+
+### Wallet Encryption Key
+
+Generate a secure encryption key for wallet operations:
+
+Generate 256-bit (32-byte) hex key Example output: a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef
+
+<Code language="bash" title="terminal">
+{`openssl rand -hex 32`}
+</Code>
+
+## 💰 Payment Integration (WayForPay)
+
+Required for store checkout and premium features.
+
+### WayForPay Account Setup
+
+1. **Create Merchant Account**
+   - Visit [WayForPay](https://wayforpay.com/)
+   - Register as a merchant
+   - Complete KYC verification
+
+2. **Get API Credentials**
+   - Login to merchant dashboard
+   - Navigate to API settings
+   - Copy Merchant Account and Secret Key
+
+3. **Configure Payment Methods**
+   - Enable card payments
+   - Configure Apple Pay / Google Pay
+   - Set up currency support (UAH, USD, EUR)
+
+## 🛠️ Development Tools
+
+### Essential Tools
+
+Install Git (if not already installed):
+
+Install development dependencies:
+
+Optional: Install VS Code extensions:
+- TypeScript and JavaScript Language Features
+- Tailwind CSS IntelliSense
+- Prettier - Code formatter
+- ESLint
+
+<Code language="bash" title="terminal">
+{`git --version
+
+npm install -g typescript @types/node`}
+</Code>
+
+### Recommended IDE Setup
+
+**Visual Studio Code** with these extensions:
+- `ms-vscode.vscode-typescript-next`
+- `bradlc.vscode-tailwindcss`
+- `esbenp.prettier-vscode`
+- `dbaeumer.vscode-eslint`
+- `ms-vscode.vscode-json`
+
+### Environment File Template
+
+Create `.env.local` from the provided template:
+
+<Code language="bash" title="terminal">
+{`# cp .env.local.template .env.local`}
+</Code>
+
+## 🌐 Network Requirements
+
+### Development
+- **Internet Connection**: Required for package installation and OAuth testing
+- **Local Ports**: 3000 (Next.js), 5432 (PostgreSQL)
+- **Firewall**: Allow outbound HTTPS connections
+
+### Production
+- **SSL Certificate**: Required for HTTPS (Let's Encrypt recommended)
+- **Domain**: Custom domain recommended
+- **CDN**: Optional but recommended for static assets
+- **WebSocket Support**: Required for real-time features
+
+## 🔒 Security Considerations
+
+### Environment Variables
+
+Never commit sensitive data to version control:
+
+.env.local (development - keep local) .env.production (production - set via deployment platform) Same variables but with production values
+
+<Code language="bash" title="terminal">
+{`AUTH_SECRET=your-auth-secret
+AUTH_GOOGLE_ID=your-google-client-id
+AUTH_GOOGLE_SECRET=your-google-client-secret
+WALLET_ENCRYPTION_KEY=your-32-byte-hex-key`}
+</Code>
+
+### File Permissions
+
+Secure environment files Secure private keys
+
+<Code language="bash" title="terminal">
+{`chmod 600 .env.local
+chmod 600 .env.production
+
+chmod 400 path/to/private-key.pem`}
+</Code>
+
+## 🧪 Validation Checklist
+
+Run these commands to verify your setup:
+
+<Steps>
+<Step>
+
+### System Validation
+
+Check Node.js and npm:
+
+Check system resources:
+
+Check network connectivity:
+
+<Code language="bash" title="terminal">
+{`node --version        # v18.17.0+
+npm --version         # 8.19.0+
+
+df -h                 # Disk space
+free -h              # Memory (Linux)
+vm_stat              # Memory (macOS)
+
+curl -I https://registry.npmjs.org/`}
+</Code>
+
+</Step>
+
+<Step>
+
+### Database Validation
+
+**PostgreSQL:**
+Test connection Or with Docker
+
+<Code language="bash" title="terminal">
+{`psql -h localhost -U ring_user -d ring_platform -c "SELECT version();"
+
+docker exec -it ring-postgres psql -U ring_user -d ring_platform -c "SELECT 1;"`}
+</Code>
+
+**Firebase (if using):**
+Check Firebase CLI:
+
+Login to Firebase:
+
+<Code language="bash" title="terminal">
+{`firebase --version
+
+firebase login`}
+</Code>
+
+</Step>
+
+<Step>
+
+### OAuth Validation
+
+Test Google OAuth credentials format:
+
+Test Apple credentials (if using):
+
+Validate URLs are accessible:
+
+<Code language="bash" title="terminal">
+{`echo $AUTH_GOOGLE_ID | grep -E "^[0-9]+\-[a-zA-Z0-9_]+\.apps\.googleusercontent\.com$"
+
+echo $AUTH_APPLE_ID | grep -E "^com\."
+
+curl -s -o /dev/null -w "%{http_code}" https://accounts.google.com`}
+</Code>
+
+</Step>
+
+<Step>
+
+### Web3 Validation
+
+Check wallet encryption key format:
+
+Test MetaMask installation (manual):
+
+Open browser and check for MetaMask extension:
+
+<Code language="bash" title="terminal">
+{`echo $WALLET_ENCRYPTION_KEY | grep -E "^[a-f0-9]{64}$"`}
+</Code>
+
+</Step>
+</Steps>
+
+## 🐛 Troubleshooting Common Issues
+
+### Node.js Version Issues
+
+If you see "Node.js version not supported":
+
+<Code language="bash" title="terminal">
+{`nvm install 18
+nvm use 18
+
+# Clear npm cache
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install`}
+</Code>
+
+### Database Connection Issues
+
+**PostgreSQL:**
+Check if PostgreSQL is running:
+
+Reset PostgreSQL password:
+
+<Code language="bash" title="terminal">
+{`sudo systemctl status postgresql  # Linux
+brew services list | grep postgresql  # macOS
+
+sudo -u postgres psql
+ALTER USER ring_user PASSWORD 'new_password';`}
+</Code>
+
+**Firebase:**
+Re-authenticate Firebase Check project access
+
+<Code language="bash" title="terminal">
+{`firebase logout
+firebase login
+
+firebase projects:list`}
+</Code>
+
+### OAuth Configuration Issues
+
+<Code language="bash" title="terminal">
+{`# Google OAuth errors
+# 1. Check authorized origins include your domain
+# 2. Verify redirect URIs match exactly
+# 3. Ensure Google+ API is enabled
+
+# Apple Sign-in errors
+# 1. Verify App ID and Service ID match
+# 2. Check private key format and permissions
+# 3. Validate return URLs in Apple Developer portal`}
+</Code>
+
+### Network and Firewall Issues
+
+Test connectivity to required services Check DNS resolution Test on different network if issues persist
+
+<Code language="bash" title="terminal">
+{`curl -I https://accounts.google.com
+curl -I https://api.github.com
+curl -I https://registry.npmjs.org/
+
+nslookup accounts.google.com`}
+</Code>
+
+## 📚 Next Steps
+
+Once all prerequisites are met:
+
+1. **[Installation Guide](/en/library/getting-started/installation)** - Clone and set up the project
+2. **[Environment Configuration](/en/library/getting-started/installation#3-configure-environment)** - Complete your `.env.local` setup
+3. **[First Success Validation](/en/library/getting-started/first-success)** - Test your installation
+4. **[Development Workflow](/en/library/development/workflow)** - Start contributing
+
+<Callout type="success" title="✅ Ready to Proceed">
+If all validations pass, you're ready to install Ring Platform! Head to the [Installation Guide](/en/library/getting-started/installation) to get started.
+</Callout>
+
+---
+
+*Need help with setup? Join our [Discord Community](https://discord.gg/ring-platform) for support.*

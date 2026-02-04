@@ -104,6 +104,11 @@ export interface IDatabaseService {
     id: string
   ): Promise<DatabaseResult<DatabaseDocument<T> | null>>;
 
+  readAll<T = DocumentData>(
+    collection: string,
+    options?: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy }
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>>;
+
   update<T = DocumentData>(
     collection: string,
     id: string,
@@ -120,6 +125,18 @@ export interface IDatabaseService {
   query<T = DocumentData>(
     query: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>>;
+
+  findByField<T = DocumentData>(
+    collection: string,
+    field: string,
+    value: any,
+    options?: { limit?: number; orderBy?: DatabaseOrderBy }
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>>;
+
+  exists(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<boolean>>;
 
   count(
     collection: string,

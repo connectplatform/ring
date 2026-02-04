@@ -44,7 +44,7 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
       <NotificationProvider>
         <div className="flex flex-col min-h-screen">
           <Navigation />
-          <main className="flex-grow pt-16">{children}</main>
+          <main className="flex-grow pt-0">{children}</main>
         </div>
       </NotificationProvider>
     </I18nProvider>

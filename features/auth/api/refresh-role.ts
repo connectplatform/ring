@@ -1,8 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { auth } from '@/auth'
 
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
-import { app } from '@/lib/firebase-client'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -16,14 +15,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const db = getFirestore(app)
-    const userDoc = await getDoc(doc(db, 'users', session.user.id))
-
-    if (!userDoc.exists()) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const result = await db.findById('users', session.user.id)
+    if (!result.success) {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const userData = userDoc.data()
+    const userData = result.data.data
     return res.status(200).json({ role: userData.role })
   } catch (error) {
     console.error('Error refreshing user role:', error)

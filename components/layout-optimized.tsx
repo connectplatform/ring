@@ -12,7 +12,7 @@ import StaticDataServer, { PlatformAnnouncements, FeatureHighlights } from '@/co
 import { AppErrorBoundary } from '@/components/error-boundaries/app-error-boundary'
 
 // Dynamically import client components for better performance
-const Navigation = dynamic(() => import('@/features/layout/components/navigation'), {
+const Navigation = dynamic(() => import('@/components/navigation/navigation'), {
   ssr: false
 })
 

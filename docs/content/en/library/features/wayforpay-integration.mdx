@@ -1,0 +1,874 @@
+---
+title: WayForPay Payment Integration
+description: Complete guide to WayForPay integration for membership upgrades and revenue generation
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+import { Card } from '@/components/ui/card'
+
+# WayForPay Payment Integration
+
+<Callout type="success">
+  **Membership Revenue Engine** - Complete PCI-DSS compliant payment system for SUBSCRIBER→MEMBER upgrades with automatic role management and webhook processing.
+</Callout>
+
+Ring Platform integrates **WayForPay** payment gateway to enable secure membership upgrades, providing automatic role elevation from SUBSCRIBER to MEMBER status upon successful payment.
+
+## Overview
+
+### What is WayForPay?
+
+WayForPay is a leading Ukrainian payment gateway supporting:
+- 💳 Bank cards (Visa, MasterCard)
+- 📱 Digital wallets (Apple Pay, Google Pay)
+- 🏦 Ukrainian banking (Privat24, LiqPay)
+- 📅 Installment plans (PayParts, instant installments)
+- 💱 Multi-currency support (UAH, USD, EUR)
+
+### Payment Architecture
+
+<Mermaid>
+{`sequenceDiagram
+    participant U as User
+    participant P as Payment Modal
+    participant S as Server Action
+    participant W as WayForPay
+    participant WH as Webhook
+    participant DB as Database
+
+    U->>P: Click "Upgrade to MEMBER"
+    P->>S: initiateMembershipPayment()
+    S->>S: Generate HMAC-MD5 signature
+    S->>W: Create payment session
+    W-->>S: Return payment URL
+    S-->>P: Return payment URL
+    P->>W: Redirect user to WayForPay
+    U->>W: Enter payment details (₴299 UAH)
+    W->>W: Process payment
+    W->>WH: POST /api/payments/wayforpay/webhook
+    WH->>WH: Verify HMAC signature
+    WH->>DB: upgradeUserRole()
+    DB->>DB: SUBSCRIBER → MEMBER
+    WH-->>W: Return signed acknowledgment
+    W->>U: Redirect to success page
+    U->>P: View success confirmation`}
+</Mermaid>
+
+## Configuration
+
+### Environment Variables
+
+<Callout type="warning">
+  **Security Critical**: Never expose `WAYFORPAY_SECRET_KEY` to client-side code. All signature generation must happen server-side.
+</Callout>
+
+Add to your `.env.local`:
+
+WayForPay Payment Integration Application URL (for callbacks)
+
+<Code language="env" title="configuration">
+{`WAYFORPAY_MERCHANT_ACCOUNT=your_wayforpay_merchant_account
+WAYFORPAY_SECRET_KEY=your_wayforpay_secret_key
+WAYFORPAY_DOMAIN=your_domain.com
+
+NEXTAUTH_URL=https://your-domain.com`}
+</Code>
+
+### Getting Credentials
+
+<Steps>
+  <Step>
+    **Create WayForPay Account**
+
+    1. Visit [wayforpay.com](https://wayforpay.com/en/account/api)
+    2. Register as merchant
+    3. Complete KYC verification
+    4. Navigate to Settings → API
+    5. Copy merchant account and secret key
+  </Step>
+
+  <Step>
+    **Configure Webhook URL**
+
+    In WayForPay dashboard:
+    - Service URL: `https://your-domain.com/api/payments/wayforpay/webhook`
+    - Must be HTTPS
+    - Must be publicly accessible
+  </Step>
+
+  <Step>
+    **Test with Sandbox**
+
+    Use test credentials for development:
+    <Code language="env" title="WAYFORPAY_MERCHANT_ACCOUNT=test_merch_n1">
+{`WAYFORPAY_SECRET_KEY=test_secret_key`}
+</Code>
+  </Step>
+</Steps>
+
+## Implementation
+
+### Service Layer
+
+The WayForPay service (`lib/payments/wayforpay-service.ts`) provides three core functions:
+
+#### 1. Payment Initiation
+
+<Code language="typescript" title="TypeScript">
+{`import { initiatePayment, MEMBERSHIP_PRICES } from '@/lib/payments/wayforpay-service'
+const paymentRequest = {
+  userId: session.user.id,
+  userEmail: session.user.email,
+  targetRole: UserRole.MEMBER,
+  returnUrl: 'https://your-domain.com/membership/success',
+  callbackUrl: 'https://your-domain.com/api/payments/wayforpay/webhook'
+}
+
+const response = await initiatePayment(paymentRequest)
+
+if (response.success) {
+  // Redirect user to payment URL
+  window.location.href = response.paymentUrl
+}`}
+</Code>
+
+#### 2. Webhook Processing
+
+<Code language="typescript" title="TypeScript">
+{`import { verifyWebhookSignature, processSuccessfulPayment } from '@/lib/payments/wayforpay-service'
+// In your webhook route handler
+const payload = await request.json()
+
+// CRITICAL: Always verify signature
+if (!verifyWebhookSignature(payload)) {
+  return Response.json({ error: 'Invalid signature' }, { status: 401 })
+}
+
+// Process payment and upgrade user role
+const success = await processSuccessfulPayment(payload)`}
+</Code>
+
+#### 3. Payment Status Check
+
+<Code language="typescript" title="TypeScript">
+{`import { getPaymentStatus } from '@/lib/payments/wayforpay-service'
+const status = await getPaymentStatus(orderReference)
+
+if (status.success && status.status === 'Approved') {
+  // Payment completed successfully
+}`}
+</Code>
+
+### Pricing Configuration
+
+Current membership pricing:
+
+<Code language="typescript" title="export const MEMBERSHIP_PRICES = {">
+{`[UserRole.SUBSCRIBER]: {
+    amount: 0,
+    currency: 'UAH',
+    description: 'Ring Platform Subscriber (Free)',
+    duration: 'lifetime'
+  },
+  [UserRole.MEMBER]: {
+    amount: 299,        // ₴299 UAH
+    currency: 'UAH',
+    description: 'Ring Platform Member Upgrade',
+    duration: '1 month'
+  },
+  [UserRole.CONFIDENTIAL]: {
+    amount: 999,        // ₴999 UAH
+    currency: 'UAH',
+    description: 'Ring Platform Confidential Membership',
+    duration: '1 month'
+  }
+}`}
+</Code>
+
+### Server Actions
+
+The payment flow uses React 19 Server Actions for form handling:
+
+<Code language="typescript" title="'use server'">
+{`import { initiateMembershipPayment } from '@/app/_actions/membership-payment'
+
+// In your component
+const [formState, formAction] = useActionState(initiateMembershipPayment, null)
+
+// Form submission
+<form action={formAction}>
+  <input type="hidden" name="targetRole" value={UserRole.MEMBER} />
+  <input type="hidden" name="returnUrl" value={returnUrl} />
+  <button type="submit">Pay ₴299 UAH</button>
+</form>
+
+// Auto-redirect on success
+useEffect(() => {
+  if (formState?.paymentUrl) {
+    window.location.href = formState.paymentUrl
+  }
+}, [formState])`}
+</Code>
+
+## Security Implementation
+
+### HMAC-MD5 Signature Verification
+
+<Callout type="error">
+  **Security Requirement**: All webhooks MUST verify HMAC-MD5 signatures before processing. This prevents unauthorized role upgrades and payment fraud.
+</Callout>
+
+**Signature Generation**:
+
+<Code language="typescript" title="import crypto from 'crypto'">
+{`function generateSignature(data: Record<string, any>): string {
+  // Concatenate values with semicolon delimiter
+  const signatureString = Object.values(data).join(';')
+  
+  // Generate HMAC-MD5 hash with secret key
+  return crypto
+    .createHmac('md5', WAYFORPAY_SECRET_KEY)
+    .update(signatureString)
+    .digest('hex')
+}`}
+</Code>
+
+**Signature Verification**:
+
+<Code language="typescript" title="TypeScript">
+{`export function verifyWebhookSignature(payload: WebhookPayload): boolean {
+try {
+    const { merchantSignature, ...data } = payload
+    const expectedSignature = generateSignature(data)
+    
+    // Constant-time comparison to prevent timing attacks
+    return merchantSignature === expectedSignature
+  } catch (error) {
+    logger.error('Signature verification failed:', error)
+    return false
+  }
+}`}
+</Code>
+
+### PCI-DSS Compliance
+
+Ring Platform maintains PCI-DSS compliance through:
+
+✅ **Hosted Payment Page**: No card data touches your server  
+✅ **No Card Storage**: Never store full card numbers or CVV  
+✅ **HTTPS Only**: All communication encrypted  
+✅ **Signature Validation**: Every webhook verified  
+✅ **Audit Trail**: Complete payment history logging  
+
+### Idempotency
+
+Prevent duplicate processing with unique order references:
+
+// Order reference format: ring_{userId}_{timestamp}
+
+<Code language="typescript" title="TypeScript">
+{`const orderId = `ring_${userId}_${Date.now()}`
+
+// Check for duplicate processing
+if (await isOrderProcessed(orderId)) {
+  return { status: 'already_processed' }
+}
+
+// Mark as processed
+await markOrderProcessed(orderId)`}
+</Code>
+
+## Role Upgrade System
+
+### Automatic Role Management
+
+Upon successful payment, the system automatically:
+
+1. **Verifies** webhook signature
+2. **Validates** transaction status
+3. **Extracts** user ID from order reference
+4. **Upgrades** user role in database
+5. **Records** payment metadata
+6. **Logs** upgrade event
+
+// features/auth/services/upgrade-user-role.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function upgradeUserRole(
+  userId: string,
+  targetRole: UserRole,
+  paymentMetadata: UpgradePaymentMetadata
+): Promise<UpgradeResult> {
+  // Get current user
+  const userResult = await db.findById('users', userId)
+  const user = userResult.data.data
+
+  // Validate upgrade is allowed
+  const roleHierarchy = {
+    VISITOR: 0,
+    SUBSCRIBER: 1,
+    MEMBER: 2,
+    CONFIDENTIAL: 3,
+    ADMIN: 4
+  }
+
+  if (targetLevel <= currentLevel) {
+    return { success: false, error: 'Cannot downgrade' }
+  }
+
+  // Update role and record payment
+  await db.update('users', userId, {
+    role: targetRole,
+    paymentHistory: [...user.paymentHistory, paymentMetadata],
+    updatedAt: new Date()
+  })
+
+  return { success: true, newRole: targetRole }
+}`}
+</Code>
+
+### Payment Tracking
+
+Track payment lifecycle with status transitions:
+
+// Payment status flow
+
+<Code language="typescript" title="TypeScript">
+{`type PaymentStatus = 
+  | 'initiated'    // Payment session created
+  | 'completed'    // Payment approved, role upgraded
+  | 'failed'       // Payment declined
+  | 'cancelled'    // User cancelled
+
+// Record payment attempt
+await recordPaymentAttempt({
+  orderId,
+  userId,
+  targetRole: UserRole.MEMBER,
+  amount: 299,
+  currency: 'UAH',
+  status: 'initiated',
+  paymentUrl
+})
+
+// Update status after webhook
+await updatePaymentStatus(orderId, 'completed')`}
+</Code>
+
+## User Experience
+
+### Payment Modal
+
+The payment modal provides dual payment options:
+
+**Tab 1: RING Tokens** (Instant, 0 fees)
+- Check balance
+- Pay with RING
+- Instant upgrade
+
+**Tab 2: Card Payment** (WayForPay)
+- ₴299 UAH pricing
+- Visa, MasterCard, Apple Pay, Google Pay
+- Secure redirect to WayForPay
+
+<Code language="tsx" title="tsx">
+{`<Tabs>
+<TabsList>
+    <TabsTrigger value="ring">RING Tokens</TabsTrigger>
+    <TabsTrigger value="fiat">Card Payment</TabsTrigger>
+  </TabsList>
+
+  <TabsContent value="fiat">
+    <form action={formAction}>
+      <div className="pricing">
+        <span className="amount">₴299</span>
+        <span className="currency">UAH</span>
+      </div>
+      
+      <button type="submit">
+        Proceed to Card Payment
+      </button>
+    </form>
+  </TabsContent>
+</Tabs>`}
+</Code>
+
+### Success Page
+
+After successful payment, users see:
+
+✅ **Confirmation**: "Payment Successful!"  
+✅ **Order ID**: For support reference  
+✅ **New Role**: MEMBER status confirmed  
+✅ **Actions**: View Profile / Return Home  
+
+### Failure Page
+
+If payment fails, users get:
+
+❌ **Clear Reason**: Insufficient funds / Expired card / Declined  
+❌ **Order ID**: For support tracking  
+❌ **Actions**: Try Again / Return Home / Contact Support  
+❌ **Helpful Messages**: Specific guidance based on failure reason  
+
+## Error Handling
+
+### Common Errors
+
+<Steps>
+  <Step>
+    **Environment variables missing**
+
+    // Validation on startup
+
+<Code language="typescript" title="TypeScript">
+{`if (!WAYFORPAY_MERCHANT_ACCOUNT) {
+      throw new Error('WAYFORPAY_MERCHANT_ACCOUNT environment variable is required')
+    }`}
+</Code>
+
+    **Fix**: Configure all required environment variables
+  </Step>
+
+  <Step>
+    **Webhook signature mismatch**
+
+    // Log signature verification failures
+
+<Code language="typescript" title="TypeScript">
+{`if (!verifyWebhookSignature(payload)) {
+      logger.error('Invalid webhook signature - possible attack', {
+        orderReference: payload.orderReference,
+        receivedSignature: payload.merchantSignature
+      })
+      return Response.json({ error: 'Invalid signature' }, { status: 401 })
+    }`}
+</Code>
+
+    **Fix**: Verify WAYFORPAY_SECRET_KEY matches dashboard
+  </Step>
+
+  <Step>
+    **Webhook not received**
+
+    **Possible causes**:
+    - Webhook URL not publicly accessible
+    - Firewall blocking WayForPay IPs
+    - HTTPS certificate invalid
+    - Response time >5 seconds
+
+    **Fix**: Use ngrok for local testing, verify HTTPS, check firewall rules
+  </Step>
+
+  <Step>
+    **Role upgrade failed**
+
+    // Check upgrade service logs
+
+<Code language="typescript" title="TypeScript">
+{`logger.error('Role upgrade: Failed to upgrade user role', {
+      userId,
+      targetRole,
+      error: upgradeResult.error
+    })`}
+</Code>
+
+    **Fix**: Check database connection, verify user exists, ensure role hierarchy
+  </Step>
+</Steps>
+
+### Error Recovery
+
+<Code language="typescript" title="try {">
+{`const result = await initiatePayment(request)
+  
+  if (!result.success) {
+    // Log error with context
+    logger.error('Payment initiation failed', {
+      userId: request.userId,
+      targetRole: request.targetRole,
+      error: result.error
+    })
+    
+    // Return user-friendly error
+    return {
+      error: 'Payment could not be initiated. Please try again or contact support.'
+    }
+  }
+} catch (error) {
+  // Handle unexpected errors
+  logger.error('Unexpected payment error:', error)
+  
+  return {
+    error: 'An unexpected error occurred. Please try again later.'
+  }
+}`}
+</Code>
+
+## Testing
+
+### Test Environment
+
+<Callout type="info">
+  WayForPay provides sandbox environment with test cards for integration testing.
+</Callout>
+
+**Test Merchant Credentials**:
+<Code language="env" title="WAYFORPAY_MERCHANT_ACCOUNT=test_merch_n1">
+{`WAYFORPAY_SECRET_KEY=flk3409refn54t54t*FNJRET`}
+</Code>
+
+**Test Cards**:
+```
+Visa (Success):     4111111111111111
+Visa (Declined):    4000000000000002
+MasterCard (Success): 5555555555554444
+```
+
+### Local Testing with ngrok
+
+<Steps>
+  <Step>
+    **Install ngrok**:
+    <Code language="bash" title="terminal">
+{`npm install -g ngrok`}
+</Code>
+  </Step>
+
+  <Step>
+    **Start your dev server**:
+    <Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create tunnel**:
+    <Code language="bash" title="ngrok http 3000">
+{``}
+</Code>
+  </Step>
+
+  <Step>
+    **Update webhook URL**:
+    ```
+    https://your-subdomain.ngrok.io/api/payments/wayforpay/webhook
+    ```
+
+    Configure this URL in WayForPay dashboard
+  </Step>
+
+  <Step>
+    **Test payment flow**:
+    1. Initiate membership upgrade
+    2. Complete test payment
+    3. Verify webhook received
+    4. Check role upgraded
+  </Step>
+</Steps>
+
+### Test Scenarios
+
+// Test successful payment
+
+<Code language="typescript" title="TypeScript">
+{`describe('WayForPay Integration', () => {
+  it('should successfully upgrade user role on payment', async () => {
+    // 1. Create test user (SUBSCRIBER)
+    const user = await createTestUser({ role: UserRole.SUBSCRIBER })
+
+    // 2. Initiate payment
+    const payment = await initiatePayment({
+      userId: user.id,
+      userEmail: user.email,
+      targetRole: UserRole.MEMBER,
+      returnUrl: '/success',
+      callbackUrl: '/webhook'
+    })
+
+    expect(payment.success).toBe(true)
+    expect(payment.paymentUrl).toContain('wayforpay.com')
+
+    // 3. Simulate successful webhook
+    const webhook = generateTestWebhook({
+      orderReference: payment.orderId,
+      transactionStatus: 'Approved',
+      amount: 299
+    })
+
+    const processed = await processSuccessfulPayment(webhook)
+    expect(processed).toBe(true)
+
+    // 4. Verify role upgraded
+    const updatedUser = await findUser(user.id)
+    expect(updatedUser.role).toBe(UserRole.MEMBER)
+  })
+
+  it('should reject invalid webhook signatures', async () => {
+    const invalidWebhook = {
+      orderReference: 'ring_123_456',
+      transactionStatus: 'Approved',
+      merchantSignature: 'invalid_signature'
+    }
+
+    const verified = verifyWebhookSignature(invalidWebhook)
+    expect(verified).toBe(false)
+  })
+
+  it('should handle payment failures gracefully', async () => {
+    const webhook = generateTestWebhook({
+      transactionStatus: 'Declined',
+      reasonCode: '1103' // Insufficient funds
+    })
+
+    const processed = await processSuccessfulPayment(webhook)
+    expect(processed).toBe(false)
+
+    // User role should NOT be upgraded
+    const user = await findUser(userId)
+    expect(user.role).toBe(UserRole.SUBSCRIBER)
+  })
+})`}
+</Code>
+
+## Monitoring
+
+### Payment Metrics
+
+Track key payment metrics:
+
+// Key metrics to monitor
+
+<Code language="typescript" title="TypeScript">
+{`const paymentMetrics = {
+  successRate: await calculateSuccessRate('24h'),
+  averageProcessingTime: await getAverageWebhookLatency(),
+  failureReasons: await getFailureReasonBreakdown(),
+  revenuePerDay: await calculateDailyRevenue(),
+  conversionRate: await getSubscriberToMemberConversion()
+}`}
+</Code>
+
+### Logging
+
+All payment events are logged with structured data:
+
+// Payment initiation
+
+<Code language="typescript" title="TypeScript">
+{`logger.info('WayForPay: Payment initiated', {
+  orderId,
+  userId,
+  targetRole,
+  amount: 299
+})
+
+// Webhook received
+logger.info('WayForPay webhook: Received notification', {
+  orderReference,
+  transactionStatus,
+  amount
+})
+
+// Role upgraded
+logger.info('Role upgrade: User upgraded successfully', {
+  userId,
+  previousRole: 'SUBSCRIBER',
+  newRole: 'MEMBER',
+  paymentReference
+})`}
+</Code>
+
+### Alerts
+
+Set up alerts for:
+
+⚠️ **Payment Success Rate** <95%  
+⚠️ **Webhook Processing Time** >5 seconds  
+⚠️ **Invalid Signatures** >0 per hour  
+⚠️ **Role Upgrade Failures** >0 per day  
+
+## Production Checklist
+
+<Steps>
+  <Step>
+    **Pre-Launch**
+    
+    - [ ] Production merchant credentials configured
+    - [ ] Webhook URL set to HTTPS production endpoint
+    - [ ] Environment variables secured
+    - [ ] Signature verification tested
+    - [ ] Payment flow tested end-to-end
+    - [ ] Success/failure pages verified
+    - [ ] Logging comprehensive
+    - [ ] Error handling complete
+  </Step>
+
+  <Step>
+    **Launch Day**
+    
+    - [ ] Monitor first transactions closely
+    - [ ] Verify webhooks received and processed
+    - [ ] Check role upgrades successful
+    - [ ] Monitor for signature validation errors
+    - [ ] Track payment success rate
+    - [ ] Have support team ready
+  </Step>
+
+  <Step>
+    **Post-Launch**
+    
+    - [ ] Set up automated alerts
+    - [ ] Review payment analytics daily
+    - [ ] Monitor conversion rates
+    - [ ] Optimize payment flow based on data
+    - [ ] Document any issues and resolutions
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Signature Mismatch
+
+**Problem**: Webhook signature verification fails
+
+**Causes**:
+- Incorrect field order in signature string
+- Wrong encoding (must be UTF-8)
+- Missing semicolon delimiters
+- Using wrong secret key
+
+**Solution**:
+// Log signature details for debugging
+
+<Code language="typescript" title="TypeScript">
+{`logger.debug('Signature verification', {
+  expectedSignature: generateSignature(data),
+  receivedSignature: payload.merchantSignature,
+  signatureString: Object.values(data).join(';')
+})`}
+</Code>
+
+### Webhook Not Received
+
+**Problem**: WayForPay sends webhook but server doesn't receive it
+
+**Checks**:
+- [ ] Is webhook URL publicly accessible?
+- [ ] Is HTTPS working correctly?
+- [ ] Is firewall blocking WayForPay IPs?
+- [ ] Does webhook respond within 5 seconds?
+- [ ] Is response format correct?
+
+**Test webhook**:
+<Code language="bash" title="terminal">
+{`curl -X POST https://your-domain.com/api/payments/wayforpay/webhook \
+-H "Content-Type: application/json" \
+  -d '{"orderReference":"test","transactionStatus":"Approved",...}'`}
+</Code>
+
+### Payment Stuck in Processing
+
+**Problem**: Payment status remains "InProcessing"
+
+**Solution**:
+1. Poll payment status every 30-60 seconds
+2. Set maximum wait time (5-10 minutes)
+3. If timeout, show error and offer retry
+4. Use CHECK_STATUS API to verify
+
+// Poll payment status
+
+<Code language="typescript" title="TypeScript">
+{`async function waitForPaymentCompletion(orderId: string, maxAttempts = 10) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const status = await getPaymentStatus(orderId)
+    
+    if (status.status === 'Approved') {
+      return { success: true }
+    }
+    
+    if (status.status === 'Declined') {
+      return { success: false, reason: status.reasonCode }
+    }
+    
+    // Wait 30 seconds before next check
+    await sleep(30000)
+  }
+  
+  // Timeout
+  return { success: false, reason: 'Payment processing timeout' }
+}`}
+</Code>
+
+## Advanced Features
+
+### Multi-Currency Support
+
+WayForPay supports UAH, USD, EUR:
+
+<Code language="typescript" title="const paymentData = {">
+{`amount: 299,
+  currency: 'UAH',
+  alternativeCurrency: 'USD',
+  alternativeAmount: 8.00 // Approximate USD equivalent
+}`}
+</Code>
+
+### Installment Plans
+
+Enable PayParts installments:
+
+<Code language="typescript" title="const paymentData = {">
+{`...baseData,
+  paymentSystems: 'payPartsPrivat;payPartsMono',
+  regularMode: 'monthly',
+  regularCount: 3 // 3 monthly installments
+}`}
+</Code>
+
+### Recurring Payments
+
+Set up subscription renewals:
+
+// Store recToken from first successful payment
+
+<Code language="typescript" title="TypeScript">
+{`const paymentResult = await initiatePayment(request)
+const recToken = paymentResult.recToken // Returned on successful payment
+
+// Use recToken for recurring charges
+const recurringCharge = await chargeWithToken({
+  recToken,
+  amount: 299,
+  orderReference: `ring_subscription_${userId}_${Date.now()}`
+})`}
+</Code>
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  **WayForPay integration complete!** You can now:
+</Callout>
+
+- ✅ Accept ₴299 UAH membership upgrades
+- ✅ Automatically upgrade SUBSCRIBER→MEMBER
+- ✅ Track payment history and analytics
+- ✅ Handle success and failure gracefully
+- ✅ Generate revenue from membership tiers
+
+### Optimization Opportunities
+
+1. **Add email notifications** on successful upgrade
+2. **Implement retry logic** for failed webhooks
+3. **Add payment analytics dashboard**
+4. **Enable installment plans** for higher tiers
+5. **Add subscription renewals** for recurring revenue
+
+<Callout type="info">
+  **Need help with payment integration?** Consult the [WayForPay Integrator Specialist](./.cursor/legion/wayforpay-integrator-skillset.json) (Legion Agent #124) for expert guidance on payment processing, security best practices, and revenue optimization.
+</Callout>
+

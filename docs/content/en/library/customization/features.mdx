@@ -1,0 +1,13 @@
+---
+title: Features
+description: Features documentation for Ring Platform
+---
+
+# Feature Toggles
+
+Enable/disable platform areas at build or runtime.
+
+- Features: entities, opportunities, messaging, notifications, store, wallet
+- Use env flags (e.g., `NEXT_PUBLIC_FEATURE_WALLET=true`)
+- Avoid dead code: guard routes and navigation
+- Prefer compile-time flags for large sections

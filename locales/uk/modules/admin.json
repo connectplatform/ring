@@ -1,5 +1,40 @@
 {
   "title": "Адмін-панель",
+  "userManagement": "Керування користувачами",
+  "userManagementDescription": "Керуйте обліковими записами користувачів, ролями та дозволами на платформі",
+  "newsCategories": {
+    "title": "Керування категоріями",
+    "subtitle": "Керуйте категоріями новин, кольорами та організацією"
+  },
+  "bulkOperations": {
+    "title": "Масові операції",
+    "subtitle": "Керуйте кількома статтями новин одночасно за допомогою пакетних операцій"
+  },
+  "settings": {
+    "title": "Налаштування платформи (СуперАдмін)",
+    "projectName": "Назва проекту",
+    "shortDescription": "Короткий опис",
+    "extendedDescription": "Розширений опис",
+    "logo": "Логотип",
+    "upload": "Завантажити",
+    "colors": {
+      "primary": "Основний",
+      "background": "Фон",
+      "foreground": "Передній план",
+      "accent": "Акцент"
+    },
+    "defaultTheme": "Тема за замовчуванням",
+    "theme": {
+      "light": "Світла",
+      "dark": "Темна",
+      "system": "Системна"
+    },
+    "features": "Функції",
+    "customEntityCategories": "Користувацькі категорії сутностей",
+    "customEntityPlaceholder": "По одній на рядок, наприклад: Стартап, НУО, МСП",
+    "reset": "Скинути",
+    "save": "Зберегти налаштування"
+  },
   "matcher": {
     "title": "Аналітика AI Matcher",
     "subtitle": "Моніторте та оптимізуйте вашу систему AI-підбору можливостей",
@@ -54,7 +89,71 @@
       "chartPlaceholder": "Тут буде відображатися інтерактивний графік",
       "chartDesc": "Показує обсяг та якість збігів"
     }
-  }
+  },
+  "dashboard": "Панель керування",
+  "users": "Користувачі",
+  "news": "Новини",
+  "newsManagement": "Керування новинами",
+  "newsManagementDescription": "Керуйте статтями новин, категоріями та публікаціями на платформі",
+  "analytics": "Аналітика",
+  "moderation": "Модерація",
+  "performance": "Продуктивність",
+  "security": "Безпека",
+  "settings": {
+    "title": "Налаштування платформи (СуперАдмін)",
+    "projectName": "Назва проекту",
+    "shortDescription": "Короткий опис",
+    "extendedDescription": "Розширений опис",
+    "logo": "Логотип",
+    "upload": "Завантажити",
+    "colors": {
+      "primary": "Основний",
+      "background": "Фон",
+      "foreground": "Передній план",
+      "accent": "Акцент"
+    },
+    "defaultTheme": "Тема за замовчуванням",
+    "theme": {
+      "light": "Світла",
+      "dark": "Темна",
+      "system": "Системна"
+    },
+    "features": "Функції",
+    "customEntityCategories": "Користувацькі категорії сутностей",
+    "customEntityPlaceholder": "По одній на рядок, наприклад: Стартап, НУО, МСП",
+    "reset": "Скинути",
+    "save": "Зберегти налаштування"
+  },
+  "matcher": "Збіги",
+  "store": "Магазин",
+  "bulkImport": "Масовий імпорт",
+  "exportData": "Експорт даних",
+  "userReports": "Звіти користувачів",
+  "bulkPublish": "Масове публікування",
+  "seoTools": "SEO інструменти",
+  "contentModeration": "Модерація контенту",
+  "inventorySync": "Синхронізація складу",
+  "orderManagement": "Керування замовленнями",
+  "productAnalytics": "Аналітика продуктів",
+  "systemBackup": "Резервне копіювання",
+  "cacheClear": "Очистити кеш",
+  "viewLogs": "Переглянути логи",
+  "quickNav": "Швидка навігація",
+  "systemStats": "Статистика системи",
+  "totalUsers": "Загальна кількість користувачів",
+  "publishedArticles": "Опубліковано статей",
+  "activeUsers": "Активних користувачів",
+  "newUsers": "Нових сьогодні",
+  "uptime": "Час роботи",
+  "recentActivity": "Недавня активність",
+  "viewAllActivity": "Переглянути всю активність",
+  "adminTools": "Інструменти адміністратора",
+  "contextualTools": "Контекстні інструменти для цієї сторінки",
+  "helpDocs": "Допомога та документація",
+  "adminHelpDescription": "Отримайте допомогу з адмін-завдань та керування платформою.",
+  "gettingStarted": "Початок роботи",
+  "apiReference": "API довідник",
+  "troubleshooting": "Вирішення проблем"
 }
 
 

@@ -1,93 +1,28 @@
 import type { NextAuthConfig } from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
-import AppleProvider from "next-auth/providers/apple"
-import CredentialsProvider from "next-auth/providers/credentials"
-import Resend from "next-auth/providers/resend"
-import { UserRole } from "@/features/auth/types"
+import { UserRole } from "@/features/auth/user-role"
 
 /**
  * Auth.js v5 Edge-Compatible Configuration
- * This config is used in middleware and edge runtime
- * Updated to support GIS One Tap and modern Google authentication
+ * CRITICAL: This config is used in MIDDLEWARE and EDGE RUNTIME ONLY
+ * 
+ * Per Auth.js v5 architecture:
+ * - auth.config.ts = Edge-compatible (NO providers, NO adapters, minimal callbacks)
+ * - auth.ts = Full server config (ALL providers, database adapters, full logic)
+ * 
+ * Why NO providers here?
+ * - OAuth providers bundle 100KB+ of libraries (OIDC clients, JWT parsers, etc)
+ * - Middleware runs on EVERY request - must be <50KB for optimal performance
+ * - Providers are only needed in auth.ts for actual authentication flows
+ * 
+ * Middleware only needs:
+ * - Session validation (JWT verification)
+ * - Route protection logic (callbacks.authorized)
+ * - No provider initialization required
  */
 export default {
-  providers: [
-    // Google OAuth (Traditional flow - kept for compatibility)
-    GoogleProvider({
-      // Auth.js v5 automatically uses AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET
-      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-        },
-      },
-      // Auth.js v5 stricter OAuth compliance - ensure proper PKCE and state handling
-      checks: ["pkce", "state"],
-      // Explicitly set wellKnown endpoint for better reliability
-      wellKnown: "https://accounts.google.com/.well-known/openid-configuration",
-    }),
-    
-    // Google Identity Services One Tap (New modern approach)
-    // Always available for local development and production
-    CredentialsProvider({
-      id: 'google-one-tap',
-      name: 'Google One Tap',
-      credentials: {
-        credential: { type: 'text' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.credential) {
-          console.log('🟡 No credential provided')
-          return null;
-        }
-
-        console.log('🟡 Google One Tap provider - passing credential for server verification')
-        
-        // Return a placeholder user with the credential embedded
-        // This ensures Auth.js invokes the adapter's createUser method
-        // The server-side signIn callback will verify the credential and update the user data
-        return {
-          id: 'google-one-tap-pending',
-          email: credentials.credential as string, // Temporarily store credential here
-          name: 'Google One Tap User',
-          image: null,
-          role: UserRole.SUBSCRIBER,
-        };
-      },
-    }),
-    
-    // Apple OAuth
-    AppleProvider({
-      // Auth.js v5 automatically uses AUTH_APPLE_ID and AUTH_APPLE_SECRET
-      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
-    }),
-    
-    CredentialsProvider({
-      id: "crypto-wallet",
-      name: "Crypto Wallet",
-      credentials: {
-        walletAddress: { label: "Wallet Address", type: "text" },
-        signedNonce: { label: "Signed Nonce", type: "text" },
-      },
-      async authorize(credentials) {
-        // Edge runtime compatible - minimal validation
-        if (!credentials?.walletAddress || !credentials?.signedNonce) {
-          return null
-        }
-
-        // Return basic user info - full validation happens in server-side auth.ts
-        return {
-          id: credentials.walletAddress as string,
-          email: "",
-          name: null,
-          image: null,
-          role: UserRole.SUBSCRIBER,  
-        }
-      },
-    }),
-  ],
+  // EMPTY providers array - all providers defined in auth.ts only
+  // Middleware doesn't need providers, only session validation
+  providers: [],
   pages: {
     signIn: "/login",
   },

@@ -47,7 +47,7 @@ function ConfidentialEntityDetailsContent({ initialEntity }: { initialEntity: En
             size="lg"
             className="rounded-lg mb-4 shadow-lg"
           />
-          <p className="text-lg mb-4 text-gray-700">{entity.shortDescription}</p>
+          <p className="text-lg mb-4 text-muted-foreground">{entity.shortDescription}</p>
           {entity.tags && (
             <div className="flex flex-wrap gap-2 mb-4">
               {entity.tags.map((tag: string) => (
@@ -57,7 +57,7 @@ function ConfidentialEntityDetailsContent({ initialEntity }: { initialEntity: En
               ))}
             </div>
           )}
-          {entity.fullDescription && <p className="mb-4 text-gray-600">{entity.fullDescription}</p>}
+          {entity.fullDescription && <p className="mb-4 text-muted-foreground">{entity.fullDescription}</p>}
           <div className="flex gap-4">
             {entity.website && (
               <Button
@@ -81,36 +81,36 @@ function ConfidentialEntityDetailsContent({ initialEntity }: { initialEntity: En
           </h2>
           <div className="space-y-4">
             <div className="flex items-center">
-              <Building className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.type')}: {entity.type}</span>
+              <Building className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.type')}: {entity.type}</span>
             </div>
             <div className="flex items-center">
-              <Users className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.employeeCount')}: {entity.employeeCount}</span>
+              <Users className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.employeeCount')}: {entity.employeeCount}</span>
             </div>
             <div className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.foundedYear')}: {entity.foundedYear}</span>
+              <Calendar className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.foundedYear')}: {entity.foundedYear}</span>
             </div>
             <div className="flex items-center">
-              <MapPin className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.location')}: {entity.location}</span>
+              <MapPin className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.location')}: {entity.location}</span>
             </div>
             <div className="flex items-center">
-              <Phone className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.phoneNumber')}: {entity.phoneNumber}</span>
+              <Phone className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.phoneNumber')}: {entity.phoneNumber}</span>
             </div>
             <div className="flex items-center">
-              <Mail className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.contactEmail')}: {entity.contactEmail}</span>
+              <Mail className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.contactEmail')}: {entity.contactEmail}</span>
             </div>
             <div className="flex items-center">
-              <Globe className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.website')}: {entity.website}</span>
+              <Globe className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.website')}: {entity.website}</span>
             </div>
             <div className="flex items-center">
-              <FileText className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('entity.certifications')}: {entity.certifications?.join(', ')}</span>
+              <FileText className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('entity.certifications')}: {entity.certifications?.join(', ')}</span>
             </div>
           </div>
         </div>

@@ -5,6 +5,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ entities: [] })
 }
 
-export const dynamic = 'force-dynamic'
+// Allow caching for featured entities with moderate revalidation for curated content
+export const dynamic = 'auto'
+export const revalidate = 300 // 5 minutes for featured content
 
 

@@ -1,0 +1,956 @@
+---
+title: Messaging API
+description: Complete API documentation for Ring Platform's real-time messaging system with WebSocket integration, conversation management, and file attachments
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Messaging API
+
+Ring Platform provides a comprehensive real-time messaging system with **8 REST endpoints** and WebSocket integration. The system supports conversations, direct messaging, file attachments, typing indicators, and read receipts with enterprise-grade reliability.
+
+<Callout type="info" title="⚡ Real-time Architecture">
+Built on **Tunnel Transport** with automatic fallback: WebSocket → SSE → Long-polling for universal compatibility across all deployment environments.
+</Callout>
+
+## 🏗️ System Architecture
+
+### Message Flow Architecture
+
+```
+User Action → API Endpoint → Database Storage → Real-time Broadcast → UI Update
+                                      ↓
+                            File Upload (if attachment) → CDN Storage
+```
+
+### Transport Layer Strategy
+
+- **WebSocket (Primary)**: Real-time bidirectional communication
+- **Server-Sent Events (SSE)**: Fallback for Vercel Edge Runtime
+- **Long-polling**: Universal fallback for restrictive environments
+- **HTTP REST**: Standard CRUD operations with real-time sync
+
+### Storage Strategy
+
+- **Messages**: PostgreSQL with JSONB metadata and full-text search
+- **Files**: CDN storage (Cloudflare R2, AWS S3, or compatible)
+- **Real-time State**: Redis pub/sub for cross-instance communication
+- **Offline Queue**: IndexedDB for offline message queuing
+
+## 📋 API Endpoints Reference
+
+### `GET /api/conversations`
+
+List user conversations with advanced filtering and pagination.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Items per page (default: 20, max: 50) |
+| `type` | string | No | Filter by type: `direct`, `group`, `channel` |
+| `status` | string | No | Filter by status: `active`, `archived`, `muted` |
+| `before` | string | No | ISO date string - conversations updated before this date |
+| `search` | string | No | Search conversations by participant names or messages |
+
+#### Example Request
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/conversations?page=1&limit=10&type=direct&status=active" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"conversations": [
+    {
+      "id": "conv_123456",
+      "type": "direct",
+      "participants": [
+        {
+          "userId": "user_789",
+          "name": "John Doe",
+          "avatar": "https://...",
+          "role": "member",
+          "lastSeen": "2025-10-16T12:30:00Z"
+        }
+      ],
+      "title": null,
+      "description": null,
+      "lastMessage": {
+        "id": "msg_999999",
+        "content": "Hey, how's the project going?",
+        "senderId": "user_789",
+        "timestamp": "2025-10-16T12:30:00Z",
+        "type": "text"
+      },
+      "unreadCount": 2,
+      "updatedAt": "2025-10-16T12:30:00Z",
+      "createdAt": "2025-10-15T09:00:00Z",
+      "settings": {
+        "muted": false,
+        "pinned": false,
+        "notifications": true
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}`}
+</Code>
+
+### `POST /api/conversations`
+
+Create a new conversation (direct message or group chat).
+
+#### Request Body for Direct Message
+
+<Code language="json" title="{">
+{`"type": "direct",
+  "participantIds": ["user_456"],
+  "initialMessage": {
+    "content": "Hi! I'd like to discuss the opportunity.",
+    "type": "text"
+  }
+}`}
+</Code>
+
+#### Request Body for Group Conversation
+
+<Code language="json" title="{">
+{`"type": "group",
+  "title": "Project Alpha Team",
+  "description": "Discussion about Project Alpha development",
+  "participantIds": ["user_456", "user_789", "user_101"],
+  "settings": {
+    "isPrivate": true,
+    "allowInvites": true,
+    "moderationEnabled": false
+  }
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"conversation": {
+    "id": "conv_123457",
+    "type": "direct",
+    "participants": [
+      {
+        "userId": "user_123",
+        "name": "Current User",
+        "role": "admin"
+      },
+      {
+        "userId": "user_456",
+        "name": "Jane Smith",
+        "role": "member"
+      }
+    ],
+    "title": null,
+    "createdAt": "2025-10-16T12:35:00Z",
+    "settings": {
+      "muted": false,
+      "pinned": false,
+      "notifications": true
+    }
+  },
+  "initialMessage": {
+    "id": "msg_100000",
+    "conversationId": "conv_123457",
+    "senderId": "user_123",
+    "content": "Hi! I'd like to discuss the opportunity.",
+    "type": "text",
+    "timestamp": "2025-10-16T12:35:00Z",
+    "status": "sent"
+  }
+}`}
+</Code>
+
+### `GET /api/conversations/{id}/messages`
+
+Retrieve messages from a specific conversation with pagination.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Messages per page (default: 50, max: 100) |
+| `before` | string | No | ISO date string - messages before this timestamp |
+| `after` | string | No | ISO date string - messages after this timestamp |
+| `type` | string | No | Filter by message type: `text`, `file`, `image`, `system` |
+
+#### Example Request
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/conversations/conv_123456/messages?page=1&limit=25" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"messages": [
+    {
+      "id": "msg_100001",
+      "conversationId": "conv_123456",
+      "senderId": "user_456",
+      "content": "Thanks for reaching out! The project is going well.",
+      "type": "text",
+      "timestamp": "2025-10-16T12:36:00Z",
+      "status": "delivered",
+      "readBy": ["user_123"],
+      "reactions": [],
+      "replyTo": null,
+      "edited": false,
+      "attachments": []
+    },
+    {
+      "id": "msg_100002",
+      "conversationId": "conv_123456",
+      "senderId": "user_123",
+      "content": "Great! Can you share the latest requirements document?",
+      "type": "text",
+      "timestamp": "2025-10-16T12:37:00Z",
+      "status": "sent",
+      "readBy": [],
+      "reactions": [],
+      "replyTo": null,
+      "edited": false,
+      "attachments": []
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 25,
+    "total": 47,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "conversation": {
+    "id": "conv_123456",
+    "type": "direct",
+    "participants": ["user_123", "user_456"]
+  }
+}`}
+</Code>
+
+### `POST /api/conversations/{id}/messages`
+
+Send a new message to a conversation.
+
+#### Request Body for Text Message
+
+<Code language="json" title="{">
+{`"content": "Here's the document you requested.",
+  "type": "text",
+  "replyTo": null
+}`}
+</Code>
+
+#### Request Body with File Attachment
+
+<Code language="json" title="{">
+{`"content": "Please review this document",
+  "type": "text",
+  "attachments": [
+    {
+      "name": "requirements.pdf",
+      "type": "application/pdf",
+      "size": 2048576,
+      "url": "https://cdn.example.com/files/requirements.pdf"
+    }
+  ]
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"message": {
+    "id": "msg_100003",
+    "conversationId": "conv_123456",
+    "senderId": "user_123",
+    "content": "Please review this document",
+    "type": "text",
+    "timestamp": "2025-10-16T12:38:00Z",
+    "status": "sent",
+    "readBy": [],
+    "reactions": [],
+    "replyTo": null,
+    "edited": false,
+    "attachments": [
+      {
+        "id": "att_123456",
+        "name": "requirements.pdf",
+        "type": "application/pdf",
+        "size": 2048576,
+        "url": "https://cdn.example.com/files/requirements.pdf",
+        "thumbnailUrl": null
+      }
+    ]
+  },
+  "delivered": true,
+  "realTimeSent": true
+}`}
+</Code>
+
+### `PUT /api/messages/{id}`
+
+Update/edit a message content (only by sender, within time limit).
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"content": "Please review this updated document",
+  "attachments": []
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"message": {
+    "id": "msg_100003",
+    "content": "Please review this updated document",
+    "edited": true,
+    "editedAt": "2025-10-16T12:39:00Z"
+  }
+}`}
+</Code>
+
+### `DELETE /api/messages/{id}`
+
+Delete a message (soft delete, only by sender or admin).
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `hard` | boolean | No | Hard delete (admin only, default: false) |
+
+#### Example Request
+
+<Code language="bash" title="curl -X DELETE "http://localhost:3000/api/messages/msg_100003" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"deleted": true,
+  "messageId": "msg_100003",
+  "deletedBy": "user_123",
+  "deletedAt": "2025-10-16T12:40:00Z"
+}`}
+</Code>
+
+### `POST /api/conversations/{id}/typing`
+
+Send typing indicator to conversation participants.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"isTyping": true
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"sent": true,
+  "expiresAt": "2025-10-16T12:40:05Z"
+}`}
+</Code>
+
+### `PUT /api/messages/{id}/read`
+
+Mark messages as read in a conversation.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"messageIds": ["msg_100001", "msg_100002"]
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"markedRead": 2,
+  "readAt": "2025-10-16T12:41:00Z"
+}`}
+</Code>
+
+## 🔄 Real-time Messaging
+
+### WebSocket Integration
+
+Ring Platform uses **Tunnel Transport** for real-time messaging:
+
+// Client-side WebSocket connection
+
+<Code language="typescript" title="TypeScript">
+{`import { io } from 'socket.io-client'
+
+const socket = io('/messaging', {
+  auth: {
+    token: sessionToken
+  }
+})
+
+// Join conversation room
+socket.emit('join-conversation', conversationId)
+
+// Listen for new messages
+socket.on('message', (message) => {
+  console.log('New message:', message)
+  addMessageToUI(message)
+})
+
+// Listen for typing indicators
+socket.on('typing', (data) => {
+  if (data.userId !== currentUserId) {
+    showTypingIndicator(data.userId, data.isTyping)
+  }
+})
+
+// Listen for read receipts
+socket.on('read-receipt', (data) => {
+  updateReadStatus(data.messageIds, data.userId)
+})
+
+// Send message via WebSocket
+socket.emit('send-message', {
+  conversationId,
+  content: messageText,
+  type: 'text'
+})`}
+</Code>
+
+### Server-Sent Events (SSE) Fallback
+
+For environments without WebSocket support:
+
+// SSE connection for messaging
+
+<Code language="typescript" title="TypeScript">
+{`const eventSource = new EventSource('/api/messaging/stream')
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data)
+  
+  switch (data.type) {
+    case 'message':
+      handleNewMessage(data.message)
+      break
+    case 'typing':
+      handleTypingIndicator(data)
+      break
+    case 'read-receipt':
+      handleReadReceipt(data)
+      break
+  }
+}
+
+// Send messages via HTTP when WebSocket unavailable
+const sendMessage = async (conversationId: string, content: string) => {
+  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, type: 'text' })
+  })
+  
+  const result = await response.json()
+  // Real-time updates will come via SSE
+  return result
+}`}
+</Code>
+
+## 📎 File Attachments
+
+### Supported File Types
+
+| Category | Types | Max Size | Features |
+|----------|-------|----------|----------|
+| **Documents** | PDF, DOC, DOCX, TXT, MD | 10MB | Preview, download |
+| **Images** | JPG, PNG, GIF, WebP, SVG | 5MB | Thumbnail, inline preview |
+| **Videos** | MP4, WebM, MOV | 50MB | Video player, thumbnail |
+| **Audio** | MP3, WAV, M4A | 20MB | Audio player |
+| **Archives** | ZIP, RAR, 7Z | 100MB | Download only |
+
+### File Upload Process
+
+// Client-side file upload
+
+<Code language="typescript" title="TypeScript">
+{`const uploadFile = async (file: File): Promise<Attachment> => {
+  // 1. Get upload URL
+  const { uploadUrl, attachment } = await fetch('/api/upload', {
+    method: 'POST',
+    body: JSON.stringify({
+      filename: file.name,
+      contentType: file.type,
+      size: file.size
+    })
+  }).then(r => r.json())
+
+  // 2. Upload to CDN
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type
+    }
+  })
+
+  return attachment
+}
+
+// Usage in message
+const handleSendMessage = async (content: string, files: File[]) => {
+  const attachments = await Promise.all(files.map(uploadFile))
+  
+  await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({
+      content,
+      type: 'text',
+      attachments
+    })
+  })
+}`}
+</Code>
+
+### Attachment Object Structure
+
+<Code language="json" title="{">
+{`"id": "att_123456",
+  "name": "requirements.pdf",
+  "originalName": "Project Requirements v2.pdf",
+  "type": "application/pdf",
+  "size": 2048576,
+  "url": "https://cdn.ring-platform.org/files/att_123456.pdf",
+  "thumbnailUrl": "https://cdn.ring-platform.org/thumbnails/att_123456.jpg",
+  "metadata": {
+    "width": null,
+    "height": null,
+    "duration": null,
+    "pages": 12
+  },
+  "uploadedBy": "user_123",
+  "uploadedAt": "2025-10-16T12:38:00Z",
+  "expiresAt": null
+}`}
+</Code>
+
+## 💬 Message Types
+
+### Text Messages
+
+Standard text communication with rich formatting support.
+
+<Code language="json" title="{">
+{`"type": "text",
+  "content": "Hey @john, can you review the [requirements](https://docs.example.com) document?",
+  "metadata": {
+    "mentions": ["user_456"],
+    "links": ["https://docs.example.com"],
+    "formatting": "markdown"
+  }
+}`}
+</Code>
+
+### File Attachments
+
+Messages containing file uploads.
+
+<Code language="json" title="{">
+{`"type": "file",
+  "content": "Here's the updated design file",
+  "attachments": [
+    {
+      "id": "att_123457",
+      "name": "design.fig",
+      "type": "application/figma",
+      "size": 15728640,
+      "url": "https://cdn.example.com/files/design.fig"
+    }
+  ]
+}`}
+</Code>
+
+### System Messages
+
+Automated messages for conversation events.
+
+<Code language="json" title="{">
+{`"type": "system",
+  "content": "john.doe joined the conversation",
+  "metadata": {
+    "event": "participant_joined",
+    "participantId": "user_456",
+    "participantName": "John Doe"
+  }
+}`}
+</Code>
+
+### Reply Messages
+
+Messages that reply to other messages.
+
+<Code language="json" title="{">
+{`"type": "text",
+  "content": "I agree with this approach",
+  "replyTo": "msg_100001",
+  "metadata": {
+    "replyPreview": "The proposed solution looks good..."
+  }
+}`}
+</Code>
+
+## 🔧 Implementation Examples
+
+### React Messaging Component
+
+// components/MessagingInterface.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect, useRef } from 'react'
+import { io, Socket } from 'socket.io-client'
+
+interface Message {
+  id: string
+  content: string
+  senderId: string
+  timestamp: string
+  type: string
+  attachments?: Attachment[]
+}
+
+export function MessagingInterface({ conversationId }: { conversationId: string }) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Fetch conversation messages
+    fetchMessages()
+
+    // Setup WebSocket connection
+    const newSocket = io('/messaging')
+    setSocket(newSocket)
+
+    newSocket.emit('join-conversation', conversationId)
+
+    newSocket.on('message', (message: Message) => {
+      setMessages(prev => [...prev, message])
+      scrollToBottom()
+    })
+
+    newSocket.on('typing', handleTyping)
+    newSocket.on('read-receipt', handleReadReceipt)
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [conversationId])
+
+  const fetchMessages = async () => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/messages`)
+      const data = await response.json()
+      setMessages(data.messages)
+      scrollToBottom()
+    } catch (error) {
+      console.error('Failed to fetch messages:', error)
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return
+
+    try {
+      if (socket) {
+        // Send via WebSocket for real-time
+        socket.emit('send-message', {
+          conversationId,
+          content: newMessage,
+          type: 'text'
+        })
+      } else {
+        // Fallback to HTTP
+        await fetch(`/api/conversations/${conversationId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: newMessage, type: 'text' })
+        })
+      }
+
+      setNewMessage('')
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    }
+  }
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  return (
+    <div className="messaging-interface">
+      <div className="messages-container">
+        {messages.map(message => (
+          <MessageBubble key={message.id} message={message} />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      <div className="message-input">
+        <input
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder="Type a message..."
+        />
+        <button onClick={sendMessage}>Send</button>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+### Conversation List Component
+
+// components/ConversationList.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useConversations } from '@/hooks/useConversations'
+
+export function ConversationList() {
+  const { conversations, loading, error } = useConversations()
+
+  if (loading) return <div>Loading conversations...</div>
+  if (error) return <div>Error loading conversations</div>
+
+  return (
+    <div className="conversation-list">
+      {conversations.map(conversation => (
+        <div key={conversation.id} className="conversation-item">
+          <div className="conversation-avatar">
+            {/* Avatar logic */}
+          </div>
+          
+          <div className="conversation-info">
+            <div className="conversation-title">
+              {conversation.title || conversation.participants.map(p => p.name).join(', ')}
+            </div>
+            
+            <div className="last-message">
+              {conversation.lastMessage?.content || 'No messages yet'}
+            </div>
+          </div>
+          
+          {conversation.unreadCount > 0 && (
+            <div className="unread-badge">
+              {conversation.unreadCount}
+            </div>
+          )}
+          
+          <div className="conversation-time">
+            {new Date(conversation.updatedAt).toLocaleTimeString()}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Error Handling
+
+### Common Error Responses
+
+// Conversation Not Found
+
+<Code language="json" title="configuration">
+{`{
+  "error": "NotFoundError",
+  "message": "Conversation not found",
+  "conversationId": "conv_123456",
+  "statusCode": 404
+}
+
+// Access Denied
+{
+  "error": "ForbiddenError",
+  "message": "You are not a participant in this conversation",
+  "statusCode": 403
+}
+
+// Message Too Long
+{
+  "error": "ValidationError",
+  "message": "Message content exceeds maximum length of 10000 characters",
+  "maxLength": 10000,
+  "statusCode": 400
+}
+
+// File Upload Error
+{
+  "error": "UploadError",
+  "message": "File size exceeds limit of 10MB",
+  "maxSize": "10MB",
+  "statusCode": 413
+}`}
+</Code>
+
+## 🔒 Security Considerations
+
+### Authentication
+- All messaging endpoints require valid session authentication
+- WebSocket connections are authenticated with session tokens
+- File uploads require additional ownership verification
+
+### Rate Limiting
+- Message sending: 30 messages/minute per user
+- File uploads: 10 files/hour per user
+- WebSocket connections: 5 concurrent connections per user
+
+### Content Security
+- Message content is sanitized to prevent XSS attacks
+- File uploads are scanned for malware and viruses
+- URLs in messages are validated and can be blocked
+
+### Privacy
+- End-to-end encryption available for sensitive conversations
+- Message deletion removes content from all participants
+- Read receipts can be disabled per conversation
+
+## 📊 Monitoring & Analytics
+
+### Message Metrics
+
+// Track messaging events
+
+<Code language="typescript" title="TypeScript">
+{`import { trackEvent } from '@/lib/analytics'
+
+socket.on('message', (message) => {
+  trackEvent('message_sent', {
+    conversationType: message.conversationType,
+    messageType: message.type,
+    hasAttachments: message.attachments?.length > 0,
+    deliveryMethod: 'websocket'
+  })
+})
+
+// Track conversation engagement
+trackEvent('conversation_viewed', {
+  conversationId,
+  participantCount: participants.length,
+  messageCount: messages.length
+})`}
+</Code>
+
+### Performance Monitoring
+
+// Monitor message delivery times
+
+<Code language="typescript" title="TypeScript">
+{`const sendTime = Date.now()
+
+socket.emit('send-message', messageData, (ack) => {
+  const deliveryTime = Date.now() - sendTime
+  trackEvent('message_delivery_time', {
+    deliveryTime,
+    transport: 'websocket'
+  })
+})`}
+</Code>
+
+## 🎛️ Configuration
+
+### Environment Variables
+
+Messaging Configuration WebSocket Settings File Storage Redis (for pub/sub)
+
+<Code language="bash" title="terminal">
+{`MESSAGING_RATE_LIMIT=30
+MESSAGING_FILE_SIZE_LIMIT=10485760
+MESSAGING_RETENTION_DAYS=365
+
+WS_HEARTBEAT_INTERVAL=30000
+WS_CONNECTION_TIMEOUT=10000
+
+FILE_STORAGE_PROVIDER=cloudflare_r2
+FILE_STORAGE_BUCKET=messaging-files
+FILE_CDN_URL=https://cdn.ring-platform.org
+
+REDIS_URL=redis://localhost:6379`}
+</Code>
+
+### Database Schema
+
+<Code language="sql" title="-- Conversations table">
+{`CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type VARCHAR(20) NOT NULL, -- direct, group, channel
+  title VARCHAR(255),
+  description TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  settings JSONB DEFAULT '{}'
+);
+
+-- Conversation participants
+CREATE TABLE conversation_participants (
+  conversation_id UUID REFERENCES conversations(id),
+  user_id UUID REFERENCES users(id),
+  role VARCHAR(20) DEFAULT 'member', -- admin, member
+  joined_at TIMESTAMP DEFAULT NOW(),
+  last_seen_at TIMESTAMP,
+  settings JSONB DEFAULT '{}',
+  PRIMARY KEY (conversation_id, user_id)
+);
+
+-- Messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES conversations(id),
+  sender_id UUID REFERENCES users(id),
+  content TEXT,
+  type VARCHAR(20) DEFAULT 'text',
+  metadata JSONB DEFAULT '{}',
+  reply_to UUID REFERENCES messages(id),
+  edited BOOLEAN DEFAULT FALSE,
+  edited_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Message read status
+CREATE TABLE message_reads (
+  message_id UUID REFERENCES messages(id),
+  user_id UUID REFERENCES users(id),
+  read_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (message_id, user_id)
+);`}
+</Code>
+
+---
+
+*Ring Platform's messaging system delivers enterprise-grade real-time communication with comprehensive file sharing, cross-platform compatibility, and advanced privacy controls.*

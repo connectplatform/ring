@@ -1,63 +1,58 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Get User Settings Service
+ * 
+ * Retrieves user settings from PostgreSQL database
+ * Uses React 19 cache() for request deduplication
+ */
 
-import { UserSettings, UserRole } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument
-} from '@/lib/services/firebase-service-manager';
-
-import { auth } from '@/auth'; // Consistent session handling
+import { UserSettings } from '@/features/auth/types'
+import { cache } from 'react'
+import { auth } from '@/auth'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 /**
- * Retrieve a user's settings from Firestore, with authentication.
+ * Retrieve user settings from PostgreSQL database
  * 
- * User steps:
- * 1. User accesses a page or component that requires their settings
- * 2. Frontend calls this function to fetch the user's settings
- * 3. Function authenticates the user
- * 4. If authenticated, the function retrieves the user's settings from Firestore
- * 
- * @returns A promise that resolves to the UserSettings object or null if not found.
- * 
- * Error handling:
- * - Throws an error if the user is not authenticated
- * - Returns null if there's an error retrieving the settings from Firestore
+ * @returns UserSettings object or null if not found
  */
 export async function getUserSettings(): Promise<UserSettings | null> {
-  console.log('Services: getUserSettings - Starting settings retrieval process');
+  console.log('getUserSettings: Starting')
 
   try {
-    // Step 1: Authenticate and get user session
-    const session = await auth();
-    if (!session || !session.user) {
-      throw new Error('Unauthorized access');
+    // Authenticate
+    const session = await auth()
+    if (!session || !session.user?.id) {
+      console.error('getUserSettings: No session')
+      throw new Error('Unauthorized')
     }
 
-    const { id: userId, role: userRole } = session.user;
+    const userId = session.user.id
+    console.log('getUserSettings: Fetching for user', userId)
 
-    console.log(`Services: getUserSettings - User authenticated with ID ${userId} and role ${userRole}`);
+    // Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // Step 2: Retrieve the user document using optimized firebase-service-manager
-    const phase = getCurrentPhase();
-    const userDoc = await getCachedDocument('users', userId);
+    // Read user document
+    const result = await db.findById('users', userId)
 
-    if (!userDoc || !userDoc.exists) {
-      console.log(`Services: getUserSettings - User document not found for ID: ${userId}`);
-      return null;
+    if (!result.success || !result.data) {
+      console.log('getUserSettings: User document not found')
+      // Return default settings
+      return {
+        language: 'en',
+        theme: 'system',
+        notifications: true,
+        notificationPreferences: {
+          email: true,
+          inApp: true,
+          sms: false,
+        },
+      }
     }
 
-    const userData = userDoc.data();
-
-    // Step 4: Extract and return the settings
-    const userSettings: UserSettings = userData?.settings || {
+    const userData = result.data as any
+    const userSettings: UserSettings = userData.data?.settings || {
       language: 'en',
       theme: 'system',
       notifications: true,
@@ -66,18 +61,14 @@ export async function getUserSettings(): Promise<UserSettings | null> {
         inApp: true,
         sms: false,
       },
-    };
+    }
 
-    console.log('Services: getUserSettings - Settings retrieved successfully for user:', userId);
-    return userSettings;
+    console.log('getUserSettings: Success')
+    return userSettings
 
   } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: getUserSettings - Firebase error:', error.code, error.message);
-    } else {
-      console.error('Services: getUserSettings - Error retrieving settings:', error);
-    }
-    return null; // Indicate failure by returning null
+    console.error('getUserSettings: Error:', error)
+    return null
   }
 }
 

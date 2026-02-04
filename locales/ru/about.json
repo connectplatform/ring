@@ -1,0 +1,34 @@
+{
+  "aboutUsText": {
+    "title": "About Ring Platform",
+    "introduction": {
+      "title": "Introduction",
+      "content": "Ring is a community platform designed to connect innovators, entrepreneurs, and organizations in the Cherkasy region of Ukraine. Our mission is to foster collaboration, knowledge sharing, and business opportunities within the local tech ecosystem."
+    },
+    "forWhom": {
+      "title": "For Whom",
+      "content": "Ring is designed for various stakeholders in the Cherkasy tech ecosystem:",
+      "item1": "Startups and entrepreneurs looking for partnerships and resources",
+      "item2": "Established companies seeking innovation and talent"
+    },
+    "howToUse": {
+      "title": "How to Use",
+      "content": "Follow these steps to get the most out of Ring:",
+      "item1": "Create an account and complete your profile",
+      "item2": "Explore organizations and opportunities in the ecosystem",
+      "item3": "Connect with other members and start conversations",
+      "item4": "Post opportunities or find collaborators for your projects",
+      "item5": "Participate in community discussions and events",
+      "item6": "Stay updated with notifications and newsletters",
+      "item7": "Contribute to the growth of the local tech community"
+    },
+    "techFields": {
+      "title": "Technology Fields",
+      "content": "Ring covers a wide range of technology fields including software development, artificial intelligence, blockchain, IoT, cybersecurity, and more. We welcome all technology enthusiasts and professionals."
+    },
+    "userInfo": {
+      "title": "Welcome",
+      "content": "Welcome to Ring, {name}! We're excited to have you as part of our community."
+    }
+  }
+}

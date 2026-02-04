@@ -4,9 +4,10 @@ import { updateUserSettings } from "@/features/auth/services/update-user-setting
 import { UserSettings } from '@/features/auth/types'
 
 /**
- * Prevent caching for this route to ensure settings are always up-to-date
+ * Allow caching for user settings with moderate revalidation for settings data
  */
-export const dynamic = 'force-dynamic';
+export const dynamic = 'auto'
+export const revalidate = 180 // 3 minutes for settings data
 
 /**
  * API route handler for getting user settings.

@@ -1,0 +1,50 @@
+---
+title: Индекс
+description: Индекс документации платформы Ring
+---
+
+# Начало работы
+
+Добро пожаловать в платформу Ring! Это руководство поможет вам запустить систему за считанные минуты.
+
+## Быстрый старт (5 минут)
+
+import { Step, Steps } from 'fumadocs-ui/components/steps'
+
+<Steps>
+### Клонируйте репозиторий
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring`}
+</Code>
+
+### Установите зависимости
+<Code language="bash" title="terminal">
+{`npm install`}
+</Code>
+
+### Настройте окружение
+cp env.local.template .env.local
+
+<Code language="bash" title="terminal">
+{`npm run setup:env`}
+</Code>
+
+### Запустите сервер разработки
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+</Steps>
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="success">
+  ✅ Успех! Перейдите на http://localhost:3000, чтобы увидеть ваш экземпляр платформы Ring.
+</Callout>
+
+## Что дальше?
+
+- [Предварительные требования](/ru/library/getting-started/prerequisites) - Системные требования
+- [Установка](/ru/library/getting-started/installation) - Подробное руководство по установке
+- [Первый успех](/ru/library/getting-started/first-success) - Проверка вашей настройки
+- [Устранение неполадок](/ru/library/getting-started/troubleshooting) - Распространенные проблемы

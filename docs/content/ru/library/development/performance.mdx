@@ -1,0 +1,246 @@
+---
+title: Performance
+description: Performance documentation for Ring Platform
+---
+
+# Performance Optimization
+
+Profiling and optimization strategies for Ring Platform applications.
+
+## ⚡ React 19 Performance Patterns
+
+### Server Components Optimization
+// Fetch data at the server component level
+
+<Code language="typescript" title="TypeScript">
+{`export default async function EntitiesPage() {
+  // This runs on the server, reducing client-side work
+  const entities = await getEntities()
+
+  return (
+    <div>
+      <EntitiesList entities={entities} />
+      <ClientComponent />
+    </div>
+  )
+}`}
+</Code>
+
+### useOptimistic Hook
+<Code language="typescript" title="'use client'">
+{`import { useOptimistic } from 'react'
+
+export function EntityForm({ entities, addEntity }) {
+  const [optimisticEntities, addOptimisticEntity] = useOptimistic(
+    entities,
+    (state, newEntity) => [...state, { ...newEntity, id: 'temp-' + Date.now() }]
+  )
+
+  async function handleSubmit(formData) {
+    addOptimisticEntity(formData)
+    await addEntity(formData)
+  }
+
+  return (
+    <form action={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  )
+}`}
+</Code>
+
+## 🚀 Next.js 15 Optimizations
+
+### Static Generation
+// Generate static pages at build time
+
+<Code language="typescript" title="TypeScript">
+{`export async function generateStaticParams() {
+  const entities = await getPublicEntities()
+  
+  return entities.map((entity) => ({
+    id: entity.id
+  }))
+}
+
+export default async function EntityPage({ params }) {
+  const entity = await getEntity(params.id)
+  return <EntityDetails entity={entity} />
+}`}
+</Code>
+
+### Edge Runtime
+// Use Edge Runtime for faster cold starts
+
+<Code language="typescript" title="TypeScript">
+{`export const runtime = 'edge'
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const query = searchParams.get('q')
+  
+  // Fast API response from edge
+  return Response.json({ results: await searchEntities(query) })
+}`}
+</Code>
+
+## 📦 Bundle Optimization
+
+### Code Splitting
+// Dynamic imports for code splitting
+
+<Code language="typescript" title="TypeScript">
+{`import dynamic from 'next/dynamic'
+
+const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+  loading: () => <p>Loading...</p>,
+  ssr: false // Skip SSR for client-only components
+})
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Page Content</h1>
+      <HeavyComponent />
+    </div>
+  )
+}`}
+</Code>
+
+### Tree Shaking
+// Import only what you need
+
+<Code language="typescript" title="TypeScript">
+{`import { debounce } from 'lodash/debounce' // ✅ Good
+import _ from 'lodash' // ❌ Imports entire library
+
+// Use ES modules for better tree shaking
+import { Button } from '@/components/ui' // ✅ Tree-shakeable`}
+</Code>
+
+## 🎯 Performance Monitoring
+
+### Web Vitals Tracking
+// pages/_app.tsx or app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export function reportWebVitals(metric) {
+  switch (metric.name) {
+    case 'CLS':
+    case 'FID':
+    case 'FCP':
+    case 'LCP':
+    case 'TTFB':
+      // Send to analytics
+      analytics.track('web-vital', {
+        name: metric.name,
+        value: metric.value,
+        id: metric.id
+      })
+      break
+  }
+}`}
+</Code>
+
+### Performance Profiling
+// Use React Profiler for component performance
+
+<Code language="typescript" title="TypeScript">
+{`import { Profiler } from 'react'
+
+function onRender(id, phase, actualDuration, baseDuration, startTime, commitTime) {
+  // Log or send to analytics
+  console.log('Performance:', {
+    component: id,
+    phase,
+    duration: actualDuration
+  })
+}
+
+export default function App() {
+  return (
+    <Profiler id="App" onRender={onRender}>
+      <MainContent />
+    </Profiler>
+  )
+}`}
+</Code>
+
+## 🗄️ Database Optimization
+
+### Firestore Query Optimization
+// Use compound indexes for complex queries
+
+<Code language="typescript" title="TypeScript">
+{`import { query, where, orderBy, limit } from 'firebase/firestore'
+
+// Efficient query with proper indexing
+const entitiesQuery = query(
+  entitiesCollection,
+  where('userId', '==', userId),
+  where('status', '==', 'active'),
+  orderBy('createdAt', 'desc'),
+  limit(20)
+)`}
+</Code>
+
+### Caching Strategies
+// Use React cache for deduplication
+
+<Code language="typescript" title="TypeScript">
+{`import { cache } from 'react'
+
+export const getEntity = cache(async (id: string) => {
+  const entity = await fetchEntityFromDB(id)
+  return entity
+})
+
+// Multiple calls to getEntity(id) will be deduplicated`}
+</Code>
+
+## 🖼️ Image Optimization
+
+### Next.js Image Component
+import Image from 'next/image'
+
+<Code language="typescript" title="TypeScript">
+{`export function EntityAvatar({ entity }) {
+  return (
+    <Image
+      src={entity.avatar}
+      alt={entity.name}
+      width={64}
+      height={64}
+      priority={entity.featured} // Load important images first
+      placeholder="blur"
+      blurDataURL="data:image/jpeg;base64,..."
+    />
+  )
+}`}
+</Code>
+
+## 📊 Performance Metrics
+
+### Target Metrics
+- **First Contentful Paint**: < 1.5s
+- **Largest Contentful Paint**: < 2.5s
+- **First Input Delay**: < 100ms
+- **Cumulative Layout Shift**: < 0.1
+- **Time to Interactive**: < 3.5s
+
+### Monitoring Tools
+Lighthouse CI Bundle analyzer Performance profiling
+
+<Code language="bash" title="terminal">
+{`npm install -g @lhci/cli
+lhci autorun
+
+npm run build
+npm run analyze
+
+npm run dev:profile`}
+</Code>
+
+---
+
+*Complete performance optimization documentation coming soon.*

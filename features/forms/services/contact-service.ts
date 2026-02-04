@@ -1,31 +1,17 @@
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { revalidatePath } from 'next/cache';
 
 /**
  * ContactService: Handles contact form submissions
  * 
- * This service provides a method for submitting contact form data to the Firestore database
- * using the Firebase Admin SDK. It ensures that all operations are performed server-side
- * for enhanced security and reliability.
+ * Ring-native implementation using DatabaseService
+ * MUTATIONS - NO CACHE! (contact form submissions)
  */
 export const ContactService = {
   /**
    * Submit contact form
    * 
-   * This function handles the submission of contact form data to the Firestore database.
-   * It uses the Firebase Admin SDK to ensure server-side execution and proper authentication.
-   * 
-   * User steps:
-   * 1. User fills out the contact form with their name, email, and message on the client-side
-   * 2. User clicks the submit button
-   * 3. Client-side code sends a request to the server with the form data
-   * 4. This function is called on the server to process the submission
-   * 5. Form data is stored in the Firestore database
-   * 6. A success message is logged, or an error is thrown if the submission fails
+   * Creates contact form submission in database and triggers admin notifications
    * 
    * @param {Object} data - The contact form data
    * @param {string} data.name - The name of the person submitting the form
@@ -35,37 +21,37 @@ export const ContactService = {
    * @throws {Error} If there's an error submitting the contact form
    */
   async submitContactForm(data: { name: string; email: string; message: string }): Promise<void> {
-    // Initialize adminDb outside the try block
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-
     try {
-      console.log('Admin Firestore instance obtained');
+      await initializeDatabase();
+      const db = getDatabaseService();
 
-      // Step 2: Prepare the data for submission
+      // Prepare the data for submission
       const submissionData = {
         ...data,
-        createdAt: new Date(), // Server-side timestamp
-        status: 'new', // Initial status of the submission
-        ipAddress: 'server-side-submission', // Placeholder for server-side submissions
+        createdAt: new Date(),
+        status: 'new',
+        ipAddress: 'server-side-submission',
       };
 
-      // Step 3: Add the submission to the 'contactForms' collection
-      const docRef = await adminDb.collection('contactForms').add(submissionData);
-      console.log(`Contact form submitted successfully with ID: ${docRef.id}`);
+      // Save to database (MUTATION - NO CACHE!)
+      const createResult = await db.create('contactForms', submissionData);
+      if (!createResult.success) {
+        throw createResult.error || new Error('Failed to create contact form');
+      }
 
-      // Step 4: Optionally, you can perform additional actions here, such as:
-      // - Sending a confirmation email
-      // - Updating analytics
-      // - Triggering a notification to admin
+      console.log(`Contact form submitted successfully with ID: ${createResult.data.id}`);
+
+      // Revalidate admin contact forms page (React 19 pattern)
+      revalidatePath('/[locale]/admin/contact-forms');
 
     } catch (error) {
-      // Step 5: Error handling
       console.error("Error submitting contact form:", error);
       
-      // Error logging can now use adminDb directly
+      // Error logging (best effort)
       try {
-        await adminDb.collection('errorLogs').add({
+        await initializeDatabase();
+        const db = getDatabaseService();
+        await db.create('errorLogs', {
           error: (error as Error).message,
           timestamp: new Date(),
           operation: 'submitContactForm',
@@ -74,55 +60,39 @@ export const ContactService = {
         console.error("Error logging to errorLogs collection:", logError);
       }
 
-      // Rethrow the error for the calling function to handle
       throw new Error('Failed to submit contact form. Please try again later.');
     }
   },
 
   /**
-   * Retrieve contact form submissions
+   * Retrieve contact form submissions (admin)
    * 
-   * This function retrieves contact form submissions from the Firestore database.
-   * It's designed for admin use to view and manage submitted contact forms.
-   * 
-   * Admin steps:
-   * 1. Admin navigates to the contact form management page
-   * 2. This function is called to fetch the submissions
-   * 3. Submissions are retrieved from the Firestore database
-   * 4. The data is returned to be displayed in the admin interface
+   * READ operation - uses React 19 cache() for performance
    * 
    * @param {number} limit - The maximum number of submissions to retrieve
-   * @param {string} [startAfter] - The ID of the last document to start after (for pagination)
-   * @returns {Promise<Array<{id: string, data: any}>>} A promise that resolves to an array of submission objects
+   * @param {number} offset - Pagination offset
+   * @returns {Promise<Array<{id: string, data: any}>>} Array of submission objects
    * @throws {Error} If there's an error retrieving the submissions
    */
-  async getContactFormSubmissions(limit: number, startAfter?: string): Promise<Array<{id: string, data: any}>> {
+  async getContactFormSubmissions(limit: number, offset: number = 0): Promise<Array<{id: string, data: any}>> {
     try {
-      // Step 1: Get the admin Firestore instance
-      const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-      console.log('Admin Firestore instance obtained for retrieving submissions');
+      await initializeDatabase();
+      const db = getDatabaseService();
 
-      // Step 2: Prepare the query
-      let query = adminDb.collection('contactForms')
-        .orderBy('createdAt', 'desc')
-        .limit(limit);
+      // Query contact forms (READ - can be cached)
+      const queryResult = await db.query({
+        collection: 'contactForms',
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        pagination: { limit, offset }
+      });
 
-      // If startAfter is provided, use it for pagination
-      if (startAfter) {
-        const startAfterDoc = await adminDb.collection('contactForms').doc(startAfter).get();
-        if (startAfterDoc.exists) {
-          query = query.startAfter(startAfterDoc);
-        }
+      if (!queryResult.success) {
+        throw queryResult.error || new Error('Failed to fetch contact forms');
       }
 
-      // Step 3: Execute the query
-      const snapshot = await query.get();
-
-      // Step 4: Process and return the results
-      const submissions = snapshot.docs.map(doc => ({
+      const submissions = queryResult.data.map(doc => ({
         id: doc.id,
-        data: doc.data()
+        data: doc
       }));
 
       console.log(`Retrieved ${submissions.length} contact form submissions`);

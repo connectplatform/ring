@@ -1,115 +1,250 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+import { createWalletClient, createPublicClient, http, formatEther, parseEther, isAddress } from 'viem'
+import { polygon } from 'viem/chains'
+import { privateKeyToAccount } from 'viem/accounts'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { auth } from "@/auth"
-import { FieldValue } from 'firebase-admin/firestore'
+import { decryptPrivateKey } from '@/lib/crypto'
 
 /**
- * Global declaration for the wallet list cache
- * This cache is used to store wallet lists for quick access
+ * POST handler for transferring native tokens (POL/MATIC) from user's wallet
+ *
+ * Modern Web3 implementation using viem for type-safe blockchain interactions.
+ * This route handles server-side transaction signing for user wallets.
+ *
+ * Security considerations:
+ * - Private keys are encrypted at rest
+ * - Transactions are signed server-side (consider user-side signing for better UX)
+ * - Rate limiting and transaction monitoring should be implemented
+ *
+ * @param request - Contains toAddress and amount in JSON body
+ * @returns Transaction hash on success, error message on failure
  */
-declare global {
-  var walletListCache: Map<string, any> | undefined
-}
-
-/**
- * POST handler for setting a new primary wallet
- * 
- * This API route handles the process of changing a user's primary wallet.
- * It performs the following steps:
- * 1. Authenticates the user
- * 2. Validates the request body
- * 3. Retrieves the user's data from Firestore
- * 4. Checks if the requested wallet exists and is not already the primary
- * 5. Swaps the primary wallet with the selected additional wallet
- * 6. Updates the user's document in Firestore
- * 7. Clears the cache for this user in the wallet list endpoint
- * 
- * User steps:
- * 1. User must be authenticated before calling this endpoint
- * 2. User sends a POST request to /api/wallet/set-primary with the wallet address in the request body
- * 3. If successful, the user's primary wallet is updated
- * 
- * @param {NextRequest} request - The incoming request object
- * @returns {Promise<NextResponse>} A promise that resolves to a NextResponse object
- */
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  console.log('API: /api/wallet/set-primary - Starting POST request')
+export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  console.log('🚀 API: /api/wallet/transfer - Starting native token transfer')
 
   try {
-    // Step 1: Authenticate the user
+    // 1. Authenticate user session
     const session = await auth()
-    if (!session || !session.user) {
-      console.log('API: /api/wallet/set-primary - Unauthorized access attempt')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      console.log('❌ API: /api/wallet/transfer - Authentication failed')
+      return NextResponse.json(
+        { error: 'Authentication required', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
     }
 
-    const userId = session.user.id
-    console.log(`API: /api/wallet/set-primary - User authenticated with ID: ${userId}`)
+    // 2. Parse and validate request body
+    const body = await request.json()
+    const { toAddress, amount, tokenSymbol = 'POL' } = body
 
-    // Step 2: Validate the request body
-    const { address } = await request.json()
-    if (!address) {
-      console.log('API: /api/wallet/set-primary - Missing address in request body')
-      return NextResponse.json({ error: 'Address is required' }, { status: 400 })
+    // Input validation
+    if (!toAddress || !amount) {
+      return NextResponse.json(
+        { error: 'Missing required fields: toAddress and amount', code: 'INVALID_PARAMS' },
+        { status: 400 }
+      )
     }
 
-    console.log(`API: /api/wallet/set-primary - Requested to set primary wallet: ${address}`)
-
-    // Step 3: Retrieve user data from Firestore
-    const adminDb = await getAdminDb()
-    const userDoc = await adminDb.collection('users').doc(userId)
-    const userData = (await userDoc.get()).data()
-
-    if (!userData) {
-      console.log(`API: /api/wallet/set-primary - User not found: ${userId}`)
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (!isAddress(toAddress)) {
+      return NextResponse.json(
+        { error: 'Invalid recipient address format', code: 'INVALID_ADDRESS' },
+        { status: 400 }
+      )
     }
 
-    // Step 4: Check if the requested wallet is already the primary
-    if (userData.walletAddress === address) {
-      console.log('API: /api/wallet/set-primary - Requested wallet is already the primary wallet')
-      return NextResponse.json({ message: 'This wallet is already the primary wallet' })
+    // Parse and validate amount
+    const transferAmount = parseFloat(amount)
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Invalid transfer amount', code: 'INVALID_AMOUNT' },
+        { status: 400 }
+      )
     }
 
-    // Step 5: Find the requested wallet in the additional wallets list
-    const additionalWallet = userData.additionalWallets?.find((w: any) => w.address === address)
-
-    if (!additionalWallet) {
-      console.log(`API: /api/wallet/set-primary - Requested wallet not found: ${address}`)
-      return NextResponse.json({ error: 'Wallet not found' }, { status: 404 })
+    // For now, only support native POL transfers
+    if (tokenSymbol !== 'POL') {
+      return NextResponse.json(
+        { error: 'Only native POL transfers supported', code: 'UNSUPPORTED_TOKEN' },
+        { status: 400 }
+      )
     }
 
-    // Step 6: Swap the primary and the selected additional wallet
-    const oldPrimary = {
-      address: userData.walletAddress,
-      encryptedPrivateKey: userData.encryptedPrivateKey,
-      createdAt: userData.createdAt
+    console.log(`📋 API: /api/wallet/transfer - Processing transfer: ${amount} ${tokenSymbol} to ${toAddress}`)
+
+    // 3. Retrieve and validate user wallet
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const userResult = await db.read('users', session.user.id)
+
+    if (!userResult.success || !userResult.data) {
+      console.log('❌ API: /api/wallet/transfer - User document not found')
+      return NextResponse.json(
+        { error: 'User wallet not configured', code: 'WALLET_NOT_FOUND' },
+        { status: 404 }
+      )
     }
 
-    // Update the user document with the new primary wallet
-    await userDoc.update({
-      walletAddress: address,
-      encryptedPrivateKey: additionalWallet.encryptedPrivateKey,
-      additionalWallets: userData.additionalWallets.filter((w: any) => w.address !== address)
+    const userData = userResult.data as any
+    const wallets = userData?.wallets || []
+
+    if (!wallets.length) {
+      return NextResponse.json(
+        { error: 'No wallets configured for user', code: 'NO_WALLETS' },
+        { status: 404 }
+      )
+    }
+
+    // Find default wallet or use first available
+    const wallet = wallets.find((w: any) => w.isDefault) || wallets[0]
+
+    if (!wallet?.encryptedPrivateKey || !wallet?.address) {
+      return NextResponse.json(
+        { error: 'Wallet configuration incomplete', code: 'WALLET_INCOMPLETE' },
+        { status: 500 }
+      )
+    }
+
+    // 4. Decrypt private key following Secrets Keeper protocols
+    const encryptionKey = process.env.WALLET_ENCRYPTION_KEY
+    if (!encryptionKey) {
+      console.error('SECRETS KEEPER: WALLET_ENCRYPTION_KEY not configured - CRITICAL SECURITY BREACH')
+      return NextResponse.json(
+        { error: 'Server security configuration error', code: 'SECRETS_KEEPER_CONFIG_ERROR' },
+        { status: 500 }
+      )
+    }
+
+    let privateKey: `0x${string}`
+    try {
+      console.log('SECRETS KEEPER: Initiating private key decryption for wallet transfer')
+      privateKey = decryptPrivateKey(wallet.encryptedPrivateKey, encryptionKey)
+
+      // Secrets Keeper: Audit trail - log successful decryption without exposing key
+      console.log(`SECRETS KEEPER: Private key decrypted successfully for wallet ${wallet.address.slice(0, 8)}...${wallet.address.slice(-6)}`)
+
+    } catch (decryptError) {
+      // Secrets Keeper: Security incident logging
+      console.error(`SECRETS KEEPER: CRITICAL - Private key decryption failed for wallet ${wallet.address}:`, {
+        error: decryptError.message,
+        walletId: wallet.address,
+        timestamp: new Date().toISOString(),
+        action: 'wallet_transfer_attempt',
+        severity: 'CRITICAL'
+      })
+
+      return NextResponse.json(
+        { error: 'Wallet security access failed', code: 'SECRETS_KEEPER_DECRYPTION_FAILED' },
+        { status: 500 }
+      )
+    }
+
+    // 5. Initialize viem wallet client
+    const account = privateKeyToAccount(privateKey)
+
+    // Verify the account matches the stored address
+    if (account.address.toLowerCase() !== wallet.address.toLowerCase()) {
+      console.error('❌ API: /api/wallet/transfer - Address mismatch in decrypted wallet')
+      return NextResponse.json(
+        { error: 'Wallet integrity check failed', code: 'ADDRESS_MISMATCH' },
+        { status: 500 }
+      )
+    }
+
+    const walletClient = createWalletClient({
+      account,
+      chain: polygon,
+      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
     })
 
-    // Add the old primary wallet to the additional wallets list
-    await userDoc.update({
-      additionalWallets: FieldValue.arrayUnion(oldPrimary)
+    // 6. Execute the transfer
+    console.log('⚡ API: /api/wallet/transfer - Sending transaction...')
+
+    const value = parseEther(amount)
+
+    const hash = await walletClient.sendTransaction({
+      to: toAddress as `0x${string}`,
+      value: value,
+    } as any)
+
+    console.log(`✅ API: /api/wallet/transfer - Transaction sent: ${hash}`)
+
+    // 7. Wait for transaction confirmation using public client
+    // Create a public client for reading transaction receipts
+    const publicClient = createPublicClient({
+      chain: polygon,
+      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
     })
 
-    console.log(`API: /api/wallet/set-primary - Primary wallet updated to: ${address}`)
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
-    // Step 7: Clear the cache for this user in the wallet list endpoint
-    if (global.walletListCache) {
-      global.walletListCache.delete(userId)
-      console.log(`API: /api/wallet/set-primary - Cleared cache for user: ${userId}`)
+    if (receipt.status === 'success') {
+      const duration = Date.now() - startTime
+      console.log(`🎉 API: /api/wallet/transfer - Transfer completed in ${duration}ms: ${hash}`)
+
+      return NextResponse.json({
+        success: true,
+        txHash: hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        effectiveGasPrice: receipt.effectiveGasPrice,
+        amount: amount,
+        tokenSymbol,
+        toAddress,
+        fromAddress: wallet.address,
+        timestamp: new Date().toISOString(),
+        processingTime: duration
+      })
+    } else {
+      throw new Error('Transaction failed on-chain')
     }
 
-    return NextResponse.json({ message: 'Primary wallet updated successfully' })
   } catch (error) {
-    console.error('API: /api/wallet/set-primary - Error setting primary wallet:', error)
-    return NextResponse.json({ error: 'Failed to set primary wallet' }, { status: 500 })
+    const duration = Date.now() - startTime
+    console.error(`❌ API: /api/wallet/transfer - Transfer failed after ${duration}ms:`, error)
+
+    // Enhanced error handling
+    if (error instanceof Error) {
+      // Viem-specific errors
+      if (error.message.includes('insufficient funds')) {
+        return NextResponse.json(
+          { error: 'Insufficient funds for transfer', code: 'INSUFFICIENT_FUNDS' },
+          { status: 400 }
+        )
+      }
+
+      if (error.message.includes('nonce too low') || error.message.includes('replacement transaction underpriced')) {
+        return NextResponse.json(
+          { error: 'Transaction conflict. Please try again.', code: 'NONCE_ERROR' },
+          { status: 409 }
+        )
+      }
+
+      if (error.message.includes('gas required exceeds allowance')) {
+        return NextResponse.json(
+          { error: 'Transaction would exceed gas limit', code: 'GAS_LIMIT_EXCEEDED' },
+          { status: 400 }
+        )
+      }
+
+      // Generic error fallback
+      return NextResponse.json(
+        { error: 'Transaction failed', details: error.message, code: 'TRANSACTION_FAILED' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Unexpected error occurred', code: 'UNKNOWN_ERROR' },
+      { status: 500 }
+    )
   }
 }
+
+/**
+ * @param toAddress - The Ethereum address to send funds to
+ * @param amount - The amount of Ether to send, as a string (e.g., "0.1" for 0.1 ETH)
+ */
 

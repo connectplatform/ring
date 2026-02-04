@@ -253,22 +253,22 @@ export default function OpportunityStatusPage({
           </div>
 
           {/* Status Title */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              <h1 className="text-2xl font-bold text-foreground mb-4">
             {t(`${translationKey}.title`)}
           </h1>
 
           {/* Status Description */}
-          <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
             {t(`${translationKey}.description`)}
           </p>
 
           {/* Opportunity Title Display (if provided) */}
           {opportunityTitle && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('opportunityTitle')}
               </p>
-              <p className="font-medium text-gray-900">
+                <p className="font-medium text-foreground">
                 {opportunityTitle}
               </p>
             </div>
@@ -277,10 +277,10 @@ export default function OpportunityStatusPage({
           {/* Application/Submission ID Display */}
           {applicationId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('applicationId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {applicationId}
               </p>
             </div>
@@ -288,10 +288,10 @@ export default function OpportunityStatusPage({
 
           {submissionId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('submissionId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {submissionId}
               </p>
             </div>
@@ -300,10 +300,10 @@ export default function OpportunityStatusPage({
           {/* Review ID Display (for approval processes) */}
           {reviewId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('reviewId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {reviewId}
               </p>
             </div>
@@ -315,7 +315,7 @@ export default function OpportunityStatusPage({
               <p className="text-sm text-red-600 mb-2 font-medium">
                 {status === 'rejected' ? t('rejectionReason') : t('changesRequired')}
               </p>
-              <p className="text-sm text-gray-700">
+                  <p className="text-sm text-muted-foreground">
                 {reason}
               </p>
             </div>
@@ -327,7 +327,7 @@ export default function OpportunityStatusPage({
               <p className="text-sm text-blue-600 mb-2 font-medium">
                 {t('nextStep')}
               </p>
-              <p className="text-sm text-gray-700">
+                  <p className="text-sm text-muted-foreground">
                 {nextStep}
               </p>
             </div>
@@ -345,7 +345,7 @@ export default function OpportunityStatusPage({
 
           {action === 'create' && status === 'draft' && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                 {t(`${translationKey}.instruction`)}
               </p>
             </div>
@@ -374,7 +374,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={returnTo || ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>
@@ -394,7 +394,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>
@@ -422,7 +422,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.CONTACT(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.contactSupport')}
                 </Link>
@@ -442,7 +442,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>
@@ -462,7 +462,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>
@@ -482,7 +482,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>
@@ -502,7 +502,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.viewMyApplications')}
                 </Link>
@@ -522,7 +522,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>
@@ -542,7 +542,7 @@ export default function OpportunityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToOpportunities')}
                 </Link>

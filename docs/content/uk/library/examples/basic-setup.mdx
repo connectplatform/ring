@@ -1,0 +1,242 @@
+---
+title: Базове налаштування
+description: Документація базового налаштування для платформи Ring
+---
+
+# Приклад базового налаштування
+
+Повнофункціональний екземпляр платформи Ring за 5 хвилин - **готовий до копіювання** з усіма включеними залежностями.
+
+## 🎯 Що ви створите
+
+Повнофункціональну платформу Ring з:
+- ✅ **Автентифікація** - Google OAuth працює
+- ✅ **База даних** - Firestore підключена та заповнена
+- ✅ **Сутності** - Створення та управління організаціями
+- ✅ **Можливості** - Розміщення вакансій та партнерств
+- ✅ **Реальний час** - WebSocket сповіщення працюють
+
+## ⚡ 5-хвилинний швидкий старт
+
+### Крок 1: Клонування та встановлення
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+npm install`}
+</Code>
+
+### Step 2: Environment Setup
+Копіювання шаблону середовища Генерація ключа шифрування
+
+<Code language="bash" title="terminal">
+{`cp env.local.template .env.local
+
+openssl rand -hex 32`}
+</Code>
+
+### Крок 3: Налаштування середовища
+.env.local Google OAuth (get from Google Cloud Console) Firebase (get from Firebase Console)
+
+<Code language="bash" title="terminal">
+{`NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret-here
+WALLET_ENCRYPTION_KEY=your-generated-key-here
+
+AUTH_GOOGLE_ID=your-google-client-id
+AUTH_GOOGLE_SECRET=your-google-client-secret
+
+AUTH_FIREBASE_PROJECT_ID=your-project-id
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+AUTH_FIREBASE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com`}
+</Code>
+### Крок 4: Запуск розробки
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+🎉 **Успіх!** Відвідайте http://localhost:3000
+
+## ✅ Перевірка успішності
+
+Після налаштування перевірте, що це працює:
+
+### 1. Тест автентифікації
+- [ ] Відвідайте `/auth/signin`
+- [ ] Натисніть "Увійти через Google"
+- [ ] Успішне перенаправлення на панель керування
+- [ ] Ваше ім'я з'являється в навігації
+
+### 2. Тест бази даних
+- [ ] Відвідайте `/entities`
+- [ ] Натисніть "Створити сутність"
+- [ ] Заповніть форму та надішліть
+- [ ] Нова сутність з'являється в списку
+
+### 3. Тест API
+Should return: {"status":"ok","timestamp":"..."}
+
+<Code language="bash" title="terminal">
+{`curl http://localhost:3000/api/health`}
+</Code>
+
+### 4. Тест реального часу
+- [ ] Відкрийте дві вкладки браузера
+- [ ] Створіть можливість в одній вкладці
+- [ ] Побачте сповіщення в іншій вкладці
+
+## 📁 Структура проєкту
+
+```
+ring/
+├── app/                   # Next.js App Router
+│   ├── (auth)/            # Сторінки автентифікації
+│   ├── entities/          # Управління сутностями
+│   ├── opportunities/     # Ринок можливостей
+│   └── api/               # API маршрути
+├── components/            # React компоненти
+├── lib/                   # Утиліти та конфігурації
+├── features/              # Модулі функцій
+└── public/                # Статичні ресурси
+```
+## 🔧 Пояснення ключових файлів
+
+### Конфігурація автентифікації
+// auth.ts
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from "next-auth"
+import Google from "next-auth/providers/google"
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [Google],
+  callbacks: {
+    async session({ session, token }) {
+      // Add user ID to session
+      session.user.id = token.sub
+      return session
+    }
+  }
+})`}
+</Code>
+### Конфігурація бази даних
+// lib/firebase.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { initializeApp, getApps } from 'firebase/app'
+import { getFirestore } from 'firebase/firestore'
+
+const firebaseConfig = {
+  projectId: process.env.AUTH_FIREBASE_PROJECT_ID,
+  // ... other config
+}
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+export const db = getFirestore(app)`}
+</Code>
+### Приклад API маршруту
+// app/api/entities/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+import { NextRequest } from 'next/server'
+
+export async function POST(request: NextRequest) {
+  const session = await auth()
+  
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const data = await request.json()
+  
+  // Create entity in database
+  const entity = await createEntity({
+    ...data,
+    userId: session.user.id
+  })
+
+  return Response.json({ entity })
+}`}
+</Code>
+## 🎨 Швидкі налаштування персоналізації
+
+### Зміна логотипу
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`const navbar = (
+  <Navbar 
+    logo={
+      <>
+        <span className="mr-2 font-extrabold text-2xl">🏢</span>
+        <span className="font-bold text-xl">Your Company</span>
+      </>
+    }
+  />
+)`}
+</Code>
+### Оновлення кольорів
+/* app/globals.css */
+
+<Code language="css" title="styles">
+{`:root {
+  --color-primary: #your-brand-color;
+  --color-secondary: #your-accent-color;
+}`}
+</Code>
+### Додавання власного типу сутності
+// types/entity.ts
+
+<Code language="typescript" title="TypeScript">
+{`export type EntityType = 
+  | 'technology' 
+  | 'healthcare' 
+  | 'finance'
+  | 'your-custom-type' // Add your type here`}
+</Code>
+## 🚨 Поширені проблеми та рішення
+
+### Проблема: Помилка "FETCH_FAILED"
+**Рішення**: Перевірте конфігурацію Firebase
+Verify project ID Check service account key format Should show: -----BEGIN PRIVATE KEY-----
+
+<Code language="bash" title="terminal">
+{`echo $AUTH_FIREBASE_PROJECT_ID
+
+echo $AUTH_FIREBASE_PRIVATE_KEY | head -1`}
+</Code>
+
+### Issue: Google OAuth Not Working
+**Solution**: Verify OAuth configuration
+1. Check Google Cloud Console OAuth settings
+2. Add `http://localhost:3000` to authorized origins
+3. Add `http://localhost:3000/api/auth/callback/google` to redirect URIs
+
+### Issue: Database Permission Denied
+**Solution**: Update Firestore rules
+// Firestore Rules
+
+<Code language="javascript" title="JavaScript">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}
+</Code>
+## 🚀 Наступні кроки
+
+Після того, як базове налаштування працює:
+
+1. **[Налаштування брендингу](/uk/docs/examples/custom-branding)** - Зробіть платформу своєю
+2. **[Додавання функцій](/uk/docs/features)** - Дослідіть можливості платформи
+3. **[Розгортання у продакшн](/uk/docs/deployment)** - Запустіть з Vercel
+4. **[Приєднання до спільноти](/uk/docs/discord)** - Отримайте допомогу та діліться ідеями
+
+---
+
+**🎉 Вітаємо!** Тепер у вас є робочий екземпляр платформи Ring. Можливості безмежні!
+
+*Виникли проблеми? Приєднуйтесь до нашої [Discord спільноти](https://discord.gg/ring-platform) за допомогою.*

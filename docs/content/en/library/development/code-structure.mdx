@@ -1,0 +1,391 @@
+---
+title: Code Structure
+description: Code Structure documentation for Ring Platform
+---
+
+# Code Structure
+
+Understanding Ring Platform's codebase architecture and organization.
+
+## 📁 High-Level Architecture
+
+Ring Platform follows a **feature-based architecture** with clear separation of concerns:
+
+```
+ring/
+├── app/                 # Next.js 15 App Router
+├── components/         # Reusable React components
+├── features/           # Feature modules (domain-driven)
+├── lib/               # Shared utilities and configurations
+├── @actions/          # Server actions (Next.js 15)
+├── public/            # Static assets
+└── AI-CONTEXT/        # AI documentation system
+```
+
+## 🏗️ App Directory Structure
+
+### App Router (Next.js 15)
+
+```
+app/
+├── (auth)/            # Route groups for auth pages
+│   ├── login/
+│   └── register/
+├── (dashboard)/       # Protected dashboard routes
+│   ├── entities/
+│   ├── opportunities/
+│   └── wallet/
+├── api/              # API routes
+│   ├── auth/
+│   ├── entities/
+│   └── opportunities/
+├── globals.css       # Global styles
+├── layout.tsx        # Root layout
+└── page.tsx          # Homepage
+```
+
+### Route Groups
+- `(auth)` - Authentication-related pages
+- `(dashboard)` - Protected user dashboard
+- `(public)` - Public marketing pages
+
+## 🧩 Components Architecture
+
+### Component Hierarchy
+
+```
+components/
+├── ui/               # Base UI components (shadcn/ui)
+│   ├── button.tsx
+│   ├── input.tsx
+│   └── dialog.tsx
+├── features/         # Feature-specific components
+│   ├── entities/
+│   ├── opportunities/
+│   └── wallet/
+├── layout/          # Layout components
+│   ├── navbar.tsx
+│   ├── sidebar.tsx
+│   └── footer.tsx
+└── shared/          # Shared business components
+    ├── user-avatar.tsx
+    └── loading-spinner.tsx
+```
+
+### Component Patterns
+
+#### 1. Base UI Components
+// components/ui/button.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { cn } from '@/lib/utils'
+
+interface ButtonProps {
+  variant?: 'default' | 'destructive' | 'outline'
+  size?: 'default' | 'sm' | 'lg'
+  children: React.ReactNode
+}
+
+export function Button({ variant = 'default', size = 'default', children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(
+        'inline-flex items-center justify-center rounded-md font-medium',
+        variants[variant],
+        sizes[size]
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}`}
+</Code>
+
+#### 2. Feature Components
+// components/features/entities/entity-card.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { Entity } from '@/types/entities'
+import { Button } from '@/components/ui/button'
+
+interface EntityCardProps {
+  entity: Entity
+  onEdit?: (entity: Entity) => void
+}
+
+export function EntityCard({ entity, onEdit }: EntityCardProps) {
+  return (
+    <div className="border rounded-lg p-4">
+      <h3 className="font-semibold">{entity.name}</h3>
+      <p className="text-gray-600">{entity.description}</p>
+      {onEdit && (
+        <Button onClick={() => onEdit(entity)}>
+          Edit
+        </Button>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+## 🎯 Features Architecture
+
+### Feature-Based Organization
+
+```
+features/
+├── entities/         # Entity management feature
+│   ├── components/   # Feature-specific components
+│   ├── hooks/       # Custom hooks
+│   ├── types/       # TypeScript types
+│   ├── utils/       # Feature utilities
+│   └── index.ts     # Public API
+├── opportunities/   # Opportunities feature
+├── wallet/         # Web3 wallet feature
+└── messaging/      # Real-time messaging
+```
+
+### Feature Module Pattern
+
+// features/entities/index.ts - Public API
+
+<Code language="typescript" title="TypeScript">
+{`export { EntityCard } from './components/entity-card'
+export { useEntities } from './hooks/use-entities'
+export type { Entity, EntityType } from './types'
+export { createEntity, updateEntity } from './utils/entity-operations'`}
+</Code>
+
+### Custom Hooks Pattern
+
+// features/entities/hooks/use-entities.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { useQuery } from '@tanstack/react-query'
+import { getEntities } from '../utils/entity-operations'
+
+export function useEntities(userId?: string) {
+  return useQuery({
+    queryKey: ['entities', userId],
+    queryFn: () => getEntities(userId),
+    enabled: !!userId
+  })
+}`}
+</Code>
+
+## 🔧 Lib Directory
+
+### Shared Utilities
+
+```
+lib/
+├── auth.ts          # Auth.js configuration
+├── firebase.ts      # Firebase setup
+├── db.ts           # Database utilities
+├── utils.ts        # General utilities
+├── validations.ts  # Zod schemas
+├── constants.ts    # App constants
+└── types.ts        # Global types
+```
+
+### Key Utilities
+
+#### Authentication Configuration
+// lib/auth.ts
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
+import GoogleProvider from 'next-auth/providers/google'
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+  // ... configuration
+})`}
+</Code>
+
+#### Database Utilities
+// lib/db.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { initializeApp } from 'firebase/app'
+import { getFirestore } from 'firebase/firestore'
+
+const app = initializeApp(firebaseConfig)
+export const db = getFirestore(app)`}
+</Code>
+
+## ⚡ Server Actions
+
+### Server Actions Structure
+
+```
+@actions/
+├── entities/
+│   ├── create-entity.ts
+│   ├── update-entity.ts
+│   └── delete-entity.ts
+├── opportunities/
+└── auth/
+```
+
+### Server Action Pattern
+
+<Code language="typescript" title="TypeScript">
+{`// @actions/entities/create-entity.ts
+'use server'
+
+import { auth } from '@/lib/auth'
+import { createEntitySchema } from '@/lib/validations'
+import { redirect } from 'next/navigation'
+
+export async function createEntity(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    redirect('/login')
+  }
+
+  const validatedFields = createEntitySchema.safeParse({
+    name: formData.get('name'),
+    type: formData.get('type'),
+    description: formData.get('description'),
+  })
+
+  if (!validatedFields.success) {
+    return { error: 'Invalid fields' }
+  }
+
+  // Create entity logic...
+  
+  redirect('/dashboard/entities')
+}`}
+</Code>
+
+## 📝 TypeScript Patterns
+
+### Type Organization
+
+// types/entities.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface Entity {
+  id: string
+  name: string
+  type: EntityType
+  description: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type EntityType = 
+  | 'technology'
+  | 'healthcare'
+  | 'finance'
+  // ... other types
+
+export interface CreateEntityRequest {
+  name: string
+  type: EntityType
+  description: string
+}`}
+</Code>
+
+### API Response Types
+
+// types/api.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface ApiResponse<T = any> {
+  data?: T
+  error?: string
+  message?: string
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}`}
+</Code>
+
+## 🎨 Styling Architecture
+
+### Tailwind CSS Organization
+
+```
+app/globals.css
+├── @tailwind base;
+├── @tailwind components;
+├── @tailwind utilities;
+└── /* Custom component styles */
+```
+
+### Component Styling Patterns
+
+// Using cn utility for conditional classes
+
+<Code language="typescript" title="TypeScript">
+{`import { cn } from '@/lib/utils'
+
+function Component({ variant, className }: Props) {
+  return (
+    <div
+      className={cn(
+        'base-styles',
+        {
+          'variant-styles': variant === 'special',
+        },
+        className
+      )}
+    >
+      Content
+    </div>
+  )
+}`}
+</Code>
+
+## 📚 Best Practices
+
+### 1. Import Organization
+// External imports first
+
+<Code language="typescript" title="TypeScript">
+{`import React from 'react'
+import { NextPage } from 'next'
+
+// Internal imports
+import { Button } from '@/components/ui/button'
+import { useEntities } from '@/features/entities'
+import { cn } from '@/lib/utils'
+
+// Type imports last
+import type { Entity } from '@/types/entities'`}
+</Code>
+
+### 2. Component File Structure
+// 1. Imports
+
+<Code language="typescript" title="TypeScript">
+{`// 2. Types/Interfaces
+// 3. Component implementation
+// 4. Default export
+// 5. Named exports (if any)`}
+</Code>
+
+### 3. Feature Boundaries
+- Keep feature code within feature directories
+- Use public APIs for cross-feature communication
+- Avoid deep imports from other features
+
+---
+
+*Next: [Development Workflow](/en/library/development/workflow) - Learn about our Git workflow and development process.*

@@ -1,0 +1,580 @@
+---
+title: Token Staking System
+description: White-label staking module with EVM adapter, supporting DAAR and DAARION pools with profile integration
+---
+
+# Token Staking System
+
+Complete staking system for DAAR and DAARION tokens with automated rewards, profile integration, and white-label theming support.
+
+## Overview
+
+The Ring Platform staking system enables authenticated users to stake DAAR and DAARION tokens in multiple pools to earn rewards while supporting platform governance and liquidity. The system features automated reward distribution, wrong-network protection, and optional server-side position caching.
+
+## Key Features
+
+### Multi-Pool Staking
+
+**Supported Token Pools**
+- **DAAR Pool**: Primary governance token staking
+- **DAARION Pool**: Reward token staking with higher yields
+- **Flexible Pool Management**: Dynamic pool creation and configuration
+
+**Staking Operations**
+- **Stake**: Deposit tokens into staking pools
+- **Unstake**: Withdraw tokens from pools with lock periods
+- **Claim**: Collect accumulated rewards
+- **Compound**: Automatic reinvestment of rewards
+
+### Automated Reward Distribution
+
+**APR-Based Staking System**
+- **Dynamic APR Calculation**: Real-time reward rate computation
+- **Fee Distributor Integration**: Automated reward distribution
+- **Reward Tracking**: Comprehensive earning history and analytics
+
+**Reward Mechanism**
+// APR calculation example
+
+<Code language="typescript" title="TypeScript">
+{`const calculateAPR = (totalStaked: number, rewardRate: number, timePeriod: number) => {
+  const annualReward = (totalStaked * rewardRate * 365) / timePeriod
+  return (annualReward / totalStaked) * 100 // APR percentage
+}`}
+</Code>
+
+### Profile Integration
+
+**Public Profile Staking Summary**
+// Public profile route with staking summary
+
+<Code language="typescript" title="TypeScript">
+{`/[locale]/u/[username]  // Includes staking portfolio`}
+</Code>
+
+**Profile Features**
+- **Staking Portfolio Display**: Active positions and rewards
+- **Performance Metrics**: Historical returns and analytics
+- **Social Sharing**: Achievement badges and milestones
+- **SEO Optimization**: Staking activity in profile metadata
+
+### Security Features
+
+**Network Protection**
+// Wrong-network protection
+
+<Code language="typescript" title="TypeScript">
+{`const validateNetwork = (chainId: number) => {
+  const supportedChains = [1, 137] // Ethereum, Polygon
+  if (!supportedChains.includes(chainId)) {
+    throw new Error('Unsupported network for staking')
+  }
+}`}
+</Code>
+
+**Smart Allowance Management**
+// Safe allowance handling with zero-reset fallback
+
+<Code language="typescript" title="TypeScript">
+{`const manageAllowance = async (tokenContract: Contract, spender: string, amount: string) => {
+  const currentAllowance = await tokenContract.allowance(owner, spender)
+
+  // Reset to zero if current allowance exists (prevents front-running)
+  if (currentAllowance > 0) {
+    await tokenContract.approve(spender, 0)
+  }
+
+  // Set new allowance
+  await tokenContract.approve(spender, amount)
+}`}
+</Code>
+
+## Implementation
+
+### Staking Pool Operations
+
+**Stake Tokens in Pool**
+// Client-side staking with wallet connection
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+export function StakingPanel({ userId }: { userId: string }) {
+  const [selectedPool, setSelectedPool] = useState('DAAR')
+  const [amount, setAmount] = useState('')
+  const [isStaking, setIsStaking] = useState(false)
+
+  const handleStake = async () => {
+    setIsStaking(true)
+
+    try {
+      // Validate network
+      await validateNetwork()
+
+      // Connect wallet
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+
+      // Get staking contract
+      const stakingContract = new ethers.Contract(
+        STAKING_CONTRACT_ADDRESS,
+        STAKING_ABI,
+        signer
+      )
+
+      // Approve token spending
+      const tokenContract = new ethers.Contract(
+        selectedPool === 'DAAR' ? DAAR_ADDRESS : DAARION_ADDRESS,
+        ERC20_ABI,
+        signer
+      )
+
+      await manageAllowance(tokenContract, STAKING_CONTRACT_ADDRESS, amount)
+
+      // Execute stake transaction
+      const stakeTx = await stakingContract.stake(
+        selectedPool === 'DAAR' ? 0 : 1, // Pool ID
+        ethers.parseEther(amount)
+      )
+      await stakeTx.wait()
+
+      // Update backend records
+      await recordStakingPosition({
+        userId,
+        poolId: selectedPool,
+        amount,
+        transactionHash: stakeTx.hash,
+        timestamp: new Date()
+      })
+
+    } catch (error) {
+      console.error('Staking failed:', error)
+      setIsStaking(false)
+    }
+  }
+
+  return (
+    <div className="staking-panel">
+      <select value={selectedPool} onChange={(e) => setSelectedPool(e.target.value)}>
+        <option value="DAAR">DAAR Pool</option>
+        <option value="DAARION">DAARION Pool</option>
+      </select>
+      <input
+        type="number"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Amount to stake"
+      />
+      <button onClick={handleStake} disabled={isStaking}>
+        {isStaking ? 'Staking...' : 'Stake Tokens'}
+      </button>
+    </div>
+  )
+}`}
+</Code>
+
+**Claim Staking Rewards**
+// Claim accumulated rewards
+
+<Code language="typescript" title="TypeScript">
+{`export async function claimStakingRewards(userId: string, poolId: number) {
+  // Get user's staking position
+  const position = await getStakingPosition(userId, poolId)
+
+  if (!position || position.rewards <= 0) {
+    throw new Error('No rewards available to claim')
+  }
+
+  // Connect to staking contract
+  const stakingContract = new ethers.Contract(
+    STAKING_CONTRACT_ADDRESS,
+    STAKING_ABI,
+    signer
+  )
+
+  // Claim rewards transaction
+  const claimTx = await stakingContract.claimRewards(poolId)
+  await claimTx.wait()
+
+  // Update position records
+  await updateStakingPosition(position.id, {
+    claimedRewards: position.claimedRewards + position.rewards,
+    lastClaimDate: new Date(),
+    transactionHash: claimTx.hash
+  })
+
+  return {
+    claimedAmount: position.rewards,
+    transactionHash: claimTx.hash
+  }
+}`}
+</Code>
+
+**Unstake Tokens**
+<Code language="typescript" title="TypeScript">
+{`// Unstake tokens from pool (with potential lock period)
+export async function unstakeTokens(positionId: string) {
+  const position = await getStakingPositionById(positionId)
+
+  // Check if unstaking is allowed (lock period)
+  const lockEndDate = new Date(position.createdAt.getTime() + (position.lockPeriod * 24 * 60 * 60 * 1000))
+  const now = new Date()
+
+  if (now < lockEndDate) {
+    const remainingDays = Math.ceil((lockEndDate - now) / (24 * 60 * 60 * 1000))
+    throw new Error(`Tokens are locked for ${remainingDays} more days`)
+  }
+
+  // Execute unstake transaction
+  const stakingContract = new ethers.Contract(
+    STAKING_CONTRACT_ADDRESS,
+    STAKING_ABI,
+    signer
+  )
+
+  const unstakeTx = await stakingContract.unstake(position.poolId, position.amount)
+  await unstakeTx.wait()
+
+  // Update position status
+  await updateStakingPosition(positionId, {
+    status: 'unstaked',
+    unstakedAt: new Date(),
+    transactionHash: unstakeTx.hash
+  })
+
+  return {
+    unstakedAmount: position.amount,
+    transactionHash: unstakeTx.hash
+  }
+}`}
+</Code>
+
+### Profile Staking Integration
+
+**Staking Summary Component**
+// components/profile/StakingSummary.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export function StakingSummary({ userId }: { userId: string }) {
+  const [stakingData, setStakingData] = useState(null)
+
+  useEffect(() => {
+    const fetchStakingData = async () => {
+      const positions = await getUserStakingPositions(userId)
+      const rewards = await getUserStakingRewards(userId)
+      const analytics = await getStakingAnalytics(userId)
+
+      setStakingData({
+        positions,
+        rewards,
+        analytics
+      })
+    }
+
+    fetchStakingData()
+  }, [userId])
+
+  if (!stakingData) return <div>Loading staking data...</div>
+
+  return (
+    <div className="staking-summary">
+      <h3>Staking Portfolio</h3>
+
+      <div className="staking-stats">
+        <div className="stat">
+          <span className="label">Total Staked</span>
+          <span className="value">
+            {stakingData.analytics.totalStaked} DAAR
+          </span>
+        </div>
+
+        <div className="stat">
+          <span className="label">Total Rewards</span>
+          <span className="value">
+            {stakingData.analytics.totalRewards} DAARION
+          </span>
+        </div>
+
+        <div className="stat">
+          <span className="label">Average APR</span>
+          <span className="value">
+            {stakingData.analytics.averageAPR}%
+          </span>
+        </div>
+      </div>
+
+      <div className="active-positions">
+        <h4>Active Positions</h4>
+        {stakingData.positions.map(position => (
+          <StakingPositionCard key={position.id} position={position} />
+        ))}
+      </div>
+
+      <div className="reward-history">
+        <h4>Reward History</h4>
+        {stakingData.rewards.map(reward => (
+          <RewardTransaction key={reward.id} reward={reward} />
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## API Endpoints
+
+### Staking Management
+// GET /api/staking/positions - Get user's staking positions
+
+<Code language="typescript" title="TypeScript">
+{`// POST /api/staking/stake - Create new staking position
+// POST /api/staking/unstake - Unstake tokens from position
+// POST /api/staking/claim - Claim staking rewards
+// GET /api/staking/pools - Get available staking pools
+// GET /api/staking/rewards - Get claimable rewards
+// GET /api/staking/analytics - Get staking analytics`}
+</Code>
+
+### Pool Information
+<Code language="typescript" title="TypeScript">
+{`// GET /api/staking/pools/[poolId] - Get specific pool details
+// GET /api/staking/pools/[poolId]/stats - Get pool statistics
+// GET /api/staking/pools/[poolId]/positions - Get pool positions`}
+</Code>
+
+## Data Models
+
+### Staking Position Schema
+<Code language="typescript" title="interface StakingPosition {">
+{`id: string
+  userId: string
+  poolId: number // 0 = DAAR, 1 = DAARION
+  amount: string // Amount staked (in wei)
+  rewards: string // Accumulated rewards
+  claimedRewards: string // Already claimed rewards
+  lockPeriod: number // Lock period in days
+  createdAt: Date
+  lastRewardUpdate: Date
+  status: 'active' | 'unstaked' | 'locked'
+  transactionHash?: string
+  unstakedAt?: Date
+}`}
+</Code>
+
+### Staking Pool Schema
+<Code language="typescript" title="interface StakingPool {">
+{`id: number
+  name: string
+  tokenAddress: string
+  tokenSymbol: string
+  apr: number // Current APR percentage
+  totalStaked: string // Total tokens staked
+  rewardRate: string // Reward rate per second
+  minStake: string // Minimum stake amount
+  maxStake?: string // Maximum stake amount
+  lockPeriod: number // Lock period in days
+  isActive: boolean
+  createdAt: Date
+}`}
+</Code>
+
+### Staking Reward Schema
+<Code language="typescript" title="interface StakingReward {">
+{`id: string
+  userId: string
+  positionId: string
+  poolId: number
+  amount: string // Reward amount
+  claimed: boolean
+  claimDate?: Date
+  transactionHash?: string
+  createdAt: Date
+}`}
+</Code>
+
+## Smart Contract Integration
+
+### APR Staking Contract
+// Contract interface for APR-based staking
+
+<Code language="typescript" title="TypeScript">
+{`interface APRStakingContract {
+  // View functions
+  getPoolInfo(poolId: number): Promise<{
+    totalStaked: bigint
+    rewardRate: bigint
+    lastUpdateTime: bigint
+  }>
+
+  getUserInfo(poolId: number, user: string): Promise<{
+    amount: bigint
+    rewardDebt: bigint
+  }>
+
+  // State-changing functions
+  stake(poolId: number, amount: bigint): Promise<TransactionResponse>
+  unstake(poolId: number, amount: bigint): Promise<TransactionResponse>
+  claimRewards(poolId: number): Promise<TransactionResponse>
+}`}
+</Code>
+
+### Fee Distributor Contract
+// Contract interface for reward distribution
+
+<Code language="typescript" title="TypeScript">
+{`interface FeeDistributorContract {
+  // View functions
+  claimable(user: string, token: string): Promise<bigint>
+
+  // State-changing functions
+  claim(token: string): Promise<TransactionResponse>
+  claimMany(tokens: string[]): Promise<TransactionResponse>
+}`}
+</Code>
+
+## Server-Side Features
+
+### Position Caching (Optional)
+
+**Server-side position reading for improved performance:**
+// features/staking/server/read-positions.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function getCachedStakingPositions(userId: string) {
+  // Check cache first
+  const cached = await getCachedPositions(userId)
+  if (cached && isCacheValid(cached.timestamp)) {
+    return cached.positions
+  }
+
+  // Fetch from blockchain
+  const positions = await fetchPositionsFromContract(userId)
+
+  // Cache results
+  await cachePositions(userId, positions)
+
+  return positions
+}`}
+</Code>
+
+### Background Processing
+
+**Automated reward updates and position synchronization:**
+// Automated reward calculation service
+
+<Code language="typescript" title="TypeScript">
+{`export async function updateStakingRewards() {
+  const activePositions = await getActivePositions()
+
+  for (const position of activePositions) {
+    const rewards = await calculateRewards(position)
+    await updatePositionRewards(position.id, rewards)
+  }
+}`}
+</Code>
+
+## Error Handling
+
+### Common Error Scenarios
+// Handle staking system errors
+
+<Code language="typescript" title="TypeScript">
+{`export function handleStakingError(error: StakingError) {
+  switch (error.code) {
+    case 'INSUFFICIENT_BALANCE':
+      return 'Insufficient token balance'
+    case 'LOCK_PERIOD_ACTIVE':
+      return 'Tokens are still locked'
+    case 'NETWORK_MISMATCH':
+      return 'Please switch to the correct network'
+    case 'ALLOWANCE_TOO_LOW':
+      return 'Token allowance too low'
+    case 'CONTRACT_ERROR':
+      return 'Smart contract execution failed'
+    default:
+      return 'Staking operation failed'
+  }
+}`}
+</Code>
+
+### Transaction Monitoring
+// Monitor staking transactions
+
+<Code language="typescript" title="TypeScript">
+{`export async function monitorStakingTransaction(txHash: string) {
+  const provider = new ethers.JsonRpcProvider(RPC_URL)
+
+  try {
+    const receipt = await provider.waitForTransaction(txHash, 1)
+
+    if (receipt.status === 1) {
+      // Success - update position status
+      await updatePositionStatus(txHash, 'confirmed')
+      await invalidatePositionCache(userId)
+    } else {
+      // Failed - handle error
+      await handleStakingFailure(txHash)
+    }
+  } catch (error) {
+    console.error('Transaction monitoring failed:', error)
+  }
+}`}
+</Code>
+
+## White-label Theming
+
+**Brand Customization for Staking UI**
+// features/staking/theme.config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const stakingTheme = {
+  colors: {
+    primary: '#your-brand-primary',
+    secondary: '#your-brand-secondary',
+    reward: '#reward-highlight-color',
+    warning: '#warning-color'
+  },
+  components: {
+    stakingCard: {
+      borderRadius: '8px',
+      shadow: '0 2px 8px rgba(0,0,0,0.1)'
+    },
+    rewardBadge: {
+      background: 'linear-gradient(45deg, #gold, #yellow)',
+      color: '#000'
+    }
+  },
+  pools: {
+    DAAR: {
+      name: 'Your Brand DAAR Pool',
+      description: 'Stake DAAR tokens for premium rewards'
+    },
+    DAARION: {
+      name: 'Your Brand DAARION Pool',
+      description: 'Stake DAARION tokens for maximum yields'
+    }
+  }
+}`}
+</Code>
+
+## Integration Checklist
+
+### Pre-Launch Setup
+- [ ] Deploy staking smart contracts
+- [ ] Configure supported networks and RPC endpoints
+- [ ] Set up fee distributor contracts
+- [ ] Configure APR calculation parameters
+- [ ] Test token approval and staking flows
+- [ ] Validate wallet connection and network switching
+
+### Production Deployment
+- [ ] Enable staking pools with initial parameters
+- [ ] Configure reward distribution schedules
+- [ ] Set up transaction monitoring and alerting
+- [ ] Enable white-label theming and branding
+- [ ] Test end-to-end staking and reward flows
+- [ ] Monitor gas costs and optimize contract calls
+
+---
+
+*This staking system provides a complete DeFi staking ecosystem with automated rewards and comprehensive user management.*

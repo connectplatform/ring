@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
 import { AuthUser, UserRole } from '@/features/auth/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,9 @@ interface UserStats {
 }
 
 export function AdminUserManager({ initialUsers, locale, translations }: AdminUserManagerProps) {
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition();
+
   const [users, setUsers] = useState<AuthUser[]>(initialUsers);
   const [filteredUsers, setFilteredUsers] = useState<AuthUser[]>(initialUsers);
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,6 +68,25 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Search and filter change handlers - wrapped in useTransition for non-blocking updates
+  const handleSearchChange = useCallback((value: string) => {
+    startTransition(() => {
+      setSearchTerm(value);
+    });
+  }, [startTransition]);
+
+  const handleRoleFilterChange = useCallback((value: UserRole | 'all') => {
+    startTransition(() => {
+      setRoleFilter(value);
+    });
+  }, [startTransition]);
+
+  const handleVerificationFilterChange = useCallback((value: 'all' | 'verified' | 'unverified') => {
+    startTransition(() => {
+      setVerificationFilter(value);
+    });
+  }, [startTransition]);
 
   // Calculate user statistics
   const userStats: UserStats = React.useMemo(() => {
@@ -328,7 +350,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
                       id="search"
                       placeholder="Search by name, email, or ID..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => handleSearchChange(e.target.value)}
                       className="pl-10"
                     />
                   </div>
@@ -336,7 +358,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
 
                 <div className="w-full sm:w-48">
                   <Label htmlFor="role-filter">Filter by Role</Label>
-                  <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}>
+                  <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Roles" />
                     </SelectTrigger>
@@ -351,7 +373,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
 
                 <div className="w-full sm:w-48">
                   <Label htmlFor="verification-filter">Filter by Verification</Label>
-                  <Select value={verificationFilter} onValueChange={(value) => setVerificationFilter(value as 'all' | 'verified' | 'unverified')}>
+                  <Select value={verificationFilter} onValueChange={handleVerificationFilterChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Users" />
                     </SelectTrigger>
@@ -390,7 +412,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
                               <img src={user.photoURL} alt={user.name ?? 'User'} className="w-8 h-8 rounded-full" />
                             ) : (
                               <span className="text-sm font-medium">
-                                {(user.name || user.email).charAt(0).toUpperCase()}
+                                {((user.name || user.email) || 'U').charAt(0).toUpperCase()}
                               </span>
                             )}
                           </div>

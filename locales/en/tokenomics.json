@@ -1,0 +1,104 @@
+{
+  "title": "Tokenomics - RING Economy",
+  "description": "Understanding the RING token economy, distribution, and utility within the Ring Platform ecosystem.",
+  "badge": "Tokenomics",
+
+  "hero": {
+    "title": "RING Tokenomics",
+    "subtitle": "The RING token powers the Ring Platform economy, enabling seamless transactions, AI features, and community governance."
+  },
+
+  "overview": {
+    "whatIsRing": {
+      "title": "What is RING?",
+      "description": "RING is the native utility token of the Ring Platform, designed to facilitate microtransactions, AI service access, and platform governance."
+    },
+    "utility": {
+      "title": "Token Utility",
+      "description": "RING tokens enable premium features, content creation incentives, and community-driven decision making across the platform."
+    }
+  },
+
+  "distribution": {
+    "title": "Token Distribution",
+    "community": {
+      "title": "Community Pool",
+      "description": "Rewards for platform participation and community contributions"
+    },
+    "liquidity": {
+      "title": "Liquidity Pool",
+      "description": "DEX liquidity and market making incentives"
+    },
+    "development": {
+      "title": "Development Fund",
+      "description": "Platform development and maintenance"
+    },
+    "team": {
+      "title": "Team & Advisors",
+      "description": "Vested tokens for core contributors (4-year vesting)"
+    }
+  },
+
+  "usage": {
+    "title": "How to Use RING",
+    "listing": {
+      "title": "Opportunity Listings",
+      "description": "Post opportunities, services, and projects on the platform",
+      "cost": "0.1-1.0 RING per listing"
+    },
+    "aiFeatures": {
+      "title": "AI Features",
+      "description": "Access premium AI-powered matching and analysis tools",
+      "cost": "0.01-0.1 RING per request"
+    },
+    "store": {
+      "title": "Store Transactions",
+      "description": "Purchase digital goods, services, and premium features",
+      "cost": "Variable based on item value"
+    },
+    "premium": {
+      "title": "Premium Membership",
+      "description": "Enhanced platform features and priority support",
+      "cost": "10 RING per month"
+    }
+  },
+
+  "economics": {
+    "title": "Economic Model",
+    "inflation": {
+      "title": "Controlled Inflation",
+      "description": "Annual inflation of 2-5% to reward long-term holders and fund development"
+    },
+    "circulation": {
+      "title": "Token Circulation",
+      "description": "Dynamic supply based on platform activity and community participation"
+    },
+    "stability": {
+      "title": "Price Stability",
+      "description": "Pegged value through algorithmic stabilization and community governance"
+    }
+  },
+
+  "gettingStarted": {
+    "title": "Getting Started with RING",
+    "step1": {
+      "title": "Create Account",
+      "description": "Sign up for a Ring Platform account using Google One Tap"
+    },
+    "step2": {
+      "title": "Get RING Tokens",
+      "description": "Purchase RING tokens through supported exchanges or earn through platform participation"
+    },
+    "step3": {
+      "title": "Start Using Platform",
+      "description": "Use RING tokens to access premium features and participate in the economy"
+    }
+  },
+
+  "cta": {
+    "title": "Join the RING Economy",
+    "subtitle": "Start your journey in the decentralized economy of collective intelligence",
+    "getRing": "Get RING Tokens",
+    "learnMore": "Learn More"
+  }
+}

@@ -2,12 +2,15 @@ import { notFound } from 'next/navigation'
 import type { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config'
 import { getUserByUsername } from '@/features/auth/services/get-user-by-username'
+import UserProfileWrapper from '@/components/wrappers/user-profile-wrapper'
 import ProfileListings from '@/features/nft-market/components/profile-listings'
 import CreateListingForm from './create-listing-form'
 
 type PublicProfileParams = { username: string }
 
-export const dynamic = 'force-dynamic'
+// Allow caching for user profiles with shorter revalidation for freshness
+export const dynamic = "auto"
+export const revalidate = 120 // 2 minutes for user profile data
 
 export default async function PublicProfilePage(props: LocalePageProps<PublicProfileParams>) {
   const params = await props.params
@@ -32,7 +35,8 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
       {Object.entries(alternates).map(([lang, url]) => (
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
       ))}
-      <div className="container mx-auto px-4 py-8">
+      <UserProfileWrapper locale={locale} username={username}>
+        <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4">
           {user.photoURL && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -60,7 +64,8 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
             <CreateListingForm username={user.username || username} />
           </div>
         </section>
-      </div>
+        </div>
+      </UserProfileWrapper>
     </>
   )
 }

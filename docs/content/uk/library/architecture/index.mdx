@@ -1,0 +1,235 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Архітектура Ring Platform
+
+Комплексна архітектура професійної платформи нетворкінгу з Web3 інтеграцією, побудована на Next.js 15, React 19, та Kubernetes.
+
+## Загальна Архітектура
+
+<Mermaid>
+{`flowchart TD
+    subgraph "Клієнтський Шар"
+        U[👤 Користувач] --> W[🌐 Веб-додаток]
+        W --> M[📱 Мобільний додаток]
+    end
+
+    subgraph "Edge Layer (Vercel/K8s)"
+        W --> E[⚡ Next.js 15 Edge Runtime]
+        M --> E
+        E --> C[🔐 Auth.js v5]
+        E --> T[🌐 Tunnel Transport]
+    end
+
+    subgraph "Сервісний Шар"
+        T --> WS[🔌 WebSocket Server]
+        T --> SSE[📡 SSE Fallback]
+        C --> DB[(🗄️ PostgreSQL)]
+        E --> AI[🤖 AI Matcher]
+        E --> API[📡 REST API 80+ endpoints]
+    end
+
+    subgraph "Інтеграції"
+        API --> PF[💳 WayForPay]
+        API --> BC[⛓️ Polygon RPC]
+        API --> ST[☁️ Vercel Blob]
+        API --> EM[📧 Resend]
+    end
+
+    subgraph "Моніторинг"
+        WS --> P[📊 Prometheus]
+        DB --> P
+        API --> G[📈 Grafana]
+        P --> G
+    end`}
+</Mermaid>
+
+## Детальна Архітектура Компонентів
+
+### Фронтенд Архітектура
+<Mermaid>
+{`mindmap
+  root((🎨 Фронтенд Шар))
+    Next.js 15 App Router
+      Server Components
+        Data Fetching
+        SEO Optimization
+        Streaming SSR
+      Client Components
+        Interactive UI
+        State Management
+        Real-time Updates
+    React 19 Features
+      Server Components
+      Streaming
+      Suspense
+      useOptimistic
+      useActionState
+    UI Framework
+      Tailwind CSS v4
+        CSS Variables
+        Theme System
+        Dark/Light Mode
+      Radix UI Primitives
+        Accessible Components
+        Headless Design
+      Custom Components
+        Brand Components
+        Feature Components`}
+</Mermaid>
+
+### Бекенд та API Архітектура
+<Mermaid>
+{`mindmap
+  root((⚙️ Бекенд Шар))
+    Authentication Layer
+      Auth.js v5
+        NextAuth.js
+        Multiple Providers
+        Session Management
+      JWT Tokens
+        Secure Sessions
+        Role-based Access
+    API Layer
+      RESTful Endpoints
+        80+ API Routes
+        CRUD Operations
+        File Uploads
+      GraphQL Support
+        Future Implementation
+        Schema Stitching
+    Database Layer
+      PostgreSQL Primary
+        ACID Compliance
+        JSONB Support
+        Full-text Search
+      Connection Pooling
+        PgBouncer
+        20 Connection Limit
+      Migration System
+        Automated Schema Updates
+        Rollback Support`}
+</Mermaid>
+
+### AI та Інтелектуальні Сервіси
+<Mermaid>
+{`mindmap
+  root((🤖 AI Шар))
+    LLM Integration
+      OpenAI GPT-4
+      Anthropic Claude
+      Provider Fallback
+      Cost Optimization
+    Opportunity Matcher
+      8-Factor Scoring
+      Auto-fill Service
+      Personalized Explanations
+      Real-time Notifications
+    Search Intelligence
+      Full-text Search
+      Semantic Matching
+      Filter Optimization
+      Performance Caching
+    Content Enrichment
+      Auto-tagging
+      Skill Extraction
+      Trust Scoring
+      Quality Assessment`}
+</Mermaid>
+
+### Інфраструктурна Архітектура
+<Mermaid>
+{`mindmap
+  root((🏗️ Інфраструктура))
+    Kubernetes Cluster
+      3-Node Cluster
+        k8s-control-01
+        k8s-worker-01
+        k8s-worker-02
+      Namespace Isolation
+        ring-platform-org
+        monitoring
+    Container Orchestration
+      Docker Images
+        Multi-stage Builds
+        AMD64 Architecture
+        Security Scanning
+      Pod Management
+        Health Checks
+        Resource Limits
+        Auto-scaling
+    Networking
+      Ingress Controller
+        nginx-ingress
+        SSL Termination
+        Load Balancing
+      Service Mesh
+        Internal Communication
+        Service Discovery`}
+</Mermaid>
+
+### Моніторинг та Спостереження
+<Mermaid>
+{`mindmap
+  root((📊 Моніторинг))
+    Application Metrics
+      Web Vitals Collection
+        Core Web Vitals
+        Performance Scores
+        User Experience
+      Error Tracking
+        Sentry Integration
+        Error Boundaries
+        User Feedback
+    Infrastructure Monitoring
+      Prometheus Metrics
+        Pod Resources
+        Database Connections
+        API Response Times
+      Grafana Dashboards
+        Real-time Monitoring
+        Alert Management
+        Performance Trends
+    Logging System
+      Structured Logging
+        Request/Response Logs
+        Error Context
+        User Actions
+      Log Aggregation
+        ELK Stack
+        Query Analysis`}
+</Mermaid>
+
+## Архітектурні Принципи
+
+### 🎯 **Масштабованість**
+- **Horizontal Scaling**: Kubernetes pods можуть масштабуватися автоматично
+- **Database Sharding**: PostgreSQL підтримує future sharding для великих обсягів даних
+- **CDN Integration**: Vercel Blob для глобального розподілу медіа-контенту
+
+### 🔒 **Безпека**
+- **Zero Trust Architecture**: Кожен запит аутентифікується та авторизується
+- **Secrets Management**: Kubernetes secrets для всіх sensitive даних
+- **SSL/TLS**: End-to-end encryption для всіх з'єднань
+
+### ⚡ **Продуктивність**
+- **Edge Runtime**: Next.js Edge функції для швидкого cold start
+- **Caching Layers**: React cache, Redis, PostgreSQL query caching
+- **Database Optimization**: Connection pooling, query optimization, indexing
+
+### 🔄 **Надійність**
+- **Health Checks**: Автоматичне відновлення unhealthy pods
+- **Circuit Breakers**: Захист від cascade failures
+- **Backup & Recovery**: Automated database backups та disaster recovery
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="success">
+**Production-Ready Architecture**: Ring Platform побудована з використанням сучасних технологій та best practices для enterprise-grade надійності та масштабованості.
+</Callout>
+
+<Callout type="info">
+Дивіться розділи нижче для детального розгляду окремих компонентів: Аутентифікація, Real-time комунікація, Безпека, Data Model, та Deployment.
+</Callout>

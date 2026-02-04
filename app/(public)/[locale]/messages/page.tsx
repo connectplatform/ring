@@ -281,7 +281,7 @@ export default function MessagesPage() {
                       </span>
                     </div>
 
-                    <p className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">
+                    <p className="text-sm text-muted-foreground truncate mt-1">
                       {conversation.lastMessage.sender.id === '2' ? 'You: ' : ''}
                       {conversation.lastMessage.content}
                     </p>
@@ -425,7 +425,7 @@ export default function MessagesPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
+              <h3 className="text-xl font-semibold text-muted-foreground mb-2">
                 Select a conversation
               </h3>
               <p className="text-gray-500 dark:text-gray-400">

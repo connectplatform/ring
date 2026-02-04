@@ -40,7 +40,8 @@ export enum TunnelMessageType {
   NOTIFICATION = 'notification',
   MESSAGE = 'message',
   PRESENCE = 'presence',
-  
+  BROADCAST = 'broadcast',
+
   // System message types
   HEARTBEAT = 'heartbeat',
   ACK = 'ack',
@@ -243,8 +244,11 @@ export interface TunnelConfig {
   healthCheck?: {
     enabled: boolean;
     interval: number;
+    adaptive: boolean; // NEW: Adaptive health checking based on connection quality
     failureThreshold: number;
     successThreshold: number;
+    minInterval?: number; // Minimum interval for adaptive mode
+    maxInterval?: number; // Maximum interval for adaptive mode
   };
   
   // Performance optimization
@@ -393,9 +397,12 @@ export const TUNNEL_DEFAULTS = {
   },
   healthCheck: {
     enabled: true,
-    interval: 30000,
+    interval: 30000,       // Base interval
+    adaptive: true,        // NEW: Enable adaptive health checking
     failureThreshold: 3,
     successThreshold: 1,
+    minInterval: 15000,    // Faster checks for unstable connections
+    maxInterval: 120000,   // Slower checks for stable connections
   },
   optimization: {
     bundleMessages: true,

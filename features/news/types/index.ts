@@ -55,6 +55,10 @@ export interface NewsArticle {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   seo?: NewsSEO;
+  // Multilingual support
+  locale?: string;
+  translationGroupId?: string;
+  availableTranslations?: string[]; // List of available locale codes
 }
 
 // News category interface

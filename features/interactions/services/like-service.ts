@@ -1,10 +1,10 @@
-// Like Service - Direct Firestore operations
+// Like Service - Direct Database operations
 // Extracted from API routes to follow Ring's architectural pattern:
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
 import { auth } from '@/auth'
-import { getAdminDb } from '@/lib/firebase-admin.server'
-import { FieldValue } from 'firebase-admin/firestore'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { revalidatePath } from 'next/cache'
 
 interface LikeResult {
   success: boolean
@@ -16,6 +16,9 @@ interface LikeResult {
 
 export async function toggleLike(targetId: string, targetType: string): Promise<LikeResult> {
   try {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
     const session = await auth()
     
     if (!session?.user?.id) {
@@ -39,7 +42,6 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
       }
     }
 
-    const db = getAdminDb()
     const userId = session.user.id
     
     // Determine the target collection
@@ -52,8 +54,8 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
     }
 
     // Check if target exists
-    const targetDoc = await db.collection(targetCollection).doc(targetId).get()
-    if (!targetDoc.exists) {
+    const targetDocResult = await db.findById(targetCollection, targetId)
+    if (!targetDocResult.success) {
       return {
         success: false,
         error: 'Target not found'
@@ -61,63 +63,79 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
     }
 
     // Check if user has already liked this target
-    const likeDoc = await db.collection('likes')
-      .where('userId', '==', userId)
-      .where('targetId', '==', targetId)
-      .where('targetType', '==', targetType)
-      .get()
-
-    const isCurrentlyLiked = !likeDoc.empty
+    const likeQueryResult = await db.query({
+      collection: 'likes',
+      filters: [
+        { field: 'userId', operator: '==', value: userId },
+        { field: 'targetId', operator: '==', value: targetId },
+        { field: 'targetType', operator: '==', value: targetType }
+      ]
+    })
     
+    if (!likeQueryResult.success) {
+      return {
+        success: false,
+        error: 'Failed to check like status'
+      }
+    }
+    
+    const isCurrentlyLiked = likeQueryResult.data.length > 0
+    
+    // Use transaction for atomic like/unlike operation (CRITICAL for data integrity!)
+    let finalLikeCount = 0;
+    let isLiked = false;
+    
+    await db.transaction(async (txn) => {
     if (isCurrentlyLiked) {
       // Unlike - remove the like document
-      const likeDocId = likeDoc.docs[0].id
-      await db.collection('likes').doc(likeDocId).delete()
+        const likeDocId = likeQueryResult.data[0].id;
+        await txn.delete('likes', likeDocId);
       
-      // Decrement the like count on the target
-      await db.collection(targetCollection).doc(targetId).update({
-        likes: FieldValue.increment(-1),
-        updatedAt: FieldValue.serverTimestamp()
-      })
-      
-      // Get updated like count
-      const updatedTarget = await db.collection(targetCollection).doc(targetId).get()
-      const likeCount = updatedTarget.data()?.likes || 0
-
-      return {
-        success: true,
-        message: 'Unliked successfully',
-        likeCount: likeCount,
-        liked: false
-      }
+        // Read current target to get like count
+        const targetDoc = await txn.read(targetCollection, targetId);
+        const currentLikes = (targetDoc as any)?.likes || 0;
+        
+        // Decrement the like count (manual increment to replace FieldValue)
+        await txn.update(targetCollection, targetId, {
+          likes: Math.max(0, currentLikes - 1), // Prevent negative likes
+          updatedAt: new Date()
+        });
+        
+        finalLikeCount = Math.max(0, currentLikes - 1);
+        isLiked = false;
       
     } else {
       // Like - create a new like document
-      const newLike = {
+        await txn.create('likes', {
         userId: userId,
         targetId: targetId,
         targetType: targetType,
-        createdAt: FieldValue.serverTimestamp()
+          createdAt: new Date()
+        });
+        
+        // Read current target to get like count
+        const targetDoc = await txn.read(targetCollection, targetId);
+        const currentLikes = (targetDoc as any)?.likes || 0;
+        
+        // Increment the like count (manual increment to replace FieldValue)
+        await txn.update(targetCollection, targetId, {
+          likes: currentLikes + 1,
+          updatedAt: new Date()
+        });
+        
+        finalLikeCount = currentLikes + 1;
+        isLiked = true;
       }
-      
-      await db.collection('likes').add(newLike)
-      
-      // Increment the like count on the target
-      await db.collection(targetCollection).doc(targetId).update({
-        likes: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp()
-      })
-      
-      // Get updated like count
-      const updatedTarget = await db.collection(targetCollection).doc(targetId).get()
-      const likeCount = updatedTarget.data()?.likes || 0
+    });
+    
+    // Revalidate after mutation (React 19 pattern)
+    revalidatePath(`/[locale]/${targetType}s/${targetId}`);
 
       return {
         success: true,
-        message: 'Liked successfully',
-        likeCount: likeCount,
-        liked: true
-      }
+      message: isLiked ? 'Liked successfully' : 'Unliked successfully',
+      likeCount: finalLikeCount,
+      liked: isLiked
     }
 
   } catch (error) {
@@ -135,6 +153,9 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
   error?: string
 }> {
   try {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
     const session = await auth()
     
     if (!session?.user?.id) {
@@ -144,19 +165,28 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
       }
     }
 
-    const db = getAdminDb()
     const userId = session.user.id
 
     // Check if user has liked this target
-    const likeDoc = await db.collection('likes')
-      .where('userId', '==', userId)
-      .where('targetId', '==', targetId)
-      .where('targetType', '==', targetType)
-      .get()
+    const likeQueryResult = await db.query({
+      collection: 'likes',
+      filters: [
+        { field: 'userId', operator: '==', value: userId },
+        { field: 'targetId', operator: '==', value: targetId },
+        { field: 'targetType', operator: '==', value: targetType }
+      ]
+    })
+    
+    if (!likeQueryResult.success) {
+      return {
+        success: false,
+        error: 'Failed to get like status'
+      }
+    }
 
     return {
       success: true,
-      liked: !likeDoc.empty
+      liked: likeQueryResult.data.length > 0
     }
 
   } catch (error) {

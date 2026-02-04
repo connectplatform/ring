@@ -183,7 +183,7 @@ export default function OpportunityStatusToggle({
           label: t('draft'),
           icon: Edit,
           variant: 'secondary' as const,
-          color: 'text-gray-600',
+          color: 'text-muted-foreground',
           bgColor: 'bg-gray-100'
         }
       case 'closed':
@@ -207,7 +207,7 @@ export default function OpportunityStatusToggle({
           label: t('archived'),
           icon: Archive,
           variant: 'outline' as const,
-          color: 'text-gray-600',
+          color: 'text-muted-foreground',
           bgColor: 'bg-gray-100'
         }
       default:
@@ -215,7 +215,7 @@ export default function OpportunityStatusToggle({
           label: t('unknown'),
           icon: AlertCircle,
           variant: 'outline' as const,
-          color: 'text-gray-600',
+          color: 'text-muted-foreground',
           bgColor: 'bg-gray-100'
         }
     }
@@ -334,7 +334,7 @@ export default function OpportunityStatusToggle({
             
             {currentStatus !== 'draft' && (
               <DropdownMenuItem onClick={() => handleStatusChange('draft')}>
-                <Edit className="h-4 w-4 mr-2 text-gray-600" />
+                <Edit className="h-4 w-4 mr-2 text-muted-foreground" />
                 {t('markAsDraft')}
               </DropdownMenuItem>
             )}
@@ -348,7 +348,7 @@ export default function OpportunityStatusToggle({
             
             {currentStatus !== 'archived' && (
               <DropdownMenuItem onClick={() => handleStatusChange('archived')}>
-                <Archive className="h-4 w-4 mr-2 text-gray-600" />
+                <Archive className="h-4 w-4 mr-2 text-muted-foreground" />
                 {t('archive')}
               </DropdownMenuItem>
             )}
@@ -376,7 +376,7 @@ export default function OpportunityStatusToggle({
             
             {currentVisibility !== 'private' && (
               <DropdownMenuItem onClick={() => handleVisibilityChange('private')}>
-                <EyeOff className="h-4 w-4 mr-2 text-gray-600" />
+                <EyeOff className="h-4 w-4 mr-2 text-muted-foreground" />
                 {t('makePrivate')}
               </DropdownMenuItem>
             )}

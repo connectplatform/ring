@@ -1,31 +1,24 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+// 🚀 OPTIMIZED SERVICE: Ring-native implementation
+// - DatabaseService for persistence (NO Firebase!)
+// - Tunnel protocol for real-time updates (replaces Firebase RTDB)
+// - React 19 patterns: NO cache() for mutations, revalidatePath()
+// - Multi-protocol support: WebSocket/SSE/Supabase/Long-polling based on backend mode
 
-import { getAdminRtdb } from '@/lib/firebase-admin.server'
-import { 
-  getCachedDocument, 
-  getCachedCollectionAdvanced, 
-  createDocument, 
-  updateDocument,
-  runTransaction,
-  createBatchWriter,
-  executeBatch
-} from '@/lib/services/firebase-service-manager';
-
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { 
   Message, 
   SendMessageRequest,
   PaginationOptions,
   MessageAttachment
 } from '@/features/chat/types'
-import { Timestamp } from 'firebase-admin/firestore'
 import { EntityDatabaseError, ValidationError, FetchError, logRingError } from '@/lib/errors'
+import { revalidatePath } from 'next/cache';
+
+// Tunnel protocol for real-time (replaces Firebase RTDB)
+import { publishToTunnel } from '@/lib/tunnel/publisher';
 
 export class MessageService {
-  private rtdb = getAdminRtdb()
+  // Real-time handled by Tunnel protocol, no RTDB needed
 
   /**
    * Send a message to a conversation with enhanced error handling
@@ -57,7 +50,9 @@ export class MessageService {
         });
       }
 
-      const now = Timestamp.now()
+      await initializeDatabase();
+      const db = getDatabaseService();
+      const now = new Date();
       
       // Handle file attachments via Vercel Blob if any
       let processedAttachments: MessageAttachment[] = []
@@ -79,7 +74,7 @@ export class MessageService {
         }
       }
 
-                  const messageData = {
+      const messageData = {
         conversationId: data.conversationId,
         senderId,
         senderName,
@@ -91,27 +86,25 @@ export class MessageService {
         type: 'text' as const
       }
 
-      // Save message to Firestore using optimized function
-      let messageRef;
-      try {
-        messageRef = await createDocument('messages', messageData)
-      } catch (error) {
+      // Save message to database (MUTATION - NO CACHE!)
+      const createResult = await db.create('messages', messageData);
+      if (!createResult.success) {
         throw new EntityDatabaseError(
-          'Failed to save message to Firestore',
-          error instanceof Error ? error : new Error(String(error)),
+          'Failed to save message to database',
+          createResult.error || new Error('Database create failed'),
           {
             timestamp: Date.now(),
             senderId,
             conversationId: data.conversationId,
-            operation: 'save_message_firestore'
+            operation: 'save_message_database'
           }
         );
       }
 
       const message: Message = {
         ...messageData,
-        id: messageRef.id
-      }
+        id: createResult.data.id
+      } as unknown as Message
 
       // Update conversation last message
       try {
@@ -121,11 +114,11 @@ export class MessageService {
         logRingError(error, `Failed to update conversation last message for ${data.conversationId}`)
       }
 
-      // Trigger real-time update
+      // Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
       try {
-        await this.triggerRealTimeUpdate(data.conversationId, message)
+        await publishToTunnel(`conversation:${data.conversationId}`, 'message:new', message);
       } catch (error) {
-        // Log but don't fail - this is not critical for message sending
+        // Log but don't fail - real-time is nice-to-have
         logRingError(error, `Failed to trigger real-time update for conversation ${data.conversationId}`)
       }
 
@@ -136,6 +129,9 @@ export class MessageService {
         // Log but don't fail - this is not critical for message sending
         logRingError(error, `Failed to send notifications for conversation ${data.conversationId}`)
       }
+      
+      // Revalidate conversation page (React 19 pattern)
+      revalidatePath(`/[locale]/chat/${data.conversationId}`);
 
       return message
     } catch (error) {
@@ -206,49 +202,26 @@ export class MessageService {
         );
       }
 
-      // Build query configuration for optimized collection query
-      const queryConfig: any = {
-        where: [{ field: 'conversationId', operator: '==' as const, value: conversationId }],
-        orderBy: [{ field: 'timestamp', direction: 'desc' as const }]
-      }
-
-      if (pagination?.limit) {
-        queryConfig.limit = pagination.limit;
-      }
+      await initializeDatabase();
+      const db = getDatabaseService();
       
-      if (pagination?.cursor) {
-        try {
-          const cursorDoc = await getCachedDocument('messages', pagination.cursor);
-          if (cursorDoc && cursorDoc.exists) {
-            if (pagination.direction === 'before') {
-              queryConfig.endBefore = cursorDoc;
-            } else {
-              queryConfig.startAfter = cursorDoc;
-            }
-          }
-        } catch (error) {
-          throw new EntityDatabaseError(
-            'Failed to apply pagination cursor',
-            error instanceof Error ? error : new Error(String(error)),
-            {
-              timestamp: Date.now(),
-              conversationId,
-              userId,
-              cursor: pagination.cursor,
-              operation: 'apply_pagination_cursor'
-            }
-          );
+      // Build query with DatabaseService API
+      const querySpec: any = {
+        collection: 'messages',
+        filters: [{ field: 'conversationId', operator: '==', value: conversationId }],
+        orderBy: [{ field: 'timestamp', direction: 'desc' }],
+        pagination: {
+          limit: pagination?.limit || 50,
+          offset: (pagination as any)?.offset || 0
         }
-      }
+      };
 
-      // Execute optimized query
-      let snapshot;
-      try {
-        snapshot = await getCachedCollectionAdvanced('messages', queryConfig);
-      } catch (error) {
+      // Execute query (READ operation - can be cached with React 19 cache())
+      const queryResult = await db.query(querySpec);
+      if (!queryResult.success) {
         throw new EntityDatabaseError(
           'Failed to fetch messages',
-          error instanceof Error ? error : new Error(String(error)),
+          queryResult.error || new Error('Database query failed'),
           {
             timestamp: Date.now(),
             conversationId,
@@ -258,9 +231,9 @@ export class MessageService {
         );
       }
 
-      const messages: Message[] = snapshot.docs.map(doc => ({
+      const messages: Message[] = queryResult.data.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...(doc as any)
       })) as Message[];
 
       // Mark messages as delivered
@@ -304,9 +277,12 @@ export class MessageService {
    */
   private async verifyConversationAccess(conversationId: string, userId: string): Promise<void> {
     try {
-      const conversationDoc = await getCachedDocument('conversations', conversationId);
+      await initializeDatabase();
+      const db = getDatabaseService();
       
-      if (!conversationDoc || !conversationDoc.exists) {
+      const readResult = await db.read('conversations', conversationId);
+      
+      if (!readResult.success || !readResult.data) {
         throw new EntityDatabaseError('Conversation not found', undefined, {
           timestamp: Date.now(),
           conversationId,
@@ -315,7 +291,7 @@ export class MessageService {
         });
       }
 
-      const conversation = conversationDoc.data();
+      const conversation = readResult.data as any;
       const isParticipant = conversation?.participants?.some((p: any) => p.userId === userId);
       
       if (!isParticipant) {
@@ -351,18 +327,19 @@ export class MessageService {
    */
   private async markMessagesAsDelivered(messages: Message[], userId: string): Promise<void> {
     try {
-      const batch = createBatchWriter();
-      let hasUpdates = false;
+      await initializeDatabase();
+      const db = getDatabaseService();
 
+      // Update messages in batch (MUTATION - NO CACHE!)
       for (const message of messages) {
         if (message.senderId !== userId && message.status === 'sent') {
-          await updateDocument('messages', message.id, { status: 'delivered' });
-          hasUpdates = true;
+          const updateResult = await db.update('messages', message.id, { status: 'delivered' });
+          // Don't throw on individual failures - best effort delivery receipts
+          if (!updateResult.success) {
+            console.warn(`Failed to mark message ${message.id} as delivered:`, updateResult.error);
+          }
         }
       }
-
-      // Note: Individual updateDocument calls are used instead of batch for simplicity
-      // If performance becomes an issue, we could implement batch updates in firebase-service-manager
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to mark messages as delivered',
@@ -431,7 +408,10 @@ export class MessageService {
    */
   private async updateConversationLastMessage(conversationId: string, message: Message): Promise<void> {
     try {
-      await updateDocument('conversations', conversationId, {
+      await initializeDatabase();
+      const db = getDatabaseService();
+      
+      const updateResult = await db.update('conversations', conversationId, {
         lastMessage: {
           id: message.id,
           content: message.content,
@@ -441,8 +421,12 @@ export class MessageService {
           type: message.type
         },
         lastActivity: message.timestamp,
-        updatedAt: Timestamp.now()
-      })
+        updatedAt: new Date()
+      });
+      
+      if (!updateResult.success) {
+        throw updateResult.error || new Error('Failed to update conversation');
+      }
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to update conversation last message',
@@ -465,15 +449,16 @@ export class MessageService {
    */
   private async triggerRealTimeUpdate(conversationId: string, message: Message): Promise<void> {
     try {
-      await this.rtdb.ref(`conversations/${conversationId}/messages/${message.id}`).set({
+      // Use Tunnel protocol for real-time (Ring analog to Firebase RTDB)
+      await publishToTunnel(`conversation:${conversationId}`, 'message:update', {
         id: message.id,
         senderId: message.senderId,
         senderName: message.senderName,
         content: message.content,
         type: message.type,
-        timestamp: message.timestamp.toMillis(),
+        timestamp: message.timestamp instanceof Date ? message.timestamp.getTime() : message.timestamp,
         status: message.status
-      })
+      });
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to trigger real-time update',
@@ -528,16 +513,19 @@ export class MessageService {
    */
   async getMessage(messageId: string): Promise<Message | null> {
     try {
-      const messageDoc = await getCachedDocument('messages', messageId)
+      await initializeDatabase();
+      const db = getDatabaseService();
       
-      if (!messageDoc || !messageDoc.exists) {
-        return null
+      const readResult = await db.read('messages', messageId);
+      
+      if (!readResult.success || !readResult.data) {
+        return null;
       }
       
       return {
-        id: messageDoc.id,
-        ...messageDoc.data()
-      } as Message
+        id: readResult.data.id,
+        ...(readResult.data as any)
+      } as Message;
       
     } catch (error) {
       throw new EntityDatabaseError(
@@ -561,9 +549,12 @@ export class MessageService {
    */
   async updateMessage(messageId: string, updates: Partial<Message>): Promise<Message> {
     try {
-      const messageDoc = await getCachedDocument('messages', messageId)
+      await initializeDatabase();
+      const db = getDatabaseService();
       
-      if (!messageDoc || !messageDoc.exists) {
+      // Read to verify existence
+      const readResult = await db.read('messages', messageId);
+      if (!readResult.success || !readResult.data) {
         throw new ValidationError('Message not found', undefined, {
           timestamp: Date.now(),
           messageId,
@@ -571,24 +562,31 @@ export class MessageService {
         })
       }
       
-      // Update the message using optimized function
-      await updateDocument('messages', messageId, {
+      // Update the message (MUTATION - NO CACHE!)
+      const updateResult = await db.update('messages', messageId, {
         ...updates,
-        editedAt: Timestamp.now()
-      })
+        editedAt: new Date()
+      });
       
-      // Update real-time database
-      await this.rtdb.ref(`messages/${messageId}`).update({
+      if (!updateResult.success) {
+        throw updateResult.error || new Error('Failed to update message');
+      }
+      
+      // Trigger real-time update via Tunnel
+      await publishToTunnel(`message:${messageId}`, 'message:edited', {
         ...updates,
         editedAt: Date.now()
-      })
+      });
       
-      // Get and return updated message
-      const updatedDoc = await getCachedDocument('messages', messageId)
+      // Revalidate conversation (React 19 pattern)
+      if (readResult.data && (readResult.data as any).conversationId) {
+        revalidatePath(`/[locale]/chat/${(readResult.data as any).conversationId}`);
+      }
+      
       return {
-        id: updatedDoc.id,
-        ...updatedDoc.data()
-      } as Message
+        id: updateResult.data.id,
+        ...(updateResult.data as any)
+      } as Message;
       
     } catch (error) {
       if (error instanceof ValidationError) {
@@ -615,9 +613,12 @@ export class MessageService {
    */
   async deleteMessage(messageId: string): Promise<void> {
     try {
-      const messageDoc = await getCachedDocument('messages', messageId)
+      await initializeDatabase();
+      const db = getDatabaseService();
       
-      if (!messageDoc || !messageDoc.exists) {
+      // Read to verify existence and get conversationId
+      const readResult = await db.read('messages', messageId);
+      if (!readResult.success || !readResult.data) {
         throw new ValidationError('Message not found', undefined, {
           timestamp: Date.now(),
           messageId,
@@ -625,21 +626,29 @@ export class MessageService {
         })
       }
       
-      // Soft delete - update content and mark as deleted using optimized function
-      await updateDocument('messages', messageId, {
-        content: '[Message deleted]',
-        type: 'text',
-        deletedAt: Timestamp.now(),
-        attachments: [] // Remove any attachments
-      })
+      const conversationId = (readResult.data as any).conversationId;
       
-      // Update real-time database
-      await this.rtdb.ref(`messages/${messageId}`).update({
+      // Soft delete - update content and mark as deleted (MUTATION - NO CACHE!)
+      const updateResult = await db.update('messages', messageId, {
         content: '[Message deleted]',
         type: 'text',
-        deletedAt: Date.now(),
-        attachments: []
-      })
+        deletedAt: new Date(),
+        attachments: [] // Remove any attachments
+      });
+      
+      if (!updateResult.success) {
+        throw updateResult.error || new Error('Failed to delete message');
+      }
+      
+      // Trigger real-time update via Tunnel
+      await publishToTunnel(`conversation:${conversationId}`, 'message:deleted', {
+        id: messageId,
+        content: '[Message deleted]',
+        deletedAt: Date.now()
+      });
+      
+      // Revalidate conversation (React 19 pattern)
+      revalidatePath(`/[locale]/chat/${conversationId}`);
       
     } catch (error) {
       if (error instanceof ValidationError) {

@@ -1,7 +1,6 @@
 // 🚀 OPTIMIZED SERVICE: Entity search with AI-powered matching and industry compatibility
 // - Advanced text search with fuzzy matching
 // - Industry and skill-based compatibility scoring
-// - React 19 cache() for request deduplication
 // - Intelligent search result ranking
 
 import { Entity, SerializedEntity, EntityType } from '@/features/entities/types'
@@ -10,11 +9,9 @@ import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityQueryError, logRingError } from '@/lib/errors'
-import { 
-  getCachedCollectionAdvanced 
-} from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { getEntityTypeConfig } from '@/components/entities/entity-type-icons'
-
+import { cache } from 'react'
 /**
  * Entity search parameters interface
  */
@@ -84,7 +81,7 @@ export interface EntitySearchResponse {
  * @throws {EntityAuthError} If the user is not authenticated
  * @throws {EntityQueryError} If there's an error executing the search
  */
-export async function searchEntities(params: EntitySearchParams): Promise<EntitySearchResponse> {
+export const searchEntities = cache(async (params: EntitySearchParams): Promise<EntitySearchResponse> => {
   const startTime = Date.now()
   
   try {
@@ -122,37 +119,57 @@ export async function searchEntities(params: EntitySearchParams): Promise<Entity
     const maxResults = params.maxResults || 50
     const query = params.query.trim().toLowerCase()
 
-    // Step 3: Build base query with role-based filtering
-    const queryConfig: any = {
-      limit: Math.min(maxResults * 2, 200), // Fetch more for better filtering
-      orderBy: [{ field: 'dateAdded', direction: 'desc' }]
-    }
+    // Step 3: Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // Apply role-based visibility filtering
-    const whereConditions: any[] = []
+    // Build filters for role-based visibility
+    const filters: any[] = []
     if (userRole === UserRole.VISITOR) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public'] })
+      filters.push({ field: 'visibility', operator: '=', value: 'public' })
     } else if (userRole === UserRole.SUBSCRIBER) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] })
+      // For subscriber, we need multiple queries or use JSONB contains
+      // Simplified: fetch all and filter in-memory for now
     } else if (userRole === UserRole.MEMBER) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] })
+      // Similar approach
     }
 
     // Apply type filtering if specified
-    if (params.types && params.types.length > 0) {
-      whereConditions.push({ field: 'type', operator: 'in', value: params.types })
-    }
-
-    if (whereConditions.length > 0) {
-      queryConfig.where = whereConditions
+    if (params.types && params.types.length === 1) {
+      filters.push({ field: 'type', operator: '=', value: params.types[0] })
     }
 
     // Step 4: Execute base query
-    const snapshot = await getCachedCollectionAdvanced('entities', queryConfig)
-    let entities = snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id,
-    })) as Entity[]
+    const result = await db.query({
+      collection: 'entities',
+      filters,
+      orderBy: [{ field: 'dateAdded', direction: 'desc' }],
+      pagination: { limit: Math.min(maxResults * 2, 200) }
+    })
+
+    if (!result.success || !result.data) {
+      logger.warn('EntitySearch: Query failed', { error: result.error })
+      return {
+        results: [],
+        totalResults: 0,
+        searchTime: Date.now() - startTime
+      }
+    }
+
+    let entities = (Array.isArray(result.data) ? result.data : (result.data as any).data || []) as Entity[]
+
+    // Apply in-memory filtering for complex visibility/type rules
+    entities = entities.filter(entity => {
+      // Visibility check
+      if (userRole === UserRole.VISITOR && entity.visibility !== 'public') return false
+      if (userRole === UserRole.SUBSCRIBER && !['public', 'subscriber'].includes(entity.visibility || 'public')) return false
+      if (userRole === UserRole.MEMBER && !['public', 'subscriber', 'member'].includes(entity.visibility || 'public')) return false
+      
+      // Type check (if multiple types specified)
+      if (params.types && params.types.length > 1 && !params.types.includes(entity.type)) return false
+      
+      return true
+    })
 
     // Step 5: Apply advanced search filtering and scoring
     const searchResults: EntitySearchResult[] = []
@@ -214,7 +231,7 @@ export async function searchEntities(params: EntitySearchParams): Promise<Entity
       }
     )
   }
-}
+})
 
 /**
  * Calculate entity relevance score based on search query and parameters
@@ -428,10 +445,10 @@ function generateSearchSuggestions(query: string, resultCount: number, types?: E
 /**
  * Get search suggestions based on popular entity types and services
  */
-export async function getEntitySearchSuggestions(
+export const getEntitySearchSuggestions = cache(async (
   partialQuery: string,
   userRole?: UserRole
-): Promise<string[]> {
+): Promise<string[]> => {
   try {
     // This could be enhanced with actual analytics data
     const popularSearches = [
@@ -458,4 +475,4 @@ export async function getEntitySearchSuggestions(
     logger.warn('Failed to get search suggestions:', error)
     return []
   }
-}
+})

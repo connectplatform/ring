@@ -45,11 +45,28 @@ export interface FCMNotification {
 }
 
 export class FCMService {
-  private messaging = getMessaging()
+  private messaging: any = null
+
+  private getMessagingInstance() {
+    if (!this.messaging) {
+      try {
+        this.messaging = getMessaging()
+      } catch (error) {
+        console.warn('Firebase messaging not available:', error.message)
+        throw error
+      }
+    }
+    return this.messaging
+  }
 
   // Get database instance via optimized service manager when needed
   private getDb() {
-    return getAdminDb();
+    try {
+      return getAdminDb();
+    } catch (error) {
+      console.warn('Firebase database not available:', error.message);
+      throw error;
+    }
   }
 
   private get tokensCollection() {
@@ -159,7 +176,7 @@ export class FCMService {
         tokens
       }
 
-      const response = await this.messaging.sendEachForMulticast(message)
+      const response = await this.getMessagingInstance().sendEachForMulticast(message)
       
       // Handle failed tokens
       if (response.failureCount > 0) {

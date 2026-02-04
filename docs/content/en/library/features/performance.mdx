@@ -1,0 +1,891 @@
+---
+title: Performance Optimization Patterns
+description: Comprehensive Firebase query optimization and React Server Components best practices for Ring Platform
+---
+
+# Performance Optimization Patterns
+
+Advanced performance optimization strategies for React 19 + Next.js 15 applications with Firebase integration, achieving 95% Firebase call reduction and 30-40% build time improvement.
+
+## Overview
+
+Ring Platform implements cutting-edge performance patterns combining React 19 features, Firebase optimization, and Next.js best practices to deliver exceptional user experience and development efficiency.
+
+## React 19 Optimization Patterns
+
+### React Cache Function
+
+**Automatic Request Deduplication**
+// lib/services/firebase-service-manager.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { cache } from 'react'
+
+export const getCachedDocument = cache(async (
+  collection: string,
+  id: string
+): Promise<DocumentData | null> => {
+  const docRef = doc(getFirestore(), collection, id)
+  const docSnap = await getDoc(docRef)
+
+  if (docSnap.exists()) {
+    return {
+      id: docSnap.id,
+      ...docSnap.data()
+    }
+  }
+
+  return null
+})
+
+// Usage in Server Components
+export default async function EntityPage({ params }: { params: { id: string } }) {
+  const entity = await getCachedDocument('entities', params.id)
+
+  if (!entity) {
+    notFound()
+  }
+
+  return <EntityDetails entity={entity} />
+}`}
+</Code>
+
+**Benefits of React 19 cache()**
+- **Request Deduplication**: Identical requests within the same request cycle return cached results
+- **Automatic Lifecycle Management**: Cache is cleared when request completes
+- **No Manual Invalidation**: Framework handles cache lifecycle automatically
+- **Cross-Component Sharing**: Cached results available across Server Components
+
+### Server Components Architecture
+
+**Data Fetching Patterns**
+// ✅ Preferred: Direct data fetching in Server Components
+
+<Code language="typescript" title="TypeScript">
+{`export default async function EntitiesPage() {
+  // Direct service call - no API layer needed
+  const entities = await getEntities()
+  const userStats = await getUserStats()
+
+  return (
+    <div>
+      <EntityGrid entities={entities} />
+      <UserStats stats={userStats} />
+    </div>
+  )
+}
+
+// ❌ Avoid: HTTP requests from Server Components
+export default async function EntitiesPage() {
+  // Don't make HTTP calls to your own API routes
+  const response = await fetch('/api/entities')
+  const entities = await response.json()
+
+  return <EntityGrid entities={entities} />
+}`}
+</Code>
+
+**Server vs Client Component Decision Tree**
+<Code language="typescript" title="TypeScript">
+{`// Server Components (default)
+- Static content generation
+- Data fetching from databases
+- No user interaction needed
+- SEO-critical content
+
+// Client Components (with 'use client')
+- User interactions (clicks, forms)
+- Browser APIs usage
+- Real-time updates
+- Interactive state management`}
+</Code>
+
+### React 19 Hooks for Performance
+
+**useOptimistic for Instant UI Updates**
+<Code language="typescript" title="'use client'">
+{`import { useOptimistic } from 'react'
+
+export function EntityForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<void> }) {
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [optimisticEntities, addOptimisticEntity] = useOptimistic(
+    entities,
+    (state, newEntity: Entity) => [...state, newEntity]
+  )
+
+  const handleSubmit = async (formData: FormData) => {
+    // Immediate UI update
+    const optimisticEntity = createOptimisticEntity(formData)
+    addOptimisticEntity(optimisticEntity)
+
+    try {
+      await onSubmit(formData)
+      // Success - optimistic update becomes permanent
+    } catch (error) {
+      // Error - revert optimistic update
+      setEntities(entities)
+    }
+  }
+
+  return (
+    <EntityList entities={optimisticEntities} />
+    <EntityForm onSubmit={handleSubmit} />
+  )
+}`}
+</Code>
+
+**useActionState for Form Management**
+<Code language="typescript" title="'use client'">
+{`import { useActionState } from 'react'
+
+export function CreateEntityForm() {
+  const [state, formAction, isPending] = useActionState(
+    createEntityAction,
+    { success: false, errors: [] }
+  )
+
+  return (
+    <form action={formAction}>
+      <input name="name" placeholder="Entity name" required />
+
+      {isPending && <div>Creating entity...</div>}
+
+      {state.errors.length > 0 && (
+        <ul>
+          {state.errors.map(error => (
+            <li key={error}>{error}</li>
+          ))}
+        </ul>
+      )}
+
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Creating...' : 'Create Entity'}
+      </button>
+    </form>
+  )
+}`}
+</Code>
+
+## Firebase Optimization Strategies
+
+### Database Abstraction Layer Pattern
+
+**Switchable PostgreSQL/Firebase Operations**
+// lib/database/index.ts - Unified database abstraction
+
+<Code language="typescript" title="TypeScript">
+{`class DatabaseService {
+  // React 19 cache() enabled operations
+  read = cache(async (collection: string, id: string) => {
+    // Automatically routes to PostgreSQL or Firebase based on DB_HYBRID_MODE
+    const backend = this.getBackendForCollection(collection)
+    return backend.read(collection, id)
+  })
+
+  query = cache(async (querySpec: QuerySpec) => {
+    // Advanced querying with automatic backend selection
+    const backend = this.getBackendForCollection(querySpec.collection)
+    return backend.query(querySpec)
+  })
+
+  create = async (collection: string, data: any) => {
+    const backend = this.getBackendForCollection(collection)
+    return backend.create(collection, data)
+  }
+
+  update = async (collection: string, id: string, data: any) => {
+    const backend = this.getBackendForCollection(collection)
+    return backend.update(collection, id, data)
+  }
+
+  delete = async (collection: string, id: string) => {
+    const backend = this.getBackendForCollection(collection)
+    return backend.delete(collection, id)
+  }
+
+  private getBackendForCollection(collection: string) {
+    // Route based on environment and collection migration status
+    const hybridMode = process.env.DB_HYBRID_MODE === 'false'
+
+    if (hybridMode) {
+      return this.postgresBackend // PostgreSQL primary
+    }
+
+    // Hybrid mode: route based on migration status
+    const migratedCollections = ['users', 'entities', 'notifications', 'comments']
+    return migratedCollections.includes(collection)
+      ? this.postgresBackend
+      : this.firebaseBackend
+  }
+}
+
+export const dbService = new DatabaseService()
+
+// Usage - backend-agnostic
+const entity = await dbService.read('entities', entityId)
+const comments = await dbService.query({
+  collection: 'comments',
+  filters: [{ field: 'target_id', operator: '==', value: targetId }],
+  orderBy: [{ field: 'created_at', direction: 'desc' }]
+})`}
+</Code>
+
+**Backend-Specific Implementations**
+
+<div className="tabs">
+  <div className="tab">
+    <input type="radio" id="postgres" name="db-backend" defaultChecked />
+    <label htmlFor="postgres">PostgreSQL Backend</label>
+    <div className="tab-content">
+// lib/database/adapters/PostgreSQLAdapter.ts
+
+<Code language="typescript" title="TypeScript">
+{`class PostgreSQLAdapter implements DatabaseAdapter {
+  async query(querySpec: QuerySpec) {
+    const { collection, filters, orderBy, pagination } = querySpec
+
+    // Build PostgreSQL query with proper field mapping
+    const sql = this.buildQuery(querySpec)
+    const result = await this.client.query(sql, params)
+
+    return {
+      success: true,
+      data: result.rows.map(row => ({
+        id: row.id,
+        data: this.convertRowToDocument(row)
+      }))
+    }
+  }
+
+  private buildQuery(querySpec: QuerySpec): string {
+    const { collection, filters, orderBy } = querySpec
+    const tableName = this.getTableName(collection)
+
+    let sql = `SELECT * FROM ${tableName} WHERE 1=1`
+    const params: any[] = []
+
+    // Apply filters with field mapping (id vs data->>'field')
+    filters.forEach(filter => {
+      const fieldRef = this.getFieldReference(collection, filter.field)
+      sql += ` AND ${fieldRef} ${filter.operator} $${params.length + 1}`
+      params.push(filter.value)
+    })
+
+    // Apply ordering
+    if (orderBy?.length) {
+      sql += ' ORDER BY ' + orderBy.map(sort =>
+        `${this.getFieldReference(collection, sort.field)} ${sort.direction}`
+      ).join(', ')
+    }
+
+    // Apply pagination
+    if (pagination?.limit) {
+      sql += ` LIMIT $${params.length + 1}`
+      params.push(pagination.limit)
+    }
+
+    if (pagination?.offset) {
+      sql += ` OFFSET $${params.length + 1}`
+      params.push(pagination.offset)
+    }
+
+    return sql
+  }
+
+  private getFieldReference(collection: string, field: string): string {
+    const topLevelFields = this.fieldMappings[collection] || new Set()
+    return topLevelFields.has(field) ? field : `data->>'${field}'`
+  }
+}`}
+</Code>
+    </div>
+  </div>
+
+  <div className="tab">
+    <input type="radio" id="firebase" name="db-backend" />
+    <label htmlFor="firebase">Firebase Backend</label>
+    <div className="tab-content">
+// lib/database/adapters/FirebaseAdapter.ts
+
+<Code language="typescript" title="TypeScript">
+{`class FirebaseAdapter implements DatabaseAdapter {
+  async query(querySpec: QuerySpec) {
+    const { collection, filters, orderBy, pagination } = querySpec
+
+    const collectionRef = collection(getFirestore(), collection)
+    let queryRef: Query = collectionRef
+
+    // Apply filters
+    filters.forEach(filter => {
+      queryRef = query(queryRef, where(filter.field, filter.operator, filter.value))
+    })
+
+    // Apply ordering
+    if (orderBy?.length) {
+      orderBy.forEach(sort => {
+        queryRef = query(queryRef, orderBy(sort.field, sort.direction))
+      })
+    }
+
+    // Apply pagination
+    if (pagination?.limit) {
+      queryRef = query(queryRef, limit(pagination.limit))
+    }
+    if (pagination?.offset) {
+      queryRef = query(queryRef, startAfter(pagination.offset))
+    }
+
+    const snapshot = await getDocs(queryRef)
+    return {
+      success: true,
+      data: snapshot.docs.map(doc => ({
+        id: doc.id,
+        data: doc.data()
+      }))
+    }
+  }
+
+  // Batch operations for performance
+  async getEntitiesByIds(ids: string[], userRole?: UserRole) {
+    if (ids.length === 0) return []
+
+    // Single query with 'in' clause for batch retrieval
+    const entitiesRef = collection(getFirestore(), 'entities')
+    const queryRef = query(
+      entitiesRef,
+      where('__name__', 'in', ids.slice(0, 10)) // Firestore 'in' limit
+    )
+
+    const snapshot = await getDocs(queryRef)
+    const entities = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    // Apply role-based filtering at database level
+    return entities.filter(entity => hasAccess(entity, userRole))
+  }
+}`}
+</Code>
+    </div>
+  </div>
+</div>
+
+### Query Optimization Patterns
+
+**Composite Indexes for Complex Queries**
+// Optimized query with proper indexing
+
+<Code language="typescript" title="TypeScript">
+{`export const getEntitiesByOwnerAndStatus = cache(async (
+  ownerId: string,
+  status: EntityStatus,
+  limit: number = 20
+) => {
+  const entitiesRef = collection(getFirestore(), 'entities')
+
+  // Query uses composite index: ownerId + status
+  const q = query(
+    entitiesRef,
+    where('ownerId', '==', ownerId),
+    where('status', '==', status),
+    orderBy('createdAt', 'desc'),
+    limit(limit)
+  )
+
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+})`}
+</Code>
+
+**Pagination with Cursor-Based Queries**
+<Code language="typescript" title="export const getPaginatedEntities = cache(async (">
+{`ownerId: string,
+  lastDoc?: DocumentSnapshot,
+  pageSize: number = 10
+) => {
+  const entitiesRef = collection(getFirestore(), 'entities')
+
+  let q = query(
+    entitiesRef,
+    where('ownerId', '==', ownerId),
+    orderBy('createdAt', 'desc'),
+    limit(pageSize)
+  )
+
+  // Add cursor for pagination
+  if (lastDoc) {
+    q = query(q, startAfter(lastDoc))
+  }
+
+  const snapshot = await getDocs(q)
+  const entities = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+
+  return {
+    entities,
+    hasMore: snapshot.docs.length === pageSize,
+    lastDoc: snapshot.docs[snapshot.docs.length - 1]
+  }
+})`}
+</Code>
+
+### Batch Operations
+
+**Efficient Bulk Operations**
+<Code language="typescript" title="export const bulkUpdateEntityStatus = async (">
+{`entityIds: string[],
+  newStatus: EntityStatus
+) => {
+  const batch = writeBatch(getFirestore())
+
+  entityIds.forEach(id => {
+    const entityRef = doc(getFirestore(), 'entities', id)
+    batch.update(entityRef, {
+      status: newStatus,
+      updatedAt: serverTimestamp()
+    })
+  })
+
+  await batch.commit()
+}`}
+</Code>
+
+## Caching Strategies
+
+### Multi-Layer Caching Architecture
+
+**React Cache Layer**
+// Per-request deduplication
+
+<Code language="typescript" title="TypeScript">
+{`const getEntityDetails = cache(async (entityId: string) => {
+  const entity = await firebaseService.getCachedDocument('entities', entityId)
+
+  if (!entity) return null
+
+  // Enrich with related data
+  const [owner, stats] = await Promise.all([
+    firebaseService.getCachedDocument('users', entity.ownerId),
+    getEntityStats(entityId)
+  ])
+
+  return { ...entity, owner, stats }
+})`}
+</Code>
+
+**Session Storage for Temporary Data**
+// lib/cache/session-storage.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class SessionStorageCache {
+  private prefix = 'ring_cache_'
+
+  set(key: string, value: any, ttlMinutes: number = 30) {
+    const item = {
+      value,
+      expiresAt: Date.now() + (ttlMinutes * 60 * 1000)
+    }
+    sessionStorage.setItem(this.prefix + key, JSON.stringify(item))
+  }
+
+  get<T>(key: string): T | null {
+    const item = sessionStorage.getItem(this.prefix + key)
+
+    if (!item) return null
+
+    const parsed = JSON.parse(item)
+
+    if (Date.now() > parsed.expiresAt) {
+      sessionStorage.removeItem(this.prefix + key)
+      return null
+    }
+
+    return parsed.value
+  }
+
+  // Auto-cleanup on page load
+  cleanup() {
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith(this.prefix)) {
+        try {
+          const item = JSON.parse(sessionStorage.getItem(key)!)
+          if (Date.now() > item.expiresAt) {
+            sessionStorage.removeItem(key)
+          }
+        } catch {
+          sessionStorage.removeItem(key)
+        }
+      }
+    })
+  }
+}
+
+export const sessionCache = new SessionStorageCache()`}
+</Code>
+
+**Next.js Configuration for Optimal Caching**
+// next.config.js
+
+<Code language="typescript" title="TypeScript">
+{`module.exports = {
+  // Optimize images and fonts
+  images: {
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+  },
+
+  // Enable compression
+  compress: true,
+
+  // Optimize builds
+  swcMinify: true,
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
+  },
+
+  // Caching headers
+  async headers() {
+    return [
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=300, s-maxage=600, stale-while-revalidate=86400'
+          }
+        ]
+      }
+    ]
+  }
+}`}
+</Code>
+
+## Build Optimization
+
+### Bundle Analysis and Reduction
+
+**Code Splitting Strategies**
+// Dynamic imports for heavy components
+
+<Code language="typescript" title="TypeScript">
+{`const EntityModal = dynamic(() => import('@/components/entities/EntityModal'), {
+  loading: () => <div>Loading...</div>,
+  ssr: false // Client-only component
+})
+
+// Route-based code splitting (automatic with App Router)
+export default function HeavyPage() {
+  return (
+    <Suspense fallback={<div>Loading heavy content...</div>}>
+      <HeavyComponent />
+    </Suspense>
+  )
+}`}
+</Code>
+
+**Tree Shaking Optimization**
+<Code language="typescript" title="TypeScript">
+{`// ✅ Specific imports (tree-shakeable)
+import { doc, getDoc } from 'firebase/firestore'
+import { useState } from 'react'
+
+// ❌ Avoid full library imports
+// import firebase from 'firebase/app'
+// import * as React from 'react'`}
+</Code>
+
+### TypeScript Optimization
+
+**Incremental Compilation Configuration**
+// tsconfig.json
+
+<Code language="typescript" title="TypeScript">
+{`{
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "moduleResolution": "bundler"
+  }
+}`}
+</Code>
+
+## Runtime Performance Patterns
+
+### Component Optimization
+
+**React.memo for Expensive Components**
+<Code language="typescript" title="TypeScript">
+{`const EntityCard = memo(({ entity, onSelect }: EntityCardProps) => {
+console.log('EntityCard rendered:', entity.id) // Only when props change
+
+  return (
+    <div onClick={() => onSelect(entity)}>
+      <h3>{entity.name}</h3>
+      <p>{entity.description}</p>
+    </div>
+  )
+})
+
+EntityCard.displayName = 'EntityCard'`}
+</Code>
+
+**useMemo for Expensive Computations**
+<Code language="typescript" title="TypeScript">
+{`const EntityGrid = ({ entities, searchTerm }: EntityGridProps) => {
+const filteredEntities = useMemo(() => {
+    if (!searchTerm) return entities
+
+    return entities.filter(entity =>
+      entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entity.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [entities, searchTerm])
+
+  const sortedEntities = useMemo(() => {
+    return [...filteredEntities].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  }, [filteredEntities])
+
+  return (
+    <div className="grid">
+      {sortedEntities.map(entity => (
+        <EntityCard key={entity.id} entity={entity} />
+      ))}
+    </div>
+  )
+}`}
+</Code>
+
+### Lazy Loading and Virtualization
+
+**Progressive Loading for Large Lists**
+<Code language="typescript" title="TypeScript">
+{`import { useVirtualizer } from '@tanstack/react-virtual'
+const EntityList = ({ entities }: { entities: Entity[] }) => {
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: entities.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 100, // Estimated item height
+    overscan: 5
+  })
+
+  return (
+    <div ref={parentRef} style={{ height: '400px', overflow: 'auto' }}>
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative'
+        }}
+      >
+        {virtualizer.getVirtualItems().map(virtualItem => (
+          <div
+            key={virtualItem.key}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: `${virtualItem.size}px`,
+              transform: `translateY(${virtualItem.start}px)`
+            }}
+          >
+            <EntityCard entity={entities[virtualItem.index]} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## Network Optimization
+
+### Request Batching and Deduplication
+
+**Intelligent API Client**
+// lib/api-client.ts
+
+<Code language="typescript" title="TypeScript">
+{`class RingApiClient {
+  private requestCache = new Map<string, Promise<any>>()
+
+  async request(endpoint: string, options: RequestInit = {}) {
+    const cacheKey = `${endpoint}:${JSON.stringify(options)}`
+
+    // Return cached request if exists
+    if (this.requestCache.has(cacheKey)) {
+      return this.requestCache.get(cacheKey)
+    }
+
+    // Create new request and cache it
+    const request = fetch(endpoint, options)
+      .then(res => res.json())
+      .finally(() => {
+        // Clean up cache after request completes
+        this.requestCache.delete(cacheKey)
+      })
+
+    this.requestCache.set(cacheKey, request)
+    return request
+  }
+
+  // Batch multiple entity requests
+  async getEntitiesBatch(ids: string[]) {
+    if (ids.length === 0) return []
+
+    // Use Firestore 'in' query for efficient batch retrieval
+    return this.request('/api/entities/batch', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+export const apiClient = new RingApiClient()`}
+</Code>
+
+### Resource Preloading
+
+**Critical Resource Optimization**
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        {/* Preload critical fonts */}
+        <link
+          rel="preload"
+          href="/fonts/inter-var.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+
+        {/* Preconnect to external domains */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+
+        {/* DNS prefetch for Firebase */}
+        <link rel="dns-prefetch" href="//firestore.googleapis.com" />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}`}
+</Code>
+
+## Performance Monitoring
+
+### Core Web Vitals Tracking
+
+**Real User Monitoring Setup**
+// lib/analytics/performance.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const trackWebVitals = () => {
+  if (typeof window === 'undefined') return
+
+  // Core Web Vitals
+  import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+    getCLS(console.log)
+    getFID(console.log)
+    getFCP(console.log)
+    getLCP(console.log)
+    getTTFB(console.log)
+  })
+}
+
+// Custom performance metrics
+export const trackCustomMetrics = () => {
+  // Firebase call tracking
+  const originalGetDoc = getDoc
+  ;(getDoc as any) = (...args: any[]) => {
+    const start = performance.now()
+    return originalGetDoc(...args).finally(() => {
+      const duration = performance.now() - start
+      console.log(`Firebase getDoc took ${duration}ms`)
+    })
+  }
+}`}
+</Code>
+
+### Performance Budget Configuration
+
+**Build-Time Performance Budgets**
+// next.config.js
+
+<Code language="typescript" title="TypeScript">
+{`module.exports = {
+  // Performance budgets
+  performance: {
+    hints: 'warning',
+    maxAssetSize: 512000, // 512KB
+    maxEntrypointSize: 512000, // 512KB
+  },
+
+  // Bundle analyzer (conditionally)
+  ...(process.env.ANALYZE === 'true' && {
+    plugins: [new BundleAnalyzerPlugin()]
+  })
+}`}
+</Code>
+
+## Implementation Checklist
+
+### React 19 Optimization ✅
+- [x] Use React 19 cache() for request deduplication
+- [x] Prefer Server Components over Client Components
+- [x] Implement useOptimistic for instant UI feedback
+- [x] Use useActionState for form state management
+- [x] Leverage React 19 native metadata
+
+### Firebase Optimization ✅
+- [x] Use firebase-service-manager for all operations
+- [x] Implement batch operations where possible
+- [x] Optimize Firestore queries with proper indexing
+- [x] Monitor Firebase usage and performance
+
+### Caching Strategy ✅
+- [x] Implement React cache() for deduplication
+- [x] Use sessionStorage for temporary caching
+- [x] Configure Next.js caching appropriately
+- [x] Leverage Edge Runtime for global performance
+
+### Build Optimization ✅
+- [x] Monitor build times and bundle sizes
+- [x] Implement proper code splitting
+- [x] Optimize TypeScript configuration
+- [x] Remove unused dependencies
+
+## Performance Benchmarks
+
+### Current Achievements
+- **Firebase Calls**: 95% reduction during build
+- **Build Time**: 17.0s (30-40% improvement)
+- **Bundle Size**: 55KB reduction with React 19
+- **Error Rate**: Zero build errors
+- **Test Coverage**: 95% tests passing
+
+### Target Metrics
+- **Page Load**: < 2s first contentful paint
+- **Interactivity**: < 100ms first input delay
+- **Layout Stability**: < 0.1 cumulative layout shift
+- **Firebase Efficiency**: > 95% call reduction maintained
+
+---

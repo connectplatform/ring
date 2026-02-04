@@ -2,12 +2,13 @@ import React, { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
 import AddOpportunityForm from '@/features/opportunities/components/add-opportunity'
+import OpportunityFormWrapper from '@/components/wrappers/opportunity-form-wrapper'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import { PageProps } from '@/types/next-page'
 import { resolvePageProps } from '@/utils/page-props'
-import type { Locale } from '@/i18n-config'
+import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,12 +44,17 @@ export default async function AddOpportunityPage(props: PageProps) {
   // Step 1: Resolve params and searchParams using our utility function
   const { params, searchParams } = await resolvePageProps(props);
   
-  const locale = params.locale as Locale
+  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   const type = searchParams.type as 'request' | 'offer' | 'cv' | undefined
+
+  // Load translations for this locale
+  const translations = await loadTranslations(locale);
+  const alternates = generateHreflangAlternates('/opportunities/add');
 
   console.log('Params:', params);
   console.log('Search Params:', searchParams);
   console.log('Opportunity Type:', type);
+  console.log('Locale:', locale);
 
   // Step 2: Retrieve cookies and headers
   const cookieStore = await cookies()
@@ -122,7 +128,12 @@ export default async function AddOpportunityPage(props: PageProps) {
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
-      
+
+      {/* Hreflang alternates */}
+      {Object.entries(alternates).map(([lang, url]) => (
+        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
+      ))}
+
       {/* OpenGraph metadata */}
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
@@ -187,17 +198,22 @@ export default async function AddOpportunityPage(props: PageProps) {
         }}
       />
 
-      <Suspense fallback={
-        <div className="flex justify-center items-center h-screen">
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
-        </div>
-      }>
-        {error ? (
-          <div className="text-center text-red-600 p-4">{error}</div>
-        ) : (
-          <AddOpportunityForm opportunityType={type} locale={locale} />
-        )}
-      </Suspense>
+      <OpportunityFormWrapper
+        locale={locale}
+        opportunityType={type}
+      >
+        <Suspense fallback={
+          <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+        }>
+          {error ? (
+            <div className="text-center text-red-600 p-4">{error}</div>
+          ) : (
+            <AddOpportunityForm opportunityType={type} locale={locale} />
+          )}
+        </Suspense>
+      </OpportunityFormWrapper>
     </>
   )
 }

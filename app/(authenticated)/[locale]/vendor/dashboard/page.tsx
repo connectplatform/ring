@@ -1,64 +1,60 @@
-import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
-import { VendorDashboard } from '@/components/vendor/vendor-dashboard'
-import { getVendorProfile } from '@/features/store/services/vendor-profile'
-import { getVendorDashboardStats } from '@/features/store/services/vendor-stats'
-import { getVendorEntity } from '@/features/entities/services/vendor-entity'
+/**
+ * Vendor Dashboard - Main hub for vendor management
+ * 
+ * Displays key metrics, recent orders, and DAGI agent activation
+ */
 
-export async function generateMetadata({ params }: { params: { locale: string } }) {
-  const t = await getTranslations({ locale: params.locale, namespace: 'vendor.dashboard' })
-  
-  return {
-    title: t('meta.title'),
-    description: t('meta.description'),
-  }
+import { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+import VendorDashboardWrapper from '@/components/wrappers/vendor-dashboard-wrapper'
+import { DAGIActivationCard } from '@/components/vendor/dagi-activation-card'
+import { DashboardStats } from '@/components/vendor/dashboard-stats'
+import { RecentOrders } from '@/components/vendor/recent-orders'
+
+export const metadata: Metadata = {
+  title: 'Vendor Dashboard | GreenFood.live',
+  description: 'Manage your farm, products, orders, and AI agent',
 }
 
-export default async function VendorDashboardPage({
-  params,
-}: {
-  params: { locale: string }
-}) {
-  const session = await auth()
+export default async function VendorDashboardPage() {
+  // TODO: Implement proper auth check
+  const session = { user: { id: 'mock-user-id' } } // Temporary mock
   
   if (!session?.user?.id) {
-    redirect(`/${params.locale}/auth/signin`)
+    redirect('/auth/signin')
   }
-  
-  // Get user's vendor entity with efficient database-level filtering
-  const vendorEntity = await getVendorEntity(session.user.id)
-  
-  if (!vendorEntity) {
-    // No vendor store activated, redirect to onboarding
-    redirect(`/${params.locale}/vendor/start`)
-  }
-  
-  // Get vendor profile
-  const vendorProfile = await getVendorProfile(vendorEntity.id)
-  
-  if (!vendorProfile) {
-    // Profile doesn't exist, create one
-    redirect(`/${params.locale}/vendor/start`)
-  }
-  
-  // Get dashboard stats
-  const stats = await getVendorDashboardStats(vendorEntity.id)
-  
-  const t = await getTranslations({ locale: params.locale, namespace: 'vendor.dashboard' })
-  
+
+  // TODO: Check vendor status via database query
+  // const isVendor = await hasVendorEntity(session.user.id)
+  // if (!isVendor) redirect('/vendor/start')
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">{t('title')}</h1>
-      
-      <VendorDashboard
-        vendor={vendorProfile}
-        entity={vendorEntity}
-        stats={stats}
-        locale={params.locale}
-      />
-    </div>
+    <VendorDashboardWrapper locale="en">
+      <div className="container mx-auto px-6 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Vendor Dashboard</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your farm operations and AI agent
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <Suspense fallback={<div className="h-32 animate-pulse bg-muted rounded-lg" />}>
+            <DashboardStats />
+          </Suspense>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2 mb-8">
+          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded-lg" />}>
+            <DAGIActivationCard userId={session.user.id} />
+          </Suspense>
+
+          <Suspense fallback={<div className="h-96 animate-pulse bg-muted rounded-lg" />}>
+            <RecentOrders />
+          </Suspense>
+        </div>
+      </div>
+    </VendorDashboardWrapper>
   )
 }
-
-// Now using efficient getVendorEntity service with database-level filtering

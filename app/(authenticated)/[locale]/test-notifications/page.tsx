@@ -66,10 +66,10 @@ export default function TestNotificationsPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          <h1 className="text-3xl font-bold text-foreground mb-4">
             Notification System Test
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Test the Ring platform notification system components and functionality
           </p>
         </div>
@@ -155,7 +155,7 @@ export default function TestNotificationsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 border rounded-lg">
                   <h5 className="font-medium mb-2">Features Available:</h5>
-                  <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                  <ul className="text-sm space-y-1 text-muted-foreground">
                     <li>• Real-time notification count badge</li>
                     <li>• Dropdown with search and filters</li>
                     <li>• Mark individual/all as read</li>
@@ -166,7 +166,7 @@ export default function TestNotificationsPage() {
                 
                 <div className="p-4 border rounded-lg">
                   <h5 className="font-medium mb-2">Pages Available:</h5>
-                  <ul className="text-sm space-y-1 text-gray-600 dark:text-gray-400">
+                  <ul className="text-sm space-y-1 text-muted-foreground">
                     <li>• <Link href="/notifications" className="text-blue-600 hover:underline">/notifications</Link> - Full notification list</li>
                     <li>• <Link href="/settings/notifications" className="text-blue-600 hover:underline">/settings/notifications</Link> - Preferences</li>
                   </ul>

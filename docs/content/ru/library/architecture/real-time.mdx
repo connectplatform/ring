@@ -1,0 +1,17 @@
+---
+title: Real Time
+description: Real Time documentation for Ring Platform
+---
+
+# Realtime Transport
+
+- Tunnel transport abstraction (WebSocket / SSE fallback)
+- Presence, typing indicators, push notifications
+- Edge Runtime compatible (SSE primary on Vercel)
+
+<Mermaid>
+{`flowchart LR
+  Client -->|SSE/WS| Gateway
+  Gateway --> Services
+  Services --> Firestore/RTDB`}
+</Mermaid>

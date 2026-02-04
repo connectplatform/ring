@@ -1,0 +1,967 @@
+---
+title: API магазину
+description: Повна документація API мульти-вендорного маркетплейсу платформи Ring з управлінням продавцями, каталогом продуктів, обробкою замовлень та інтеграцією WayForPay
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# API магазину
+
+Платформа Ring надає комплексний мульти-вендорний маркетплейс із **12 REST кінцевими точками** для управління продавцями, каталогом продуктів, обробкою замовлень та автоматизованими розрахунками. Система інтегрується з WayForPay для безпечної обробки платежів та підтримує як токени RING, так і традиційні валюти.
+
+<Callout type="info" title="💰 Двосистемна оплата">
+Вбудована інтеграція з **WayForPay** для традиційних платежів та **токенами RING** для криптовалютних транзакцій, що забезпечує максимальну гнучкість для продавців та покупців.
+</Callout>
+
+## 🏗️ Архітектура системи
+
+### Потік магазину
+
+```
+Лістинг продукту → Створення замовлення → Обробка платежу → Виконання → Розрахунок
+                                      ↓
+                            WayForPay API / Переказ RING
+```
+
+### Функції мульти-вендора
+
+- **Онбординг продавців**: Процес заявки та верифікації
+- **Управління продуктами**: Каталог із відстеженням інвентарю
+- **Обробка замовлень**: Автоматизовані робочі процеси виконання
+- **Інтеграція платежів**: Двосистема оплати (WayForPay + RING)
+- **Автоматизація розрахунків**: Виплати продавцям та збір комісій
+- **Аналітична панель**: Відстеження продажів та продуктивності
+
+### Безпека та довіра
+
+- **Верифікація продавців**: Багаторівневий процес верифікації
+- **Рейтинг довіри**: Автоматизована система репутації продавця
+- **Запобігання шахрайству**: Валідація платежів та захист від чарджбеків
+- **Ескроу система**: Безпечне утримання коштів під час транзакцій
+
+## 📋 Довідка кінцевих точок API
+
+### `GET /api/store/products`
+
+Список продуктів із розширеним фільтруванням, пошуком та пагінацією.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Продуктів на сторінку (за замовчуванням: 20, макс: 100) |
+| `search` | string | Ні | Пошук за назвою продукту, описом, тегами |
+| `category` | string | Ні | Фільтр за категорією |
+| `vendorId` | string | Ні | Фільтр за конкретним продавцем |
+| `minPrice` | number | Ні | Мінімальний фільтр ціни |
+| `maxPrice` | number | Ні | Максимальний фільтр ціни |
+| `currency` | string | Ні | Фільтр за валютою (RING, USD, EUR, UAH) |
+| `inStock` | boolean | Ні | Показувати тільки продукти в наявності |
+| `sortBy` | string | Ні | Сортувати за: `price`, `createdAt`, `rating`, `popularity` |
+| `sortOrder` | string | Ні | Порядок сортування: `asc`, `desc` |
+| `featured` | boolean | Ні | Показувати тільки рекомендовані продукти |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/store/products?page=1&limit=12&category=software&minPrice=10&maxPrice=500&sortBy=popularity&sortOrder=desc" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"products": [
+    {
+      "id": "prod_123456",
+      "name": "Набір інструментів AI розробки",
+      "description": "Повний набір для розробки AI-powered додатків",
+      "price": 299.99,
+      "currency": "USD",
+      "category": "software",
+      "vendor": {
+        "id": "vendor_789",
+        "name": "TechCorp Solutions",
+        "verified": true,
+        "trustScore": 4.8
+      },
+      "images": [
+        "https://cdn.ring-platform.org/products/prod_123456/main.jpg",
+        "https://cdn.ring-platform.org/products/prod_123456/thumb.jpg"
+      ],
+      "inventory": {
+        "quantity": 25,
+        "lowStockThreshold": 5,
+        "backorderAllowed": true
+      },
+      "rating": {
+        "average": 4.7,
+        "count": 89
+      },
+      "tags": ["AI", "development", "toolkit", "machine-learning"],
+      "featured": true,
+      "status": "active",
+      "createdAt": "2025-09-15T10:30:00Z",
+      "updatedAt": "2025-10-10T14:20:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 12,
+    "total": 156,
+    "totalPages": 13,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "filters": {
+    "applied": {
+      "category": "software",
+      "minPrice": 10,
+      "maxPrice": 500
+    },
+    "available": {
+      "categories": ["software", "consulting", "hardware"],
+      "priceRange": {
+        "min": 5,
+        "max": 5000
+      },
+      "currencies": ["RING", "USD", "EUR", "UAH"]
+    }
+  }
+}`}
+</Code>
+
+### `GET /api/store/products/{id}`
+
+Отримати детальну інформацію про конкретний продукт.
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"product": {
+    "id": "prod_123456",
+    "name": "Набір інструментів AI розробки",
+    "description": "Повний набір для розробки AI-powered додатків із попередньо створеними моделями, навчальними даними та інструментами розгортання.",
+    "longDescription": "Цей комплексний набір включає все необхідне для створення AI-powered додатків...",
+    "price": 299.99,
+    "currency": "USD",
+    "category": "software",
+    "subcategory": "development-tools",
+    "vendor": {
+      "id": "vendor_789",
+      "name": "TechCorp Solutions",
+      "description": "Провідний постачальник рішень для розробки AI",
+      "verified": true,
+      "trustScore": 4.8,
+      "memberSince": "2024-03-15T00:00:00Z",
+      "totalSales": 1250,
+      "responseTime": "2 hours"
+    },
+    "images": [
+      {
+        "url": "https://cdn.ring-platform.org/products/prod_123456/main.jpg",
+        "alt": "Інтерфейс набору інструментів AI розробки",
+        "order": 1
+      }
+    ],
+    "inventory": {
+      "quantity": 25,
+      "lowStockThreshold": 5,
+      "backorderAllowed": true,
+      "estimatedRestockDate": null
+    },
+    "shipping": {
+      "weight": 0.5,
+      "dimensions": {
+        "length": 30,
+        "width": 20,
+        "height": 5
+      },
+      "freeShipping": true,
+      "shippingCost": 0
+    },
+    "specifications": {
+      "compatibility": ["Windows 10+", "macOS 12+", "Linux"],
+      "license": "Perpetual",
+      "updates": "1 year included",
+      "support": "Email and chat support"
+    },
+    "rating": {
+      "average": 4.7,
+      "count": 89,
+      "distribution": {
+        "5": 67,
+        "4": 15,
+        "3": 4,
+        "2": 2,
+        "1": 1
+      }
+    },
+    "reviews": [
+      {
+        "id": "review_456",
+        "userId": "user_123",
+        "userName": "John Developer",
+        "rating": 5,
+        "title": "Чудовий набір інструментів!",
+        "content": "Цей набір інструментів заощадив нам місяці розробки...",
+        "createdAt": "2025-10-01T09:15:00Z",
+        "verified": true
+      }
+    ],
+    "tags": ["AI", "development", "toolkit", "machine-learning"],
+    "featured": true,
+    "status": "active",
+    "salesCount": 234,
+    "viewCount": 1250,
+    "createdAt": "2025-09-15T10:30:00Z",
+    "updatedAt": "2025-10-10T14:20:00Z"
+  },
+  "relatedProducts": [
+    // Масив пов'язаних продуктів
+  ],
+  "recentPurchases": 12
+}`}
+</Code>
+
+### `POST /api/store/products`
+
+Створити новий продукт (тільки продавець).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"name": "Послуга кастомного консалтингу AI",
+  "description": "Експертний AI консалтинг для ваших бізнес потреб",
+  "price": 150.00,
+  "currency": "USD",
+  "category": "consulting",
+  "inventory": {
+    "quantity": -1,  // -1 для необмежених цифрових продуктів
+    "backorderAllowed": false
+  },
+  "images": [
+    {
+      "url": "https://cdn.ring-platform.org/products/new/upload1.jpg",
+      "alt": "Послуга AI консалтингу",
+      "order": 1
+    }
+  ],
+  "specifications": {
+    "delivery": "Цифрова доставка протягом 24 годин",
+    "format": "PDF звіт + 1-годинний дзвінок консультації",
+    "revisions": "2 ревізії включені"
+  },
+  "tags": ["consulting", "AI", "business", "strategy"],
+  "featured": false
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"product": {
+    "id": "prod_123457",
+    "name": "Послуга кастомного консалтингу AI",
+    "status": "pending",  // Потребує схвалення адміном
+    "createdAt": "2025-10-16T11:00:00Z"
+  },
+  "message": "Продукт створено успішно. Він буде переглянуто нашою командою перед публікацією."
+}`}
+</Code>
+
+### `PUT /api/store/products/{id}`
+
+Оновити інформацію про продукт (тільки продавець).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"name": "Преміум послуга AI консалтингу",
+  "price": 175.00,
+  "inventory": {
+    "quantity": 10
+  },
+  "specifications": {
+    "delivery": "Цифрова доставка протягом 12 годин",
+    "revisions": "3 ревізії включені"
+  }
+}`}
+</Code>
+
+### `GET /api/store/orders`
+
+Список замовлень із фільтруванням (різні погляди для покупців проти продавців).
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Замовлень на сторінку (за замовчуванням: 20) |
+| `status` | string | Ні | Фільтр за статусом: `pending`, `paid`, `shipped`, `delivered`, `cancelled` |
+| `type` | string | Ні | Тип погляду: `purchases` (покупець), `sales` (продавець) |
+| `dateFrom` | string | Ні | ISO дата - замовлення з цієї дати |
+| `dateTo` | string | Ні | ISO дата - замовлення до цієї дати |
+| `minAmount` | number | Ні | Мінімальна сума замовлення |
+| `maxAmount` | number | Ні | Максимальна сума замовлення |
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"orders": [
+    {
+      "id": "order_789123",
+      "customer": {
+        "id": "user_456",
+        "name": "Jane Customer",
+        "email": "jane@example.com"
+      },
+      "vendor": {
+        "id": "vendor_789",
+        "name": "TechCorp Solutions"
+      },
+      "items": [
+        {
+          "productId": "prod_123456",
+          "name": "Набір інструментів AI розробки",
+          "quantity": 1,
+          "price": 299.99,
+          "currency": "USD"
+        }
+      ],
+      "totalAmount": 299.99,
+      "currency": "USD",
+      "status": "paid",
+      "paymentMethod": "wayforpay",
+      "shippingAddress": {
+        "street": "123 Main St",
+        "city": "San Francisco",
+        "state": "CA",
+        "zipCode": "94105",
+        "country": "US"
+      },
+      "trackingNumber": "TR123456789",
+      "createdAt": "2025-10-15T14:30:00Z",
+      "paidAt": "2025-10-15T14:35:00Z",
+      "shippedAt": null,
+      "deliveredAt": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 45,
+    "totalPages": 3
+  },
+  "summary": {
+    "totalOrders": 45,
+    "totalRevenue": 15420.50,
+    "pendingOrders": 3,
+    "completedOrders": 42
+  }
+}`}
+</Code>
+
+### `POST /api/store/orders`
+
+Створити нове замовлення з кошика/оформлення.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"items": [
+    {
+      "productId": "prod_123456",
+      "quantity": 1
+    },
+    {
+      "productId": "prod_123457",
+      "quantity": 2
+    }
+  ],
+  "shippingAddress": {
+    "street": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zipCode": "94105",
+    "country": "US"
+  },
+  "billingAddress": {
+    "sameAsShipping": true
+  },
+  "paymentMethod": "wayforpay",
+  "notes": "Будь ласка, обробіть обережно"
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"order": {
+    "id": "order_789124",
+    "status": "pending",
+    "totalAmount": 649.99,
+    "currency": "USD",
+    "createdAt": "2025-10-16T12:00:00Z"
+  },
+  "payment": {
+    "url": "https://wayforpay.com/payment/order_789124",
+    "expiresAt": "2025-10-16T12:30:00Z"
+  }
+}`}
+</Code>
+
+### `PUT /api/store/orders/{id}/status`
+
+Оновити статус замовлення (продавець або адмін).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"status": "shipped",
+  "trackingNumber": "TR123456789",
+  "carrier": "UPS",
+  "estimatedDelivery": "2025-10-20T00:00:00Z",
+  "notes": "Пакет відправлено успішно"
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"order": {
+    "id": "order_789123",
+    "status": "shipped",
+    "shippedAt": "2025-10-16T13:00:00Z",
+    "trackingNumber": "TR123456789"
+  },
+  "notificationSent": true
+}`}
+</Code>
+
+### `GET /api/store/vendors`
+
+Список верифікованих продавців із фільтруванням.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Продавців на сторінку (за замовчуванням: 20) |
+| `search` | string | Ні | Пошук за назвою продавця або описом |
+| `category` | string | Ні | Фільтр за спеціалізацією |
+| `minRating` | number | Ні | Мінімальний рейтинг довіри (1-5) |
+| `verified` | boolean | Ні | Показувати тільки верифікованих продавців |
+| `sortBy` | string | Ні | Сортувати за: `name`, `rating`, `joinedDate`, `sales` |
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"vendors": [
+    {
+      "id": "vendor_789",
+      "name": "TechCorp Solutions",
+      "description": "Провідний постачальник рішень для розробки AI та програмного забезпечення",
+      "logo": "https://cdn.ring-platform.org/vendors/vendor_789/logo.jpg",
+      "verified": true,
+      "trustScore": 4.8,
+      "totalSales": 1250,
+      "memberSince": "2024-03-15T00:00:00Z",
+      "responseTime": "2 hours",
+      "categories": ["software", "consulting", "AI"],
+      "stats": {
+        "totalProducts": 45,
+        "activeProducts": 42,
+        "totalOrders": 1250,
+        "completionRate": 98.5,
+        "avgRating": 4.8,
+        "totalReviews": 234
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 156,
+    "totalPages": 8
+  }
+}`}
+</Code>
+
+### `POST /api/store/vendors/apply`
+
+Подати заявку на становлення продавцем.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"businessName": "My Tech Solutions LLC",
+  "businessType": "LLC",
+  "description": "Ми надаємо різноманітні послуги розробки програмного забезпечення",
+  "website": "https://mytechsolutions.com",
+  "categories": ["software", "consulting"],
+  "contact": {
+    "email": "business@mytechsolutions.com",
+    "phone": "+1-555-0123"
+  },
+  "documents": [
+    {
+      "type": "business_license",
+      "url": "https://cdn.ring-platform.org/uploads/license.pdf"
+    },
+    {
+      "type": "tax_id",
+      "url": "https://cdn.ring-platform.org/uploads/tax_id.pdf"
+    }
+  ]
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"application": {
+    "id": "app_456789",
+    "status": "pending_review",
+    "submittedAt": "2025-10-16T14:00:00Z"
+  },
+  "message": "Заявку подано успішно. Наша команда перегляне її протягом 2-3 робочих днів."
+}`}
+</Code>
+
+### `GET /api/store/cart`
+
+Отримати поточний кошик користувача.
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"cart": {
+    "id": "cart_123456",
+    "items": [
+      {
+        "productId": "prod_123456",
+        "name": "Набір інструментів AI розробки",
+        "price": 299.99,
+        "currency": "USD",
+        "quantity": 1,
+        "image": "https://cdn.ring-platform.org/products/prod_123456/thumb.jpg"
+      }
+    ],
+    "subtotal": 299.99,
+    "tax": 23.99,
+    "shipping": 0,
+    "total": 323.98,
+    "currency": "USD",
+    "itemCount": 1
+  }
+}`}
+</Code>
+
+### `POST /api/store/cart/items`
+
+Додати товар до кошика.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"productId": "prod_123456",
+  "quantity": 1
+}`}
+</Code>
+
+### `GET /api/store/reviews`
+
+Отримати відгуки про продукт із фільтруванням.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `productId` | string | Так | ID продукту для отримання відгуків |
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Відгуків на сторінку (за замовчуванням: 10) |
+| `rating` | number | Ні | Фільтр за рейтингом (1-5) |
+| `verified` | boolean | Ні | Показувати тільки перевірені покупки |
+
+## 💰 Інтеграція платежів
+
+### Інтеграція WayForPay
+
+Платформа Ring інтегрується з WayForPay для безпечної обробки платежів.
+
+#### Підтримувані методи оплати
+
+- **Кредитні/Дебетові картки**: Visa, Mastercard, American Express
+- **Цифрові гаманці**: Apple Pay, Google Pay
+- **Банківські перекази**: Прямі платежі з банківського рахунку
+- **Криптовалюта**: Токени RING через смарт-контракти
+
+#### Потік платежу
+
+// Клієнтська ініціація платежу
+
+<Code language="typescript" title="TypeScript">
+{`const initiatePayment = async (orderId: string) => {
+  const response = await fetch(`/api/store/orders/${orderId}/payment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      method: 'wayforpay',
+      returnUrl: `${window.location.origin}/order/${orderId}/success`,
+      cancelUrl: `${window.location.origin}/order/${orderId}/cancel`
+    })
+  })
+
+  const { paymentUrl } = await response.json()
+
+  // Перенаправлення до WayForPay
+  window.location.href = paymentUrl
+}`}
+</Code>
+
+#### Обробка вебхуку платежу
+
+// Серверний обробник вебхуку
+
+<Code language="typescript" title="TypeScript">
+{`export async function POST(request: Request) {
+  const payload = await request.json()
+
+  // Перевірити підпис вебхуку
+  const isValid = verifyWayForPaySignature(payload)
+
+  if (!isValid) {
+    return Response.json({ error: 'Invalid signature' }, { status: 400 })
+  }
+
+  // Обробити підтвердження платежу
+  if (payload.transactionStatus === 'Approved') {
+    await updateOrderStatus(payload.orderReference, 'paid')
+    await triggerOrderFulfillment(payload.orderReference)
+  }
+
+  return Response.json({ status: 'processed' })
+}`}
+</Code>
+
+### Платежі токенами RING
+
+Для криптовалютних платежів із використанням токенів RING.
+
+#### Інтеграція смарт-контракту
+
+// Клієнтський платіж RING токенами
+
+<Code language="typescript" title="TypeScript">
+{`const payWithRing = async (orderId: string, amount: number) => {
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const ringContract = new ethers.Contract(
+    RING_TOKEN_ADDRESS,
+    RING_ABI,
+    signer
+  )
+
+  // Схвалити контракт маркетплейсу для витрати RING токенів
+  const approveTx = await ringContract.approve(
+    MARKETPLACE_CONTRACT,
+    ethers.parseEther(amount.toString())
+  )
+  await approveTx.wait()
+
+  // Виконати платіж
+  const paymentTx = await marketplaceContract.payWithRing(
+    orderId,
+    ethers.parseEther(amount.toString())
+  )
+  await paymentTx.wait()
+
+  // Підтвердити платіж на бекенді
+  await fetch(`/api/store/orders/${orderId}/confirm-payment`, {
+    method: 'POST',
+    body: JSON.stringify({
+      transactionHash: paymentTx.hash,
+      method: 'ring'
+    })
+  })
+}`}
+</Code>
+
+## 🔧 Приклади реалізації
+
+### Компонент каталогу продуктів
+
+// components/store/ProductCatalog.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+interface Product {
+  id: string
+  name: string
+  price: number
+  currency: string
+  vendor: { name: string; trustScore: number }
+  rating: { average: number; count: number }
+  images: string[]
+}
+
+export function ProductCatalog() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState({
+    category: '',
+    minPrice: 0,
+    maxPrice: 1000,
+    sortBy: 'popularity'
+  })
+
+  useEffect(() => {
+    fetchProducts()
+  }, [filters])
+
+  const fetchProducts = async () => {
+    try {
+      const queryParams = new URLSearchParams(filters as any)
+      const response = await fetch(`/api/store/products?${queryParams}`)
+      const data = await response.json()
+      setProducts(data.products)
+    } catch (error) {
+      console.error('Не вдалося отримати продукти:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const addToCart = async (productId: string) => {
+    try {
+      await fetch('/api/store/cart/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity: 1 })
+      })
+      // Показати повідомлення про успіх
+    } catch (error) {
+      console.error('Не вдалося додати до кошика:', error)
+    }
+  }
+
+  if (loading) return <div>Завантаження продуктів...</div>
+
+  return (
+    <div className="product-catalog">
+      <div className="filters">
+        {/* Елементи керування фільтрами */}
+      </div>
+
+      <div className="products-grid">
+        {products.map(product => (
+          <Card key={product.id} className="product-card">
+            <CardHeader>
+              <img src={product.images[0]} alt={product.name} />
+              <CardTitle>{product.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="price">
+                {product.currency} {product.price}
+              </div>
+              <div className="vendor">
+                від {product.vendor.name} ({product.vendor.trustScore}⭐)
+              </div>
+              <div className="rating">
+                {product.rating.average}⭐ ({product.rating.count} відгуків)
+              </div>
+              <button
+                onClick={() => addToCart(product.id)}
+                className="add-to-cart-btn"
+              >
+                Додати до кошика
+              </button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Обробка помилок
+
+### Поширені відповіді про помилки магазину
+
+// Продукт не знайдено
+
+<Code language="json" title="configuration">
+{`{
+  "error": "NotFoundError",
+  "message": "Продукт не знайдено",
+  "productId": "prod_123456",
+  "statusCode": 404
+}
+
+// Недостатня кількість
+{
+  "error": "InsufficientStockError",
+  "message": "Продукт відсутній на складі",
+  "productId": "prod_123456",
+  "availableQuantity": 0,
+  "statusCode": 409
+}
+
+// Помилка платежу
+{
+  "error": "PaymentError",
+  "message": "Обробка платежу не вдалася",
+  "paymentMethod": "wayforpay",
+  "errorCode": "DECLINED",
+  "statusCode": 402
+}
+
+// Продавець не верифікований
+{
+  "error": "VendorNotVerifiedError",
+  "message": "Обліковий запис продавця не верифіковано",
+  "vendorId": "vendor_789",
+  "statusCode": 403
+}`}
+</Code>
+
+## 🔒 Заходи безпеки
+
+### Верифікація продавця
+- **Багаторівнева KYC**: Документація бізнесу та верифікація ідентичності
+- **Рейтинг довіри**: Автоматизована система репутації на основі продуктивності продажів
+- **Ескроу захист**: Кошти утримуються до успішної доставки
+- **Моніторинг шахрайства**: Автоматичне виявлення підозрілих активностей
+
+### Безпека платежів
+- **Відповідність PCI DSS**: Стандарти безпечної обробки платежів
+- **Токенізація**: Конфіденційні дані платежів ніколи не зберігаються
+- **Шифрування SSL/TLS**: Усі комунікації платежів зашифровані
+- **3D Secure**: Додаткова аутентифікація для платежів високої вартості
+
+### Захист даних
+- **Відповідність GDPR**: Обробка даних користувачів відповідно до правил конфіденційності
+- **Шифрування даних**: Конфіденційні дані зашифровані у спокої та під час передачі
+- **Логування аудитів**: Усі дії магазину логуються для дотримання вимог
+- **Регулярні аудити безпеки**: Сторонні оцінки безпеки
+
+## 📊 Аналітика та звітність
+
+### Аналітика продажів
+
+// Відстеження подій магазину
+
+<Code language="typescript" title="TypeScript">
+{`import { trackEvent } from '@/lib/analytics'
+
+const trackPurchase = (order: Order) => {
+  trackEvent('purchase_completed', {
+    orderId: order.id,
+    totalAmount: order.totalAmount,
+    currency: order.currency,
+    paymentMethod: order.paymentMethod,
+    vendorId: order.vendor.id,
+    products: order.items.map(item => ({
+      productId: item.productId,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity
+    }))
+  })
+}
+
+const trackProductView = (product: Product) => {
+  trackEvent('product_viewed', {
+    productId: product.id,
+    productName: product.name,
+    vendorId: product.vendor.id,
+    category: product.category,
+    price: product.price,
+    currency: product.currency
+  })
+}`}
+</Code>
+
+## 🎛️ Конфігурація
+
+### Змінні середовища
+
+Конфігурація WayForPay Конфігурація токенів RING Налаштування магазину Сховище файлів
+
+<Code language="bash" title="terminal">
+{`WAYFORPAY_MERCHANT_ID=your-merchant-id
+WAYFORPAY_SECRET_KEY=your-secret-key
+WAYFORPAY_TEST_MODE=false
+
+RING_TOKEN_CONTRACT_ADDRESS=0x...
+RING_MARKETPLACE_CONTRACT_ADDRESS=0x...
+POLYGON_RPC_URL=https://polygon-rpc.com
+
+STORE_VENDOR_APPLICATION_FEE=50
+STORE_TRANSACTION_FEE_PERCENT=2.5
+STORE_MIN_ORDER_AMOUNT=5
+STORE_MAX_ORDER_AMOUNT=50000
+
+STORE_FILE_STORAGE_PROVIDER=cloudflare_r2
+STORE_FILE_MAX_SIZE=104857600
+STORE_IMAGE_MAX_SIZE=5242880`}
+</Code>
+
+### Схема бази даних
+
+<Code language="sql" title="-- Таблиця продуктів">
+{`CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID NOT NULL REFERENCES vendors(id),
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'USD',
+  category VARCHAR(50),
+  inventory_quantity INTEGER DEFAULT -1,
+  status VARCHAR(20) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Таблиця замовлень
+CREATE TABLE orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES users(id),
+  vendor_id UUID NOT NULL REFERENCES vendors(id),
+  total_amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'USD',
+  status VARCHAR(20) DEFAULT 'pending',
+  payment_method VARCHAR(20),
+  payment_id VARCHAR(255),
+  shipping_address JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  paid_at TIMESTAMP,
+  shipped_at TIMESTAMP,
+  delivered_at TIMESTAMP
+);
+
+-- Таблиця продавців
+CREATE TABLE vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  business_name VARCHAR(255) NOT NULL,
+  description TEXT,
+  verified BOOLEAN DEFAULT FALSE,
+  trust_score DECIMAL(3,2) DEFAULT 0.00,
+  total_sales INTEGER DEFAULT 0,
+  member_since TIMESTAMP DEFAULT NOW()
+);`}
+</Code>
+
+---
+
+*API магазину платформи Ring забезпечує функціональність e-commerce корпоративного рівня з підтримкою мульти-вендора, безпечними платежами та комплексним управлінням продавцями.*

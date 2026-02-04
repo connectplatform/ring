@@ -199,22 +199,22 @@ export default function NotificationStatusPage({
           </div>
 
           {/* Status Title */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              <h1 className="text-2xl font-bold text-foreground mb-4">
             {t(`${translationKey}.title`)}
           </h1>
 
           {/* Status Description */}
-          <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
             {t(`${translationKey}.description`)}
           </p>
 
           {/* Topic Display (for subscriptions) */}
           {topic && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('topic')}
               </p>
-              <p className="font-medium text-gray-900">
+                <p className="font-medium text-foreground">
                 {topic}
               </p>
             </div>
@@ -223,10 +223,10 @@ export default function NotificationStatusPage({
           {/* Notification ID Display */}
           {notificationId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('notificationId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {notificationId}
               </p>
             </div>
@@ -235,10 +235,10 @@ export default function NotificationStatusPage({
           {/* Subscription ID Display */}
           {subscriptionId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('subscriptionId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {subscriptionId}
               </p>
             </div>
@@ -247,7 +247,7 @@ export default function NotificationStatusPage({
           {/* Device Token Display (masked for security) */}
           {deviceToken && action === 'permission' && status === 'granted' && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('deviceRegistered')}
               </p>
               <p className="font-mono text-xs text-gray-500">
@@ -264,7 +264,7 @@ export default function NotificationStatusPage({
                  status === 'denied' ? t('denialReason') : 
                  t('cancellationReason')}
               </p>
-              <p className="text-sm text-gray-700">
+                  <p className="text-sm text-muted-foreground">
                 {reason}
               </p>
             </div>
@@ -319,7 +319,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>
@@ -337,7 +337,7 @@ export default function NotificationStatusPage({
                 </button>
                 <Link 
                   href={ROUTES.HELP(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.getHelp')}
                 </Link>
@@ -355,7 +355,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>
@@ -373,7 +373,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>
@@ -391,7 +391,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>
@@ -409,7 +409,7 @@ export default function NotificationStatusPage({
                 </button>
                 <Link 
                   href={ROUTES.CONTACT(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.contactSupport')}
                 </Link>
@@ -427,7 +427,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>
@@ -445,7 +445,7 @@ export default function NotificationStatusPage({
                 </button>
                 <Link 
                   href={ROUTES.CONTACT(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.contactSupport')}
                 </Link>
@@ -463,7 +463,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>
@@ -481,7 +481,7 @@ export default function NotificationStatusPage({
                 </Link>
                 <Link 
                   href={ROUTES.CONTACT(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.contactSupport')}
                 </Link>
@@ -499,7 +499,7 @@ export default function NotificationStatusPage({
                 </button>
                 <Link 
                   href={returnTo || ROUTES.HOME(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToApp')}
                 </Link>

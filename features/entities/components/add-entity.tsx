@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -52,6 +52,9 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
 
+  // React 19 useTransition for non-blocking tag management
+  const [isPending, startTransition] = useTransition()
+
   const [state, formAction] = useActionState<EntityFormState | null, FormData>(
     createEntity,
     null
@@ -86,7 +89,7 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
   // Check if user is a subscriber (needs to upgrade)
   if (session?.user?.role === UserRole.SUBSCRIBER) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         <Card>
           <CardHeader>
             <CardTitle>{t('addMyEntity')}</CardTitle>
@@ -111,7 +114,7 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-0 py-0">
       <Card>
         <CardHeader>
           <CardTitle>{t('addMyEntity')}</CardTitle>

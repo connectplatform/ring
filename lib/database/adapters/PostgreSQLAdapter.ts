@@ -22,6 +22,22 @@ export class PostgreSQLAdapter implements IDatabaseService {
   private pool: Pool | null = null;
   private config: DatabaseBackendConfig;
 
+  // Static flag to prevent repeated connection testing across instances
+  private static connectionTested = false;
+
+  // Field mapping for hybrid schema (top-level columns vs JSONB data)
+  // Based on actual database schema - only id, data, created_at, updated_at columns exist
+  private fieldMappings: Record<string, Set<string>> = {
+    users: new Set([
+      'id', 'created_at', 'updated_at'
+      // All other fields like username, email, role, etc. are in the JSONB 'data' column
+    ]),
+    entities: new Set([
+      'id', 'created_at', 'updated_at'
+      // All other fields are in the JSONB 'data' column
+    ])
+  };
+
   constructor(config: DatabaseBackendConfig) {
     this.config = config;
   }
@@ -29,8 +45,8 @@ export class PostgreSQLAdapter implements IDatabaseService {
   async connect(): Promise<DatabaseResult<void>> {
     try {
       const startTime = Date.now();
-
-      this.pool = new Pool({
+      
+      const poolConfig = {
         host: this.config.connection.host || 'localhost',
         port: this.config.connection.port || 5432,
         database: this.config.connection.database || 'ring_platform',
@@ -39,12 +55,26 @@ export class PostgreSQLAdapter implements IDatabaseService {
         max: this.config.options.poolSize || 20,
         idleTimeoutMillis: this.config.options.timeout || 30000,
         connectionTimeoutMillis: this.config.options.timeout || 2000,
+      };
+
+      console.log('PostgreSQLAdapter: Attempting connection with config:', {
+        host: poolConfig.host,
+        port: poolConfig.port,
+        database: poolConfig.database,
+        user: poolConfig.user
       });
 
-      // Test connection
-      const client = await this.pool.connect();
-      await client.query('SELECT 1');
-      client.release();
+      this.pool = new Pool(poolConfig);
+
+      // Test connection (only once across all instances to reduce noise)
+      if (!PostgreSQLAdapter.connectionTested) {
+        console.log('PostgreSQLAdapter: Testing connection...');
+        const client = await this.pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+        console.log('PostgreSQLAdapter: Connection successful!');
+        PostgreSQLAdapter.connectionTested = true;
+      }
 
       return {
         success: true,
@@ -56,6 +86,13 @@ export class PostgreSQLAdapter implements IDatabaseService {
         }
       };
     } catch (error) {
+      console.error('PostgreSQLAdapter: Connection failed:', error);
+      console.error('PostgreSQLAdapter: Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        code: (error as any).code,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
       return {
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),
@@ -139,19 +176,24 @@ export class PostgreSQLAdapter implements IDatabaseService {
         const id = options.id || this.generateId();
         const now = new Date();
 
-        // Prepare data with metadata
+        // For JSONB-based tables, store all data in the 'data' column
         const documentData = {
-          ...data,
           id,
+          data: {
+            ...data,
+            id,
+            created_at: now,
+            updated_at: now,
+            version: 1
+          },
           created_at: now,
-          updated_at: now,
-          version: 1
+          updated_at: now
         };
 
-        // Build insert query
-        const columns = Object.keys(documentData);
-        const values = Object.values(documentData);
-        const placeholders = columns.map((_, i) => `$${i + 1}`);
+        // Build insert query for JSONB schema
+        const columns = ['id', 'data', 'created_at', 'updated_at'];
+        const values = [documentData.id, JSON.stringify(documentData.data), documentData.created_at, documentData.updated_at];
+        const placeholders = ['$1', '$2', '$3', '$4'];
 
         const query = `
           INSERT INTO ${collection} (${columns.join(', ')})
@@ -214,8 +256,13 @@ export class PostgreSQLAdapter implements IDatabaseService {
       const client = await this.pool.connect();
 
       try {
-        const query = `SELECT * FROM ${collection} WHERE id = $1`;
-        const result = await client.query(query, [id]);
+        // For users table, the id field contains the firebase_uid
+        // For other collections, use id field as normal
+        const lookupField = 'id';
+        const lookupValue = id;
+
+        const query = `SELECT * FROM ${collection} WHERE ${lookupField} = $1`;
+        const result = await client.query(query, [lookupValue]);
 
         if (result.rows.length === 0) {
           return {
@@ -285,36 +332,40 @@ export class PostgreSQLAdapter implements IDatabaseService {
 
       try {
         const now = new Date();
-        const updateData = {
-          ...data,
-          updated_at: now,
-          version: { __increment: 1 } // Special marker for increment
-        };
 
-        // Build update query
-        const columns = Object.keys(updateData);
-        const values = Object.values(updateData);
-        const setClause = columns.map((col, i) => {
-          if (col === 'version' && updateData[col]?.__increment) {
-            return `version = version + 1`;
-          }
-          return `${col} = $${i + 1}`;
-        }).join(', ');
+        // For users table, the id field contains the firebase_uid
+        // For other collections, use id field as normal
+        const lookupField = 'id';
+        const lookupValue = id;
 
-        // Filter out the special increment marker
-        const filteredValues = values.filter((val, i) => {
-          const col = columns[i];
-          return !(col === 'version' && typeof val === 'object' && val && '__increment' in val);
-        });
+        // For JSONB-based tables, we need to merge the data into the existing JSONB column
+        // First, get the current data
+        const selectQuery = `SELECT * FROM ${collection} WHERE ${lookupField} = $1`;
+        const selectResult = await client.query(selectQuery, [lookupValue]);
 
-        const query = `
+        if (selectResult.rows.length === 0) {
+          throw new Error('Document not found');
+        }
+
+        const currentRow = selectResult.rows[0];
+        // PostgreSQL automatically parses JSONB columns, so check if it's already an object
+        const currentData = currentRow.data ?
+          (typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data) :
+          {};
+
+        // Merge the new data with existing data
+        const mergedData = options.merge !== false ? { ...currentData, ...data } : data;
+        mergedData.updated_at = now;
+
+        // Update the document using the same field we used for lookup
+        const updateQuery = `
           UPDATE ${collection}
-          SET ${setClause}
-          WHERE id = $${filteredValues.length + 1}
+          SET data = $1, updated_at = $2
+          WHERE id = $3
           RETURNING *
         `;
 
-        const result = await client.query(query, [...filteredValues, id]);
+        const result = await client.query(updateQuery, [JSON.stringify(mergedData), now, lookupValue]);
 
         if (result.rows.length === 0) {
           throw new Error('Document not found');
@@ -372,8 +423,13 @@ export class PostgreSQLAdapter implements IDatabaseService {
       const client = await this.pool.connect();
 
       try {
-        const query = `DELETE FROM ${collection} WHERE id = $1`;
-        await client.query(query, [id]);
+        // For users table, the id field contains the firebase_uid
+        // For other collections, use id field as normal
+        const lookupField = 'id';
+        const lookupValue = id;
+
+        const query = `DELETE FROM ${collection} WHERE ${lookupField} = $1`;
+        await client.query(query, [lookupValue]);
 
         return {
           success: true,
@@ -471,7 +527,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
       const client = await this.pool.connect();
 
       try {
-        const whereClause = this.buildWhereClause(filters);
+        const whereClause = this.buildWhereClause(filters, collection);
         const query = `SELECT COUNT(*) as count FROM ${collection}${whereClause.sql}`;
 
         const result = await client.query(query, whereClause.params);
@@ -496,6 +552,217 @@ export class PostgreSQLAdapter implements IDatabaseService {
         error: error instanceof Error ? error : new Error(String(error)),
         metadata: {
           operation: 'count',
+          duration: 0,
+          backend: 'postgresql',
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  async readAll<T = any>(
+    collection: string,
+    options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    try {
+      const startTime = Date.now();
+
+      if (!this.pool) {
+        throw new Error('Database not connected');
+      }
+
+      const client = await this.pool.connect();
+
+      try {
+        let query = `SELECT * FROM ${collection}`;
+        const params: any[] = [];
+        let paramIndex = 1;
+
+        // Add ORDER BY if specified
+        if (options.orderBy) {
+          const orderFieldRef = this.getFieldReference(collection, options.orderBy.field);
+          query += ` ORDER BY ${orderFieldRef} ${options.orderBy.direction}`;
+        } else {
+          // Default ordering by created_at
+          query += ` ORDER BY created_at DESC`;
+        }
+
+        // Add LIMIT and OFFSET
+        if (options.limit) {
+          query += ` LIMIT $${paramIndex++}`;
+          params.push(options.limit);
+        }
+
+        if (options.offset) {
+          query += ` OFFSET $${paramIndex++}`;
+          params.push(options.offset);
+        }
+
+        const result = await client.query(query, params);
+        const documents: DatabaseDocument<T>[] = [];
+
+        for (const row of result.rows) {
+          const convertedData = this.convertRowToDocument<T>(row);
+          documents.push({
+            id: row.id,
+            data: convertedData,
+            metadata: {
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+              version: row.version || 1
+            }
+          });
+        }
+
+        return {
+          success: true,
+          data: documents,
+          metadata: {
+            operation: 'readAll',
+            duration: Date.now() - startTime,
+            backend: 'postgresql',
+            timestamp: new Date()
+          }
+        };
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'readAll',
+          duration: 0,
+          backend: 'postgresql',
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  async findByField<T = any>(
+    collection: string,
+    field: string,
+    value: any,
+    options: { limit?: number; orderBy?: DatabaseOrderBy } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    try {
+      const startTime = Date.now();
+
+      if (!this.pool) {
+        throw new Error('Database not connected');
+      }
+
+      const client = await this.pool.connect();
+
+      try {
+        const fieldRef = this.getFieldReference(collection, field);
+        let query = `SELECT * FROM ${collection} WHERE ${fieldRef} = $1`;
+        const params: any[] = [value];
+        let paramIndex = 2;
+
+        // Add ORDER BY if specified
+        if (options.orderBy) {
+          const orderFieldRef = this.getFieldReference(collection, options.orderBy.field);
+          query += ` ORDER BY ${orderFieldRef} ${options.orderBy.direction}`;
+        } else {
+          // Default ordering by created_at
+          query += ` ORDER BY created_at DESC`;
+        }
+
+        // Add LIMIT
+        if (options.limit) {
+          query += ` LIMIT $${paramIndex++}`;
+          params.push(options.limit);
+        }
+
+        const result = await client.query(query, params);
+        const documents: DatabaseDocument<T>[] = [];
+
+        for (const row of result.rows) {
+          const convertedData = this.convertRowToDocument<T>(row);
+          documents.push({
+            id: row.id,
+            data: convertedData,
+            metadata: {
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+              version: row.version || 1
+            }
+          });
+        }
+
+        return {
+          success: true,
+          data: documents,
+          metadata: {
+            operation: 'findByField',
+            duration: Date.now() - startTime,
+            backend: 'postgresql',
+            timestamp: new Date()
+          }
+        };
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'findByField',
+          duration: 0,
+          backend: 'postgresql',
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  async exists(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<boolean>> {
+    try {
+      const startTime = Date.now();
+
+      if (!this.pool) {
+        throw new Error('Database not connected');
+      }
+
+      const client = await this.pool.connect();
+
+      try {
+        // For users table, the id field contains the firebase_uid
+        // For other collections, use id field as normal
+        const lookupField = 'id';
+        const lookupValue = id;
+
+        const query = `SELECT 1 FROM ${collection} WHERE ${lookupField} = $1 LIMIT 1`;
+        const result = await client.query(query, [lookupValue]);
+        const exists = result.rows.length > 0;
+
+        return {
+          success: true,
+          data: exists,
+          metadata: {
+            operation: 'exists',
+            duration: Date.now() - startTime,
+            backend: 'postgresql',
+            timestamp: new Date()
+          }
+        };
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      return {
+        success: false,
+        data: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'exists',
           duration: 0,
           backend: 'postgresql',
           timestamp: new Date()
@@ -662,14 +929,38 @@ export class PostgreSQLAdapter implements IDatabaseService {
     return require('crypto').randomUUID();
   }
 
+  private isTopLevelField(collection: string, field: string): boolean {
+    const mapping = this.fieldMappings[collection];
+    return mapping ? mapping.has(field) : false;
+  }
+
+  private getFieldReference(collection: string, field: string): string {
+    if (this.isTopLevelField(collection, field)) {
+      return field;
+    } else {
+      return `data->>'${field}'`;
+    }
+  }
+
   private convertRowToDocument<T>(row: any): T {
-    // Convert snake_case database columns to camelCase
+    // For JSONB-based schema, parse the data column and convert snake_case columns to camelCase
     const converted: any = {};
     for (const [key, value] of Object.entries(row)) {
-      if (key === 'id') {
+      if (key === 'data') {
+        // Parse JSONB data - could be string or already parsed object
+        let parsedData;
+        if (typeof value === 'string') {
+          parsedData = JSON.parse(value);
+        } else if (typeof value === 'object' && value !== null) {
+          parsedData = value;
+        } else {
+          parsedData = {};
+        }
+        Object.assign(converted, parsedData);
+      } else if (key === 'id') {
         converted.id = value;
       } else {
-        // Convert snake_case to camelCase
+        // Convert snake_case to camelCase for other columns
         const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
         converted[camelKey] = value;
       }
@@ -685,7 +976,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
 
     // WHERE clause
     if (filters.length > 0) {
-      const whereClause = this.buildWhereClause(filters);
+      const whereClause = this.buildWhereClause(filters, collection);
       sql += whereClause.sql;
       params.push(...whereClause.params);
     }
@@ -693,7 +984,10 @@ export class PostgreSQLAdapter implements IDatabaseService {
     // ORDER BY clause
     if (orderBy.length > 0) {
       const orderClause = orderBy
-        .map(order => `${order.field} ${order.direction.toUpperCase()}`)
+        .map(order => {
+          const fieldRef = this.getFieldReference(collection, order.field);
+          return `${fieldRef} ${order.direction.toUpperCase()}`;
+        })
         .join(', ');
       sql += ` ORDER BY ${orderClause}`;
     }
@@ -712,7 +1006,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     return { sql, params };
   }
 
-  private buildWhereClause(filters: DatabaseFilter[]): { sql: string; params: any[] } {
+  private buildWhereClause(filters: DatabaseFilter[], collection: string): { sql: string; params: any[] } {
     if (filters.length === 0) {
       return { sql: '', params: [] };
     }
@@ -723,43 +1017,44 @@ export class PostgreSQLAdapter implements IDatabaseService {
     for (const filter of filters) {
       const paramIndex = params.length + 1;
       const { field, operator, value } = filter;
+      const fieldRef = this.getFieldReference(collection, field);
 
       // Convert Firebase operators to SQL
       switch (operator) {
         case '==':
-          conditions.push(`${field} = $${paramIndex}`);
+          conditions.push(`${fieldRef} = $${paramIndex}`);
           params.push(value);
           break;
         case '!=':
-          conditions.push(`${field} != $${paramIndex}`);
+          conditions.push(`${fieldRef} != $${paramIndex}`);
           params.push(value);
           break;
         case '<':
-          conditions.push(`${field} < $${paramIndex}`);
+          conditions.push(`${fieldRef} < $${paramIndex}`);
           params.push(value);
           break;
         case '<=':
-          conditions.push(`${field} <= $${paramIndex}`);
+          conditions.push(`${fieldRef} <= $${paramIndex}`);
           params.push(value);
           break;
         case '>':
-          conditions.push(`${field} > $${paramIndex}`);
+          conditions.push(`${fieldRef} > $${paramIndex}`);
           params.push(value);
           break;
         case '>=':
-          conditions.push(`${field} >= $${paramIndex}`);
+          conditions.push(`${fieldRef} >= $${paramIndex}`);
           params.push(value);
           break;
         case 'in':
-          conditions.push(`${field} = ANY($${paramIndex})`);
+          conditions.push(`${fieldRef} = ANY($${paramIndex})`);
           params.push(value);
           break;
         case 'array-contains':
-          conditions.push(`$${paramIndex} = ANY(${field})`);
+          conditions.push(`$${paramIndex} = ANY(${fieldRef})`);
           params.push(value);
           break;
         case 'array-contains-any':
-          conditions.push(`${field} && $${paramIndex}`);
+          conditions.push(`${fieldRef} && $${paramIndex}`);
           params.push(value);
           break;
         default:

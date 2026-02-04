@@ -1,0 +1,13 @@
+{
+  "title": "Examples",
+  "pages": [
+    "index",
+    "quick-start",
+    "authentication",
+    "api-integration",
+    "web3-integration",
+    "white-label",
+    "real-world",
+    "api-examples"
+  ]
+}

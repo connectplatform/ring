@@ -1,0 +1,223 @@
+---
+title: Workflow
+description: Workflow documentation for Ring Platform
+last_modified: 2025-10-16
+---
+
+# Робочий процес розробки Ring Platform
+
+Git workflow, Docker deployment, та Kubernetes оркестрація для платформи Ring з підтримкою Next.js 15 та React 19.
+
+## 🔄 Git Workflow
+
+### Trunk-based Development з Feature Branches
+Ring Platform використовує **trunk-based development** з feature branches для Kubernetes deployment:
+
+- **`main`** - Production-ready code, автоматично розгортається в Kubernetes
+- **`feature/*`** - Індивідуальна розробка функцій з CI/CD тестами
+- **`hotfix/*`** - Критичні виправлення production
+- **Теги версій**: `v0.9.x-ring-platform.org` для Docker images
+
+### Branch Naming Convention
+feature/ai-matcher-integration
+
+<Code language="bash" title="terminal">
+{`feature/database-postgresql-migration
+hotfix/wallet-connection-timeout`}
+</Code>
+
+## 🚀 Development Process
+
+### 1. Налаштування середовища розробки
+Клонувати репозиторій Встановити залежності Скопіювати шаблон змінних середовища Запустити локальний сервер
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+
+npm install
+
+cp env.local.template .env.local
+
+npm run dev`}
+</Code>
+
+### 2. Розробка функцій
+Створити feature branch Розробляти з частими комітами Push to remote
+
+<Code language="bash" title="terminal">
+{`git checkout -b feature/your-feature-name
+
+git add .
+git commit -m "feat: implement AI opportunity matching"
+
+git push origin feature/your-feature-name`}
+</Code>
+
+### 3. Pull Request Process
+1. Створити PR до `main` з описом змін
+2. Автоматизовані перевірки CI/CD виконуються
+3. Code review від команди
+4. Виправити відгуки та оновити
+5. Squash merge після схвалення
+
+## 🐳 Docker Development Workflow
+
+### Локальна розробка з Docker
+Запустити PostgreSQL та Redis для розробки Зібрати та запустити додаток
+
+<Code language="bash" title="terminal">
+{`docker-compose -f docker/docker-compose.dev.yml up -d
+
+docker build --platform linux/amd64 -t ring-platform:dev .
+docker run -p 3000:3000 \
+  -e DATABASE_URL="postgresql://user:pass@localhost:5432/ring_dev" \
+  ring-platform:dev`}
+</Code>
+
+### Production Docker Build
+Зібрати для Kubernetes (AMD64) Push до registry
+
+<Code language="bash" title="terminal">
+{`docker build --platform linux/amd64 \
+  --build-arg AUTH_SECRET="your-secret" \
+  --build-arg DB_HOST="postgres.ring-platform-org.svc.cluster.local" \
+  -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 .
+
+docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64`}
+</Code>
+
+## ☸️ Kubernetes Deployment
+
+### Структура кластера
+```
+k8s-control-01 + k8s-worker-01 + k8s-worker-02
+├── Namespace: ring-platform-org
+├── PostgreSQL: ring-platform-postgres (primary, Firebase disabled)
+├── Redis: ring-platform-redis
+├── App: ring-platform-app (Next.js standalone)
+└── Ingress: nginx-ingress with SSL termination
+```
+
+### Розгортання через K8s
+Застосувати конфігурації Перевірити статус
+
+<Code language="bash" title="terminal">
+{`kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/postgres/
+kubectl apply -f k8s/redis/
+kubectl apply -f k8s/app/
+
+kubectl get pods -n ring-platform-org
+kubectl get ingress -n ring-platform-org`}
+</Code>
+
+## 🔐 Secrets Management
+
+### Kubernetes Secrets для Production
+Створити secrets для production
+
+<Code language="bash" title="terminal">
+{`kubectl create secret generic ring-secrets \
+  --from-literal=AUTH_GOOGLE_SECRET="your-google-secret" \
+  --from-literal=DB_PASSWORD="your-postgres-password" \
+  --from-literal=WAYFORPAY_SECRET_KEY="your-payment-secret" \
+  --from-literal=OPENAI_API_KEY="your-openai-key" \
+  --from-literal=WALLET_ENCRYPTION_KEY="32-char-hex-key"`}
+</Code>
+
+### Environment Variables Structure
+Критичні змінні (обов'язкові) Опціональні сервіси
+
+<Code language="bash" title="terminal">
+{`AUTH_SECRET="auth-js-secret"
+AUTH_GOOGLE_ID="google-client-id"
+DB_HOST="postgres.ring-platform-org.svc.cluster.local"
+
+OPENAI_API_KEY="sk-..."
+WAYFORPAY_MERCHANT_ACCOUNT="merchant"
+BLOB_READ_WRITE_TOKEN="vercel-token"`}
+</Code>
+
+## 🧪 Testing Strategy
+
+### Automated Testing Pipeline
+.github/workflows/ci.yml
+
+<Code language="yaml" title="configuration">
+{`name: CI/CD Pipeline
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm run test:unit
+      - run: npm run build
+      - run: npm run test:e2e`}
+</Code>
+
+### Test Coverage Requirements
+- **Unit tests**: > 80% покриття
+- **Integration tests**: Всі API endpoints
+- **E2E tests**: Критичні user flows
+- **Performance tests**: Lighthouse CI
+
+## 🚀 Release Process
+
+### Semantic Versioning
+```
+v0.9.18-ring-platform.org-amd64
+├── 0.9.18: Semantic version
+├── ring-platform.org: Target domain
+└── amd64: Architecture
+```
+
+### Release Steps
+1. **Feature freeze** - Всі features merged до main
+2. **Testing phase** - Full CI/CD pipeline проходить
+3. **Tag creation** - `git tag v0.9.18-ring-platform.org`
+4. **Docker build** - Automated через GitHub Actions
+5. **Kubernetes deploy** - Rolling update через ArgoCD
+6. **Monitoring** - Prometheus + Grafana dashboards
+
+## 🔍 Quality Gates
+
+### Pre-deployment Checks
+- ✅ **TypeScript compilation** - Zero type errors
+- ✅ **ESLint** - Code style compliance
+- ✅ **Security scan** - Dependency vulnerabilities
+- ✅ **Build verification** - Production build succeeds
+- ✅ **Database migrations** - Auto-applied safely
+- ✅ **API compatibility** - No breaking changes
+
+### Production Monitoring
+- **Health checks** - `/api/health` endpoint
+- **Error tracking** - Sentry integration
+- **Performance** - Web Vitals tracking
+- **Database** - Connection pooling metrics
+- **Kubernetes** - Pod resource usage
+
+---
+
+**🔧 Production-Ready Development**
+
+Цей workflow забезпечує надійну розробку, тестування та розгортання Ring Platform з використанням сучасних інструментів: Next.js 15, React 19, TypeScript, Kubernetes, Docker та PostgreSQL.

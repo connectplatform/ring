@@ -177,14 +177,14 @@ export default function EntitiesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Users className="w-8 h-8 text-orange-600 mr-3" />
             <h1 className="text-4xl font-bold">Professional Networking</h1>
           </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Connect with tech professionals, share opportunities, and build lasting partnerships in the Ring ecosystem.
           </p>
         </div>
@@ -292,7 +292,7 @@ export default function EntitiesPage() {
         {/* Results Summary */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <span className="text-gray-600 dark:text-gray-300">
+            <span className="text-muted-foreground">
               {filteredEntities.length} entities found
             </span>
             <div className="flex items-center space-x-2">
@@ -352,7 +352,7 @@ export default function EntitiesPage() {
                       </div>
                     </div>
                     <CardDescription className="text-base mb-2">{entity.title}</CardDescription>
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-300 mb-2">
+                    <div className="flex items-center text-sm text-muted-foreground mb-2">
                       <MapPin className="w-4 h-4 mr-1" />
                       {entity.location}
                     </div>
@@ -371,7 +371,7 @@ export default function EntitiesPage() {
               </CardHeader>
 
               <CardContent>
-                <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+                <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
                   {entity.description}
                 </p>
 
@@ -430,7 +430,7 @@ export default function EntitiesPage() {
         {filteredEntities.length === 0 && (
           <div className="text-center py-12">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
+            <h3 className="text-xl font-semibold text-muted-foreground mb-2">
               No entities found
             </h3>
             <p className="text-gray-500 dark:text-gray-400">

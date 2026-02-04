@@ -181,20 +181,20 @@ export default function DualTokenEcosystemPage() {
       case 'completed': return 'text-green-600'
       case 'pending': return 'text-yellow-600'
       case 'failed': return 'text-red-600'
-      default: return 'text-gray-600'
+      default: return 'text-muted-foreground'
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Wallet className="w-8 h-8 text-blue-600 mr-3" />
             <h1 className="text-4xl font-bold">Dual-Token Ecosystem</h1>
           </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Manage JWT utility tokens for p2p transfers and RING tokens for premium features and governance.
           </p>
         </div>

@@ -1,0 +1,452 @@
+---
+title: NFT Маркетплейс
+description: Белый лейбл NFT маркетплейс с публичными профилями, EVM интеграцией и комплексным управлением листингами
+---
+
+# NFT Маркетплейс
+
+Полный NFT маркетплейс где участники могут листить, искать, покупать и продавать NFT через Web3 контракты с публичными профилями пользователей и поддержкой белого лейбла.
+
+## Обзор
+
+Платформа Ring NFT маркетплейс позволяет аутентифицированным участникам создавать листинги NFT, просматривать коллекции и выполнять безопасные блокчейн транзакции, демонстрируя свои NFT коллекции через публичные профили по адресу `/u/[username]`.
+
+## Ключевые Возможности
+
+### Система Торговли NFT
+
+**Управление Жизненным Циклом Листинга**
+- **Создание Черновика**: Серверная валидация черновых листингов с метаданными
+- **Активация через Кошелек**: Клиентская подпись транзакций для активации листингов on-chain
+- **Отслеживание Статуса**: Комплексное управление состоянием (Черновик → Активный → Продан/Отменен)
+
+**Поддерживаемые Стандарты**
+- **ERC-721**: Индивидуальные уникальные NFT
+- **ERC-1155**: Полу-функциональные токены с пакетными операциями
+- **Мульти-чейн Поддержка**: Сети Ethereum и Polygon
+
+### Интеграция Публичного Профиля
+
+**Страницы Профилей Пользователей** по адресу `/u/[username]`
+// Структура маршрутов публичного профиля
+
+<Code language="typescript" title="TypeScript">
+{`/[locale]/u/[username]  // например, /en/u/johndoe`}
+</Code>
+
+**Возможности Профиля**
+- **Показ NFT**: Отображение принадлежащих и созданных пользователем NFT
+- **Сетка Коллекции**: Визуальная сетка с миниатюрами NFT
+- **Атрибуция Создателя**: Выделение NFT, созданных пользователем
+- **SEO Оптимизация**: Динамические метатеги для поисковых систем
+- **Серверный Рендеринг**: Быстрая загрузка с поиском имени пользователя
+
+### Просмотр Маркетплейса
+
+**Управление Коллекциями**
+- **Просмотр Коллекций**: `/[locale]/nft/collections`
+- **Индивидуальные Предметы**: `/[locale]/nft/items/[chain]/[contract]/[tokenId]`
+- **Расширенный Поиск**: `/[locale]/nft/search` с фильтрами
+- **Навигация по Категориям**: Фильтр по коллекции, создателю, диапазону цен
+
+### Web3 Интеграция
+
+**Подключение Кошелька и Подпись**
+// EVM адаптер для подписания транзакций
+
+<Code language="typescript" title="TypeScript">
+{`import { ethers } from 'ethers'
+
+const provider = new ethers.BrowserProvider(window.ethereum)
+const signer = await provider.getSigner()
+
+// Подпись транзакции маркетплейса
+const signature = await signer.signMessage(listingData)`}
+</Code>
+
+**Операции Смарт Контрактов**
+- **Одобрить и Листить**: Одобрить перевод NFT и создать листинг маркетплейса
+- **Покупка**: Выполнить транзакцию покупки с комиссиями маркетплейса
+- **Отменить Листинг**: Удалить активный листинг и вернуть газ
+- **Поддержка Роялти**: Опциональный роялти создателя
+
+## Реализация
+
+### Создание Листинга NFT
+
+**Шаг 1: Создать Черновик Листинга**
+// Server action создает черновой листинг
+
+<Code language="typescript" title="TypeScript">
+{`'use server'
+
+export async function createNFTListing(formData: FormData) {
+  const session = await auth()
+
+  if (!session?.user.role || session.user.role < UserRole.MEMBER) {
+    throw new Error('Требуется роль MEMBER для NFT листингов')
+  }
+
+  // Валидировать владение NFT и метаданные
+  const nftValidation = await validateNFTOwnership({
+    contract: formData.contractAddress,
+    tokenId: formData.tokenId,
+    owner: session.user.walletAddress
+  })
+
+  if (!nftValidation.isValid) {
+    throw new Error('Валидация владения NFT не удалась')
+  }
+
+  // Создать черновой листинг в Firestore
+  const listingId = await createDraftListing({
+    sellerId: session.user.id,
+    contractAddress: formData.contractAddress,
+    tokenId: formData.tokenId,
+    price: formData.price,
+    currency: formData.currency,
+    metadata: {
+      name: formData.name,
+      description: formData.description,
+      image: formData.image,
+      attributes: formData.attributes
+    },
+    status: 'draft'
+  })
+
+  return { listingId }
+}`}
+</Code>
+
+**Шаг 2: Активировать через Кошелек**
+// Клиентская активация кошелька
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+export function ActivateListing({ listingId }: { listingId: string }) {
+  const [isActivating, setIsActivating] = useState(false)
+
+  const handleActivate = async () => {
+    setIsActivating(true)
+
+    try {
+      // Подключить кошелек
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+
+      // Получить детали листинга
+      const listing = await getListing(listingId)
+
+      // Одобрить перевод NFT на контракт маркетплейса
+      const nftContract = new ethers.Contract(
+        listing.contractAddress,
+        ERC721_ABI,
+        signer
+      )
+
+      const approveTx = await nftContract.approve(
+        MARKETPLACE_CONTRACT_ADDRESS,
+        listing.tokenId
+      )
+      await approveTx.wait()
+
+      // Создать листинг маркетплейса
+      const marketplaceContract = new ethers.Contract(
+        MARKETPLACE_CONTRACT_ADDRESS,
+        MARKETPLACE_ABI,
+        signer
+      )
+
+      const listingTx = await marketplaceContract.createListing(
+        listing.contractAddress,
+        listing.tokenId,
+        ethers.parseEther(listing.price.toString())
+      )
+      await listingTx.wait()
+
+      // Активировать листинг в бэкенде
+      await activateListing(listingId, listingTx.hash)
+
+    } catch (error) {
+      console.error('Активация не удалась:', error)
+      setIsActivating(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleActivate}
+      disabled={isActivating}
+      className="activate-button"
+    >
+      {isActivating ? 'Активация...' : 'Активировать Листинг'}
+    </button>
+  )
+}`}
+</Code>
+
+### Поток Покупки NFT
+
+**Транзакция Покупки с Обработкой Комиссий**
+// Выполнить покупку NFT
+
+<Code language="typescript" title="TypeScript">
+{`export async function purchaseNFT(listingId: string, buyerAddress: string) {
+  // Получить детали листинга
+  const listing = await getListing(listingId)
+
+  if (listing.status !== 'active') {
+    throw new Error('Листинг недоступен')
+  }
+
+  // Рассчитать комиссию маркетплейса (конфигурируемые базисные пункты)
+  const marketplaceFee = (listing.price * MARKETPLACE_FEE_BPS) / 10000
+  const sellerProceeds = listing.price - marketplaceFee
+
+  // Выполнить покупку маркетплейса
+  const marketplaceContract = new ethers.Contract(
+    MARKETPLACE_CONTRACT_ADDRESS,
+    MARKETPLACE_ABI,
+    signer
+  )
+
+  const purchaseTx = await marketplaceContract.purchaseNFT(listingId, {
+    value: ethers.parseEther(listing.price.toString())
+  })
+  await purchaseTx.wait()
+
+  // Обновить статус листинга
+  await updateListingStatus(listingId, 'sold', {
+    buyerAddress,
+    transactionHash: purchaseTx.hash,
+    marketplaceFee,
+    sellerProceeds
+  })
+
+  // Перевести средства продавцу (за вычетом комиссии маркетплейса)
+  await transferFunds(sellerAddress, sellerProceeds)
+
+  return { transactionHash: purchaseTx.hash }
+}`}
+</Code>
+
+### Отображение NFT Профиля
+
+**Компонент Публичного Профиля**
+// components/profile/PublicProfile.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export default function PublicProfile({ username }: { username: string }) {
+  const [profile, setProfile] = useState(null)
+  const [nftListings, setNftListings] = useState([])
+
+  useEffect(() => {
+    // Получить профиль пользователя
+    const fetchProfile = async () => {
+      const userData = await getUserByUsername(username)
+      setProfile(userData)
+    }
+
+    // Получить листинги NFT пользователя
+    const fetchListings = async () => {
+      const listings = await getUserNFTListings(username)
+      setNftListings(listings)
+    }
+
+    fetchProfile()
+    fetchListings()
+  }, [username])
+
+  if (!profile) return <div>Загрузка...</div>
+
+  return (
+    <div className="profile-container">
+      <ProfileHeader user={profile} />
+      <NFTListingsGrid listings={nftListings} />
+    </div>
+  )
+}`}
+</Code>
+
+## Конечные Точки API
+
+### Управление Листингами
+<Code language="typescript" title="TypeScript">
+{`// GET /api/nft-market/listings - Получить все активные листинги
+// POST /api/nft-market/listings - Создать новый черновой листинг
+// GET /api/nft-market/listings/[id] - Получить конкретный листинг
+// PUT /api/nft-market/listings/[id] - Обновить детали листинга
+// POST /api/nft-market/listings/activate - Активировать листинг после on-chain tx
+// DELETE /api/nft-market/listings/[id] - Отменить листинг`}
+</Code>
+
+### Просмотр Коллекций
+// GET /api/nft-market/collections - Получить коллекции NFT
+
+<Code language="typescript" title="TypeScript">
+{`// GET /api/nft-market/collections/[id]/items - Получить предметы коллекции
+// GET /api/nft-market/search - Расширенный поиск с фильтрами
+// GET /api/nft-market/items/[chain]/[contract]/[tokenId] - Детали индивидуального NFT`}
+</Code>
+
+## Модели Данных
+
+### Схема Листинга NFT
+<Code language="typescript" title="interface NFTListing {">
+{`id: string
+  sellerId: string
+  contractAddress: string
+  tokenId: string
+  tokenStandard: 'ERC-721' | 'ERC-1155'
+  chainId: number
+  price: number
+  currency: string
+  status: 'draft' | 'active' | 'sold' | 'cancelled'
+  metadata: {
+    name: string
+    description: string
+    image: string
+    attributes: Array<{
+      trait_type: string
+      value: string
+    }>
+  }
+  transactionHash?: string
+  buyerAddress?: string
+  createdAt: Date
+  updatedAt: Date
+}`}
+</Code>
+
+### Схема Коллекции NFT
+<Code language="typescript" title="interface NFTCollection {">
+{`id: string
+  name: string
+  description: string
+  creatorAddress: string
+  contractAddress: string
+  chainId: number
+  totalSupply: number
+  floorPrice?: number
+  volume24h?: number
+  metadata: {
+    image: string
+    banner?: string
+    externalUrl?: string
+  }
+}`}
+</Code>
+
+## Соображения Безопасности
+
+### Ролевая Контроль Доступа
+- **Создание Листинга**: Требуется роль MEMBER+
+- **Публичный Просмотр**: Доступно для всех пользователей
+- **Транзакции Покупки**: Требуется подключение кошелька
+
+### Безопасность Смарт Контрактов
+- **Защита от Перезапуска**: OpenZeppelin guards
+- **Контроль Доступа**: Только авторизованные операции маркетплейса
+- **Управление Комиссиями**: Конфигурируемые комиссии маркетплейса
+- **Аварийная Пауза**: Функциональность circuit breaker
+
+### Валидация Транзакций
+- **Владение NFT**: Верифицируется перед созданием листинга
+- **Валидация Цены**: Минимум и максимум цены
+- **Предотвращение Дублирования**: Валидация хэша транзакции
+- **Валидация Сети**: Проверка ID цепочки
+
+## Белый Лейбл Темизация
+
+**Кастомизация Бренда**
+// features/nft-market/theme.config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const nftMarketTheme = {
+  colors: {
+    primary: '#your-brand-color',
+    secondary: '#your-secondary-color',
+    accent: '#your-accent-color'
+  },
+  fonts: {
+    heading: 'your-heading-font',
+    body: 'your-body-font'
+  },
+  logo: {
+    main: '/your-logo.png',
+    icon: '/your-icon.png'
+  },
+  marketplace: {
+    fee: 250, // 2.5% базисных пунктов
+    supportedChains: [1, 137], // Ethereum, Polygon
+    defaultCurrency: 'ETH'
+  }
+}`}
+</Code>
+
+## Обработка Ошибок
+
+### Распространенные Сценарии Ошибок
+// Обработка ошибок NFT маркетплейса
+
+<Code language="typescript" title="TypeScript">
+{`export function handleMarketplaceError(error: MarketplaceError) {
+  switch (error.code) {
+    case 'INSUFFICIENT_FUNDS':
+      return 'Недостаточно средств для транзакции'
+    case 'NFT_NOT_OWNED':
+      return 'Вы не владеете этим NFT'
+    case 'LISTING_EXPIRED':
+      return 'Листинг истек'
+    case 'NETWORK_ERROR':
+      return 'Ошибка подключения к сети'
+    case 'CONTRACT_ERROR':
+      return 'Выполнение смарт контракта не удалось'
+    default:
+      return 'Транзакция не удалась'
+  }
+}`}
+</Code>
+
+### Мониторинг Статуса Транзакций
+// Мониторить статус транзакции
+
+<Code language="typescript" title="TypeScript">
+{`export async function monitorTransaction(txHash: string) {
+  const provider = new ethers.JsonRpcProvider(RPC_URL)
+
+  // Ждать подтверждения
+  const receipt = await provider.waitForTransaction(txHash)
+
+  if (receipt.status === 1) {
+    // Успех - обновить статус листинга
+    await updateListingStatus(listingId, 'confirmed')
+  } else {
+    // Неудача - обработать ошибку
+    await handleTransactionFailure(txHash)
+  }
+}`}
+</Code>
+
+## Чек-лист Интеграции
+
+### Подготовка к Запуску
+- [ ] Развернуть смарт контракты маркетплейса
+- [ ] Конфигурировать поддерживаемые цепочки и RPC endpoints
+- [ ] Настроить провайдеры подключения кошельков
+- [ ] Конфигурировать комиссии маркетплейса и параметры
+- [ ] Протестировать одобрение NFT и потоки листинга
+- [ ] Валидировать маршруты публичных профилей
+
+### Развертывание в Продакшен
+- [ ] Включить маркетплейс на поддерживаемых цепочках
+- [ ] Конфигурировать мониторинг и оповещения
+- [ ] Настроить watchers транзакций
+- [ ] Включить белый лейбл темизацию
+- [ ] Протестировать end-to-end потоки покупки
+- [ ] Мониторить стоимость газа и оптимизировать
+
+---
+
+*Этот NFT маркетплейс предоставляет полную Web3 экосистему торговли с профессиональной белой лейбл темизацией и комплексным управлением транзакциями.*

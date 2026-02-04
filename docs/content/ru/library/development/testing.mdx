@@ -1,0 +1,154 @@
+---
+title: Testing
+description: Testing documentation for Ring Platform
+---
+
+# Testing Guide
+
+Comprehensive testing strategy for Ring Platform with unit tests, integration tests, and end-to-end testing.
+
+## 🧪 Testing Strategy
+
+### Testing Pyramid
+Ring Platform follows the testing pyramid approach:
+
+1. **Unit Tests** (70%) - Individual functions and components
+2. **Integration Tests** (20%) - Component interactions and API endpoints
+3. **End-to-End Tests** (10%) - Complete user workflows
+
+## ⚡ Unit Testing
+
+### Jest Configuration
+// jest.config.js
+
+<Code language="javascript" title="JavaScript">
+{`module.exports = {
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testMatch: ['**/__tests__/**/*.test.{js,ts,tsx}'],
+  collectCoverageFrom: [
+    'src/**/*.{js,ts,tsx}',
+    '!src/**/*.d.ts'
+  ]
+}`}
+</Code>
+
+### Component Testing Example
+// __tests__/components/EntityCard.test.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { render, screen } from '@testing-library/react'
+import { EntityCard } from '@/components/EntityCard'
+
+describe('EntityCard', () => {
+  it('renders entity information correctly', () => {
+    const entity = {
+      id: '1',
+      name: 'Test Company',
+      type: 'technology'
+    }
+
+    render(<EntityCard entity={entity} />)
+    
+    expect(screen.getByText('Test Company')).toBeInTheDocument()
+    expect(screen.getByText('technology')).toBeInTheDocument()
+  })
+})`}
+</Code>
+
+## 🔗 Integration Testing
+
+### API Route Testing
+// __tests__/api/entities.test.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { POST } from '@/app/api/entities/route'
+import { NextRequest } from 'next/server'
+
+describe('/api/entities', () => {
+  it('creates entity successfully', async () => {
+    const request = new NextRequest('http://localhost:3000/api/entities', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Test Entity',
+        type: 'technology'
+      })
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.entity.name).toBe('Test Entity')
+  })
+})`}
+</Code>
+
+## 🎭 End-to-End Testing
+
+### Playwright Configuration
+// playwright.config.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { defineConfig } from '@playwright/test'
+
+export default defineConfig({
+  testDir: './e2e',
+  use: {
+    baseURL: 'http://localhost:3000',
+    headless: true,
+    screenshot: 'only-on-failure'
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } }
+  ]
+})`}
+</Code>
+
+### E2E Test Example
+// e2e/authentication.spec.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { test, expect } from '@playwright/test'
+
+test('user can sign in with Google', async ({ page }) => {
+  await page.goto('/')
+  await page.click('text=Sign In')
+  
+  // Mock Google OAuth response
+  await page.route('**/api/auth/**', route => {
+    route.fulfill({
+      status: 200,
+      body: JSON.stringify({ user: { name: 'Test User' } })
+    })
+  })
+  
+  await page.click('text=Sign in with Google')
+  await expect(page.locator('text=Welcome, Test User')).toBeVisible()
+})`}
+</Code>
+
+## 📊 Test Coverage
+
+### Coverage Requirements
+- **Overall**: > 80% line coverage
+- **Critical paths**: > 95% coverage
+- **New features**: 100% coverage required
+
+### Running Tests
+Unit tests Watch mode during development Coverage report E2E tests
+
+<Code language="bash" title="terminal">
+{`npm run test
+
+npm run test:watch
+
+npm run test:coverage
+
+npm run test:e2e`}
+</Code>
+
+---
+
+*Complete testing documentation coming soon.*

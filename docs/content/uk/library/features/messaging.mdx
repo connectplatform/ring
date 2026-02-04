@@ -1,0 +1,147 @@
+---
+title: Повідомлення
+description: Документація повідомлень для платформи Ring
+---
+
+# Повідомлення в реальному часі
+
+Розширена система комунікації з абстракцією **Tunnel Transport**, підтримкою WebSocket та сумісністю з Edge Runtime.
+
+## Огляд
+
+Система повідомлень платформи Ring забезпечує безшовну комунікацію в реальному часі між суб'єктами, кандидатами на можливості та користувачами платформи з надійністю мультитранспорту.
+
+## Архітектура транспорту
+
+### Абстракція Tunnel Transport
+Інтелектуальний вибір транспорту для оптимальної продуктивності:
+
+// Automatic transport selection
+
+<Code language="typescript" title="TypeScript">
+{`const transport = new TunnelTransport({
+  primary: 'websocket',
+  fallbacks: ['sse', 'longpolling']
+})`}
+</Code>
+### Варіанти транспорту
+
+#### WebSocket (Основний)
+- **Двостороння комунікація** в реальному часі
+- **Низька затримка** доставки повідомлень
+- **Постійність з'єднання** між сесіями
+- **Оптимально для** настільних та мобільних додатків
+
+#### Server-Sent Events (SSE)
+- **Сумісний з Edge Runtime** резервний варіант
+- **Односпрямована** комунікація сервер-клієнт
+- **Підтримка мультиплексування** HTTP/2
+- **Оптимально для** розгортань Vercel Edge
+
+#### Long-polling (Універсальний)
+- **Універсальна сумісність** резервний варіант
+- **HTTP-базована** комунікація
+- **Працює скрізь** включно з обмеженими мережами
+- **Оптимально для** максимальної сумісності
+
+## Функції
+
+### Повідомлення в реальному часі
+- **Миттєва доставка** повідомлень
+- **Індикатори набору** та присутності
+- **Підтвердження прочитання** та статус повідомлень
+- **Файлові вкладення** та обмін медіа
+
+### Управління розмовами
+- **Групові розмови** для командної співпраці
+- **Прямі повідомлення** між користувачами
+- **Історія розмов** та пошук
+- **Потоки повідомлень** для організованих обговорень
+
+### Кросплатформна підтримка
+- **Веб-додатки** з повним функціоналом
+- **Мобільні додатки** з push-сповіщеннями
+- **Настільні клієнти** з нативною інтеграцією
+- **API доступ** для користувацьких реалізацій
+
+## Реалізація
+
+### Базові повідомлення
+
+<Code language="typescript" title="TypeScript">
+{`import { useMessaging } from '@/hooks/useMessaging'
+export function ChatComponent() {
+  const { 
+    conversations, 
+    sendMessage, 
+    markAsRead,
+    isTyping 
+  } = useMessaging()
+
+  const handleSendMessage = async (conversationId: string, content: string) => {
+    await sendMessage(conversationId, {
+      content,
+      type: 'text'
+    })
+  }
+
+  return (
+    <div className="chat-interface">
+      {conversations.map(conversation => (
+        <ConversationView 
+          key={conversation.id}
+          conversation={conversation}
+          onSendMessage={handleSendMessage}
+        />
+      ))}
+    </div>
+  )
+}`}
+</Code>
+
+### Оновлення в реальному часі
+
+<Code language="typescript" title="import { useEffect } from 'react'">
+{`import { messagingService } from '@/services/messaging'
+
+export function useRealTimeMessages(conversationId: string) {
+  useEffect(() => {
+    const unsubscribe = messagingService.subscribe(conversationId, {
+      onMessage: (message) => {
+        // Handle new message
+        console.log('New message:', message)
+      },
+      onTyping: (userId) => {
+        // Handle typing indicator
+        console.log('User typing:', userId)
+      },
+      onRead: (messageId) => {
+        // Handle read receipt
+        console.log('Message read:', messageId)
+      }
+    })
+
+    return unsubscribe
+  }, [conversationId])
+}`}
+</Code>
+## Оптимізація продуктивності
+
+### Кешування повідомлень
+- **Локальне сховище** для офлайн доступу
+- **Інтелектуальне попереднє завантаження** історії розмов
+- **Управління пам'яттю** для великих розмов
+
+### Управління з'єднанням
+- **Автоматичне перепідключення** при проблемах з мережею
+- **Моніторинг серцебиття** для здоров'я з'єднання
+- **Плавна деградація** між транспортами
+
+### Функції масштабованості
+- **Пагінація повідомлень** для великих розмов
+- **Ліниве завантаження** історії розмов
+- **Ефективні оновлення** з мінімальною передачею даних
+
+---
+
+*Готові впровадити обмін повідомленнями? Перевірте наш [API довідник](/uk/docs/api/messaging) для технічних деталей.*

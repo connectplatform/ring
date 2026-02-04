@@ -1,22 +1,18 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Get Opportunities By Slug Service
+ * 
+ * React 19 cache() wrapper for slug-based queries
+ * PostgreSQL via DatabaseService abstraction
+ * Build-time optimization with static data cache
+ */
 
-import { Opportunity } from '@/features/opportunities/types';
-import { auth } from '@/auth';
-import { opportunityConverter } from '@/lib/converters/opportunity-converter';
-import { UserRole } from '@/features/auth/types';
-import { Query, Filter } from 'firebase-admin/firestore';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
+import { cache } from 'react'
+import { Opportunity } from '@/features/opportunities/types'
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
+import { db } from '@/lib/database/DatabaseService'
 
 /**
  * Fetches opportunities by matching tags in the 'slug' array, enforcing role-based access control.
@@ -42,9 +38,10 @@ import {
  * Note: Confidential opportunities are only included in the results for users with CONFIDENTIAL or ADMIN roles.
  *       Other users will only see non-confidential opportunities matching the slugs.
  */
-export async function getOpportunitiesBySlug(slugs: string[]): Promise<Opportunity[]> {try {
-  const phase = getCurrentPhase();
-console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
+export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opportunity[]> => {
+  try {
+    const phase = getCurrentPhase()
+    console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs)
 
     // Step 1: Authenticate and get user session
     const session = await auth();
@@ -108,17 +105,27 @@ console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
       queryConfig.where = whereClause;
     }
 
-    // Step 3: Execute optimized query
-    const snapshot = await getCachedCollectionAdvanced('opportunities', queryConfig);
+    // Step 3: Execute query using DatabaseService
+    const querySpec = {
+      collection: 'opportunities',
+      filters: queryConfig.where || [],
+      orderBy: queryConfig.orderBy || [{ field: 'dateCreated', direction: 'desc' }]
+    }
 
-    // Step 4: Map documents and apply role-based filtering
-    let opportunities: Opportunity[] = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        ...data,
-        id: doc.id,
-      } as Opportunity;
-    });
+    const result = await db().execute('query', { querySpec })
+
+    // Step 4: Map results and apply role-based filtering
+    let opportunities: Opportunity[] = []
+    if (result.success && result.data) {
+      const items = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+      opportunities = items.map((item: any) => {
+        const data = item.data || item
+        return {
+          ...data,
+          id: item.id
+        } as Opportunity
+      })
+    }
 
     // Apply role-based visibility filtering for non-admin users
     if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
@@ -138,9 +145,9 @@ console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs);
 
     console.log('Services: getOpportunitiesBySlug - Fetched opportunities:', opportunities.length);
 
-    return opportunities;
+    return opportunities
   } catch (error) {
-    console.error('Services: getOpportunitiesBySlug - Error fetching opportunities by slug:', error);
-    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching opportunities by slug');
+    console.error('getOpportunitiesBySlug: Error fetching opportunities by slug:', error)
+    throw error instanceof Error ? error : new Error('Unknown error occurred while fetching opportunities by slug')
   }
-}
+});

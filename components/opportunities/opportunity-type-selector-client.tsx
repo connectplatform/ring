@@ -21,53 +21,51 @@ interface OpportunityTypeSelectorClientProps {
   locale: Locale
 }
 
-// Ring Platform Portal - Revolutionary TECHNICAL EXCELLENCE Categories
-// Focus: ring_customization (Legion-powered) + ai_instructor (democratize AI access)
-// Other 11 types available but added to UI later per Emperor's command
+// Ring Platform Portal - Focused opportunity types
+// Only 4 types: Ring Customization, Technology Request, Developer CV, Technology Offer
 const opportunityTypeConfigs = {
   ring_customization: {
     icon: Zap,
-    color: 'from-violet-500 via-purple-500 to-fuchsia-500',
-    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30',
-    borderColor: 'border-violet-300 dark:border-violet-700',
+    color: 'from-violet-500 to-purple-500',
+    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20',
+    borderColor: 'border-violet-200 dark:border-violet-800',
     textColor: 'text-violet-700 dark:text-violet-300',
     accentIcon: Crown,
     requiresMembership: true,
     popular: true,
-    revolutionary: true,
-    examples: [
-      'platform_deployment',
-      'module_development',
-      'branding',
-      'database_migration',
-      'localization',
-      'payment_integration',
-      'smart_contracts',
-      'ai_customization',
-      'token_economics',
-      'documentation'
-    ]
+    examples: ['platform_deployment', 'module_development', 'branding', 'database_migration', 'localization', 'payment_integration', 'smart_contracts', 'ai_customization', 'token_economics', 'documentation']
   },
-  ai_instructor: {
-    icon: Sparkles,
-    color: 'from-amber-500 via-orange-500 to-red-500',
-    bgColor: 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30',
-    borderColor: 'border-amber-300 dark:border-amber-700',
-    textColor: 'text-amber-700 dark:text-amber-300',
+  request: {
+    icon: MessageSquare,
+    color: 'from-blue-500 to-cyan-500',
+    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20',
+    borderColor: 'border-blue-200 dark:border-blue-800',
+    textColor: 'text-blue-700 dark:text-blue-300',
     accentIcon: Target,
     requiresMembership: false,
     popular: true,
-    revolutionary: true,
-    examples: [
-      'legion_instruction_training',
-      'customization_planning_workshop',
-      'ring_architecture_training',
-      'ai_prompt_engineering',
-      'product_owner_education',
-      'legion_best_practices',
-      'autonomous_deployment_guide',
-      'ring_ecosystem_overview'
-    ]
+    examples: ['freelancer', 'service', 'advice']
+  },
+  cv: {
+    icon: Zap,
+    color: 'from-violet-500 to-purple-500',
+    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20',
+    borderColor: 'border-violet-200 dark:border-violet-800',
+    textColor: 'text-violet-700 dark:text-violet-300',
+    accentIcon: Crown,
+    requiresMembership: false,
+    popular: true,
+    examples: ['developer_cv', 'portfolio', 'skills']
+  },
+  offer: {
+    icon: Briefcase,
+    color: 'from-green-500 to-emerald-500',
+    bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20',
+    borderColor: 'border-green-200 dark:border-green-800',
+    textColor: 'text-green-700 dark:text-green-300',
+    accentIcon: TrendingUp,
+    requiresMembership: true,
+    examples: ['job', 'contract', 'internship']
   }
 }
 

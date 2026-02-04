@@ -1,5 +1,3 @@
-export { createNewUserWithEmail } from './create-new-user-with-email';
-export { createNewUserWithWallet } from './create-new-user-with-wallet';
 export { createUser } from './create-user';
 export { deleteUser } from './delete-user';
 export { getUserById } from './get-user-by-id';

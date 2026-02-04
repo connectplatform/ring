@@ -1,5 +1,6 @@
 {
   "title": "Entities",
+  "subtitle": "Explore organizations in our ecosystem",
   "entitiesTitle": "Entities Directory",
   "confidentialEntitiesTitle": "Confidential Entities",
   "loadingMessage": "Loading entities...",
@@ -13,7 +14,37 @@
   "showingentities": "Showing {start}-{end} of {total}",
   "previous": "Previous",
   "next": "Next",
-  "filters": "Filters",
+  "filters": {
+    "search": {
+      "label": "Search entities",
+      "placeholder": "Enter organization name, industry, or location..."
+    },
+    "sections": {
+      "types": "Entity types",
+      "location": "Location",
+      "companySize": "Company size",
+      "foundedYear": "Founded year",
+      "verification": "Verification"
+    },
+    "location": {
+      "placeholder": "Enter location..."
+    },
+    "companySize": {
+      "min": "Min",
+      "max": "Max"
+    },
+    "foundedYear": {
+      "from": "From",
+      "to": "To"
+    },
+    "verification": {
+      "anyStatus": "Any status",
+      "verified": "Verified",
+      "pending": "Pending",
+      "unverified": "Unverified"
+    },
+    "apply": "Apply Filters"
+  },
   "clearFilters": "Clear Filters",
   "addMyEntity": "Add my Entity",
   "addMyEntityDescription": "Add your entity to the platform and manage it easily. Upgrade to Member to access full platform features.",

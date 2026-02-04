@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { file, fileService } from '@/lib/file'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
@@ -86,13 +86,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Upload to local storage
       uploadResult = await uploadToLocal(file, fileName)
     } else {
-      // Upload to Vercel Blob (default)
-      const blob = await put(fileName, file, {
+      // Upload using our file abstraction layer (default)
+      const result = await fileService.upload(fileName, file, {
         access: 'public',
       })
+
+      if (!result.success) {
+        console.error('API: /api/profile/upload - File upload failed:', result.error)
+        return NextResponse.json(
+          { error: result.error || 'File upload failed' },
+          {
+            status: 500,
+            headers: { 'Cache-Control': 'no-store, max-age=0' }
+          }
+        )
+      }
+
       uploadResult = {
-        url: blob.url,
-        downloadUrl: blob.downloadUrl
+        url: result.url,
+        downloadUrl: result.downloadUrl || result.url
       }
     }
 

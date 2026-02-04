@@ -1,0 +1,546 @@
+---
+title: Інтеграції
+description: Документація інтеграцій для платформи Ring
+last_modified: 2025-10-16
+---
+
+# Інтеграції з третіми сторонами
+
+Комплексні інтеграції платформи Ring з CRM системами, платіжними шлюзами, інструментами комунікації та корпоративними сервісами для створення повноцінних бізнес-рішень.
+
+## 🔗 Інтеграції CRM
+
+### Salesforce
+// lib/integrations/salesforce.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { Connection } from 'jsforce'
+
+export class SalesforceIntegration {
+  private connection: Connection
+
+  async syncEntity(entity: Entity): Promise<void> {
+    // Синхронізація сутності з Salesforce Account
+    await this.connection.sobject('Account').create({
+      Name: entity.name,
+      Industry: entity.type,
+      Website: entity.website,
+      // ... інші поля мапінгу
+    })
+  }
+
+  async syncOpportunity(opportunity: Opportunity): Promise<void> {
+    // Синхронізація можливості з Salesforce Opportunity
+    await this.connection.sobject('Opportunity').create({
+      Name: opportunity.title,
+      StageName: 'Prospecting',
+      Amount: opportunity.budget,
+      CloseDate: opportunity.deadline,
+      // ... мапінг полів
+    })
+  }
+}`}
+</Code>
+
+### HubSpot
+// lib/integrations/hubspot.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { Client } from '@hubspot/api-client'
+
+export class HubSpotIntegration {
+  private client: Client
+
+  async createContact(entity: Entity): Promise<void> {
+    // Створення контакту в HubSpot
+    await this.client.crm.contacts.basicApi.create({
+      properties: {
+        firstname: entity.contactName,
+        email: entity.contactEmail,
+        company: entity.name,
+        website: entity.website,
+        // ... додаткові властивості
+      }
+    })
+  }
+
+  async trackOpportunity(opportunity: Opportunity): Promise<void> {
+    // Відстеження можливості як deal
+    await this.client.crm.deals.basicApi.create({
+      properties: {
+        dealname: opportunity.title,
+        dealstage: 'appointmentscheduled',
+        amount: opportunity.budget,
+        closedate: opportunity.deadline,
+        // ... властивості угоди
+      }
+    })
+  }
+}`}
+</Code>
+
+### Pipedrive
+// lib/integrations/pipedrive.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { apiClient } from 'pipedrive'
+
+export class PipedriveIntegration {
+  private client: any
+
+  async createOrganization(entity: Entity): Promise<void> {
+    // Створення організації в Pipedrive
+    await this.client.Organizations.add({
+      name: entity.name,
+      address: entity.location,
+      // ... поля організації
+    })
+  }
+
+  async createDeal(opportunity: Opportunity): Promise<void> {
+    // Створення угоди в Pipedrive
+    await this.client.Deals.add({
+      title: opportunity.title,
+      value: opportunity.budget,
+      expected_close_date: opportunity.deadline,
+      // ... поля угоди
+    })
+  }
+}`}
+</Code>
+
+## 💰 Інтеграції платіжних шлюзів
+
+### WayForPay (Український ринок)
+// lib/payments/wayforpay.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { WayForPay } from 'wayforpay-js'
+
+export class WayForPayIntegration {
+  private wfp: WayForPay
+
+  async createPayment(orderData: OrderData): Promise<PaymentResponse> {
+    return await this.wfp.createPayment({
+      merchantAccount: process.env.WAYFORPAY_ACCOUNT,
+      merchantDomainName: process.env.NEXT_PUBLIC_DOMAIN,
+      orderReference: orderData.id,
+      orderDate: Math.floor(Date.now() / 1000),
+      amount: orderData.amount,
+      currency: orderData.currency,
+      productName: orderData.products.map(p => p.name),
+      productPrice: orderData.products.map(p => p.price),
+      productCount: orderData.products.map(p => p.quantity),
+      clientFirstName: orderData.customer.firstName,
+      clientLastName: orderData.customer.lastName,
+      clientEmail: orderData.customer.email,
+      clientPhone: orderData.customer.phone,
+      language: 'UK' // Українська мова
+    })
+  }
+
+  async handleCallback(callbackData: any): Promise<void> {
+    // Обробка callback від WayForPay
+    if (callbackData.transactionStatus === 'Approved') {
+      await this.updateOrderStatus(callbackData.orderReference, 'paid')
+    }
+  }
+}`}
+</Code>
+
+### Stripe (Глобальні платежі)
+// lib/payments/stripe.ts
+
+<Code language="typescript" title="TypeScript">
+{`import Stripe from 'stripe'
+
+export class StripeIntegration {
+  private stripe: Stripe
+
+  async createPaymentIntent(amount: number, currency: string): Promise<Stripe.PaymentIntent> {
+    return await this.stripe.paymentIntents.create({
+      amount: amount * 100, // Stripe працює з копійками
+      currency: currency.toLowerCase(),
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    })
+  }
+
+  async createSubscription(priceId: string, customerId: string): Promise<Stripe.Subscription> {
+    return await this.stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      expand: ['latest_invoice.payment_intent'],
+    })
+  }
+}`}
+</Code>
+
+## 💬 Інтеграції інструментів комунікації
+
+### Discord
+// lib/integrations/discord.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { Client, GatewayIntentBits } from 'discord.js'
+
+export class DiscordIntegration {
+  private client: Client
+
+  async initialize(): Promise<void> {
+    this.client = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+      ],
+    })
+
+    this.client.on('ready', () => {
+      console.log('Discord бот підключений!')
+    })
+
+    await this.client.login(process.env.DISCORD_BOT_TOKEN)
+  }
+
+  async sendNotification(channelId: string, message: string): Promise<void> {
+    const channel = await this.client.channels.fetch(channelId)
+    if (channel?.isTextBased()) {
+      await channel.send(message)
+    }
+  }
+
+  async createOpportunityThread(opportunity: Opportunity): Promise<void> {
+    // Створення теми для нової можливості
+    const channel = await this.client.channels.fetch(process.env.DISCORD_OPPORTUNITIES_CHANNEL)
+    if (channel?.isTextBased()) {
+      await channel.threads.create({
+        name: opportunity.title,
+        autoArchiveDuration: 1440, // 24 години
+        reason: 'Нова можливість створена в Ring Platform'
+      })
+    }
+  }
+}`}
+</Code>
+
+### Slack
+// lib/integrations/slack.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { WebClient } from '@slack/web-api'
+
+export class SlackIntegration {
+  private client: WebClient
+
+  async initialize(): Promise<void> {
+    this.client = new WebClient(process.env.SLACK_BOT_TOKEN)
+  }
+
+  async sendOpportunityAlert(opportunity: Opportunity): Promise<void> {
+    await this.client.chat.postMessage({
+      channel: process.env.SLACK_OPPORTUNITIES_CHANNEL,
+      text: `Нова можливість: ${opportunity.title}`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${opportunity.title}*\n${opportunity.description}\nБюджет: ${opportunity.budget} ${opportunity.currency}`
+          }
+        },
+        {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: 'Переглянути'
+              },
+              url: `${process.env.NEXT_PUBLIC_DOMAIN}/opportunities/${opportunity.id}`
+            }
+          ]
+        }
+      ]
+    })
+  }
+}`}
+</Code>
+
+## 🔧 Інтеграції корпоративних сервісів
+
+### Microsoft Teams
+// lib/integrations/teams.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { Client } from '@microsoft/microsoft-graph-client'
+
+export class TeamsIntegration {
+  private client: Client
+
+  async sendMessage(teamId: string, channelId: string, message: string): Promise<void> {
+    await this.client.api(`/teams/${teamId}/channels/${channelId}/messages`).post({
+      body: {
+        content: message
+      }
+    })
+  }
+
+  async createChannel(teamId: string, channelName: string): Promise<void> {
+    await this.client.api(`/teams/${teamId}/channels`).post({
+      displayName: channelName,
+      description: `Канал для обговорення ${channelName}`,
+      membershipType: 'standard'
+    })
+  }
+}`}
+</Code>
+
+### Google Workspace
+// lib/integrations/google-workspace.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { google } from 'googleapis'
+
+export class GoogleWorkspaceIntegration {
+  private calendar: any
+
+  async createCalendarEvent(eventData: EventData): Promise<void> {
+    await this.calendar.events.insert({
+      calendarId: 'primary',
+      resource: {
+        summary: eventData.title,
+        description: eventData.description,
+        start: {
+          dateTime: eventData.startTime,
+          timeZone: 'Europe/Kiev',
+        },
+        end: {
+          dateTime: eventData.endTime,
+          timeZone: 'Europe/Kiev',
+        },
+        attendees: eventData.attendees.map(email => ({ email })),
+      },
+    })
+  }
+
+  async shareDocument(fileId: string, email: string, role: string): Promise<void> {
+    await this.drive.permissions.create({
+      fileId: fileId,
+      resource: {
+        type: 'user',
+        role: role, // 'reader', 'writer', 'commenter'
+        emailAddress: email,
+      },
+    })
+  }
+}`}
+</Code>
+
+## 🗄️ Інтеграції баз даних та сховищ
+
+### PostgreSQL (Первинна база даних)
+// lib/database/postgresql.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { Pool } from 'pg'
+
+export class PostgreSQLIntegration {
+  private pool: Pool
+
+  async executeQuery(query: string, params: any[]): Promise<any[]> {
+    const client = await this.pool.connect()
+    try {
+      const result = await client.query(query, params)
+      return result.rows
+    } finally {
+      client.release()
+    }
+  }
+
+  async getEntitiesByType(type: string): Promise<Entity[]> {
+    const query = `
+      SELECT * FROM entities
+      WHERE type = $1 AND visibility = 'public'
+      ORDER BY created_at DESC
+    `
+    return await this.executeQuery(query, [type])
+  }
+}`}
+</Code>
+
+### Redis (Кешування та сесії)
+// lib/cache/redis.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { Redis } from 'ioredis'
+
+export class RedisIntegration {
+  private client: Redis
+
+  async cacheUserSession(sessionId: string, sessionData: any): Promise<void> {
+    await this.client.setex(
+      `session:${sessionId}`,
+      3600, // 1 година
+      JSON.stringify(sessionData)
+    )
+  }
+
+  async getCachedOpportunities(filters: any): Promise<Opportunity[] | null> {
+    const cacheKey = `opportunities:${JSON.stringify(filters)}`
+    const cached = await this.client.get(cacheKey)
+
+    if (cached) {
+      return JSON.parse(cached)
+    }
+
+    return null
+  }
+}`}
+</Code>
+
+## 📊 Інтеграції аналітики
+
+### Google Analytics 4
+// lib/analytics/google-analytics.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class GoogleAnalyticsIntegration {
+  trackOpportunityView(opportunityId: string): void {
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'opportunity_view', {
+        opportunity_id: opportunityId,
+        timestamp: new Date().toISOString()
+      })
+    }
+  }
+
+  trackEntityInteraction(entityId: string, action: string): void {
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'entity_interaction', {
+        entity_id: entityId,
+        action: action, // 'view', 'contact', 'apply'
+        timestamp: new Date().toISOString()
+      })
+    }
+  }
+}`}
+</Code>
+
+### Mixpanel (Продуктова аналітика)
+// lib/analytics/mixpanel.ts
+
+<Code language="typescript" title="TypeScript">
+{`import mixpanel from 'mixpanel-browser'
+
+export class MixpanelIntegration {
+  initialize(): void {
+    if (typeof window !== 'undefined') {
+      mixpanel.init(process.env.NEXT_PUBLIC_MIXPANEL_TOKEN)
+    }
+  }
+
+  trackOpportunityCreated(opportunity: Opportunity): void {
+    mixpanel.track('Opportunity Created', {
+      opportunity_id: opportunity.id,
+      type: opportunity.type,
+      category: opportunity.category,
+      budget: opportunity.budget,
+      creator_role: opportunity.creatorRole
+    })
+  }
+
+  trackUserEngagement(userId: string, action: string, metadata: any): void {
+    mixpanel.track('User Engagement', {
+      user_id: userId,
+      action: action,
+      ...metadata
+    })
+  }
+}`}
+</Code>
+
+## 🔧 Налаштування інтеграцій
+
+### Конфігурація змінних середовища
+.env.local CRM Інтеграції Платіжні шлюзи Інструменти комунікації Корпоративні сервіси
+
+<Code language="bash" title="terminal">
+{`SALESFORCE_CLIENT_ID=your_salesforce_client_id
+SALESFORCE_CLIENT_SECRET=your_salesforce_client_secret
+HUBSPOT_API_KEY=your_hubspot_api_key
+
+WAYFORPAY_ACCOUNT=your_wayforpay_account
+WAYFORPAY_SECRET=your_wayforpay_secret
+STRIPE_SECRET_KEY=your_stripe_secret_key
+
+DISCORD_BOT_TOKEN=your_discord_bot_token
+SLACK_BOT_TOKEN=your_slack_bot_token
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+MICROSOFT_CLIENT_ID=your_microsoft_client_id`}
+</Code>
+
+### Активація інтеграцій
+// lib/integrations/config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const INTEGRATION_CONFIG = {
+  crm: {
+    salesforce: process.env.SALESFORCE_CLIENT_ID ? true : false,
+    hubspot: process.env.HUBSPOT_API_KEY ? true : false,
+    pipedrive: process.env.PIPEDRIVE_API_TOKEN ? true : false,
+  },
+  payments: {
+    wayforpay: process.env.WAYFORPAY_ACCOUNT ? true : false,
+    stripe: process.env.STRIPE_SECRET_KEY ? true : false,
+    paypal: process.env.PAYPAL_CLIENT_ID ? true : false,
+  },
+  communication: {
+    slack: process.env.SLACK_BOT_TOKEN ? true : false,
+    discord: process.env.DISCORD_BOT_TOKEN ? true : false,
+    teams: process.env.MICROSOFT_CLIENT_ID ? true : false,
+  }
+}`}
+</Code>
+
+## 🚀 Розгортання з інтеграціями
+
+### Docker Compose для інтегрованого середовища
+<Code language="yaml" title="version: '3.8'">
+{`services:
+  ring-platform:
+    image: ring-platform:latest
+    environment:
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/ring
+      - REDIS_URL=redis://redis:6379
+      - SALESFORCE_CLIENT_ID=${SALESFORCE_CLIENT_ID}
+      - HUBSPOT_API_KEY=${HUBSPOT_API_KEY}
+      - WAYFORPAY_ACCOUNT=${WAYFORPAY_ACCOUNT}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ring
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+
+  redis:
+    image: redis:7-alpine`}
+</Code>
+
+---
+
+**🔗 Екосистема інтеграцій**
+
+Платформа Ring розроблена для безшовної інтеграції з екосистемою сучасних бізнес інструментів, забезпечуючи синхронізацію даних, автоматизацію процесів та розширену функціональність.
+
+*Потрібна допомога з конкретною інтеграцією? Зверніться до нашої [документації API](https://ring-platform.org/docs/api) або [контактної форми](https://ring-platform.org/contact).*

@@ -16,8 +16,8 @@ The Ring Platform uses **Auth.js v5** for comprehensive authentication with mult
 
 ## Authentication Flow
 
-```mermaid
-sequenceDiagram
+<Mermaid>
+{`sequenceDiagram
     participant User
     participant Frontend
     participant Auth.js
@@ -32,8 +32,8 @@ sequenceDiagram
     Provider->>Auth.js: Return auth code
     Auth.js->>Database: Create/update user
     Auth.js->>Frontend: Return session
-    Frontend->>User: Authenticated state
-```
+    Frontend->>User: Authenticated state`}
+</Mermaid>
 
 ## Supported Providers
 
@@ -62,9 +62,8 @@ Get current user session information
 
 ### Server-Side Authentication
 
-```typescript
-import { auth } from '@/auth'
-
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 export default async function ProtectedPage() {
   const session = await auth()
   
@@ -73,14 +72,13 @@ export default async function ProtectedPage() {
   }
   
   return <div>Welcome, {session.user.name}!</div>
-}
-```
+}`}
+</Code>
 
 ### Client-Side Authentication
 
-```typescript
-'use client'
-import { useSession } from 'next-auth/react'
+<Code language="typescript" title="'use client'">
+{`import { useSession } from 'next-auth/react'
 
 export default function UserProfile() {
   const { data: session, status } = useSession()
@@ -89,14 +87,13 @@ export default function UserProfile() {
   if (!session) return <div>Not authenticated</div>
   
   return <div>Hello, {session.user.name}!</div>
-}
-```
+}`}
+</Code>
 
 ### Role-Based Access Control
 
-```typescript
-import { auth } from '@/auth'
-
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 export default async function AdminPage() {
   const session = await auth()
   
@@ -105,8 +102,8 @@ export default async function AdminPage() {
   }
   
   return <div>Admin dashboard</div>
-}
-```
+}`}
+</Code>
 
 ## Role Hierarchy
 

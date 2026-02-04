@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getAdminDb } from '@/lib/firebase-admin.server'
-
-const db = getAdminDb()
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,19 +13,27 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const tokensCollection = db.collection('fcm_tokens')
+    await initializeDatabase()
+    const db = getDatabaseService()
 
     // Get count of active tokens for the user
-    const tokensSnapshot = await tokensCollection
-      .where('userId', '==', session.user.id)
-      .where('isActive', '==', true)
-      .get()
+    const result = await db.query({
+      collection: 'fcm_tokens',
+      filters: [
+        { field: 'userId', operator: '==', value: session.user.id },
+        { field: 'isActive', operator: '==', value: true }
+      ]
+    })
+    
+    if (!result.success) {
+      throw result.error || new Error('Failed to fetch fcm_tokens')
+    }
 
-    const count = tokensSnapshot.size
+    const count = result.data.length
 
     // Get device breakdown
-    const devices = tokensSnapshot.docs.map(doc => {
-      const data = doc.data()
+    const devices = result.data.map(doc => {
+      const data = doc as any
       return {
         platform: data.deviceInfo?.platform || 'Unknown',
         browser: data.deviceInfo?.browser || 'Unknown',
@@ -49,4 +55,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

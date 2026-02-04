@@ -9,6 +9,24 @@ description: Transform your talent acquisition and partnership strategies with R
 
 Ring Platform's dual-nature marketplace transforms how organizations find talent, build partnerships, and access resources. Our intelligent system connects supply and demand across 7 specialized opportunity types, delivering measurable business results through data-driven matching and seamless execution.
 
+## The Ring Intelligence Flow
+
+Ring eliminates the fundamental problem of missed opportunities through AI-powered notification of interested parties:
+
+<Mermaid>
+{`flowchart TD
+    A[Human creates an ad] --> B["offer/request\n(+other Opportunities)"]
+    B --> C[user adds brief desc]
+    C --> D{AI analyses and extends context,\nuser validates final text of the ad.}
+    D --> E[The ad appears in the pool of Opportunities]
+    E --> F{ai-matcher generates a custom-tailored invitation,\nincluding reasons to view the Opportunity.}
+    F --> G[No more search - direct Connect.]`}
+</Mermaid>
+
+**Traditional Platforms:** Post opportunity → Wait → Hope someone sees it → Maybe get response
+
+**Ring Platform:** Post opportunity → AI analyzes 160+ data points → Instantly notifies interested parties with personalized 160-char explanations → Direct connections happen
+
 ## 💰 Business Impact & ROI
 
 ### Measurable Results
@@ -24,6 +42,63 @@ Ring Platform's dual-nature marketplace transforms how organizations find talent
 - **Real-time Matching**: Instant notifications for perfect matches
 - **Integrated Payments**: Seamless RING token transactions
 - **Advanced Analytics**: Data-driven insights for better decisions
+
+## 🤖 AI-Powered Matching System
+
+### AI Matcher Architecture
+
+<Mermaid>
+{`mindmap
+  root((AI Matcher))
+    Input
+      Human Need
+      Skills Profile
+      Requirements
+    Process
+      8-Factor Scoring
+      LLM Analysis
+      Opportunity Matching
+    Output
+      Match Quality Badge
+      Detailed Explanations
+      Connection Suggestions`}
+</Mermaid>
+
+### 8-Factor Opportunity Matching
+
+<Mermaid>
+{`flowchart TD
+    Start([New Opportunity Posted]) --> Extract[Extract Metadata]
+    Extract --> AI[AI Analysis Engine]
+
+    AI --> Factor1[Factor 1: Skills Match]
+    AI --> Factor2[Factor 2: Experience Level]
+    AI --> Factor3[Factor 3: Budget Range]
+    AI --> Factor4[Factor 4: Location]
+    AI --> Factor5[Factor 5: Timeline]
+    AI --> Factor6[Factor 6: Industry]
+    AI --> Factor7[Factor 7: Past Success]
+    AI --> Factor8[Factor 8: Availability]
+
+    Factor1 --> Score[Calculate Match Score]
+    Factor2 --> Score
+    Factor3 --> Score
+    Factor4 --> Score
+    Factor5 --> Score
+    Factor6 --> Score
+    Factor7 --> Score
+    Factor8 --> Score
+
+    Score --> Threshold{Score > 70%?}
+    Threshold -->|Yes| Priority[Priority Notification]
+    Threshold -->|No| Standard[Standard Feed]
+
+    Priority --> LLM[Generate Personalized Message]
+    LLM --> Send[Send Real-time Notification]
+    Send --> User[Notify Matched Users]
+
+    Standard --> Feed[Add to General Feed]`}
+</Mermaid>
 
 ## 🎯 How It Works
 
@@ -156,9 +231,10 @@ Access the exact resources and talent required for your success:
 ## 🚀 Implementation & Integration
 
 ### Quick Start (5 Minutes)
-```typescript
 // Create your first opportunity
-const opportunity = await createOpportunity({
+
+<Code language="typescript" title="TypeScript">
+{`const opportunity = await createOpportunity({
   title: 'Senior Full-Stack Developer',
   type: 'JOB',
   nature: 'OFFER',
@@ -172,13 +248,14 @@ const opportunity = await createOpportunity({
   },
   location: 'Remote',
   isConfidential: false
-})
-```
+})`}
+</Code>
 
 ### Advanced Integration
-```typescript
 // Bulk opportunity management
-const opportunities = await createBulkOpportunities([
+
+<Code language="typescript" title="TypeScript">
+{`const opportunities = await createBulkOpportunities([
   {
     title: 'Marketing Manager',
     type: 'JOB',
@@ -201,8 +278,8 @@ const searchResults = await searchOpportunities({
   budgetMin: 100000,
   sortBy: 'relevance',
   limit: 20
-})
-```
+})`}
+</Code>
 
 ## 📊 Success Metrics & Benchmarks
 
@@ -244,15 +321,16 @@ const searchResults = await searchOpportunities({
 - **Analytics Dashboard**: Comprehensive reporting and insights
 
 ### API-First Architecture
-```typescript
 // RESTful API endpoints
-GET /api/opportunities          // List opportunities
+
+<Code language="typescript" title="TypeScript">
+{`GET /api/opportunities          // List opportunities
 POST /api/opportunities         // Create opportunity
 GET /api/opportunities/:id      // Get specific opportunity
 PUT /api/opportunities/:id      // Update opportunity
 DELETE /api/opportunities/:id   // Delete opportunity
-POST /api/opportunities/:id/apply // Apply to opportunity
-```
+POST /api/opportunities/:id/apply // Apply to opportunity`}
+</Code>
 
 ## 🏆 Why Choose Ring Platform?
 

@@ -1,0 +1,419 @@
+---
+title: Username Reservation System
+description: Intelligent username reservation with automatic expiration and transaction rollback protection
+---
+
+# 🎯 Username Reservation System
+
+**Secure Username Claiming with Dual Protection**
+
+Ring Platform implements an intelligent username reservation system that prevents username squatting while ensuring data integrity through automatic expiration and transaction rollback protection.
+
+## 🔒 Dual Protection Architecture
+
+### 1. Temporary Reservation (5 Minutes)
+
+When a user attempts to claim a username, Ring creates a **temporary reservation** that expires automatically:
+
+```typescript
+// Username reserved with 5-minute expiration
+{
+  userId: "user-123",
+  username: "JohnDoe", // Original case preserved
+  reservedAt: "2025-11-07T10:00:00Z",
+  expiresAt: "2025-11-07T10:05:00Z", // 5 minutes later
+  confirmed: false, // Not yet permanent
+  confirmedAt: null
+}
+```
+
+<Callout type="info" title="Why 5 Minutes?">
+5 minutes provides enough time for legitimate users to complete profile updates while preventing username squatting and abandoned reservations.
+</Callout>
+
+### 2. Confirmation on Success
+
+Username becomes **permanent** only after successful profile update:
+
+```typescript
+// After profile update succeeds:
+{
+  userId: "user-123",
+  username: "JohnDoe",
+  reservedAt: "2025-11-07T10:00:00Z",
+  confirmed: true, // ✅ Permanent ownership
+  confirmedAt: "2025-11-07T10:01:30Z",
+  expiresAt: null, // No expiration - permanently owned
+  updatedAt: "2025-11-07T10:01:30Z"
+}
+```
+
+---
+
+## ⚡ Protection Mechanisms
+
+### Transaction Rollback Protection
+
+If the reservation transaction fails, **automatic rollback** ensures username is NOT reserved:
+
+```typescript
+try {
+  await db.transaction(async (txn) => {
+    // Reserve username
+    await txn.create('usernames', reservationData)
+  })
+} catch (error) {
+  // Rollback is AUTOMATIC
+  // Username NOT reserved
+  // User receives clear error message
+  return { fieldErrors: { username: 'Transaction failed' } }
+}
+```
+
+<Callout type="success" title="Zero Orphaned Reservations">
+Transaction failures NEVER leave orphaned username reservations in the database. PostgreSQL ACID guarantees ensure clean rollback.
+</Callout>
+
+### Expiration Protection
+
+Unconfirmed reservations expire after 5 minutes:
+
+```typescript
+// Expired reservation check
+if (reservedAt && (now - reservedAt) > 5 minutes) {
+  if (!confirmed) {
+    // Reservation expired - username available for others
+    console.log('Expired reservation released')
+  }
+}
+```
+
+---
+
+## 🔄 Username Lifecycle
+
+### Step 1: Reservation Attempt
+
+User submits profile update with desired username:
+
+```typescript
+// User: "I want username 'johndoe'"
+const result = await updateUserProfile(formData)
+```
+
+### Step 2: Availability Check
+
+System checks if username is available:
+
+| Scenario | Result |
+|----------|--------|
+| Username free | ✅ Reserve for 5 minutes |
+| Owned by same user | ✅ Keep existing |
+| Owned by other (confirmed) | ❌ "Already taken" |
+| Owned by other (expired) | ✅ Release and reserve |
+| Owned by other (reserved <5min) | ❌ "Temporarily reserved" |
+
+### Step 3: Temporary Reservation
+
+Username reserved in transaction:
+
+```typescript
+await db.transaction(async (txn) => {
+  // Atomic check-and-reserve
+  await txn.create('usernames', {
+    userId: currentUser,
+    reservedAt: now,
+    expiresAt: now + 5 minutes,
+    confirmed: false
+  })
+})
+```
+
+<Callout type="warning" title="Transaction Failure = No Reservation">
+If transaction fails at ANY point, reservation is rolled back. Username remains available.
+</Callout>
+
+### Step 4: Profile Update
+
+System updates full user profile:
+
+```typescript
+const result = await db.update('users', userId, {
+  name, email, bio, username, // ... full profile
+  usernameConfirmed: true
+})
+```
+
+### Step 5A: Success Path
+
+Profile update succeeds → Username confirmed permanently:
+
+```typescript
+await db.update('usernames', usernameKey, {
+  confirmed: true,
+  confirmedAt: now,
+  expiresAt: null // ✅ Permanent ownership
+})
+```
+
+### Step 5B: Failure Path
+
+Profile update fails → Reservation expires in 5 minutes:
+
+```typescript
+// Reservation left in database:
+{
+  confirmed: false,
+  expiresAt: now + 5 minutes
+}
+// Auto-cleanup will remove it
+```
+
+---
+
+## 🧹 Automatic Cleanup
+
+### Cron Job for Expired Reservations
+
+Ring Platform includes cleanup service:
+
+```typescript
+/**
+ * Call this from cron job (every 5 minutes recommended)
+ */
+export async function cleanupExpiredUsernameReservations() {
+  const expiredResult = await db.query({
+    collection: 'usernames',
+    filters: [
+      { field: 'confirmed', operator: '==', value: false },
+      { field: 'expiresAt', operator: '<', value: now }
+    ]
+  })
+  
+  // Delete expired reservations
+  for (const reservation of expiredResult.data) {
+    await db.delete('usernames', reservation.id)
+  }
+}
+```
+
+### Recommended Cron Schedule
+
+```bash
+# Every 5 minutes - cleanup expired reservations
+*/5 * * * * curl -X POST https://your-domain.com/api/cron/cleanup-usernames
+```
+
+<Callout type="info" title="Vercel Cron">
+Use Vercel Cron Jobs for automatic cleanup:
+```json
+// vercel.json
+{
+  "crons": [{
+    "path": "/api/cron/cleanup-usernames",
+    "schedule": "*/5 * * * *"
+  }]
+}
+```
+</Callout>
+
+---
+
+## 💎 Implementation Example
+
+### Server Action with Full Protection
+
+```typescript
+'use server'
+
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { revalidatePath } from 'next/cache'
+
+export async function updateUserProfile(formData: FormData) {
+  const username = formData.get('username') as string
+  
+  if (username) {
+    const db = getDatabaseService()
+    const usernameKey = username.toLowerCase()
+    const EXPIRY = 5 * 60 * 1000 // 5 minutes
+    
+    // Step 1: Reserve with expiration
+    await db.transaction(async (txn) => {
+      const existing = await txn.read('usernames', usernameKey)
+      
+      // Check availability
+      if (existing && existing.userId !== currentUserId) {
+        if (existing.confirmed) {
+          throw new Error('Username taken')
+        }
+        if (Date.now() - existing.reservedAt < EXPIRY) {
+          throw new Error('Temporarily reserved')
+        }
+      }
+      
+      // Reserve
+      await txn.create('usernames', {
+        userId: currentUserId,
+        reservedAt: new Date(),
+        expiresAt: new Date(Date.now() + EXPIRY),
+        confirmed: false
+      })
+    })
+    
+    // Step 2: Update profile
+    const result = await db.update('users', userId, profileData)
+    if (!result.success) throw result.error
+    
+    // Step 3: Confirm reservation (only on success!)
+    await db.update('usernames', usernameKey, {
+      confirmed: true,
+      confirmedAt: new Date(),
+      expiresAt: null // Permanent
+    })
+  }
+  
+  revalidatePath('/[locale]/profile')
+  return { success: true }
+}
+```
+
+---
+
+## 🎯 Benefits
+
+### For Users
+- ✅ **Fair Access**: No permanent squatting on unused usernames
+- ✅ **Clear Feedback**: Know if username is taken or temporarily reserved
+- ✅ **Reliability**: Transaction protection prevents race conditions
+
+### For Developers
+- ✅ **ACID Guarantees**: PostgreSQL transactions ensure data integrity
+- ✅ **Automatic Cleanup**: Expired reservations removed automatically
+- ✅ **Zero Orphans**: Transaction failures never leave orphaned data
+
+### For System
+- ✅ **Database Efficiency**: Automatic cleanup prevents table bloat
+- ✅ **Scalability**: Handles concurrent reservation attempts safely
+- ✅ **Observability**: Logging tracks reservation lifecycle
+
+---
+
+## 🔍 Monitoring & Debugging
+
+### Check Username Status
+
+```typescript
+const status = await db.read('usernames', 'johndoe')
+console.log({
+  owner: status.userId,
+  confirmed: status.confirmed,
+  reservedAt: status.reservedAt,
+  expiresAt: status.expiresAt
+})
+```
+
+### Find Expired Reservations
+
+```typescript
+const expired = await db.query({
+  collection: 'usernames',
+  filters: [
+    { field: 'confirmed', operator: '==', value: false },
+    { field: 'expiresAt', operator: '<', value: new Date() }
+  ]
+})
+console.log(`${expired.data.length} expired reservations`)
+```
+
+---
+
+## 🎖️ Best Practices
+
+<Steps>
+
+### Step 1: Always Use Transactions
+
+Reserve usernames within transactions for atomicity:
+
+```typescript
+await db.transaction(async (txn) => {
+  // Check + Reserve in single atomic operation
+})
+```
+
+### Step 2: Set Reasonable Expiration
+
+5 minutes balances user experience with efficiency:
+- Too short: Legitimate users interrupted
+- Too long: Squatting enabled
+
+### Step 3: Confirm After Success
+
+Only mark `confirmed: true` after profile update succeeds.
+
+### Step 4: Implement Cleanup Cron
+
+Run cleanup every 5 minutes to maintain database efficiency.
+
+### Step 5: Handle Edge Cases
+
+Check for expired reservations during availability checks.
+
+</Steps>
+
+---
+
+## 🚀 Migration from Firebase
+
+**Old Pattern (Firebase):**
+```typescript
+// Permanent reservation, no expiration
+await adminDb.runTransaction(async (tx) => {
+  tx.set(usernamesCol.doc(username), { userId })
+})
+```
+
+**New Pattern (Ring Platform):**
+```typescript
+// Temporary reservation with expiration
+await db.transaction(async (txn) => {
+  await txn.create('usernames', {
+    userId,
+    reservedAt: new Date(),
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    confirmed: false
+  })
+})
+
+// Confirm only on success
+await db.update('usernames', username, { confirmed: true })
+```
+
+---
+
+## 📊 Database Schema
+
+### Usernames Collection
+
+```sql
+CREATE TABLE usernames (
+  id TEXT PRIMARY KEY, -- lowercase username
+  userId TEXT NOT NULL,
+  username TEXT, -- original case
+  reservedAt TIMESTAMPTZ NOT NULL,
+  confirmedAt TIMESTAMPTZ,
+  confirmed BOOLEAN DEFAULT false,
+  expiresAt TIMESTAMPTZ, -- NULL for confirmed usernames
+  updatedAt TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_usernames_confirmed ON usernames(confirmed);
+CREATE INDEX idx_usernames_expiry ON usernames(expiresAt) 
+  WHERE confirmed = false; -- Partial index for cleanup efficiency
+```
+
+---
+
+**Built with ❤️ by Ringdom Legion**  
+**For Emperor Ray. For zero flaws. For world peace. Forever.** 🔥⚔️👑
+

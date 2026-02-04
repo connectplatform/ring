@@ -131,7 +131,7 @@ function ResetButton({ onReset }: { onReset: () => void }) {
       onClick={onReset}
       disabled={pending}
       className={cn(
-        'px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium transition-colors',
+                  'px-6 py-3 border border-gray-300 text-muted-foreground rounded-lg font-medium transition-colors',
         pending 
           ? 'opacity-50 cursor-not-allowed' 
           : 'hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2'
@@ -200,11 +200,11 @@ export function NotificationPreferencesEnhanced({
     <div className={cn('max-w-4xl mx-auto p-6', className)}>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
+          <h1 className="text-2xl font-bold text-foreground flex items-center space-x-3">
           <Settings className="w-8 h-8 text-blue-600" />
           <span>Notification Preferences</span>
         </h1>
-        <p className="text-gray-600 mt-2">
+          <p className="text-muted-foreground mt-2">
           Customize how and when you receive notifications from Ring platform
         </p>
       </div>
@@ -232,8 +232,8 @@ export function NotificationPreferencesEnhanced({
             <div className="flex items-center space-x-3">
               <Bell className="w-6 h-6 text-blue-600" />
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Master Notifications</h3>
-                <p className="text-sm text-gray-600">Enable or disable all notifications</p>
+                <h3 className="text-lg font-semibold text-foreground">Master Notifications</h3>
+                <p className="text-sm text-muted-foreground">Enable or disable all notifications</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -261,10 +261,10 @@ export function NotificationPreferencesEnhanced({
             {/* Email */}
             <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-gray-600" />
+                <Mail className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium text-gray-900">Email</p>
-                  <p className="text-sm text-gray-600">Receive notifications via email</p>
+                  <p className="font-medium text-foreground">Email</p>
+                  <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                 </div>
               </div>
               <input
@@ -280,10 +280,10 @@ export function NotificationPreferencesEnhanced({
             {/* Push */}
             <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
-                <Bell className="w-5 h-5 text-gray-600" />
+                <Bell className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium text-gray-900">Push Notifications</p>
-                  <p className="text-sm text-gray-600">Browser push notifications</p>
+                  <p className="font-medium text-foreground">Push Notifications</p>
+                  <p className="text-sm text-muted-foreground">Browser push notifications</p>
                 </div>
               </div>
               <input
@@ -299,10 +299,10 @@ export function NotificationPreferencesEnhanced({
             {/* SMS */}
             <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
-                <Smartphone className="w-5 h-5 text-gray-600" />
+                <Smartphone className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium text-gray-900">SMS</p>
-                  <p className="text-sm text-gray-600">Text message notifications</p>
+                  <p className="font-medium text-foreground">SMS</p>
+                  <p className="text-sm text-muted-foreground">Text message notifications</p>
                 </div>
               </div>
               <input
@@ -318,10 +318,10 @@ export function NotificationPreferencesEnhanced({
             {/* In-App */}
             <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
-                <Bell className="w-5 h-5 text-gray-600" />
+                <Bell className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium text-gray-900">In-App</p>
-                  <p className="text-sm text-gray-600">Notifications within the app</p>
+                  <p className="font-medium text-foreground">In-App</p>
+                  <p className="text-sm text-muted-foreground">Notifications within the app</p>
                 </div>
               </div>
               <input
@@ -344,10 +344,10 @@ export function NotificationPreferencesEnhanced({
             {Object.values(NotificationType).map((type) => (
               <div key={type} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                 <div>
-                  <p className="font-medium text-gray-900 capitalize">
+                  <p className="font-medium text-foreground capitalize">
                     {type.replace(/_/g, ' ').toLowerCase()}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Notifications related to {type.replace(/_/g, ' ').toLowerCase()}
                   </p>
                 </div>
@@ -368,7 +368,7 @@ export function NotificationPreferencesEnhanced({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Clock className="w-5 h-5 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Quiet Hours</h3>
+              <h3 className="text-lg font-semibold text-foreground">Quiet Hours</h3>
             </div>
             <input
               type="checkbox"
@@ -383,7 +383,7 @@ export function NotificationPreferencesEnhanced({
           {preferences.quietHours?.enabled && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Start Time</label>
                 <input
                   type="time"
                   name="quietHoursStart"
@@ -392,7 +392,7 @@ export function NotificationPreferencesEnhanced({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">End Time</label>
                 <input
                   type="time"
                   name="quietHoursEnd"
@@ -401,7 +401,7 @@ export function NotificationPreferencesEnhanced({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Timezone</label>
                 <select
                   name="timezone"
                   defaultValue={preferences.quietHours?.timezone}

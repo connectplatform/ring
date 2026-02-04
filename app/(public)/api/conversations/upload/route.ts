@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { file as fileService } from '@/lib/file'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { cookies, headers } from 'next/headers'
@@ -110,37 +110,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
     const uniqueFileName = `${fileNamePrefix}/${userId}_${timestamp}_${sanitizedFileName}`
 
-    // Upload the file to Vercel Blob storage
-    const blob = await put(uniqueFileName, file, {
+    // Upload the file using our file abstraction layer
+    const result = await fileService().upload(uniqueFileName, file, {
       access: 'public',
     })
 
     console.log('API: /api/conversations/upload - File uploaded successfully:', {
-      url: blob.url,
+      url: result.url,
       conversationId: conversationId || 'not specified'
     })
 
+    // Check if upload was successful
+    if (!result.success) {
+      console.error('API: /api/conversations/upload - File upload failed:', result.error)
+      return NextResponse.json(
+        { error: result.error || 'File upload failed' },
+        {
+          status: 500,
+          headers: { 'Cache-Control': 'no-store, max-age=0' }
+        }
+      )
+    }
+
     // Determine file category for messaging
     let fileCategory = 'file'
-    if (file.type.startsWith('image/')) {
+    if (result.contentType.startsWith('image/')) {
       fileCategory = 'image'
-    } else if (file.type.startsWith('video/')) {
+    } else if (result.contentType.startsWith('video/')) {
       fileCategory = 'video'
-    } else if (file.type.startsWith('audio/')) {
+    } else if (result.contentType.startsWith('audio/')) {
       fileCategory = 'audio'
     }
 
-    // Transform Vercel Blob response to match messaging API interface
+    // Transform response to match messaging API interface
     const response = {
-      success: true,
-      url: blob.url,
-      downloadUrl: blob.downloadUrl,
+      success: result.success,
+      url: result.url,
+      downloadUrl: result.downloadUrl || result.url,
       filename: file.name,
-      size: file.size,
-      contentType: file.type,
+      size: result.size,
+      contentType: result.contentType,
       conversationId: conversationId || null,
       fileCategory,
-      uploadedAt: new Date().toISOString(),
+      uploadedAt: result.uploadedAt,
       uploadedBy: userId
     }
 

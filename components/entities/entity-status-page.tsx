@@ -212,22 +212,22 @@ export default function EntityStatusPage({
           </div>
 
           {/* Status Title */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              <h1 className="text-2xl font-bold text-foreground mb-4">
             {t(`${translationKey}.title`)}
           </h1>
 
           {/* Status Description */}
-          <p className="text-gray-600 mb-6">
+              <p className="text-muted-foreground mb-6">
             {t(`${translationKey}.description`)}
           </p>
 
           {/* Entity Name Display (if provided) */}
           {entityName && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('entityName')}
               </p>
-              <p className="font-medium text-gray-900">
+                <p className="font-medium text-foreground">
                 {entityName}
               </p>
             </div>
@@ -236,10 +236,10 @@ export default function EntityStatusPage({
           {/* Entity ID Display (if provided) */}
           {entityId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('entityId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {entityId}
               </p>
             </div>
@@ -248,10 +248,10 @@ export default function EntityStatusPage({
           {/* Review ID Display (for approval processes) */}
           {reviewId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                 {t('reviewId')}
               </p>
-              <p className="font-mono text-sm font-medium text-gray-900">
+                <p className="font-mono text-sm font-medium text-foreground">
                 {reviewId}
               </p>
             </div>
@@ -263,7 +263,7 @@ export default function EntityStatusPage({
               <p className="text-sm text-red-600 mb-2 font-medium">
                 {t('rejectionReason')}
               </p>
-              <p className="text-sm text-gray-700">
+                  <p className="text-sm text-muted-foreground">
                 {reason}
               </p>
             </div>
@@ -281,7 +281,7 @@ export default function EntityStatusPage({
 
           {action === 'create' && status === 'draft' && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {t(`${translationKey}.instruction`)}
               </p>
             </div>
@@ -310,7 +310,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={returnTo || ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>
@@ -330,7 +330,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>
@@ -358,7 +358,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.CONTACT(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.contactSupport')}
                 </Link>
@@ -378,7 +378,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>
@@ -398,7 +398,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>
@@ -418,7 +418,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>
@@ -438,7 +438,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>
@@ -458,7 +458,7 @@ export default function EntityStatusPage({
                 )}
                 <Link 
                   href={ROUTES.ENTITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-3 px-6 rounded-lg transition-colors"
+                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
                 >
                   {t('actions.backToEntities')}
                 </Link>

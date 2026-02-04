@@ -25,9 +25,8 @@ Ring Platform can be deployed using Docker containers with full Kubernetes orche
 
 ### Docker Compose (Development)
 
-```yaml
-version: '3.9'
-services:
+<Code language="yaml" title="version: '3.9'">
+{`services:
   ring-platform:
     build:
       context: .
@@ -57,25 +56,23 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-```
+  postgres_data:`}
+</Code>
 
 ### Quick Development Setup
 
-```bash
-# Clone repository
-git clone https://github.com/connectplatform/ring.git
+Clone repository Start development environment View logs Access application
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
 cd ring/ring-platform.org
 
-# Start development environment
 docker-compose -f docker-compose.dev.yml up -d
 
-# View logs
 docker-compose logs -f ring-platform
 
-# Access application
-open http://localhost:3000
-```
+open http://localhost:3000`}
+</Code>
 
 ## Production Deployment
 
@@ -85,12 +82,13 @@ open http://localhost:3000
 > **CRITICAL**: Never use server-side syntax highlighting or Mermaid.js imports at top level - causes 30-second load times and 503 timeouts!
 
 #### Platform Specification
-```bash
-# Always build with explicit platform for Kubernetes AMD64 nodes
-docker build --platform linux/amd64 \
+Always build with explicit platform for Kubernetes AMD64 nodes
+
+<Code language="bash" title="terminal">
+{`docker build --platform linux/amd64 \
   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
-  -f Dockerfile .
-```
+  -f Dockerfile .`}
+</Code>
 
 #### Docker Configuration
 - **DO NOT** exclude `docs/` directory from `.dockerignore`
@@ -100,30 +98,31 @@ docker build --platform linux/amd64 \
 ### Build & Deploy Process
 
 #### Step 1: Build Docker Image
-```bash
-cd ring-platform.org
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
 docker build --platform linux/amd64 \
   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
-  -f Dockerfile .
-```
+  -f Dockerfile .`}
+</Code>
 
 #### Step 2: Push to Registry
-```bash
-docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
-```
+<Code language="bash" title="terminal">
+{`docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64`}
+</Code>
 
 #### Step 3: Deploy to Kubernetes
-```bash
 ssh k8s-control-01 'kubectl -n ring-platform-org set image \
-  deployment/ring-platform \
-  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'
-```
+
+<Code language="bash" title="terminal">
+{`deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'`}
+</Code>
 
 #### Step 4: Monitor Deployment
-```bash
-ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
-ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'
-```
+<Code language="bash" title="terminal">
+{`ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
+ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'`}
+</Code>
 
 ---
 
@@ -145,31 +144,32 @@ Ring Platform is deployed on Kubernetes using HAProxy as an external load balanc
 
 Configure your DNS provider to point `ring-platform.org` to your public IPs:
 
-```bash
-# Primary setup (Recommended)
-ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
+Primary setup (Recommended) Advanced setup with load balancing
+
+<Code language="bash" title="terminal">
+{`ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
 www.ring-platform.org  CNAME ring-platform.org
 
-# Advanced setup with load balancing
 ring-platform.org      A     195.95.233.69    # Primary (HAProxy)
-ring-platform.org      A     195.95.233.15    # Secondary (MetalLB)
-```
+ring-platform.org      A     195.95.233.15    # Secondary (MetalLB)`}
+</Code>
 
 ## Namespace Setup
 
-```bash
-# Create Ring namespace
-kubectl create namespace ring-platform-org
+Create Ring namespace Set as default for deployment
 
-# Set as default for deployment
-kubectl config set-context --current --namespace=ring-platform-org
-```
+<Code language="bash" title="terminal">
+{`kubectl create namespace ring-platform-org
+
+kubectl config set-context --current --namespace=ring-platform-org`}
+</Code>
 
 ## Ring Platform Application Deployment
 
-```yaml
-# ring-platform-deployment.yaml
-apiVersion: apps/v1
+ring-platform-deployment.yaml Ring Platform Service with MetalLB
+
+<Code language="yaml" title="configuration">
+{`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ring-platform
@@ -221,7 +221,6 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
 ---
-# Ring Platform Service with MetalLB
 apiVersion: v1
 kind: Service
 metadata:
@@ -242,14 +241,15 @@ spec:
     targetPort: 3000
     protocol: TCP
   type: LoadBalancer
-  loadBalancerIP: 10.10.0.41
-```
+  loadBalancerIP: 10.10.0.41`}
+</Code>
 
 ## NGINX Ingress Configuration
 
-```yaml
-# ring-platform-ingress.yaml
-apiVersion: networking.k8s.io/v1
+ring-platform-ingress.yaml Main application Documentation subdomain
+
+<Code language="yaml" title="configuration">
+{`apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ring-platform-ingress
@@ -270,7 +270,6 @@ spec:
     - docs.ring-platform.org
     secretName: ring-platform-tls
   rules:
-  # Main application
   - host: ring-platform.org
     http:
       paths:
@@ -291,7 +290,6 @@ spec:
             name: ring-platform-service
             port:
               number: 80
-  # Documentation subdomain
   - host: docs.ring-platform.org
     http:
       paths:
@@ -301,26 +299,25 @@ spec:
           service:
             name: ring-platform-service
             port:
-              number: 80
-```
+              number: 80`}
+</Code>
 
 ## Secrets and ConfigMaps
 
-```yaml
-# ring-platform-secrets.yaml
-apiVersion: v1
+ring-platform-secrets.yaml Base64 encoded values - generate these securely for your environment ring-platform-config.yaml
+
+<Code language="yaml" title="configuration">
+{`apiVersion: v1
 kind: Secret
 metadata:
   name: ring-platform-secrets
   namespace: ring-platform-org
 type: Opaque
 data:
-  # Base64 encoded values - generate these securely for your environment
   database-url: <base64-encoded-postgres-url>
   nextauth-secret: <base64-encoded-jwt-secret>
   firebase-key: <base64-encoded-service-account-key>
 ---
-# ring-platform-config.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -331,50 +328,46 @@ data:
   NEXTAUTH_URL: "https://ring-platform.org"
   NEXT_PUBLIC_API_URL: "https://ring-platform.org"
   LOG_LEVEL: "info"
-  METRICS_ENABLED: "true"
-```
+  METRICS_ENABLED: "true"`}
+</Code>
 
 ## Deployment Commands
 
 ### Initial Deployment
 
-```bash
-# 1. Apply all configurations
-kubectl apply -f ring-platform-deployment.yaml
+1. Apply all configurations 2. Check deployment status 3. Check MetalLB IP allocation 4. Test external access 5. Check logs
+
+<Code language="bash" title="terminal">
+{`kubectl apply -f ring-platform-deployment.yaml
 kubectl apply -f ring-platform-ingress.yaml
 kubectl apply -f ring-platform-secrets.yaml
 kubectl apply -f ring-platform-config.yaml
 
-# 2. Check deployment status
 kubectl get pods -n ring-platform-org
 kubectl get svc -n ring-platform-org
 kubectl get ingress -n ring-platform-org
 
-# 3. Check MetalLB IP allocation
 kubectl get svc -n ring-platform-org -o wide
 
-# 4. Test external access
 curl -H "Host: ring-platform.org" http://195.95.233.69
 curl -H "Host: docs.ring-platform.org" http://195.95.233.69
 
-# 5. Check logs
-kubectl logs -l app=ring-platform -n ring-platform-org --tail=50
-```
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=50`}
+</Code>
 
 ### Updates and Rollbacks
 
-```bash
-# Update to new version
-kubectl set image deployment/ring-platform \
+Update to new version Check rollout status Rollback if needed
+
+<Code language="bash" title="terminal">
+{`kubectl set image deployment/ring-platform \
   ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
   -n ring-platform-org
 
-# Check rollout status
 kubectl rollout status deployment/ring-platform -n ring-platform-org
 
-# Rollback if needed
-kubectl rollout undo deployment/ring-platform -n ring-platform-org
-```
+kubectl rollout undo deployment/ring-platform -n ring-platform-org`}
+</Code>
 
 ## Traffic Flow Architecture
 
@@ -396,102 +389,96 @@ Application Containers (Next.js)
 
 ### Production Health Checks
 
-```bash
-# Application health
-curl https://ring-platform.org/api/health
+Application health Documentation pages Pod status Service status Ingress status
 
-# Documentation pages
+<Code language="bash" title="terminal">
+{`curl https://ring-platform.org/api/health
+
 curl https://ring-platform.org/en/docs/architecture
 
-# Pod status
 kubectl get pods -n ring-platform-org -l app=ring-platform
 
-# Service status
 kubectl get svc -n ring-platform-org
 
-# Ingress status
-kubectl describe ingress ring-platform-ingress -n ring-platform-org
-```
+kubectl describe ingress ring-platform-ingress -n ring-platform-org`}
+</Code>
 
 ### Common Deployment Issues
 
 #### 404 Errors on /docs Pages
-```bash
-# Check if docs directory is included in Docker build
-kubectl exec -it <pod-name> -n ring-platform-org -- ls -la /app/docs/
+Check if docs directory is included in Docker build Verify ingress configuration
 
-# Verify ingress configuration
-kubectl describe ingress ring-platform-ingress -n ring-platform-org
-```
+<Code language="bash" title="terminal">
+{`kubectl exec -it <pod-name> -n ring-platform-org -- ls -la /app/docs/
+
+kubectl describe ingress ring-platform-ingress -n ring-platform-org`}
+</Code>
 
 #### 503 Timeouts on Diagram Pages
-```bash
-# Check for Mermaid.js errors in logs
-kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i mermaid
+Check for Mermaid.js errors in logs Verify dynamic imports are working
 
-# Verify dynamic imports are working
-kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "mermaid"
-```
+<Code language="bash" title="terminal">
+{`kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i mermaid
+
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "mermaid"`}
+</Code>
 
 #### Syntax Highlighting Timeouts
-```bash
-# Check for Shiki processing errors
-kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "shiki\|syntax"
+Check for Shiki processing errors Verify client-side highlighting is active
 
-# Verify client-side highlighting is active
-kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "enhance"
-```
+<Code language="bash" title="terminal">
+{`kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "shiki\|syntax"
+
+kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "enhance"`}
+</Code>
 
 ### Performance Monitoring
 
-```bash
-# Check pod resource usage
-kubectl top pods -n ring-platform-org
+Check pod resource usage Monitor response times Check for memory issues
 
-# Monitor response times
+<Code language="bash" title="terminal">
+{`kubectl top pods -n ring-platform-org
+
 kubectl logs -l app=ring-platform -n ring-platform-org --tail=50 | grep -E "(GET|POST).*(200|500|503)"
 
-# Check for memory issues
-kubectl describe pod <pod-name> -n ring-platform-org | grep -A 10 "Containers:"
-```
+kubectl describe pod <pod-name> -n ring-platform-org | grep -A 10 "Containers:"`}
+</Code>
 
 ## Scaling and Updates
 
 ### Horizontal Scaling
-```bash
-# Scale Ring Platform application
-kubectl scale deployment ring-platform --replicas=3 -n ring-platform-org
+Scale Ring Platform application Check scaling status
 
-# Check scaling status
-kubectl get pods -n ring-platform-org -l app=ring-platform
-```
+<Code language="bash" title="terminal">
+{`kubectl scale deployment ring-platform --replicas=3 -n ring-platform-org
+
+kubectl get pods -n ring-platform-org -l app=ring-platform`}
+</Code>
 
 ### Rolling Updates
-```bash
-# Update with new version
-kubectl set image deployment/ring-platform \
+Update with new version Check rollout status Rollback if needed
+
+<Code language="bash" title="terminal">
+{`kubectl set image deployment/ring-platform \
   ring-platform=ghcr.io/connectplatform/ring:v0.9.19-ring-platform.org-amd64 \
   -n ring-platform-org
 
-# Check rollout status
 kubectl rollout status deployment/ring-platform -n ring-platform-org
 
-# Rollback if needed
-kubectl rollout undo deployment/ring-platform -n ring-platform-org
-```
+kubectl rollout undo deployment/ring-platform -n ring-platform-org`}
+</Code>
 
 ## Backup and Recovery
 
-```bash
-# Backup configurations
-kubectl get all -n ring-platform-org -o yaml > ring-platform-backup.yaml
+Backup configurations Backup secrets (careful with sensitive data) Restore
 
-# Backup secrets (careful with sensitive data)
+<Code language="bash" title="terminal">
+{`kubectl get all -n ring-platform-org -o yaml > ring-platform-backup.yaml
+
 kubectl get secrets -n ring-platform-org -o yaml > ring-platform-secrets-backup.yaml
 
-# Restore
-kubectl apply -f ring-platform-backup.yaml
-```
+kubectl apply -f ring-platform-backup.yaml`}
+</Code>
 
 ## Security Considerations
 
@@ -509,6 +496,200 @@ kubectl apply -f ring-platform-backup.yaml
 - Implement RBAC for Kubernetes resources
 - Use service account tokens with minimal permissions
 - Regularly rotate credentials and certificates
+
+## Maintenance & Operations
+
+### Container Runtime Cleanup
+
+Kubernetes doesn't provide native kubectl commands for container runtime maintenance. Use these Legion-approved procedures for node-level cleanup:
+
+#### Docker Image Cleanup on Nodes
+On control plane node On worker nodes (via SSH) Check disk usage after cleanup
+
+<Code language="bash" title="terminal">
+{`sudo docker image prune -a --filter "until=48h" -f
+sudo docker system prune -f
+
+ssh k8s-worker-01 "sudo docker image prune -a --filter 'until=48h' -f && sudo docker system prune -f"
+ssh k8s-worker-02 "sudo docker image prune -a --filter 'until=48h' -f && sudo docker system prune -f"
+
+df -h`}
+</Code>
+
+#### Automated Cleanup Script
+Legion Kubernetes Node Maintenance Script Usage: ./k8s-node-maintenance.sh [node1] [node2] ...
+
+<Code language="bash" title="terminal">
+{`#!/bin/bash
+
+NODES=("$@")
+if [ ${#NODES[@]} -eq 0 ]; then
+    NODES=("k8s-control-01" "k8s-worker-01" "k8s-worker-02")
+fi
+
+echo "🛡️ Legion Kubernetes Node Maintenance Starting..."
+
+for node in "${NODES[@]}"; do
+    echo "🔧 Cleaning node: $node"
+    ssh "$node" "
+        echo 'Stopping inactive containers...'
+        docker stop \$(docker ps -q -f status=exited) 2>/dev/null || true
+
+        echo 'Removing stopped containers...'
+        docker rm \$(docker ps -q -f status=exited) 2>/dev/null || true
+
+        echo 'Removing dangling images...'
+        docker image prune -f
+
+        echo 'Removing unused images older than 7 days...'
+        docker image prune -a --filter 'until=168h' -f
+
+        echo 'System-wide cleanup...'
+        docker system prune -f
+
+        echo 'Disk usage after cleanup:'
+        df -h /
+    "
+    echo "✅ Node $node cleaned"
+done
+
+echo "🎯 Legion maintenance complete!"`}
+</Code>
+
+### Kubernetes Resource Cleanup
+
+#### Remove Stuck/Terminating Pods
+Force delete stuck terminating pod Remove all failed pods Remove completed jobs
+
+<Code language="bash" title="terminal">
+{`kubectl delete pod <pod-name> -n ring-platform-org --force --grace-period=0
+
+kubectl delete pods --field-selector status.phase=Failed -n ring-platform-org
+
+kubectl delete jobs --field-selector status.successful=1 -n ring-platform-org`}
+</Code>
+
+#### Clean Up Unused Resources
+Remove unused persistent volume claims Remove unused configmaps and secrets (be careful!) Clean up old replicasets from rollouts
+
+<Code language="bash" title="terminal">
+{`kubectl delete pvc --field-selector status.phase=Lost -n ring-platform-org
+
+kubectl get configmaps -n ring-platform-org
+kubectl get secrets -n ring-platform-org
+
+kubectl delete rs --field-selector status.replicas=0 -n ring-platform-org`}
+</Code>
+
+### Node Maintenance
+
+#### Check Node Resource Usage
+Overall cluster resource usage Pod resource usage by namespace Check node capacity and allocation
+
+<Code language="bash" title="terminal">
+{`kubectl top nodes
+
+kubectl top pods -n ring-platform-org
+
+kubectl describe nodes | grep -A 10 "Allocated resources"`}
+</Code>
+
+#### Node Disk Cleanup
+Check disk usage on all nodes Clean up kubelet logs (if needed)
+
+<Code language="bash" title="terminal">
+{`for node in k8s-control-01 k8s-worker-01 k8s-worker-02; do
+    echo "=== $node ==="
+    ssh $node "df -h && echo && docker system df"
+done
+
+ssh k8s-control-01 "find /var/log/containers -name '*.log' -mtime +7 -delete"
+ssh k8s-worker-01 "find /var/log/containers -name '*.log' -mtime +7 -delete"
+ssh k8s-worker-02 "find /var/log/containers -name '*.log' -mtime +7 -delete"`}
+</Code>
+
+### Database Maintenance
+
+#### PostgreSQL Cleanup
+Connect to PostgreSQL pod Vacuum and analyze tables Check table sizes Reindex if needed
+
+<Code language="bash" title="terminal">
+{`kubectl exec -it postgres-7c5c6fc797-wn8j5 -n ring-platform-org -- psql -U ring_user -d ring_platform
+
+VACUUM ANALYZE;
+
+SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+REINDEX DATABASE ring_platform;`}
+</Code>
+
+#### Backup Verification
+List recent backups Check backup logs
+
+<Code language="bash" title="terminal">
+{`kubectl get jobs -n ring-platform-org | grep backup
+
+kubectl logs job/ring-platform-backup-20251018 -n ring-platform-org`}
+</Code>
+
+### Monitoring & Alerting
+
+#### Check System Health
+Pod status overview Check for restarts Resource usage alerts
+
+<Code language="bash" title="terminal">
+{`kubectl get pods -n ring-platform-org -o wide
+
+kubectl get pods -n ring-platform-org --field-selector status.phase=Running -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].restartCount}{"\n"}{end}'
+
+kubectl top pods -n ring-platform-org --sort-by=cpu
+kubectl top pods -n ring-platform-org --sort-by=memory`}
+</Code>
+
+#### Log Aggregation
+Recent application logs PostgreSQL logs
+
+<Code language="bash" title="terminal">
+{`kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 --since=1h
+
+kubectl logs postgres-7c5c6fc797-wn8j5 -n ring-platform-org --tail=50`}
+</Code>
+
+### Automated Maintenance Schedule
+
+#### Daily Tasks
+Clean up completed jobs and failed pods
+
+<Code language="bash" title="terminal">
+{`kubectl delete jobs --field-selector status.successful=1 -n ring-platform-org
+kubectl delete pods --field-selector status.phase=Failed -n ring-platform-org`}
+</Code>
+
+#### Weekly Tasks
+Docker image cleanup on nodes PostgreSQL maintenance
+
+<Code language="bash" title="terminal">
+{`for node in k8s-control-01 k8s-worker-01 k8s-worker-02; do
+    ssh $node "docker image prune -a --filter 'until=168h' -f"
+done
+
+kubectl exec -it postgres-7c5c6fc797-wn8j5 -n ring-platform-org -- psql -U ring_user -d ring_platform -c "VACUUM ANALYZE;"`}
+</Code>
+
+#### Monthly Tasks
+Full system cleanup Archive old logs
+
+<Code language="bash" title="terminal">
+{`kubectl delete rs --field-selector status.replicas=0 -n ring-platform-org
+kubectl delete pvc --field-selector status.phase=Lost -n ring-platform-org
+
+for node in k8s-control-01 k8s-worker-01 k8s-worker-02; do
+    ssh $node "find /var/log/containers -name '*.log' -mtime +30 -exec gzip {} \;"
+done`}
+</Code>
 
 ## Version History
 

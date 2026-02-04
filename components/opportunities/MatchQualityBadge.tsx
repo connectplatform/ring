@@ -193,7 +193,7 @@ const MatchQualityBadge: React.FC<MatchQualityBadgeProps> = ({
           </div>
 
           {explanation && (
-            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+            <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded-lg">
               <p className="font-medium mb-1">{t('explanation')}:</p>
               <p>{explanation}</p>
             </div>
@@ -272,7 +272,7 @@ const MatchQualityBadge: React.FC<MatchQualityBadgeProps> = ({
                 </Badge>
               </div>
               {explanation && (
-                <p className="text-sm text-gray-600">{explanation}</p>
+                <p className="text-sm text-muted-foreground">{explanation}</p>
               )}
               <p className="text-xs text-gray-500">
                 {t('clickForDetails')}
@@ -341,7 +341,7 @@ export const MatchStars: React.FC<{
           }`}
         />
       ))}
-      <span className="ml-1 text-xs text-gray-600">{score}</span>
+                <span className="ml-1 text-xs text-muted-foreground">{score}</span>
     </div>
   );
 };
@@ -359,7 +359,7 @@ export const MatchConfidenceMeter: React.FC<{
   return (
     <div className={`space-y-1 ${className}`}>
       {label && (
-        <div className="flex justify-between text-xs text-gray-600">
+            <div className="flex justify-between text-xs text-muted-foreground">
           <span>{label}</span>
           <span>{Math.round(confidence * 100)}%</span>
         </div>

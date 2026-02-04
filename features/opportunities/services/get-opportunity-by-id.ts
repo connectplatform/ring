@@ -1,21 +1,18 @@
 /**
- * Opportunity Retrieval Service
+ * Get Opportunity By ID Service
  * 
- * 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
- * - Centralized service manager with React 19 cache() for request deduplication
- * - Build-time phase detection and intelligent caching strategies
- * - Auth.js v5 authentication with role-based access control
- * - Serialization support for client components
- * - Unified opportunity retrieval functions
+ * React 19 cache() wrapper for opportunity retrieval
+ * PostgreSQL via DatabaseService abstraction
+ * Build-time optimization with static data cache
  */
 
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
 import { cache } from 'react'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedDocument as getCachedStaticDocument, getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
-import { db } from '@/lib/database/DatabaseService'
-import { auth } from '@/auth'
+import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
 import { UserRole } from '@/features/auth/types'
+import { auth } from '@/auth'
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 /**
  * Custom error classes for opportunity operations
@@ -89,14 +86,14 @@ export const getOpportunityById = cache(async (id: string): Promise<Opportunity 
       const cachedOpportunities = await getCachedOpportunities()
       opportunity = cachedOpportunities.find(o => o.id === id) as Opportunity || null
     } else {
-      // Runtime: Use db.command() abstraction
-      const result = await db().execute('findById', {
-        collection: 'opportunities',
-        id: id
-      });
+      // Runtime: Use DatabaseService abstraction
+      await initializeDatabase()
+      const db = getDatabaseService()
+      const result = await db.findById('opportunities', id)
 
       if (result.success && result.data) {
-        opportunity = result.data.data as Opportunity;
+        const doc = result.data as any
+        opportunity = doc.data || doc as Opportunity
       }
     }
 
@@ -155,21 +152,21 @@ export const getSerializedOpportunityById = cache(async (id: string): Promise<Se
  */
 export const getOpportunity = cache(async (opportunityId: string): Promise<Opportunity | null> => {
   try {
-    const result = await db().execute('findById', {
-      collection: 'opportunities',
-      id: opportunityId
-    });
+    await initializeDatabase()
+    const db = getDatabaseService()
+    const result = await db.findById('opportunities', opportunityId)
 
     if (result.success && result.data) {
-      const opportunity = result.data.data as Opportunity;
+      const doc = result.data as any
+      const opportunity = doc.data || doc
       // Only return public opportunities for unauthenticated access
       if (opportunity && opportunity.isConfidential) {
         return null
       }
-      return opportunity;
+      return opportunity as Opportunity
     }
 
-    return null;
+    return null
   } catch (error) {
     return null
   }

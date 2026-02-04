@@ -13,26 +13,26 @@ export function Callout({ children, type = 'info', title }: CalloutProps) {
   const config = {
     info: {
       icon: Info,
-      className: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-200',
-      iconClassName: 'text-blue-500',
+      className: 'border-info bg-info/10 text-info-foreground',
+      iconClassName: 'text-info',
       defaultTitle: 'Info',
     },
     warning: {
       icon: AlertTriangle,
-      className: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200',
-      iconClassName: 'text-yellow-500',
+      className: 'border-warning bg-warning/10 text-warning-foreground',
+      iconClassName: 'text-warning',
       defaultTitle: 'Warning',
     },
     error: {
       icon: AlertCircle,
-      className: 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-200',
-      iconClassName: 'text-red-500',
+      className: 'border-destructive bg-destructive/10 text-destructive-foreground',
+      iconClassName: 'text-destructive',
       defaultTitle: 'Error',
     },
     success: {
       icon: CheckCircle,
-      className: 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-200',
-      iconClassName: 'text-green-500',
+      className: 'border-success bg-success/10 text-success-foreground',
+      iconClassName: 'text-success',
       defaultTitle: 'Success',
     },
   }
@@ -46,7 +46,7 @@ export function Callout({ children, type = 'info', title }: CalloutProps) {
         {title && (
           <div className="mb-1 font-semibold">{title}</div>
         )}
-        <div className="text-sm leading-relaxed [&>p]:mb-0">
+        <div className="text-sm leading-relaxed [&>p]:mb-0 [&>ul]:my-3 [&>ul]:ml-4 [&>ul]:list-disc [&>ul]:space-y-1 [&>ul>li]:text-sm [&_a]:text-primary [&_a]:underline [&_a:hover]:text-primary/80">
           {children}
         </div>
       </div>

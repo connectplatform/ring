@@ -1,0 +1,806 @@
+---
+title: Api Integration
+description: Api Integration documentation for Ring Platform
+---
+
+# API Integration Examples
+
+Complete examples for integrating with Ring Platform's 77 API endpoints across 9 domains.
+
+## 🔌 API Client Setup
+
+### Base API Client
+
+// lib/api-client.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+
+class RingAPIClient {
+  private baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://ring.ck.ua/api'
+
+  private async getAuthHeaders() {
+    const session = await auth()
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': session?.accessToken ? `Bearer ${session.accessToken}` : '',
+    }
+  }
+
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const headers = await this.getAuthHeaders()
+    
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  }
+
+  // Entity operations
+  async getEntities(params?: { type?: string; limit?: number }) {
+    const searchParams = new URLSearchParams(params as Record<string, string>)
+    return this.request<{ entities: Entity[] }>(`/entities?${searchParams}`)
+  }
+
+  async createEntity(data: CreateEntityData) {
+    return this.request<Entity>('/entities', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateEntity(id: string, data: Partial<Entity>) {
+    return this.request<Entity>(`/entities/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteEntity(id: string) {
+    return this.request<{ success: boolean }>(`/entities/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Opportunity operations
+  async getOpportunities(params?: { type?: string; entityId?: string }) {
+    const searchParams = new URLSearchParams(params as Record<string, string>)
+    return this.request<{ opportunities: Opportunity[] }>(`/opportunities?${searchParams}`)
+  }
+
+  async createOpportunity(data: CreateOpportunityData) {
+    return this.request<Opportunity>('/opportunities', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Messaging operations
+  async getConversations() {
+    return this.request<{ conversations: Conversation[] }>('/messaging/conversations')
+  }
+
+  async sendMessage(conversationId: string, content: string) {
+    return this.request<Message>(`/messaging/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    })
+  }
+}
+
+export const apiClient = new RingAPIClient()`}
+</Code>
+
+## 🏢 Entity Management
+
+### Entity CRUD Operations
+
+// components/EntityManager.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+import { apiClient } from '@/lib/api-client'
+
+interface Entity {
+  id: string
+  name: string
+  type: string
+  description: string
+  logo?: string
+  verified: boolean
+  createdAt: string
+}
+
+export function EntityManager() {
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  const [newEntity, setNewEntity] = useState({
+    name: '',
+    type: 'technology',
+    description: '',
+  })
+
+  useEffect(() => {
+    loadEntities()
+  }, [])
+
+  const loadEntities = async () => {
+    try {
+      const response = await apiClient.getEntities()
+      setEntities(response.entities)
+    } catch (error) {
+      console.error('Failed to load entities:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateEntity = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreating(true)
+
+    try {
+      const entity = await apiClient.createEntity(newEntity)
+      setEntities([...entities, entity])
+      setNewEntity({ name: '', type: 'technology', description: '' })
+    } catch (error) {
+      console.error('Failed to create entity:', error)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleDeleteEntity = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this entity?')) return
+
+    try {
+      await apiClient.deleteEntity(id)
+      setEntities(entities.filter(e => e.id !== id))
+    } catch (error) {
+      console.error('Failed to delete entity:', error)
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4">Loading entities...</div>
+  }
+
+  return (
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-6">Entity Management</h2>
+
+      {/* Create Entity Form */}
+      <form onSubmit={handleCreateEntity} className="mb-8 p-4 border rounded-lg">
+        <h3 className="text-lg font-semibold mb-4">Create New Entity</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input
+            type="text"
+            placeholder="Entity name"
+            value={newEntity.name}
+            onChange={(e) => setNewEntity({ ...newEntity, name: e.target.value })}
+            className="p-2 border rounded"
+            required
+          />
+          <select
+            value={newEntity.type}
+            onChange={(e) => setNewEntity({ ...newEntity, type: e.target.value })}
+            className="p-2 border rounded"
+          >
+            <option value="technology">Technology</option>
+            <option value="healthcare">Healthcare</option>
+            <option value="finance">Finance</option>
+            <option value="education">Education</option>
+            <option value="retail">Retail</option>
+          </select>
+          <button
+            type="submit"
+            disabled={creating}
+            className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {creating ? 'Creating...' : 'Create Entity'}
+          </button>
+        </div>
+        <textarea
+          placeholder="Entity description"
+          value={newEntity.description}
+          onChange={(e) => setNewEntity({ ...newEntity, description: e.target.value })}
+          className="w-full p-2 border rounded mt-2"
+          rows={3}
+        />
+      </form>
+
+      {/* Entity List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {entities.map((entity) => (
+          <div key={entity.id} className="border rounded-lg p-4">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-semibold">{entity.name}</h3>
+              {entity.verified && (
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                  Verified
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-600 mb-2">{entity.type}</p>
+            <p className="text-sm mb-4">{entity.description}</p>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">
+                Created: {new Date(entity.createdAt).toLocaleDateString()}
+              </span>
+              <button
+                onClick={() => handleDeleteEntity(entity.id)}
+                className="text-red-600 hover:text-red-800 text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 💼 Opportunity Management
+
+### Opportunity Marketplace
+
+// components/OpportunityBoard.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+import { apiClient } from '@/lib/api-client'
+
+interface Opportunity {
+  id: string
+  title: string
+  type: 'job' | 'partnership' | 'volunteer' | 'mentorship' | 'resource' | 'event'
+  nature: 'offer' | 'request'
+  description: string
+  entityId: string
+  entityName: string
+  deadline?: string
+  confidential: boolean
+  applicationsCount: number
+}
+
+export function OpportunityBoard() {
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [filter, setFilter] = useState<{
+    type?: string
+    nature?: string
+  }>({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadOpportunities()
+  }, [filter])
+
+  const loadOpportunities = async () => {
+    try {
+      const response = await apiClient.getOpportunities(filter)
+      setOpportunities(response.opportunities)
+    } catch (error) {
+      console.error('Failed to load opportunities:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getTypeIcon = (type: string) => {
+    const icons = {
+      job: '💼',
+      partnership: '🤝',
+      volunteer: '🙋',
+      mentorship: '👨‍🏫',
+      resource: '📦',
+      event: '📅'
+    }
+    return icons[type as keyof typeof icons] || '📋'
+  }
+
+  const getNatureColor = (nature: string) => {
+    return nature === 'offer' 
+      ? 'bg-green-100 text-green-800' 
+      : 'bg-blue-100 text-blue-800'
+  }
+
+  if (loading) {
+    return <div className="p-4">Loading opportunities...</div>
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Opportunity Board</h2>
+        
+        {/* Filters */}
+        <div className="flex gap-4">
+          <select
+            value={filter.type || ''}
+            onChange={(e) => setFilter({ ...filter, type: e.target.value || undefined })}
+            className="p-2 border rounded"
+          >
+            <option value="">All Types</option>
+            <option value="job">Jobs</option>
+            <option value="partnership">Partnerships</option>
+            <option value="volunteer">Volunteer</option>
+            <option value="mentorship">Mentorship</option>
+            <option value="resource">Resources</option>
+            <option value="event">Events</option>
+          </select>
+          
+          <select
+            value={filter.nature || ''}
+            onChange={(e) => setFilter({ ...filter, nature: e.target.value || undefined })}
+            className="p-2 border rounded"
+          >
+            <option value="">All</option>
+            <option value="offer">Offers</option>
+            <option value="request">Requests</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {opportunities.map((opportunity) => (
+          <div key={opportunity.id} className="border rounded-lg p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{getTypeIcon(opportunity.type)}</span>
+                <div>
+                  <h3 className="font-semibold">{opportunity.title}</h3>
+                  <p className="text-sm text-gray-600">{opportunity.entityName}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className={`text-xs px-2 py-1 rounded ${getNatureColor(opportunity.nature)}`}>
+                  {opportunity.nature}
+                </span>
+                {opportunity.confidential && (
+                  <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+                    Confidential
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-4 line-clamp-3">
+              {opportunity.description}
+            </p>
+
+            <div className="flex justify-between items-center text-sm text-gray-500">
+              <span>{opportunity.applicationsCount} applications</span>
+              {opportunity.deadline && (
+                <span>Due: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+              )}
+            </div>
+
+            <button className="w-full mt-4 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+              {opportunity.nature === 'offer' ? 'Apply' : 'Respond'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {opportunities.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No opportunities found matching your filters.</p>
+        </div>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+## 💬 Real-time Messaging
+
+### Message Integration
+
+// components/MessageCenter.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { apiClient } from '@/lib/api-client'
+
+interface Message {
+  id: string
+  content: string
+  senderId: string
+  senderName: string
+  timestamp: string
+  read: boolean
+}
+
+interface Conversation {
+  id: string
+  participants: string[]
+  lastMessage?: Message
+  unreadCount: number
+}
+
+export function MessageCenter() {
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [activeConversation, setActiveConversation] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    loadConversations()
+  }, [])
+
+  useEffect(() => {
+    if (activeConversation) {
+      loadMessages(activeConversation)
+    }
+  }, [activeConversation])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const loadConversations = async () => {
+    try {
+      const response = await apiClient.getConversations()
+      setConversations(response.conversations)
+    } catch (error) {
+      console.error('Failed to load conversations:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadMessages = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/messaging/conversations/${conversationId}/messages`)
+      const data = await response.json()
+      setMessages(data.messages || [])
+    } catch (error) {
+      console.error('Failed to load messages:', error)
+    }
+  }
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMessage.trim() || !activeConversation) return
+
+    try {
+      const message = await apiClient.sendMessage(activeConversation, newMessage)
+      setMessages([...messages, message])
+      setNewMessage('')
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4">Loading conversations...</div>
+  }
+
+  return (
+    <div className="flex h-96 border rounded-lg overflow-hidden">
+      {/* Conversations List */}
+      <div className="w-1/3 border-r bg-gray-50">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold">Conversations</h3>
+        </div>
+        <div className="overflow-y-auto h-full">
+          {conversations.map((conversation) => (
+            <div
+              key={conversation.id}
+              onClick={() => setActiveConversation(conversation.id)}
+              className={`p-4 border-b cursor-pointer hover:bg-gray-100 ${
+                activeConversation === conversation.id ? 'bg-blue-50' : ''
+              }`}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium">
+                    {conversation.participants.join(', ')}
+                  </p>
+                  {conversation.lastMessage && (
+                    <p className="text-sm text-gray-600 truncate">
+                      {conversation.lastMessage.content}
+                    </p>
+                  )}
+                </div>
+                {conversation.unreadCount > 0 && (
+                  <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-1">
+                    {conversation.unreadCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 flex flex-col">
+        {activeConversation ? (
+          <>
+            <div className="flex-1 p-4 overflow-y-auto">
+              {messages.map((message) => (
+                <div key={message.id} className="mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                      {message.senderName.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{message.senderName}</span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <div className="bg-gray-100 rounded-lg p-3 max-w-md">
+                        {message.content}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <form onSubmit={sendMessage} className="p-4 border-t">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1 p-2 border rounded-lg"
+                />
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Send
+                </button>
+              </div>
+            </form>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            Select a conversation to start messaging
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🔔 Notification System
+
+### Notification Management
+
+// components/NotificationCenter.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+
+interface Notification {
+  id: string
+  title: string
+  message: string
+  type: 'info' | 'success' | 'warning' | 'error'
+  read: boolean
+  createdAt: string
+  actionUrl?: string
+}
+
+export function NotificationCenter() {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadNotifications()
+    
+    // Set up real-time notifications
+    const eventSource = new EventSource('/api/notifications/stream')
+    
+    eventSource.onmessage = (event) => {
+      const notification = JSON.parse(event.data)
+      setNotifications(prev => [notification, ...prev])
+      setUnreadCount(prev => prev + 1)
+    }
+
+    return () => eventSource.close()
+  }, [])
+
+  const loadNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications')
+      const data = await response.json()
+      setNotifications(data.notifications || [])
+      setUnreadCount(data.unreadCount || 0)
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const markAsRead = async (id: string) => {
+    try {
+      await fetch(`/api/notifications/${id}/read`, { method: 'POST' })
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+    }
+  }
+
+  const getTypeIcon = (type: string) => {
+    const icons = {
+      info: 'ℹ️',
+      success: '✅',
+      warning: '⚠️',
+      error: '❌'
+    }
+    return icons[type as keyof typeof icons] || 'ℹ️'
+  }
+
+  const getTypeColor = (type: string) => {
+    const colors = {
+      info: 'border-blue-200 bg-blue-50',
+      success: 'border-green-200 bg-green-50',
+      warning: 'border-yellow-200 bg-yellow-50',
+      error: 'border-red-200 bg-red-50'
+    }
+    return colors[type as keyof typeof colors] || 'border-gray-200 bg-gray-50'
+  }
+
+  if (loading) {
+    return <div className="p-4">Loading notifications...</div>
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Notifications</h2>
+        {unreadCount > 0 && (
+          <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm">
+            {unreadCount} unread
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`border rounded-lg p-4 ${getTypeColor(notification.type)} ${
+              !notification.read ? 'border-l-4 border-l-blue-500' : ''
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-xl">{getTypeIcon(notification.type)}</span>
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-semibold">{notification.title}</h3>
+                  <span className="text-xs text-gray-500">
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-gray-700 mb-3">{notification.message}</p>
+                <div className="flex justify-between items-center">
+                  {notification.actionUrl && (
+                    <a
+                      href={notification.actionUrl}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      View Details →
+                    </a>
+                  )}
+                  {!notification.read && (
+                    <button
+                      onClick={() => markAsRead(notification.id)}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      Mark as read
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {notifications.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No notifications yet.</p>
+        </div>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+## 🎯 Error Handling
+
+### API Error Handler
+
+// lib/api-error-handler.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class APIError extends Error {
+  constructor(
+    public status: number,
+    public statusText: string,
+    public data?: any
+  ) {
+    super(`API Error: ${status} ${statusText}`)
+  }
+}
+
+export async function handleAPIResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null)
+    throw new APIError(response.status, response.statusText, errorData)
+  }
+  
+  return response.json()
+}
+
+// Usage in components
+export function useAPIErrorHandler() {
+  const handleError = (error: unknown) => {
+    if (error instanceof APIError) {
+      switch (error.status) {
+        case 401:
+          // Redirect to login
+          window.location.href = '/auth/signin'
+          break
+        case 403:
+          // Show permission error
+          alert('You do not have permission to perform this action')
+          break
+        case 429:
+          // Rate limit exceeded
+          alert('Too many requests. Please try again later.')
+          break
+        default:
+          alert(`Error: ${error.message}`)
+      }
+    } else {
+      console.error('Unexpected error:', error)
+      alert('An unexpected error occurred')
+    }
+  }
+
+  return { handleError }
+}`}
+</Code>
+
+---
+
+*Ready for more advanced integrations? Check out [Web3 Integration](/ru/library/examples/web3-integration) or [Real World Apps](/ru/library/examples/real-world).*

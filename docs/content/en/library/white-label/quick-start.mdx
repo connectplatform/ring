@@ -1,0 +1,291 @@
+---
+title: Quick Start - Your First Ring Clone
+description: Clone, configure, and deploy your Ring platform in 30 minutes
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Quick Start: Your First Ring Clone
+
+<Callout type="info">
+  **Time Estimate**: 30 minutes | **Prerequisites**: Git, Node.js 18+, basic command line knowledge
+</Callout>
+
+This guide will take you from zero to a deployed Ring platform. By the end, you'll have your own branded platform running in production.
+
+## Before You Start
+
+**What you'll need:**
+- Git installed
+- Node.js 18 or higher
+- A code editor (VS Code recommended)
+- Optional: Docker for containerized deployment
+
+**What you'll get:**
+- Fully functional Ring platform
+- 20+ integrated modules
+- AI-powered opportunity matching
+- Multi-vendor marketplace
+- Wallet with RING token support
+- Production-ready deployment
+
+---
+
+## Step 1: Clone the Repository
+
+<Steps>
+  <Step>
+    Open your terminal and clone the Ring platform:
+
+    <Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring-platform.git
+cd ring-platform`}
+</Code>
+  </Step>
+
+  <Step>
+    Install dependencies:
+
+    <Code language="bash" title="terminal">
+{`npm install`}
+</Code>
+  </Step>
+
+  <Step>
+    Start the development server:
+
+    <Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+  </Step>
+
+  <Step>
+    Open [http://localhost:3000](http://localhost:3000) in your browser. You should see your Ring platform running locally!
+  </Step>
+</Steps>
+
+---
+
+## Step 2: Basic Configuration
+
+<Steps>
+  <Step>
+    **Create environment file:**
+
+    Copy the example environment file:
+
+    <Code language="bash" title="terminal">
+{`# cp .env.example .env.local`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure your platform:**
+
+    Edit `.env.local` with your settings:
+
+    Your platform name Your domain (for production) Choose your database (start with Firebase for simplicity)
+
+<Code language="env" title="configuration">
+{`NEXT_PUBLIC_APP_NAME="My Ring Platform"
+
+    NEXT_PUBLIC_APP_URL="https://myplatform.com"
+
+    DATABASE_MODE=firebase_only`}
+</Code>
+  </Step>
+
+  <Step>
+    **Set up authentication:**
+
+    For rapid prototyping, Ring comes with Google authentication pre-configured. Add your Google OAuth credentials to `.env.local`:
+
+    <Code language="env" title="GOOGLE_CLIENT_ID=your_google_client_id">
+{`GOOGLE_CLIENT_SECRET=your_google_client_secret`}
+</Code>
+  </Step>
+</Steps>
+
+---
+
+## Step 3: Customize Branding
+
+<Steps>
+  <Step>
+    **Update platform name and description:**
+
+    Edit `lib/config/site.ts`:
+
+    <Code language="typescript" title="export const siteConfig = {">
+{`name: "My Platform Name",
+      description: "Solving [your mission] collectively with AI",
+      url: "https://myplatform.com",
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Customize colors and theme:**
+
+    Edit `tailwind.config.js` to match your brand:
+
+    <Code language="javascript" title="theme: {">
+{`extend: {
+        colors: {
+          primary: {
+            50: '#your-brand-color-50',
+            // ... add your brand colors
+          }
+        }
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Add your logo:**
+
+    Replace logo files in `public/` directory:
+    - `logo.svg` - main logo
+    - `favicon.ico` - browser favicon
+  </Step>
+</Steps>
+
+---
+
+## Step 4: Deploy to Production
+
+<Steps>
+  <Step>
+    **Choose deployment method:**
+
+    **Option A: Vercel (Recommended for beginners)**
+    <Code language="bash" title="terminal">
+{`npm i -g vercel
+vercel --prod`}
+</Code>
+
+    **Option B: Docker**
+    <Code language="bash" title="terminal">
+{`docker build -t my-ring-platform .
+docker run -p 3000:3000 my-ring-platform`}
+</Code>
+
+    **Option C: Traditional hosting**
+    <Code language="bash" title="terminal">
+{`npm run build
+npm start`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure production environment:**
+
+    Set production environment variables in your hosting platform:
+    - `NODE_ENV=production`
+    - `NEXT_PUBLIC_APP_URL=https://yourdomain.com`
+    - Database connection strings
+  </Step>
+
+  <Step>
+    **Set up domain:**
+
+    Point your domain to your deployment and update DNS records as needed.
+  </Step>
+</Steps>
+
+---
+
+## Step 5: Enable Core Features
+
+<Steps>
+  <Step>
+    **Enable user registration:**
+
+    Ring comes with authentication ready. Users can sign up with Google or email.
+  </Step>
+
+  <Step>
+    **Set up your first entity types:**
+
+    Go to `/admin/entities` to configure what types of organizations use your platform (companies, cooperatives, nonprofits, etc.)
+  </Step>
+
+  <Step>
+    **Configure opportunity categories:**
+
+    Define what types of opportunities your users can post (projects, partnerships, services, etc.)
+  </Step>
+
+  <Step>
+    **Enable marketplace features:**
+
+    Configure store categories and payment methods for your marketplace.
+  </Step>
+</Steps>
+
+---
+
+## Step 6: Go Live!
+
+<Steps>
+  <Step>
+    **Test everything works:**
+
+    - User registration and login ✓
+    - Creating entities and opportunities ✓
+    - Posting to marketplace ✓
+    - Basic navigation ✓
+  </Step>
+
+  <Step>
+    **Invite your first users:**
+
+    Share your platform URL and start building your community.
+  </Step>
+
+  <Step>
+    **Monitor and optimize:**
+
+    Use Ring's built-in analytics to track usage and optimize your platform.
+  </Step>
+</Steps>
+
+---
+
+## What's Next?
+
+<Callout type="success">
+  **Congratulations!** You now have a production Ring platform. Here are your next steps:
+</Callout>
+
+### Immediate (Week 1)
+- [ ] Invite 5-10 users for feedback
+- [ ] Customize remaining branding elements
+- [ ] Set up payment processing
+- [ ] Configure AI matching preferences
+
+### Short-term (Month 1)
+- [ ] [Complete customization guide](customization-guide) for advanced branding
+- [ ] [Database migration](database-selection) if you need PostgreSQL
+- [ ] [Token economics setup](token-economics) for your own RING token
+- [ ] [Payment integration](payment-integration) for monetization
+
+### Long-term (Months 2-6)
+- [ ] [AI customization](ai-customization) for specialized matching
+- [ ] [Multi-tenant deployment](multi-tenant) for scaling
+- [ ] Custom module development
+- [ ] Advanced integrations
+
+---
+
+## Need Help?
+
+- **Stuck?** Check our [troubleshooting guide](/docs/library/getting-started/troubleshooting)
+- **Community** Join our [developer community](https://github.com/connectplatform/ring-platform/discussions)
+- **Professional help** Post on [Ring customization opportunities](/opportunities?type=ring_customization)
+
+<Callout type="warning">
+  **Pro tip**: Start simple, then add complexity. Most successful Ring deployments begin with core features and gradually enable advanced modules as their community grows.
+</Callout>

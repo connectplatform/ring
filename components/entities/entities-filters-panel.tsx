@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -106,6 +106,10 @@ export default function EntitiesFiltersPanel({
 }: EntitiesFiltersPanelProps) {
   const t = useTranslations('modules.entities')
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['types']))
+
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition()
+
   const [filters, setFilters] = useState<EntityFilterState>({
     search: '',
     types: [],
@@ -134,9 +138,11 @@ export default function EntitiesFiltersPanel({
     })
   }
 
-  const updateFilters = (updates: Partial<EntityFilterState>) => {
+  const updateFilters = useCallback((updates: Partial<EntityFilterState>) => {
+    startTransition(() => {
     setFilters(prev => ({ ...prev, ...updates }))
-  }
+    })
+  }, [startTransition])
 
   const handleClearFilters = () => {
     const clearedFilters: EntityFilterState = {

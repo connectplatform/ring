@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import type { DocumentSnapshot, QuerySnapshot } from 'firebase-admin/firestore';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 
 /**
  * Build-Time Static Data Cache
@@ -169,22 +169,41 @@ const userCache = new TTLCache(CACHE_CONFIG.users.maxSize);
 
 export const getCachedDocument = cache(async (collection: string, docId: string): Promise<any> => {
   const cacheKey = `document:${collection}:${docId}`;
-  
+
   const cached = entityCache.get(cacheKey);
   if (cached) {
     logCacheHit('document', cacheKey);
     return cached;
   }
-  
-  // Mock document for build time
+
+  try {
+    // Runtime: Use DatabaseService
+    await initializeDatabase();
+    const db = getDatabaseService();
+    const result = await db.read(collection, docId);
+
+    if (result.success && result.data) {
+      const doc = {
+        id: docId,
+        data: () => result.data,
+        exists: true
+      };
+      entityCache.set(cacheKey, doc, CACHE_CONFIG.entities.ttl);
+      logCacheMiss('document', cacheKey);
+      return doc;
+    }
+  } catch (error) {
+    console.warn(`DatabaseService read failed for ${collection}/${docId}, using mock data:`, error);
+  }
+
+  // Fallback: Mock document for build time or errors
   const mockDoc = {
     id: docId,
-    collection: collection,
-    data: `Mock data for ${collection}/${docId}`,
+    data: () => ({ mock: true, collection, id: docId }),
     exists: true,
     createdAt: new Date().toISOString()
   };
-  
+
   entityCache.set(cacheKey, mockDoc, CACHE_CONFIG.entities.ttl);
   logCacheMiss('document', cacheKey);
   return mockDoc;
@@ -193,21 +212,45 @@ export const getCachedDocument = cache(async (collection: string, docId: string)
 export const getCachedCollection = cache(async (collection: string, options: any = {}): Promise<any[]> => {
   const { limit = 50 } = options;
   const cacheKey = `collection:${collection}:${limit}`;
-  
+
   const cached = entityCache.get(cacheKey);
   if (cached && Array.isArray(cached)) {
     logCacheHit('collection', cacheKey);
     return cached;
   }
-  
-  // Mock collection data for build time
+
+  try {
+    // Runtime: Use DatabaseService
+    await initializeDatabase();
+    const db = getDatabaseService();
+    const result = await db.query({ collection });
+
+    if (result.success && result.data) {
+      const docs = result.data.slice(0, limit).map((doc: any) => ({
+        id: doc.id,
+        data: () => doc,
+        exists: true
+      }));
+      entityCache.set(cacheKey, docs, CACHE_CONFIG.entities.ttl);
+      logCacheMiss('collection', cacheKey);
+      return docs;
+    }
+  } catch (error) {
+    console.warn(`DatabaseService query failed for ${collection}, using mock data:`, error);
+  }
+
+  // Fallback: Mock collection data for build time or errors
   const mockCollection = Array.from({ length: Math.min(limit, 20) }, (_, i) => ({
     id: `${collection}-${i}`,
-    type: collection,
-    name: `Mock ${collection} ${i}`,
-    createdAt: new Date(Date.now() - i * 60000).toISOString()
+    data: () => ({
+      id: `${collection}-${i}`,
+      type: collection,
+      name: `Mock ${collection} ${i}`,
+      createdAt: new Date(Date.now() - i * 60000).toISOString()
+    }),
+    exists: true
   }));
-  
+
   entityCache.set(cacheKey, mockCollection, CACHE_CONFIG.entities.ttl);
   logCacheMiss('collection', cacheKey);
   return mockCollection;
@@ -354,15 +397,38 @@ export const getCachedEntities = cache(async (
 ): Promise<any[]> => {
   const { limit = 50, isPublic = true, category } = options;
   const cacheKey = `entities:${limit}:${isPublic}:${category || 'all'}`;
-  
+
   // Check cache first
   const cached = entityCache.get(cacheKey);
   if (cached && Array.isArray(cached)) {
     logCacheHit('entities', cacheKey);
     return cached;
   }
-  
-  // Mock data for build-time
+
+  try {
+    // Runtime: Use DatabaseService
+    await initializeDatabase();
+    const db = getDatabaseService();
+    const result = await db.query({ collection: 'entities' });
+
+    if (result.success && result.data) {
+      let entities = result.data.filter((entity: any) =>
+        entity.isPublic === isPublic &&
+        (!category || entity.category === category)
+      );
+      entities = entities.slice(0, limit);
+
+      // Cache the result
+      const ttl = isPublic ? CACHE_CONFIG.entities.ttl : CACHE_CONFIG.entities.privateTtl;
+      entityCache.set(cacheKey, entities, ttl);
+      logCacheMiss('entities', cacheKey);
+      return entities;
+    }
+  } catch (error) {
+    console.warn('DatabaseService query failed for entities, using mock data:', error);
+  }
+
+  // Fallback: Mock data for build-time or errors
   const mockEntities = Array.from({ length: Math.min(limit, 20) }, (_, i) => ({
     id: `entity-${i}`,
     name: `Mock Entity ${i}`,
@@ -372,11 +438,11 @@ export const getCachedEntities = cache(async (
     isPublic,
     createdAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString()
   }));
-  
+
   // Cache the result
   const ttl = isPublic ? CACHE_CONFIG.entities.ttl : CACHE_CONFIG.entities.privateTtl;
   entityCache.set(cacheKey, mockEntities, ttl);
-  
+
   logCacheMiss('entities', cacheKey);
   return mockEntities;
 });

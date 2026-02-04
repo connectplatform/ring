@@ -7,13 +7,13 @@ import { useInstanceConfig } from '@/hooks/use-instance-config'
 type ThemeProviderProps = Parameters<typeof NextThemesProvider>[0]
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  // Pull default theme from instance config if present ("light" | "dark" | "system")
-  let defaultTheme: 'light' | 'dark' | 'system' = 'system'
+  // Pull default theme from instance config if present ("light" | "dark" | "system" | "auto")
+  let defaultTheme: 'light' | 'dark' | 'system' | 'auto' = 'auto'
   try {
     const cfg = useInstanceConfig() as any
-    defaultTheme = cfg?.theme?.default ?? 'system'
+    defaultTheme = cfg?.theme?.default ?? 'auto'
   } catch {
-    // outside provider in SSR head path; fall back to system
+    // outside provider in SSR head path; fall back to auto
   }
   return (
     <NextThemesProvider

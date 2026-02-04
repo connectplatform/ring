@@ -1,11 +1,11 @@
-// News Service - Direct Firestore operations
-// Extracted from API routes to follow Ring's architectural pattern:
-// "Server Actions should call services directly; avoid HTTP requests to own API routes"
+// News Service - Ring-native DatabaseService implementation
+// Server Actions pattern: Direct service calls, no HTTP routing
 
+import { cache } from 'react'
 import { auth } from '@/auth'
-import { getCachedNewsCollection, getCachedNewsBySlug, getCachedNewsById, createDocument, updateDocument, deleteDocument } from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsFilters, NewsFormData, NewsArticle } from '@/features/news/types'
-import { FieldValue } from 'firebase-admin/firestore'
+import { UserRole } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 
 interface CreateNewsResult {
@@ -22,6 +22,23 @@ interface UpdateNewsResult {
   message?: string
 }
 
+// Author permission helper functions
+function canCreateArticles(userRole: UserRole): boolean {
+  return [UserRole.MEMBER, UserRole.CONFIDENTIAL, UserRole.ADMIN, UserRole.SUPERADMIN].includes(userRole)
+}
+
+function canEditArticle(userRole: UserRole, articleAuthorId: string, currentUserId: string): boolean {
+  const isAdmin = [UserRole.ADMIN, UserRole.SUPERADMIN].includes(userRole)
+  const isAuthor = articleAuthorId === currentUserId
+  return isAdmin || isAuthor
+}
+
+function canDeleteArticle(userRole: UserRole, articleAuthorId: string, currentUserId: string): boolean {
+  const isAdmin = [UserRole.ADMIN, UserRole.SUPERADMIN].includes(userRole)
+  const isAuthor = articleAuthorId === currentUserId
+  return isAdmin || isAuthor
+}
+
 export async function createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult> {
   try {
     const session = await auth()
@@ -33,12 +50,12 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       }
     }
 
-    // Check if user is admin (you may need to adjust this based on your user role system)
-    const userRole = (session.user as any).role
-    if (userRole !== 'admin') {
+    // Check if user can create articles (MEMBER+ roles)
+    const userRole = (session.user as any).role as UserRole
+    if (!canCreateArticles(userRole)) {
       return {
         success: false,
-        error: 'Admin access required'
+        error: 'MEMBER status or higher required to create articles'
       }
     }
 
@@ -50,6 +67,9 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       }
     }
 
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
     // Generate slug if not provided
     const slug = formData.slug || formData.title
       .toLowerCase()
@@ -59,14 +79,20 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       .trim()
 
     // Check if slug already exists
-    const existingSlug = await getCachedNewsBySlug(slug)
-    if (existingSlug) {
+    const slugResult = await db.query({
+      collection: 'news',
+      filters: [{ field: 'slug', operator: '==', value: slug }],
+      pagination: { limit: 1 }
+    })
+    
+    if (slugResult.success && slugResult.data.length > 0) {
       return {
         success: false,
         error: 'Article with this slug already exists'
       }
     }
 
+    const now = new Date()
     const newArticle = {
       title: formData.title,
       slug: slug,
@@ -84,19 +110,23 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       views: 0,
       likes: 0,
       comments: 0,
-      publishedAt: formData.status === 'published' ? FieldValue.serverTimestamp() : null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      publishedAt: formData.status === 'published' ? now : null,
+      createdAt: now,
+      updatedAt: now,
       seo: formData.seo || null,
+      locale: 'en', // Default to English, can be extended for multi-locale support
     }
 
-    const docRef = await createDocument('news', newArticle)
-    const createdDoc = await getCachedNewsById(docRef.id)
-    const createdArticle = createdDoc
+    const createResult = await db.create('news', newArticle)
+    if (!createResult.success) {
+      throw createResult.error || new Error('Failed to create news article')
+    }
+
+    // Revalidate news pages (React 19 pattern - MUTATION!)
 
     return {
       success: true,
-      data: createdArticle.data() as NewsArticle,
+      data: createResult.data as any as NewsArticle,
       message: 'News article created successfully'
     }
 
@@ -120,22 +150,22 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       }
     }
 
-    // Check if user is admin or article author
-    const userRole = (session.user as any).role
-    const articleDoc = await getCachedNewsById(articleId)
-    
-    if (!articleDoc || !articleDoc.exists) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Check if user can edit this article
+    const userRole = (session.user as any).role as UserRole
+    const articleResult = await db.read('news', articleId)
+
+    if (!articleResult.success || !articleResult.data) {
       return {
         success: false,
         error: 'Article not found'
       }
     }
 
-    const articleData = articleDoc.data()
-    const isAuthor = articleData?.authorId === session.user.id
-    const isAdmin = userRole === 'admin'
-    
-    if (!isAuthor && !isAdmin) {
+    const articleData = articleResult.data as any
+    if (!canEditArticle(userRole, articleData?.authorId, session.user.id)) {
       return {
         success: false,
         error: 'Not authorized to edit this article'
@@ -160,8 +190,13 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
 
     // Check if slug already exists (excluding current article)
     if (slug !== articleData?.slug) {
-      const existingSlug = await getCachedNewsBySlug(slug)
-      if (existingSlug) {
+      const slugResult = await db.query({
+        collection: 'news',
+        filters: [{ field: 'slug', operator: '==', value: slug }],
+        pagination: { limit: 1 }
+      })
+      
+      if (slugResult.success && slugResult.data.length > 0) {
         return {
           success: false,
           error: 'Article with this slug already exists'
@@ -169,6 +204,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       }
     }
 
+    const now = new Date()
     const updateData = {
       title: formData.title,
       slug: slug,
@@ -182,18 +218,22 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       visibility: formData.visibility || 'public',
       featured: formData.featured || false,
       publishedAt: formData.status === 'published' && !articleData?.publishedAt 
-        ? FieldValue.serverTimestamp() 
+        ? now 
         : articleData?.publishedAt,
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: now,
       seo: formData.seo || null,
     }
 
-    await updateDocument('news', articleId, updateData)
-    const updatedArticle = await getCachedNewsById(articleId)
+    const updateResult = await db.update('news', articleId, updateData)
+    if (!updateResult.success) {
+      throw updateResult.error || new Error('Failed to update news article')
+    }
+
+    // Revalidate news pages (React 19 pattern - MUTATION!)
 
     return {
       success: true,
-      data: updatedArticle.data() as NewsArticle,
+      data: updateResult.data as any as NewsArticle,
       message: 'News article updated successfully'
     }
 
@@ -206,54 +246,58 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
   }
 }
 
-export async function getNewsArticles(filters: NewsFilters = {}): Promise<{
+/**
+ * Get news articles with filters
+ * READ operation - uses React 19 cache() for performance
+ */
+export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<{
   success: boolean
   data?: NewsArticle[]
   pagination?: any
   filters?: NewsFilters
   error?: string
-}> {
+}> => {
   try {
-    // Build query options for getCachedNewsCollection
-    const options: any = {
-      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
-      where: []
-    };
 
-    // Apply filters
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    // Build query filters for DatabaseService
+    const queryFilters: any[] = []
+    
     if (filters.category) {
-      options.where.push({ field: 'category', operator: '==', value: filters.category });
+      queryFilters.push({ field: 'category', operator: '==', value: filters.category })
     }
-    
     if (filters.status) {
-      options.where.push({ field: 'status', operator: '==', value: filters.status });
+      queryFilters.push({ field: 'status', operator: '==', value: filters.status })
     }
-    
     if (filters.visibility) {
-      options.where.push({ field: 'visibility', operator: '==', value: filters.visibility });
+      queryFilters.push({ field: 'visibility', operator: '==', value: filters.visibility })
     }
-    
     if (filters.featured !== undefined) {
-      options.where.push({ field: 'featured', operator: '==', value: filters.featured });
+      queryFilters.push({ field: 'featured', operator: '==', value: filters.featured })
     }
-    
     if (filters.authorId) {
-      options.where.push({ field: 'authorId', operator: '==', value: filters.authorId });
+      queryFilters.push({ field: 'authorId', operator: '==', value: filters.authorId })
     }
 
-    // Apply pagination (limit only, offset not supported by getCachedNewsCollection)
-    if (filters.limit) {
-      options.limit = filters.limit;
+    const queryResult = await db.query({
+      collection: 'news',
+      filters: queryFilters,
+      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
+      pagination: { limit: filters.limit || 50, offset: (filters as any).offset || 0 }
+    })
+
+    if (!queryResult.success) {
+      throw queryResult.error || new Error('Failed to fetch news articles')
     }
 
-    const snapshot = await getCachedNewsCollection(options)
-    const articles = snapshot.docs.map(doc => doc.data() as NewsArticle)
+    let articles = queryResult.data as any[] as NewsArticle[]
 
-    // Filter by search term if provided (client-side filtering for now)
-    let filteredArticles = articles
+    // Server-side search filtering
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase()
-      filteredArticles = articles.filter(article => 
+      articles = articles.filter(article => 
         article.title.toLowerCase().includes(searchTerm) ||
         article.excerpt.toLowerCase().includes(searchTerm) ||
         article.content.toLowerCase().includes(searchTerm) ||
@@ -261,20 +305,20 @@ export async function getNewsArticles(filters: NewsFilters = {}): Promise<{
       )
     }
 
-    // Filter by tags if provided
+    // Tag filtering
     if (filters.tags && filters.tags.length > 0) {
-      filteredArticles = filteredArticles.filter(article =>
+      articles = articles.filter(article =>
         filters.tags!.some(tag => article.tags.includes(tag))
       )
     }
 
     return {
       success: true,
-      data: filteredArticles,
+      data: articles,
       pagination: {
         limit: filters.limit,
         offset: filters.offset,
-        total: filteredArticles.length,
+        total: articles.length,
       },
       filters: filters,
     }
@@ -284,6 +328,260 @@ export async function getNewsArticles(filters: NewsFilters = {}): Promise<{
     return {
       success: false,
       error: 'Failed to fetch news articles'
+    }
+  }
+})
+
+/**
+ * Get articles by author (for "My News" section)
+ * READ operation - uses React 19 cache() for performance
+ */
+export const getMyArticles = cache(async (authorId: string, filters: NewsFilters = {}): Promise<{
+  success: boolean
+  data?: NewsArticle[]
+  pagination?: any
+  stats?: {
+    totalArticles: number
+    publishedArticles: number
+    draftArticles: number
+    totalViews: number
+    totalLikes: number
+  }
+  error?: string
+}> => {
+  try {
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Get all articles by this author
+    const authorResult = await db.query({
+      collection: 'news',
+      filters: [{ field: 'authorId', operator: '==', value: authorId }],
+      orderBy: [{ field: 'createdAt', direction: 'desc' }],
+      pagination: { limit: filters.limit || 50, offset: filters.offset || 0 }
+    })
+
+    if (!authorResult.success) {
+      throw authorResult.error || new Error('Failed to fetch articles')
+    }
+
+    let articles = authorResult.data as any[] as NewsArticle[]
+
+    // Apply status filter if provided
+    if (filters.status) {
+      articles = articles.filter(article => article.status === filters.status)
+    }
+
+    // Calculate stats
+    const totalArticles = articles.length
+    const publishedArticles = articles.filter(a => a.status === 'published').length
+    const draftArticles = articles.filter(a => a.status === 'draft').length
+    const totalViews = articles.reduce((sum, a) => sum + (a.views || 0), 0)
+    const totalLikes = articles.reduce((sum, a) => sum + (a.likes || 0), 0)
+
+    return {
+      success: true,
+      data: articles,
+      pagination: {
+        limit: filters.limit,
+        offset: filters.offset,
+        total: articles.length,
+      },
+      stats: {
+        totalArticles,
+        publishedArticles,
+        draftArticles,
+        totalViews,
+        totalLikes
+      }
+    }
+
+  } catch (error) {
+    logger.error('Error fetching my articles:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch your articles'
+    }
+  }
+})
+
+/**
+ * Get user article statistics
+ * READ operation - uses React 19 cache() for performance
+ */
+export const getUserArticleStats = cache(async (authorId: string): Promise<{
+  success: boolean
+  stats?: {
+    totalArticles: number
+    publishedArticles: number
+    draftArticles: number
+    archivedArticles: number
+    totalViews: number
+    totalLikes: number
+    totalComments: number
+    averageViews: number
+    averageLikes: number
+    mostViewedArticle: NewsArticle | null
+    recentActivity: {
+      date: string
+      articles: number
+      views: number
+      likes: number
+    }[]
+  }
+  error?: string
+}> => {
+  try {
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Get all articles by this author
+    const result = await db.query({
+      collection: 'news',
+      filters: [{ field: 'authorId', operator: '==', value: authorId }],
+      orderBy: [{ field: 'createdAt', direction: 'desc' }]
+    })
+
+    if (!result.success) {
+      throw result.error || new Error('Failed to fetch articles for stats')
+    }
+
+    const articles = result.data as any[] as NewsArticle[]
+
+    // Calculate comprehensive stats
+    const totalArticles = articles.length
+    const publishedArticles = articles.filter(a => a.status === 'published').length
+    const draftArticles = articles.filter(a => a.status === 'draft').length
+    const archivedArticles = articles.filter(a => a.status === 'archived').length
+
+    const totalViews = articles.reduce((sum, a) => sum + (a.views || 0), 0)
+    const totalLikes = articles.reduce((sum, a) => sum + (a.likes || 0), 0)
+    const totalComments = articles.reduce((sum, a) => sum + (a.comments || 0), 0)
+
+    const averageViews = totalArticles > 0 ? Math.round(totalViews / totalArticles) : 0
+    const averageLikes = totalArticles > 0 ? Math.round(totalLikes / totalArticles) : 0
+
+    // Find most viewed article
+    const mostViewedArticle = articles.reduce((max, current) =>
+      (current.views || 0) > (max.views || 0) ? current : max,
+      articles[0] || null
+    )
+
+    // Calculate recent activity (last 30 days)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const recentArticles = articles.filter(a => {
+      if (!a.createdAt) return false
+      const createdDate = a.createdAt instanceof Date ? a.createdAt :
+                         (a.createdAt as any).toDate ? (a.createdAt as any).toDate() : new Date(a.createdAt as any)
+      return createdDate >= thirtyDaysAgo
+    })
+
+    // Group by date for activity chart
+    const activityMap = new Map<string, { articles: number, views: number, likes: number }>()
+
+    recentArticles.forEach(article => {
+      const createdDate = article.createdAt instanceof Date ? article.createdAt :
+                         (article.createdAt as any).toDate ? (article.createdAt as any).toDate() : new Date(article.createdAt as any)
+      const date = createdDate.toISOString().split('T')[0]
+      const existing = activityMap.get(date) || { articles: 0, views: 0, likes: 0 }
+      activityMap.set(date, {
+        articles: existing.articles + 1,
+        views: existing.views + (article.views || 0),
+        likes: existing.likes + (article.likes || 0)
+      })
+    })
+
+    const recentActivity = Array.from(activityMap.entries())
+      .map(([date, stats]) => ({ date, ...stats }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    return {
+      success: true,
+      stats: {
+        totalArticles,
+        publishedArticles,
+        draftArticles,
+        archivedArticles,
+        totalViews,
+        totalLikes,
+        totalComments,
+        averageViews,
+        averageLikes,
+        mostViewedArticle,
+        recentActivity
+      }
+    }
+
+  } catch (error) {
+    logger.error('Error fetching user article stats:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch article statistics'
+    }
+  }
+})
+
+/**
+ * Delete news article
+ * Authors can delete their own articles, admins can delete any
+ */
+export async function deleteNewsArticle(articleId: string): Promise<{
+  success: boolean
+  message?: string
+  error?: string
+}> {
+  try {
+    const session = await auth()
+
+    if (!session?.user) {
+      return {
+        success: false,
+        error: 'Authentication required'
+      }
+    }
+
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Check permissions
+    const userRole = (session.user as any).role as UserRole
+    const articleResult = await db.read('news', articleId)
+
+    if (!articleResult.success || !articleResult.data) {
+      return {
+        success: false,
+        error: 'Article not found'
+      }
+    }
+
+    const articleData = articleResult.data as any
+    if (!canDeleteArticle(userRole, articleData?.authorId, session.user.id)) {
+      return {
+        success: false,
+        error: 'Not authorized to delete this article'
+      }
+    }
+
+    // Delete the article
+    const deleteResult = await db.delete('news', articleId)
+    if (!deleteResult.success) {
+      throw deleteResult.error || new Error('Failed to delete article')
+    }
+
+    // Revalidate paths
+
+    return {
+      success: true,
+      message: 'Article deleted successfully'
+    }
+
+  } catch (error) {
+    logger.error('Error deleting news article:', error)
+    return {
+      success: false,
+      error: 'Failed to delete article'
     }
   }
 }

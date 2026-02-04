@@ -16,7 +16,6 @@ declare module "next-auth" {
       image?: string | null
       photoURL?: string | null
       role: UserRole
-      isSuperAdmin?: boolean
       isVerified: boolean
       needsOnboarding?: boolean
       provider?: string
@@ -60,7 +59,6 @@ declare module "next-auth/jwt" {
     userId?: string
     username?: string
     role?: UserRole
-    isSuperAdmin?: boolean
     accessToken?: string
     refreshToken?: string
     wallets?: Wallet[]

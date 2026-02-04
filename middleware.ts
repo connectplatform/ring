@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import NextAuth from "next-auth"
 import authConfig from '@/auth.config'
-import { ROUTES, LEGACY_ROUTES } from './constants/routes'
-import { UserRole } from '@/features/auth/types'
+import { UserRole } from '@/features/auth/user-role'
 import createMiddleware from 'next-intl/middleware'
-import { routing, type Locale } from './i18n-config'
+import { routing, type Locale } from './i18n-routing'
+
+// Inline route constants - middleware only needs login/home paths
+// Full route definitions stay in constants/routes.ts for app code
+const LOGIN_PATH = '/login'
+const HOME_PATH = '/'
 
 // Create edge-compatible auth instance
 const { auth } = NextAuth(authConfig)
@@ -53,6 +57,7 @@ function cleanExpiredCache() {
 export default auth(async (req) => {
   try {
     const { pathname } = req.nextUrl
+    const method = req.method
 
     // Skip middleware for API routes, static files, and Next.js internals
     if (
@@ -63,6 +68,10 @@ export default auth(async (req) => {
     ) {
       return NextResponse.next()
     }
+
+    // NOTE: Removed POST→GET redirect for /login page
+    // Auth.js v5 with GIS uses client-side signIn() calls, not form POST
+    // The redirect was causing 80+ unnecessary middleware executions per auth attempt
 
     // First, handle i18n routing with next-intl and capture its response if it redirects
     const i18nResponse = intlMiddleware(req)
@@ -164,7 +173,10 @@ export default auth(async (req) => {
       }
     }
 
-    console.log(`Middleware: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
+    // Only log middleware checks in development to reduce noise
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Middleware: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
+    }
 
     // Check if this is a language switch by looking for the referer header
     const referer = req.headers.get('referer')
@@ -177,6 +189,12 @@ export default auth(async (req) => {
       '/settings'
     ];
 
+    // Routes that should bypass tunnel initialization during auth
+    // Tunnel will be established AFTER user authentication is confirmed
+    const tunnelBypassRoutes = [
+      '/profile'
+    ];
+
     // Routes that require confidential or admin status
     const confidentialRoutes = [
       '/confidential/entities',
@@ -187,7 +205,7 @@ export default auth(async (req) => {
     // Skip redirect if this is just a language switch (user is already on the page)
     if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && !isLanguageSwitch) {
       console.log(`Middleware: Redirecting to login, from: ${pathname} (no session found)`);
-      const url = new URL(ROUTES.LOGIN(locale), req.nextUrl.origin);
+      const url = new URL(`/${locale}${LOGIN_PATH}`, req.nextUrl.origin);
       url.searchParams.set('from', pathname);
       return NextResponse.redirect(url);
     }
@@ -195,34 +213,58 @@ export default auth(async (req) => {
     // If trying to access confidential route without proper role, redirect to localized home
     if (confidentialRoutes.includes(pathnameWithoutLocale) && (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN)) {
       console.log(`Middleware: Unauthorized access to confidential route, redirecting to home`);
-      return NextResponse.redirect(new URL(ROUTES.HOME(locale), req.nextUrl.origin));
+      return NextResponse.redirect(new URL(`/${locale}`, req.nextUrl.origin));
     }
 
     // If authenticated user tries to access login page, redirect to localized profile
-    // Only redirect if we have a clear session to avoid redirect loops
-    if (pathnameWithoutLocale === '/login' && isLoggedIn && userId) {
-      console.log(`Middleware: Redirecting authenticated user to profile, from: ${pathname}`);
-      // Preserve locale when redirecting to profile
-      return NextResponse.redirect(new URL(`/${locale}/profile`, req.nextUrl.origin));
+    // BUT: Skip redirect if OAuth callback is in progress (query params: code, state, error, session_state)
+    // These params indicate the user is completing an OAuth flow and should not be interrupted
+    if (pathnameWithoutLocale === '/login' && isLoggedIn) {
+      const hasOAuthCallbackParams = 
+        req.nextUrl.searchParams.has('code') ||
+        req.nextUrl.searchParams.has('state') ||
+        req.nextUrl.searchParams.has('error') ||
+        req.nextUrl.searchParams.has('session_state')
+      
+      if (!hasOAuthCallbackParams) {
+        console.log(`Middleware: Redirecting authenticated user to profile, from: ${pathname}`);
+        // Preserve locale when redirecting to profile
+        return NextResponse.redirect(new URL(`/${locale}/profile`, req.nextUrl.origin));
+      } else {
+        const paramsList = Array.from(req.nextUrl.searchParams.keys()).join(', ')
+        console.log(`Middleware: OAuth callback detected (${paramsList}), allowing login page access for OAuth completion`);
+      }
     }
 
     console.log(`Middleware: Proceeding with request to: ${pathname}`);
     
     // OPTIMIZATION: Pass auth info to API routes via headers to prevent duplicate auth checks
     const response = NextResponse.next()
-    
+
+    // PHASE 1: TUNNEL TIMING REARCHITECTURE
+    // Move tunnel initialization to AFTER user authentication for auth-critical routes
+    const shouldBypassTunnel = tunnelBypassRoutes.includes(pathnameWithoutLocale) && isLoggedIn;
+
+    if (shouldBypassTunnel) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Middleware: Bypassing tunnel initialization for auth route: ${pathname} - tunnel will connect after user status confirmed`);
+      }
+      // Set flag to indicate tunnel should be established client-side after auth
+      response.headers.set('x-tunnel-bypass', 'true');
+    }
+
     if (isLoggedIn && userId) {
       // Set auth headers for API routes to consume - reduces API auth overhead
       response.headers.set('x-auth-user-id', userId)
       response.headers.set('x-auth-user-role', userRole)
       response.headers.set('x-auth-cached', isCachedAuth ? 'true' : 'false')
       response.headers.set('x-auth-timestamp', Date.now().toString())
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.log(`Middleware: Set auth headers - User: ${userId}, Role: ${userRole}, Cached: ${isCachedAuth}`);
       }
     }
-    
+
     return response;
   } catch (error) {
     console.error('Middleware error:', error);

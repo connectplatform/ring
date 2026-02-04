@@ -13,7 +13,7 @@ export function AboutTrinityClient() {
   const t = useTranslations('about-trinity');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 lg:ml-72 xl:ml-72">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 md:ml-72">
       {/* Hero Section */}
       <section className="relative py-20 px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary/10"></div>

@@ -369,16 +369,16 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           margin: '0 auto'
         }}>
           <Link
-            href={`/${session ? '' : ''}docs/getting-started`}
+            href={`/${session ? '' : ''}marketplace`}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%)',
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(132, 204, 22, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(132, 204, 22, 0.12) 100%)',
               border: '1px solid',
               borderColor: currentTheme === 'dark'
-                ? 'rgba(34, 197, 94, 0.2)'
-                : 'rgba(34, 197, 94, 0.3)',
+                ? 'rgba(16, 185, 129, 0.25)'
+                : 'rgba(16, 185, 129, 0.35)',
               borderRadius: '12px',
               padding: '1.25rem',
               textAlign: 'left',
@@ -392,45 +392,45 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)'
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(132, 204, 22, 0.15) 100%)'
+                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(132, 204, 22, 0.18) 100%)'
               e.currentTarget.style.transform = 'translateY(-2px)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(34, 197, 94, 0.15)'
-                : '0 8px 24px rgba(0,0,0,0.1)'
+                ? '0 8px 24px rgba(16, 185, 129, 0.2)'
+                : '0 8px 24px rgba(0,0,0,0.12)'
               e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(34, 197, 94, 0.4)'
-                : 'rgba(34, 197, 94, 0.5)'
+                ? 'rgba(16, 185, 129, 0.45)'
+                : 'rgba(16, 185, 129, 0.55)'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%)'
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(132, 204, 22, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(132, 204, 22, 0.12) 100%)'
               e.currentTarget.style.transform = 'translateY(0)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
               e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(34, 197, 94, 0.2)'
-                : 'rgba(34, 197, 94, 0.3)'
+                ? 'rgba(16, 185, 129, 0.25)'
+                : 'rgba(16, 185, 129, 0.35)'
             }}
           >
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(59, 130, 246) 100%)',
+              background: 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(132, 204, 22) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>📦</div>
+            }}>🌾</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Clone Ring Now</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Free forever, no vendor lock-in</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Shop Fresh Produce</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Direct from Ukrainian farms</div>
             </div>
           </Link>
           <Link
-            href={`/${session ? '' : ''}opportunities?type=ring_customization`}
+            href={`/${session ? '' : ''}entities`}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -483,14 +483,14 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>🔧</div>
+            }}>🚜</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Browse Customization Projects</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Find Ring development opportunities</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Meet Our Farms</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Connect with local producers</div>
             </div>
           </Link>
           <Link
-            href={`/${session ? '' : ''}tools/deployment-calculator`}
+            href={`/${session ? '' : ''}opportunities`}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -543,10 +543,10 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>🧮</div>
+            }}>🌱</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Calculate Deployment Cost</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Estimate your Ring setup</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>View Harvest Listings</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Seasonal produce available now</div>
             </div>
           </Link>
           <Link
@@ -603,14 +603,14 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>💎</div>
+            }}>🍃</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Buy RING Tokens</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Power your platform economy</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Get DAAR Tokens</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Farm-to-table rewards currency</div>
             </div>
           </Link>
           <Link
-            href={`/${session ? '' : ''}about-trinity`}
+            href={`/${session ? '' : ''}docs`}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -663,10 +663,10 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>🇺🇦</div>
+            }}>📚</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Read Our Story</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Trinity Ukraine's gift to the world</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Learn About Traceability</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Farm-to-table blockchain tracking</div>
             </div>
           </Link>
         </div>

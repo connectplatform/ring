@@ -1,0 +1,138 @@
+{
+  "title": "Ring Platform Deployment Calculator",
+  "description": "Calculate your deployment time, costs, and get a customized roadmap for launching your Ring platform",
+  "hero": {
+    "title": "Ring Platform Deployment Calculator",
+    "subtitle": "Estimate your deployment time, costs, and get a customized roadmap"
+  },
+  "configuration": {
+    "title": "Platform Configuration",
+    "description": "Tell us about your project to get accurate estimates"
+  },
+  "questions": {
+    "useCase": "What's your use case?",
+    "userScale": "How many users initially?",
+    "modules": "Which modules do you need?",
+    "database": "Database preference?",
+    "tokenEconomy": "Token economy?",
+    "region": "Geographic region?"
+  },
+  "useCases": {
+    "marketplace": {
+      "name": "Marketplace",
+      "description": "Buy/sell goods and services"
+    },
+    "opportunities": {
+      "name": "Opportunities Network",
+      "description": "Job and project opportunities"
+    },
+    "cooperative": {
+      "name": "Cooperative Platform",
+      "description": "Member-owned cooperative"
+    },
+    "community": {
+      "name": "Community Platform",
+      "description": "General community collaboration"
+    },
+    "enterprise": {
+      "name": "Enterprise Network",
+      "description": "Internal business network"
+    }
+  },
+  "userScales": {
+    "small": "Small (10-100 users)",
+    "medium": "Medium (100-1000 users)",
+    "large": "Large (1000-10000 users)",
+    "enterprise": "Enterprise (10000+ users)"
+  },
+  "modules": {
+    "auth": {
+      "name": "Authentication",
+      "description": "User login and registration"
+    },
+    "entities": {
+      "name": "Entities",
+      "description": "Organization and user profiles"
+    },
+    "opportunities": {
+      "name": "Opportunities",
+      "description": "Job/project posting and matching"
+    },
+    "messaging": {
+      "name": "Messaging",
+      "description": "Real-time communication"
+    },
+    "store": {
+      "name": "Store",
+      "description": "E-commerce marketplace"
+    },
+    "wallet": {
+      "name": "Wallet",
+      "description": "Token and payment management"
+    },
+    "nft": {
+      "name": "NFT Market",
+      "description": "NFT marketplace and trading"
+    },
+    "staking": {
+      "name": "Staking",
+      "description": "Token staking system"
+    },
+    "analytics": {
+      "name": "Analytics",
+      "description": "User and platform analytics"
+    },
+    "api": {
+      "name": "API Access",
+      "description": "REST API for integrations"
+    }
+  },
+  "databases": {
+    "firebase": {
+      "name": "Firebase",
+      "description": "Easiest setup, scales automatically"
+    },
+    "postgresql": {
+      "name": "PostgreSQL",
+      "description": "Production-ready, full SQL power"
+    },
+    "connect": {
+      "name": "ConnectPlatform",
+      "description": "Enterprise features included"
+    }
+  },
+  "regions": {
+    "global": "Global",
+    "europe": "Europe",
+    "asia": "Asia",
+    "americas": "Americas"
+  },
+  "tokenEconomy": {
+    "label": "Yes, include RING token economy for platform operations",
+    "warning": "Token implementation adds complexity but enables powerful economic incentives. This includes smart contracts, staking, and governance features."
+  },
+  "calculating": "Calculating...",
+  "calculate": "Calculate Deployment",
+  "results": {
+    "title": "Results",
+    "recommendedConfig": "Recommended Configuration",
+    "timeline": "4-Week Deployment Timeline",
+    "complexity": "Customization Complexity",
+    "nextSteps": "Next Steps"
+  },
+  "complexity": {
+    "simple": "Simple",
+    "medium": "Medium",
+    "complex": "Complex"
+  },
+  "timeline": {
+    "week1": "Week 1",
+    "week2": "Week 2",
+    "week3": "Week 3",
+    "week4": "Week 4"
+  },
+  "actions": {
+    "startBuilding": "Start Building",
+    "findDevelopers": "Find Developers"
+  }
+}

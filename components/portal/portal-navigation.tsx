@@ -28,12 +28,14 @@ import {
   Search,
   Menu,
   X,
-  Zap,
+  Leaf,
   User,
   LogOut,
   CreditCard,
   Shield,
-  BarChart3
+  BarChart3,
+  Tractor,
+  Sprout
 } from 'lucide-react'
 
 interface NavItem {
@@ -49,48 +51,47 @@ const navigationItems: NavItem[] = [
     href: '/',
     label: 'Home',
     icon: Home,
-    description: 'Portal overview and featured content'
-  },
-  {
-    href: '/opportunities',
-    label: 'Opportunities',
-    icon: Briefcase,
-    badge: '150+',
-    description: 'Ring customizations and Web3 opportunities'
+    description: 'Back to farm market home'
   },
   {
     href: '/marketplace',
-    label: 'Marketplace',
+    label: 'Shop',
     icon: Store,
-    badge: '50+',
-    description: 'Vendor marketplace for Ring services'
-  },
-  {
-    href: '/docs',
-    label: 'Documentation',
-    icon: FileText,
-    badge: '200+',
-    description: 'Comprehensive documentation hub'
+    badge: 'New',
+    description: 'Fresh produce marketplace'
   },
   {
     href: '/entities',
-    label: 'Networking',
-    icon: Users,
-    badge: '1000+',
-    description: 'Professional networking and connections'
+    label: 'Farms',
+    icon: Tractor,
+    badge: '50+',
+    description: 'Local farms and producers'
+  },
+  {
+    href: '/opportunities',
+    label: 'Harvest',
+    icon: Sprout,
+    badge: '150+',
+    description: 'Seasonal produce listings'
+  },
+  {
+    href: '/docs',
+    label: 'Learn',
+    icon: FileText,
+    description: 'Farming guides & traceability'
   },
   {
     href: '/messages',
-    label: 'Messages',
+    label: 'Chat',
     icon: MessageSquare,
     badge: '3',
-    description: 'Real-time messaging and discussions'
+    description: 'Connect with farmers'
   },
   {
     href: '/wallet',
     label: 'Wallet',
     icon: Wallet,
-    description: 'Dual-token ecosystem management'
+    description: 'DAAR & DAARION tokens'
   }
 ]
 
@@ -105,12 +106,12 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
   // Mock user data - in real app this would come from auth context
   const user = {
     name: 'John Doe',
-    email: 'john@ringplatform.org',
+    email: 'john@greenfood.live',
     avatar: '/avatars/john.jpg',
-    role: 'MEMBER',
+    role: 'FARMER',
     balance: {
-      jwt: 1250.50,
-      ring: 250.75
+      daar: 1250.50,
+      daarion: 250.75
     }
   }
 
@@ -118,19 +119,24 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
     <>
       {/* Desktop Navigation */}
       <nav className={cn(
-        "hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800",
+        "hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-emerald-200 dark:border-emerald-800",
         className
       )}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo and Brand */}
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-green-500 rounded-lg flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
+            <Link href="/" className="flex items-center space-x-2 group">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Leaf className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                Ring Platform
-              </span>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent">
+                  GreenFood.live
+                </span>
+                <span className="text-[10px] text-gray-600 dark:text-gray-400 -mt-1">
+                  Farm to Table, Trust to Token
+                </span>
+              </div>
             </Link>
 
             {/* Main Navigation */}
@@ -146,7 +152,7 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
                       size="sm"
                       className={cn(
                         "relative flex items-center space-x-2 px-3 py-2",
-                        isActive && "bg-blue-600 hover:bg-blue-700"
+                        isActive && "bg-emerald-600 hover:bg-emerald-700"
                       )}
                     >
                       <Icon className="w-4 h-4" />
@@ -166,16 +172,16 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
             <div className="flex items-center space-x-3">
               {/* Token Balances */}
               <div className="hidden md:flex items-center space-x-3">
-                <div className="flex items-center space-x-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                    {user.balance.jwt.toFixed(0)} JWT
+                <div className="flex items-center space-x-1 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-md">
+                  <div className="w-4 h-4 bg-emerald-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                    {user.balance.daar.toFixed(0)} DAAR
                   </span>
                 </div>
-                <div className="flex items-center space-x-1 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-md">
-                  <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                    {user.balance.ring.toFixed(2)} RING
+                <div className="flex items-center space-x-1 bg-lime-50 dark:bg-lime-900/20 px-2 py-1 rounded-md">
+                  <div className="w-4 h-4 bg-lime-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-lime-700 dark:text-lime-300">
+                    {user.balance.daarion.toFixed(2)} DAARION
                   </span>
                 </div>
               </div>
@@ -255,16 +261,16 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
       </nav>
 
       {/* Mobile Navigation */}
-      <nav className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <nav className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-emerald-200 dark:border-emerald-800">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-green-500 rounded-lg flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
+              <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-lg flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-white" />
               </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                Ring
+              <span className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 bg-clip-text text-transparent">
+                GreenFood
               </span>
             </Link>
 
@@ -285,16 +291,16 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
             <div className="container mx-auto px-4 py-4">
               {/* Token Balances */}
               <div className="flex items-center space-x-2 mb-4">
-                <div className="flex items-center space-x-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                    {user.balance.jwt.toFixed(0)} JWT
+                <div className="flex items-center space-x-1 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-md">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    {user.balance.daar.toFixed(0)} DAAR
                   </span>
                 </div>
-                <div className="flex items-center space-x-1 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-md">
-                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                  <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                    {user.balance.ring.toFixed(2)} RING
+                <div className="flex items-center space-x-1 bg-lime-50 dark:bg-lime-900/20 px-2 py-1 rounded-md">
+                  <div className="w-3 h-3 bg-lime-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-lime-700 dark:text-lime-300">
+                    {user.balance.daarion.toFixed(2)} DAARION
                   </span>
                 </div>
               </div>
@@ -315,7 +321,7 @@ export function PortalNavigation({ className }: PortalNavigationProps) {
                         variant={isActive ? "default" : "ghost"}
                         className={cn(
                           "w-full justify-start",
-                          isActive && "bg-blue-600 hover:bg-blue-700"
+                          isActive && "bg-emerald-600 hover:bg-emerald-700"
                         )}
                       >
                         <Icon className="w-4 h-4 mr-3" />

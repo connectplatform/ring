@@ -1,0 +1,858 @@
+---
+title: Білий лейбл
+description: Документація білого лейблу для платформи Ring
+---
+
+# Приклади білого лейблу
+
+Повні приклади білого лейблингу та кастомізації для агентств та підприємств, які розробляють з платформою Ring.
+
+## 🎨 Кастомізація бренду
+
+### Повне перевизначення бренду
+
+// lib/brand-config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface BrandConfig {
+  name: string
+  logo: {
+    light: string
+    dark: string
+    favicon: string
+  }
+  colors: {
+    primary: string
+    secondary: string
+    accent: string
+    background: string
+    foreground: string
+  }
+  typography: {
+    fontFamily: string
+    headingFont?: string
+  }
+  domain: string
+  contact: {
+    email: string
+    phone?: string
+    address?: string
+  }
+}
+
+// Приклади конфігурацій брендів
+export const brandConfigs: Record<string, BrandConfig> = {
+  'tech-startup': {
+    name: 'TechConnect',
+    logo: {
+      light: '/brands/techconnect/logo-light.svg',
+      dark: '/brands/techconnect/logo-dark.svg',
+      favicon: '/brands/techconnect/favicon.ico'
+    },
+    colors: {
+      primary: '#3B82F6',
+      secondary: '#8B5CF6',
+      accent: '#10B981',
+      background: '#FFFFFF',
+      foreground: '#1F2937'
+    },
+    typography: {
+      fontFamily: 'Inter, sans-serif',
+      headingFont: 'Poppins, sans-serif'
+    },
+    domain: 'techconnect.com',
+    contact: {
+      email: 'hello@techconnect.com',
+      phone: '+1 (555) 123-4567'
+    }
+  },
+  'healthcare-network': {
+    name: 'MedConnect',
+    logo: {
+      light: '/brands/medconnect/logo-light.svg',
+      dark: '/brands/medconnect/logo-dark.svg',
+      favicon: '/brands/medconnect/favicon.ico'
+    },
+    colors: {
+      primary: '#059669',
+      secondary: '#0891B2',
+      accent: '#DC2626',
+      background: '#F9FAFB',
+      foreground: '#111827'
+    },
+    typography: {
+      fontFamily: 'Source Sans Pro, sans-serif',
+      headingFont: 'Merriweather, serif'
+    },
+    domain: 'medconnect.health',
+    contact: {
+      email: 'support@medconnect.health',
+      phone: '+1 (555) 987-6543'
+    }
+  }
+}
+
+// Brand context provider
+export function getBrandConfig(domain: string): BrandConfig {
+  // In production, this would be determined by the domain
+  const subdomain = domain.split('.')[0]
+  return brandConfigs[subdomain] || brandConfigs['tech-startup']
+}`}
+</Code>
+
+### Динамічний провайдер бренду
+
+// components/BrandProvider.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { createContext, useContext, useEffect, useState } from 'react'
+import { BrandConfig, getBrandConfig } from '@/lib/brand-config'
+
+const BrandContext = createContext<BrandConfig | null>(null)
+
+export function BrandProvider({ children }: { children: React.ReactNode }) {
+  const [brand, setBrand] = useState<BrandConfig | null>(null)
+
+  useEffect(() => {
+    // Get brand config based on current domain
+    const domain = window.location.hostname
+    const config = getBrandConfig(domain)
+    setBrand(config)
+
+    // Apply brand styles dynamically
+    applyBrandStyles(config)
+  }, [])
+
+  const applyBrandStyles = (config: BrandConfig) => {
+    const root = document.documentElement
+
+    // Apply CSS custom properties
+    root.style.setProperty('--brand-primary', config.colors.primary)
+    root.style.setProperty('--brand-secondary', config.colors.secondary)
+    root.style.setProperty('--brand-accent', config.colors.accent)
+    root.style.setProperty('--brand-background', config.colors.background)
+    root.style.setProperty('--brand-foreground', config.colors.foreground)
+    root.style.setProperty('--brand-font', config.typography.fontFamily)
+    
+    if (config.typography.headingFont) {
+      root.style.setProperty('--brand-heading-font', config.typography.headingFont)
+    }
+
+    // Update document title and favicon
+    document.title = `${config.name} - Professional Networking Platform`
+    
+    const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement
+    if (favicon) {
+      favicon.href = config.logo.favicon
+    }
+  }
+
+  if (!brand) {
+    return <div>Loading brand configuration...</div>
+  }
+
+  return (
+    <BrandContext.Provider value={brand}>
+      {children}
+    </BrandContext.Provider>
+  )
+}
+
+export function useBrand() {
+  const context = useContext(BrandContext)
+  if (!context) {
+    throw new Error('useBrand must be used within a BrandProvider')
+  }
+  return context
+}`}
+</Code>
+### Компонент брендованого заголовка
+
+// components/BrandedHeader.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useBrand } from './BrandProvider'
+import { useSession, signIn, signOut } from 'next-auth/react'
+
+export function BrandedHeader() {
+  const brand = useBrand()
+  const { data: session } = useSession()
+
+  return (
+    <header className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Brand Logo */}
+          <div className="flex items-center">
+            <img
+              src={brand.logo.light}
+              alt={brand.name}
+              className="h-8 w-auto dark:hidden"
+            />
+            <img
+              src={brand.logo.dark}
+              alt={brand.name}
+              className="h-8 w-auto hidden dark:block"
+            />
+            <span className="ml-3 text-xl font-bold" style={{ color: brand.colors.primary }}>
+              {brand.name}
+            </span>
+          </div>
+
+          {/* Navigation */}
+          <nav className="hidden md:flex space-x-8">
+            <a href="/entities" className="text-gray-700 hover:text-gray-900">
+              Organizations
+            </a>
+            <a href="/opportunities" className="text-gray-700 hover:text-gray-900">
+              Opportunities
+            </a>
+            <a href="/marketplace" className="text-gray-700 hover:text-gray-900">
+              Marketplace
+            </a>
+          </nav>
+
+          {/* User Menu */}
+          <div className="flex items-center space-x-4">
+            {session ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-700">
+                  Welcome, {session.user?.name}
+                </span>
+                <button
+                  onClick={() => signOut()}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => signIn()}
+                className="px-4 py-2 rounded-md text-white font-medium"
+                style={{ backgroundColor: brand.colors.primary }}
+              >
+                Sign In
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}`}
+</Code>
+## 🏢 Мультитенантна архітектура
+
+### Конфігурація тенанта
+
+// lib/tenant-config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface TenantConfig {
+  id: string
+  name: string
+  domain: string
+  subdomain: string
+  brand: BrandConfig
+  features: {
+    entities: boolean
+    opportunities: boolean
+    messaging: boolean
+    wallet: boolean
+    store: boolean
+    nftMarketplace: boolean
+    staking: boolean
+  }
+  limits: {
+    maxEntities: number
+    maxUsers: number
+    storageGB: number
+  }
+  integrations: {
+    customDomain: boolean
+    sso: boolean
+    api: boolean
+    webhooks: boolean
+  }
+  subscription: {
+    plan: 'starter' | 'professional' | 'enterprise'
+    status: 'active' | 'suspended' | 'cancelled'
+    expiresAt: string
+  }
+}
+
+export const tenantConfigs: Record<string, TenantConfig> = {
+  'tech-startup': {
+    id: 'tech-startup-001',
+    name: 'TechConnect',
+    domain: 'techconnect.com',
+    subdomain: 'techconnect',
+    brand: brandConfigs['tech-startup'],
+    features: {
+      entities: true,
+      opportunities: true,
+      messaging: true,
+      wallet: true,
+      store: false,
+      nftMarketplace: false,
+      staking: false
+    },
+    limits: {
+      maxEntities: 1000,
+      maxUsers: 5000,
+      storageGB: 100
+    },
+    integrations: {
+      customDomain: true,
+      sso: true,
+      api: true,
+      webhooks: true
+    },
+    subscription: {
+      plan: 'professional',
+      status: 'active',
+      expiresAt: '2024-12-31T23:59:59Z'
+    }
+  }
+}
+
+export function getTenantConfig(domain: string): TenantConfig | null {
+  const subdomain = domain.split('.')[0]
+  return tenantConfigs[subdomain] || null
+}`}
+</Code>
+### Компонент контролю функцій
+
+// components/FeatureGate.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useTenant } from '@/hooks/useTenant'
+
+interface FeatureGateProps {
+  feature: keyof TenantConfig['features']
+  children: React.ReactNode
+  fallback?: React.ReactNode
+}
+
+export function FeatureGate({ feature, children, fallback }: FeatureGateProps) {
+  const tenant = useTenant()
+
+  if (!tenant?.features[feature]) {
+    return fallback || (
+      <div className="p-4 bg-gray-100 rounded-lg text-center">
+        <p className="text-gray-600">
+          This feature is not available in your current plan.
+        </p>
+        <button className="mt-2 text-blue-600 hover:text-blue-800">
+          Upgrade Plan
+        </button>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
+// Usage example
+export function Dashboard() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Organizations</h3>
+        <p>Manage your organizations and teams.</p>
+      </div>
+
+      <FeatureGate feature="wallet">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4">Wallet</h3>
+          <p>Manage your crypto wallet and tokens.</p>
+        </div>
+      </FeatureGate>
+
+      <FeatureGate feature="store">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4">Marketplace</h3>
+          <p>Buy and sell products and services.</p>
+        </div>
+      </FeatureGate>
+    </div>
+  )
+}`}
+</Code>
+
+## 🎯 Налаштування власного домену
+
+### Конфігурація домену
+
+// lib/domain-config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface DomainConfig {
+  domain: string
+  tenantId: string
+  ssl: {
+    enabled: boolean
+    certificate?: string
+    privateKey?: string
+  }
+  dns: {
+    verified: boolean
+    records: Array<{
+      type: 'A' | 'CNAME' | 'TXT'
+      name: string
+      value: string
+      ttl: number
+    }>
+  }
+  status: 'pending' | 'active' | 'failed'
+}
+
+export async function setupCustomDomain(
+  tenantId: string,
+  domain: string
+): Promise<DomainConfig> {
+  // Verify domain ownership
+  const verificationToken = generateVerificationToken()
+  
+  const config: DomainConfig = {
+    domain,
+    tenantId,
+    ssl: {
+      enabled: false
+    },
+    dns: {
+      verified: false,
+      records: [
+        {
+          type: 'CNAME',
+          name: domain,
+          value: 'ring-platform.vercel.app',
+          ttl: 300
+        },
+        {
+          type: 'TXT',
+          name: `_ring-verification.${domain}`,
+          value: verificationToken,
+          ttl: 300
+        }
+      ]
+    },
+    status: 'pending'
+  }
+
+  // Save configuration
+  await saveDomainConfig(config)
+  
+  // Start verification process
+  await verifyDomainOwnership(config)
+  
+  return config
+}
+
+async function verifyDomainOwnership(config: DomainConfig): Promise<boolean> {
+  // Implementation would check DNS records
+  // This is a simplified example
+  return true
+}
+
+function generateVerificationToken(): string {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15)
+}
+
+async function saveDomainConfig(config: DomainConfig): Promise<void> {
+  // Save to database
+}`}
+</Code>
+### Компонент налаштування домену
+
+// components/DomainSetup.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState } from 'react'
+import { setupCustomDomain } from '@/lib/domain-config'
+
+export function DomainSetup() {
+  const [domain, setDomain] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [config, setConfig] = useState<DomainConfig | null>(null)
+
+  const handleSetupDomain = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const domainConfig = await setupCustomDomain('current-tenant-id', domain)
+      setConfig(domainConfig)
+    } catch (error) {
+      console.error('Failed to setup domain:', error)
+      alert('Failed to setup custom domain')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <h2 className="text-2xl font-bold mb-6">Налаштування власного домену</h2>
+
+      {!config ? (
+        <form onSubmit={handleSetupDomain} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Власний домен
+            </label>
+            <input
+              type="text"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="вашдомен.com"
+              className="w-full p-3 border border-gray-300 rounded-lg"
+              required
+            />
+            <p className="text-sm text-gray-600 mt-1">
+              Введіть ваш власний домен без http:// або https://
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Налаштування домену...' : 'Налаштувати власний домен'}
+          </button>
+        </form>
+      ) : (
+        <div className="space-y-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 className="font-semibold text-yellow-800 mb-2">
+              Потрібна конфігурація DNS
+            </h3>
+            <p className="text-yellow-700 mb-4">
+              Будь ласка, додайте наступні DNS записи до вашого домену:
+            </p>
+
+            <div className="space-y-3">
+              {config.dns.records.map((record, index) => (
+                <div key={index} className="bg-white p-3 rounded border">
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <strong>Тип:</strong> {record.type}
+                    </div>
+                    <div>
+                      <strong>Ім'я:</strong> {record.name}
+                    </div>
+                    <div>
+                      <strong>Значення:</strong> 
+                      <code className="bg-gray-100 px-1 rounded text-xs">
+                        {record.value}
+                      </code>
+                    </div>
+                    <div>
+                      <strong>TTL:</strong> {record.ttl}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-semibold text-blue-800 mb-2">Наступні кроки</h3>
+            <ol className="list-decimal list-inside text-blue-700 space-y-1">
+              <li>Додайте DNS записи до вашого провайдера домену</li>
+              <li>Дочекайтеся поширення DNS (до 24 годин)</li>
+              <li>Ми автоматично перевіримо та активуємо ваш домен</li>
+              <li>SSL сертифікат буде створено автоматично</li>
+            </ol>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                config.status === 'active' ? 'bg-green-500' :
+                config.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+              }`}></div>
+              <span className="text-sm font-medium">
+                Статус: {config.status === 'active' ? 'Активний' : 
+                         config.status === 'pending' ? 'Очікування' : 'Неактивний'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Перевірити статус
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}`}
+</Code>
+## 🔧 Конфігурація середовища
+
+### Налаштування багатосередовищності
+
+// lib/env-config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface EnvironmentConfig {
+  name: 'development' | 'staging' | 'production'
+  api: {
+    baseUrl: string
+    timeout: number
+    retries: number
+  }
+  database: {
+    url: string
+    ssl: boolean
+  }
+  auth: {
+    providers: string[]
+    sessionTimeout: number
+  }
+  features: {
+    debug: boolean
+    analytics: boolean
+    errorTracking: boolean
+  }
+  integrations: {
+    stripe: boolean
+    sendgrid: boolean
+    aws: boolean
+  }
+}
+
+export const environments: Record<string, EnvironmentConfig> = {
+  development: {
+    name: 'development',
+    api: {
+      baseUrl: 'http://localhost:3000/api',
+      timeout: 10000,
+      retries: 3
+    },
+    database: {
+      url: process.env.DATABASE_URL || 'postgresql://localhost:5432/ring_dev',
+      ssl: false
+    },
+    auth: {
+      providers: ['email', 'google'],
+      sessionTimeout: 24 * 60 * 60 // 24 hours
+    },
+    features: {
+      debug: true,
+      analytics: false,
+      errorTracking: false
+    },
+    integrations: {
+      stripe: false,
+      sendgrid: false,
+      aws: false
+    }
+  },
+  production: {
+    name: 'production',
+    api: {
+      baseUrl: 'https://ring.ck.ua/api',
+      timeout: 5000,
+      retries: 5
+    },
+    database: {
+      url: process.env.DATABASE_URL!,
+      ssl: true
+    },
+    auth: {
+      providers: ['email', 'google', 'apple', 'metamask'],
+      sessionTimeout: 7 * 24 * 60 * 60 // 7 days
+    },
+    features: {
+      debug: false,
+      analytics: true,
+      errorTracking: true
+    },
+    integrations: {
+      stripe: true,
+      sendgrid: true,
+      aws: true
+    }
+  }
+}
+
+export function getEnvironmentConfig(): EnvironmentConfig {
+  const env = process.env.NODE_ENV as keyof typeof environments
+  return environments[env] || environments.development
+}`}
+</Code>
+### Компоненти для Конкретних Середовищ
+
+// components/EnvironmentBanner.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { getEnvironmentConfig } from '@/lib/env-config'
+
+export function EnvironmentBanner() {
+  const config = getEnvironmentConfig()
+
+  if (config.name === 'production') {
+    return null
+  }
+
+  const bannerColors = {
+    development: 'bg-green-600',
+    staging: 'bg-yellow-600'
+  }
+
+  return (
+    <div className={`${bannerColors[config.name]} text-white text-center py-2 text-sm`}>
+      <strong>
+        {config.name.toUpperCase()} ENVIRONMENT
+      </strong>
+      {config.features.debug && ' - Debug Mode Enabled'}
+    </div>
+  )
+}
+
+// components/ConditionalFeature.tsx
+interface ConditionalFeatureProps {
+  environment: 'development' | 'staging' | 'production'
+  children: React.ReactNode
+}
+
+export function ConditionalFeature({ environment, children }: ConditionalFeatureProps) {
+  const config = getEnvironmentConfig()
+
+  if (config.name !== environment) {
+    return null
+  }
+
+  return <>{children}</>
+}
+
+// Usage
+export function AdminPanel() {
+  return (
+    <div>
+      <h1>Admin Panel</h1>
+      
+      <ConditionalFeature environment="development">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <strong>Development Only:</strong> Debug tools and test data controls
+        </div>
+      </ConditionalFeature>
+
+      {/* Regular admin content */}
+    </div>
+  )
+}`}
+</Code>
+## 📊 Аналітика та відстеження
+
+### Налаштування користувацької аналітики
+
+// lib/analytics.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface AnalyticsEvent {
+  name: string
+  properties?: Record<string, any>
+  userId?: string
+  tenantId?: string
+  timestamp?: string
+}
+
+export class Analytics {
+  private tenantId: string
+  private userId?: string
+
+  constructor(tenantId: string, userId?: string) {
+    this.tenantId = tenantId
+    this.userId = userId
+  }
+
+  track(event: AnalyticsEvent) {
+    const enrichedEvent = {
+      ...event,
+      tenantId: this.tenantId,
+      userId: this.userId || event.userId,
+      timestamp: new Date().toISOString(),
+      properties: {
+        ...event.properties,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        referrer: document.referrer
+      }
+    }
+
+    // Send to analytics service
+    this.sendEvent(enrichedEvent)
+  }
+
+  private async sendEvent(event: AnalyticsEvent) {
+    try {
+      await fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event)
+      })
+    } catch (error) {
+      console.error('Analytics tracking failed:', error)
+    }
+  }
+
+  // Predefined events
+  trackPageView(page: string) {
+    this.track({
+      name: 'page_view',
+      properties: { page }
+    })
+  }
+
+  trackEntityCreated(entityType: string) {
+    this.track({
+      name: 'entity_created',
+      properties: { entityType }
+    })
+  }
+
+  trackOpportunityApplied(opportunityId: string, opportunityType: string) {
+    this.track({
+      name: 'opportunity_applied',
+      properties: { opportunityId, opportunityType }
+    })
+  }
+
+  trackWalletConnected(walletType: string) {
+    this.track({
+      name: 'wallet_connected',
+      properties: { walletType }
+    })
+  }
+}
+
+// Analytics hook
+export function useAnalytics() {
+  const tenant = useTenant()
+  const { data: session } = useSession()
+
+  return new Analytics(tenant?.id || 'unknown', session?.user?.id)
+}`}
+</Code>
+
+---
+
+*Готові побачити повні реалізації? Перевірте [Реальні додатки](/uk/docs/examples/real-world) або дослідіть наші приклади [Інтеграції API](/uk/docs/examples/api-integration).*

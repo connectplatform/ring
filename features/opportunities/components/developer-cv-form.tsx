@@ -44,7 +44,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { put } from '@vercel/blob'
+import { file as fileService } from '@/lib/file'
 import type { Locale } from '@/i18n-config'
 
 interface DeveloperCVFormProps {
@@ -298,19 +298,25 @@ export default function DeveloperCVForm({ locale }: DeveloperCVFormProps) {
     setUploadProgress(0)
 
     try {
-      // Upload to Vercel Blob
-      const blob = await put(file.name, file, {
+      // Upload using our file abstraction layer
+      const result = await fileService().upload(file.name, file, {
         access: 'public',
-        onUploadProgress: (progress) => {
-          setUploadProgress(progress.percentage)
-        }
+        // Note: Progress callbacks are not yet supported in the abstraction layer
+        // This is a TODO for future enhancement
       })
+
+      if (!result.success) {
+        throw new Error(result.error || 'File upload failed')
+      }
 
       setCvData(prev => ({
         ...prev,
-        resumeUrl: blob.url,
-        resumeFileName: file.name
+        resumeUrl: result.url,
+        resumeFileName: result.filename
       }))
+
+      // Set progress to 100% since upload completed
+      setUploadProgress(100)
     } catch (error) {
       console.error('Upload failed:', error)
       alert('Failed to upload resume. Please try again.')

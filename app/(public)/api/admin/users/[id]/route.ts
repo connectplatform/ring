@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 
 export async function DELETE(
   request: NextRequest,
@@ -26,13 +26,12 @@ export async function DELETE(
       );
     }
 
-    // Delete user from Firestore
-    const db = getAdminDb();
-    const userRef = db.collection('users').doc(id);
-    
+    await initializeDatabase();
+    const db = getDatabaseService();
+
     // Check if user exists
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) {
+    const userResult = await db.read('users', id);
+    if (!userResult.success || !userResult.data) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -40,11 +39,14 @@ export async function DELETE(
     }
 
     // Delete the user
-    await userRef.delete();
+    const deleteResult = await db.delete('users', id);
+    if (!deleteResult.success) {
+      throw deleteResult.error || new Error('Failed to delete user');
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'User deleted successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'User deleted successfully'
     });
 
   } catch (error) {

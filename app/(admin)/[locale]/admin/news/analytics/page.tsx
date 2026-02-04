@@ -2,13 +2,35 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
 import { NewsAnalyticsDashboard } from '@/features/news/components/news-analytics-dashboard'
-import { getCachedNewsCollection } from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
+import NewsWrapper from '@/components/wrappers/news-wrapper'
 
+/**
+ * Get news analytics - Server Component async/await (React 19)
+ */
 async function getNewsAnalytics(): Promise<NewsAnalytics> {
   try {
-    const snapshot = await getCachedNewsCollection({})
-    const articles = snapshot.docs.map(doc => doc.data()) as NewsArticle[]
+    // Initialize database service with proper error handling
+    const initResult = await initializeDatabase()
+    if (!initResult.success) {
+      console.error('Database initialization failed:', initResult.error)
+      return {
+        totalArticles: 0,
+        totalViews: 0,
+        totalLikes: 0,
+        totalComments: 0,
+        popularArticles: [],
+        topCategories: [],
+        recentActivity: []
+      } // Graceful degradation
+    }
+    const db = getDatabaseService()
+    
+    const result = await db.query({ collection: 'news' })
+    if (!result.success) throw result.error || new Error('Query failed')
+    
+    const articles = result.data as any[] as NewsArticle[]
 
     // Calculate analytics
     const totalArticles = articles.length
@@ -99,22 +121,34 @@ export default async function AdminNewsAnalyticsPage({
   
   const analytics = await getNewsAnalytics()
 
+  // Prepare stats for the news wrapper sidebar
+  const stats = {
+    totalArticles: analytics.totalArticles,
+    publishedArticles: analytics.totalArticles, // Analytics shows all published articles
+    draftArticles: 0, // Analytics don't show draft status
+    recentViews: analytics.totalViews // Total views from analytics
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <NewsWrapper
+      pageContext="analytics"
+      stats={stats}
+      translations={t}
+    >
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          News Analytics
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          {t.modules.admin.analytics || 'News Analytics'}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Comprehensive insights and performance metrics for your news content
         </p>
       </div>
 
-      <NewsAnalyticsDashboard 
+      <NewsAnalyticsDashboard
         analytics={analytics}
         locale={validLocale}
         translations={t}
       />
-    </div>
+    </NewsWrapper>
   )
 } 

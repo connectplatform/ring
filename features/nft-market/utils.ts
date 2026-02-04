@@ -1,6 +1,7 @@
-export async function toWeiDecimal(amount: string, decimals = 18): Promise<bigint> {
-  const { parseUnits } = await import('ethers')
-  return BigInt(parseUnits(amount, decimals).toString())
+import { parseUnits } from 'viem'
+
+export function toWeiDecimal(amount: string, decimals = 18): bigint {
+  return parseUnits(amount, decimals)
 }
 
 

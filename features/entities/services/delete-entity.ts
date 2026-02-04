@@ -1,21 +1,16 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Delete Entity Service
+ * 
+ * Deletes entity with role-based access control
+ * Uses DatabaseService abstraction layer
+ */
 
-import { getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { db } from '@/lib/database/DatabaseService';
-
-import { auth } from '@/auth'; // Auth.js v5 handler for session management
-import { UserRole } from '@/features/auth/types';
-import { Entity } from '@/features/entities/types';
-import { checkEntityOwnership } from '@/features/entities/utils/entity-utils';
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
+import { Entity } from '@/features/entities/types'
+import { checkEntityOwnership } from '@/features/entities/utils/entity-utils'
 import { invalidateEntitiesCache } from '@/lib/cached-data'
+import { db } from '@/lib/database/DatabaseService'
 
 /**
  * Deletes an entity by its ID from the Firestore collection and removes its presence data from Realtime Database.
@@ -92,10 +87,7 @@ export async function deleteEntity(id: string): Promise<boolean> {
       throw new Error(deleteResult.error?.message || 'Failed to delete entity');
     }
 
-    // Step 7: Remove presence data from Realtime Database
-    const entityPresenceRef = getAdminRtdbRef(`entities/${id}`);
-    await setAdminRtdbData(entityPresenceRef.toString(), null);
-
+    // Step 7: Entity deleted successfully
     console.log('Services: deleteEntity - Entity deleted successfully:', id);
     invalidateEntitiesCache(['public','subscriber','member','confidential','admin'])
     return true;

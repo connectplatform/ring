@@ -222,9 +222,10 @@ In today's digital economy, your organization's professional identity is your mo
 ## 🚀 Implementation & Integration
 
 ### Quick Entity Setup (3 Minutes)
-```typescript
 // Create your professional entity
-const entity = await createEntity({
+
+<Code language="typescript" title="TypeScript">
+{`const entity = await createEntity({
   name: 'Innovative Solutions Inc',
   description: 'Leading provider of enterprise software solutions',
   industry: 'TECHNOLOGY_SOFTWARE',
@@ -246,13 +247,14 @@ await requestVerification(entity.id, {
   contactPerson: 'Sarah Johnson',
   contactEmail: 'sarah@innovativesolutions.com',
   contactPhone: '+1-555-0123'
-})
-```
+})`}
+</Code>
 
 ### Advanced Entity Management
-```typescript
 // Invite team members with specific roles
-await inviteMembers(entity.id, [
+
+<Code language="typescript" title="TypeScript">
+{`await inviteMembers(entity.id, [
   {
     email: 'john@innovativesolutions.com',
     role: 'ADMIN',
@@ -288,8 +290,8 @@ const opportunity = await createOpportunity({
     max: 220000,
     currency: 'USD'
   }
-})
-```
+})`}
+</Code>
 
 ## 📊 Success Metrics & Benchmarks
 
@@ -333,16 +335,17 @@ const opportunity = await createOpportunity({
 - **Notification System**: Real-time updates and alerts
 
 ### API-First Architecture
-```typescript
 // Entity management endpoints
-POST /api/entities                    // Create entity
+
+<Code language="typescript" title="TypeScript">
+{`POST /api/entities                    // Create entity
 GET /api/entities/:id                 // Get entity details
 PUT /api/entities/:id                 // Update entity
 DELETE /api/entities/:id              // Delete entity
 POST /api/entities/:id/verify         // Request verification
 POST /api/entities/:id/invite         // Invite team members
-GET /api/entities/:id/analytics       // Get performance metrics
-```
+GET /api/entities/:id/analytics       // Get performance metrics`}
+</Code>
 
 ## 🏆 Why Choose Ring Platform Entities?
 

@@ -6,7 +6,7 @@
  */
 
 import { cache } from 'react'
-import { getCachedCollectionTyped } from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { Entity, SerializedEntity } from '@/features/entities/types'
 import { serializeEntity } from '@/lib/converters/entity-serializer'
 
@@ -16,25 +16,30 @@ import { serializeEntity } from '@/lib/converters/entity-serializer'
  */
 export const getVendorEntity = cache(async (userId: string): Promise<SerializedEntity | null> => {
   try {
-    // Query directly for entities with storeActivated: true and addedBy: userId
-    const result = await getCachedCollectionTyped<Entity>(
-      'entities',
-      {
-        filters: [
-          { field: 'addedBy', operator: '==', value: userId },
-          { field: 'storeActivated', operator: '==', value: true }
-        ],
-        limit: 1, // We only need the first match
-        orderBy: { field: 'lastUpdated', direction: 'desc' } // Get most recently updated
-      }
-    )
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    // Query for vendor entities
+    const result = await db.query({
+      collection: 'entities',
+      filters: [
+        { field: 'addedBy', operator: '=', value: userId },
+        { field: 'storeActivated', operator: '=', value: true }
+      ],
+      orderBy: [{ field: 'lastUpdated', direction: 'desc' }],
+      pagination: { limit: 1 }
+    })
 
-    if (result.items.length === 0) {
+    if (!result.success || !result.data) {
       return null
     }
 
-    // Return the first (and should be only) vendor entity, serialized for client use
-    return serializeEntity(result.items[0])
+    const entities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    if (entities.length === 0) {
+      return null
+    }
+
+    return serializeEntity(entities[0])
   } catch (error) {
     console.error('Error fetching vendor entity:', error)
     return null
@@ -47,18 +52,15 @@ export const getVendorEntity = cache(async (userId: string): Promise<SerializedE
  */
 export const hasVendorEntity = cache(async (userId: string): Promise<boolean> => {
   try {
-    const result = await getCachedCollectionTyped<Entity>(
-      'entities',
-      {
-        filters: [
-          { field: 'addedBy', operator: '==', value: userId },
-          { field: 'storeActivated', operator: '==', value: true }
-        ],
-        limit: 1 // Only need to know if at least one exists
-      }
-    )
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const countResult = await db.count('entities', [
+      { field: 'addedBy', operator: '=', value: userId },
+      { field: 'storeActivated', operator: '=', value: true }
+    ])
 
-    return result.items.length > 0
+    return countResult.success && (countResult.data || 0) > 0
   } catch (error) {
     console.error('Error checking vendor entity existence:', error)
     return false
@@ -71,19 +73,24 @@ export const hasVendorEntity = cache(async (userId: string): Promise<boolean> =>
  */
 export const getVendorEntities = cache(async (userId: string): Promise<SerializedEntity[]> => {
   try {
-    const result = await getCachedCollectionTyped<Entity>(
-      'entities',
-      {
-        filters: [
-          { field: 'addedBy', operator: '==', value: userId },
-          { field: 'storeActivated', operator: '==', value: true }
-        ],
-        orderBy: { field: 'lastUpdated', direction: 'desc' }
-      }
-    )
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const result = await db.query({
+      collection: 'entities',
+      filters: [
+        { field: 'addedBy', operator: '=', value: userId },
+        { field: 'storeActivated', operator: '=', value: true }
+      ],
+      orderBy: [{ field: 'lastUpdated', direction: 'desc' }]
+    })
 
-    // Serialize all entities for client use
-    return result.items.map(serializeEntity)
+    if (!result.success || !result.data) {
+      return []
+    }
+
+    const entities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    return entities.map(serializeEntity)
   } catch (error) {
     console.error('Error fetching vendor entities:', error)
     return []
@@ -96,22 +103,23 @@ export const getVendorEntities = cache(async (userId: string): Promise<Serialize
  */
 export const getVendorEntityById = cache(async (entityId: string): Promise<SerializedEntity | null> => {
   try {
-    const result = await getCachedCollectionTyped<Entity>(
-      'entities',
-      {
-        filters: [
-          { field: 'id', operator: '==', value: entityId },
-          { field: 'storeActivated', operator: '==', value: true }
-        ],
-        limit: 1
-      }
-    )
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const result = await db.findById('entities', entityId)
 
-    if (result.items.length === 0) {
+    if (!result.success || !result.data) {
       return null
     }
 
-    return serializeEntity(result.items[0])
+    const entity = (result.data as any).data || result.data
+    
+    // Verify it's a vendor store
+    if (!entity.storeActivated) {
+      return null
+    }
+
+    return serializeEntity(entity)
   } catch (error) {
     console.error('Error fetching vendor entity by ID:', error)
     return null
@@ -127,19 +135,25 @@ export const getVendorEntitiesByStatus = cache(async (
   limit: number = 50
 ): Promise<SerializedEntity[]> => {
   try {
-    const result = await getCachedCollectionTyped<Entity>(
-      'entities',
-      {
-        filters: [
-          { field: 'storeActivated', operator: '==', value: true },
-          { field: 'storeStatus', operator: '==', value: storeStatus }
-        ],
-        orderBy: { field: 'lastUpdated', direction: 'desc' },
-        limit
-      }
-    )
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const result = await db.query({
+      collection: 'entities',
+      filters: [
+        { field: 'storeActivated', operator: '=', value: true },
+        { field: 'storeStatus', operator: '=', value: storeStatus }
+      ],
+      orderBy: [{ field: 'lastUpdated', direction: 'desc' }],
+      pagination: { limit }
+    })
 
-    return result.items.map(serializeEntity)
+    if (!result.success || !result.data) {
+      return []
+    }
+
+    const entities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    return entities.map(serializeEntity)
   } catch (error) {
     console.error('Error fetching vendor entities by status:', error)
     return []
@@ -159,40 +173,33 @@ export interface VendorEntityStats {
 
 export const getVendorEntityStats = cache(async (): Promise<VendorEntityStats> => {
   try {
-    // Run parallel queries for different statuses
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Run parallel count queries for different statuses
     const [total, active, pending, suspended] = await Promise.all([
-      getCachedCollectionTyped<Entity>('entities', {
-        filters: [{ field: 'storeActivated', operator: '==', value: true }],
-        limit: 1000 // Reasonable limit for counting
-      }),
-      getCachedCollectionTyped<Entity>('entities', {
-        filters: [
-          { field: 'storeActivated', operator: '==', value: true },
-          { field: 'storeStatus', operator: '==', value: 'open' }
-        ],
-        limit: 1000
-      }),
-      getCachedCollectionTyped<Entity>('entities', {
-        filters: [
-          { field: 'storeActivated', operator: '==', value: true },
-          { field: 'storeStatus', operator: '==', value: 'pending' }
-        ],
-        limit: 1000
-      }),
-      getCachedCollectionTyped<Entity>('entities', {
-        filters: [
-          { field: 'storeActivated', operator: '==', value: true },
-          { field: 'storeStatus', operator: '==', value: 'suspended' }
-        ],
-        limit: 1000
-      })
+      db.count('entities', [
+        { field: 'storeActivated', operator: '=', value: true }
+      ]),
+      db.count('entities', [
+        { field: 'storeActivated', operator: '=', value: true },
+        { field: 'storeStatus', operator: '=', value: 'open' }
+      ]),
+      db.count('entities', [
+        { field: 'storeActivated', operator: '=', value: true },
+        { field: 'storeStatus', operator: '=', value: 'pending' }
+      ]),
+      db.count('entities', [
+        { field: 'storeActivated', operator: '=', value: true },
+        { field: 'storeStatus', operator: '=', value: 'suspended' }
+      ])
     ])
 
     return {
-      totalVendors: total.items.length,
-      activeVendors: active.items.length,
-      pendingVendors: pending.items.length,
-      suspendedVendors: suspended.items.length
+      totalVendors: (total.success ? total.data : 0) || 0,
+      activeVendors: (active.success ? active.data : 0) || 0,
+      pendingVendors: (pending.success ? pending.data : 0) || 0,
+      suspendedVendors: (suspended.success ? suspended.data : 0) || 0
     }
   } catch (error) {
     console.error('Error fetching vendor entity stats:', error)

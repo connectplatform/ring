@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { GoogleOneTap } from './google-one-tap'
 import GoogleSignInButtonGIS from './google-signin-button-gis'
 
 // Client-side constant for default locale
@@ -38,6 +37,7 @@ interface UnifiedLoginComponentProps {
   open: boolean
   onClose?: () => void
   from?: string
+  isAuthenticating?: boolean
 }
 
 /**
@@ -52,7 +52,7 @@ interface UnifiedLoginComponentProps {
  * @param {unified-login-componentProps} props - Component props
  * @returns {React.ReactElement} The unified-login-component
  */
-const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onClose, from }) => {
+const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onClose, from, isAuthenticating = false }) => {
   const tAuth = useTranslations('modules.auth')
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -164,38 +164,9 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
         throw new Error('Please install MetaMask to use this feature')
       }
 
-      const { ethers } = await import('ethers')
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      await provider.send("eth_requestAccounts", [])
-      const signer = await provider.getSigner()
-      const publicAddress = await signer.getAddress()
-
-      // Generate nonce
-      const nonceResponse = await fetch('/api/auth/crypto/generateNonce', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicAddress }),
-      })
-      const { nonce } = await nonceResponse.json()
-
-      // Sign the nonce
-      const signedNonce = await signer.signMessage(nonce)
-
-      // Authenticate with NextAuth
-      const callbackUrl = from || ROUTES.PROFILE(locale)
-      const result = await signIn('crypto-wallet', {
-        publicAddress,
-        signedNonce,
-        redirect: false,
-        callbackUrl,
-      })
-
-      if (result?.error) {
-        throw new Error(result.error)
-      }
-      if (result?.url) {
-        router.push(result.url)
-      }
+      // Modern wagmi implementation - this component needs to be refactored to use hooks
+      // For now, redirect to use the modern multi-chain wallet dashboard
+      throw new Error('Web3 auth upgraded - please use the multi-chain wallet dashboard for connection')
 
     } catch (error) {
       handleSignInError(error as Error)
@@ -261,27 +232,30 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
                   className="w-full"
                   variant="outline"
                   size="lg"
+                  disabled={isAuthenticating}
+                  onAuthStart={() => setIsLoading(true)}
+                  onAuthEnd={() => setIsLoading(false)}
                 />
 
                 {/* Secondary Options Row */}
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={() => handleSignIn('apple')}
-                    disabled={isLoading}
+                    disabled={isLoading || isAuthenticating}
                     variant="outline"
                     className="h-12 text-sm font-medium"
                   >
                     <AiFillApple className="mr-2 h-5 w-5" />
-                    {tAuth('signIn.providers.apple')}
+                    {isAuthenticating ? tAuth('signIn.loading') : tAuth('signIn.providers.apple')}
                   </Button>
                   <Button
                     onClick={handleCryptoLogin}
-                    disabled={isLoading}
+                    disabled={isLoading || isAuthenticating}
                     variant="outline"
                     className="h-12 text-sm font-medium"
                   >
                     <FaEthereum className="mr-2 h-5 w-5" />
-                    {tAuth('signIn.providers.metamask')}
+                    {isAuthenticating ? tAuth('signIn.loading') : tAuth('signIn.providers.metamask')}
                   </Button>
                 </div>
 

@@ -21,6 +21,7 @@ export interface ProfileContentProps {
   searchParams: { [key: string]: string | string[] | undefined };
   session: Session | null;
   updateProfile: (prevState: ProfileUpdateState, formData: FormData) => Promise<ProfileUpdateState>;
+  tunnelReady?: boolean; // PHASE 1: Progressive tunnel loading
 }
 
 

@@ -1,0 +1,1073 @@
+---
+title: Реальные Проекты
+description: Примеры реальных проектов для Ring Platform
+---
+
+# Реальные Приложения
+
+Полные примеры приложений, построенных на Ring Platform, демонстрирующие end-to-end реализации для различных отраслей и случаев использования.
+
+## 🏥 Платформа Медицинской Сети
+
+### Complete Healthcare Professional Network
+
+// app/healthcare/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { BrandProvider } from '@/components/BrandProvider'
+
+interface HealthcareProfessional {
+  id: string
+  name: string
+  specialty: string
+  license: string
+  hospital: string
+  verified: boolean
+  rating: number
+  consultationFee: number
+  availability: string[]
+}
+
+interface MedicalOpportunity {
+  id: string
+  title: string
+  type: 'consultation' | 'collaboration' | 'research' | 'locum'
+  specialty: string
+  urgency: 'low' | 'medium' | 'high' | 'emergency'
+  location: string
+  compensation: string
+  description: string
+  requirements: string[]
+  postedBy: string
+  deadline: string
+}
+
+export default function HealthcareNetwork() {
+  const { data: session } = useSession()
+  const [professionals, setProfessionals] = useState<HealthcareProfessional[]>([])
+  const [opportunities, setOpportunities] = useState<MedicalOpportunity[]>([])
+  const [activeTab, setActiveTab] = useState<'directory' | 'opportunities' | 'consultations'>('directory')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      const [professionalsRes, opportunitiesRes] = await Promise.all([
+        fetch('/api/healthcare/professionals'),
+        fetch('/api/healthcare/opportunities')
+      ])
+
+      const professionalsData = await professionalsRes.json()
+      const opportunitiesData = await opportunitiesRes.json()
+
+      setProfessionals(professionalsData.professionals || [])
+      setOpportunities(opportunitiesData.opportunities || [])
+    } catch (error) {
+      console.error('Failed to load healthcare data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getUrgencyColor = (urgency: string) => {
+    const colors = {
+      low: 'bg-green-100 text-green-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      high: 'bg-orange-100 text-orange-800',
+      emergency: 'bg-red-100 text-red-800'
+    }
+    return colors[urgency as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  }
+
+  const requestConsultation = async (professionalId: string) => {
+    try {
+      const response = await fetch('/api/healthcare/consultations/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          professionalId,
+          patientId: session?.user?.id,
+          type: 'video',
+          urgency: 'medium'
+        })
+      })
+
+      if (response.ok) {
+        alert('Consultation request sent successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to request consultation:', error)
+      alert('Failed to send consultation request')
+    }
+  }
+
+  if (loading) {
+    return <div className="p-8">Loading healthcare network...</div>
+  }
+
+  return (
+    <BrandProvider>
+      <ProtectedRoute requiredRole="MEMBER">
+        <div className="min-h-screen bg-gray-50">
+          {/* Header */}
+          <div className="bg-white shadow">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center py-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">MedConnect</h1>
+                  <p className="text-gray-600">Healthcare Professional Network</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">
+                    Welcome, Dr. {session?.user?.name}
+                  </span>
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {session?.user?.name?.charAt(0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="bg-white border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <nav className="flex space-x-8">
+                {[
+                  { key: 'directory', label: 'Professional Directory', icon: '👨‍⚕️' },
+                  { key: 'opportunities', label: 'Medical Opportunities', icon: '🏥' },
+                  { key: 'consultations', label: 'Consultations', icon: '💬' }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === tab.key
+                        ? 'border-green-500 text-green-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <span className="mr-2">{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {activeTab === 'directory' && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Healthcare Professionals</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {professionals.map((professional) => (
+                    <div key={professional.id} className="bg-white rounded-lg shadow p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Dr. {professional.name}
+                          </h3>
+                          <p className="text-sm text-gray-600">{professional.specialty}</p>
+                          <p className="text-sm text-gray-500">{professional.hospital}</p>
+                        </div>
+                        {professional.verified && (
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                            Verified
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center mb-4">
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <span
+                              key={i}
+                              className={`text-sm ${
+                                i < professional.rating ? 'text-yellow-400' : 'text-gray-300'
+                              }`}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                        <span className="ml-2 text-sm text-gray-600">
+                          ({professional.rating}/5)
+                        </span>
+                      </div>
+
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600">
+                          Consultation Fee: <span className="font-medium">${professional.consultationFee}</span>
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          License: <span className="font-medium">{professional.license}</span>
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => requestConsultation(professional.id)}
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+                      >
+                        Request Consultation
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'opportunities' && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Medical Opportunities</h2>
+                <div className="space-y-6">
+                  {opportunities.map((opportunity) => (
+                    <div key={opportunity.id} className="bg-white rounded-lg shadow p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {opportunity.title}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {opportunity.specialty} • {opportunity.location}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-xs px-2 py-1 rounded-full ${getUrgencyColor(opportunity.urgency)}`}>
+                            {opportunity.urgency.toUpperCase()}
+                          </span>
+                          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                            {opportunity.type.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-gray-700 mb-4">{opportunity.description}</p>
+
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Requirements:</h4>
+                        <ul className="list-disc list-inside text-sm text-gray-600">
+                          {opportunity.requirements.map((req, index) => (
+                            <li key={index}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-gray-600">
+                          <p>Compensation: <span className="font-medium">{opportunity.compensation}</span></p>
+                          <p>Deadline: <span className="font-medium">
+                            {new Date(opportunity.deadline).toLocaleDateString()}
+                          </span></p>
+                        </div>
+                        <button className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
+                          Apply Now
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'consultations' && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">My Consultations</h2>
+                <div className="bg-white rounded-lg shadow">
+                  <div className="p-6">
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">📅</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No consultations scheduled</h3>
+                      <p className="text-gray-600">Request a consultation from the Professional Directory</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </ProtectedRoute>
+    </BrandProvider>
+  )
+}`}
+</Code>
+
+## 💼 Tech Startup Accelerator
+
+### Startup Accelerator Platform
+
+// app/accelerator/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+
+interface Startup {
+  id: string
+  name: string
+  description: string
+  stage: 'idea' | 'mvp' | 'growth' | 'scale'
+  industry: string
+  fundingRaised: number
+  teamSize: number
+  logo: string
+  founders: string[]
+  metrics: {
+    revenue: number
+    users: number
+    growth: number
+  }
+}
+
+interface Mentor {
+  id: string
+  name: string
+  title: string
+  company: string
+  expertise: string[]
+  rating: number
+  sessionsCompleted: number
+  hourlyRate: number
+  avatar: string
+}
+
+interface InvestmentOpportunity {
+  id: string
+  startupId: string
+  startupName: string
+  round: 'pre-seed' | 'seed' | 'series-a' | 'series-b'
+  targetAmount: number
+  raisedAmount: number
+  valuation: number
+  minimumInvestment: number
+  deadline: string
+  highlights: string[]
+}
+
+export default function StartupAccelerator() {
+  const { data: session } = useSession()
+  const [activeTab, setActiveTab] = useState<'startups' | 'mentors' | 'investments' | 'events'>('startups')
+  const [startups, setStartups] = useState<Startup[]>([])
+  const [mentors, setMentors] = useState<Mentor[]>([])
+  const [investments, setInvestments] = useState<InvestmentOpportunity[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadAcceleratorData()
+  }, [])
+
+  const loadAcceleratorData = async () => {
+    try {
+      const [startupsRes, mentorsRes, investmentsRes] = await Promise.all([
+        fetch('/api/accelerator/startups'),
+        fetch('/api/accelerator/mentors'),
+        fetch('/api/accelerator/investments')
+      ])
+
+      const [startupsData, mentorsData, investmentsData] = await Promise.all([
+        startupsRes.json(),
+        mentorsRes.json(),
+        investmentsRes.json()
+      ])
+
+      setStartups(startupsData.startups || [])
+      setMentors(mentorsData.mentors || [])
+      setInvestments(investmentsData.investments || [])
+    } catch (error) {
+      console.error('Failed to load accelerator data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStageColor = (stage: string) => {
+    const colors = {
+      idea: 'bg-gray-100 text-gray-800',
+      mvp: 'bg-blue-100 text-blue-800',
+      growth: 'bg-green-100 text-green-800',
+      scale: 'bg-purple-100 text-purple-800'
+    }
+    return colors[stage as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  }
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(0)}K`
+    }
+    return `$${amount}`
+  }
+
+  const bookMentorSession = async (mentorId: string) => {
+    try {
+      const response = await fetch('/api/accelerator/mentors/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mentorId,
+          startupId: session?.user?.entityId,
+          duration: 60,
+          type: 'strategy'
+        })
+      })
+
+      if (response.ok) {
+        alert('Mentor session booked successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to book mentor session:', error)
+      alert('Failed to book mentor session')
+    }
+  }
+
+  const expressInterest = async (investmentId: string, amount: number) => {
+    try {
+      const response = await fetch('/api/accelerator/investments/interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          investmentId,
+          investorId: session?.user?.id,
+          amount
+        })
+      })
+
+      if (response.ok) {
+        alert('Investment interest submitted successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to express investment interest:', error)
+      alert('Failed to submit investment interest')
+    }
+  }
+
+  if (loading) {
+    return <div className="p-8">Loading accelerator platform...</div>
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <h1 className="text-4xl font-bold mb-4">TechConnect Accelerator</h1>
+          <p className="text-xl opacity-90">
+            Connecting startups, mentors, and investors in the tech ecosystem
+          </p>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8">
+            {[
+              { key: 'startups', label: 'Startups', icon: '🚀' },
+              { key: 'mentors', label: 'Mentors', icon: '👨‍🏫' },
+              { key: 'investments', label: 'Investments', icon: '💰' },
+              { key: 'events', label: 'Events', icon: '📅' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'startups' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Featured Startups</h2>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Submit Your Startup
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {startups.map((startup) => (
+                <div key={startup.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <img
+                        src={startup.logo}
+                        alt={startup.name}
+                        className="w-12 h-12 rounded-lg mr-4"
+                      />
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{startup.name}</h3>
+                        <p className="text-sm text-gray-600">{startup.industry}</p>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-700 mb-4 line-clamp-3">{startup.description}</p>
+
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStageColor(startup.stage)}`}>
+                        {startup.stage.toUpperCase()}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {startup.teamSize} team members
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {formatCurrency(startup.metrics.revenue)}
+                        </div>
+                        <div className="text-xs text-gray-600">Revenue</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {startup.metrics.users.toLocaleString()}
+                        </div>
+                        <div className="text-xs text-gray-600">Users</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-green-600">
+                          +{startup.metrics.growth}%
+                        </div>
+                        <div className="text-xs text-gray-600">Growth</div>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <button className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 text-sm">
+                        View Details
+                      </button>
+                      <button className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-50 text-sm">
+                        Connect
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'mentors' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Expert Mentors</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {mentors.map((mentor) => (
+                <div key={mentor.id} className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-start mb-4">
+                    <img
+                      src={mentor.avatar}
+                      alt={mentor.name}
+                      className="w-16 h-16 rounded-full mr-4"
+                    />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">{mentor.name}</h3>
+                      <p className="text-sm text-gray-600">{mentor.title}</p>
+                      <p className="text-sm text-gray-500">{mentor.company}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-900">
+                        ${mentor.hourlyRate}/hr
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-yellow-400 mr-1">★</span>
+                        <span className="text-sm text-gray-600">{mentor.rating}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Expertise:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {mentor.expertise.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-gray-600">
+                      {mentor.sessionsCompleted} sessions completed
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => bookMentorSession(mentor.id)}
+                    className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+                  >
+                    Book Session
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'investments' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Investment Opportunities</h2>
+            <div className="space-y-6">
+              {investments.map((investment) => (
+                <div key={investment.id} className="bg-white rounded-lg shadow p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900">
+                        {investment.startupName}
+                      </h3>
+                      <p className="text-gray-600">
+                        {investment.round.replace('-', ' ').toUpperCase()} Round
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(investment.valuation)}
+                      </div>
+                      <div className="text-sm text-gray-600">Valuation</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {formatCurrency(investment.targetAmount)}
+                      </div>
+                      <div className="text-sm text-gray-600">Target</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-green-600">
+                        {formatCurrency(investment.raisedAmount)}
+                      </div>
+                      <div className="text-sm text-gray-600">Raised</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {formatCurrency(investment.minimumInvestment)}
+                      </div>
+                      <div className="text-sm text-gray-600">Min Investment</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {Math.round((investment.raisedAmount / investment.targetAmount) * 100)}%
+                      </div>
+                      <div className="text-sm text-gray-600">Complete</div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-600 h-2 rounded-full"
+                        style={{
+                          width: `${Math.min((investment.raisedAmount / investment.targetAmount) * 100, 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Investment Highlights:</h4>
+                    <ul className="list-disc list-inside text-sm text-gray-600">
+                      {investment.highlights.map((highlight, index) => (
+                        <li key={index}>{highlight}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Deadline: {new Date(investment.deadline).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const amount = prompt(`Enter investment amount (min ${formatCurrency(investment.minimumInvestment)}):`)
+                        if (amount && parseInt(amount) >= investment.minimumInvestment) {
+                          expressInterest(investment.id, parseInt(amount))
+                        }
+                      }}
+                      className="bg-purple-600 text-white py-2 px-6 rounded-md hover:bg-purple-700"
+                    >
+                      Express Interest
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'events' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Events</h2>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6">
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📅</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No events scheduled</h3>
+                  <p className="text-gray-600">Check back soon for upcoming accelerator events</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🎓 Educational Institution Network
+
+### University Alumni & Student Network
+
+// app/university/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+
+interface AlumniProfile {
+  id: string
+  name: string
+  graduationYear: number
+  degree: string
+  major: string
+  currentRole: string
+  company: string
+  location: string
+  industry: string
+  mentoring: boolean
+  avatar: string
+  achievements: string[]
+}
+
+interface StudentOpportunity {
+  id: string
+  title: string
+  type: 'internship' | 'job' | 'research' | 'mentorship' | 'project'
+  company: string
+  location: string
+  duration: string
+  requirements: string[]
+  description: string
+  applicationDeadline: string
+  postedBy: string
+}
+
+export default function UniversityNetwork() {
+  const { data: session } = useSession()
+  const [activeTab, setActiveTab] = useState<'alumni' | 'opportunities' | 'mentorship' | 'events'>('alumni')
+  const [alumni, setAlumni] = useState<AlumniProfile[]>([])
+  const [opportunities, setOpportunities] = useState<StudentOpportunity[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadUniversityData()
+  }, [])
+
+  const loadUniversityData = async () => {
+    try {
+      const [alumniRes, opportunitiesRes] = await Promise.all([
+        fetch('/api/university/alumni'),
+        fetch('/api/university/opportunities')
+      ])
+
+      const [alumniData, opportunitiesData] = await Promise.all([
+        alumniRes.json(),
+        opportunitiesRes.json()
+      ])
+
+      setAlumni(alumniData.alumni || [])
+      setOpportunities(opportunitiesData.opportunities || [])
+    } catch (error) {
+      console.error('Failed to load university data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const requestMentorship = async (alumniId: string) => {
+    try {
+      const response = await fetch('/api/university/mentorship/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mentorId: alumniId,
+          studentId: session?.user?.id,
+          message: 'I would like to request mentorship guidance for my career development.'
+        })
+      })
+
+      if (response.ok) {
+        alert('Mentorship request sent successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to request mentorship:', error)
+      alert('Failed to send mentorship request')
+    }
+  }
+
+  const applyToOpportunity = async (opportunityId: string) => {
+    try {
+      const response = await fetch('/api/university/opportunities/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId,
+          studentId: session?.user?.id,
+          resume: 'path/to/resume.pdf' // In real app, this would be uploaded
+        })
+      })
+
+      if (response.ok) {
+        alert('Application submitted successfully!')
+      }
+    } catch (error) {
+      console.error('Failed to apply to opportunity:', error)
+      alert('Failed to submit application')
+    }
+  }
+
+  const getOpportunityTypeColor = (type: string) => {
+    const colors = {
+      internship: 'bg-blue-100 text-blue-800',
+      job: 'bg-green-100 text-green-800',
+      research: 'bg-purple-100 text-purple-800',
+      mentorship: 'bg-yellow-100 text-yellow-800',
+      project: 'bg-pink-100 text-pink-800'
+    }
+    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+  }
+
+  if (loading) {
+    return <div className="p-8">Loading university network...</div>
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <h1 className="text-4xl font-bold mb-4">University Alumni Network</h1>
+          <p className="text-xl opacity-90">
+            Connecting students, alumni, and opportunities for lifelong learning
+          </p>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8">
+            {[
+              { key: 'alumni', label: 'Alumni Directory', icon: '🎓' },
+              { key: 'opportunities', label: 'Opportunities', icon: '💼' },
+              { key: 'mentorship', label: 'Mentorship', icon: '👨‍🏫' },
+              { key: 'events', label: 'Events', icon: '📅' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'alumni' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Alumni Directory</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {alumni.map((alumnus) => (
+                <div key={alumnus.id} className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center mb-4">
+                    <img
+                      src={alumnus.avatar}
+                      alt={alumnus.name}
+                      className="w-16 h-16 rounded-full mr-4"
+                    />
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{alumnus.name}</h3>
+                      <p className="text-sm text-gray-600">{alumnus.currentRole}</p>
+                      <p className="text-sm text-gray-500">{alumnus.company}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600">
+                      <strong>Class of {alumnus.graduationYear}</strong>
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {alumnus.degree} in {alumnus.major}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {alumnus.location} • {alumnus.industry}
+                    </p>
+                  </div>
+
+                  {alumnus.achievements.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Recent Achievements:</h4>
+                      <ul className="list-disc list-inside text-sm text-gray-600">
+                        {alumnus.achievements.slice(0, 2).map((achievement, index) => (
+                          <li key={index}>{achievement}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex space-x-2">
+                    <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 text-sm">
+                      Connect
+                    </button>
+                    {alumnus.mentoring && (
+                      <button
+                        onClick={() => requestMentorship(alumnus.id)}
+                        className="flex-1 border border-indigo-600 text-indigo-600 py-2 px-4 rounded-md hover:bg-indigo-50 text-sm"
+                      >
+                        Request Mentorship
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'opportunities' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Student Opportunities</h2>
+            <div className="space-y-6">
+              {opportunities.map((opportunity) => (
+                <div key={opportunity.id} className="bg-white rounded-lg shadow p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{opportunity.title}</h3>
+                      <p className="text-sm text-gray-600">
+                        {opportunity.company} • {opportunity.location}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getOpportunityTypeColor(opportunity.type)}`}>
+                      {opportunity.type.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <p className="text-gray-700 mb-4">{opportunity.description}</p>
+
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Requirements:</h4>
+                    <ul className="list-disc list-inside text-sm text-gray-600">
+                      {opportunity.requirements.map((req, index) => (
+                        <li key={index}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      <p>Duration: <span className="font-medium">{opportunity.duration}</span></p>
+                      <p>Deadline: <span className="font-medium">
+                        {new Date(opportunity.applicationDeadline).toLocaleDateString()}
+                      </span></p>
+                    </div>
+                    <button
+                      onClick={() => applyToOpportunity(opportunity.id)}
+                      className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700"
+                    >
+                      Apply Now
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'mentorship' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Mentorship Program</h2>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6">
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">👨‍🏫</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Find Your Mentor</h3>
+                  <p className="text-gray-600 mb-4">
+                    Connect with alumni who are available for mentorship in the Alumni Directory
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('alumni')}
+                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700"
+                  >
+                    Browse Alumni
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'events' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Events</h2>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6">
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📅</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No events scheduled</h3>
+                  <p className="text-gray-600">Check back soon for upcoming alumni events</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+---
+
+*These real-world examples demonstrate complete, production-ready applications built with Ring Platform. Each example includes authentication, role-based access, real-time features, and industry-specific functionality.*
+
+*Ready to build your own? Start with our [Quick Start Examples](/ru/library/examples/quick-start) or explore [API Integration](/ru/library/examples/api-integration).*

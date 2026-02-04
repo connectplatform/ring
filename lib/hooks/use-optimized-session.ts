@@ -149,6 +149,7 @@ export function useOptimizedSession(options: OptimizedSessionOptions = {}): Opti
   // Map to AuthUser format
   const user: AuthUser | null = session?.user ? {
     id: session.user.id || '',
+    globalUserId: (session.user as any).globalUserId || session.user.id || '',
     email: session.user.email || '',
     emailVerified: (session.user as any).emailVerified || null,
     name: session.user.name || null,
@@ -160,6 +161,7 @@ export function useOptimizedSession(options: OptimizedSessionOptions = {}): Opti
     isVerified: (session.user as any).isVerified || false,
     createdAt: new Date((session.user as any).createdAt || Date.now()),
     lastLogin: new Date((session.user as any).lastLogin || Date.now()),
+    accountStatus: (session.user as any).accountStatus || 'ACTIVE',
     bio: (session.user as any).bio || '',
     canPostconfidentialOpportunities: false,
     canViewconfidentialOpportunities: false,

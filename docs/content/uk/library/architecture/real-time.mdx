@@ -1,0 +1,225 @@
+---
+title: Real Time
+description: Real Time documentation for Ring Platform
+---
+
+# Tunnel Transport System
+
+Комплексна система real-time комунікації з абстракцією транспортного шару, підтримкою множини провайдерів та автоматичним вибором оптимального транспорту для кожного середовища розгортання.
+
+## Архітектура Tunnel Transport
+
+### Підтримувані Транспорти
+- **WebSocket** - Primary transport для Kubernetes deployments
+- **Server-Sent Events (SSE)** - Primary transport для Vercel Edge Runtime
+- **Long Polling** - Fallback transport для restrictive environments
+- **Supabase Realtime** - Cloud-native real-time для Supabase deployments
+- **Firebase RTDB** - Legacy Firebase real-time database
+- **Pusher/Ably** - Third-party real-time services
+
+### Автоматичний Вибір Транспорту
+// Автоматична детекція середовища та вибір транспорту
+
+<Code language="typescript" title="TypeScript">
+{`const transportConfig = {
+  vercel: { primary: 'sse', fallback: 'polling' },
+  kubernetes: { primary: 'websocket', fallback: 'sse' },
+  supabase: { primary: 'supabase', fallback: 'polling' },
+  firebase: { primary: 'firebase', fallback: 'polling' }
+}`}
+</Code>
+
+### Архітектура Системи
+<Mermaid>
+{`flowchart TD
+    subgraph "Client Layer"
+        C[📱 Client Application]
+        TM[Tunnel Manager]
+        C --> TM
+    end
+
+    subgraph "Transport Layer"
+        TM --> WS[🔌 WebSocket Transport]
+        TM --> SSE[📡 SSE Transport]
+        TM --> LP[🔄 Long Polling Transport]
+        TM --> SB[☁️ Supabase Transport]
+    end
+
+    subgraph "Service Layer"
+        WS --> TS[Tunnel Server]
+        SSE --> TS
+        LP --> TS
+        SB --> TS
+
+        TS --> RM[📨 Real-time Manager]
+        RM --> PS[👥 Presence Service]
+        RM --> NS[🔔 Notification Service]
+        RM --> MS[💬 Messaging Service]
+    end
+
+    subgraph "Database Layer"
+        RM --> PG[(🗄️ PostgreSQL)]
+        RM --> RD[(🔴 Redis Cache)]
+    end
+
+    subgraph "External Services"
+        RM --> FCM[📱 FCM Push]
+        RM --> EM[📧 Email Service]
+    end`}
+</Mermaid>
+
+## Транспортні Протоколи
+
+### Unified Message Protocol
+<Code language="typescript" title="interface TunnelMessage {">
+{`id: string
+  type: TunnelMessageType
+  payload: any
+  timestamp: number
+  userId?: string
+  sessionId: string
+  metadata?: Record<string, any>
+}
+
+enum TunnelMessageType {
+  // Data messages
+  DATA = 'data',
+  NOTIFICATION = 'notification',
+  MESSAGE = 'message',
+  PRESENCE = 'presence',
+
+  // System messages
+  HEARTBEAT = 'heartbeat',
+  ACK = 'ack',
+  ERROR = 'error',
+  AUTH = 'auth',
+
+  // Database events
+  DB_INSERT = 'db:insert',
+  DB_UPDATE = 'db:update',
+  DB_DELETE = 'db:delete'
+}`}
+</Code>
+
+### Connection State Management
+<Code language="typescript" title="enum TunnelConnectionState {">
+{`DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  RECONNECTING = 'reconnecting',
+  ERROR = 'error'
+}
+
+interface ConnectionHealth {
+  state: TunnelConnectionState
+  latency: number
+  reconnectCount: number
+  lastHeartbeat: number
+  errorCount: number
+}`}
+</Code>
+
+## Real-time Features
+
+### Presence System
+- **Online/Offline Status** - Real-time user presence tracking
+- **Typing Indicators** - Live typing status in chat
+- **Activity Monitoring** - User engagement tracking
+- **Room-based Presence** - Per-conversation presence
+
+### Push Notifications
+- **Firebase Cloud Messaging (FCM)** - Cross-platform push notifications
+- **Web Push API** - Browser-based notifications
+- **Background Sync** - Offline message delivery
+- **Notification Preferences** - User-controlled notification settings
+
+### Message Delivery
+- **Guaranteed Delivery** - Message persistence and retry logic
+- **Offline Support** - Message queuing for offline users
+- **Read Receipts** - Message read status tracking
+- **Message History** - Persistent chat history
+
+## Масштабованість та Надійність
+
+### Horizontal Scaling
+// Connection distribution across multiple instances
+
+<Code language="typescript" title="TypeScript">
+{`const connectionSharding = {
+  shardKey: 'userId',
+  shardCount: 10,
+  redisPubSub: true,
+  stickySessions: false
+}`}
+</Code>
+
+### Fault Tolerance
+- **Automatic Failover** - Transport fallback on connection failure
+- **Circuit Breakers** - Protection against cascade failures
+- **Rate Limiting** - DDoS protection and fair usage
+- **Health Monitoring** - Real-time connection health tracking
+
+### Performance Optimization
+- **Message Batching** - Reduced network overhead
+- **Compression** - Payload compression for large messages
+- **Connection Pooling** - Efficient resource utilization
+- **Smart Routing** - Geographic routing for global deployments
+
+## Конфігурація за Середовищами
+
+### Vercel Edge Runtime
+// SSE primary, WebSocket disabled
+
+<Code language="typescript" title="TypeScript">
+{`const vercelConfig = {
+  transports: ['sse', 'polling'],
+  heartbeatInterval: 30000,
+  reconnectDelay: 1000,
+  maxReconnectAttempts: 5
+}`}
+</Code>
+
+### Kubernetes Production
+// WebSocket primary, SSE fallback
+
+<Code language="typescript" title="TypeScript">
+{`const k8sConfig = {
+  transports: ['websocket', 'sse', 'polling'],
+  heartbeatInterval: 25000,
+  reconnectDelay: 500,
+  maxReconnectAttempts: 10,
+  enableMetrics: true
+}`}
+</Code>
+
+### Development Environment
+// All transports enabled for testing
+
+<Code language="typescript" title="TypeScript">
+{`const devConfig = {
+  transports: ['websocket', 'sse', 'polling', 'supabase'],
+  debugMode: true,
+  heartbeatInterval: 10000,
+  mockLatency: 100 // For testing
+}`}
+</Code>
+
+## Моніторинг та Аналітика
+
+### Connection Metrics
+- **Active Connections** - Real-time connection count
+- **Message Throughput** - Messages per second
+- **Latency Distribution** - P50, P95, P99 latency metrics
+- **Error Rates** - Connection failure rates
+
+### Performance Dashboards
+- **Grafana Dashboards** - Real-time monitoring
+- **Prometheus Metrics** - Time-series data collection
+- **Alert Manager** - Automated alerting for issues
+- **Log Aggregation** - Centralized logging system
+
+---
+
+**⚡ Production-Ready Real-time System**
+
+Ring Platform implements enterprise-grade real-time communication with multiple transport fallbacks, comprehensive monitoring, and automatic scaling capabilities.

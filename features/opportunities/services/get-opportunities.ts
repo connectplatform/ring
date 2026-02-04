@@ -1,18 +1,20 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Get Opportunities Service
+ * 
+ * React 19 cache() wrapper for opportunity queries
+ * PostgreSQL via DatabaseService abstraction
+ * Build-time optimization with static data cache
+ */
 
-import { QuerySnapshot, Query } from 'firebase-admin/firestore';
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
-import { UserRole } from '@/features/auth/types';
-import { auth } from '@/auth'; 
-import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors';
-import { logger } from '@/lib/logger';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { db } from '@/lib/database/DatabaseService';
+import { cache } from 'react'
+import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
+import { UserRole } from '@/features/auth/types'
+import { auth } from '@/auth'
+import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
+import { db } from '@/lib/database/DatabaseService'
 
 
 /**
@@ -39,7 +41,7 @@ import { db } from '@/lib/database/DatabaseService';
  * @throws {OpportunityDatabaseError} If there's an error accessing the database
  * @throws {OpportunityQueryError} If there's an error executing the query
  */
-export async function getOpportunitiesForRole(
+export const getOpportunitiesForRole = cache(async (
   params: {
     userRole: UserRole;
     limit?: number;
@@ -55,7 +57,7 @@ export async function getOpportunitiesForRole(
     entityVerified?: boolean;
     hasDeadline?: boolean;
   }
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   const phase = getCurrentPhase();
   const {
     userRole,
@@ -154,7 +156,7 @@ export async function getOpportunitiesForRole(
     }
 
     if (priority) {
-      whereConditions.push({ field: 'priority', operator: '==', value: priority });
+      whereConditions.push({ field: 'priority', operator: '=', value: priority });
     }
 
     if (deadline) {
@@ -179,14 +181,14 @@ export async function getOpportunitiesForRole(
     }
 
     if (entityVerified !== undefined) {
-      whereConditions.push({ field: 'entity.verified', operator: '==', value: entityVerified });
+      whereConditions.push({ field: 'entity.verified', operator: '=', value: entityVerified });
     }
 
     if (hasDeadline !== undefined) {
       if (hasDeadline) {
         whereConditions.push({ field: 'deadline', operator: '!=', value: null });
       } else {
-        whereConditions.push({ field: 'deadline', operator: '==', value: null });
+        whereConditions.push({ field: 'deadline', operator: '=', value: null });
       }
     }
 
@@ -303,13 +305,14 @@ export async function getOpportunitiesForRole(
       }
     );
   }
-}
+});
 
-// Convenience wrapper for contexts where dynamic session access is allowed (not inside caches)
-export async function getOpportunities(
+// Convenience wrapper for contexts where session access is needed
+// React 19 cache() wrapper for automatic request deduplication
+export const getOpportunities = cache(async (
   limit: number = 20,
   startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   logger.info('Services: getOpportunities - Starting...');
   const session = await auth();
   if (!session || !session.user) {
@@ -322,5 +325,5 @@ export async function getOpportunities(
   }
   const userRole = session.user.role as UserRole;
   return getOpportunitiesForRole({ userRole, limit, startAfter });
-}
+});
 

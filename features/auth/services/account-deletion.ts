@@ -1,14 +1,7 @@
 'use server'
 
 import { logger } from '@/lib/logger'
-
-// Import Firebase service functions for account deletion operations
-import { 
-  getCachedDocument, 
-  updateDocument, 
-  deleteDocument,
-  createDocument 
-} from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 interface AccountDeletionRequest {
   userId: string
@@ -49,26 +42,29 @@ export async function requestAccountDeletion(
   try {
     const { userId, password, reason, userEmail, userName } = request
 
-    // Step 1: Verify user exists and password is correct
-    const userDoc = await getCachedDocument('users', userId)
+    // Step 1: Initialize database and verify user exists
+    await initializeDatabase()
+    const db = getDatabaseService()
     
-    if (!userDoc || !userDoc.exists) {
+    const userResult = await db.findById('users', userId)
+    
+    if (!userResult.success || !userResult.data) {
       return {
         success: false,
         error: 'ACCOUNT_NOT_FOUND'
       }
     }
 
-    const userData = userDoc.data()
+    const userData = userResult.data.data || userResult.data
     
     // Note: In a real implementation, you would verify the password here
     // For now, we'll assume password verification happens at the Auth.js level
     
     // Step 2: Check if deletion is already pending
-    const existingDeletionDoc = await getCachedDocument('account_deletions', userId)
+    const existingDeletionResult = await db.findById('account_deletions', userId)
     
-    if (existingDeletionDoc && existingDeletionDoc.exists) {
-      const existingData = existingDeletionDoc.data()
+    if (existingDeletionResult.success && existingDeletionResult.data) {
+      const existingData = existingDeletionResult.data.data || existingDeletionResult.data
       if (existingData.status === 'pending') {
         return {
           success: false,
@@ -94,15 +90,29 @@ export async function requestAccountDeletion(
       updatedAt: new Date()
     }
 
-    await createDocument('account_deletions', deletionData, userId)
+    const createResult = await db.create('account_deletions', deletionData, { id: userId })
+    
+    if (!createResult.success) {
+      return {
+        success: false,
+        error: 'FAILED_TO_CREATE_DELETION_REQUEST'
+      }
+    }
 
     // Step 4: Update user status to indicate pending deletion
-    await updateDocument('users', userId, {
+    const updateResult = await db.update('users', userId, {
       accountStatus: 'deletion_pending',
       deletionRequestDate: new Date(),
       scheduledDeletionDate: deletionDate,
       updatedAt: new Date()
     })
+    
+    if (!updateResult.success) {
+      return {
+        success: false,
+        error: 'FAILED_TO_UPDATE_USER_STATUS'
+      }
+    }
 
     // Step 5: Log the deletion request for audit trail
     logger.info('Account deletion requested', {
@@ -144,17 +154,20 @@ export async function cancelAccountDeletion(
   try {
     const { userId, userEmail } = request
 
+    await initializeDatabase()
+    const db = getDatabaseService()
+
     // Step 1: Check if there's a pending deletion
-    const deletionDoc = await getCachedDocument('account_deletions', userId)
+    const deletionResult = await db.findById('account_deletions', userId)
     
-    if (!deletionDoc || !deletionDoc.exists) {
+    if (!deletionResult.success || !deletionResult.data) {
       return {
         success: false,
         error: 'NO_DELETION_PENDING'
       }
     }
 
-    const deletionData = deletionDoc.data()
+    const deletionData = deletionResult.data.data || deletionResult.data
     
     if (deletionData.status !== 'pending') {
       return {
@@ -175,20 +188,34 @@ export async function cancelAccountDeletion(
     }
 
     // Step 3: Cancel the deletion
-    await updateDocument('account_deletions', userId, {
+    const updateDeletionResult = await db.update('account_deletions', userId, {
       status: 'cancelled',
       cancelledDate: new Date(),
       canCancel: false,
       updatedAt: new Date()
     })
+    
+    if (!updateDeletionResult.success) {
+      return {
+        success: false,
+        error: 'FAILED_TO_CANCEL_DELETION'
+      }
+    }
 
     // Step 4: Restore user account status
-    await updateDocument('users', userId, {
+    const updateUserResult = await db.update('users', userId, {
       accountStatus: 'active',
       deletionRequestDate: null,
       scheduledDeletionDate: null,
       updatedAt: new Date()
     })
+    
+    if (!updateUserResult.success) {
+      return {
+        success: false,
+        error: 'FAILED_TO_RESTORE_USER_STATUS'
+      }
+    }
 
     // Step 5: Log the cancellation for audit trail
     logger.info('Account deletion cancelled', {
@@ -227,17 +254,20 @@ export async function confirmAccountDeletion(
   try {
     const { userId, userEmail, userName } = request
 
+    await initializeDatabase()
+    const db = getDatabaseService()
+
     // Step 1: Check if there's a pending deletion
-    const deletionDoc = await getCachedDocument('account_deletions', userId)
+    const deletionResult = await db.findById('account_deletions', userId)
     
-    if (!deletionDoc || !deletionDoc.exists) {
+    if (!deletionResult.success || !deletionResult.data) {
       return {
         success: false,
         error: 'NO_DELETION_PENDING'
       }
     }
 
-    const deletionData = deletionDoc.data()
+    const deletionData = deletionResult.data.data || deletionResult.data
     
     if (deletionData.status !== 'pending') {
       return {
@@ -254,7 +284,7 @@ export async function confirmAccountDeletion(
     // For automated deletion, you might want to enforce: if (now < scheduledDate)
 
     // Step 3: Mark deletion as in progress
-    await updateDocument('account_deletions', userId, {
+    await db.update('account_deletions', userId, {
       status: 'processing',
       processingStartDate: new Date(),
       updatedAt: new Date()
@@ -267,7 +297,7 @@ export async function confirmAccountDeletion(
     // - Retain certain data for compliance (e.g., transaction records)
     
     // For this implementation, we'll mark as deleted rather than hard delete
-    await updateDocument('users', userId, {
+    const deleteUserResult = await db.update('users', userId, {
       accountStatus: 'deleted',
       deletedDate: new Date(),
       // Optionally anonymize personal data
@@ -275,9 +305,16 @@ export async function confirmAccountDeletion(
       email: `deleted-${userId}@anonymized.local`,
       updatedAt: new Date()
     })
+    
+    if (!deleteUserResult.success) {
+      return {
+        success: false,
+        error: 'FAILED_TO_DELETE_USER_DATA'
+      }
+    }
 
     // Step 5: Mark deletion as completed
-    await updateDocument('account_deletions', userId, {
+    await db.update('account_deletions', userId, {
       status: 'completed',
       completedDate: new Date(),
       updatedAt: new Date()
@@ -306,7 +343,9 @@ export async function confirmAccountDeletion(
     
     // Mark deletion as failed for retry
     try {
-      await updateDocument('account_deletions', request.userId, {
+      await initializeDatabase()
+      const db = getDatabaseService()
+      await db.update('account_deletions', request.userId, {
         status: 'failed',
         failedDate: new Date(),
         failureReason: error instanceof Error ? error.message : 'Unknown error',
@@ -332,10 +371,13 @@ export async function getAccountDeletionStatus(
   try {
     const { userId } = request
 
+    await initializeDatabase()
+    const db = getDatabaseService()
+
     // Check if there's a deletion record
-    const deletionDoc = await getCachedDocument('account_deletions', userId)
+    const deletionResult = await db.findById('account_deletions', userId)
     
-    if (!deletionDoc || !deletionDoc.exists) {
+    if (!deletionResult.success || !deletionResult.data) {
       return {
         success: true,
         data: {
@@ -344,7 +386,7 @@ export async function getAccountDeletionStatus(
       }
     }
 
-    const deletionData = deletionDoc.data()
+    const deletionData = deletionResult.data.data || deletionResult.data
     
     return {
       success: true,

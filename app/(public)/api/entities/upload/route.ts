@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { file as fileService } from '@/lib/file'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth' // Auth.js session handler
 import { UserRole } from '@/features/auth/types'
@@ -7,8 +7,8 @@ import { cookies, headers } from 'next/headers'
 /**
  * Handles POST requests for uploading files.
  * 
- * This route allows authenticated users to upload files, which are then stored using Vercel Blob storage.
- * The route expects a file to be sent as part of a FormData object.
+ * This route allows authenticated users to upload files, which are then stored using our file abstraction layer
+ * (supports both Vercel Blob and RingBase backends). The route expects a file to be sent as part of a FormData object.
  * 
  * User steps:
  * 1. Authenticate with the application.
@@ -78,22 +78,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //   return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: { 'Cache-Control': 'no-store, max-age=0' } });
     // }
 
-    // Upload the file to Vercel Blob storage
-    const blob = await put(file.name, file, {
+    // Upload the file using our file abstraction layer
+    const result = await fileService().upload(file.name, file, {
       access: 'public',
     })
 
-    console.log('API: /api/entities/upload - File uploaded successfully:', blob.url)
+    console.log('API: /api/entities/upload - File uploaded successfully:', result.url)
 
-    // Transform Vercel Blob response to match our documented API interface
+    // Check if upload was successful
+    if (!result.success) {
+      console.error('API: /api/entities/upload - File upload failed:', result.error)
+      return NextResponse.json(
+        { error: result.error || 'File upload failed' },
+        {
+          status: 500,
+          headers: { 'Cache-Control': 'no-store, max-age=0' }
+        }
+      )
+    }
+
+    // Transform response to match our documented API interface
     const response = {
-      success: true,
-      url: blob.url,
-      downloadUrl: blob.downloadUrl,
-      filename: file.name,
-      size: file.size,
-      contentType: blob.contentType,
-      uploadedAt: new Date().toISOString()
+      success: result.success,
+      url: result.url,
+      downloadUrl: result.downloadUrl || result.url,
+      filename: result.filename,
+      size: result.size,
+      contentType: result.contentType,
+      uploadedAt: result.uploadedAt
     }
 
     // Return the formatted response

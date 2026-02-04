@@ -1,17 +1,11 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+// 🚀 RING-NATIVE: DatabaseService + React 19 cache()
+// Wallet history now handled by wagmi hooks in React components
+// This service provides legacy database read access only
 
-import { ethers } from 'ethers'
 import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
 
-// Cache the provider to avoid creating a new instance on every request
-export const getProvider = cache(() => new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL))
+// Wallet history service - now uses wagmi hooks in components
+// Legacy ethers-based functionality removed
 
 // Cache recent transaction history (last 1000 blocks)
 const transactionCache = new Map<string, any[]>()
@@ -33,99 +27,29 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
  * @param userId - The user's ID
  * @returns The user's wallet address or null if not found
  */
-export async function getUserWalletAddress(userId: string): Promise<string | null> {
-  const phase = getCurrentPhase();
-
-  // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-  const userDoc = await adminDb.collection('users').doc(userId).get()
-  const userData = userDoc.data()
+/**
+ * Gets a user's wallet address from database
+ * READ operation - uses React 19 cache() for performance
+ */
+export const getUserWalletAddress = cache(async (userId: string): Promise<string | null> => {
+  const { initializeDatabase, getDatabaseService } = await import('@/lib/database/DatabaseService')
   
+  await initializeDatabase()
+  const db = getDatabaseService()
+  
+  const result = await db.read('users', userId)
+  if (!result.success || !result.data) {
+    return null
+  }
+  
+  const userData = result.data as any
   return userData?.walletAddress || null
-}
+})
 
-/**
- * Fetches transaction logs from the blockchain
- * 
- * @param provider - The ethers.js provider instance
- * @param address - The wallet address to fetch logs for
- * @param startBlock - The starting block number
- * @param endBlock - The ending block number
- * @returns A promise that resolves to an array of transaction logs
- */
-export async function fetchLogs(provider: ethers.JsonRpcProvider, address: string, startBlock: number, endBlock: number): Promise<ethers.Log[]> {
-  const filter = {
-    address: address,
-    fromBlock: startBlock,
-    toBlock: endBlock
-  }
-
-  let retries = 3
-  while (retries > 0) {
-    try {
-      return await provider.getLogs(filter)
-    } catch (error) {
-      console.error(`Error fetching logs (retries left: ${retries}):`, error)
-      retries--
-      if (retries === 0) throw error
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retrying
-    }
-  }
-  throw new Error('Failed to fetch logs after multiple attempts')
-}
-
-/**
- * Processes and filters transaction logs
- * 
- * @param provider - The ethers.js provider instance
- * @param logs - The array of transaction logs to process
- * @param filter - The filter criteria to apply
- * @returns A promise that resolves to an array of processed transactions
- */
-export async function processLogs(provider: ethers.JsonRpcProvider, logs: ethers.Log[], filter: TransactionFilter): Promise<any[]> {
-  const transactions = await Promise.all(logs.map(async (log) => {
-    try {
-      const tx = await provider.getTransaction(log.transactionHash)
-      const receipt = await provider.getTransactionReceipt(log.transactionHash)
-      
-      if (!tx || !receipt) return null
-
-      const block = await provider.getBlock(log.blockNumber)
-      if (!block) return null
-
-      const value = ethers.formatEther(tx.value || '0')
-      
-      // Apply filters
-      if (
-        (filter.type && tx.type !== parseInt(filter.type)) ||
-        (filter.minAmount && parseFloat(value) < parseFloat(filter.minAmount)) ||
-        (filter.maxAmount && parseFloat(value) > parseFloat(filter.maxAmount))
-      ) {
-        return null
-      }
-
-      return {
-        hash: log.transactionHash,
-        from: tx.from,
-        to: tx.to,
-        value: value,
-        gasPrice: tx.gasPrice ? ethers.formatUnits(tx.gasPrice, 'gwei') : null,
-        gasLimit: tx.gasLimit?.toString(),
-        gasUsed: receipt.gasUsed?.toString(),
-        timestamp: block.timestamp,
-        status: receipt.status === 1 ? 'Success' : 'Failed',
-        type: tx.type,
-        contractInteraction: tx.to !== null && tx.data !== '0x'
-      }
-    } catch (error) {
-      console.error('Error processing transaction:', error)
-      return null
-    }
-  }))
-
-  return transactions.filter(tx => tx !== null)
-}
+// Legacy ethers-based transaction processing functions removed
+// Transaction history now handled by wagmi hooks in React components
+// Use wagmi's useBlock, useTransaction, and useTransactionReceipt hooks
+// for real-time transaction monitoring and history
 
 /**
  * Gets transaction history for a wallet address
@@ -135,31 +59,5 @@ export async function processLogs(provider: ethers.JsonRpcProvider, logs: ethers
  * @returns A promise that resolves to an array of transactions
  */
 export async function getWalletHistory(walletAddress: string, filter: TransactionFilter): Promise<any[]> {
-  const provider = getProvider()
-  
-  // Fetch the latest block number and determine block range
-  const latestBlock = await provider.getBlockNumber()
-  const endBlock = filter.endBlock || latestBlock
-  const startBlock = filter.startBlock || Math.max(0, endBlock - MAX_BLOCKS_PER_QUERY + 1)
-
-  console.log('Services: getWalletHistory - Block range:', { startBlock, endBlock });
-
-  // Check if we have cached data
-  const cacheKey = `${walletAddress}-${startBlock}-${endBlock}`
-  let transactions = transactionCache.get(cacheKey)
-
-  if (!transactions) {
-    console.log('Services: getWalletHistory - Cache miss, fetching logs');
-    // Fetch logs if not in cache
-    const logs = await fetchLogs(provider, walletAddress, startBlock, endBlock)
-    transactions = await processLogs(provider, logs, filter)
-
-    // Cache the results
-    transactionCache.set(cacheKey, transactions)
-    setTimeout(() => transactionCache.delete(cacheKey), CACHE_DURATION)
-  } else {
-    console.log('Services: getWalletHistory - Cache hit');
-  }
-
-  return transactions
+  throw new Error('DEPRECATED: Transaction history now handled by wagmi hooks in React components. Use useBlock and useTransaction hooks for real-time transaction monitoring.')
 }

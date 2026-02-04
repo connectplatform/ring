@@ -108,17 +108,35 @@ export function EnhanceCodeBlocks() {
         copyButton.style.display = 'flex'
         copyButton.style.alignItems = 'center'
         copyButton.style.justifyContent = 'center'
-        copyButton.style.opacity = '0'
-        copyButton.style.transition = 'opacity 0.2s'
+        copyButton.style.opacity = '1'  // Always visible
+        copyButton.style.transition = 'all 0.2s'
         copyButton.style.zIndex = '10'
-        
-        // Show button on hover
-        preElement.addEventListener('mouseenter', () => {
-          copyButton.style.opacity = '1'
+
+        // Dark mode support
+        const updateButtonTheme = () => {
+          const isDark = document.documentElement.classList.contains('dark')
+          copyButton.style.backgroundColor = isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.9)'
+          copyButton.style.border = isDark ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.2)'
+          copyButton.style.color = isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.6)'
+        }
+
+        updateButtonTheme()
+
+        // Listen for theme changes
+        const themeObserver = new MutationObserver(updateButtonTheme)
+        themeObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['class']
         })
-        
-        preElement.addEventListener('mouseleave', () => {
-          copyButton.style.opacity = '0'
+
+        // Hover effects
+        copyButton.addEventListener('mouseenter', () => {
+          const isDark = document.documentElement.classList.contains('dark')
+          copyButton.style.backgroundColor = isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 1)'
+        })
+
+        copyButton.addEventListener('mouseleave', () => {
+          updateButtonTheme()
         })
         
         // Copy functionality

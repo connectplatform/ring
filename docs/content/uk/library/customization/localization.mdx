@@ -1,0 +1,475 @@
+---
+title: Локалізація
+description: Документація локалізації для платформи Ring
+last_modified: 2025-10-16
+---
+
+# Локалізація та багатомовна підтримка
+
+Комплексна система локалізації платформи Ring з підтримкою декількох мов, культурною адаптацією та динамічним перемиканням мов.
+
+## 🌍 Підтримувані мови
+
+Платформа Ring підтримує наступні мови з повною локалізацією:
+
+- **EN** (English) - Мова за замовчуванням
+- **UK** (Українська) - Повна локалізація з культурною адаптацією
+- **RU** (Русский) - Технічна документація та інтерфейс
+
+### Майбутні мови
+- **DE** (Deutsch) - Планується
+- **FR** (Français) - Планується
+- **ES** (Español) - Планується
+
+## 📁 Структура файлів локалізації
+
+### Організація файлів
+
+```
+locales/
+├── en/                    # Англійська (джерельна)
+│   ├── common.json        # Загальні рядки (кнопки, повідомлення)
+│   ├── pages.json         # Сторінки та маршрути
+│   ├── entities.json      # Сутності та компанії
+│   ├── opportunities.json # Можливості та вакансії
+│   ├── auth.json          # Аутентифікація
+│   ├── wallet.json        # Гаманець та платежі
+│   ├── navigation.json    # Навігація та меню
+│   └── ...
+├── uk/                    # Українська
+│   ├── common.json
+│   ├── pages.json
+│   └── ...
+└── ru/                    # Російська
+    ├── common.json
+    ├── pages.json
+    └── ...
+```
+
+### Структура файлів локалізації
+
+// locales/en/common.json
+
+<Code language="json" title="configuration">
+{`{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create"
+  },
+  "messages": {
+    "success": {
+      "saved": "Successfully saved",
+      "deleted": "Successfully deleted"
+    },
+    "errors": {
+      "generic": "An error occurred",
+      "network": "Network error"
+    }
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email",
+    "minLength": "Minimum length is {{count}} characters"
+  }
+}`}
+</Code>
+
+// locales/uk/common.json
+
+<Code language="json" title="configuration">
+{`{
+  "actions": {
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "delete": "Видалити",
+    "edit": "Редагувати",
+    "create": "Створити"
+  },
+  "messages": {
+    "success": {
+      "saved": "Успішно збережено",
+      "deleted": "Успішно видалено"
+    },
+    "errors": {
+      "generic": "Сталася помилка",
+      "network": "Помилка мережі"
+    }
+  },
+  "validation": {
+    "required": "Це поле обов'язкове",
+    "email": "Будь ласка, введіть дійсну електронну адресу",
+    "minLength": "Мінімальна довжина {{count}} символів"
+  }
+}`}
+</Code>
+
+## 🔧 Використання в коді
+
+### Хуки локалізації
+
+// components/MyComponent.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useTranslations } from 'next-intl'
+
+export function MyComponent() {
+  const t = useTranslations('common')
+
+  return (
+    <div>
+      <h1>{t('welcome.title')}</h1>
+      <button onClick={handleSave}>
+        {t('actions.save')}
+      </button>
+      <p>{t('messages.success.saved')}</p>
+    </div>
+  )
+}`}
+</Code>
+
+### Серверні компоненти
+
+<Code language="typescript" title="TypeScript">
+{`// app/(public)/[locale]/page.tsx
+import { getTranslations } from 'next-intl/server'
+
+export default async function HomePage() {
+  const t = await getTranslations('pages.home')
+
+  return (
+    <div>
+      <h1>{t('title')}</h1>
+      <p>{t('description')}</p>
+    </div>
+  )
+}`}
+</Code>
+
+### Інтерполяція та плюралізація
+
+// Підтримка параметрів
+
+<Code language="typescript" title="TypeScript">
+{`const message = t('validation.minLength', { count: 5 })
+
+// Плюралізація
+const itemsText = t('items.count', { count: items.length })
+
+// locales/en/common.json
+{
+  "items": {
+    "count": "No items | {count} item | {count} items"
+  }
+}
+
+// locales/uk/common.json
+{
+  "items": {
+    "count": "Немає елементів | {count} елемент | {count} елементів | {count} елемента"
+  }
+}`}
+</Code>
+
+## 🗂️ Маршрутизація на основі локалей
+
+### App Router конфігурація
+
+// app/[locale]/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { notFound } from 'next/navigation'
+import { locales } from '@/lib/i18n'
+
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }))
+}
+
+export default function LocaleLayout({
+  children,
+  params: { locale }
+}: {
+  children: React.ReactNode
+  params: { locale: string }
+}) {
+  // Перевірка валідності локалі
+  if (!locales.includes(locale as any)) {
+    notFound()
+  }
+
+  return (
+    <html lang={locale}>
+      <body>
+        {children}
+      </body>
+    </html>
+  )
+}`}
+</Code>
+
+### Middleware для маршрутизації
+
+// middleware.ts
+
+<Code language="typescript" title="TypeScript">
+{`import createMiddleware from 'next-intl/middleware'
+
+export default createMiddleware({
+  locales: ['en', 'uk', 'ru'],
+  defaultLocale: 'en',
+  localePrefix: 'as-needed' // /uk/page, /page (en default)
+})
+
+export const config = {
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
+}`}
+</Code>
+
+## 🎨 Культурна адаптація
+
+### Регіональні особливості
+
+#### Українська (UK)
+- **Дата та час**: `DD.MM.YYYY`, `HH:MM`
+- **Валюта**: `₴` (гривня), `USD`, `EUR`
+- **Формати чисел**: `1 234,56` (пробіл як роздільник, кома для десяткових)
+- **Адреси**: Спочатку місто, потім вулиця
+
+#### Російська (RU)
+- **Дата та час**: `DD.MM.YYYY`, `HH:MM`
+- **Валюта**: `₽` (рубль), `USD`, `EUR`
+- **Формати чисел**: `1 234,56`
+- **Адреси**: Федеральний стандарт
+
+### Локалізований контент
+
+// components/LocalizedContent.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useLocale } from 'next-intl'
+
+export function LocalizedContent() {
+  const locale = useLocale()
+
+  // Різний контент для різних регіонів
+  const content = {
+    en: {
+      currency: 'USD',
+      dateFormat: 'MM/DD/YYYY'
+    },
+    uk: {
+      currency: 'UAH',
+      dateFormat: 'DD.MM.YYYY'
+    },
+    ru: {
+      currency: 'RUB',
+      dateFormat: 'DD.MM.YYYY'
+    }
+  }
+
+  return (
+    <div>
+      <p>Локальна валюта: {content[locale].currency}</p>
+      <p>Формат дати: {content[locale].dateFormat}</p>
+    </div>
+  )
+}`}
+</Code>
+
+## 🔄 Додавання нової мови
+
+### Крок 1: Створення файлів локалізації
+
+Створення директорії для нової мови Копіювання базових файлів з англійської Переклад файлів (використовуйте професійних перекладачів) locales/de/common.json, locales/de/pages.json, etc.
+
+<Code language="bash" title="terminal">
+{`mkdir -p locales/de
+
+cp -r locales/en/* locales/de/`}
+</Code>
+
+### Крок 2: Оновлення конфігурації
+
+// lib/i18n.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const locales = ['en', 'uk', 'ru', 'de'] as const
+export const defaultLocale = 'en'
+
+// middleware.ts
+export default createMiddleware({
+  locales: ['en', 'uk', 'ru', 'de'],
+  defaultLocale: 'en'
+})`}
+</Code>
+
+### Крок 3: Тестування
+
+// Перевірка всіх маршрутів з новою локаллю
+
+<Code language="typescript" title="TypeScript">
+{`const testUrls = [
+  '/de',
+  '/de/entities',
+  '/de/opportunities',
+  '/de/auth/signin'
+]
+
+// Перевірка fallback на англійську
+const missingKeys = checkMissingTranslations('de')`}
+</Code>
+
+## 🧪 Тестування локалізації
+
+### Перевірка відсутніх ключів
+
+// lib/test-i18n.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function checkMissingTranslations(locale: string) {
+  const english = loadLocale('en')
+  const target = loadLocale(locale)
+
+  const missing = []
+
+  function checkKeys(enObj: any, targetObj: any, path = '') {
+    for (const key in enObj) {
+      const currentPath = path ? `${path}.${key}` : key
+
+      if (typeof enObj[key] === 'object') {
+        if (!targetObj || !targetObj[key]) {
+          missing.push(currentPath)
+        } else {
+          checkKeys(enObj[key], targetObj[key], currentPath)
+        }
+      } else if (!targetObj || !targetObj[key]) {
+        missing.push(currentPath)
+      }
+    }
+  }
+
+  checkKeys(english, target)
+  return missing
+}`}
+</Code>
+
+### Інтеграційні тести
+
+// __tests__/i18n.test.ts
+
+<Code language="typescript" title="TypeScript">
+{`describe('Internationalization', () => {
+  test('all locales have consistent keys', () => {
+    const locales = ['uk', 'ru']
+
+    for (const locale of locales) {
+      const missing = checkMissingTranslations(locale)
+      expect(missing).toHaveLength(0)
+    }
+  })
+
+  test('date formatting works in all locales', () => {
+    const date = new Date('2023-10-16')
+
+    expect(formatDate(date, 'en')).toBe('10/16/2023')
+    expect(formatDate(date, 'uk')).toBe('16.10.2023')
+    expect(formatDate(date, 'ru')).toBe('16.10.2023')
+  })
+})`}
+</Code>
+
+## 🚀 Продуктивність та оптимізація
+
+### Ледаче завантаження локалей
+
+// lib/i18n-loader.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function loadLocale(locale: string) {
+  try {
+    const messages = await import(`@/locales/${locale}/common.json`)
+    return messages.default
+  } catch (error) {
+    console.warn(`Failed to load locale ${locale}, falling back to English`)
+    const fallback = await import('@/locales/en/common.json')
+    return fallback.default
+  }
+}`}
+</Code>
+
+### Кешування перекладів
+
+// lib/translation-cache.ts
+
+<Code language="typescript" title="TypeScript">
+{`class TranslationCache {
+  private cache = new Map<string, any>()
+
+  get(locale: string, namespace: string) {
+    const key = `${locale}:${namespace}`
+    return this.cache.get(key)
+  }
+
+  set(locale: string, namespace: string, translations: any) {
+    const key = `${locale}:${namespace}`
+    this.cache.set(key, translations)
+  }
+}`}
+</Code>
+
+## 📊 Моніторинг та аналітика
+
+### Відстеження використання мов
+
+// lib/analytics/locale-tracking.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function trackLocaleUsage(locale: string, page: string) {
+  // Відправка до аналітики
+  analytics.track('locale_used', {
+    locale,
+    page,
+    timestamp: new Date().toISOString()
+  })
+}`}
+</Code>
+
+### Перевірка якості перекладів
+
+// lib/i18n-validation.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function validateTranslations(locale: string) {
+  const translations = loadLocale(locale)
+
+  const issues = []
+
+  // Перевірка довжини рядків
+  for (const [key, value] of Object.entries(translations)) {
+    if (typeof value === 'string' && value.length > 100) {
+      issues.push(`Long string: ${key}`)
+    }
+  }
+
+  // Перевірка HTML у рядках
+  for (const [key, value] of Object.entries(translations)) {
+    if (typeof value === 'string' && /<\/?[a-z][\s\S]*>/i.test(value)) {
+      issues.push(`HTML in translation: ${key}`)
+    }
+  }
+
+  return issues
+}`}
+</Code>
+
+---
+
+**🌐 Повна багатомовна підтримка**
+
+Платформа Ring забезпечує професійну багатомовну підтримку з культурною адаптацією, дозволяючи користувачам по всьому світу використовувати платформу рідною мовою.
+
+*Потрібна допомога з локалізацією? Зверніться до нашої [документації розробки](https://ring-platform.org/docs/development/localization) або приєднайтеся до [спільноти перекладачів](https://discord.gg/ring-platform).*"

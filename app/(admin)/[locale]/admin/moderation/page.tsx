@@ -2,6 +2,7 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth' 
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -256,16 +257,17 @@ export default async function ModerationPage({
   };
 
   return (
-    <>
-      <title>Content Moderation | Ring Platform Admin</title>
-      <meta name="description" content="Content moderation dashboard for Ring Platform administrators" />
-      
-      <div className="container mx-auto px-4 py-8">
+    <AdminWrapper locale={validLocale} pageContext="moderation" translations={t}>
+      <>
+        <title>Content Moderation | Ring Platform Admin</title>
+        <meta name="description" content="Content moderation dashboard for Ring Platform administrators" />
+        
+        <div className="container mx-auto px-0 py-0">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Content Moderation
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Advanced content moderation system with automated filtering and manual review
           </p>
         </div>
@@ -398,7 +400,7 @@ export default async function ModerationPage({
                               </div>
                               
                               <div className="mb-3">
-                                <p className="text-sm text-gray-900 dark:text-gray-100 mb-2">
+                                <p className="text-sm text-foreground mb-2">
                                   <strong>Content:</strong> {item.content.substring(0, 150)}
                                   {item.content.length > 150 && '...'}
                                 </p>
@@ -647,7 +649,8 @@ export default async function ModerationPage({
             </div>
           </TabsContent>
         </Tabs>
-      </div>
-    </>
+        </div>
+      </>
+    </AdminWrapper>
   );
 } 

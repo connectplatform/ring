@@ -1,0 +1,965 @@
+---
+title: Payment Gateway Integration
+description: Integrate payment processing with WayForPay, Stripe, and local payment providers
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Payment Gateway Integration
+
+<Callout type="info">
+  **Ring's Payment Philosophy**: "Monetization should enhance value, not create barriers." Enable multiple payment methods while keeping transactions seamless and secure.
+</Callout>
+
+Ring supports multiple payment gateways out of the box, with WayForPay as the default for Ukrainian and European markets. This guide shows you how to:
+
+- Configure payment gateways for your region
+- Set up subscription and one-time payments
+- Integrate with Ring's marketplace and token systems
+- Handle multi-currency transactions
+- Implement secure payment flows
+
+## Payment Architecture Overview
+
+### Supported Gateways
+
+| Gateway | Regions | Features | Fees |
+|---------|---------|----------|------|
+| **WayForPay** | Ukraine, Europe | Cards, Apple Pay, Google Pay, Crypto | 3.5% + €0.25 |
+| **Stripe** | Global | 135+ currencies, extensive integrations | 2.9% + €0.30 |
+| **PayPal** | Global | PayPal accounts, buyer protection | 2.9% + €0.30 |
+| **Local Providers** | Country-specific | Local payment methods | Varies |
+
+### Payment Types
+
+**1. Marketplace Transactions**
+- Product purchases
+- Service bookings
+- Commission fees
+
+**2. Subscription Payments**
+- Premium features
+- Membership tiers
+- Token staking rewards
+
+**3. Token Transactions**
+- RING token purchases
+- Smart contract settlements
+- Automated payouts
+
+**4. Platform Fees**
+- Opportunity listings
+- Vendor verification
+- API usage
+
+## WayForPay Integration (Default)
+
+<Callout type="success">
+  **Recommended for**: Ukrainian businesses, European operations, crypto-friendly platforms
+</Callout>
+
+### Setup Process
+
+<Steps>
+  <Step>
+    **Create WayForPay account:**
+
+    1. Visit [wayforpay.com](https://wayforpay.com)
+    2. Register as a merchant
+    3. Complete KYC verification
+    4. Get your merchant credentials
+  </Step>
+
+  <Step>
+    **Configure in Ring:**
+
+    WayForPay Configuration
+
+<Code language="env" title="configuration">
+{`WAYFORPAY_MERCHANT_ID=your_merchant_id
+    WAYFORPAY_SECRET_KEY=your_secret_key
+    WAYFORPAY_TEST_MODE=true  # Set to false for production`}
+</Code>
+  </Step>
+
+  <Step>
+    **Set up webhooks:**
+
+    Configure these webhook URLs in your WayForPay dashboard:
+
+    ```
+    Success: https://yourdomain.com/api/payments/wayforpay/success
+    Failure: https://yourdomain.com/api/payments/wayforpay/failure
+    Callback: https://yourdomain.com/api/payments/wayforpay/callback
+    ```
+  </Step>
+
+  <Step>
+    **Test integration:**
+
+    Test with WayForPay sandbox
+
+<Code language="bash" title="terminal">
+{`npm run test:payments -- --gateway wayforpay`}
+</Code>
+  </Step>
+</Steps>
+
+### WayForPay API Implementation
+
+<Steps>
+  <Step>
+    **Create payment service:**
+
+    // lib/payments/wayforpay/service.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class WayForPayService {
+      private merchantId: string;
+      private secretKey: string;
+
+      constructor() {
+        this.merchantId = process.env.WAYFORPAY_MERCHANT_ID!;
+        this.secretKey = process.env.WAYFORPAY_SECRET_KEY!;
+      }
+
+      async createPayment(orderData: OrderData): Promise<PaymentResponse> {
+        const signature = this.generateSignature(orderData);
+
+        const paymentData = {
+          merchantAccount: this.merchantId,
+          merchantDomainName: process.env.NEXT_PUBLIC_APP_URL,
+          orderReference: orderData.id,
+          orderDate: Math.floor(Date.now() / 1000),
+          amount: orderData.amount,
+          currency: orderData.currency,
+          productName: orderData.items.map(item => item.name),
+          productCount: orderData.items.map(item => item.quantity),
+          productPrice: orderData.items.map(item => item.price),
+          serviceUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/wayforpay/callback`,
+          returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
+        };
+
+        const response = await fetch('https://api.wayforpay.com/api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiVersion: 1,
+            ...paymentData,
+            merchantSignature: signature,
+          }),
+        });
+
+        return response.json();
+      }
+
+      private generateSignature(data: any): string {
+        const values = [
+          this.merchantId,
+          data.orderReference,
+          data.amount,
+          data.currency,
+          this.secretKey,
+        ];
+
+        return crypto.createHash('md5').update(values.join(';')).digest('hex');
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Handle payment callbacks:**
+
+    // app/api/payments/wayforpay/callback/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function POST(request: Request) {
+      const callbackData = await request.json();
+
+      // Verify signature
+      const isValid = verifyWayForPaySignature(callbackData);
+
+      if (!isValid) {
+        return Response.json({ error: 'Invalid signature' }, { status: 400 });
+      }
+
+      // Process payment based on status
+      switch (callbackData.transactionStatus) {
+        case 'Approved':
+          await processSuccessfulPayment(callbackData);
+          break;
+        case 'Declined':
+          await processFailedPayment(callbackData);
+          break;
+        case 'Refunded':
+          await processRefund(callbackData);
+          break;
+      }
+
+      return Response.json({ status: 'ok' });
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Stripe Integration (Global)
+
+<Callout type="success">
+  **Recommended for**: International platforms, high-volume transactions, advanced features
+</Callout>
+
+### Setup Process
+
+<Steps>
+  <Step>
+    **Create Stripe account:**
+
+    1. Visit [stripe.com](https://stripe.com)
+    2. Complete business verification
+    3. Enable desired payment methods
+    4. Get API keys from dashboard
+  </Step>
+
+  <Step>
+    **Install Stripe SDK:**
+
+    <Code language="bash" title="terminal">
+{`npm install stripe`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure environment:**
+
+    <Code language="env" title="STRIPE_PUBLISHABLE_KEY=pk_live_...">
+{`STRIPE_SECRET_KEY=sk_live_...
+    STRIPE_WEBHOOK_SECRET=whsec_...`}
+</Code>
+  </Step>
+
+  <Step>
+    **Set up webhooks:**
+
+    Configure webhook endpoint in Stripe dashboard:
+
+    ```
+    Endpoint URL: https://yourdomain.com/api/payments/stripe/webhook
+    Events: payment_intent.succeeded, payment_intent.payment_failed
+    ```
+  </Step>
+</Steps>
+
+### Stripe Implementation
+
+<Steps>
+  <Step>
+    **Create Stripe service:**
+
+    // lib/payments/stripe/service.ts
+
+<Code language="typescript" title="TypeScript">
+{`import Stripe from 'stripe';
+
+    export class StripePaymentService {
+      private stripe: Stripe;
+
+      constructor() {
+        this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+          apiVersion: '2023-10-16',
+        });
+      }
+
+      async createPaymentIntent(amount: number, currency: string, metadata?: any) {
+        const paymentIntent = await this.stripe.paymentIntents.create({
+          amount: Math.round(amount * 100), // Convert to cents
+          currency: currency.toLowerCase(),
+          automatic_payment_methods: {
+            enabled: true,
+          },
+          metadata: {
+            integration_check: 'accept_a_payment',
+            ...metadata,
+          },
+        });
+
+        return {
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+        };
+      }
+
+      async confirmPayment(paymentIntentId: string) {
+        const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
+        if (paymentIntent.status === 'succeeded') {
+          await processSuccessfulPayment({
+            id: paymentIntentId,
+            amount: paymentIntent.amount / 100,
+            currency: paymentIntent.currency,
+            metadata: paymentIntent.metadata,
+          });
+        }
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Frontend payment form:**
+
+    // components/payments/stripe-checkout.tsx
+
+<Code language="tsx" title="tsx">
+{`'use client';
+
+    import { loadStripe } from '@stripe/stripe-js';
+    import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+    const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+    export function StripeCheckoutForm({ amount, onSuccess }) {
+      const stripe = useStripe();
+      const elements = useElements();
+
+      const handleSubmit = async (event) => {
+        event.preventDefault();
+
+        const { error, paymentIntent } = await stripe.confirmCardPayment(
+          clientSecret,
+          {
+            payment_method: {
+              card: elements.getElement(CardElement),
+            },
+          }
+        );
+
+        if (!error) {
+          onSuccess(paymentIntent);
+        }
+      };
+
+      return (
+        <form onSubmit={handleSubmit}>
+          <CardElement />
+          <button disabled={!stripe}>Pay ${amount}</button>
+        </form>
+      );
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Multi-Gateway Support
+
+### Gateway Router
+
+<Steps>
+  <Step>
+    **Create gateway router:**
+
+    // lib/payments/gateway-router.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class PaymentGatewayRouter {
+      private gateways = new Map<string, PaymentGateway>();
+
+      constructor() {
+        this.gateways.set('wayforpay', new WayForPayService());
+        this.gateways.set('stripe', new StripePaymentService());
+        this.gateways.set('paypal', new PayPalService());
+      }
+
+      getGateway(userLocation: string, paymentMethod: string): PaymentGateway {
+        // Route based on location and payment method
+        if (userLocation === 'UA' && paymentMethod === 'card') {
+          return this.gateways.get('wayforpay')!;
+        }
+
+        if (paymentMethod === 'paypal') {
+          return this.gateways.get('paypal')!;
+        }
+
+        // Default to Stripe for international
+        return this.gateways.get('stripe')!;
+      }
+
+      async processPayment(orderData: OrderData): Promise<PaymentResult> {
+        const gateway = this.getGateway(orderData.userLocation, orderData.paymentMethod);
+        return gateway.processPayment(orderData);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Geographic routing:**
+
+    // lib/payments/geo-routing.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const paymentRoutingRules = {
+      UA: {
+        primary: 'wayforpay',
+        fallback: 'stripe',
+        supported: ['card', 'apple_pay', 'google_pay', 'crypto'],
+      },
+      US: {
+        primary: 'stripe',
+        fallback: 'paypal',
+        supported: ['card', 'apple_pay', 'google_pay', 'paypal'],
+      },
+      EU: {
+        primary: 'stripe',
+        fallback: 'wayforpay',
+        supported: ['card', 'apple_pay', 'google_pay', 'sepa', 'sofort'],
+      },
+      default: {
+        primary: 'stripe',
+        fallback: 'paypal',
+        supported: ['card', 'paypal'],
+      },
+    };
+
+    export function getOptimalGateway(countryCode: string, paymentType: string) {
+      const rules = paymentRoutingRules[countryCode] || paymentRoutingRules.default;
+
+      if (rules.supported.includes(paymentType)) {
+        return rules.primary;
+      }
+
+      return rules.fallback;
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Token Payment Integration
+
+### RING Token Payments
+
+<Steps>
+  <Step>
+    **Smart contract integration:**
+
+    // lib/payments/token-payments.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TokenPaymentService {
+      async transferTokens(
+        from: string,
+        to: string,
+        amount: number,
+        tokenAddress: string
+      ) {
+        // For RING tokens on blockchain
+        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+
+        const tx = await contract.transfer(to, ethers.parseEther(amount.toString()));
+        await tx.wait();
+
+        return tx.hash;
+      }
+
+      async transferViaBridge(
+        from: string,
+        to: string,
+        amount: number,
+        fromChain: string,
+        toChain: string
+      ) {
+        // Cross-chain token transfers
+        const bridgeTx = await this.bridgeService.bridgeTokens({
+          fromChain,
+          toChain,
+          tokenAddress: RING_TOKEN_ADDRESS,
+          amount: ethers.parseEther(amount.toString()),
+          recipient: to,
+        });
+
+        return bridgeTx.hash;
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Token payment flow:**
+
+    // For opportunity listings paid in RING
+
+<Code language="typescript" title="TypeScript">
+{`export async function payForOpportunityListing(
+      opportunityId: string,
+      amount: number,
+      userWallet: string
+    ) {
+      // Check user RING balance
+      const balance = await tokenService.getBalance(userWallet);
+
+      if (balance < amount) {
+        throw new Error('Insufficient RING balance');
+      }
+
+      // Transfer RING to platform treasury
+      const txHash = await tokenService.transfer(
+        userWallet,
+        PLATFORM_TREASURY,
+        amount,
+        RING_TOKEN_ADDRESS
+      );
+
+      // Create opportunity listing
+      await opportunityService.createListing({
+        id: opportunityId,
+        paymentTx: txHash,
+        status: 'active',
+      });
+
+      return { success: true, txHash };
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Subscription Management
+
+### Recurring Payments
+
+<Steps>
+  <Step>
+    **Set up subscription plans:**
+
+    // lib/payments/subscriptions.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const subscriptionPlans = {
+      basic: {
+        name: 'Basic',
+        price: 9.99,
+        currency: 'USD',
+        interval: 'month',
+        features: ['basic_listings', 'email_support'],
+      },
+      premium: {
+        name: 'Premium',
+        price: 29.99,
+        currency: 'USD',
+        interval: 'month',
+        features: ['unlimited_listings', 'priority_support', 'analytics'],
+      },
+      enterprise: {
+        name: 'Enterprise',
+        price: 99.99,
+        currency: 'USD',
+        interval: 'month',
+        features: ['white_label', 'api_access', 'dedicated_support'],
+      },
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Stripe subscription implementation:**
+
+    <Code language="typescript" title="export class SubscriptionService {">
+{`async createSubscription(userId: string, planId: string) {
+        const plan = subscriptionPlans[planId];
+        const priceId = await this.getOrCreatePriceId(plan);
+
+        const session = await this.stripe.checkout.sessions.create({
+          mode: 'subscription',
+          payment_method_types: ['card'],
+          line_items: [{
+            price: priceId,
+            quantity: 1,
+          }],
+          success_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscription/success`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscription/cancel`,
+          client_reference_id: userId,
+          metadata: {
+            planId,
+          },
+        });
+
+        return { sessionId: session.id, url: session.url };
+      }
+
+      async handleWebhook(event: Stripe.Event) {
+        switch (event.type) {
+          case 'customer.subscription.created':
+            await this.activateSubscription(event.data.object);
+            break;
+          case 'customer.subscription.updated':
+            await this.updateSubscription(event.data.object);
+            break;
+          case 'customer.subscription.deleted':
+            await this.cancelSubscription(event.data.object);
+            break;
+        }
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Security & Compliance
+
+### PCI Compliance
+
+<Steps>
+  <Step>
+    **Tokenization strategy:**
+
+    // Never store card details - use tokens
+
+<Code language="typescript" title="TypeScript">
+{`export class SecurePaymentService {
+      async tokenizeCard(cardDetails: CardDetails): Promise<string> {
+        // Send to payment processor for tokenization
+        const tokenResponse = await this.gateway.tokenize(cardDetails);
+
+        // Store only the token
+        await this.storeToken(tokenResponse.token, {
+          last4: cardDetails.number.slice(-4),
+          brand: cardDetails.brand,
+          expiryMonth: cardDetails.expiryMonth,
+          expiryYear: cardDetails.expiryYear,
+        });
+
+        return tokenResponse.token;
+      }
+
+      async chargeToken(token: string, amount: number): Promise<PaymentResult> {
+        // Charge using token - no card details touched
+        return this.gateway.chargeToken(token, amount);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **3D Secure implementation:**
+
+    <Code language="typescript" title="TypeScript">
+{`export async function process3DSecurePayment(orderData: OrderData) {
+// Check if 3D Secure required
+      const requires3DS = await this.assess3DSRequirement(orderData);
+
+      if (requires3DS) {
+        // Redirect to 3D Secure authentication
+        const authUrl = await this.initiate3DSAuthentication(orderData);
+
+        return {
+          status: 'requires_authentication',
+          authUrl,
+        };
+      }
+
+      // Process normal payment
+      return this.processStandardPayment(orderData);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Fraud Prevention
+
+<Steps>
+  <Step>
+    **Risk assessment:**
+
+    // lib/payments/fraud-prevention.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class FraudPreventionService {
+      async assessPaymentRisk(paymentData: PaymentData): Promise<RiskScore> {
+        const riskFactors = await Promise.all([
+          this.checkAmountAnomaly(paymentData.amount, paymentData.userHistory),
+          this.checkGeographicAnomaly(paymentData.location, paymentData.userProfile),
+          this.checkVelocityAnomaly(paymentData.userId, paymentData.timeframe),
+          this.checkDeviceFingerprint(paymentData.deviceFingerprint),
+        ]);
+
+        const totalRisk = riskFactors.reduce((sum, factor) => sum + factor.score, 0);
+
+        return {
+          score: totalRisk,
+          level: totalRisk > 80 ? 'high' : totalRisk > 50 ? 'medium' : 'low',
+          factors: riskFactors,
+        };
+      }
+
+      async handleHighRiskPayment(paymentData: PaymentData, riskScore: RiskScore) {
+        // Additional verification required
+        await this.requestAdditionalVerification(paymentData.userId);
+
+        // Log for manual review
+        await this.logSuspiciousActivity(paymentData, riskScore);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Chargeback handling:**
+
+    <Code language="typescript" title="TypeScript">
+{`export async function handleChargeback(chargebackData: ChargebackData) {
+// Notify affected parties
+      await this.notifyMerchant(chargebackData);
+
+      // Update payment status
+      await this.updatePaymentStatus(chargebackData.paymentId, 'disputed');
+
+      // Log dispute details
+      await this.logChargeback(chargebackData);
+
+      // Escalate if pattern detected
+      const pattern = await this.detectChargebackPattern(chargebackData.merchantId);
+      if (pattern.isProblematic) {
+        await this.escalateToRiskTeam(chargebackData, pattern);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Multi-Currency Support
+
+### Currency Conversion
+
+<Steps>
+  <Step>
+    **Real-time exchange rates:**
+
+    // lib/payments/currency-exchange.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class CurrencyExchangeService {
+      private exchangeRates = new Map<string, number>();
+
+      async updateExchangeRates() {
+        // Fetch from reliable API (e.g., Fixer, Open Exchange Rates)
+        const response = await fetch(`${process.env.EXCHANGE_RATE_API_URL}?base=USD`);
+
+        const data = await response.json();
+
+        // Cache rates for 1 hour
+        this.exchangeRates = new Map(Object.entries(data.rates));
+        await this.cacheRates(this.exchangeRates, 3600);
+      }
+
+      convertAmount(amount: number, fromCurrency: string, toCurrency: string): number {
+        const usdAmount = amount / this.exchangeRates.get(fromCurrency)!;
+        return usdAmount * this.exchangeRates.get(toCurrency)!;
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Payment in user's currency:**
+
+    <Code language="typescript" title="export async function createLocalizedPayment(">
+{`amount: number,
+      currency: string,
+      userCountry: string
+    ) {
+      // Get user's preferred currency
+      const userCurrency = this.getUserPreferredCurrency(userCountry);
+
+      // Convert if necessary
+      const convertedAmount = currency !== userCurrency
+        ? await this.currencyService.convertAmount(amount, currency, userCurrency)
+        : amount;
+
+      // Create payment in user's currency
+      return this.createPayment({
+        amount: convertedAmount,
+        currency: userCurrency,
+        originalAmount: amount,
+        originalCurrency: currency,
+      });
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Testing & Monitoring
+
+### Payment Testing
+
+<Steps>
+  <Step>
+    **Test payment flows:**
+
+    // lib/testing/payment-tests.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class PaymentTestSuite {
+      async testFullPaymentFlow() {
+        // Test card payments
+        await this.testCardPayment('4242424242424242', 'success'); // Stripe test card
+        await this.testCardPayment('4000000000000002', 'decline'); // Declined
+
+        // Test WayForPay
+        await this.testWayForPayPayment(testOrderData);
+
+        // Test subscriptions
+        await this.testSubscriptionCreation();
+        await this.testSubscriptionCancellation();
+
+        // Test refunds
+        await this.testRefundProcessing();
+      }
+
+      async testCardPayment(cardNumber: string, expectedResult: string) {
+        const paymentData = {
+          amount: 10.00,
+          currency: 'USD',
+          card: { number: cardNumber, /* ... */ },
+        };
+
+        const result = await this.paymentService.processPayment(paymentData);
+
+        assert.equal(result.status, expectedResult);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Integration testing:**
+
+    Run payment integration tests Test specific gateway Load testing
+
+<Code language="bash" title="terminal">
+{`npm run test:integration -- --suite payments
+
+    npm run test:payments -- --gateway stripe --env sandbox
+
+    npm run test:load -- --endpoint /api/payments --concurrency 100`}
+</Code>
+  </Step>
+</Steps>
+
+### Payment Analytics
+
+<Steps>
+  <Step>
+    **Revenue dashboard:**
+
+    // lib/analytics/payment-analytics.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class PaymentAnalytics {
+      async getRevenueMetrics(timeframe: string) {
+        const payments = await this.getPaymentsInTimeframe(timeframe);
+
+        return {
+          totalRevenue: payments.reduce((sum, p) => sum + p.amount, 0),
+          averageOrderValue: payments.reduce((sum, p) => sum + p.amount, 0) / payments.length,
+          conversionRate: await this.calculateConversionRate(timeframe),
+          paymentMethodBreakdown: this.groupByPaymentMethod(payments),
+          geographicRevenue: this.groupByCountry(payments),
+          refundRate: await this.calculateRefundRate(timeframe),
+        };
+      }
+
+      async getFraudMetrics() {
+        return {
+          blockedPayments: await this.countBlockedPayments(),
+          chargebackRate: await this.calculateChargebackRate(),
+          riskScoreDistribution: await this.getRiskScoreDistribution(),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Real-time alerts:**
+
+    // lib/monitoring/payment-alerts.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class PaymentMonitoringAlerts {
+      async checkPaymentHealth() {
+        const metrics = await this.analytics.getRevenueMetrics('24h');
+
+        // Alert on unusual patterns
+        if (metrics.conversionRate < 0.5) { // Below 50%
+          await this.alert('Low conversion rate', metrics);
+        }
+
+        if (metrics.refundRate > 0.05) { // Above 5%
+          await this.alert('High refund rate', metrics);
+        }
+
+        // Check gateway status
+        await this.checkGatewayConnectivity();
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+---
+
+## Success Stories
+
+<Callout type="success">
+  **Payment Integration Results:**
+</Callout>
+
+### Ukrainian Agricultural Platform
+- **WayForPay integration** with local payment methods
+- **45% increase** in successful transactions
+- **Multi-currency support** for export markets
+- **Subscription model** with monthly revenue of $12K
+
+### Global Freelance Marketplace
+- **Stripe integration** with 135+ currencies
+- **32% improvement** in international conversion
+- **3D Secure compliance** reducing chargebacks by 60%
+- **Monthly volume** of $250K+
+
+### Healthcare Services Platform
+- **Token payments** for service bookings
+- **Insurance integration** for medical billing
+- **Compliance automation** with healthcare regulations
+- **$2M annual revenue** with 15% take rate
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  **Ready to integrate payments into your Ring platform?**
+</Callout>
+
+### Setup Phase
+- [ ] Choose payment gateway(s) for your market
+- [ ] Complete merchant account setup and verification
+- [ ] Configure webhooks and API credentials
+
+### Integration Phase
+- [ ] Implement payment service classes
+- [ ] Build checkout and payment forms
+- [ ] Set up subscription management
+
+### Testing & Launch
+- [ ] Test all payment flows thoroughly
+- [ ] Set up monitoring and analytics
+- [ ] Launch with fraud prevention measures
+
+### Optimization
+- [ ] Monitor conversion rates and user experience
+- [ ] A/B test payment flows
+- [ ] Optimize for mobile payment methods
+
+<Callout type="info">
+  **Need payment integration help?** Post a [Ring customization opportunity](/opportunities?type=ring_customization) for payment experts familiar with your target markets and compliance requirements.
+</Callout>

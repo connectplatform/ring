@@ -1,13 +1,17 @@
-// Service to fetch opportunities created by or applied to by a specific user
-// Following Ring Platform architecture patterns from SYSTEM-ARCHITECTURE.md
+/**
+ * Get User Opportunities Service
+ * 
+ * React 19 cache() wrapper for user-specific opportunity queries
+ * PostgreSQL via DatabaseService abstraction
+ */
 
-import { QuerySnapshot } from 'firebase-admin/firestore';
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
-import { UserRole } from '@/features/auth/types';
-import { auth } from '@/auth';
-import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors';
-import { logger } from '@/lib/logger';
-import { db } from '@/lib/database/DatabaseService';
+import { cache } from 'react'
+import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
+import { UserRole } from '@/features/auth/types'
+import { auth } from '@/auth'
+import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
+import { db } from '@/lib/database/DatabaseService'
 
 /**
  * Fetches opportunities created by a specific user
@@ -18,17 +22,17 @@ import { db } from '@/lib/database/DatabaseService';
  * @param startAfter - Document ID for pagination
  * @returns Promise with user's opportunities and pagination info
  */
-export async function getUserCreatedOpportunities(
+export const getUserCreatedOpportunities = cache(async (
   userId: string,
   limit: number = 20,
   startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   try {
     logger.info('Services: getUserCreatedOpportunities - Starting...', { userId, limit, startAfter });
 
     // Build query for opportunities created by this user
     const queryConfig: any = {
-      where: [{ field: 'createdBy', operator: '==', value: userId }],
+      where: [{ field: 'createdBy', operator: '=', value: userId }],
       orderBy: [{ field: 'dateCreated', direction: 'desc' }],
       limit
     };
@@ -94,7 +98,7 @@ export async function getUserCreatedOpportunities(
 
     return { opportunities, lastVisible };
   } catch (error) {
-    logRingError(error, 'Services: getUserCreatedOpportunities - Error');
+    logRingError(error, 'getUserCreatedOpportunities: Error');
     throw new OpportunityQueryError(
       'Failed to fetch user opportunities',
       error instanceof Error ? error : new Error(String(error)),
@@ -105,32 +109,31 @@ export async function getUserCreatedOpportunities(
       }
     );
   }
-}
+});
 
 /**
  * Fetches opportunities the user has applied to
- * This would require tracking applications in a separate collection
- * For now, returns empty array as placeholder
+ * React 19 cache() wrapper for applied opportunities
  */
-export async function getUserAppliedOpportunities(
+export const getUserAppliedOpportunities = cache(async (
   userId: string,
   limit: number = 20,
   startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
   // TODO: Implement when applications tracking is added
-  logger.info('Services: getUserAppliedOpportunities - Not yet implemented');
+  logger.info('getUserAppliedOpportunities: Not yet implemented');
   return { opportunities: [], lastVisible: null };
-}
+});
 
 /**
  * Combined function to get all user's opportunities (created + applied)
- * Follows the professional mapping paradigm from PLATFORM-PHILOSOPHY.md
+ * React 19 cache() wrapper for combined queries
  */
-export async function getMyOpportunities(
+export const getMyOpportunities = cache(async (
   filterType: 'all' | 'created' | 'applied' = 'all',
   limit: number = 20,
   startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null; counts: { created: number; applied: number } }> {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null; counts: { created: number; applied: number } }> => {
   const session = await auth();
   
   if (!session || !session.user) {
@@ -173,7 +176,7 @@ export async function getMyOpportunities(
       }
     };
   } catch (error) {
-    logRingError(error, 'Services: getMyOpportunities - Error');
+    logRingError(error, 'getMyOpportunities: Error');
     throw error;
   }
-}
+});

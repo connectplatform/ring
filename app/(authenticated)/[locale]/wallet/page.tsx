@@ -5,13 +5,12 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
-import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
-import RightSidebar from '@/features/layout/components/right-sidebar'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import WalletPageClient from './wallet-client'
-import WalletNavigation from './wallet-navigation'
 
-export const dynamic = 'force-dynamic'
+// Allow caching for wallet data with short revalidation for near real-time balance updates
+export const dynamic = "auto"
+export const revalidate = 60 // 1 minute for wallet balance data
 
 // Define the type for the wallet route params
 type WalletParams = {};
@@ -57,7 +56,6 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
     userAgent: headersList.get('user-agent'),
   });
 
-  try {
     console.log('WalletPage: Authenticating session');
     const session = await auth()
     console.log('WalletPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
@@ -67,7 +65,22 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
       redirect(ROUTES.LOGIN(locale))
     }
 
+  // Check if user document exists (with caching - migration now handled at auth level)
+    try {
+      const { userMigrationService } = await import('@/features/auth/services/user-migration');
+    const userExists = await userMigrationService.userDocumentExists(session.user.id);
+    if (!userExists) {
+      console.warn('WalletPage: User document missing, initializing');
+      await userMigrationService.ensureUserDocument(session.user as any);
+      console.log('WalletPage: User document created successfully');
+    }
+    } catch (migrationError) {
+    console.error('WalletPage: Failed to check/create user document:', migrationError);
+      // Continue anyway - wallet client will handle missing document gracefully
+    }
+
     console.log('WalletPage: Rendering wallet client');
+
 
     return (
       <>
@@ -81,122 +94,22 @@ export default async function WalletPage(props: LocalePageProps<WalletParams>) {
         <meta name="googlebot" content="noindex, nofollow" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <div className="min-h-screen bg-background">
-          {/* Desktop Layout - Three columns, hidden on iPad and mobile */}
-          <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
-            {/* Left Sidebar - Navigation */}
-            <div>
-              <DesktopSidebar />
-            </div>
-
-            {/* Main Content - Wallet Dashboard */}
-            <div>
-              <Suspense fallback={
-                <div className="animate-pulse space-y-6 p-6">
-                  <div className="h-8 bg-muted rounded w-1/4"></div>
-                  <div className="h-32 bg-muted rounded"></div>
-                  <div className="h-64 bg-muted rounded"></div>
-                </div>
-              }>
-                <WalletPageClient
-                  locale={locale}
-                  searchParams={searchParams}
-                />
-              </Suspense>
-            </div>
-
-            {/* Right Sidebar - Wallet Navigation */}
-            <div>
-              <RightSidebar title="Wallet">
-                <WalletNavigation locale={locale} />
-              </RightSidebar>
-            </div>
-          </div>
-
-          {/* iPad Layout - Two columns (sidebar + wallet), hidden on mobile and desktop */}
-          <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
-            {/* Left Sidebar - Navigation */}
-            <div>
-              <DesktopSidebar />
-            </div>
-
-            {/* Main Content - Wallet Dashboard */}
-            <div className="relative">
-              <Suspense fallback={
-                <div className="animate-pulse space-y-6 p-6">
-                  <div className="h-8 bg-muted rounded w-1/4"></div>
-                  <div className="h-32 bg-muted rounded"></div>
-                  <div className="h-64 bg-muted rounded"></div>
-                </div>
-              }>
-                <WalletPageClient
-                  locale={locale}
-                  searchParams={searchParams}
-                />
-              </Suspense>
-
-              {/* Floating Sidebar Toggle for Wallet Navigation (iPad only) */}
-              <FloatingSidebarToggle>
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Wallet</h3>
-                  <WalletNavigation locale={locale} />
-                </div>
-              </FloatingSidebarToggle>
-            </div>
-          </div>
-
-          {/* Mobile Layout - Single column, hidden on iPad and desktop */}
-          <div className="md:hidden px-4">
-            <Suspense fallback={
-              <div className="animate-pulse space-y-6 p-6">
-                <div className="h-8 bg-muted rounded w-1/4"></div>
-                <div className="h-32 bg-muted rounded"></div>
-                <div className="h-64 bg-muted rounded"></div>
-              </div>
-            }>
-              <WalletPageClient
-                locale={locale}
-                searchParams={searchParams}
-              />
-            </Suspense>
-
-            {/* Floating Sidebar Toggle for Wallet Navigation (Mobile only) */}
-            <FloatingSidebarToggle>
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Wallet</h3>
-                <WalletNavigation locale={locale} />
-              </div>
-            </FloatingSidebarToggle>
-          </div>
-        </div>
+        <WalletWrapper locale={locale}>
+                <Suspense fallback={
+                  <div className="animate-pulse space-y-6 p-6">
+                    <div className="h-8 bg-muted rounded w-1/4"></div>
+                    <div className="h-32 bg-muted rounded"></div>
+                    <div className="h-64 bg-muted rounded"></div>
+                  </div>
+                }>
+                  <WalletPageClient
+                    locale={locale}
+                    searchParams={searchParams}
+                  />
+                </Suspense>
+        </WalletWrapper>
       </>
     )
-
-  } catch (e) {
-    console.error("WalletPage: Error:", e)
-    
-    return (
-      <>
-        <title>Wallet Error | Ring Platform</title>
-        <meta name="robots" content="noindex, nofollow" />
-        
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Wallet Error</h1>
-            <p className="text-muted-foreground mb-4">
-              Failed to load wallet. Please try again later.
-            </p>
-            <a 
-              href={ROUTES.HOME(locale)} 
-              className="text-primary hover:underline"
-            >
-              Return to Home
-            </a>
-          </div>
-        </div>
-      </>
-    )
-  }
 }
 
 /* 

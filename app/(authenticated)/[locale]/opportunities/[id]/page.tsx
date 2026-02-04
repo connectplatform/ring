@@ -13,8 +13,9 @@ import BackBar from '@/components/common/back-bar'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 
-// Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = 'force-dynamic'
+// Allow caching for opportunity details with moderate revalidation for content updates
+export const dynamic = "auto"
+export const revalidate = 120 // 2 minutes for opportunity detail data
 
 // Define the type for the route params
 type OpportunityParams = { id: string };
@@ -211,7 +212,9 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       }>
-        <OpportunitiesWrapper 
+        <OpportunitiesWrapper
+          locale={locale}
+          searchParams={{}}
           initialOpportunity={opportunity ? {
             ...opportunity,
             attachments: opportunity.attachments as Attachment[],

@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { ArticleEditor } from '@/features/news/components/article-editor';
 import { LocalePageProps } from '@/utils/page-props';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import NewsWrapper from '@/components/wrappers/news-wrapper';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export async function generateMetadata({
   const t = await loadTranslations(validLocale);
 
   return {
-    title: `${t.news.createArticle} | Ring Platform`,
+    title: `${t.modules.admin.createArticle} | Ring Platform`,
     description: 'Create a new news article',
     robots: 'noindex, nofollow',
   };
@@ -43,21 +44,21 @@ export default async function CreateArticlePage({
   // TODO: Implement proper role checking
   
   return (
-    <div className="container mx-auto px-4 py-8">
+    <NewsWrapper pageContext="create">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {t.news.createArticle}
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          {t.modules.admin.createArticle}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Create a new article for the Ring Platform news section
         </p>
       </div>
 
-      <ArticleEditor 
+      <ArticleEditor
         mode="create"
         locale={validLocale}
         translations={t}
       />
-    </div>
+    </NewsWrapper>
   );
 } 

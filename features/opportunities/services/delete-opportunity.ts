@@ -1,22 +1,18 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Delete Opportunity Service
+ * 
+ * Server-side mutation (NO cache() - mutations must always execute)
+ * PostgreSQL via DatabaseService abstraction
+ */
 
-import { getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server';
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { db } from '@/lib/database/DatabaseService';
-
-import { auth } from '@/auth'; // Auth.js v5 handler for session management
-import { UserRole } from '@/features/auth/types';
-import { Opportunity } from '@/features/opportunities/types';
-import { opportunityConverter } from '@/lib/converters/opportunity-converter';
-import { invalidateOpportunitiesCache } from '@/lib/cached-data';
-import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors';
-import { logger } from '@/lib/logger';
+import { getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server'
+import { db } from '@/lib/database/DatabaseService'
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
+import { Opportunity } from '@/features/opportunities/types'
+import { invalidateOpportunitiesCache } from '@/lib/cached-data'
+import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
 
 /**
  * Deletes an opportunity by its ID from the Firestore collection and removes any associated data from Realtime Database.
@@ -45,8 +41,6 @@ import { logger } from '@/lib/logger';
  * @throws {OpportunityQueryError} If there's an error executing the deletion
  */
 export async function deleteOpportunity(id: string, userId?: string, userRole?: UserRole): Promise<boolean> {
-  const phase = getCurrentPhase();
-  
   try {
     logger.info('Services: deleteOpportunity - Starting deletion of opportunity:', { id, userId, userRole });
 

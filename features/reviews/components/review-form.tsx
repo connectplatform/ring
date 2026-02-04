@@ -283,7 +283,7 @@ export function ReviewForm({
               rows={6}
               className="w-full resize-none"
             />
-            <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
               Minimum 10 characters, maximum 1000 characters
             </p>
           </div>
@@ -357,7 +357,7 @@ export function ReviewForm({
               >
                 <div className="flex flex-col items-center space-y-2">
                   <Camera className="w-8 h-8 text-gray-400" />
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     <label htmlFor="photo-upload" className="cursor-pointer text-blue-600 hover:text-blue-500">
                       Click to upload
                     </label>

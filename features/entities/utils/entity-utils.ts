@@ -1,23 +1,24 @@
-import { getAdminDb } from '@/lib/firebase-admin.server';
-import { entityConverter } from '@/lib/converters/entity-converter';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 
 /**
  * Checks if the current user is the owner of the specified entity.
+ * Ring-native implementation using DatabaseService
  * 
  * @param {string} userId - The ID of the user to check.
  * @param {string} entityId - The ID of the entity to check ownership for.
  * @returns {Promise<boolean>} True if the user is the owner, false otherwise.
  */
 export async function checkEntityOwnership(userId: string, entityId: string): Promise<boolean> {
-  const adminDb = await getAdminDb();
-  const docRef = adminDb.collection('entities').doc(entityId).withConverter(entityConverter);
-  const docSnap = await docRef.get();
+  await initializeDatabase();
+  const db = getDatabaseService();
 
-  if (!docSnap.exists) {
+  const result = await db.read('entities', entityId);
+
+  if (!result.success || !result.data) {
     return false;
   }
 
-  const entity = docSnap.data();
+  const entity = result.data as any;
   return entity?.addedBy === userId;
 }
 

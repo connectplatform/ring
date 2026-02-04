@@ -1,0 +1,256 @@
+# =============================================================================
+# Ring Platform - Docker Compose Configuration Template
+# =============================================================================
+# USAGE: Copy this file to docker-compose.yml and customize for your Ring clone
+#
+# Replace the following placeholders:
+# - YOUR_MONGO_PASSWORD: Strong password for MongoDB
+# - YOUR_GRAFANA_PASSWORD: Password for Grafana admin
+#
+# Environment variables should be set in .env.local or docker.env
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # Ring Platform Application
+  # ===========================================================================
+  ring-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        NODE_ENV: development
+    container_name: ring-platform
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      # Database Backend Mode (k8s-postgres-fcm, firebase-full, or supabase-fcm)
+      - DB_BACKEND_MODE=${DB_BACKEND_MODE:-firebase-full}
+      # PostgreSQL Configuration (for k8s-postgres-fcm mode)
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-ring_platform}
+      - DB_USER=${DB_USER:-ring_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+      # Firebase Configuration (from .env.local)
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+      - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+      # Auth.js Configuration
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_FIREBASE_PROJECT_ID=${AUTH_FIREBASE_PROJECT_ID}
+      - AUTH_FIREBASE_CLIENT_EMAIL=${AUTH_FIREBASE_CLIENT_EMAIL}
+      - AUTH_FIREBASE_PRIVATE_KEY=${AUTH_FIREBASE_PRIVATE_KEY}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      # OAuth Providers
+      - AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
+      - AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
+      - AUTH_APPLE_ID=${AUTH_APPLE_ID}
+      - AUTH_APPLE_SECRET=${AUTH_APPLE_SECRET}
+      - AUTH_RESEND_KEY=${AUTH_RESEND_KEY}
+      # Storage
+      - BLOB_READ_WRITE_TOKEN=${BLOB_READ_WRITE_TOKEN}
+      # API Configuration
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      # Payments (WayForPay)
+      - WAYFORPAY_MERCHANT_ACCOUNT=${WAYFORPAY_MERCHANT_ACCOUNT}
+      - WAYFORPAY_SECRET_KEY=${WAYFORPAY_SECRET_KEY}
+      - WAYFORPAY_DOMAIN=${WAYFORPAY_DOMAIN}
+      # AI/LLM Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      # Development hot reload (comment out for production)
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      # Persistent data
+      - ring-logs:/app/log
+      - ring-tmp:/app/tmp
+    networks:
+      - ring-network
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================================================
+  # PostgreSQL Database (for k8s-postgres-fcm mode)
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: ring-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${DB_NAME:-ring_platform}
+      - POSTGRES_USER=${DB_USER:-ring_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-YOUR_POSTGRES_PASSWORD}
+    volumes:
+      - ring-postgres-data:/var/lib/postgresql/data
+      # Optional: Mount init scripts
+      # - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ring_user} -d ${DB_NAME:-ring_platform}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ===========================================================================
+  # Redis for caching and session storage
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: ring-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ring-redis-data:/data
+    networks:
+      - ring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # ===========================================================================
+  # MongoDB (optional - for ConnectPlatform compatibility)
+  # ===========================================================================
+  mongodb:
+    image: mongo:7
+    container_name: ring-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-ring}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-YOUR_MONGO_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DB:-ring_platform}
+    volumes:
+      - ring-mongodb-data:/data/db
+      - ring-mongodb-config:/data/configdb
+    networks:
+      - ring-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - mongodb
+
+  # ===========================================================================
+  # Nginx reverse proxy (optional - for production-like setup)
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: ring-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ring-nginx-cache:/var/cache/nginx
+    networks:
+      - ring-network
+    depends_on:
+      - ring-app
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # ===========================================================================
+  # Prometheus monitoring (optional)
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ring-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ring-prometheus-data:/prometheus
+    networks:
+      - ring-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # ===========================================================================
+  # Grafana dashboard (optional)
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ring-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-YOUR_GRAFANA_PASSWORD}
+    volumes:
+      - ring-grafana-data:/var/lib/grafana
+    networks:
+      - ring-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  ring-logs:
+    driver: local
+  ring-tmp:
+    driver: local
+  ring-postgres-data:
+    driver: local
+  ring-redis-data:
+    driver: local
+  ring-mongodb-data:
+    driver: local
+  ring-mongodb-config:
+    driver: local
+  ring-nginx-cache:
+    driver: local
+  ring-prometheus-data:
+    driver: local
+  ring-grafana-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  ring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -13,6 +13,7 @@ import {
 } from '@/lib/database';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
+import { publishToTunnel } from '@/lib/tunnel/publisher';
 
 /**
  * Service for managing user credit balances and transactions
@@ -37,23 +38,39 @@ export class UserCreditService {
       // Initialize database service
       const initResult = await initializeDatabase();
       if (!initResult.success) {
-        logger.error('Database initialization failed', { userId, error: initResult.error });
-        throw new Error('Database initialization failed');
+        logger.error('Database initialization failed, returning null for graceful degradation', {
+          userId,
+          error: initResult.error
+        });
+        return null; // Graceful degradation - don't throw, let system work without credits
       }
 
       const dbService = getDatabaseService();
       const userResult = await dbService.read('users', userId);
 
       if (!userResult.success || !userResult.data) {
-        logger.warn('User not found', { userId });
-        return null;
+        logger.warn('User document not found, returning null for credit balance', {
+          userId,
+          success: userResult.success,
+          error: userResult.error
+        });
+        return null; // Return null instead of throwing error - let API layer handle migration
       }
 
       const userData = userResult.data.data || userResult.data;
+      logger.info('User data retrieved for credit balance', {
+        userId,
+        hasCreditBalance: !!userData?.credit_balance,
+        creditBalanceKeys: userData?.credit_balance ? Object.keys(userData.credit_balance) : null
+      });
       return userData?.credit_balance || null;
     } catch (error) {
-      logger.error('Failed to get user credit balance', { userId, error });
-      throw new Error('Failed to retrieve credit balance');
+      logger.error('Failed to get user credit balance, returning null for graceful degradation', { 
+        userId, 
+        error,
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      });
+      return null; // Graceful degradation - don't throw on error, return null
     }
   }
 
@@ -79,12 +96,31 @@ export class UserCreditService {
       const dbService = getDatabaseService();
 
       // First read the current user data
+      logger.info('Credit balance initialization: Reading user data', { userId });
       const userResult = await dbService.read('users', userId);
+      logger.info('Credit balance initialization: User read result', {
+        userId,
+        success: userResult.success,
+        hasData: !!userResult.data,
+        error: userResult.error
+      });
+
       if (!userResult.success || !userResult.data) {
+        logger.error('Credit balance initialization: User not found in database', {
+          userId,
+          success: userResult.success,
+          error: userResult.error
+        });
         throw new Error('User not found');
       }
 
       const userData = userResult.data.data || userResult.data;
+
+      logger.info('Initializing credit balance for existing user', {
+        userId,
+        userDataKeys: Object.keys(userData),
+        hasExistingCreditBalance: !!userData?.credit_balance
+      });
 
       // Merge credit balance into existing data
       const updatedData = {
@@ -92,17 +128,31 @@ export class UserCreditService {
         credit_balance: initialBalance
       };
 
+      logger.info('Attempting to update user document with credit balance', {
+        userId,
+        updatedDataKeys: Object.keys(updatedData)
+      });
+
       // Update the user document
       const updateResult = await dbService.update('users', userId, updatedData);
       if (!updateResult.success) {
-        throw new Error('Failed to update user document');
+        logger.error('Failed to update user document with credit balance', {
+          userId,
+          error: updateResult.error,
+          success: updateResult.success
+        });
+        throw new Error(`Failed to update user document: ${updateResult.error?.message || 'Unknown error'}`);
       }
 
       logger.info('Credit balance initialized', { userId });
       return initialBalance;
     } catch (error) {
-      logger.error('Failed to initialize credit balance', { userId, error });
-      throw new Error('Failed to initialize credit balance');
+      logger.error('Failed to initialize credit balance', {
+        userId,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error instanceof Error ? error : new Error('Failed to initialize credit balance');
     }
   }
 
@@ -201,6 +251,9 @@ export class UserCreditService {
         type,
         transactionId: creditTransaction.id
       });
+
+      // Publish balance update via Tunnel for real-time UI updates
+      await this.publishBalanceUpdate(userId, updatedBalance);
 
       return { success: true, transaction: creditTransaction, newBalance: newAmount };
     } catch (error) {
@@ -310,6 +363,9 @@ export class UserCreditService {
         type,
         transactionId: creditTransaction.id
       });
+
+      // Publish balance update via Tunnel for real-time UI updates
+      await this.publishBalanceUpdate(userId, updatedBalance);
 
       return { success: true, transaction: creditTransaction, newBalance: newAmount };
     } catch (error) {
@@ -500,6 +556,51 @@ export class UserCreditService {
       net_change: netChange.toString(),
       transaction_count: transactions.length,
     };
+  }
+
+  /**
+   * Publish balance update via Tunnel for real-time UI updates
+   * Replaces polling with push-based updates
+   * 
+   * @see AI-CONTEXT: tunnel-protocol-firebase-rtdb-analog-2025-11-07
+   */
+  private async publishBalanceUpdate(userId: string, balance: UserCreditBalance): Promise<void> {
+    try {
+      // Format balance data for client consumption
+      const balanceData = {
+        balance: {
+          amount: balance.amount,
+          usd_equivalent: balance.usd_equivalent,
+          last_updated: balance.last_updated
+        },
+        subscription: {
+          active: balance.subscription_active || false,
+          contract_address: balance.subscription_contract_address,
+          next_payment: balance.subscription_next_payment,
+          status: balance.subscription_active ? 'ACTIVE' as const : 'INACTIVE' as const
+        },
+        limits: {
+          monthly_spend_limit: '1000',
+          remaining_monthly_limit: '1000',
+          min_balance_warning: '1'
+        }
+      };
+
+      // Publish to user's credit balance channel
+      await publishToTunnel(userId, 'credit:balance', balanceData);
+      
+      logger.info('Balance update published via Tunnel', {
+        userId,
+        amount: balance.amount,
+        channel: 'credit:balance'
+      });
+    } catch (error) {
+      // Don't throw - tunnel publishing failures shouldn't break business logic
+      logger.warn('Failed to publish balance update via Tunnel', {
+        userId,
+        error: error instanceof Error ? error.message : error
+      });
+    }
   }
 }
 

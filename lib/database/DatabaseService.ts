@@ -29,6 +29,39 @@ export interface DatabaseConfig {
 }
 
 /**
+ * Entity Cache for read-after-write consistency
+ */
+class EntityCache {
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly TTL = 30000; // 30 seconds
+
+  set(key: string, data: any) {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  get(key: string) {
+    const entry = this.cache.get(key);
+    if (entry && (Date.now() - entry.timestamp) < this.TTL) {
+      return entry.data;
+    }
+    this.cache.delete(key);
+    return null;
+  }
+
+  invalidate(key: string) {
+    this.cache.delete(key);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+
+  size() {
+    return this.cache.size;
+  }
+}
+
+/**
  * Main Database Service Class
  * Provides unified interface for all database operations
  */
@@ -36,6 +69,17 @@ export class DatabaseService {
   private selector: BackendSelector;
   private config: DatabaseConfig;
   private connected: boolean = false;
+  private static initialized: boolean = false;
+  private entityCache = new EntityCache();
+
+  public static isInitialized(): boolean {
+    return DatabaseService.initialized;
+  }
+
+  public static setInitialized(initialized: boolean): void {
+    DatabaseService.initialized = initialized;
+  }
+
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -151,7 +195,15 @@ export class DatabaseService {
     if (!this.connected) {
       throw new Error('Database service not initialized');
     }
-    return await this.selector.create(collection, data, options);
+
+    const result = await this.selector.create(collection, data, options);
+
+    // Cache newly created entities to prevent read-after-write consistency issues
+    if (collection === 'entities' && result.success && result.data) {
+      this.entityCache.set(result.data.id, result.data);
+    }
+
+    return result;
   }
 
   /**
@@ -164,7 +216,107 @@ export class DatabaseService {
     if (!this.connected) {
       throw new Error('Database service not initialized');
     }
-    return await this.selector.read(collection, id);
+
+    // Use cache for entities to prevent read-after-write consistency issues
+    if (collection === 'entities') {
+      const cached = this.entityCache.get(id);
+      if (cached) {
+        return {
+          success: true,
+          data: cached,
+          error: null
+        };
+      }
+    }
+
+    return await this.selector.read<T>(collection, id);
+  }
+
+  async readAll<T = any>(
+    collection: string,
+    options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    if (!this.connected) {
+      throw new Error('Database service not initialized');
+    }
+
+    const query: DatabaseQuery = {
+      collection,
+      pagination: {
+        limit: options.limit || 1000, // Reasonable default limit
+        offset: options.offset || 0
+      }
+    };
+
+    if (options.orderBy) {
+      query.orderBy = [options.orderBy];
+    }
+
+    return await this.selector.query<T>(query);
+  }
+
+  async findByField<T = any>(
+    collection: string,
+    field: string,
+    value: any,
+    options: { limit?: number; orderBy?: DatabaseOrderBy } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    if (!this.connected) {
+      throw new Error('Database service not initialized');
+    }
+
+    const query: DatabaseQuery = {
+      collection,
+      filters: [{
+        field,
+        operator: '==',
+        value
+      }],
+      pagination: {
+        limit: options.limit || 100
+      }
+    };
+
+    if (options.orderBy) {
+      query.orderBy = [options.orderBy];
+    }
+
+    return await this.selector.query<T>(query);
+  }
+
+  async exists(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<boolean>> {
+    if (!this.connected) {
+      throw new Error('Database service not initialized');
+    }
+
+    try {
+      const result = await this.selector.read(collection, id);
+      return {
+        success: true,
+        data: result.success && result.data !== null,
+        metadata: {
+          operation: 'exists',
+          duration: 0,
+          backend: this.getCurrentBackend(),
+          timestamp: new Date()
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'exists',
+          duration: 0,
+          backend: this.getCurrentBackend(),
+          timestamp: new Date()
+        }
+      };
+    }
   }
 
   /**
@@ -179,7 +331,15 @@ export class DatabaseService {
     if (!this.connected) {
       throw new Error('Database service not initialized');
     }
-    return await this.selector.update(collection, id, data, options);
+
+    const result = await this.selector.update(collection, id, data, options);
+
+    // Invalidate cache for updated entities
+    if (collection === 'entities') {
+      this.entityCache.invalidate(id);
+    }
+
+    return result;
   }
 
   /**
@@ -192,7 +352,15 @@ export class DatabaseService {
     if (!this.connected) {
       throw new Error('Database service not initialized');
     }
-    return await this.selector.delete(collection, id);
+
+    const result = await this.selector.delete(collection, id);
+
+    // Invalidate cache for deleted entities
+    if (collection === 'entities') {
+      this.entityCache.invalidate(id);
+    }
+
+    return result;
   }
 
   // ============================================================================
@@ -535,15 +703,23 @@ let globalDatabaseService: DatabaseService | null = null;
 
 /**
  * Get or create global database service instance
+ * Uses DB_BACKEND_MODE configuration (k8s-postgres-fcm, firebase-full, supabase-fcm)
+ * No backward compatibility - DB_BACKEND_MODE is REQUIRED
  */
 export function getDatabaseService(): DatabaseService {
   if (!globalDatabaseService) {
-    // Check if hybrid mode is enabled
-    if (process.env.DB_HYBRID_MODE === 'true') {
-      globalDatabaseService = createHybridDatabaseService();
-    } else {
-      globalDatabaseService = createDatabaseService();
-    }
+    // Use new backend mode configuration system
+    const { getBackendModeConfig } = require('./backend-mode-config');
+    const modeConfig = getBackendModeConfig();
+
+    const config: DatabaseConfig = {
+      backends: modeConfig.backends,
+      sync: modeConfig.sync,
+      enableMetrics: process.env.DB_METRICS_ENABLED === 'true',
+      enableTracing: process.env.DB_TRACING_ENABLED === 'true'
+    };
+
+    globalDatabaseService = new DatabaseService(config);
   }
 
   return globalDatabaseService;
@@ -849,7 +1025,18 @@ export async function initializeDbCommand(): Promise<DatabaseResult<void>> {
  */
 export async function initializeDatabase(): Promise<DatabaseResult<void>> {
   const service = getDatabaseService();
-  return await service.initialize();
+
+  // Skip initialization if already done
+  if (DatabaseService.isInitialized() && service.isConnected()) {
+    return { success: true, data: undefined };
+  }
+
+  const result = await service.initialize();
+  if (result.success) {
+    DatabaseService.setInitialized(true);
+  }
+
+  return result;
 }
 
 /**

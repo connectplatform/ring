@@ -1,0 +1,109 @@
+{
+  "title": "Trinity Ukraine - Creators of Ring Platform",
+  "description": "Built by Trinity Ukraine 🇺🇦 as our gift to the world during Ukraine's fight for independence. A free, self-modifying AI-orchestrated platform for collective problem solving.",
+  "hero": {
+    "description": "We built Ring during Ukraine's struggle for independence as our gift to the world. A free, self-modifying AI-orchestrated platform that enables anyone to solve collective needs."
+  },
+  "badges": {
+    "openSource": "Open Source",
+    "aiPowered": "AI-Powered",
+    "weaponOfPeace": "Weapon of Peace"
+  },
+  "sections": {
+    "origin": {
+      "title": "Our Origin Story",
+      "subtitle": "How Ring was born from Ukraine's fight for freedom",
+      "stories": {
+        "crisis": {
+          "title": "Born in Crisis",
+          "description": "In February 2022, as Ukraine defended itself against invasion, Trinity Ukraine saw an opportunity. While the world watched our courage, we worked tirelessly to create something that would outlast the conflict. Ring Platform became our digital fortress - a weapon of peace built with code instead of cannons."
+        },
+        "liberation": {
+          "title": "Technology as Liberation",
+          "description": "We believe technology deficit is a weapon of oppression. Centralized platforms extract value from communities while limiting their potential. Ring breaks this cycle by giving communities the tools to build their own economies, governed by their own rules, powered by their own tokens."
+        },
+        "gratitude": {
+          "title": "Gratitude to the World",
+          "description": "Your support for Ukraine's independence gave us the courage to dream bigger. Ring is our thank you - a platform that democratizes technology access globally. Ukrainian farmers now compete on equal footing with Silicon Valley startups. African artisans access the same AI as Amazon sellers."
+        }
+      }
+    },
+    "mission": {
+      "title": "Our Mission",
+      "subtitle": "Building the future of human collaboration",
+      "cards": {
+        "unite": {
+          "title": "Unite Humanity",
+          "description": "Technology should unite, not divide. Ring enables global cooperation by removing technical and economic barriers to collaboration."
+        },
+        "democratize": {
+          "title": "Democratize Innovation",
+          "description": "Anyone, anywhere can deploy sophisticated platforms. No expensive developers, no vendor lock-in, no technical complexity."
+        },
+        "endDeficit": {
+          "title": "End Technology Deficit",
+          "description": "Level the global playing field. Give every community the same technological advantages currently reserved for the privileged few."
+        }
+      }
+    },
+    "impact": {
+      "title": "Global Impact",
+      "subtitle": "Ring deployments around the world",
+      "stats": {
+        "deployments": "Ring Deployments",
+        "value": "Economic Value Created",
+        "benefiting": "People Benefiting",
+        "countries": "Countries Reached"
+      },
+      "stories": {
+        "title": "Success Stories",
+        "agricultural": {
+          "name": "Ukrainian Agricultural Cooperative",
+          "description": "50 farms, 87% efficiency improvement, €2.3M annual value"
+        },
+        "marketplace": {
+          "name": "Kenyan Artisan Marketplace",
+          "description": "200 artisans, $50K monthly revenue, international reach"
+        },
+        "medical": {
+          "name": "European Medical Network",
+          "description": "300 hospitals, €15M equipment value unlocked"
+        }
+      },
+      "democratization": {
+        "title": "Technology Democratization",
+        "description": "Ring doesn't just give communities technology - it gives them technological sovereignty. The ability to evolve their platforms based on their own needs, not corporate roadmaps."
+      }
+    },
+    "future": {
+      "title": "Future Vision",
+      "description": "Imagine asking your Ring platform: \"Add a blockchain-verified certificate system for educational courses\" And watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform.",
+      "features": {
+        "autonomous": {
+          "title": "AI Autonomous Evolution",
+          "description": "Platforms that write their own code based on natural language requirements"
+        },
+        "learning": {
+          "title": "Inter-Platform Learning",
+          "description": "Ring instances teaching other Ring instances, accelerating global evolution"
+        },
+        "adaptation": {
+          "title": "Real-time Adaptation",
+          "description": "Platforms that evolve in real-time based on user behavior and needs"
+        }
+      }
+    }
+  },
+  "thankYou": {
+    "title": "Thank You",
+    "subtitle": "To everyone who supported Ukraine's fight for freedom",
+    "description": "Ring Platform is our way of saying thank you. Your support gave us not just the chance to defend our freedom, but to contribute something lasting to the world. Technology that unites rather than divides, that empowers rather than extracts, that liberates rather than controls.",
+    "slogan": "Slava Ukraini! 🇺🇦",
+    "message": "Built with love for Ukraine and gratitude to the world.\nRing Platform - Free forever, for everyone."
+  },
+  "actions": {
+    "cloneRing": "Clone Ring Now",
+    "learnTokens": "Learn About RING Tokens",
+    "viewSource": "View Source Code"
+  }
+}

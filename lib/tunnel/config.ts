@@ -83,12 +83,18 @@ export function detectProviderCredentials(): Set<TunnelProvider> {
   available.add(TunnelProvider.SSE);
   available.add(TunnelProvider.LONG_POLLING);
 
-  // WebSocket available in non-Vercel environments
+  // WebSocket available in non-Vercel environments (Kubernetes/production)
   const env = detectEnvironment();
   const websocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false';
-  
+
   if (!env.isVercel && !websocketDisabled && env.hasWebSocketSupport) {
     available.add(TunnelProvider.WEBSOCKET);
+  }
+
+  // SSE only available when explicitly on Vercel (VERCEL=1)
+  const isVercelEnv = process.env.VERCEL === '1';
+  if (isVercelEnv) {
+    available.add(TunnelProvider.SSE);
   }
 
   return available;
@@ -134,6 +140,14 @@ export function getRecommendedTransport(): TunnelProvider {
   // Local development - prefer SSE (WebSocket server not running in dev)
   if (env.isLocalhost && available.has(TunnelProvider.SSE)) {
     return TunnelProvider.SSE;
+  }
+
+  // Private Kubernetes cluster with PostgreSQL - use WebSocket
+  const isK8sPostgres = process.env.DB_HOST?.includes('postgres.') &&
+                       process.env.DB_HOST?.includes('.svc.cluster.local') &&
+                       process.env.DATABASE_URL?.startsWith('postgresql://');
+  if (isK8sPostgres && available.has(TunnelProvider.WEBSOCKET)) {
+    return TunnelProvider.WEBSOCKET;
   }
 
   // Self-hosted with Node.js - prefer WebSocket
@@ -257,10 +271,25 @@ export function getProviderConnectionOptions(
       break;
 
     case TunnelProvider.WEBSOCKET:
-      options.url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 
-                   (typeof window !== 'undefined' 
-                     ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
-                     : 'ws://localhost:3001');
+      // SECURITY: Use secure WebSocket (wss://) for k8s-prod and dev environments
+      // Vercel uses SSE (no WebSocket), so this only applies to self-hosted deployments
+      if (process.env.NEXT_PUBLIC_WEBSOCKET_URL) {
+        options.url = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+      } else if (typeof window !== 'undefined') {
+        const isK8sProd = process.env.NEXT_PUBLIC_DEPLOY_ENV === 'k8s-prod';
+        const isDev = process.env.NODE_ENV === 'development';
+        
+        // Force secure WebSocket for k8s-prod and dev
+        if (isK8sProd || isDev) {
+          options.url = `wss://${window.location.host}`;
+        } else {
+          // Auto-detect based on page protocol for other environments
+          options.url = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+        }
+      } else {
+        // Server-side fallback (dev environment)
+        options.url = 'wss://localhost:3001';
+      }
       break;
 
     case TunnelProvider.SSE:
@@ -308,11 +337,18 @@ export function loadConfigFromEnvironment(): TunnelConfig {
       interval: parseInt(
         process.env.NEXT_PUBLIC_TUNNEL_HEARTBEAT_INTERVAL || '30000'
       ),
+      adaptive: process.env.NEXT_PUBLIC_TUNNEL_ADAPTIVE_HEALTH !== 'false', // NEW: Enable adaptive health checking
       failureThreshold: parseInt(
         process.env.NEXT_PUBLIC_TUNNEL_FAILURE_THRESHOLD || '3'
       ),
       successThreshold: parseInt(
         process.env.NEXT_PUBLIC_TUNNEL_SUCCESS_THRESHOLD || '1'
+      ),
+      minInterval: parseInt(
+        process.env.NEXT_PUBLIC_TUNNEL_HEALTH_MIN_INTERVAL || '15000'
+      ),
+      maxInterval: parseInt(
+        process.env.NEXT_PUBLIC_TUNNEL_HEALTH_MAX_INTERVAL || '120000'
       ),
     },
     optimization: {
@@ -422,6 +458,21 @@ export const TUNNEL_PRESETS = {
       compression: true,
       caching: false,
       prefetch: false,
+    },
+  },
+
+  // Private Kubernetes Cluster (PostgreSQL + WebSocket)
+  'private-k8s-cluster': {
+    transport: TunnelProvider.WEBSOCKET,
+    fallbackChain: [
+      TunnelProvider.WEBSOCKET,
+      TunnelProvider.LONG_POLLING,
+    ],
+    optimization: {
+      bundleMessages: true,
+      compression: true,
+      caching: true,
+      prefetch: true,
     },
   },
 

@@ -1,0 +1,289 @@
+{
+  "title": "Vendor Dashboard",
+  "becomeVendor": "Become a Vendor",
+
+  "onboarding": {
+    "title": "Become a Vendor on GreenFood.live",
+    "subtitle": "Join our agricultural marketplace and reach thousands of customers",
+    "success": "Welcome to GreenFood Marketplace! Your vendor store has been created.",
+    "redirecting": "Redirecting to your dashboard...",
+    "form": {
+      "storeSlug": "Store URL Slug",
+      "storeSlugHint": "URL-friendly identifier (e.g., 'green-valley-farm')",
+      "storeSlugPlaceholder": "green-valley-farm",
+      "storeName": "Store Name",
+      "storeNameHint": "Your farm or business name",
+      "storeNamePlaceholder": "Green Valley Organic Farm",
+      "storeDescription": "Store Description",
+      "storeDescriptionHint": "Brief description of your farm and products (max 500 characters)",
+      "storeDescriptionPlaceholder": "We are a family-owned organic farm specializing in fresh vegetables and herbs...",
+      "storeCategories": "Store Categories",
+      "storeCategoriesHint": "Select all categories that apply to your products",
+      "storeLogo": "Store Logo",
+      "storeLogoHint": "Square image, 512x512 recommended (JPG, PNG, WebP, max 5MB)",
+      "uploadLogo": "Upload Logo",
+      "changeLogo": "Change Logo",
+      "removeLogo": "Remove Logo",
+      "submit": "Create My Vendor Store",
+      "submitting": "Creating your store..."
+    },
+    "categories": {
+      "organic-produce": "Organic Produce",
+      "honey-sweets": "Honey & Sweets",
+      "essential-oils": "Essential Oils",
+      "dairy-eggs": "Dairy & Eggs",
+      "meat-poultry": "Meat & Poultry",
+      "herbs-spices": "Herbs & Spices",
+      "grains-legumes": "Grains & Legumes",
+      "baked-goods": "Baked Goods",
+      "preserves-pickles": "Preserves & Pickles",
+      "beverages": "Beverages",
+      "nuts-seeds": "Nuts & Seeds",
+      "handmade-crafts": "Handmade Crafts"
+    },
+    "validation": {
+      "slugRequired": "Store slug is required",
+      "slugInvalid": "Slug can only contain lowercase letters, numbers, and hyphens",
+      "slugTooShort": "Slug must be at least 3 characters",
+      "slugTooLong": "Slug must be less than 50 characters",
+      "nameRequired": "Store name is required",
+      "nameTooShort": "Store name must be at least 3 characters",
+      "nameTooLong": "Store name must be less than 100 characters",
+      "descriptionRequired": "Store description is required",
+      "descriptionTooLong": "Description must be less than 500 characters",
+      "categoriesRequired": "Please select at least one category",
+      "logoTooBig": "Logo file size must be less than 5MB",
+      "logoInvalidType": "Logo must be JPG, PNG, or WebP"
+    }
+  },
+
+  "dashboard": {
+    "title": "Vendor Dashboard",
+    "welcome": "Welcome back",
+    "overview": "Overview",
+    "analytics": "Analytics",
+    "settings": "Settings"
+  },
+
+  "products": {
+    "title": "My Products",
+    "myProducts": "My Products",
+    "addProduct": "Add Product",
+    "editProduct": "Edit Product",
+    "noProducts": "You haven't added any products yet",
+    "addFirstProduct": "Add your first product to start selling",
+    "totalProducts": "{count} products",
+    "activeProducts": "{count} active",
+    "pendingProducts": "{count} pending review",
+
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending": "Pending Approval",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+
+    "mainStore": {
+      "badge": "Main Store",
+      "submit": "Submit to Main Store",
+      "pending": "⏳ Awaiting Admin Review",
+      "approved": "✓ Listed in Main Store",
+      "rejected": "❌ Not Approved",
+      "notSubmitted": "Not submitted to Main Store"
+    },
+
+    "actions": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "preview": "Preview",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "viewInStore": "View in Store",
+      "viewInMainStore": "View in Main Store"
+    },
+
+    "filters": {
+      "all": "All Products",
+      "active": "Active",
+      "inactive": "Inactive",
+      "pendingApproval": "Pending Approval",
+      "approved": "Approved for Main Store",
+      "rejected": "Rejected",
+      "search": "Search products...",
+      "sortBy": "Sort by",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "sortPriceAsc": "Price: Low to High",
+      "sortPriceDesc": "Price: High to Low",
+      "sortNameAsc": "Name: A to Z",
+      "sortNameDesc": "Name: Z to A"
+    },
+
+    "form": {
+      "photo": "Product Photos",
+      "photoHint": "Upload 1-5 high-quality photos. First photo will be the main image.",
+      "photoPlaceholder": "Drag & drop photos or click to browse",
+      "video": "Product Video (Optional)",
+      "videoHint": "Upload a video showcase (max 50MB, MP4/WebM)",
+      "name": "Product Name",
+      "nameHint": "Clear, descriptive name",
+      "namePlaceholder": "Organic Cherry Tomatoes",
+      "category": "Category",
+      "categoryHint": "Select the most appropriate category",
+      "categoryPlaceholder": "Select category...",
+      "priceUAH": "Price (UAH)",
+      "priceHint": "Price in Ukrainian Hryvnia",
+      "pricePlaceholder": "100.00",
+      "stock": "Stock Quantity",
+      "stockHint": "Available units",
+      "stockPlaceholder": "50",
+      "daarPrice": "DAAR Token Price (Optional)",
+      "daarPriceHint": "Auto-calculated from UAH price if left empty",
+      "description": "Short Description",
+      "descriptionHint": "Brief product description (max 200 characters)",
+      "descriptionPlaceholder": "Fresh organic tomatoes from our farm...",
+      "activeInMyStore": "Active in My Store",
+      "activeInMyStoreHint": "Make product visible in your vendor storefront",
+      "submitToMainStore": "Submit to Main Store",
+      "submitToMainStoreHint": "Submit for admin review to list in main marketplace",
+      "submit": "Create Product",
+      "update": "Update Product",
+      "submitting": "Creating...",
+      "updating": "Updating...",
+      "cancel": "Cancel"
+    },
+
+    "validation": {
+      "nameRequired": "Product name is required",
+      "nameTooShort": "Product name must be at least 3 characters",
+      "nameTooLong": "Product name must be less than 100 characters",
+      "categoryRequired": "Please select a category",
+      "priceRequired": "Price is required",
+      "priceInvalid": "Price must be a positive number",
+      "stockRequired": "Stock quantity is required",
+      "stockInvalid": "Stock must be a non-negative number",
+      "photoRequired": "At least one photo is required",
+      "photoCountExceeded": "Maximum 5 photos allowed",
+      "photoSizeExceeded": "Photo size must be less than 5MB",
+      "photoInvalidType": "Photos must be JPG, PNG, or WebP",
+      "videoSizeExceeded": "Video size must be less than 50MB",
+      "videoInvalidType": "Video must be MP4 or WebM",
+      "descriptionTooLong": "Description must be less than 200 characters"
+    },
+
+    "deleteConfirm": {
+      "title": "Delete Product",
+      "message": "Are you sure you want to delete '{name}'? This action cannot be undone.",
+      "confirm": "Yes, delete",
+      "cancel": "Cancel"
+    }
+  },
+
+  "storefront": {
+    "title": "Vendor Store",
+    "followVendor": "Follow",
+    "messageVendor": "Message",
+    "memberSince": "Member since",
+    "totalSales": "Total sales",
+    "rating": "Rating",
+    "responseTime": "Response time",
+    "poweredBy": "Powered by",
+    "tabs": {
+      "products": "Products",
+      "about": "About",
+      "reviews": "Reviews",
+      "contact": "Contact"
+    },
+    "about": {
+      "story": "Our Story",
+      "location": "Location",
+      "shipping": "Shipping Policies",
+      "returns": "Return Policy",
+      "businessHours": "Business Hours",
+      "certifications": "Certifications",
+      "sustainability": "Sustainability Practices"
+    },
+    "contact": {
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "sendMessage": "Send Message"
+    }
+  },
+
+  "navbar": {
+    "myStore": "My Store",
+    "dashboard": "Dashboard",
+    "myProducts": "My Products",
+    "addProduct": "Add Product",
+    "orders": "Orders",
+    "earnings": "Earnings",
+    "settings": "Settings",
+    "comingSoon": "Coming Soon"
+  },
+
+  "notifications": {
+    "productCreated": "Product '{name}' created successfully",
+    "productUpdated": "Product '{name}' updated successfully",
+    "productDeleted": "Product deleted",
+    "productSubmitted": "Product submitted to Main Store for review",
+    "vendorCreated": "Vendor store created successfully! Welcome to GreenFood.live",
+    "approvalPending": "Your product is pending admin review",
+    "approvalApproved": "Congratulations! '{name}' has been approved for Main Store",
+    "approvalRejected": "Product '{name}' was not approved. Reason: {reason}"
+  },
+
+  "startWrapper": {
+    "setupProgress": "Setup Progress",
+    "storeDetails": "Store Details",
+    "completeStoreInfo": "Complete store information and logo to reach 100%",
+    "whyChooseGreenFood": "Why Choose GreenFood?",
+    "benefits": {
+      "aiEnrichment": {
+        "title": "AI Product Enrichment",
+        "description": "Upload photo + basic info, AI generates descriptions, tags, and recommendations"
+      },
+      "automatedSettlements": {
+        "title": "Automated Settlements",
+        "description": "Sales automatically processed, commissions calculated, payouts scheduled"
+      },
+      "daarRewards": {
+        "title": "DAAR Token Rewards",
+        "description": "Earn up to 25% bonus tokens for regenerative agriculture practices"
+      },
+      "trustTier": {
+        "title": "Trust Tier System",
+        "description": "Start at 20% commission, earn your way to 12% through quality and sales"
+      }
+    },
+    "nextSteps": {
+      "title": "Next Steps",
+      "completeStore": "Complete store information",
+      "uploadLogo": "Upload store logo",
+      "addFirstProduct": "Add first product"
+    },
+    "vendorGuide": {
+      "title": "Vendor Guide",
+      "description": "Learn how to set up and manage your store effectively",
+      "viewGuide": "View Vendor Guide →"
+    },
+    "progressBenefits": "Progress & Benefits"
+  },
+
+  "startPage": {
+    "title": "Vendor Onboarding",
+    "subtitle": "Set up your store and start selling on GreenFood.live",
+    "progressSteps": {
+      "account": "Account",
+      "storeSetup": "Store Setup",
+      "launch": "Launch"
+    },
+    "trustIndicators": {
+      "farms": "50+ Farms",
+      "activation": "Instant Activation",
+      "security": "Secure Platform"
+    }
+  }
+}

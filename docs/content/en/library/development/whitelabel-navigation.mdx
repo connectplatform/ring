@@ -1,0 +1,380 @@
+---
+title: Whitelabel Navigation
+description: Developer guide to implementing custom navigation components for Ring Platform clones
+last_modified: '2025-12-17'
+tags: ['navigation', 'whitelabel', 'customization', 'components']
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+import { Mermaid } from '@/components/docs/mermaid'
+
+# Whitelabel Navigation System
+
+<Callout type="info">
+  **Time Estimate**: 30 minutes | **Difficulty**: Intermediate | **Prerequisites**: Understanding of React components and Ring Platform structure
+</Callout>
+
+Ring Platform uses a clean whitelabel navigation architecture that automatically selects the correct navigation variant based on project configuration. This guide explains how to create custom navigation components for your Ring clone.
+
+## Architecture Overview
+
+<Mermaid title="Navigation Component Flow">
+{`flowchart TD
+    A[Layout renders Navigation] --> B[navigation.tsx]
+    B --> C[DesktopNavigation]
+    C --> D{Read config}
+    D -->|default| E[desktop-sidebar.tsx]
+    D -->|vikka| F[vikka-desktop-navigation.tsx]
+    D -->|greenfood| G[greenfood-navigation.tsx]
+    
+    style C fill:#10b981
+    style D fill:#f59e0b
+`}
+</Mermaid>
+
+The system separates the **public API** (`DesktopNavigation`) from **variant implementations** (project-specific navigation components). Wrapper components always import the public API, never the variants directly.
+
+## File Structure
+
+```
+components/navigation/
+├── desktop-navigation.tsx    ← PUBLIC API (import this everywhere)
+├── desktop-sidebar.tsx       ← Default Ring Platform variant
+├── vikka-desktop-navigation.tsx  ← VIKKA News variant
+├── navigation.tsx            ← Orchestrator component
+└── bottom-navigation.tsx     ← Mobile navigation
+
+config/
+└── navigation.config.ts      ← Client-safe configuration
+```
+
+<Callout type="warning">
+  **Important**: Never import `desktop-sidebar.tsx` or project-specific navigation directly. Always use `DesktopNavigation` from `desktop-navigation.tsx`.
+</Callout>
+
+## Configuration
+
+### Navigation Config File
+
+Create or edit `config/navigation.config.ts`:
+
+<Code language="typescript" title="config/navigation.config.ts">
+{`/**
+ * Navigation Configuration for Whitelabel
+ * Client-safe configuration for navigation components.
+ */
+
+export type NavigationComponentType = 'default' | 'vikka' | 'greenfood'
+
+export const navigationConfig = {
+  /**
+   * Desktop navigation component to use
+   * - 'default': Standard Ring Platform sidebar
+   * - 'vikka': VIKKA News portal navigation
+   * - 'greenfood': GreenFood marketplace navigation
+   */
+  desktopComponent: 'default' as NavigationComponentType,
+  
+  /**
+   * Mobile navigation component to use
+   */
+  mobileComponent: 'default' as NavigationComponentType,
+} as const
+
+export function getDesktopNavigationType(): NavigationComponentType {
+  return navigationConfig.desktopComponent
+}`}
+</Code>
+
+### Instance Config (Optional)
+
+For full whitelabel configuration, create `whitelabel/instance.config.json`:
+
+<Code language="json" title="whitelabel/instance.config.json">
+{`{
+  "$schema": "./instance.config.schema.json",
+  "name": "My Platform",
+  "brand": {
+    "colors": {
+      "primary": "#3b82f6",
+      "background": "#0f172a",
+      "foreground": "#f8fafc",
+      "accent": "#22c55e"
+    }
+  },
+  "navigation": {
+    "desktopComponent": "default",
+    "mobileComponent": "default"
+  },
+  "features": {
+    "entities": true,
+    "opportunities": true
+  }
+}`}
+</Code>
+
+## Creating a Custom Navigation Variant
+
+<Steps>
+
+<Step>
+
+**Create your navigation component:**
+
+Create a new file in `components/navigation/` with your project name:
+
+<Code language="typescript" title="components/navigation/myproject-desktop-navigation.tsx">
+{`'use client'
+
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useLocale } from 'next-intl'
+import { useTheme } from 'next-themes'
+import { useSession } from 'next-auth/react'
+import { Home, Settings, User } from 'lucide-react'
+import type { Locale } from '@/i18n-config'
+
+interface MyProjectDesktopNavigationProps {
+  className?: string
+}
+
+export default function MyProjectDesktopNavigation({ 
+  className 
+}: MyProjectDesktopNavigationProps) {
+  const pathname = usePathname()
+  const locale = useLocale() as Locale
+  const { data: session } = useSession()
+  const { theme, setTheme } = useTheme()
+
+  const navigationItems = [
+    { href: \`/\${locale}\`, label: 'Home', icon: Home },
+    { href: \`/\${locale}/settings\`, label: 'Settings', icon: Settings },
+    // Add your custom navigation items
+  ]
+
+  return (
+    <aside className="fixed left-0 top-0 h-screen w-[280px] bg-background border-r">
+      {/* Your custom navigation UI */}
+      <div className="p-4">
+        <h1 className="text-2xl font-bold">My Platform</h1>
+      </div>
+      
+      <nav className="flex-1 p-4">
+        {navigationItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent"
+          >
+            <item.icon className="h-5 w-5" />
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
+    </aside>
+  )
+}`}
+</Code>
+
+</Step>
+
+<Step>
+
+**Register your variant in `desktop-navigation.tsx`:**
+
+<Code language="typescript" title="components/navigation/desktop-navigation.tsx">
+{`import React from 'react'
+import dynamic from 'next/dynamic'
+import { navigationConfig, type NavigationComponentType } from '@/config/navigation.config'
+
+// Lazy load navigation variants
+const DefaultSidebar = dynamic(
+  () => import('@/components/navigation/desktop-sidebar'),
+  { ssr: false }
+)
+
+const VikkaSidebar = dynamic(
+  () => import('@/components/navigation/vikka-desktop-navigation'),
+  { ssr: false }
+)
+
+// Add your new variant
+const MyProjectSidebar = dynamic(
+  () => import('@/components/navigation/myproject-desktop-navigation'),
+  { ssr: false }
+)
+
+// Component registry
+const variants: Record<NavigationComponentType, React.ComponentType<{ className?: string }>> = {
+  default: DefaultSidebar,
+  vikka: VikkaSidebar,
+  myproject: MyProjectSidebar, // Register here
+}
+
+export default function DesktopNavigation({ className }: { className?: string }) {
+  const Variant = variants[navigationConfig.desktopComponent] || DefaultSidebar
+  return <Variant className={className} />
+}`}
+</Code>
+
+</Step>
+
+<Step>
+
+**Update the type definition:**
+
+Add your variant to the type in `config/navigation.config.ts`:
+
+<Code language="typescript" title="config/navigation.config.ts">
+{`export type NavigationComponentType = 'default' | 'vikka' | 'greenfood' | 'myproject'`}
+</Code>
+
+</Step>
+
+<Step>
+
+**Activate your variant:**
+
+Set your project's navigation in the config:
+
+<Code language="typescript" title="config/navigation.config.ts">
+{`export const navigationConfig = {
+  desktopComponent: 'myproject' as NavigationComponentType,
+  mobileComponent: 'default' as NavigationComponentType,
+} as const`}
+</Code>
+
+</Step>
+
+</Steps>
+
+## Using Navigation in Wrapper Components
+
+All page wrapper components should import `DesktopNavigation`:
+
+<Code language="typescript" title="components/wrappers/my-page-wrapper.tsx">
+{`'use client'
+
+import React from 'react'
+import DesktopNavigation from '@/components/navigation/desktop-navigation'
+import RightSidebar from '@/components/layout/right-sidebar'
+
+interface MyPageWrapperProps {
+  children: React.ReactNode
+}
+
+export default function MyPageWrapper({ children }: MyPageWrapperProps) {
+  return (
+    <div className="min-h-screen">
+      {/* Desktop Layout */}
+      <div className="hidden lg:grid grid-cols-[280px_1fr_320px]">
+        <DesktopNavigation />
+        <main className="min-h-screen">{children}</main>
+        <RightSidebar>
+          {/* Sidebar content */}
+        </RightSidebar>
+      </div>
+
+      {/* Mobile Layout */}
+      <div className="lg:hidden">
+        <main>{children}</main>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## Mobile Navigation
+
+Mobile navigation is handled separately by `bottom-navigation.tsx`. The same whitelabel pattern can be applied:
+
+<Code language="typescript" title="config/navigation.config.ts">
+{`export const navigationConfig = {
+  desktopComponent: 'vikka' as NavigationComponentType,
+  mobileComponent: 'default' as NavigationComponentType,  // Can also be customized
+}`}
+</Code>
+
+<Callout type="info">
+  The mobile `BottomNavigation` component includes a fullscreen menu modal with conditional Admin section (visible only for ADMIN/SUPERADMIN roles).
+</Callout>
+
+## Best Practices
+
+### ✅ Do
+
+- Always import from `@/components/navigation/desktop-navigation`
+- Keep navigation config in `config/navigation.config.ts`
+- Use `dynamic()` imports for navigation variants (code splitting)
+- Include all localization support in your variant
+- Support light/dark themes
+
+### ❌ Don't
+
+- Never import `desktop-sidebar.tsx` directly in wrappers
+- Don't hardcode locale paths - use `useLocale()` hook
+- Don't skip theme support - Ring supports dark mode
+- Don't forget mobile navigation consideration
+
+## Migrating Existing Code
+
+If your codebase has direct `desktop-sidebar` imports:
+
+<Code language="bash" title="Find and replace">
+{`# Find all files with direct imports
+grep -r "import.*desktop-sidebar" --include="*.tsx" .
+
+# Replace import (use sed or your IDE)
+# FROM: import DesktopSidebar from '@/components/navigation/desktop-sidebar'
+# TO:   import DesktopNavigation from '@/components/navigation/desktop-navigation'
+
+# Also update component usage
+# FROM: <DesktopSidebar />
+# TO:   <DesktopNavigation />`}
+</Code>
+
+## Example: VIKKA News Navigation
+
+VIKKA (`ring-vikka-ua`) uses a custom navigation optimized for news portals:
+
+<Mermaid title="VIKKA Navigation Features">
+{`mindmap
+  root((VIKKA Nav))
+    Branding
+      Logo & Tagline
+      Social Links
+      Footer Info
+    Categories
+      News Categories
+      Live TV
+      Shows
+    User Features
+      Auth Widget
+      Theme Toggle
+      Language Switcher
+    Business
+      Advertising
+      Jobs
+      Production
+`}
+</Mermaid>
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  Your navigation system is now whitelabel-ready! Explore more customization options:
+</Callout>
+
+- [Complete Customization Guide](/en/library/white-label/customization-guide) - Full branding and feature customization
+- [Code Structure](/en/library/development/code-structure) - Understanding Ring's architecture
+- [Best Practices](/en/library/development/best-practices) - Coding standards
+
+---
+
+<Callout type="note">
+  **Legion Commander Tip**: The whitelabel navigation system was designed to keep the codebase clean and project customizations separate. When in doubt, remember: *components import the public API, never the variants directly*.
+</Callout>

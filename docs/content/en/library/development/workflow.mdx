@@ -1,0 +1,90 @@
+---
+title: Workflow
+description: Workflow documentation for Ring Platform
+---
+
+# Development Workflow
+
+Git workflow, branching strategies, and development best practices for Ring Platform development.
+
+## 🔄 Git Workflow
+
+### Feature Branch Workflow
+Ring Platform uses a **feature branch workflow** with the following branches:
+
+- **`main`** - Production-ready code
+- **`develop`** - Integration branch for features
+- **`feature/*`** - Individual feature development
+- **`hotfix/*`** - Critical production fixes
+- **`release/*`** - Release preparation
+
+### Branch Naming Convention
+feature/user-authentication
+
+<Code language="bash" title="terminal">
+{`feature/entity-management
+hotfix/wallet-connection-bug
+release/v1.2.0`}
+</Code>
+
+## 🚀 Development Process
+
+### 1. Start New Feature
+Create and switch to feature branch Start development
+
+<Code language="bash" title="terminal">
+{`git checkout develop
+git pull origin develop
+git checkout -b feature/your-feature-name
+
+npm run dev`}
+</Code>
+
+### 2. Development Cycle
+Make changes and commit frequently Push to remote branch
+
+<Code language="bash" title="terminal">
+{`git add .
+git commit -m "feat: add user authentication flow"
+
+git push origin feature/your-feature-name`}
+</Code>
+
+### 3. Code Review Process
+1. Create Pull Request to `develop`
+2. Automated CI/CD checks run
+3. Code review by team members
+4. Address feedback and update
+5. Merge after approval
+
+## 🧪 Continuous Integration
+
+### Automated Checks
+- **TypeScript compilation** - Zero type errors
+- **ESLint** - Code style compliance
+- **Unit tests** - > 80% coverage required
+- **Build verification** - Production build succeeds
+- **E2E tests** - Critical user flows work
+
+### CI Pipeline
+name: CI/CD Pipeline
+
+<Code language="yaml" title="configuration">
+{`on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm run test
+      - run: npm run build`}
+</Code>
+
+---
+
+*Complete development workflow documentation coming soon.*

@@ -1,5 +1,40 @@
 {
   "title": "Admin Panel",
+  "userManagement": "User Management",
+  "userManagementDescription": "Manage user accounts, roles, and permissions across the platform",
+  "newsCategories": {
+    "title": "Categories Management",
+    "subtitle": "Manage news article categories, colors, and organization"
+  },
+  "bulkOperations": {
+    "title": "Bulk Operations",
+    "subtitle": "Manage multiple news articles simultaneously with batch operations"
+  },
+  "settings": {
+    "title": "Platform Settings (SuperAdmin)",
+    "projectName": "Project Name",
+    "shortDescription": "Short Description",
+    "extendedDescription": "Extended Description",
+    "logo": "Logo",
+    "upload": "Upload",
+    "colors": {
+      "primary": "Primary",
+      "background": "Background",
+      "foreground": "Foreground",
+      "accent": "Accent"
+    },
+    "defaultTheme": "Default Theme",
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "features": "Features",
+    "customEntityCategories": "Custom Entity Categories",
+    "customEntityPlaceholder": "One per line, e.g. Startup, NGO, SME",
+    "reset": "Reset",
+    "save": "Save Settings"
+  },
   "matcher": {
     "title": "AI Matcher Analytics",
     "subtitle": "Monitor and optimize your AI-powered opportunity matching system",
@@ -54,7 +89,10 @@
       "chartPlaceholder": "Interactive chart would be displayed here",
       "chartDesc": "Shows match volume and quality trends"
     }
-  }
+  },
+  "newsManagement": "News Management",
+  "newsManagementDescription": "Manage news articles, categories, and publications on the platform",
+  "createArticle": "Create Article"
 }
 
 

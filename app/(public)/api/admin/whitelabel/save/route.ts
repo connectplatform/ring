@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/user-role'
 
 export async function POST(request: NextRequest) {
   const session = await auth()
-  if (!session?.user?.isSuperAdmin) {
+  if (!session?.user || session.user.role !== UserRole.SUPERADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

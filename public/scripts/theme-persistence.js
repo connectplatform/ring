@@ -14,7 +14,8 @@
     THEMES: {
       LIGHT: 'light',
       DARK: 'dark',
-      SYSTEM: 'system'
+      SYSTEM: 'system',
+      AUTO: 'auto'
     }
   };
 
@@ -48,8 +49,8 @@
      */
     getSystemTheme() {
       try {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches 
-          ? THEME_CONFIG.THEMES.DARK 
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? THEME_CONFIG.THEMES.DARK
           : THEME_CONFIG.THEMES.LIGHT;
       } catch (error) {
         console.warn('Failed to get system theme:', error);
@@ -58,18 +59,41 @@
     },
 
     /**
+     * Get auto theme based on daytime (6 AM - 6 PM = light, 6 PM - 6 AM = dark)
+     */
+    getAutoTheme() {
+      try {
+        const now = new Date();
+        const hour = now.getHours();
+
+        // Daytime: 6 AM to 6 PM (06:00-18:00) = light theme
+        // Nighttime: 6 PM to 6 AM (18:00-06:00) = dark theme
+        return (hour >= 6 && hour < 18) ? THEME_CONFIG.THEMES.LIGHT : THEME_CONFIG.THEMES.DARK;
+      } catch (error) {
+        console.warn('Failed to get auto theme:', error);
+        return THEME_CONFIG.THEMES.LIGHT;
+      }
+    },
+
+    /**
      * Apply theme to document
      */
     applyTheme(theme) {
-      const actualTheme = theme === THEME_CONFIG.THEMES.SYSTEM 
-        ? this.getSystemTheme() 
-        : theme;
-      
+      let actualTheme;
+
+      if (theme === THEME_CONFIG.THEMES.SYSTEM) {
+        actualTheme = this.getSystemTheme();
+      } else if (theme === THEME_CONFIG.THEMES.AUTO) {
+        actualTheme = this.getAutoTheme();
+      } else {
+        actualTheme = theme;
+      }
+
       // Apply theme to document
       document.documentElement.setAttribute(THEME_CONFIG.THEME_ATTRIBUTE, actualTheme);
       document.documentElement.classList.remove(THEME_CONFIG.THEMES.LIGHT, THEME_CONFIG.THEMES.DARK);
       document.documentElement.classList.add(actualTheme);
-      
+
       // Store actual theme for system preference
       try {
         localStorage.setItem(THEME_CONFIG.SYSTEM_THEME_KEY, actualTheme);
@@ -102,20 +126,26 @@
      */
     toggleTheme() {
       const currentTheme = this.getStoredTheme();
-      const actualTheme = currentTheme === THEME_CONFIG.THEMES.SYSTEM 
-        ? this.getSystemTheme() 
-        : currentTheme;
-      
-      const newTheme = actualTheme === THEME_CONFIG.THEMES.DARK 
-        ? THEME_CONFIG.THEMES.LIGHT 
+      let actualTheme;
+
+      if (currentTheme === THEME_CONFIG.THEMES.SYSTEM) {
+        actualTheme = this.getSystemTheme();
+      } else if (currentTheme === THEME_CONFIG.THEMES.AUTO) {
+        actualTheme = this.getAutoTheme();
+      } else {
+        actualTheme = currentTheme;
+      }
+
+      const newTheme = actualTheme === THEME_CONFIG.THEMES.DARK
+        ? THEME_CONFIG.THEMES.LIGHT
         : THEME_CONFIG.THEMES.DARK;
-      
+
       this.setStoredTheme(newTheme);
       this.applyTheme(newTheme);
-      
+
       // Dispatch custom event for React components
-      window.dispatchEvent(new CustomEvent('themeChange', { 
-        detail: { theme: newTheme } 
+      window.dispatchEvent(new CustomEvent('themeChange', {
+        detail: { theme: newTheme }
       }));
     },
 
@@ -126,12 +156,19 @@
       if (Object.values(THEME_CONFIG.THEMES).includes(theme)) {
         this.setStoredTheme(theme);
         this.applyTheme(theme);
-        
+
         // Dispatch custom event for React components
-        window.dispatchEvent(new CustomEvent('themeChange', { 
-          detail: { theme } 
+        window.dispatchEvent(new CustomEvent('themeChange', {
+          detail: { theme }
         }));
       }
+    },
+
+    /**
+     * Get auto theme (exposed for React components)
+     */
+    getAutoThemeExternal() {
+      return this.getAutoTheme();
     },
 
     /**
@@ -152,6 +189,7 @@
   window.toggleTheme = () => ThemePersistence.toggleTheme();
   window.setTheme = (theme) => ThemePersistence.setTheme(theme);
   window.getCurrentTheme = () => ThemePersistence.getCurrentTheme();
+  window.getAutoTheme = () => ThemePersistence.getAutoThemeExternal();
 
   // Analytics event for theme changes
   window.addEventListener('themeChange', (event) => {

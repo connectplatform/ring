@@ -11,7 +11,9 @@ import { getSEOMetadata } from '@/lib/seo-metadata'
 // React 19 Resource Preloading APIs
 import { preload, preinit } from 'react-dom'
 
-export const dynamic = 'force-dynamic'
+// Allow caching for better performance - homepage content doesn't change constantly
+export const dynamic = "auto"
+export const revalidate = 300 // 5 minutes for public content
 
 type HomePageParams = {}
 
@@ -152,8 +154,8 @@ export default async function HomePage({ params, searchParams }: LocalePageProps
         <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center">
-              <h1 className="text-3xl font-bold">Welcome to Ring Platform</h1>
-              <p className="mt-2 text-gray-600">Connect with tech opportunities in Cherkasy region</p>
+              <h1 className="text-3xl font-bold">Welcome to Ring</h1>
+              <p className="mt-2 text-gray-600">Your portal to the quantum world</p>
             </div>
           </div>
         </div>

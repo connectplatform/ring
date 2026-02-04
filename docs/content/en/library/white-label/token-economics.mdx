@@ -1,0 +1,637 @@
+---
+title: Token Economics Setup
+description: Launch your own token economy - create tokens, configure smart contracts, and design incentives
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Token Economics Setup
+
+<Callout type="info">
+  **Ring's Philosophy**: "Your platform should run on your economy." Every Ring deployment can have its own token system.
+</Callout>
+
+Ring platforms are powered by token economics that align incentives, enable governance, and create sustainable value. This guide shows you how to design and launch your own token system.
+
+## Why Token Economics Matter
+
+**Traditional platforms:**
+- Centralized control by founders/investors
+- User-generated value captured by platform
+- Limited user incentives for participation
+
+**Ring token platforms:**
+- Value created by users stays with users
+- Platform governed by token holders
+- Economic incentives drive participation
+- Sustainable long-term value creation
+
+## Token Use Cases in Ring
+
+### 1. Opportunity Listings & Services
+- **Pay to post** opportunities (prevents spam)
+- **Pay developers** for customization work
+- **Reward quality** contributions with bounties
+
+### 2. Governance & Voting
+- **Feature prioritization** - token holders vote on roadmap
+- **Parameter adjustment** - community-controlled fees, limits
+- **Treasury management** - transparent fund allocation
+
+### 3. Staking & Rewards
+- **Stake for benefits** - premium features, higher visibility
+- **Reward contributors** - bug bounties, content creation
+- **Loyalty programs** - token rewards for engagement
+
+### 4. Marketplace Transactions
+- **Transaction fees** in tokens
+- **Vendor staking** requirements
+- **Trust scoring** based on token holdings
+
+## Token Design Framework
+
+### Step 1: Define Your Token's Purpose
+
+<Steps>
+  <Step>
+    **Utility Token vs Security Token:**
+
+    **Utility Token** (Recommended for Ring):
+    - Powers platform features
+    - No expectation of profit
+    - Regulatory friendly
+
+    **Security Token**:
+    - Represents ownership stake
+    - SEC regulation applies
+    - Legal complexity
+  </Step>
+
+  <Step>
+    **Single Token vs Multi-Token:**
+
+    **Single Token** (Simpler):
+    - One token for all functions
+    - Easier to understand
+    - Simpler economics
+
+    **Multi-Token** (Advanced):
+    - Governance token + utility tokens
+    - Different vesting schedules
+    - Complex but flexible
+  </Step>
+</Steps>
+
+### Step 2: Token Parameters
+
+<Steps>
+  <Step>
+    **Total Supply:**
+
+    // Example configuration
+
+<Code language="typescript" title="TypeScript">
+{`const tokenConfig = {
+      name: "MyPlatform Token",
+      symbol: "MPT",
+      totalSupply: 100_000_000, // 100 million tokens
+      decimals: 18,
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Distribution Schedule:**
+
+    - **Community**: 40% - user rewards, airdrops
+    - **Development**: 30% - team, future development
+    - **Staking Pool**: 20% - rewards for staking
+    - **Founders**: 10% - locked with vesting
+
+    **Vesting Example:**
+    - Founders: 4-year linear vesting
+    - Development: 2-year cliff, then monthly
+    - Community: Immediate distribution
+  </Step>
+
+  <Step>
+    **Inflation/Deflation:**
+
+    **Fixed Supply**: No new tokens created
+    **Controlled Inflation**: New tokens for staking rewards
+    **Deflationary**: Burn tokens on transactions
+  </Step>
+</Steps>
+
+## Smart Contract Architecture
+
+### ERC-20 Token Contract
+
+<Steps>
+  <Step>
+    **Deploy basic ERC-20:**
+
+    // contracts/MyToken.sol
+
+<Code language="solidity" title="Solidity">
+{`pragma solidity ^0.8.19;
+
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+    contract MyToken is ERC20 {
+        constructor(
+            string memory name,
+            string memory symbol,
+            uint256 initialSupply
+        ) ERC20(name, symbol) {
+            _mint(msg.sender, initialSupply);
+        }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Add utility functions:**
+
+    // Burnable tokens
+
+<Code language="solidity" title="Solidity">
+{`function burn(uint256 amount) public {
+        _burn(msg.sender, amount);
+    }
+
+    // Pausable for emergencies
+    function pause() public onlyOwner {
+        _pause();
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Governance Contract
+
+<Steps>
+  <Step>
+    **Implement governance:**
+
+    // contracts/Governance.sol
+
+<Code language="solidity" title="Solidity">
+{`contract MyGovernance {
+        struct Proposal {
+            uint256 id;
+            string description;
+            uint256 voteCount;
+            bool executed;
+        }
+
+        mapping(address => uint256) public votingPower;
+        mapping(uint256 => Proposal) public proposals;
+
+        function createProposal(string memory description) public {
+            // Create governance proposal
+        }
+
+        function vote(uint256 proposalId, bool support) public {
+            // Vote on proposals
+        }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Connect to Ring features:**
+
+    - Opportunity posting fees
+    - Feature voting
+    - Parameter adjustments
+  </Step>
+</Steps>
+
+## Integration with Ring Platform
+
+### Wallet Integration
+
+<Steps>
+  <Step>
+    **Configure token in Ring:**
+
+    Edit `lib/config/token.ts`:
+
+    <Code language="typescript" title="export const tokenConfig = {">
+{`name: "My Platform Token",
+      symbol: "MPT",
+      contractAddress: "0x1234...",
+      chainId: 1, // Ethereum mainnet
+      decimals: 18,
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Enable wallet features:**
+
+    // Enable token features
+
+<Code language="typescript" title="TypeScript">
+{`const features = {
+      tokenPayments: true,
+      staking: true,
+      governance: true,
+      nftMarketplace: false, // Can add later
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Fee Structure Configuration
+
+<Steps>
+  <Step>
+    **Set platform fees:**
+
+    // config/fees.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const feeStructure = {
+      opportunityListing: 10, // 10 tokens to post opportunity
+      marketplaceTransaction: 0.01, // 1% in tokens
+      premiumFeatures: 100, // Monthly premium subscription
+      stakingRequirement: 50, // Minimum stake for vendors
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Implement fee collection:**
+
+    // lib/fees/token-fees.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function collectListingFee(userId: string, amount: number) {
+      // Transfer tokens from user to platform treasury
+      await walletService.transfer({
+        from: userId,
+        to: TREASURY_ADDRESS,
+        amount,
+        token: 'MPT'
+      });
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Staking System Setup
+
+### Staking Contract
+
+<Steps>
+  <Step>
+    **Create staking contract:**
+
+    // contracts/Staking.sol
+
+<Code language="solidity" title="Solidity">
+{`contract Staking {
+        mapping(address => uint256) public stakedBalance;
+        mapping(address => uint256) public stakingTimestamp;
+
+        function stake(uint256 amount) public {
+            require(amount > 0, "Cannot stake 0");
+            // Transfer tokens to contract
+            token.transferFrom(msg.sender, address(this), amount);
+            stakedBalance[msg.sender] += amount;
+            stakingTimestamp[msg.sender] = block.timestamp;
+        }
+
+        function unstake(uint256 amount) public {
+            require(stakedBalance[msg.sender] >= amount, "Insufficient stake");
+            // Return tokens
+            token.transfer(msg.sender, amount);
+            stakedBalance[msg.sender] -= amount;
+        }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Rewards distribution:**
+
+    <Code language="solidity" title="Solidity">
+{`function distributeRewards() public onlyOwner {
+// Calculate and distribute staking rewards
+      for (address staker : stakers) {
+        uint256 reward = calculateReward(staker);
+        token.mint(staker, reward);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Staking Benefits Configuration
+
+<Steps>
+  <Step>
+    **Define staking tiers:**
+
+    // config/staking.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const stakingTiers = [
+      {
+        minStake: 0,
+        name: "Basic",
+        benefits: ["Basic listings", "Standard support"]
+      },
+      {
+        minStake: 100,
+        name: "Premium",
+        benefits: ["Priority listings", "Advanced analytics", "Premium support"]
+      },
+      {
+        minStake: 1000,
+        name: "Elite",
+        benefits: ["Featured listings", "Custom branding", "Dedicated support"]
+      }
+    ]`}
+</Code>
+  </Step>
+
+  <Step>
+    **Implement benefit checks:**
+
+    // lib/staking/benefits.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function getUserBenefits(userId: string) {
+      const stakeAmount = await stakingService.getStake(userId);
+      return stakingTiers.find(tier => stakeAmount >= tier.minStake);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Launch Strategy
+
+### Phase 1: Token Deployment
+
+<Steps>
+  <Step>
+    **Deploy to testnet first:**
+
+    Deploy to Sepolia testnet
+
+<Code language="bash" title="terminal">
+{`npx hardhat run scripts/deploy.ts --network sepolia`}
+</Code>
+  </Step>
+
+  <Step>
+    **Test all functions:**
+
+    - Token transfers
+    - Staking/unstaking
+    - Fee collection
+    - Governance voting
+  </Step>
+
+  <Step>
+    **Audit smart contracts:**
+
+    Hire professional audit firm before mainnet deployment.
+  </Step>
+
+  <Step>
+    **Deploy to mainnet:**
+
+    <Code language="bash" title="terminal">
+{`# npx hardhat run scripts/deploy.ts --network mainnet`}
+</Code>
+  </Step>
+</Steps>
+
+### Phase 2: Community Distribution
+
+<Steps>
+  <Step>
+    **Airdrop to early users:**
+
+    // scripts/airdrop.ts
+
+<Code language="typescript" title="TypeScript">
+{`const earlyUsers = [
+      '0x1234...',
+      '0x5678...',
+      // Early platform users
+    ];
+
+    for (const user of earlyUsers) {
+      await token.transfer(user, 1000); // 1000 tokens each
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Liquidity provision:**
+
+    Provide initial liquidity on Uniswap or similar DEX.
+  </Step>
+
+  <Step>
+    **Staking incentives:**
+
+    Reward early stakers with bonus tokens.
+  </Step>
+</Steps>
+
+### Phase 3: Feature Activation
+
+<Steps>
+  <Step>
+    **Enable basic features:**
+
+    Start with opportunity listing fees and basic staking.
+  </Step>
+
+  <Step>
+    **Gradual rollout:**
+
+    Enable advanced features as community grows:
+    - Governance voting
+    - Advanced staking rewards
+    - Marketplace integration
+  </Step>
+
+  <Step>
+    **Community governance:**
+
+    Let token holders decide on future features and parameters.
+  </Step>
+</Steps>
+
+## Economic Modeling
+
+### Token Flow Analysis
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   User Fees     │ -> │ Platform Treasury │ -> │ Staking Rewards │
+│                 │    │                  │    │                 │
+│ • Listing fees  │    │ • Development    │    │ • User rewards  │
+│ • Transactions  │    │ • Operations     │    │ • Incentives    │
+│ • Premium subs  │    │ • Marketing      │    │ • Growth        │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+        ▲                        │                        │
+        │                        ▼                        │
+        └───────────────── Governance ────────────────────┘
+                                │
+                                ▼
+                      ┌──────────────────┐
+                      │  Feature Voting  │
+                      │  Parameter Adj.  │
+                      │  Treasury Mgmt   │
+                      └──────────────────┘
+```
+
+### Burn Mechanisms
+
+// Burn tokens on certain actions
+
+<Code language="typescript" title="TypeScript">
+{`export async function burnOnTransaction(amount: number, percentage: number) {
+  const burnAmount = (amount * percentage) / 100;
+  await token.burn(burnAmount);
+  return amount - burnAmount; // Return remaining to recipient
+}`}
+</Code>
+
+### Treasury Management
+
+// Treasury contract for community funds
+
+<Code language="typescript" title="TypeScript">
+{`contract CommunityTreasury {
+  function proposeSpend(
+    address recipient,
+    uint256 amount,
+    string memory reason
+  ) public {
+    // Create spending proposal for community vote
+  }
+
+  function executeSpend(uint256 proposalId) public {
+    // Execute approved spending
+  }
+}`}
+</Code>
+
+## Legal Considerations
+
+<Callout type="warning">
+  **Important**: Token launches have legal implications. Consult legal experts.
+</Callout>
+
+### Regulatory Compliance
+
+- **Utility token classification** - Focus on platform utility, not investment
+- **KYC/AML** - Consider for large transactions
+- **Tax implications** - Users may owe taxes on token income
+- **Jurisdiction** - Choose appropriate legal structure
+
+### Documentation Requirements
+
+- **Tokenomics paper** - Explain economics clearly
+- **Smart contract audits** - Professional security review
+- **Terms of service** - Clear user agreements
+- **Risk disclosures** - Transparent about volatility risks
+
+## Success Metrics
+
+### Economic Health Indicators
+
+- **Token velocity** - How quickly tokens circulate
+- **Holder distribution** - Avoid whale concentration
+- **Staking ratio** - Percentage of tokens staked
+- **Transaction volume** - Daily/weekly token usage
+- **Treasury growth** - Sustainable funding accumulation
+
+### Community Engagement
+
+- **Active holders** - Regular token users
+- **Governance participation** - Voting turnout
+- **Development activity** - GitHub contributions
+- **Ecosystem growth** - New projects using your token
+
+## Example Configurations
+
+### Community-Focused Token
+
+<Code language="typescript" title="const communityToken = {">
+{`totalSupply: 1_000_000_000,
+  distribution: {
+    community: 0.5,      // 50% - immediate distribution
+    development: 0.2,     // 20% - 4-year vesting
+    staking: 0.2,         // 20% - rewards pool
+    treasury: 0.1,        // 10% - community treasury
+  },
+  features: {
+    governance: true,
+    staking: true,
+    fees: 'low',          // Minimal fees
+    burns: true,          // Transaction burns
+  }
+}`}
+</Code>
+
+### Enterprise Token
+
+<Code language="typescript" title="const enterpriseToken = {">
+{`totalSupply: 100_000_000,
+  distribution: {
+    enterprise: 0.4,      // 40% - company control
+    employees: 0.2,       // 20% - team incentives
+    partners: 0.2,        // 20% - ecosystem partners
+    community: 0.2,       // 20% - user rewards
+  },
+  features: {
+    governance: 'limited', // Company retains control
+    staking: true,
+    fees: 'market',        // Market-rate fees
+    burns: false,          // Stable supply
+  }
+}`}
+</Code>
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  **Ready to launch your token economy?** Here's what to do next:
+</Callout>
+
+### Immediate Actions
+- [ ] Define your token's purpose and use cases
+- [ ] Design basic token parameters
+- [ ] Consult legal experts for compliance
+
+### Development Phase
+- [ ] Deploy testnet contracts
+- [ ] Build integration with Ring platform
+- [ ] Test all token functions thoroughly
+
+### Launch Preparation
+- [ ] Get smart contract audit
+- [ ] Set up liquidity
+- [ ] Prepare community distribution
+
+### Post-Launch
+- [ ] Monitor economic health metrics
+- [ ] Engage community governance
+- [ ] Iterate based on usage patterns
+
+<Callout type="info">
+  **Need help with token design?** Browse [Ring customization opportunities](/opportunities?type=ring_customization) for blockchain experts specializing in Ring token systems.
+</Callout>

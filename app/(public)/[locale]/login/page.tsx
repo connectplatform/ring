@@ -1,8 +1,4 @@
 import React from 'react'
-import { redirect } from 'next/navigation'
-import { auth } from "@/auth"
-import { ROUTES } from '@/constants/routes'
-import { headers } from 'next/headers'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
@@ -38,10 +34,10 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
     console.log('LoginPage: Using locale', locale);
 
     // React 19 metadata preparation
-    const translations = loadTranslations(locale);
-    const title = (translations as any).metadata?.login || 'Login | Ring App';
-    const description = (translations as any).metaDescription?.login || 'Log in to access tech opportunities in Cherkasy region';
-    const canonicalUrl = `https://ring.ck.ua/${locale}/login`;
+    const t = await loadTranslations(locale);
+    const title = (t as any).metadata?.login || 'Login | Ring App';
+    const description = (t as any).metaDescription?.login || 'Log in to access tech opportunities in Cherkasy region';
+    const canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://ring-platform.org'}/${locale}/login`;
     const alternates = generateHreflangAlternates('/login');
 
     const rawFrom = searchParams.from
@@ -50,29 +46,6 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
     console.log('LoginPage: Starting')
     console.log('Params:', params)
     console.log('Search Params:', searchParams)
-
-    // Step 2: Check if the user is already authenticated
-    const session = await auth()
-    console.log('Session:', session ? 'Exists' : 'Does not exist')
-
-    // Step 3: Redirect authenticated users
-    if (session) {
-      // Respect NextAuth callbackUrl if present (e.g. after OAuth callback)
-      const reqHeaders = await headers()
-      const referer = reqHeaders.get('referer') || ''
-      let callbackUrl: string | null = null
-      try {
-        const url = new URL(referer)
-        callbackUrl = url.searchParams.get('callbackUrl')
-      } catch (_) {
-        // ignore invalid referer
-      }
-      const target = callbackUrl || from || ROUTES.PROFILE(locale)
-      console.log('LoginPage: User already logged in, redirecting to', target)
-      
-      // Don't catch redirect errors - let them propagate naturally
-      redirect(target)
-    }
 
     console.log('LoginPage: Rendering login form')
 
@@ -102,25 +75,26 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
           <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
         ))}
 
-        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        {/* Login container with sidebar offset for desktop centering */}
+        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 md:ml-[280px]">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-2">Welcome back</h1>
-              <p className="text-muted-foreground">Sign in to continue to Ring</p>
+              <h1 className="text-4xl font-bold mb-2">{t.pages.login.title}</h1>
+              <p className="text-muted-foreground">{t.pages.login.subtitle}</p>
             </div>
             <UnifiedLoginInline from={from} variant="hero" />
           </div>
         </div>
       </>
     );
-  } catch (e) {
+  } catch (error: any) {
     // Don't log NEXT_REDIRECT errors as they are expected behavior
-    if (e && typeof e === 'object' && 'digest' in e && typeof e.digest === 'string' && e.digest.includes('NEXT_REDIRECT')) {
+    if (error.message?.includes('NEXT_REDIRECT')) {
       // Re-throw redirect errors to let Next.js handle them
-      throw e
+      throw error
     }
     
-    console.error("LoginPage: Error checking authentication or resolving request data:", e)
+    console.error("LoginPage: Error checking authentication or resolving request data:", error)
     
     // Fallback return with minimal metadata
     return (
@@ -128,7 +102,8 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
         <title>Login | Ring App</title>
         <meta name="description" content="Log in to access tech opportunities in Cherkasy region" />
         
-        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        {/* Login container with sidebar offset for desktop centering (fallback) */}
+        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 md:ml-[280px]">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-2">Welcome back</h1>

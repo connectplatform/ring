@@ -53,7 +53,7 @@ function SimpleAvatar({ src, alt, fallback }: { src?: string; alt: string; fallb
           className="w-full h-full object-cover"
         />
       ) : (
-        <span className="text-sm font-medium text-gray-600">
+              <span className="text-sm font-medium text-muted-foreground">
           {fallback}
         </span>
       )}
@@ -171,7 +171,7 @@ export function ReviewCard({
       <CardContent className="pt-0">
         <div className="space-y-4">
           {/* Review Content */}
-          <p className="text-gray-700 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             {review.content}
           </p>
 
@@ -188,7 +188,7 @@ export function ReviewCard({
                       {formatDistanceToNow(response.createdAt.toDate(), { addSuffix: true })}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700">{response.content}</p>
+                  <p className="text-sm text-muted-foreground">{response.content}</p>
                 </div>
               ))}
             </div>

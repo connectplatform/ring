@@ -1,0 +1,21 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Architecture Overview
+
+High-level diagram of Ring components and data flow.
+
+<Mermaid>
+{`flowchart TD
+  U[User] --> A[Next.js App]
+  A --> B[Auth.js v5]
+  A --> C[Firebase / Firestore]
+  A --> D[Vercel Blob]
+  A --> E[Realtime: WebSocket/SSE]`}
+</Mermaid>
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="info">See sections for Auth, Realtime, Security, and Data Model.</Callout>

@@ -1,20 +1,14 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Create User Service
+ * 
+ * Creates new user in PostgreSQL database
+ * Uses React 19 cache() for request deduplication
+ */
 
-import { AuthUser, UserRole } from '@/features/auth/types';
-import { auth } from '@/auth';
-import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors';
-
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { 
-  createDocument,
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
+import { AuthUser, UserRole } from '@/features/auth/types'
+import { auth } from '@/auth'
+import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 /**
  * Create a new user in Firestore, with authentication and role-based access control.
@@ -94,24 +88,35 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       }
     }
 
-    // 🚀 OPTIMIZED: Use firebase-service-manager for user creation
-    const phase = getCurrentPhase();
+    // Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // Step 3: Check if user already exists by email (using a query approach)
-    // Note: We cannot use email as document ID, so we check if user exists first
-    let existingUserQuery;
+    // Step 3: Check if user already exists by email
     try {
-      // Since we can't query by email directly with getCachedDocument, 
-      // we'll use getCachedCollectionAdvanced to find existing users by email
-      const usersSnapshot = await getCachedCollectionAdvanced('users', {
-        where: [{ field: 'email', operator: '==', value: userData.email }],
-        limit: 1
-      });
+      const existingResult = await db.query({
+        collection: 'users',
+        filters: [{ field: 'email', operator: '=', value: userData.email }],
+        pagination: { limit: 1 }
+      })
       
-      if (usersSnapshot.docs.length > 0) {
-        existingUserQuery = usersSnapshot.docs[0];
+      if (existingResult.success && existingResult.data) {
+        const users = Array.isArray(existingResult.data) ? existingResult.data : (existingResult.data as any).data || []
+        if (users.length > 0) {
+          throw new ValidationError(
+            'User with this email already exists',
+            undefined,
+            {
+              timestamp: Date.now(),
+              email: userData.email,
+              existingUserId: users[0].id,
+              operation: 'createUser'
+            }
+          )
+        }
       }
     } catch (error) {
+      if (error instanceof ValidationError) throw error
       throw new EntityDatabaseError(
         'Failed to check for existing user',
         error instanceof Error ? error : new Error(String(error)),
@@ -120,20 +125,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           email: userData.email,
           operation: 'existing_user_check'
         }
-      );
-    }
-
-    if (existingUserQuery) {
-      throw new ValidationError(
-        'User with this email already exists',
-        undefined,
-        {
-          timestamp: Date.now(),
-          email: userData.email,
-          existingUserId: existingUserQuery.id || '',
-          operation: 'createUser'
-        }
-      );
+      )
     }
 
     // Step 4: Generate user ID and prepare user data with defaults  
@@ -142,6 +134,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
     
     const newUser: AuthUser = {
       id: userId,
+      globalUserId: userData.globalUserId || crypto.randomUUID(), // Generate universal UUID
       email: userData.email,
       name: userData.name,
       role: userData.role || UserRole.SUBSCRIBER,
@@ -151,6 +144,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       emailVerified: userData.emailVerified || null,
       createdAt: now,
       lastLogin: userData.lastLogin || null,
+      accountStatus: 'ACTIVE', // New users start as active
       settings: userData.settings || {
         language: 'en',
         theme: 'system',
@@ -173,10 +167,24 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       wallets: userData.wallets || [],
     };
 
-    // Step 5: Create the user document using optimized firebase-service-manager
+    // Step 5: Create the user document using DatabaseService
     try {
-      await createDocument('users', newUser, newUser.id);
+      const createResult = await db.create('users', newUser, { id: newUser.id })
+      
+      if (!createResult.success) {
+        throw new EntityDatabaseError(
+          'Failed to create user document',
+          createResult.error || new Error('Unknown error'),
+          {
+            timestamp: Date.now(),
+            userId: newUser.id,
+            email: newUser.email,
+            operation: 'user_creation'
+          }
+        )
+      }
     } catch (error) {
+      if (error instanceof EntityDatabaseError) throw error
       throw new EntityDatabaseError(
         'Failed to create user document',
         error instanceof Error ? error : new Error(String(error)),
@@ -186,7 +194,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           email: newUser.email,
           operation: 'user_creation'
         }
-      );
+      )
     }
 
     console.log(`Services: createUser - User created successfully with ID: ${newUser.id}`);

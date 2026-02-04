@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 
 export default function DeploymentCalculatorPage() {
   return (
-    <div className="min-h-screen bg-background lg:ml-72 xl:ml-72">
+    <div className="min-h-screen bg-background md:ml-72">
       <DeploymentCalculator />
     </div>
   );

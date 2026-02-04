@@ -1,0 +1,26 @@
+---
+title: Troubleshooting
+description: Troubleshooting documentation for Ring Platform
+---
+
+# Troubleshooting
+
+## Common Issues
+
+### "FETCH_FAILED" on pages
+- Check Firebase Admin SDK credentials in `.env.local`.
+- Ensure Firestore is enabled.
+
+### Wallet not found
+- Normal for new users; wallet is created on first access.
+- Check server logs for creation errors.
+
+### Google Sign-in not working
+- Verify OAuth redirect URIs.
+- Ensure Google provider is enabled in Firebase Auth.
+
+## Diagnostics
+
+<Code language="bash" title="terminal">
+{`curl -s http://localhost:3000/api/health | jq .`}
+</Code>

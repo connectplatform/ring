@@ -1,12 +1,13 @@
 /**
  * Event Bus for Store Events (server-side)
- * 
+ *
  * Simple event publishing system for store-related events.
  * Can be extended to use Firebase Functions, AWS EventBridge, or other event systems.
+ * Ring-native: Uses DatabaseService for event storage
  */
 
 import { StoreEvent } from '@/constants/store'
-import { createDocumentTyped } from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 export interface EventPayload {
   type: StoreEvent
@@ -31,9 +32,11 @@ export async function publishEvent(event: Omit<EventPayload, 'timestamp'>): Prom
   }
 
   try {
-    // Store event in Firestore for now
-    // This can trigger Firebase Functions or be processed by background jobs
-    await createDocumentTyped('storeEvents', `${event.type}_${Date.now()}`, fullEvent)
+    // Store event in DatabaseService
+    // This can trigger background jobs or be processed by event handlers
+    await initializeDatabase()
+    const db = getDatabaseService()
+    await db.create('storeEvents', fullEvent, { id: `${event.type}_${Date.now()}` })
     
     // In production, you might also want to:
     // - Trigger Firebase Functions

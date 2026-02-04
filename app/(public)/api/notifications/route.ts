@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
+import { getUserNotifications, getNotificationStats } from '@/features/notifications/services/notification-service';
 import { UserRole } from '@/features/auth/types';
+import { userMigrationService } from '@/features/auth/services/user-migration';
 import { 
   NotificationType, 
   NotificationPriority,
@@ -56,6 +58,19 @@ export async function GET(req: NextRequest) {
     const userId = session.user.id;
     const userRole = (session.user.role as UserRole) || UserRole.SUBSCRIBER;
 
+    // Check if user document exists (with caching - migration now handled at auth level)
+    try {
+      const userExists = await userMigrationService.userDocumentExists(userId);
+      if (!userExists) {
+        console.warn('API: /api/notifications - User document missing, initializing', { userId });
+      await userMigrationService.ensureUserDocument(session.user as any);
+        console.log('API: /api/notifications - User document created successfully', { userId });
+      }
+    } catch (migrationError) {
+      console.error('API: /api/notifications - Failed to check/create user document:', migrationError);
+      // Continue anyway - notifications will handle missing document gracefully
+    }
+
     console.log('API: /api/notifications - Session checked', {
       userId,
       role: userRole,
@@ -99,7 +114,7 @@ export async function GET(req: NextRequest) {
           message: 'Notifications not available in PostgreSQL-only mode'
         }, { status: 200 });
       }
-      const notificationStats = await notificationService.getNotificationStats(userId);
+      const notificationStats = await getNotificationStats(userId);
       console.log('API: /api/notifications - Stats retrieved');
       return NextResponse.json(notificationStats, { 
         status: 200,
@@ -113,7 +128,7 @@ export async function GET(req: NextRequest) {
 
     // Step 5: Fetch notifications via service
     console.log('API: /api/notifications - Fetching notifications from service');
-    const result = await notificationService.getUserNotifications(userId, {
+    const result = await getUserNotifications(userId, {
       limit,
       startAfter,
       unreadOnly,

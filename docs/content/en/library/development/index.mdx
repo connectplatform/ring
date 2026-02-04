@@ -1,0 +1,76 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Development Guide
+
+Welcome to the Ring Platform development guide. This section covers everything you need to know about developing with and contributing to Ring Platform.
+
+## 🛠️ Development Setup
+
+### Prerequisites
+- Node.js 18.17 or later
+- npm or pnpm package manager
+- Git for version control
+- MongoDB (optional, for local development)
+
+### Quick Start
+
+Clone the repository Install dependencies Set up environment variables Run development server
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+
+npm install
+
+cp .env.local.template .env.local
+
+npm run dev`}
+</Code>
+
+## 📁 Project Structure
+
+```
+ring/
+├── app/             # Next.js 15 App Router
+├── components/      # React components
+├── lib/             # Utility functions
+├── features/        # Feature modules
+├── @actions/        # Server actions
+├── public/          # Static assets
+└── AI-CONTEXT/      # AI documentation
+```
+
+## 🔧 Development Workflow
+
+### Local Development
+- [Local Setup](/en/library/development/local-setup) - Complete local environment setup
+- [Code Structure](/en/library/development/code-structure) - Understanding the codebase
+- [Whitelabel Navigation](/en/library/development/whitelabel-navigation) - Custom navigation for Ring clones
+- [Best Practices](/en/library/development/best-practices) - Coding standards and patterns
+
+### Testing & Quality
+- [Testing](/en/library/development/testing) - Unit and integration testing
+- [Debugging](/en/library/development/debugging) - Debugging techniques and tools
+- [Contributing](/en/library/development/contributing) - How to contribute to Ring Platform
+
+## 🚀 Key Technologies
+
+- **React 19** - Latest React features
+- **Next.js 15** - App Router and Server Components
+- **TypeScript** - Type safety and better DX
+- **Tailwind CSS v4** - Utility-first styling
+- **Auth.js v5** - Authentication
+- **Firebase** - Backend services
+
+## 📚 Resources
+
+- [API Documentation](/en/library/api) - Complete API reference
+- [Feature Guides](/en/library/features) - Deep dive into features
+- [Examples](/en/library/examples) - Code examples and patterns
+
+---
+
+*Ready to start developing? Begin with [Local Setup](/en/library/development/local-setup).*

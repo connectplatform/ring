@@ -1,0 +1,90 @@
+---
+title: Multi Tenant
+description: Multi Tenant documentation for Ring Platform
+---
+
+# Multi-tenant Setup
+
+Complete multi-tenant architecture with tenant isolation, custom domains, and per-tenant customization.
+
+## 🏢 Multi-tenant Architecture
+
+Ring Platform supports multiple tenants with:
+- **Tenant isolation** - Complete data separation
+- **Custom domains** - Each tenant gets their own domain
+- **Per-tenant branding** - Unique look and feel
+- **Shared infrastructure** - Cost-effective scaling
+
+## 🚀 Implementation Example
+
+### Tenant Configuration
+// lib/tenants.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface Tenant {
+  id: string
+  name: string
+  domain: string
+  branding: {
+    logo: string
+    colors: {
+      primary: string
+      secondary: string
+    }
+    fonts: {
+      heading: string
+      body: string
+    }
+  }
+  features: {
+    entities: boolean
+    opportunities: boolean
+    messaging: boolean
+    wallet: boolean
+  }
+}
+
+export const tenants: Record<string, Tenant> = {
+  'tenant1': {
+    id: 'tenant1',
+    name: 'Tech Corp',
+    domain: 'techcorp.ring.ck.ua',
+    branding: {
+      logo: '/tenants/techcorp/logo.svg',
+      colors: {
+        primary: '#3b82f6',
+        secondary: '#1e40af'
+      }
+    },
+    features: {
+      entities: true,
+      opportunities: true,
+      messaging: true,
+      wallet: false
+    }
+  }
+}`}
+</Code>
+
+### Tenant Resolution
+// lib/tenant.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function getTenantFromRequest(request: Request): Tenant | null {
+  const url = new URL(request.url)
+  const hostname = url.hostname
+  
+  // Find tenant by domain
+  const tenant = Object.values(tenants).find(t => t.domain === hostname)
+  
+  return tenant || null
+}
+
+export function getTenantFromHostname(hostname: string): Tenant | null {
+  return Object.values(tenants).find(t => t.domain === hostname) || null
+}`}
+</Code>
+
+---
+
+*Complete multi-tenant documentation coming soon.*

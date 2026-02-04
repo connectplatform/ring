@@ -1,0 +1,866 @@
+---
+title: Multi-tenant Deployment
+description: Serve multiple organizations from a single Ring instance with complete data isolation and customization
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Multi-tenant Deployment
+
+<Callout type="info">
+  **Ring's Multi-tenant Advantage**: Serve hundreds of organizations from one deployment while maintaining complete data isolation, custom branding, and independent administration.
+</Callout>
+
+Multi-tenant architecture allows you to run Ring as a platform where multiple organizations (tenants) share the same infrastructure but have their own data, branding, and user management. This is perfect for:
+
+- **Platform providers** serving multiple clients
+- **Industry associations** with member organizations
+- **Franchise networks** with branded instances
+- **Government platforms** for different departments
+
+## Multi-tenant Architecture Overview
+
+### Data Isolation Models
+
+**1. Shared Database with Schema Separation**
+```
+Database
+├── public (shared data)
+├── tenant_1 (client A data)
+├── tenant_2 (client B data)
+└── tenant_3 (client C data)
+```
+
+**2. Database-per-Tenant**
+```
+Database Server
+├── shared_db (platform data)
+├── client_a_db (client A)
+├── client_b_db (client B)
+└── client_c_db (client C)
+```
+
+**3. Hybrid Approach**
+```
+Database Server
+├── shared_db (platform + some tenant data)
+├── tenant_dbs/ (large tenants get own DB)
+└── shared_storage/ (file storage)
+```
+
+### Tenant Identification
+
+<Steps>
+  <Step>
+    **Domain-based tenancy:**
+
+    // Subdomain routing
+
+<Code language="typescript" title="TypeScript">
+{`app.use((req, res, next) => {
+      const hostname = req.hostname; // client-a.myplatform.com
+      const tenantId = extractTenantFromDomain(hostname);
+      req.tenantId = tenantId;
+      next();
+    });`}
+</Code>
+  </Step>
+
+  <Step>
+    **URL path-based tenancy:**
+
+    // Path-based routing
+
+<Code language="typescript" title="TypeScript">
+{`app.use('/org/:tenantId', (req, res, next) => {
+      req.tenantId = req.params.tenantId;
+      next();
+    });`}
+</Code>
+  </Step>
+
+  <Step>
+    **Header-based tenancy:**
+
+    // API header identification
+
+<Code language="typescript" title="TypeScript">
+{`app.use((req, res, next) => {
+      const tenantId = req.headers['x-tenant-id'];
+      req.tenantId = tenantId;
+      next();
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+## Setting Up Multi-tenant Ring
+
+### 1. Database Configuration
+
+<Steps>
+  <Step>
+    **Configure tenant database:**
+
+    Multi-tenant mode Schema-based isolation (recommended)
+
+<Code language="env" title="configuration">
+{`DATABASE_MODE=postgresql_only
+    MULTI_TENANT_ENABLED=true
+    TENANT_ISOLATION_LEVEL=schema  # schema, database, or hybrid
+
+    POSTGRESQL_URL=postgresql://user:pass@host:5432/platform_db
+    TENANT_SCHEMA_PREFIX=tenant_`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create tenant schema migration:**
+
+    <Code language="sql" title="-- Create tenant schema">
+{`CREATE SCHEMA IF NOT EXISTS tenant_{tenant_id};
+
+    -- Create tenant tables
+    CREATE TABLE tenant_{tenant_id}.users (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) UNIQUE,
+      tenant_id VARCHAR(50) NOT NULL DEFAULT '{tenant_id}',
+      -- tenant-specific fields
+    );
+
+    -- Add row-level security
+    ALTER TABLE tenant_{tenant_id}.users
+    ENABLE ROW LEVEL SECURITY;
+
+    CREATE POLICY tenant_isolation ON tenant_{tenant_id}.users
+    FOR ALL USING (tenant_id = current_setting('app.tenant_id'));`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Tenant Provisioning System
+
+<Steps>
+  <Step>
+    **Create tenant provisioning API:**
+
+    // app/api/admin/tenants/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function POST(request: Request) {
+      const { name, domain, adminEmail } = await request.json();
+
+      // Generate tenant ID
+      const tenantId = generateTenantId();
+
+      // Create tenant database schema
+      await createTenantSchema(tenantId);
+
+      // Create admin user
+      const admin = await createTenantAdmin(tenantId, adminEmail);
+
+      // Set up default configuration
+      await initializeTenantConfig(tenantId, { name, domain });
+
+      return Response.json({
+        tenantId,
+        adminCredentials: { email: adminEmail, tempPassword: admin.password }
+      });
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Tenant configuration schema:**
+
+    // lib/schemas/tenant-config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const tenantConfigSchema = z.object({
+      id: z.string(),
+      name: z.string(),
+      domain: z.string(),
+      branding: z.object({
+        logo: z.string().optional(),
+        colors: z.object({
+          primary: z.string(),
+          secondary: z.string(),
+        }),
+        customCss: z.string().optional(),
+      }),
+      features: z.object({
+        opportunities: z.boolean().default(true),
+        marketplace: z.boolean().default(false),
+        messaging: z.boolean().default(true),
+        // ... feature flags
+      }),
+      limits: z.object({
+        maxUsers: z.number().default(1000),
+        maxStorage: z.string().default('10GB'),
+        // ... resource limits
+      }),
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+### 3. Branding & Customization per Tenant
+
+<Steps>
+  <Step>
+    **Tenant-specific themes:**
+
+    // lib/themes/tenant-themes.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function getTenantTheme(tenantId: string) {
+      const config = getTenantConfig(tenantId);
+
+      return {
+        colors: {
+          primary: config.branding.colors.primary,
+          secondary: config.branding.colors.secondary,
+        },
+        logo: config.branding.logo || '/default-logo.svg',
+        customCss: config.branding.customCss,
+      };
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Dynamic theme loading:**
+
+    // components/theme/tenant-theme-provider.tsx
+
+<Code language="tsx" title="tsx">
+{`'use client';
+
+    import { useTenant } from '@/hooks/use-tenant';
+    import { getTenantTheme } from '@/lib/themes/tenant-themes';
+
+    export function TenantThemeProvider({ children }) {
+      const tenant = useTenant();
+      const theme = getTenantTheme(tenant.id);
+
+      return (
+        <ThemeProvider theme={theme}>
+          {children}
+        </ThemeProvider>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Custom CSS injection:**
+
+    // lib/styles/tenant-styles.ts
+
+<Code language="tsx" title="tsx">
+{`export function injectTenantStyles(tenantId: string) {
+      const config = getTenantConfig(tenantId);
+
+      if (config.branding.customCss) {
+        const style = document.createElement('style');
+        style.textContent = config.branding.customCss;
+        document.head.appendChild(style);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Tenant Management Dashboard
+
+### 1. Platform Admin Interface
+
+<Steps>
+  <Step>
+    **Create tenant management pages:**
+
+    ```
+    app/admin/tenants/
+    ├── page.tsx (tenant list)
+    ├── [tenantId]/
+    │   ├── page.tsx (tenant overview)
+    │   ├── users/page.tsx (user management)
+    │   ├── config/page.tsx (configuration)
+    │   └── analytics/page.tsx (tenant analytics)
+    ```
+  </Step>
+
+  <Step>
+    **Tenant overview dashboard:**
+
+    // app/admin/tenants/[tenantId]/page.tsx
+
+<Code language="tsx" title="tsx">
+{`export default function TenantOverview({ params }) {
+      const { tenantId } = params;
+      const tenant = await getTenant(tenantId);
+
+      return (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{tenant.name}</CardTitle>
+              <CardDescription>{tenant.domain}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <div className="text-2xl font-bold">{tenant.stats.users}</div>
+                  <div className="text-sm text-muted-foreground">Users</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{tenant.stats.revenue}</div>
+                  <div className="text-sm text-muted-foreground">Revenue</div>
+                </div>
+                {/* More stats */}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Tenant Self-Service Portal
+
+<Steps>
+  <Step>
+    **Tenant admin dashboard:**
+
+    <Code language="tsx" title="tsx">
+{`// app/tenant-admin/page.tsx (scoped to tenant)
+export default function TenantAdmin() {
+      const tenant = useTenant();
+
+      return (
+        <div className="space-y-6">
+          <h1 className="text-3xl font-bold">Admin Dashboard - {tenant.name}</h1>
+
+          {/* Tenant-specific admin features */}
+          <Card>
+            <CardTitle>Branding</CardTitle>
+            <CardContent>
+              <LogoUploader />
+              <ColorPicker />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Users</CardTitle>
+            <CardContent>
+              <UserManagement />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Feature toggles for tenants:**
+
+    // components/admin/tenant-feature-toggles.tsx
+
+<Code language="tsx" title="tsx">
+{`const availableFeatures = [
+      { id: 'opportunities', name: 'Opportunities Feed', premium: false },
+      { id: 'marketplace', name: 'Vendor Marketplace', premium: true },
+      { id: 'nft', name: 'NFT Marketplace', premium: true },
+      { id: 'staking', name: 'Token Staking', premium: true },
+    ];
+
+    export function TenantFeatureToggles() {
+      const { tenant, updateTenant } = useTenantAdmin();
+
+      return (
+        <div className="space-y-4">
+          {availableFeatures.map(feature => (
+            <div key={feature.id} className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">{feature.name}</div>
+                {feature.premium && <Badge variant="premium">Premium</Badge>}
+              </div>
+              <Switch
+                checked={tenant.features[feature.id]}
+                onCheckedChange={(enabled) =>
+                  updateTenant({
+                    features: { ...tenant.features, [feature.id]: enabled }
+                  })
+                }
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Resource Management & Limits
+
+### 1. Tenant Resource Quotas
+
+<Steps>
+  <Step>
+    **Define resource limits:**
+
+    // lib/limits/tenant-limits.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const defaultLimits = {
+      users: {
+        max: 1000,
+        overageCost: 0.10, // $0.10 per user over limit
+      },
+      storage: {
+        max: '10GB',
+        overageCost: 0.02, // $0.02 per GB over limit
+      },
+      apiCalls: {
+        max: 100000, // per month
+        overageCost: 0.001, // $0.001 per call over limit
+      },
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Resource usage tracking:**
+
+    // lib/monitoring/resource-tracker.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ResourceTracker {
+      async trackUsage(tenantId: string, resource: string, amount: number) {
+        const current = await getTenantUsage(tenantId, resource);
+        const limit = getTenantLimit(tenantId, resource);
+
+        if (current + amount > limit) {
+          await handleOverage(tenantId, resource, amount);
+        }
+
+        await incrementTenantUsage(tenantId, resource, amount);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Billing & Usage Monitoring
+
+<Steps>
+  <Step>
+    **Usage dashboard for tenants:**
+
+    // components/tenant/usage-dashboard.tsx
+
+<Code language="tsx" title="tsx">
+{`export function UsageDashboard() {
+      const { tenant } = useTenant();
+      const usage = useTenantUsage(tenant.id);
+
+      return (
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardTitle>Users</CardTitle>
+            <CardContent>
+              <ProgressBar
+                value={usage.users.current}
+                max={usage.users.limit}
+              />
+              <div className="text-sm text-muted-foreground">
+                {usage.users.current} / {usage.users.limit}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Storage</CardTitle>
+            <CardContent>
+              <ProgressBar
+                value={usage.storage.used}
+                max={usage.storage.limit}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>API Calls</CardTitle>
+            <CardContent>
+              <ProgressBar
+                value={usage.api.calls}
+                max={usage.api.limit}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Automated billing:**
+
+    // lib/billing/auto-billing.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function processMonthlyBilling() {
+      const tenants = await getAllTenants();
+
+      for (const tenant of tenants) {
+        const usage = await calculateTenantUsage(tenant.id);
+        const bill = calculateBill(usage, tenant.limits);
+
+        if (bill.total > 0) {
+          await createInvoice(tenant.id, bill);
+          await chargeTenant(tenant.id, bill);
+        }
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Security & Compliance
+
+### 1. Data Isolation Enforcement
+
+<Steps>
+  <Step>
+    **Database-level isolation:**
+
+    <Code language="sql" title="query">
+{`-- Row Level Security (RLS) policies
+CREATE POLICY tenant_data_isolation ON users
+    FOR ALL USING (tenant_id = current_setting('app.tenant_id'));
+
+    -- Prevent cross-tenant queries
+    CREATE OR REPLACE FUNCTION set_tenant_context(tenant_id text)
+    RETURNS void AS $$
+    BEGIN
+      PERFORM set_config('app.tenant_id', tenant_id, false);
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;`}
+</Code>
+  </Step>
+
+  <Step>
+    **Application-level checks:**
+
+    // middleware/tenant-isolation.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function enforceTenantIsolation(request: Request) {
+      const tenantId = getTenantFromRequest(request);
+      const userTenantId = getUserTenant(request.user.id);
+
+      if (tenantId !== userTenantId) {
+        throw new Error('Access denied: tenant isolation violation');
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Backup & Recovery
+
+<Steps>
+  <Step>
+    **Tenant-specific backups:**
+
+    Backup individual tenant Restore tenant
+
+<Code language="bash" title="terminal">
+{`pg_dump --schema=tenant_123 platform_db > tenant_123_backup.sql
+
+    psql platform_db < tenant_123_backup.sql`}
+</Code>
+  </Step>
+
+  <Step>
+    **Automated backup system:**
+
+    // lib/backup/tenant-backup.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TenantBackupService {
+      async createTenantBackup(tenantId: string) {
+        const schemaName = `tenant_${tenantId}`;
+        const filename = `backup_${tenantId}_${Date.now()}.sql`;
+
+        await exec(`pg_dump --schema=${schemaName} ${this.dbName} > ${filename}`);
+
+        // Upload to storage
+        await this.storage.upload(filename);
+      }
+
+      async restoreTenantBackup(tenantId: string, backupId: string) {
+        const filename = await this.storage.download(backupId);
+
+        await exec(`psql ${this.dbName} < ${filename}`);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Performance Optimization
+
+### 1. Multi-tenant Caching Strategy
+
+<Steps>
+  <Step>
+    **Tenant-aware caching:**
+
+    // lib/cache/tenant-cache.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TenantCache {
+      private getTenantKey(tenantId: string, key: string) {
+        return `tenant:${tenantId}:${key}`;
+      }
+
+      async get(tenantId: string, key: string) {
+        const tenantKey = this.getTenantKey(tenantId, key);
+        return this.redis.get(tenantKey);
+      }
+
+      async set(tenantId: string, key: string, value: any, ttl?: number) {
+        const tenantKey = this.getTenantKey(tenantId, key);
+        return this.redis.set(tenantKey, value, 'EX', ttl);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Cache invalidation:**
+
+    // Invalidate tenant cache on updates
+
+<Code language="typescript" title="TypeScript">
+{`export async function invalidateTenantCache(tenantId: string, pattern: string) {
+      const keys = await redis.keys(`tenant:${tenantId}:${pattern}`);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Resource Pooling
+
+<Steps>
+  <Step>
+    **Connection pooling per tenant:**
+
+    // lib/database/tenant-connection-pool.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TenantConnectionPool {
+      private pools = new Map<string, Pool>();
+
+      getPool(tenantId: string): Pool {
+        if (!this.pools.has(tenantId)) {
+          this.pools.set(tenantId, this.createPool(tenantId));
+        }
+        return this.pools.get(tenantId)!;
+      }
+
+      private createPool(tenantId: string): Pool {
+        return new Pool({
+          connectionString: this.getTenantConnectionString(tenantId),
+          max: 10, // Max connections per tenant
+          idleTimeoutMillis: 30000,
+        });
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Resource limits enforcement:**
+
+    // middleware/resource-limits.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function checkResourceLimits(request: Request) {
+      const tenantId = getTenantFromRequest(request);
+      const limits = await getTenantLimits(tenantId);
+
+      // Check various resource limits
+      await checkUserLimit(tenantId, limits.users);
+      await checkStorageLimit(tenantId, limits.storage);
+      await checkApiLimit(tenantId, limits.api);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Scaling Multi-tenant Ring
+
+### Horizontal Scaling
+
+<Steps>
+  <Step>
+    **Load balancer configuration:**
+
+    Load balancer config for multi-tenant
+
+<Code language="nginx" title="configuration">
+{`upstream ring_app {
+      server app1:3000;
+      server app2:3000;
+      server app3:3000;
+    }
+
+    server {
+      listen 80;
+      server_name *.myplatform.com;
+
+      location / {
+        proxy_pass http://ring_app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Tenant-Domain $host;
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Database scaling:**
+
+    // lib/database/read-replica.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ReadReplicaManager {
+      async getConnection(tenantId: string, readOnly = false) {
+        if (readOnly && this.hasReadReplica(tenantId)) {
+          return this.getReadReplicaConnection(tenantId);
+        }
+        return this.getPrimaryConnection(tenantId);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Tenant Migration
+
+<Steps>
+  <Step>
+    **Migrate tenant to dedicated database:**
+
+    // lib/migration/tenant-migration.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function migrateTenantToDedicatedDb(tenantId: string) {
+      // Create new database
+      await createTenantDatabase(tenantId);
+
+      // Export data from shared schema
+      await exportTenantData(tenantId);
+
+      // Import to new database
+      await importTenantData(tenantId);
+
+      // Update tenant configuration
+      await updateTenantConfig(tenantId, {
+        isolationLevel: 'database',
+        databaseUrl: getTenantDatabaseUrl(tenantId),
+      });
+
+      // Switch routing
+      await updateTenantRouting(tenantId, 'database');
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Zero-downtime migration:**
+
+    <Code language="typescript" title="TypeScript">
+{`export async function zeroDowntimeMigration(tenantId: string) {
+// 1. Set tenant to read-only mode
+      await setTenantReadOnly(tenantId, true);
+
+      // 2. Wait for active requests to complete
+      await waitForActiveRequests(tenantId);
+
+      // 3. Perform migration
+      await migrateTenantToDedicatedDb(tenantId);
+
+      // 4. Update routing atomically
+      await atomicRouteUpdate(tenantId);
+
+      // 5. Remove read-only mode
+      await setTenantReadOnly(tenantId, false);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Success Stories
+
+<Callout type="success">
+  **Real Multi-tenant Deployments:**
+</Callout>
+
+### Industry Association Network
+- **50+ member organizations** sharing equipment and opportunities
+- **Schema-based isolation** with custom branding per member
+- **Shared governance** while maintaining member autonomy
+
+### Franchise Platform
+- **200+ franchise locations** with standardized processes
+- **Database-per-tenant** for large franchises, schema-based for smaller ones
+- **Centralized analytics** with tenant-specific dashboards
+
+### Government Services Portal
+- **Multiple departments** serving citizens through unified platform
+- **Enhanced security** with mandatory audit logging
+- **Compliance automation** with regulatory requirements
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  **Ready to deploy multi-tenant Ring?**
+</Callout>
+
+### Planning Phase
+- [ ] Define tenant isolation requirements
+- [ ] Choose domain strategy (subdomain vs path)
+- [ ] Design resource allocation model
+
+### Technical Setup
+- [ ] Configure database schema separation
+- [ ] Implement tenant identification middleware
+- [ ] Set up tenant provisioning system
+
+### Management Setup
+- [ ] Build tenant management dashboard
+- [ ] Create billing and usage monitoring
+- [ ] Implement security policies
+
+### Scaling Preparation
+- [ ] Design horizontal scaling strategy
+- [ ] Set up monitoring and alerting
+- [ ] Plan backup and disaster recovery
+
+<Callout type="info">
+  **Need multi-tenant expertise?** Post a [Ring customization opportunity](/opportunities?type=ring_customization) for experienced multi-tenant architects.
+</Callout>

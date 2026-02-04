@@ -3,6 +3,11 @@ import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditBalanceResponseSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
+import { userMigrationService } from '@/features/auth/services/user-migration';
+
+// Simple in-memory cache for balance responses
+const balanceCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 30 * 1000; // 30 seconds for balance data
 
 /**
  * GET /api/wallet/credit/balance
@@ -20,12 +25,51 @@ export async function GET(request: NextRequest) {
 
     const userId = session.user.id;
 
+    // Check cache first
+    const cacheKey = `balance_${userId}`;
+    const cached = balanceCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      logger.info('Credit balance served from cache', { userId });
+      return NextResponse.json(cached.data);
+    }
+
+    // Check if user document exists (with caching - migration now handled at auth level)
+    try {
+      const userExists = await userMigrationService.userDocumentExists(userId);
+      if (!userExists) {
+        logger.warn('Credit balance API: User document missing, initializing', { userId });
+      await userMigrationService.ensureUserDocument(session.user as any);
+        logger.info('Credit balance API: User document created successfully', { userId });
+      }
+    } catch (migrationError) {
+      logger.error('Credit balance API: Failed to check/create user document', {
+        userId,
+        error: migrationError instanceof Error ? migrationError.message : migrationError
+      });
+      // Continue anyway - credit service will handle missing document gracefully
+    }
+
     // Get user credit balance
     let creditBalance = await userCreditService.getUserCreditBalance(userId);
     
     // Initialize balance if it doesn't exist
     if (!creditBalance) {
-      creditBalance = await userCreditService.initializeCreditBalance(userId);
+      try {
+        creditBalance = await userCreditService.initializeCreditBalance(userId);
+      } catch (initError) {
+        logger.error('Failed to initialize credit balance, returning default zero balance', {
+          userId,
+          error: initError instanceof Error ? initError.message : initError
+        });
+        
+        // Return default zero balance for graceful degradation
+        creditBalance = {
+          amount: '0',
+          usd_equivalent: '0',
+          last_updated: Date.now(),
+          subscription_active: false,
+        };
+      }
     }
 
     // TODO: Get subscription status from blockchain service
@@ -62,13 +106,22 @@ export async function GET(request: NextRequest) {
       subscriptionActive: subscriptionStatus.active 
     });
 
+    // Cache the response
+    balanceCache.set(cacheKey, { data: response, timestamp: Date.now() });
+
     return NextResponse.json(response);
 
   } catch (error) {
-    logger.error('Failed to get credit balance', { error });
-    
+    logger.error('Failed to get credit balance', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
     return NextResponse.json(
-      { error: 'Failed to retrieve credit balance' },
+      {
+        error: 'Failed to retrieve credit balance',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
@@ -137,6 +190,9 @@ export async function PUT(request: NextRequest) {
       reason,
       transactionId: result.transaction.id 
     });
+
+    // Invalidate cache for the target user
+    balanceCache.delete(`balance_${user_id}`);
 
     return NextResponse.json({
       success: true,

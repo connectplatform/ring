@@ -1,0 +1,42 @@
+{
+  "title": "Новини та оновлення",
+  "description": "Будьте в курсі останніх новин, оновлень платформи, оголошень про партнерства та подій спільноти Ring Platform.",
+  "featuredStories": "Вибрані матеріали",
+  "allArticles": "Всі статті",
+  "readMore": "Читати далі",
+  "byAuthor": "Автор",
+  "featured": "Вибране",
+  "createArticle": "Створити статтю",
+  "createFirstArticle": "Створити свою першу статтю",
+  "myNews": "Мої новини",
+  "myNewsDescription": "Керуйте своїми опублікованими статтями та статистикою написання",
+  "noArticles": "Ще немає статей",
+  "noArticlesDescription": "Почніть писати свою першу статтю, щоб поділитися знаннями зі спільнотою.",
+  "allStatuses": "Всі статуси",
+  "mostViewedArticle": "Найбільш переглянута стаття",
+  "status": {
+    "published": "Опубліковано",
+    "draft": "Чернетка",
+    "archived": "Архівовано"
+  },
+  "categories": {
+    "platform-updates": "Оновлення платформи",
+    "partnerships": "Партнерства",
+    "community": "Спільнота",
+    "industry-news": "Новини індустрії",
+    "events": "Події",
+    "announcements": "Оголошення",
+    "press-releases": "Прес-релізи",
+    "tutorials": "Посібники",
+    "other": "Інше"
+  },
+  "backToNews": "Назад до новин",
+  "share": "Поділитися",
+  "relatedArticles": "Схожі статті",
+  "tags": "Теги",
+  "gallery": "Галерея",
+  "authorBio": "Автор контенту та дописувач новин платформи Ring.",
+  "joined": "Приєднався",
+  "articles": "статей",
+  "allCategories": "Всі категорії"
+}

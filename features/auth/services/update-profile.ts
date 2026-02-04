@@ -59,8 +59,84 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
     }
 
     // Step 4: Prepare update data
+    // Parse JSON strings for JSONB fields (communication, cultural)
+    // Use explicit type to ensure TypeScript recognizes all JSONB fields
+    const processedData: Record<string, any> = { ...data };
+    
+    // Parse communication field if it's a JSON string
+    if (typeof processedData.communication === 'string') {
+      try {
+        processedData.communication = JSON.parse(processedData.communication);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse communication JSON:', e);
+      }
+    }
+    
+    // Parse cultural field if it's a JSON string
+    if (typeof processedData.cultural === 'string') {
+      try {
+        processedData.cultural = JSON.parse(processedData.cultural);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse cultural JSON:', e);
+      }
+    }
+    
+    // Parse privacy field if it's a JSON string
+    if (typeof processedData.privacy === 'string') {
+      try {
+        processedData.privacy = JSON.parse(processedData.privacy);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse privacy JSON:', e);
+      }
+    }
+    
+    // Parse integrations field if it's a JSON string
+    if (typeof processedData.integrations === 'string') {
+      try {
+        processedData.integrations = JSON.parse(processedData.integrations);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse integrations JSON:', e);
+      }
+    }
+    
+    // Parse skills field if it's a JSON string
+    if (typeof processedData.skills === 'string') {
+      try {
+        processedData.skills = JSON.parse(processedData.skills);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse skills JSON:', e);
+      }
+    }
+    
+    // Parse notificationPreferences field if it's a JSON string
+    if (typeof processedData.notificationPreferences === 'string') {
+      try {
+        processedData.notificationPreferences = JSON.parse(processedData.notificationPreferences);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse notificationPreferences JSON:', e);
+      }
+    }
+    
+    // Parse experience field if it's a JSON string
+    if (typeof processedData.experience === 'string') {
+      try {
+        processedData.experience = JSON.parse(processedData.experience);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse experience JSON:', e);
+      }
+    }
+    
+    // Parse settings field if it's a JSON string
+    if (typeof processedData.settings === 'string') {
+      try {
+        processedData.settings = JSON.parse(processedData.settings);
+      } catch (e) {
+        console.warn('Services: updateProfile - Failed to parse settings JSON:', e);
+      }
+    }
+    
     const updateData = {
-      ...data,
+      ...processedData,
       updatedAt: new Date(), // Add a timestamp for the update
     };
 

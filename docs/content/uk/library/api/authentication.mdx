@@ -16,8 +16,8 @@ description: Документація з аутентифікації платф
 
 ## Потік Аутентифікації
 
-```mermaid
-sequenceDiagram
+<Mermaid>
+{`sequenceDiagram
     participant User
     participant Frontend
     participant Auth.js
@@ -32,8 +32,8 @@ sequenceDiagram
     Provider->>Auth.js: Повернути код аутентифікації
     Auth.js->>Database: Створити/оновити користувача
     Auth.js->>Frontend: Повернути сесію
-    Frontend->>User: Аутентифікований стан
-```
+    Frontend->>User: Аутентифікований стан`}
+</Mermaid>
 
 ## Підтримувані Провайдери
 
@@ -62,9 +62,8 @@ sequenceDiagram
 
 ### Аутентифікація на стороні сервера
 
-```typescript
-import { auth } from '@/auth'
-
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 export default async function ProtectedPage() {
   const session = await auth()
 
@@ -73,14 +72,13 @@ export default async function ProtectedPage() {
   }
 
   return <div>Ласкаво просимо, {session.user.name}!</div>
-}
-```
+}`}
+</Code>
 
 ### Аутентифікація на стороні клієнта
 
-```typescript
-'use client'
-import { useSession } from 'next-auth/react'
+<Code language="typescript" title="'use client'">
+{`import { useSession } from 'next-auth/react'
 
 export default function UserProfile() {
   const { data: session, status } = useSession()
@@ -89,14 +87,13 @@ export default function UserProfile() {
   if (!session) return <div>Не аутентифіковано</div>
 
   return <div>Привіт, {session.user.name}!</div>
-}
-```
+}`}
+</Code>
 
 ### Контроль доступу на основі ролей
 
-```typescript
-import { auth } from '@/auth'
-
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 export default async function AdminPage() {
   const session = await auth()
 
@@ -105,8 +102,8 @@ export default async function AdminPage() {
   }
 
   return <div>Панель адміністратора</div>
-}
-```
+}`}
+</Code>
 
 ## Ієрархія ролей
 
@@ -128,4 +125,4 @@ export default async function AdminPage() {
 
 ---
 
-*Потрібна допомога з аутентифікацією? Перегляньте наш посібник [Початок роботи](/uk/library/getting-started) або приєднуйтеся до нашого [Discord](https://discord.gg/ring-platform).*
+*Потрібна допомога з аутентифікацією? Перегляньте наш посібник [Початок роботи](/uk/docs/getting-started) або приєднуйтеся до нашого [Discord](https://discord.gg/ring-platform).*

@@ -1,0 +1,579 @@
+---
+title: Система Стейкинга Токенов
+description: Белый лейбл модуль стейкинга с EVM адаптером, поддержкой пулов DAAR и DAARION с интеграцией профилей
+---
+
+# Система Стейкинга Токенов
+
+Полная система стейкинга токенов DAAR и DAARION с автоматизированным распределением наград, интеграцией профилей и поддержкой белого лейбла.
+
+## Обзор
+
+Система стейкинга платформы Ring позволяет аутентифицированным пользователям стейкать токены DAAR и DAARION в нескольких пулах для получения наград при поддержке управления платформой и ликвидности. Система включает автоматизированное распределение наград, защиту от неправильной сети и опциональное серверное кеширование позиций.
+
+## Ключевые Возможности
+
+### Мульти-Пульный Стейкинг
+
+**Поддерживаемые Пулы Токенов**
+- **Пул DAAR**: Основной токен управления стейкингом
+- **Пул DAARION**: Токен наград стейкинга с более высокими доходностями
+- **Гибкое Управление Пулами**: Динамическое создание и конфигурация пулов
+
+**Операции Стейкинга**
+- **Стейк**: Депозит токенов в пулы стейкинга
+- **Анстейк**: Вывод токенов из пулов с периодами блокировки
+- **Клейм**: Получение накопленных наград
+- **Компаунд**: Автоматическая реинвестиция наград
+
+### Автоматизированное Распределение Наград
+
+**Система Стейкинга с Расчетом APR**
+- **Динамический Расчет APR**: Реал-тайм вычисление ставок наград
+- **Интеграция Fee Distributor**: Автоматизированное распределение наград
+- **Отслеживание Наград**: Комплексная история заработков и аналитика
+
+**Механизм Наград**
+// Пример расчета APR
+
+<Code language="typescript" title="TypeScript">
+{`const calculateAPR = (totalStaked: number, rewardRate: number, timePeriod: number) => {
+  const annualReward = (totalStaked * rewardRate * 365) / timePeriod
+  return (annualReward / totalStaked) * 100 // Процент APR
+}`}
+</Code>
+
+### Интеграция Профиля
+
+**Сводка Стейкинга Публичного Профиля**
+// Маршрут публичного профиля со сводкой стейкинга
+
+<Code language="typescript" title="TypeScript">
+{`/[locale]/u/[username]  // Включает портфель стейкинга`}
+</Code>
+
+**Возможности Профиля**
+- **Отображение Портфеля Стейкинга**: Активные позиции и награды
+- **Метрики Производительности**: Исторические доходы и аналитика
+- **Социальное Обмен**: Бейджи достижений и вехи
+- **SEO Оптимизация**: Активность стейкинга в метатегах профиля
+
+### Функции Безопасности
+
+**Защита Сети**
+// Защита от неправильной сети
+
+<Code language="typescript" title="TypeScript">
+{`const validateNetwork = (chainId: number) => {
+  const supportedChains = [1, 137] // Ethereum, Polygon
+  if (!supportedChains.includes(chainId)) {
+    throw new Error('Неподдерживаемая сеть для стейкинга')
+  }
+}`}
+</Code>
+
+**Умное Управление Разрешениями**
+// Безопасная обработка разрешений с возвратом к нулю
+
+<Code language="typescript" title="TypeScript">
+{`const manageAllowance = async (tokenContract: Contract, spender: string, amount: string) => {
+  const currentAllowance = await tokenContract.allowance(owner, spender)
+
+  // Сброс к нулю, если текущее разрешение существует (предотвращает front-running)
+  if (currentAllowance > 0) {
+    await tokenContract.approve(spender, 0)
+  }
+
+  // Установить новое разрешение
+  await tokenContract.approve(spender, amount)
+}`}
+</Code>
+
+## Реализация
+
+### Операции Пула Стейкинга
+
+**Стейк Токенов в Пул**
+// Клиентский стейкинг с подключением кошелька
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+export function StakingPanel({ userId }: { userId: string }) {
+  const [selectedPool, setSelectedPool] = useState('DAAR')
+  const [amount, setAmount] = useState('')
+  const [isStaking, setIsStaking] = useState(false)
+
+  const handleStake = async () => {
+    setIsStaking(true)
+
+    try {
+      // Валидировать сеть
+      await validateNetwork()
+
+      // Подключить кошелек
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+
+      // Получить контракт стейкинга
+      const stakingContract = new ethers.Contract(
+        STAKING_CONTRACT_ADDRESS,
+        STAKING_ABI,
+        signer
+      )
+
+      // Одобрить расходование токенов
+      const tokenContract = new ethers.Contract(
+        selectedPool === 'DAAR' ? DAAR_ADDRESS : DAARION_ADDRESS,
+        ERC20_ABI,
+        signer
+      )
+
+      await manageAllowance(tokenContract, STAKING_CONTRACT_ADDRESS, amount)
+
+      // Выполнить транзакцию стейкинга
+      const stakeTx = await stakingContract.stake(
+        selectedPool === 'DAAR' ? 0 : 1, // ID пула
+        ethers.parseEther(amount)
+      )
+      await stakeTx.wait()
+
+      // Обновить записи в бэкенде
+      await recordStakingPosition({
+        userId,
+        poolId: selectedPool,
+        amount,
+        transactionHash: stakeTx.hash,
+        timestamp: new Date()
+      })
+
+    } catch (error) {
+      console.error('Стейкинг не удался:', error)
+      setIsStaking(false)
+    }
+  }
+
+  return (
+    <div className="staking-panel">
+      <select value={selectedPool} onChange={(e) => setSelectedPool(e.target.value)}>
+        <option value="DAAR">Пул DAAR</option>
+        <option value="DAARION">Пул DAARION</option>
+      </select>
+      <input
+        type="number"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Количество для стейкинга"
+      />
+      <button onClick={handleStake} disabled={isStaking}>
+        {isStaking ? 'Стейкинг...' : 'Застейкать Токены'}
+      </button>
+    </div>
+  )
+}`}
+</Code>
+
+**Клейм Наград Стейкинга**
+// Клейм накопленных наград
+
+<Code language="typescript" title="TypeScript">
+{`export async function claimStakingRewards(userId: string, poolId: number) {
+  // Получить позицию стейкинга пользователя
+  const position = await getStakingPosition(userId, poolId)
+
+  if (!position || position.rewards <= 0) {
+    throw new Error('Нет наград доступных для клейма')
+  }
+
+  // Подключиться к контракту стейкинга
+  const stakingContract = new ethers.Contract(
+    STAKING_CONTRACT_ADDRESS,
+    STAKING_ABI,
+    signer
+  )
+
+  // Транзакция клейма наград
+  const claimTx = await stakingContract.claimRewards(poolId)
+  await claimTx.wait()
+
+  // Обновить записи позиций
+  await updateStakingPosition(position.id, {
+    claimedRewards: position.claimedRewards + position.rewards,
+    lastClaimDate: new Date(),
+    transactionHash: claimTx.hash
+  })
+
+  return {
+    claimedAmount: position.rewards,
+    transactionHash: claimTx.hash
+  }
+}`}
+</Code>
+
+**Анстейк Токенов**
+<Code language="typescript" title="TypeScript">
+{`// Анстейк токенов из пула (с потенциальным периодом блокировки)
+export async function unstakeTokens(positionId: string) {
+  const position = await getStakingPositionById(positionId)
+
+  // Проверить, разрешен ли анстейк (период блокировки)
+  const lockEndDate = new Date(position.createdAt.getTime() + (position.lockPeriod * 24 * 60 * 60 * 1000))
+  const now = new Date()
+
+  if (now < lockEndDate) {
+    const remainingDays = Math.ceil((lockEndDate - now) / (24 * 60 * 60 * 1000))
+    throw new Error(`Токены заблокированы еще на ${remainingDays} дней`)
+  }
+
+  // Выполнить транзакцию анстейкинга
+  const stakingContract = new ethers.Contract(
+    STAKING_CONTRACT_ADDRESS,
+    STAKING_ABI,
+    signer
+  )
+
+  const unstakeTx = await stakingContract.unstake(position.poolId, position.amount)
+  await unstakeTx.wait()
+
+  // Обновить статус позиции
+  await updateStakingPosition(positionId, {
+    status: 'unstaked',
+    unstakedAt: new Date(),
+    transactionHash: unstakeTx.hash
+  })
+
+  return {
+    unstakedAmount: position.amount,
+    transactionHash: unstakeTx.hash
+  }
+}`}
+</Code>
+
+### Интеграция Профиля Стейкинга
+
+**Компонент Сводки Стейкинга**
+// components/profile/StakingSummary.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export function StakingSummary({ userId }: { userId: string }) {
+  const [stakingData, setStakingData] = useState(null)
+
+  useEffect(() => {
+    const fetchStakingData = async () => {
+      const positions = await getUserStakingPositions(userId)
+      const rewards = await getUserStakingRewards(userId)
+      const analytics = await getStakingAnalytics(userId)
+
+      setStakingData({
+        positions,
+        rewards,
+        analytics
+      })
+    }
+
+    fetchStakingData()
+  }, [userId])
+
+  if (!stakingData) return <div>Загрузка данных стейкинга...</div>
+
+  return (
+    <div className="staking-summary">
+      <h3>Портфель Стейкинга</h3>
+
+      <div className="staking-stats">
+        <div className="stat">
+          <span className="label">Всего Застейкано</span>
+          <span className="value">
+            {stakingData.analytics.totalStaked} DAAR
+          </span>
+        </div>
+
+        <div className="stat">
+          <span className="label">Всего Наград</span>
+          <span className="value">
+            {stakingData.analytics.totalRewards} DAARION
+          </span>
+        </div>
+
+        <div className="stat">
+          <span className="label">Средний APR</span>
+          <span className="value">
+            {stakingData.analytics.averageAPR}%
+          </span>
+        </div>
+      </div>
+
+      <div className="active-positions">
+        <h4>Активные Позиции</h4>
+        {stakingData.positions.map(position => (
+          <StakingPositionCard key={position.id} position={position} />
+        ))}
+      </div>
+
+      <div className="reward-history">
+        <h4>История Наград</h4>
+        {stakingData.rewards.map(reward => (
+          <RewardTransaction key={reward.id} reward={reward} />
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## Конечные Точки API
+
+### Управление Стейкингом
+<Code language="typescript" title="TypeScript">
+{`// GET /api/staking/positions - Получить позиции стейкинга пользователя
+// POST /api/staking/stake - Создать новую позицию стейкинга
+// POST /api/staking/unstake - Анстейкать токены из позиции
+// POST /api/staking/claim - Клеймить награды стейкинга
+// GET /api/staking/pools - Получить доступные пулы стейкинга
+// GET /api/staking/rewards - Получить доступные награды для клейма
+// GET /api/staking/analytics - Получить аналитику стейкинга`}
+</Code>
+
+### Информация о Пулах
+<Code language="typescript" title="TypeScript">
+{`// GET /api/staking/pools/[poolId] - Получить детали конкретного пула
+// GET /api/staking/pools/[poolId]/stats - Получить статистику пула
+// GET /api/staking/pools/[poolId]/positions - Получить позиции пула`}
+</Code>
+
+## Модели Данных
+
+### Схема Позиции Стейкинга
+<Code language="typescript" title="interface StakingPosition {">
+{`id: string
+  userId: string
+  poolId: number // 0 = DAAR, 1 = DAARION
+  amount: string // Количество застейкано (в wei)
+  rewards: string // Накопленные награды
+  claimedRewards: string // Уже клеймленные награды
+  lockPeriod: number // Период блокировки в днях
+  createdAt: Date
+  lastRewardUpdate: Date
+  status: 'active' | 'unstaked' | 'locked'
+  transactionHash?: string
+  unstakedAt?: Date
+}`}
+</Code>
+
+### Схема Пула Стейкинга
+<Code language="typescript" title="interface StakingPool {">
+{`id: number
+  name: string
+  tokenAddress: string
+  tokenSymbol: string
+  apr: number // Текущий процент APR
+  totalStaked: string // Всего токенов застейкано
+  rewardRate: string // Ставка награды в секунду
+  minStake: string // Минимальное количество стейкинга
+  maxStake?: string // Максимальное количество стейкинга
+  lockPeriod: number // Период блокировки в днях
+  isActive: boolean
+  createdAt: Date
+}`}
+</Code>
+
+### Схема Наград Стейкинга
+<Code language="typescript" title="interface StakingReward {">
+{`id: string
+  userId: string
+  positionId: string
+  poolId: number
+  amount: string // Количество награды
+  claimed: boolean
+  claimDate?: Date
+  transactionHash?: string
+  createdAt: Date
+}`}
+</Code>
+
+## Интеграция Смарт Контрактов
+
+### Контракт APR Стейкинга
+// Интерфейс контракта для APR-based стейкинга
+
+<Code language="typescript" title="TypeScript">
+{`interface APRStakingContract {
+  // Функции просмотра
+  getPoolInfo(poolId: number): Promise<{
+    totalStaked: bigint
+    rewardRate: bigint
+    lastUpdateTime: bigint
+  }>
+
+  getUserInfo(poolId: number, user: string): Promise<{
+    amount: bigint
+    rewardDebt: bigint
+  }>
+
+  // Функции изменения состояния
+  stake(poolId: number, amount: bigint): Promise<TransactionResponse>
+  unstake(poolId: number, amount: bigint): Promise<TransactionResponse>
+  claimRewards(poolId: number): Promise<TransactionResponse>
+}`}
+</Code>
+
+### Контракт Fee Distributor
+// Интерфейс контракта для распределения наград
+
+<Code language="typescript" title="TypeScript">
+{`interface FeeDistributorContract {
+  // Функции просмотра
+  claimable(user: string, token: string): Promise<bigint>
+
+  // Функции изменения состояния
+  claim(token: string): Promise<TransactionResponse>
+  claimMany(tokens: string[]): Promise<TransactionResponse>
+}`}
+</Code>
+
+## Серверные Функции
+
+### Кеширование Позиций (Опционально)
+
+**Серверное чтение позиций для улучшенной производительности:**
+// features/staking/server/read-positions.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function getCachedStakingPositions(userId: string) {
+  // Сначала проверить кеш
+  const cached = await getCachedPositions(userId)
+  if (cached && isCacheValid(cached.timestamp)) {
+    return cached.positions
+  }
+
+  // Получить из блокчейна
+  const positions = await fetchPositionsFromContract(userId)
+
+  // Закешировать результаты
+  await cachePositions(userId, positions)
+
+  return positions
+}`}
+</Code>
+
+### Фоновые Процессы
+
+**Автоматизированное обновление наград и синхронизация позиций:**
+// Сервис автоматического расчета наград
+
+<Code language="typescript" title="TypeScript">
+{`export async function updateStakingRewards() {
+  const activePositions = await getActivePositions()
+
+  for (const position of activePositions) {
+    const rewards = await calculateRewards(position)
+    await updatePositionRewards(position.id, rewards)
+  }
+}`}
+</Code>
+
+## Обработка Ошибок
+
+### Распространенные Сценарии Ошибок
+// Обработка ошибок системы стейкинга
+
+<Code language="typescript" title="TypeScript">
+{`export function handleStakingError(error: StakingError) {
+  switch (error.code) {
+    case 'INSUFFICIENT_BALANCE':
+      return 'Недостаточный баланс токенов'
+    case 'LOCK_PERIOD_ACTIVE':
+      return 'Токены все еще заблокированы'
+    case 'NETWORK_MISMATCH':
+      return 'Пожалуйста, переключитесь на правильную сеть'
+    case 'ALLOWANCE_TOO_LOW':
+      return 'Разрешение токена слишком низкое'
+    case 'CONTRACT_ERROR':
+      return 'Выполнение смарт контракта не удалось'
+    default:
+      return 'Операция стейкинга не удалась'
+  }
+}`}
+</Code>
+
+### Мониторинг Транзакций
+// Мониторить транзакции стейкинга
+
+<Code language="typescript" title="TypeScript">
+{`export async function monitorStakingTransaction(txHash: string) {
+  const provider = new ethers.JsonRpcProvider(RPC_URL)
+
+  try {
+    const receipt = await provider.waitForTransaction(txHash, 1)
+
+    if (receipt.status === 1) {
+      // Успех - обновить статус позиции
+      await updatePositionStatus(txHash, 'confirmed')
+      await invalidatePositionCache(userId)
+    } else {
+      // Неудача - обработать ошибку
+      await handleStakingFailure(txHash)
+    }
+  } catch (error) {
+    console.error('Мониторинг транзакций не удался:', error)
+  }
+}`}
+</Code>
+
+## Белый Лейбл Темизация
+
+**Кастомизация Бренда для UI Стейкинга**
+// features/staking/theme.config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const stakingTheme = {
+  colors: {
+    primary: '#your-brand-primary',
+    secondary: '#your-brand-secondary',
+    reward: '#reward-highlight-color',
+    warning: '#warning-color'
+  },
+  components: {
+    stakingCard: {
+      borderRadius: '8px',
+      shadow: '0 2px 8px rgba(0,0,0,0.1)'
+    },
+    rewardBadge: {
+      background: 'linear-gradient(45deg, #gold, #yellow)',
+      color: '#000'
+    }
+  },
+  pools: {
+    DAAR: {
+      name: 'Ваш Бренд Пул DAAR',
+      description: 'Стейкайте токены DAAR для премиум наград'
+    },
+    DAARION: {
+      name: 'Ваш Бренд Пул DAARION',
+      description: 'Стейкайте токены DAARION для максимальных доходностей'
+    }
+  }
+}`}
+</Code>
+
+## Чек-лист Интеграции
+
+### Подготовка к Запуску
+- [ ] Развернуть смарт контракты стейкинга
+- [ ] Конфигурировать поддерживаемые сети и RPC endpoints
+- [ ] Настроить контракты fee distributor
+- [ ] Конфигурировать параметры расчета APR
+- [ ] Протестировать одобрение токенов и потоки стейкинга
+- [ ] Валидировать подключение кошелька и переключение сети
+
+### Развертывание в Продакшен
+- [ ] Включить пулы стейкинга с начальными параметрами
+- [ ] Конфигурировать расписания распределения наград
+- [ ] Настроить мониторинг и оповещения транзакций
+- [ ] Включить белый лейбл темизацию и брендинг
+- [ ] Протестировать end-to-end потоки стейкинга и наград
+- [ ] Мониторить стоимость газа и оптимизировать вызовы контрактов
+
+---
+
+*Эта система стейкинга предоставляет полную DeFi экосистему стейкинга с автоматизированными наградами и комплексным управлением пользователями.*

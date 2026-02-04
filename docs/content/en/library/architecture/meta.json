@@ -1,0 +1,10 @@
+{
+  "title": "Architecture",
+  "pages": [
+    "index",
+    "data-model",
+    "authentication",
+    "real-time",
+    "security"
+  ]
+}

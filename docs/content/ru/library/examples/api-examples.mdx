@@ -1,0 +1,44 @@
+---
+title: Api Examples
+description: Api Examples documentation for Ring Platform
+---
+
+# API Examples
+
+Interactive API usage examples with Postman collections, cURL commands, and SDK implementations.
+
+## 🔌 API Testing Tools
+
+### Postman Collection
+Download our complete Postman collection with:
+- **Pre-configured environments** - Development, staging, production
+- **Authentication setup** - Automatic token management
+- **Example requests** - Working examples for all endpoints
+- **Test scripts** - Automated response validation
+
+### cURL Examples
+Ready-to-use cURL commands for all 77 API endpoints:
+
+Authentication Create Entity
+
+<Code language="bash" title="terminal">
+{`curl -X POST https://ring.ck.ua/api/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+curl -X POST https://ring.ck.ua/api/entities \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Company", "type": "technology"}'`}
+</Code>
+
+### SDK Examples
+Implementation examples in multiple programming languages:
+- **JavaScript/TypeScript** - Frontend and Node.js
+- **Python** - Backend integration
+- **PHP** - Web application integration
+- **Go** - Microservices integration
+
+---
+
+*Complete API examples documentation coming soon.*

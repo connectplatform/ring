@@ -1,20 +1,15 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Update Opportunity Service
+ * 
+ * Server-side mutation (NO cache() - mutations must always execute)
+ * PostgreSQL via DatabaseService abstraction
+ */
 
-import { Opportunity } from '@/features/opportunities/types';
-import { auth } from '@/auth';
-import { opportunityConverter } from '@/lib/converters/opportunity-converter';
-import { UserRole } from '@/features/auth/types';
-import { FieldValue } from 'firebase-admin/firestore';
+import { Opportunity } from '@/features/opportunities/types'
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { db } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database/DatabaseService'
 
 /**
  * Updates an opportunity by its ID in Firestore, enforcing role-based access control.

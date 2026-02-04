@@ -120,7 +120,7 @@ export default function FCMTestPage() {
 
   if (status === 'loading') {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         <div className="max-w-4xl mx-auto">
           <div className="text-center">Loading...</div>
         </div>
@@ -130,7 +130,7 @@ export default function FCMTestPage() {
 
   if (status === 'unauthenticated') {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         <div className="max-w-4xl mx-auto">
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -144,7 +144,7 @@ export default function FCMTestPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-0 py-0">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">FCM Test Dashboard</h1>

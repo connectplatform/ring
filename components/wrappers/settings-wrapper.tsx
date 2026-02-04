@@ -1,128 +1,196 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import { Suspense } from 'react'
-import { useSession } from 'next-auth/react'
-import { UserSettings } from '@/features/auth/types'
-import { useSearchParams } from 'next/navigation'
+import React, { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import {
+  Settings,
+  User,
+  Shield,
+  Bell,
+  Palette,
+  Globe,
+  CreditCard,
+  HelpCircle,
+  BookOpen,
+  Sparkles,
+  TrendingUp,
+  Eye,
+  EyeOff
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import DesktopSidebar from '@/components/navigation/desktop-sidebar'
+import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import type { Locale } from '@/i18n-config'
 
-// Dynamically import the settings-content component
-const SettingsContent = dynamic(() => import('@/features/auth/components/settings-content'), {
-  loading: () => <LoadingFallback />,
-  ssr: false
-})
+interface SettingsWrapperProps {
+  children: React.ReactNode
+  locale: Locale
+  userStats?: {
+    accountAge: string
+    lastLogin: string
+    profileCompleteness: number
+  }
+}
 
-/**
- * LoadingFallback component
- * Displays a loading message while the content is being loaded
- * 
- * @returns {JSX.Element} The loading fallback UI
- */
-function LoadingFallback() {
+export default function SettingsWrapper({
+  children,
+  locale,
+  userStats
+}: SettingsWrapperProps) {
+  const t = useTranslations('settings')
+  const router = useRouter()
+
+  function RightSidebarContent() {
+    return (
+      <div className="space-y-6">
+        {/* Quick Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Account Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Profile Complete</span>
+              <Badge variant="secondary">{userStats?.profileCompleteness || 85}%</Badge>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Member Since</span>
+              <span className="text-xs">{userStats?.accountAge || '2024'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Last Login</span>
+              <span className="text-xs">{userStats?.lastLogin || 'Today'}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => router.push(`/${locale}/settings/notifications`)}
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              Notification Settings
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => router.push(`/${locale}/wallet`)}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Wallet & Payments
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => router.push(`/${locale}/profile`)}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Public Profile
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Privacy Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Privacy at a Glance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Profile Visibility</span>
+              <Badge variant="outline" className="text-xs">
+                <Eye className="h-3 w-3 mr-1" />
+                Public
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Data Sharing</span>
+              <Badge variant="outline" className="text-xs">
+                <EyeOff className="h-3 w-3 mr-1" />
+                Private
+              </Badge>
+            </div>
+            <Separator />
+            <Button variant="outline" size="sm" className="w-full">
+              <Shield className="h-4 w-4 mr-2" />
+              Privacy Center
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Help Resources */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Help & Resources
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button variant="ghost" size="sm" className="w-full justify-start">
+              <HelpCircle className="h-4 w-4 mr-2" />
+              Settings Guide
+            </Button>
+            <Button variant="ghost" size="sm" className="w-full justify-start">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Privacy Policy
+            </Button>
+            <Button variant="ghost" size="sm" className="w-full justify-start">
+              <Globe className="h-4 w-4 mr-2" />
+              Support Center
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-pulse">Loading settings...</div>
+    <div className="min-h-screen bg-background">
+      <div className="flex gap-6 min-h-screen">
+        {/* Desktop Sidebar - hidden md:block */}
+        <div className="hidden md:block w-[280px]">
+          <DesktopSidebar />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+          {children}
+        </div>
+
+        {/* Right Sidebar Desktop - hidden lg:block */}
+        <div className="hidden lg:block w-[320px] sticky top-8 h-fit">
+          <RightSidebarContent />
+        </div>
+      </div>
+
+      {/* Floating Sidebar Toggle */}
+      <FloatingSidebarToggle>
+        <RightSidebarContent />
+      </FloatingSidebarToggle>
     </div>
   )
 }
-
-/**
- * Response type for the updateSettings function
- */
-type UpdateSettingsResponse = {
-  success: boolean;
-  message: string;
-  settings?: UserSettings;
-}
-
-/**
- * settings-wrapperProps interface
- * Defines the props for the settings-wrapper component
- * 
- * @param initialSettings - The initial user settings
- * @param initialError - Any initial error message
- * @param locale - The current locale for i18n
- */
-interface SettingsWrapperProps {
-  initialSettings: UserSettings | null
-  initialError: string | null
-  locale: Locale
-}
-
-/**
- * updateSettingsAction function
- * Client-side function to update user settings via API
- * 
- * @param prevState - The previous state of the settings update
- * @param formData - The form data containing the new settings
- * @returns A Promise that resolves to an UpdateSettingsResponse
- */
-async function updateSettingsAction(prevState: UpdateSettingsResponse | null, formData: FormData): Promise<UpdateSettingsResponse> {
-  const data = Object.fromEntries(formData.entries()) as unknown as UserSettings
-
-  try {
-    const response = await fetch('/api/settings', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      throw new Error('Failed to update settings')
-    }
-    const result = await response.json()
-    return {
-      success: true,
-      message: 'Settings updated successfully',
-      settings: result.settings,
-    }
-  } catch (error) {
-    console.error('Error updating settings:', error)
-    return {
-      success: false,
-      message: 'Failed to update settings',
-    }
-  }
-}
-
-/**
- * settings-wrapper component
- * Wraps the settings-content component and handles authentication state
- * Now with i18n support
- * 
- * User steps:
- * 1. User navigates to the settings page
- * 2. settings-wrapper checks authentication status
- * 3. If authenticated, settings-content is rendered with initial data and locale
- * 4. If not authenticated, an access denied message is displayed
- * 
- * @param props - The settings-wrapperProps
- * @returns {JSX.Element} The wrapped settings-content component or an error message
- */
-export default function SettingsWrapper({ initialSettings, initialError, locale }: SettingsWrapperProps) {
-  const { status } = useSession()
-  const searchParams = useSearchParams()
-
-  if (status === "loading") {
-    return <LoadingFallback />
-  }
-
-  if (status === "unauthenticated") {
-    return <div className="text-center py-8">Access Denied. Please sign in to view settings.</div>
-  }
-
-  return (
-    <Suspense fallback={<LoadingFallback />}>
-      <SettingsContent 
-        initialSettings={initialSettings}
-        initialError={initialError}
-        searchParams={Object.fromEntries(searchParams)}
-        updateSettingsAction={updateSettingsAction}
-        locale={locale}
-      />
-    </Suspense>
-  )
-}
-

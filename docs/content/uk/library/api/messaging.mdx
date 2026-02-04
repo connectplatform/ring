@@ -1,0 +1,861 @@
+---
+title: API повідомлень
+description: Повна документація API системи повідомлень платформи Ring у режимі реального часу з інтеграцією WebSocket, управлінням розмовами та вкладеннями файлів
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# API повідомлень
+
+Платформа Ring надає комплексну систему повідомлень у режимі реального часу із **8 REST кінцевими точками** та інтеграцією WebSocket. Система підтримує розмови, прямі повідомлення, вкладення файлів, індикатори набору тексту, та квитанції прочитання з надійністю корпоративного рівня.
+
+<Callout type="info" title="⚡ Архітектура реального часу">
+Побудовано на **Tunnel Transport** з автоматичним фолбеком: WebSocket → SSE → Long-polling для універсальної сумісності у всіх середовищах розгортання.
+</Callout>
+
+## 🏗️ Архітектура системи
+
+### Архітектура потоку повідомлень
+
+```
+Дія користувача → Кінцева точка API → Збереження у БД → Трансляція у режимі реального часу → Оновлення UI
+                                      ↓
+                            Вкладення файлів (якщо є) → Збереження у CDN
+```
+
+### Транспортний шар стратегії
+
+- **WebSocket (Первинний)**: Бінарна комунікація у режимі реального часу
+- **Server-Sent Events (SSE)**: Фолбек для Vercel Edge Runtime
+- **Long-polling**: Універсальний фолбек для обмежувальних середовищ
+- **HTTP REST**: Стандартні CRUD операції із синхронізацією реального часу
+
+### Стратегія зберігання
+
+- **Повідомлення**: PostgreSQL із метаданими JSONB та повнотекстовим пошуком
+- **Файли**: CDN сховище (Cloudflare R2, AWS S3 або сумісне)
+- **Стан реального часу**: Redis pub/sub для міжекземплярної комунікації
+- **Черга офлайн**: IndexedDB для черги повідомлень офлайн
+
+## 📋 Довідка кінцевих точок API
+
+### `GET /api/conversations`
+
+Список розмов користувачів із розширеним фільтруванням та пагінацією.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Розмов на сторінку (за замовчуванням: 20, макс: 50) |
+| `type` | string | Ні | Фільтр за типом: `direct`, `group`, `channel` |
+| `status` | string | Ні | Фільтр за статусом: `active`, `archived`, `muted` |
+| `before` | string | Ні | ISO дата - розмови оновлені до цієї дати |
+| `search` | string | Ні | Пошук за іменами учасників або повідомленнями |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/conversations?page=1&limit=10&type=direct&status=active" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"conversations": [
+    {
+      "id": "conv_123456",
+      "type": "direct",
+      "participants": [
+        {
+          "userId": "user_789",
+          "name": "John Doe",
+          "avatar": "https://...",
+          "role": "member",
+          "lastSeen": "2025-10-16T12:30:00Z"
+        }
+      ],
+      "title": null,
+      "description": null,
+      "lastMessage": {
+        "id": "msg_999999",
+        "content": "Привіт, як просувається проект?",
+        "senderId": "user_789",
+        "timestamp": "2025-10-16T12:30:00Z",
+        "type": "text"
+      },
+      "unreadCount": 2,
+      "updatedAt": "2025-10-16T12:30:00Z",
+      "createdAt": "2025-10-15T09:00:00Z",
+      "settings": {
+        "muted": false,
+        "pinned": false,
+        "notifications": true
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}`}
+</Code>
+
+### `POST /api/conversations`
+
+Створити нову розмову (пряме повідомлення або груповий чат).
+
+#### Тіло запиту для прямого повідомлення
+
+<Code language="json" title="{">
+{`"type": "direct",
+  "participantIds": ["user_456"],
+  "initialMessage": {
+    "content": "Привіт! Я хочу обговорити можливість.",
+    "type": "text"
+  }
+}`}
+</Code>
+
+#### Тіло запиту для групової розмови
+
+<Code language="json" title="{">
+{`"type": "group",
+  "title": "Команда проекту Alpha",
+  "description": "Обговорення розробки проекту Alpha",
+  "participantIds": ["user_456", "user_789", "user_101"],
+  "settings": {
+    "isPrivate": true,
+    "allowInvites": true,
+    "moderationEnabled": false
+  }
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"conversation": {
+    "id": "conv_123457",
+    "type": "direct",
+    "participants": [
+      {
+        "userId": "user_123",
+        "name": "Поточний користувач",
+        "role": "admin"
+      },
+      {
+        "userId": "user_456",
+        "name": "Jane Smith",
+        "role": "member"
+      }
+    ],
+    "title": null,
+    "createdAt": "2025-10-16T12:35:00Z",
+    "settings": {
+      "muted": false,
+      "pinned": false,
+      "notifications": true
+    }
+  },
+  "initialMessage": {
+    "id": "msg_100000",
+    "conversationId": "conv_123457",
+    "senderId": "user_123",
+    "content": "Привіт! Я хочу обговорити можливість.",
+    "type": "text",
+    "timestamp": "2025-10-16T12:35:00Z",
+    "status": "sent"
+  }
+}`}
+</Code>
+
+### `GET /api/conversations/{id}/messages`
+
+Отримати повідомлення з конкретної розмови з пагінацією.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Повідомлень на сторінку (за замовчуванням: 50, макс: 100) |
+| `before` | string | Ні | ISO дата - повідомлення до цього часу |
+| `after` | string | Ні | ISO дата - повідомлення після цього часу |
+| `type` | string | Ні | Фільтр за типом: `text`, `file`, `image`, `system` |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/conversations/conv_123456/messages?page=1&limit=25" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"messages": [
+    {
+      "id": "msg_100001",
+      "conversationId": "conv_123456",
+      "senderId": "user_456",
+      "content": "Дякую за звернення! Проект просувається добре.",
+      "type": "text",
+      "timestamp": "2025-10-16T12:36:00Z",
+      "status": "delivered",
+      "readBy": ["user_123"],
+      "reactions": [],
+      "replyTo": null,
+      "edited": false,
+      "attachments": []
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 25,
+    "total": 47,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "conversation": {
+    "id": "conv_123456",
+    "type": "direct",
+    "participants": ["user_123", "user_456"]
+  }
+}`}
+</Code>
+
+### `POST /api/conversations/{id}/messages`
+
+Надіслати нове повідомлення до розмови.
+
+#### Тіло запиту для текстового повідомлення
+
+<Code language="json" title="{">
+{`"content": "Ось документ, який ви просили.",
+  "type": "text",
+  "replyTo": null
+}`}
+</Code>
+
+#### Тіло запиту з вкладенням файлу
+
+<Code language="json" title="{">
+{`"content": "Будь ласка, перегляньте цей документ",
+  "type": "text",
+  "attachments": [
+    {
+      "name": "requirements.pdf",
+      "type": "application/pdf",
+      "size": 2048576,
+      "url": "https://cdn.example.com/files/requirements.pdf"
+    }
+  ]
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"message": {
+    "id": "msg_100003",
+    "conversationId": "conv_123456",
+    "senderId": "user_123",
+    "content": "Будь ласка, перегляньте цей документ",
+    "type": "text",
+    "timestamp": "2025-10-16T12:38:00Z",
+    "status": "sent",
+    "readBy": [],
+    "reactions": [],
+    "replyTo": null,
+    "edited": false,
+    "attachments": [
+      {
+        "id": "att_123456",
+        "name": "requirements.pdf",
+        "type": "application/pdf",
+        "size": 2048576,
+        "url": "https://cdn.example.com/files/att_123456.pdf",
+        "thumbnailUrl": null
+      }
+    ]
+  },
+  "delivered": true,
+  "realTimeSent": true
+}`}
+</Code>
+
+### `PUT /api/messages/{id}`
+
+Оновити/редагувати повідомлення (тільки відправником, у межах часу).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"content": "Будь ласка, перегляньте цей оновлений документ",
+  "attachments": []
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"message": {
+    "id": "msg_100003",
+    "content": "Будь ласка, перегляньте цей оновлений документ",
+    "edited": true,
+    "editedAt": "2025-10-16T12:39:00Z"
+  }
+}`}
+</Code>
+
+### `DELETE /api/messages/{id}`
+
+Видалити повідомлення (м'яке видалення, тільки відправником або адміном).
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `hard` | boolean | Ні | Жорстке видалення (тільки адмін, за замовчуванням: false) |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X DELETE "http://localhost:3000/api/messages/msg_100003" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"deleted": true,
+  "messageId": "msg_100003",
+  "deletedBy": "user_123",
+  "deletedAt": "2025-10-16T12:40:00Z"
+}`}
+</Code>
+
+### `POST /api/conversations/{id}/typing`
+
+Надіслати індикатор набору тексту учасникам розмови.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"isTyping": true
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"sent": true,
+  "expiresAt": "2025-10-16T12:40:05Z"
+}`}
+</Code>
+
+### `PUT /api/messages/{id}/read`
+
+Позначити повідомлення як прочитані у розмові.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"messageIds": ["msg_100001", "msg_100002"]
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"markedRead": 2,
+  "readAt": "2025-10-16T12:41:00Z"
+}`}
+</Code>
+
+## 🔄 Повідомлення у режимі реального часу
+
+### Інтеграція WebSocket
+
+Платформа Ring використовує **Tunnel Transport** для повідомлень у режимі реального часу:
+
+// Клієнтське WebSocket з'єднання
+
+<Code language="typescript" title="TypeScript">
+{`import { io } from 'socket.io-client'
+
+const socket = io('/messaging', {
+  auth: {
+    token: sessionToken
+  }
+})
+
+// Приєднатися до кімнати розмови
+socket.emit('join-conversation', conversationId)
+
+// Прослуховування нових повідомлень
+socket.on('message', (message) => {
+  console.log('Нове повідомлення:', message)
+  addMessageToUI(message)
+})
+
+// Прослуховування індикаторів набору
+socket.on('typing', (data) => {
+  if (data.userId !== currentUserId) {
+    showTypingIndicator(data.userId, data.isTyping)
+  }
+})
+
+// Прослуховування квитанцій прочитання
+socket.on('read-receipt', (data) => {
+  updateReadStatus(data.messageIds, data.userId)
+})
+
+// Надіслати повідомлення через WebSocket
+socket.emit('send-message', {
+  conversationId,
+  content: messageText,
+  type: 'text'
+})`}
+</Code>
+
+### Фолбек Server-Sent Events (SSE)
+
+Для середовищ без підтримки WebSocket:
+
+// SSE з'єднання для повідомлень
+
+<Code language="typescript" title="TypeScript">
+{`const eventSource = new EventSource('/api/messaging/stream')
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data)
+
+  switch (data.type) {
+    case 'message':
+      handleNewMessage(data.message)
+      break
+    case 'typing':
+      handleTypingIndicator(data)
+      break
+    case 'read-receipt':
+      handleReadReceipt(data)
+      break
+  }
+}
+
+// Надіслати повідомлення через HTTP, коли WebSocket недоступний
+const sendMessage = async (conversationId: string, content: string) => {
+  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, type: 'text' })
+  })
+
+  const result = await response.json()
+  // Оновлення реального часу прийде через SSE
+  return result
+}`}
+</Code>
+
+## 📎 Вкладення файлів
+
+### Підтримувані типи файлів
+
+| Категорія | Типи | Макс розмір | Функції |
+|-----------|------|-------------|---------|
+| **Документи** | PDF, DOC, DOCX, TXT, MD | 10MB | Попередній перегляд, завантаження |
+| **Зображення** | JPG, PNG, GIF, WebP, SVG | 5MB | Мініатюра, вбудований попередній перегляд |
+| **Відео** | MP4, WebM, MOV | 50MB | Відеоплеєр, мініатюра |
+| **Аудіо** | MP3, WAV, M4A | 20MB | Аудіоплеєр |
+| **Архіви** | ZIP, RAR, 7Z | 100MB | Тільки завантаження |
+
+### Процес завантаження файлів
+
+// Клієнтське завантаження файлів
+
+<Code language="typescript" title="TypeScript">
+{`const uploadFile = async (file: File): Promise<Attachment> => {
+  // 1. Отримати URL завантаження
+  const { uploadUrl, attachment } = await fetch('/api/upload', {
+    method: 'POST',
+    body: JSON.stringify({
+      filename: file.name,
+      contentType: file.type,
+      size: file.size
+    })
+  }).then(r => r.json())
+
+  // 2. Завантажити до CDN
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type
+    }
+  })
+
+  return attachment
+}
+
+// Використання у повідомленні
+const handleSendMessage = async (content: string, files: File[]) => {
+  const attachments = await Promise.all(files.map(uploadFile))
+
+  await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({
+      content,
+      type: 'text',
+      attachments
+    })
+  })
+}`}
+</Code>
+
+## 💬 Типи повідомлень
+
+### Текстові повідомлення
+
+Стандартна текстова комунікація з підтримкою багатих форматувань.
+
+<Code language="json" title="{">
+{`"type": "text",
+  "content": "Привіт @john, чи можеш ти переглянути [вимоги](https://docs.example.com) документ?",
+  "metadata": {
+    "mentions": ["user_456"],
+    "links": ["https://docs.example.com"],
+    "formatting": "markdown"
+  }
+}`}
+</Code>
+
+### Вкладення файлів
+
+Повідомлення, що містять завантаження файлів.
+
+<Code language="json" title="{">
+{`"type": "file",
+  "content": "Ось оновлений файл дизайну",
+  "attachments": [
+    {
+      "id": "att_123457",
+      "name": "design.fig",
+      "type": "application/figma",
+      "size": 15728640,
+      "url": "https://cdn.example.com/files/design.fig"
+    }
+  ]
+}`}
+</Code>
+
+### Системні повідомлення
+
+Автоматизовані повідомлення для подій розмови.
+
+<Code language="json" title="{">
+{`"type": "system",
+  "content": "john.doe приєднався до розмови",
+  "metadata": {
+    "event": "participant_joined",
+    "participantId": "user_456",
+    "participantName": "John Doe"
+  }
+}`}
+</Code>
+
+### Повідомлення-відповіді
+
+Повідомлення, що відповідають на інші повідомлення.
+
+<Code language="json" title="{">
+{`"type": "text",
+  "content": "Я згоден з цим підходом",
+  "replyTo": "msg_100001",
+  "metadata": {
+    "replyPreview": "Запропонований підхід виглядає добре..."
+  }
+}`}
+</Code>
+
+## 🔧 Приклади реалізації
+
+### React компонент інтерфейсу повідомлень
+
+// components/MessagingInterface.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect, useRef } from 'react'
+import { io, Socket } from 'socket.io-client'
+
+interface Message {
+  id: string
+  content: string
+  senderId: string
+  timestamp: string
+  type: string
+  attachments?: Attachment[]
+}
+
+export function MessagingInterface({ conversationId }: { conversationId: string }) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Отримати повідомлення розмови
+    fetchMessages()
+
+    // Налаштувати WebSocket з'єднання
+    const newSocket = io('/messaging')
+    setSocket(newSocket)
+
+    newSocket.emit('join-conversation', conversationId)
+
+    newSocket.on('message', (message: Message) => {
+      setMessages(prev => [...prev, message])
+      scrollToBottom()
+    })
+
+    newSocket.on('typing', handleTyping)
+    newSocket.on('read-receipt', handleReadReceipt)
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [conversationId])
+
+  const fetchMessages = async () => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/messages`)
+      const data = await response.json()
+      setMessages(data.messages)
+      scrollToBottom()
+    } catch (error) {
+      console.error('Не вдалося отримати повідомлення:', error)
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return
+
+    try {
+      if (socket) {
+        // Надіслати через WebSocket для реального часу
+        socket.emit('send-message', {
+          conversationId,
+          content: newMessage,
+          type: 'text'
+        })
+      } else {
+        // Фолбек до HTTP
+        await fetch(`/api/conversations/${conversationId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: newMessage, type: 'text' })
+        })
+      }
+
+      setNewMessage('')
+    } catch (error) {
+      console.error('Не вдалося надіслати повідомлення:', error)
+    }
+  }
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  return (
+    <div className="messaging-interface">
+      <div className="messages-container">
+        {messages.map(message => (
+          <MessageBubble key={message.id} message={message} />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="message-input">
+        <input
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder="Введіть повідомлення..."
+        />
+        <button onClick={sendMessage}>Надіслати</button>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Обробка помилок
+
+### Поширені відповіді про помилки
+
+// Розмова не знайдена
+
+<Code language="json" title="configuration">
+{`{
+  "error": "NotFoundError",
+  "message": "Розмову не знайдено",
+  "conversationId": "conv_123456",
+  "statusCode": 404
+}
+
+// Відмова у доступі
+{
+  "error": "ForbiddenError",
+  "message": "Ви не є учасником цієї розмови",
+  "statusCode": 403
+}
+
+// Повідомлення занадто довге
+{
+  "error": "ValidationError",
+  "message": "Вміст повідомлення перевищує максимальну довжину 10000 символів",
+  "maxLength": 10000,
+  "statusCode": 400
+}
+
+// Помилка завантаження файлу
+{
+  "error": "UploadError",
+  "message": "Розмір файлу перевищує ліміт 10MB",
+  "maxSize": "10MB",
+  "statusCode": 413
+}`}
+</Code>
+
+## 🔒 Заходи безпеки
+
+### Аутентифікація
+- Усі кінцеві точки повідомлень вимагають дійсної аутентифікації сесії
+- WebSocket з'єднання аутентифікуються з токенами сесій
+- Завантаження файлів вимагають додаткової перевірки власності
+
+### Обмеження швидкості
+- Надсилання повідомлень: 30 повідомлень/хвилину на користувача
+- Завантаження файлів: 10 файлів/годину на користувача
+- WebSocket з'єднання: 5 одночасних з'єднань на користувача
+
+### Безпека контенту
+- Вміст повідомлень санітізується для запобігання XSS атакам
+- Завантаження файлів сканується на віруси та шкідливе ПЗ
+- URL у повідомленнях валідуються та можуть блокуватися
+
+### Конфіденційність
+- На вибір end-to-end шифрування для конфіденційних розмов
+- Видалення повідомлень видаляє вміст від усіх учасників
+- Квитанції прочитання можуть відключатися на розмову
+
+## 📊 Моніторинг та аналітика
+
+### Метрики повідомлень
+
+// Відстеження подій повідомлень
+
+<Code language="typescript" title="TypeScript">
+{`import { trackEvent } from '@/lib/analytics'
+
+socket.on('message', (message) => {
+  trackEvent('message_sent', {
+    conversationType: message.conversationType,
+    messageType: message.type,
+    hasAttachments: message.attachments?.length > 0,
+    deliveryMethod: 'websocket'
+  })
+})
+
+// Моніторинг часу доставки повідомлень
+const sendTime = Date.now()
+
+socket.emit('send-message', messageData, (ack) => {
+  const deliveryTime = Date.now() - sendTime
+  trackEvent('message_delivery_time', {
+    deliveryTime,
+    transport: 'websocket'
+  })
+})`}
+</Code>
+
+## 🎛️ Конфігурація
+
+### Змінні середовища
+
+Налаштування повідомлень Налаштування WebSocket Сховище файлів Redis (для pub/sub)
+
+<Code language="bash" title="terminal">
+{`MESSAGING_RATE_LIMIT=30
+MESSAGING_FILE_SIZE_LIMIT=10485760
+MESSAGING_RETENTION_DAYS=365
+
+WS_HEARTBEAT_INTERVAL=30000
+WS_CONNECTION_TIMEOUT=10000
+
+FILE_STORAGE_PROVIDER=cloudflare_r2
+FILE_STORAGE_BUCKET=messaging-files
+FILE_CDN_URL=https://cdn.ring-platform.org
+
+REDIS_URL=redis://localhost:6379`}
+</Code>
+
+### Схема бази даних
+
+<Code language="sql" title="-- Таблиця розмов">
+{`CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type VARCHAR(20) NOT NULL, -- direct, group, channel
+  title VARCHAR(255),
+  description TEXT,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  settings JSONB DEFAULT '{}'
+);
+
+-- Учасники розмов
+CREATE TABLE conversation_participants (
+  conversation_id UUID REFERENCES conversations(id),
+  user_id UUID REFERENCES users(id),
+  role VARCHAR(20) DEFAULT 'member', -- admin, member
+  joined_at TIMESTAMP DEFAULT NOW(),
+  last_seen_at TIMESTAMP,
+  settings JSONB DEFAULT '{}',
+  PRIMARY KEY (conversation_id, user_id)
+);
+
+-- Таблиця повідомлень
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES conversations(id),
+  sender_id UUID REFERENCES users(id),
+  content TEXT,
+  type VARCHAR(20) DEFAULT 'text',
+  metadata JSONB DEFAULT '{}',
+  reply_to UUID REFERENCES messages(id),
+  edited BOOLEAN DEFAULT FALSE,
+  edited_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Статус прочитання повідомлень
+CREATE TABLE message_reads (
+  message_id UUID REFERENCES messages(id),
+  user_id UUID REFERENCES users(id),
+  read_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (message_id, user_id)
+);`}
+</Code>
+
+---
+
+*Система повідомлень платформи Ring забезпечує комунікацію корпоративного рівня у режимі реального часу з комплексним обміном файлами, кросплатформною сумісністю та розширеними функціями конфіденційності.*

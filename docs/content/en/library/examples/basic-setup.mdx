@@ -1,0 +1,251 @@
+---
+title: Basic Setup
+description: Basic Setup documentation for Ring Platform
+---
+
+# Basic Setup Example
+
+Complete working Ring Platform instance in 5 minutes - **copy-paste ready** with all dependencies included.
+
+## 🎯 What You'll Build
+
+A fully functional Ring Platform with:
+- ✅ **Authentication** - Google OAuth working
+- ✅ **Database** - Firestore connected and seeded
+- ✅ **Entities** - Create and manage organizations
+- ✅ **Opportunities** - Post jobs and partnerships
+- ✅ **Real-time** - WebSocket notifications working
+
+## ⚡ 5-Minute Quick Start
+
+### Step 1: Clone and Install
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+npm install`}
+</Code>
+
+### Step 2: Environment Setup
+Copy environment template Generate encryption key
+
+<Code language="bash" title="terminal">
+{`cp env.local.template .env.local
+
+openssl rand -hex 32`}
+</Code>
+
+### Step 3: Configure Environment
+.env.local Google OAuth (get from Google Cloud Console) Firebase (get from Firebase Console)
+
+<Code language="bash" title="terminal">
+{`NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret-here
+WALLET_ENCRYPTION_KEY=your-generated-key-here
+
+AUTH_GOOGLE_ID=your-google-client-id
+AUTH_GOOGLE_SECRET=your-google-client-secret
+
+AUTH_FIREBASE_PROJECT_ID=your-project-id
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+AUTH_FIREBASE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com`}
+</Code>
+
+### Step 4: Start Development
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+🎉 **Success!** Visit http://localhost:3000
+
+## ✅ Success Validation
+
+After setup, verify these work:
+
+### 1. Authentication Test
+- [ ] Visit `/auth/signin`
+- [ ] Click "Sign in with Google"
+- [ ] Successfully redirected to dashboard
+- [ ] Your name appears in navigation
+
+### 2. Database Test
+- [ ] Visit `/entities`
+- [ ] Click "Create Entity"
+- [ ] Fill form and submit
+- [ ] New entity appears in list
+
+### 3. API Test
+Should return: {"status":"ok","timestamp":"..."}
+
+<Code language="bash" title="terminal">
+{`curl http://localhost:3000/api/health`}
+</Code>
+
+### 4. Real-time Test
+- [ ] Open two browser tabs
+- [ ] Create opportunity in one tab
+- [ ] See notification in other tab
+
+## 📁 Project Structure
+
+```
+ring/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # Auth pages
+│   ├── entities/          # Entity management
+│   ├── opportunities/     # Opportunity marketplace
+│   └── api/               # API routes
+├── components/            # React components
+├── lib/                   # Utilities and configs
+├── features/              # Feature modules
+└── public/                # Static assets
+```
+
+## 🔧 Key Files Explained
+
+### Authentication Config
+// auth.ts
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from "next-auth"
+import Google from "next-auth/providers/google"
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [Google],
+  callbacks: {
+    async session({ session, token }) {
+      // Add user ID to session
+      session.user.id = token.sub
+      return session
+    }
+  }
+})`}
+</Code>
+
+### Database Configuration
+// lib/firebase.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { initializeApp, getApps } from 'firebase/app'
+import { getFirestore } from 'firebase/firestore'
+
+const firebaseConfig = {
+  projectId: process.env.AUTH_FIREBASE_PROJECT_ID,
+  // ... other config
+}
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+export const db = getFirestore(app)`}
+</Code>
+
+### API Route Example
+// app/api/entities/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+import { NextRequest } from 'next/server'
+
+export async function POST(request: NextRequest) {
+  const session = await auth()
+  
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const data = await request.json()
+  
+  // Create entity in database
+  const entity = await createEntity({
+    ...data,
+    userId: session.user.id
+  })
+
+  return Response.json({ entity })
+}`}
+</Code>
+
+## 🎨 Customization Quick Wins
+
+### Change Logo
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`const navbar = (
+  <Navbar 
+    logo={
+      <>
+        <span className="mr-2 font-extrabold text-2xl">🏢</span>
+        <span className="font-bold text-xl">Your Company</span>
+      </>
+    }
+  />
+)`}
+</Code>
+
+### Update Colors
+/* app/globals.css */
+
+<Code language="css" title="styles">
+{`:root {
+  --color-primary: #your-brand-color;
+  --color-secondary: #your-accent-color;
+}`}
+</Code>
+
+### Add Custom Entity Type
+// types/entity.ts
+
+<Code language="typescript" title="TypeScript">
+{`export type EntityType = 
+  | 'technology' 
+  | 'healthcare' 
+  | 'finance'
+  | 'your-custom-type' // Add your type here`}
+</Code>
+
+## 🚨 Common Issues & Solutions
+
+### Issue: "FETCH_FAILED" Error
+**Solution**: Check Firebase configuration
+Verify project ID Check service account key format Should show: -----BEGIN PRIVATE KEY-----
+
+<Code language="bash" title="terminal">
+{`echo $AUTH_FIREBASE_PROJECT_ID
+
+echo $AUTH_FIREBASE_PRIVATE_KEY | head -1`}
+</Code>
+
+### Issue: Google OAuth Not Working
+**Solution**: Verify OAuth configuration
+1. Check Google Cloud Console OAuth settings
+2. Add `http://localhost:3000` to authorized origins
+3. Add `http://localhost:3000/api/auth/callback/google` to redirect URIs
+
+### Issue: Database Permission Denied
+**Solution**: Update Firestore rules
+// Firestore Rules
+
+<Code language="javascript" title="JavaScript">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`}
+</Code>
+
+## 🚀 Next Steps
+
+Once you have the basic setup working:
+
+1. **[Customize Branding](/en/library/examples/custom-branding)** - Make it yours
+2. **[Add Features](/en/library/features)** - Explore platform capabilities
+3. **[Deploy to Production](/en/library/deployment)** - Go live with Vercel
+4. **[Join Community](https://discord.gg/ring-platform)** - Get help and share ideas
+
+---
+
+**🎉 Congratulations!** You now have a working Ring Platform instance. The possibilities are endless!
+
+*Having issues? Join our [Discord community](https://discord.gg/ring-platform) for help.*

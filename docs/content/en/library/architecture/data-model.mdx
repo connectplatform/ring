@@ -1,0 +1,88 @@
+---
+title: Data Model
+description: Data Model documentation for Ring Platform
+---
+
+# Data Model
+
+## PostgreSQL Primary Schema
+
+### Complete Database Architecture
+
+<Mermaid>
+{`erDiagram
+    USERS ||--o{ ENTITIES : creates
+    USERS ||--o{ OPPORTUNITIES : posts
+    USERS ||--o{ ORDERS : places
+    USERS ||--o{ WALLET_TRANSACTIONS : initiates
+    USERS ||--o{ NFT_LISTINGS : owns
+
+    ENTITIES ||--o{ OPPORTUNITIES : offers
+    ENTITIES ||--o{ REVIEWS : receives
+    ENTITIES }o--|| VENDOR_PROFILES : has
+
+    OPPORTUNITIES ||--o{ APPLICATIONS : receives
+    OPPORTUNITIES ||--o{ AI_MATCHES : generates
+
+    STORE_PRODUCTS ||--o{ ORDER_ITEMS : contains
+    STORE_PRODUCTS }o--|| VENDOR_PROFILES : sold_by
+
+    ORDERS ||--o{ ORDER_ITEMS : includes
+    ORDERS ||--o{ PAYMENTS : requires
+
+    WALLET_TRANSACTIONS ||--|| USERS : affects
+    WALLET_TRANSACTIONS }o--|| SMART_CONTRACTS : executes
+
+    NFT_LISTINGS ||--o{ NFT_TRADES : traded_in
+    NFT_LISTINGS }o--|| USERS : owned_by
+
+    USERS {
+        uuid id PK
+        string email
+        string name
+        string role
+        jsonb metadata
+        timestamp created_at
+    }
+
+    ENTITIES {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string industry_type
+        boolean verified
+        jsonb showcase_data
+    }
+
+    OPPORTUNITIES {
+        uuid id PK
+        uuid entity_id FK
+        string type
+        string category
+        numeric budget
+        date deadline
+        jsonb requirements
+    }
+
+    STORE_PRODUCTS {
+        uuid id PK
+        uuid vendor_id FK
+        string name
+        numeric price
+        integer stock
+        jsonb specifications
+    }
+
+    WALLET_TRANSACTIONS {
+        uuid id PK
+        uuid user_id FK
+        numeric amount
+        string type
+        string tx_hash
+        timestamp created_at
+    }`}
+</Mermaid>
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="info">PostgreSQL provides ACID transactions, full-text search, and JSONB support for flexible metadata storage.</Callout>

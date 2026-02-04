@@ -1,0 +1,550 @@
+---
+title: Complete Customization Guide
+description: Comprehensive guide to branding, theming, features, and module configuration
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Complete Customization Guide
+
+<Callout type="info">
+  **Time Estimate**: 1-4 hours depending on complexity | **Prerequisites**: Basic Ring deployment completed
+</Callout>
+
+This guide covers everything you need to customize Ring to match your brand and business requirements. From simple branding changes to complex feature configurations, you'll learn how to make Ring your own.
+
+## 1. Branding & Visual Identity
+
+### Logo & Favicon
+
+<Steps>
+  <Step>
+    **Prepare your assets:**
+
+    Create these files in the correct formats:
+    - `logo.svg` - Vector logo for crisp scaling (recommended: 200x60px viewBox)
+    - `logo-dark.svg` - Dark mode version if needed
+    - `favicon.ico` - 32x32px browser favicon
+    - `apple-touch-icon.png` - 180x180px for iOS devices
+  </Step>
+
+  <Step>
+    **Replace default logos:**
+
+    Replace in public/ directory
+
+<Code language="bash" title="terminal">
+{`cp my-logo.svg public/logo.svg
+    cp my-favicon.ico public/favicon.ico
+    cp my-apple-icon.png public/apple-touch-icon.png`}
+</Code>
+  </Step>
+
+  <Step>
+    **Update logo component:**
+
+    Edit `components/ui/logo.tsx` to use your custom logo:
+
+    import Image from 'next/image'
+
+<Code language="tsx" title="tsx">
+{`export function Logo() {
+      return (
+        <Image
+          src="/logo.svg"
+          alt="My Platform Logo"
+          width={200}
+          height={60}
+          className="h-12 w-auto"
+        />
+      )
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Color Scheme & Theme
+
+<Steps>
+  <Step>
+    **Define your color palette:**
+
+    Edit `tailwind.config.js`:
+
+    <Code language="javascript" title="JavaScript">
+{`/** @type {import('tailwindcss').Config} */
+module.exports = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              // ... define your brand colors
+              900: '#0c4a6e',
+            },
+            // Override default colors
+            primary: colors.brand,
+            secondary: colors.slate,
+          }
+        }
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create custom CSS variables:**
+
+    Add to `styles/globals.css`:
+
+    <Code language="css" title=":root {">
+{`--brand-primary: #your-primary-color;
+      --brand-secondary: #your-secondary-color;
+      --brand-accent: #your-accent-color;
+    }
+
+    .dark {
+      --brand-primary: #your-dark-primary;
+      /* ... dark mode overrides */
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Test theme switching:**
+
+    Ring supports light/dark/system themes. Test that your colors work in all modes.
+  </Step>
+</Steps>
+
+### Typography & Fonts
+
+<Steps>
+  <Step>
+    **Choose your fonts:**
+
+    Edit `styles/globals.css`:
+
+    <Code language="css" title="styles">
+{`@import url('https://fonts.googleapis.com/css2?family=Your+Font:wght@400;500;600;700&display=swap');
+:root {
+      --font-primary: 'Your Font', system-ui, sans-serif;
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Update Tailwind config:**
+
+    <Code language="javascript" title="theme: {">
+{`extend: {
+        fontFamily: {
+          primary: ['var(--font-primary)', 'sans-serif'],
+        }
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Apply fonts to components:**
+
+    Most components use Tailwind's font classes. Update as needed:
+
+    <Code language="tsx" title="<h1 className="font-primary text-4xl font-bold">Your Heading</h1>">
+{``}
+</Code>
+  </Step>
+</Steps>
+
+## 2. Content & Messaging
+
+### Site Configuration
+
+<Steps>
+  <Step>
+    **Update site metadata:**
+
+    Edit `lib/config/site.ts`:
+
+    <Code language="typescript" title="export const siteConfig = {">
+{`name: "My Platform Name",
+      description: "Solving [your mission] collectively with AI power",
+      url: "https://myplatform.com",
+      ogImage: "/og-image.png",
+      keywords: ["platform", "collaboration", "AI", "marketplace"],
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Customize homepage content:**
+
+    Edit `components/common/pages/home.tsx`:
+
+    <Code language="tsx" title="const heroContent = {">
+{`title: "Welcome to My Platform",
+      subtitle: "Solving [your specific problem] with AI orchestration",
+      features: [
+        "Custom feature 1",
+        "Custom feature 2",
+        // ... your key differentiators
+      ]
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Navigation & Menu Items
+
+<Callout type="info">
+  Ring Platform uses a whitelabel navigation system. See the [Whitelabel Navigation Guide](/en/library/development/whitelabel-navigation) for complete documentation.
+</Callout>
+
+<Steps>
+  <Step>
+    **Configure navigation variant:**
+
+    Edit `config/navigation.config.ts` to select your navigation variant:
+
+    <Code language="typescript" title="config/navigation.config.ts">
+{`export const navigationConfig = {
+  desktopComponent: 'default', // or 'vikka', 'greenfood', etc.
+  mobileComponent: 'default',
+}`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create custom navigation (optional):**
+
+    For full customization, create your own navigation variant:
+    - Create `components/navigation/myproject-desktop-navigation.tsx`
+    - Register in `components/navigation/desktop-navigation.tsx`
+    - Update config to use your variant
+    
+    See [Whitelabel Navigation](/en/library/development/whitelabel-navigation) for detailed steps.
+  </Step>
+
+  <Step>
+    **Update footer links:**
+
+    Edit `components/layout/footer.tsx` with your links and legal pages.
+  </Step>
+</Steps>
+
+## 3. Feature Configuration
+
+### Entity Types Setup
+
+<Steps>
+  <Step>
+    **Define your entity types:**
+
+    Edit `lib/config/entities.ts`:
+
+    <Code language="typescript" title="export const entityTypes = [">
+{`{
+        id: 'manufacturer',
+        name: 'Manufacturer',
+        description: 'Manufacturing companies',
+        icon: Factory,
+        color: 'blue',
+      },
+      // ... your entity types
+    ]`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure verification requirements:**
+
+    Set up different verification levels for different entity types.
+  </Step>
+</Steps>
+
+### Opportunity Categories
+
+<Steps>
+  <Step>
+    **Customize opportunity types:**
+
+    Edit `types/opportunity.ts`:
+
+    <Code language="typescript" title="export const opportunityTypes = [">
+{`{
+        id: 'project',
+        name: 'Project Collaboration',
+        description: 'Joint projects and partnerships',
+      },
+      // ... your opportunity types
+    ] as const`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure AI matching rules:**
+
+    Edit `lib/ai/matcher.ts` to customize how opportunities are matched to users.
+  </Step>
+</Steps>
+
+### Marketplace Configuration
+
+<Steps>
+  <Step>
+    **Set up product categories:**
+
+    Define categories relevant to your market:
+
+    <Code language="typescript" title="export const storeCategories = [">
+{`'Electronics',
+      'Services',
+      'Consulting',
+      // ... your categories
+    ]`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure vendor tiers:**
+
+    Set up different vendor tiers with different features and fees.
+  </Step>
+
+  <Step>
+    **Enable/disable marketplace features:**
+
+    Control which marketplace features are available (auctions, negotiations, etc.).
+  </Step>
+</Steps>
+
+## 4. Advanced Customization
+
+### Custom Components
+
+<Steps>
+  <Step>
+    **Create custom components:**
+
+    Add to `components/custom/` directory:
+
+    // components/custom/MyCustomComponent.tsx
+
+<Code language="tsx" title="tsx">
+{`export function MyCustomComponent() {
+      return (
+        <div className="my-custom-styles">
+          {/* Your custom component */}
+        </div>
+      )
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Override default components:**
+
+    Use component composition to wrap and extend default components.
+  </Step>
+</Steps>
+
+### API Extensions
+
+<Steps>
+  <Step>
+    **Add custom API routes:**
+
+    Create in `app/api/custom/`:
+
+    // app/api/custom/my-endpoint/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function GET() {
+      // Your custom API logic
+      return Response.json({ data: 'custom response' })
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Extend existing APIs:**
+
+    Use middleware to add custom logic to existing endpoints.
+  </Step>
+</Steps>
+
+### Database Schema Extensions
+
+<Steps>
+  <Step>
+    **Add custom fields:**
+
+    Extend existing schemas for additional data:
+
+    // lib/schemas/custom-fields.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const customEntityFields = {
+      customField: z.string().optional(),
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create custom collections:**
+
+    Add entirely new data models if needed.
+  </Step>
+</Steps>
+
+## 5. Performance & Optimization
+
+### Bundle Optimization
+
+<Steps>
+  <Step>
+    **Code splitting:**
+
+    Use dynamic imports for large components:
+
+    <Code language="tsx" title="tsx">
+{`const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+loading: () => <div>Loading...</div>
+    })`}
+</Code>
+  </Step>
+
+  <Step>
+    **Image optimization:**
+
+    Use Next.js Image component for all images:
+
+    import Image from 'next/image'
+
+<Code language="tsx" title="tsx">
+{`<Image
+      src="/hero-image.jpg"
+      alt="Hero"
+      width={1200}
+      height={600}
+      priority
+    />`}
+</Code>
+  </Step>
+</Steps>
+
+### SEO Optimization
+
+<Steps>
+  <Step>
+    **Meta tags:**
+
+    Add custom meta tags for your content:
+
+    <Code language="tsx" title="export const metadata = {">
+{`title: 'Custom Page Title',
+      description: 'Custom description',
+      keywords: ['keyword1', 'keyword2'],
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Structured data:**
+
+    Add JSON-LD structured data for better search visibility.
+  </Step>
+</Steps>
+
+## 6. Testing Your Customizations
+
+### Automated Testing
+
+<Steps>
+  <Step>
+    **Run test suite:**
+
+    <Code language="bash" title="terminal">
+{`npm run test`}
+</Code>
+  </Step>
+
+  <Step>
+    **Add custom tests:**
+
+    Create tests for your custom components and features.
+  </Step>
+</Steps>
+
+### Manual Testing Checklist
+
+- [ ] All pages load correctly
+- [ ] Navigation works on all devices
+- [ ] Forms submit properly
+- [ ] Authentication flows work
+- [ ] Mobile responsiveness
+- [ ] Dark/light theme switching
+- [ ] Cross-browser compatibility
+
+## 7. Deployment Considerations
+
+### Environment-Specific Configs
+
+<Steps>
+  <Step>
+    **Environment variables:**
+
+    Set different configs for development, staging, production:
+
+    .env.local (development) .env.production (production)
+
+<Code language="env" title="configuration">
+{`DEBUG=true
+
+    DEBUG=false
+    SENTRY_DSN=your_sentry_key`}
+</Code>
+  </Step>
+
+  <Step>
+    **Feature flags:**
+
+    Use feature flags for gradual rollouts:
+
+    <Code language="typescript" title="const features = {">
+{`newFeature: process.env.NODE_ENV === 'development',
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  **Your Ring platform is now customized!** Here are advanced customizations you might want next:
+</Callout>
+
+### Database & Backend
+- [Database Backend Selection](database-selection) - Choose PostgreSQL for scale
+- [Multi-tenant Deployment](multi-tenant) - Serve multiple organizations
+
+### Economy & Payments
+- [Token Economics Setup](token-economics) - Launch your own token
+- [Payment Gateway Integration](payment-integration) - Enable monetization
+
+### Intelligence
+- [AI Agent Customization](ai-customization) - Customize matching algorithms
+
+### Real-World Examples
+- [Success Stories](success-stories) - Learn from other deployments
+
+---
+
+<Callout type="warning">
+  **Remember**: Ring is designed for customization. Don't hesitate to modify any component to fit your needs. The codebase is your platform - own it!
+</Callout>

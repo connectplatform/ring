@@ -32,6 +32,9 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       privacy,
       landing,
       navigation,
+      globalImpact,
+      tokenomics,
+      aiWeb3,
       modAuth,
       modEntities,
       modOpp,
@@ -41,7 +44,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       modProfile,
       modAdmin,
       modSettings,
-      modMembership
+      modMembership,
+      modNft
     ] = await Promise.all([
       import(`@/locales/${targetLocale}/common.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/pages.json`).then(m => m.default).catch(() => ({})),
@@ -58,6 +62,9 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       import(`@/locales/${targetLocale}/privacy.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/landing.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/navigation.json`).then(m => m.default).catch(() => ({})),
+      import(`@/locales/${targetLocale}/global-impact.json`).then(m => m.default).catch(() => ({})),
+      import(`@/locales/${targetLocale}/tokenomics.json`).then(m => m.default).catch(() => ({})),
+      import(`@/locales/${targetLocale}/ai-web3.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/auth.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/entities.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/opportunities.json`).then(m => m.default).catch(() => ({})),
@@ -67,7 +74,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       import(`@/locales/${targetLocale}/modules/profile.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/admin.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/settings.json`).then(m => m.default).catch(() => ({})),
-      import(`@/locales/${targetLocale}/modules/membership.json`).then(m => m.default).catch(() => ({}))
+      import(`@/locales/${targetLocale}/modules/membership.json`).then(m => m.default).catch(() => ({})),
+      import(`@/locales/${targetLocale}/modules/nft.json`).then(m => m.default).catch(() => ({}))
     ])
 
     return {
@@ -86,6 +94,9 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       privacy,
       landing,
       navigation,
+      'global-impact': globalImpact,
+      'tokenomics': tokenomics,
+      'ai-web3': aiWeb3,
       modules: {
         auth: modAuth,
         entities: modEntities,
@@ -96,7 +107,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
         profile: modProfile,
         admin: modAdmin,
         settings: modSettings,
-        membership: modMembership
+        membership: modMembership,
+        nft: modNft
       }
     }
   }

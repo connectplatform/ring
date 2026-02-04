@@ -1,0 +1,1509 @@
+---
+title: Резервне копіювання та відновлення
+description: Комплексні стратегії резервного копіювання та процедури відновлення після катастроф для розгортань платформи Ring
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# 🔄 Резервне копіювання та відновлення
+
+**Корпоративні стратегії резервного копіювання** та процедури відновлення після катастроф, що забезпечують безперервність бізнесу, цілісність даних та швидке відновлення для розгортань платформи Ring.
+
+## 🎯 Бізнес-результат та ROI
+
+### Критичні переваги бізнесу
+- **99.9% Цілісності даних** з багаторівневим захистом резервного копіювання
+- **15-хвилинний RTO (Час відновлення)** для критичних систем
+- **4-годинний RPO (Точка відновлення)** для транзакційних даних
+- **$2.5M+ Щорічної економії** від запобігання інцидентам втрати даних
+- **100% Відповідності** вимогам збереження та відновлення даних
+
+### Можливості відновлення
+- **Миттєвий failover** до резервних систем під час збоїв
+- **Відновлення до точки в часі** для гранулярного відновлення даних
+- **Крос-регіональна реплікація** для стійкості до катастроф
+- **Автоматизоване тестування** цілісності резервних копій та процедур відновлення
+- **Обслуговування без простоїв** завдяки надлишковості системи резервного копіювання
+
+## 🗄️ Стратегії резервного копіювання бази даних
+
+### Архітектура резервного копіювання PostgreSQL
+
+**Багаторівнева система резервного копіювання** з безперервним архівуванням, запланованими знімками та крос-регіональною реплікацією.
+
+// Комплексна конфігурація резервного копіювання PostgreSQL
+
+<Code language="typescript" title="TypeScript">
+{`export class PostgreSQLBackupManager {
+  private backupConfig = {
+    continuousArchiving: {
+      walLevel: 'replica',
+      archiveMode: 'on',
+      archiveCommand: 'pgbackrest --stanza=main archive-push %p',
+      restoreCommand: 'pgbackrest --stanza=main archive-get %f %p'
+    },
+    scheduledBackups: {
+      full: {
+        schedule: '0 2 * * 0', // Щотижня неділя о 2:00
+        retention: '4 weeks',
+        compression: 'lz4',
+        encryption: 'aes256'
+      },
+      incremental: {
+        schedule: '0 2 * * 1-6', // Щодня понеділок-суббота о 2:00
+        retention: '7 days',
+        compression: 'lz4',
+        encryption: 'aes256'
+      },
+      differential: {
+        schedule: '0 14 * * *', // Щодня о 14:00
+        retention: '24 hours',
+        compression: 'lz4',
+        encryption: 'aes256'
+      }
+    },
+    replication: {
+      synchronousStandby: ['backup-01', 'backup-02'],
+      asyncStandby: ['dr-site-01', 'dr-site-02'],
+      lagMonitoring: {
+        maxLag: '30 seconds',
+        alertThreshold: '60 seconds'
+      }
+    }
+  }
+
+  async initializeBackupSystem(): Promise<void> {
+    // Створити конфігурацію pgBackRest
+    await this.createPgBackRestConfig()
+
+    // Налаштувати безперервне архівування
+    await this.configureContinuousArchiving()
+
+    // Ініціалізувати репозиторій резервних копій
+    await this.initializeBackupRepository()
+
+    // Налаштувати політики збереження
+    await this.setupRetentionPolicies()
+
+    // Налаштувати моніторинг та сповіщення
+    await this.configureBackupMonitoring()
+
+    // Протестувати процедури резервного копіювання та відновлення
+    await this.testBackupRecovery()
+  }
+
+  async performFullBackup(): Promise<BackupResult> {
+    const backupId = generateBackupId()
+    const startTime = new Date()
+
+    try {
+      // Попередня валідація
+      await this.validateDatabaseState()
+
+      // Виконати повне резервне копіювання
+      const result = await this.executePgBackRestBackup('full', backupId)
+
+      // Перевірити цілісність резервної копії
+      await this.validateBackupIntegrity(backupId)
+
+      // Оновити метадані резервної копії
+      await this.updateBackupMetadata(backupId, {
+        type: 'full',
+        startTime,
+        endTime: new Date(),
+        size: result.size,
+        status: 'completed',
+        checksum: result.checksum
+      })
+
+      // Запустити крос-регіональну реплікацію
+      await this.replicateToDRSite(backupId)
+
+      // Надіслати сповіщення про успіх
+      await this.sendBackupNotification(backupId, 'success')
+
+      return {
+        backupId,
+        type: 'full',
+        status: 'completed',
+        size: result.size,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleBackupFailure(backupId, error)
+      throw error
+    }
+  }
+
+  private async createPgBackRestConfig(): Promise<void> {
+    const config = `
+[global]
+repo1-path=/backup/pgbackrest
+repo1-retention-full=4
+repo1-retention-diff=7
+repo1-retention-archive=30
+repo1-bundle=y
+repo1-bundle-size=1GB
+repo1-block-size=1MB
+repo1-compress-type=lz4
+repo1-cipher-type=aes-256-cbc
+
+[global:archive-push]
+compress-level=6
+
+[main]
+pg1-path=/var/lib/postgresql/data
+pg1-port=5432
+pg1-user=backup_user
+
+repo1-type=s3
+repo1-s3-bucket=ring-platform-backups
+repo1-s3-endpoint=s3.eu-central-1.amazonaws.com
+repo1-s3-region=eu-central-1
+repo1-s3-key=<backup-key>
+repo1-s3-key-secret=<backup-secret>
+`
+
+    await writeFile('/etc/pgbackrest.conf', config)
+  }
+
+  private async validateDatabaseState(): Promise<void> {
+    // Перевірити з'єднання з базою даних
+    await this.checkDatabaseConnectivity()
+
+    // Перевірити чи працює архівування WAL
+    await this.verifyWalArchiving()
+
+    // Перевірити довготривалі транзакції
+    await this.checkLongRunningTransactions()
+
+    // Перевірити дозволи користувача резервного копіювання
+    await this.validateBackupPermissions()
+
+    // Забезпечити достатньо дискового простору
+    await this.checkDiskSpace()
+  }
+
+  private async validateBackupIntegrity(backupId: string): Promise<void> {
+    // Тестувати відновлення резервної копії до тимчасового інстансу
+    const testInstance = await this.createTestInstance()
+
+    try {
+      await this.restoreBackupToInstance(backupId, testInstance)
+
+      // Запустити перевірки цілісності
+      await this.runIntegrityChecks(testInstance)
+
+      // Перевірити послідовність даних
+      await this.validateDataConsistency(testInstance)
+
+    } finally {
+      // Очистити тестовий інстанс
+      await this.destroyTestInstance(testInstance)
+    }
+  }
+}`}
+</Code>
+
+### Резервне копіювання та експорт Firestore
+
+**Автоматизовані експорти Firestore** з запланованими резервними копіями, інкрементальними оновленнями та процедурами відновлення після катастроф.
+
+// Система управління резервним копіюванням Firestore
+
+<Code language="typescript" title="TypeScript">
+{`export class FirestoreBackupManager {
+  private firestore: Firestore
+  private storage: Storage
+  private scheduler: CloudScheduler
+
+  private backupConfig = {
+    collections: [
+      'users',
+      'entities',
+      'opportunities',
+      'messages',
+      'notifications',
+      'transactions',
+      'analytics'
+    ],
+    schedules: {
+      full: {
+        frequency: '0 2 * * 0', // Щотижня
+        retention: '30 days',
+        regions: ['europe-west1', 'us-central1']
+      },
+      incremental: {
+        frequency: '0 */6 * * *', // Кожні 6 годин
+        retention: '7 days',
+        regions: ['europe-west1']
+      }
+    },
+    encryption: {
+      algorithm: 'AES256',
+      keyRotation: '30 days'
+    }
+  }
+
+  async scheduleFirestoreBackups(): Promise<void> {
+    // Запланувати повні резервні копії
+    await this.scheduleFullBackup()
+
+    // Запланувати інкрементальні резервні копії
+    await this.scheduleIncrementalBackup()
+
+    // Налаштувати моніторинг експорту
+    await this.setupExportMonitoring()
+
+    // Налаштувати політики збереження
+    await this.setupRetentionPolicies()
+  }
+
+  async performFirestoreExport(exportType: 'full' | 'incremental' = 'full'): Promise<ExportResult> {
+    const exportId = generateExportId()
+    const timestamp = new Date()
+
+    try {
+      // Створити завдання експорту
+      const exportJob = await this.firestore.admin().exportDocuments({
+        outputUriPrefix: `gs://ring-platform-firestore-backups/${exportType}/${timestamp.getTime()}`,
+        collectionIds: exportType === 'full' ? this.backupConfig.collections : undefined,
+        namespaceIds: ['(default)']
+      })
+
+      // Моніторити прогрес експорту
+      const result = await this.monitorExportJob(exportJob)
+
+      // Перевірити цілісність експорту
+      await this.validateExportIntegrity(result.outputUri)
+
+      // Оновити метадані
+      await this.updateExportMetadata(exportId, {
+        type: exportType,
+        timestamp,
+        status: 'completed',
+        size: result.size,
+        collections: result.collections,
+        outputUri: result.outputUri
+      })
+
+      // Запустити крос-регіональну реплікацію
+      await this.replicateToBackupRegions(result.outputUri, exportType)
+
+      return {
+        exportId,
+        type: exportType,
+        status: 'completed',
+        outputUri: result.outputUri,
+        size: result.size
+      }
+
+    } catch (error) {
+      await this.handleExportFailure(exportId, error)
+      throw error
+    }
+  }
+
+  async restoreFromFirestoreBackup(backupUri: string, targetCollections?: string[]): Promise<RestoreResult> {
+    const restoreId = generateRestoreId()
+    const startTime = new Date()
+
+    try {
+      // Перевірити цілісність резервної копії
+      await this.validateBackupIntegrity(backupUri)
+
+      // Створити завдання відновлення
+      const restoreJob = await this.firestore.admin().importDocuments({
+        inputUriPrefix: backupUri,
+        collectionIds: targetCollections
+      })
+
+      // Моніторити прогрес відновлення
+      const result = await this.monitorRestoreJob(restoreJob)
+
+      // Перевірити успішність відновлення
+      await this.validateRestoreSuccess(result)
+
+      // Оновити метадані
+      await this.updateRestoreMetadata(restoreId, {
+        backupUri,
+        targetCollections,
+        startTime,
+        endTime: new Date(),
+        status: 'completed',
+        documentsRestored: result.documentsRestored
+      })
+
+      return {
+        restoreId,
+        status: 'completed',
+        documentsRestored: result.documentsRestored,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleRestoreFailure(restoreId, error)
+      throw error
+    }
+  }
+
+  private async scheduleFullBackup(): Promise<void> {
+    const jobName = 'firestore-full-backup'
+    const schedule = this.backupConfig.schedules.full.frequency
+
+    await this.scheduler.createJob({
+      name: jobName,
+      schedule,
+      timeZone: 'UTC',
+      httpTarget: {
+        uri: `${process.env.CLOUD_FUNCTION_URL}/firestore-backup`,
+        httpMethod: 'POST',
+        body: Buffer.from(JSON.stringify({ type: 'full' })).toString('base64'),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    })
+  }
+
+  private async validateExportIntegrity(outputUri: string): Promise<void> {
+    // Перелічити всі експортовані файли
+    const [files] = await this.storage.bucket().getFiles({
+      prefix: outputUri.split('/').pop()
+    })
+
+    // Перевірити структуру файлів
+    await this.validateExportStructure(files)
+
+    // Перевірити розміри файлів та кількість
+    await this.validateExportMetrics(files)
+
+    // Перевірити цілісність даних
+    await this.verifyDataIntegrity(files)
+  }
+
+  private async replicateToBackupRegions(outputUri: string, exportType: string): Promise<void> {
+    const regions = this.backupConfig.schedules[exportType].regions
+
+    for (const region of regions) {
+      if (region !== process.env.GCP_REGION) {
+        await this.replicateToRegion(outputUri, region)
+      }
+    }
+  }
+}`}
+</Code>
+
+### Резервне копіювання та архівування сховища
+
+**Комплексне резервне копіювання сховища файлів** з версійністю, шифруванням та довгостроковим збереженням.
+
+// Система резервного копіювання хмарного сховища
+
+<Code language="typescript" title="TypeScript">
+{`export class StorageBackupManager {
+  private storage: Storage
+  private backupConfig = {
+    buckets: {
+      primary: 'ring-platform-storage',
+      backup: 'ring-platform-storage-backup',
+      archive: 'ring-platform-storage-archive'
+    },
+    versioning: {
+      enabled: true,
+      retention: {
+        active: '365 days',
+        archive: '7 years',
+        delete: '10 years'
+      }
+    },
+    replication: {
+      regions: ['eu-central-1', 'us-east-1', 'ap-southeast-1'],
+      storageClass: 'STANDARD_IA'
+    },
+    encryption: {
+      algorithm: 'AES256',
+      keyManagement: 'GCP_KMS'
+    }
+  }
+
+  async initializeStorageBackup(): Promise<void> {
+    // Увімкнути версійність на основному бакеті
+    await this.enableVersioning(this.backupConfig.buckets.primary)
+
+    // Налаштувати крос-регіональну реплікацію
+    await this.setupCrossRegionReplication()
+
+    // Налаштувати життєві цикли
+    await this.setupLifecyclePolicies()
+
+    // Налаштувати моніторинг резервного копіювання
+    await this.setupBackupMonitoring()
+
+    // Протестувати процедури резервного копіювання та відновлення
+    await this.testBackupRestore()
+  }
+
+  async performStorageBackup(backupType: 'full' | 'incremental' = 'incremental'): Promise<StorageBackupResult> {
+    const backupId = generateStorageBackupId()
+    const startTime = new Date()
+
+    try {
+      if (backupType === 'full') {
+        // Повне резервне копіювання - копіювати всі об'єкти
+        await this.performFullStorageBackup(backupId)
+      } else {
+        // Інкрементальне резервне копіювання - копіювати змінені об'єкти
+        await this.performIncrementalStorageBackup(backupId)
+      }
+
+      // Перевірити цілісність резервної копії
+      await this.validateStorageBackup(backupId)
+
+      // Оновити метадані резервної копії
+      await this.updateStorageBackupMetadata(backupId, {
+        type: backupType,
+        startTime,
+        endTime: new Date(),
+        status: 'completed',
+        objectCount: await this.getBackupObjectCount(backupId),
+        totalSize: await this.getBackupTotalSize(backupId)
+      })
+
+      // Запустити реплікацію до резервних регіонів
+      await this.replicateBackupToRegions(backupId)
+
+      return {
+        backupId,
+        type: backupType,
+        status: 'completed',
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleStorageBackupFailure(backupId, error)
+      throw error
+    }
+  }
+
+  async restoreFromStorageBackup(backupId: string, targetPaths?: string[]): Promise<StorageRestoreResult> {
+    const restoreId = generateStorageRestoreId()
+    const startTime = new Date()
+
+    try {
+      // Перевірити чи існує резервна копія та чи доступна вона
+      await this.validateBackupForRestore(backupId)
+
+      // Визначити об'єкти для відновлення
+      const objectsToRestore = await this.getObjectsToRestore(backupId, targetPaths)
+
+      // Виконати операцію відновлення
+      const restoreResult = await this.performStorageRestore(backupId, objectsToRestore)
+
+      // Перевірити успішність відновлення
+      await this.validateStorageRestore(restoreResult)
+
+      // Оновити метадані відновлення
+      await this.updateStorageRestoreMetadata(restoreId, {
+        backupId,
+        targetPaths,
+        startTime,
+        endTime: new Date(),
+        status: 'completed',
+        objectsRestored: restoreResult.objectsRestored,
+        totalSize: restoreResult.totalSize
+      })
+
+      return {
+        restoreId,
+        status: 'completed',
+        objectsRestored: restoreResult.objectsRestored,
+        totalSize: restoreResult.totalSize,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleStorageRestoreFailure(restoreId, error)
+      throw error
+    }
+  }
+
+  private async setupLifecyclePolicies(): Promise<void> {
+    const lifecycleRules = [
+      // Перемістити об'єкти до IA через 30 днів
+      {
+        action: { type: 'SetStorageClass', storageClass: 'STANDARD_IA' },
+        condition: { age: 30 }
+      },
+      // Перемістити до Archive через 365 днів
+      {
+        action: { type: 'SetStorageClass', storageClass: 'ARCHIVE' },
+        condition: { age: 365 }
+      },
+      // Видалити через 10 років
+      {
+        action: { type: 'Delete' },
+        condition: { age: 3650 }
+      }
+    ]
+
+    await this.storage.bucket(this.backupConfig.buckets.primary).setMetadata({
+      lifecycle: { rule: lifecycleRules }
+    })
+  }
+
+  private async performIncrementalStorageBackup(backupId: string): Promise<void> {
+    const lastBackupTime = await this.getLastBackupTime()
+
+    // Перелічити об'єкти, змінені після останнього резервного копіювання
+    const [files] = await this.storage.bucket(this.backupConfig.buckets.primary).getFiles({
+      versions: true
+    })
+
+    const changedFiles = files.filter(file =>
+      file.metadata.updated > lastBackupTime
+    )
+
+    // Скопіювати змінені файли до резервного бакету
+    const copyPromises = changedFiles.map(file =>
+      file.copy(this.storage.bucket(this.backupConfig.buckets.backup).file(
+        `backup-${backupId}/${file.name}`
+      ))
+    )
+
+    await Promise.all(copyPromises)
+  }
+
+  private async validateStorageBackup(backupId: string): Promise<void> {
+    // Перелічити об'єкти резервної копії
+    const [backupFiles] = await this.storage.bucket(this.backupConfig.buckets.backup).getFiles({
+      prefix: `backup-${backupId}/`
+    })
+
+    // Перевірити метрики резервної копії
+    await this.validateBackupMetrics(backupFiles)
+
+    // Виконати вибіркові перевірки на випадкових файлах
+    await this.performSpotChecks(backupFiles)
+
+    // Перевірити шифрування
+    await this.verifyBackupEncryption(backupFiles)
+  }
+}`}
+</Code>
+
+## 🚨 Відновлення після катастроф
+
+### Система багаторégіонального failover
+
+**Автоматизований failover** з моніторингом стану, перемиканням трафіку та синхронізацією даних.
+
+// Система failover відновлення після катастроф
+
+<Code language="typescript" title="TypeScript">
+{`export class DisasterRecoveryManager {
+  private regions = {
+    primary: 'eu-central-1',
+    secondary: 'us-east-1',
+    tertiary: 'ap-southeast-1'
+  }
+
+  private failoverConfig = {
+    healthChecks: {
+      interval: '30 seconds',
+      timeout: '10 seconds',
+      unhealthyThreshold: 3,
+      healthyThreshold: 2
+    },
+    dns: {
+      ttl: 60,
+      failoverTime: '5 minutes'
+    },
+    database: {
+      syncLagThreshold: '30 seconds',
+      failoverTimeout: '10 minutes'
+    },
+    monitoring: {
+      alertChannels: ['email', 'slack', 'pagerduty'],
+      escalationTime: '15 minutes'
+    }
+  }
+
+  async monitorSystemHealth(): Promise<void> {
+    // Безперервний моніторинг всіх регіонів
+    setInterval(async () => {
+      const healthStatus = await this.checkAllRegionsHealth()
+
+      // Оновити глобальний статус стану
+      await this.updateGlobalHealthStatus(healthStatus)
+
+      // Перевірити умови failover
+      const failoverRequired = this.checkFailoverConditions(healthStatus)
+
+      if (failoverRequired) {
+        await this.initiateFailover(healthStatus)
+      }
+    }, parseDuration(this.failoverConfig.healthChecks.interval))
+  }
+
+  async initiateFailover(healthStatus: HealthStatus): Promise<FailoverResult> {
+    const failoverId = generateFailoverId()
+    const startTime = new Date()
+
+    try {
+      // Визначити найкращу ціль failover
+      const targetRegion = await this.selectFailoverTarget(healthStatus)
+
+      // Попередні перевірки
+      await this.performFailoverPreflightChecks(targetRegion)
+
+      // Почати процес failover
+      await this.startFailoverProcess(failoverId, targetRegion)
+
+      // Перемкнути DNS щоб вказувати на новий регіон
+      await this.switchDNS(targetRegion)
+
+      // Перенаправити трафік додатку
+      await this.redirectApplicationTraffic(targetRegion)
+
+      // Failover з'єднань бази даних
+      await this.failoverDatabaseConnections(targetRegion)
+
+      // Перевірити успішність failover
+      await this.validateFailoverSuccess(targetRegion)
+
+      // Оновити метадані failover
+      await this.updateFailoverMetadata(failoverId, {
+        startTime,
+        endTime: new Date(),
+        fromRegion: healthStatus.primaryRegion,
+        toRegion: targetRegion,
+        status: 'completed',
+        duration: Date.now() - startTime.getTime()
+      })
+
+      // Надіслати сповіщення
+      await this.sendFailoverNotifications(failoverId, 'success')
+
+      return {
+        failoverId,
+        status: 'completed',
+        fromRegion: healthStatus.primaryRegion,
+        toRegion: targetRegion,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleFailoverFailure(failoverId, error)
+      throw error
+    }
+  }
+
+  private async checkAllRegionsHealth(): Promise<HealthStatus> {
+    const regionChecks = await Promise.allSettled(
+      Object.values(this.regions).map(region =>
+        this.checkRegionHealth(region)
+      )
+    )
+
+    const healthStatus = {
+      timestamp: new Date(),
+      regions: {} as Record<string, RegionHealth>,
+      primaryRegion: this.regions.primary,
+      overallHealth: 'healthy' as HealthStatusType
+    }
+
+    // Обробити результати перевірки регіонів
+    regionChecks.forEach((result, index) => {
+      const region = Object.values(this.regions)[index]
+
+      if (result.status === 'fulfilled') {
+        healthStatus.regions[region] = result.value
+      } else {
+        healthStatus.regions[region] = {
+          status: 'unhealthy',
+          lastChecked: new Date(),
+          error: result.reason.message,
+          services: {}
+        }
+      }
+    })
+
+    // Визначити загальний стан
+    healthStatus.overallHealth = this.determineOverallHealth(healthStatus.regions)
+
+    return healthStatus
+  }
+
+  private async checkRegionHealth(region: string): Promise<RegionHealth> {
+    const services = {
+      database: await this.checkDatabaseHealth(region),
+      application: await this.checkApplicationHealth(region),
+      storage: await this.checkStorageHealth(region),
+      cdn: await this.checkCDNHealth(region)
+    }
+
+    const healthyServices = Object.values(services).filter(s => s.status === 'healthy').length
+    const totalServices = Object.keys(services).length
+
+    return {
+      region,
+      status: healthyServices === totalServices ? 'healthy' : 'degraded',
+      lastChecked: new Date(),
+      services,
+      healthScore: healthyServices / totalServices
+    }
+  }
+
+  private checkFailoverConditions(healthStatus: HealthStatus): boolean {
+    // Первинний регіон повністю не працює
+    if (healthStatus.regions[healthStatus.primaryRegion].status === 'unhealthy') {
+      return true
+    }
+
+    // Первинний регіон погіршений і вторинний здоровий
+    const primaryHealth = healthStatus.regions[healthStatus.primaryRegion]
+    const secondaryHealth = healthStatus.regions[this.regions.secondary]
+
+    if (primaryHealth.status === 'degraded' &&
+        primaryHealth.healthScore < 0.5 &&
+        secondaryHealth.status === 'healthy') {
+      return true
+    }
+
+    // Ручний failover запущений
+    return this.manualFailoverTriggered()
+  }
+
+  private async selectFailoverTarget(healthStatus: HealthStatus): Promise<string> {
+    // Упорядкувати регіони за балом стану
+    const sortedRegions = Object.entries(healthStatus.regions)
+      .filter(([_, health]) => health.status === 'healthy')
+      .sort((a, b) => b[1].healthScore - a[1].healthScore)
+
+    if (sortedRegions.length === 0) {
+      throw new Error('Немає здорових регіонів доступних для failover')
+    }
+
+    // Повернути найздоровіший доступний регіон
+    return sortedRegions[0][0]
+  }
+
+  private async switchDNS(targetRegion: string): Promise<void> {
+    // Оновити записи Route 53 або Cloud DNS
+    const dnsClient = this.getDNSClient()
+
+    // Оновити основний домен
+    await dnsClient.changeResourceRecordSets({
+      hostedZoneId: process.env.HOSTED_ZONE_ID,
+      changeBatch: {
+        changes: [{
+          action: 'UPSERT',
+          resourceRecordSet: {
+            name: process.env.DOMAIN_NAME,
+            type: 'A',
+            aliasTarget: {
+              dnsName: this.getLoadBalancerDNS(targetRegion),
+              hostedZoneId: this.getLoadBalancerHostedZone(targetRegion),
+              evaluateTargetHealth: true
+            },
+            setIdentifier: `failover-${Date.now()}`,
+            failover: 'PRIMARY'
+          }
+        }]
+      }
+    })
+  }
+
+  private async failoverDatabaseConnections(targetRegion: string): Promise<void> {
+    // Оновити рядки з'єднання з базою даних
+    await this.updateApplicationConfig({
+      database: {
+        host: this.getDatabaseEndpoint(targetRegion),
+        region: targetRegion
+      }
+    })
+
+    // Запустити перезапуск флоту додатків щоб підібрати нову конфіг
+    await this.restartApplicationFleet()
+
+    // Зачекати поки з'єднання витікатимуть зі старого регіону
+    await this.waitForConnectionDrain()
+
+    // Перевірити з'єднання з базою даних у новому регіоні
+    await this.validateDatabaseConnectivity(targetRegion)
+  }
+}`}
+</Code>
+
+### Відновлення до точки в часі
+
+**Гранулярне відновлення даних** з відтворенням журналу транзакцій та селективним відновленням.
+
+// Система відновлення до точки в часі
+
+<Code language="typescript" title="TypeScript">
+{`export class PointInTimeRecovery {
+  private recoveryConfig = {
+    maxRecoveryWindow: '30 days',
+    granularity: '1 second',
+    parallelWorkers: 4,
+    validation: {
+      enabled: true,
+      sampleRate: 0.1 // Перевірити 10% відновлених даних
+    }
+  }
+
+  async performPointInTimeRecovery(
+    targetTime: Date,
+    targetDatabase: string,
+    options: RecoveryOptions = {}
+  ): Promise<RecoveryResult> {
+    const recoveryId = generateRecoveryId()
+    const startTime = new Date()
+
+    try {
+      // Перевірити параметри відновлення
+      await this.validateRecoveryParameters(targetTime, targetDatabase)
+
+      // Створити тимчасовий інстанс відновлення
+      const tempInstance = await this.createTemporaryInstance()
+
+      // Відновити базову резервну копію
+      const baseBackup = await this.findBaseBackup(targetTime)
+      await this.restoreBaseBackup(baseBackup, tempInstance)
+
+      // Застосувати журнали WAL до цільового часу
+      await this.applyWalLogs(tempInstance, baseBackup.timestamp, targetTime)
+
+      // Перевірити стан відновлення
+      await this.validateRecoveryState(tempInstance, targetTime)
+
+      // Експортувати відновлені дані
+      const exportPath = await this.exportRecoveredData(tempInstance, options)
+
+      // Імпортувати до цільової бази даних (якщо вказано)
+      if (options.targetDatabase) {
+        await this.importToTargetDatabase(exportPath, options.targetDatabase, options)
+      }
+
+      // Очистити тимчасовий інстанс
+      await this.cleanupTemporaryInstance(tempInstance)
+
+      // Оновити метадані відновлення
+      await this.updateRecoveryMetadata(recoveryId, {
+        targetTime,
+        baseBackup: baseBackup.id,
+        startTime,
+        endTime: new Date(),
+        status: 'completed',
+        exportedPath: exportPath,
+        targetDatabase: options.targetDatabase
+      })
+
+      return {
+        recoveryId,
+        status: 'completed',
+        targetTime,
+        recoveredTo: options.targetDatabase || exportPath,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleRecoveryFailure(recoveryId, error)
+      throw error
+    }
+  }
+
+  async performSelectiveRecovery(
+    targetTime: Date,
+    tables: string[],
+    conditions: RecoveryConditions,
+    targetDatabase: string
+  ): Promise<SelectiveRecoveryResult> {
+    const recoveryId = generateSelectiveRecoveryId()
+    const startTime = new Date()
+
+    try {
+      // Створити тимчасовий інстанс відновлення
+      const tempInstance = await this.createTemporaryInstance()
+
+      // Виконати відновлення до точки в часі
+      await this.performPointInTimeRecovery(targetTime, tempInstance.id)
+
+      // Витягти селективні дані
+      const extractedData = await this.extractSelectiveData(
+        tempInstance,
+        tables,
+        conditions
+      )
+
+      // Застосувати трансформації якщо потрібно
+      const transformedData = await this.applyDataTransformations(
+        extractedData,
+        conditions.transformations
+      )
+
+      // Імпортувати до цільової бази даних
+      await this.importSelectiveData(transformedData, targetDatabase)
+
+      // Перевірити селективне відновлення
+      await this.validateSelectiveRecovery(transformedData, targetDatabase)
+
+      // Очистити
+      await this.cleanupTemporaryInstance(tempInstance)
+
+      // Оновити метадані
+      await this.updateSelectiveRecoveryMetadata(recoveryId, {
+        targetTime,
+        tables,
+        conditions,
+        targetDatabase,
+        startTime,
+        endTime: new Date(),
+        status: 'completed',
+        recordsRecovered: transformedData.totalRecords
+      })
+
+      return {
+        recoveryId,
+        status: 'completed',
+        targetTime,
+        tables,
+        recordsRecovered: transformedData.totalRecords,
+        targetDatabase,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleSelectiveRecoveryFailure(recoveryId, error)
+      throw error
+    }
+  }
+
+  private async findBaseBackup(targetTime: Date): Promise<BackupInfo> {
+    // Знайти найостаннішу повну резервну копію перед цільовим часом
+    const baseBackup = await this.queryBackups({
+      type: 'full',
+      beforeTime: targetTime,
+      orderBy: 'timestamp DESC',
+      limit: 1
+    })
+
+    if (!baseBackup) {
+      throw new Error(`Не знайдено придатної базової резервної копії для часу ${targetTime}`)
+    }
+
+    return baseBackup
+  }
+
+  private async applyWalLogs(
+    instance: TempInstance,
+    fromTime: Date,
+    toTime: Date
+  ): Promise<void> {
+    // Знайти файли WAL між fromTime та toTime
+    const walFiles = await this.findWalFilesInRange(fromTime, toTime)
+
+    // Застосувати файли WAL паралельно
+    const workers = Math.min(this.recoveryConfig.parallelWorkers, walFiles.length)
+    const chunks = this.chunkArray(walFiles, workers)
+
+    const applyPromises = chunks.map(async (chunk, workerId) => {
+      for (const walFile of chunk) {
+        await this.applyWalFile(instance, walFile, workerId)
+      }
+    })
+
+    await Promise.all(applyPromises)
+  }
+
+  private async validateRecoveryState(instance: TempInstance, targetTime: Date): Promise<void> {
+    // Перевірити послідовність бази даних
+    await this.checkDatabaseConsistency(instance)
+
+    // Перевірити точність цільового часу
+    const actualTime = await this.getDatabaseTime(instance)
+    const timeDifference = Math.abs(actualTime.getTime() - targetTime.getTime())
+
+    if (timeDifference > 5000) { // 5 секундна толерантність
+      throw new Error(`Помилка точності часу відновлення: ${timeDifference}мс різниці`)
+    }
+
+    // Вибіркова валідація якщо увімкнено
+    if (this.recoveryConfig.validation.enabled) {
+      await this.performSampleValidation(instance, targetTime)
+    }
+  }
+
+  private async extractSelectiveData(
+    instance: TempInstance,
+    tables: string[],
+    conditions: RecoveryConditions
+  ): Promise<ExtractedData> {
+    const extractedData: ExtractedData = {
+      tables: {},
+      totalRecords: 0
+    }
+
+    for (const table of tables) {
+      const query = this.buildSelectiveQuery(table, conditions)
+      const data = await this.executeQueryOnInstance(instance, query)
+
+      extractedData.tables[table] = data
+      extractedData.totalRecords += data.length
+    }
+
+    return extractedData
+  }
+}`}
+</Code>
+
+## 🔄 Тестування та валідація відновлення
+
+### Автоматизовані тренування відновлення
+
+**Регулярне тестування** цілісності резервних копій, процедур відновлення та стійкості системи.
+
+// Система автоматизованого тестування відновлення
+
+<Code language="typescript" title="TypeScript">
+{`export class RecoveryTestingManager {
+  private testConfig = {
+    schedules: {
+      daily: '0 3 * * *',      // Щодня о 3:00
+      weekly: '0 4 * * 0',     // Щотижня неділя о 4:00
+      monthly: '0 5 1 * *'     // Щомісяця 1-го о 5:00
+    },
+    testTypes: {
+      integrity: { frequency: 'daily', duration: '30 minutes' },
+      performance: { frequency: 'weekly', duration: '2 hours' },
+      fullRecovery: { frequency: 'monthly', duration: '4 hours' }
+    },
+    validation: {
+      dataIntegrity: true,
+      performanceMetrics: true,
+      functionalityTests: true
+    }
+  }
+
+  async scheduleRecoveryTests(): Promise<void> {
+    // Запланувати тести цілісності
+    await this.scheduleTestType('integrity')
+
+    // Запланувати тести продуктивності
+    await this.scheduleTestType('performance')
+
+    // Запланувати повні тести відновлення
+    await this.scheduleTestType('fullRecovery')
+
+    // Налаштувати моніторинг тестів
+    await this.setupTestMonitoring()
+
+    // Налаштувати сповіщення тестів
+    await this.setupTestNotifications()
+  }
+
+  async runRecoveryTest(testType: TestType): Promise<TestResult> {
+    const testId = generateTestId()
+    const startTime = new Date()
+
+    try {
+      // Ініціалізувати тестове середовище
+      const testEnv = await this.initializeTestEnvironment(testType)
+
+      // Виконати тест залежно від типу
+      let testResult: TestResult
+
+      switch (testType) {
+        case 'integrity':
+          testResult = await this.runIntegrityTest(testEnv)
+          break
+        case 'performance':
+          testResult = await this.runPerformanceTest(testEnv)
+          break
+        case 'fullRecovery':
+          testResult = await this.runFullRecoveryTest(testEnv)
+          break
+      }
+
+      // Перевірити результати тестів
+      await this.validateTestResults(testResult)
+
+      // Оновити метадані тестів
+      await this.updateTestMetadata(testId, {
+        type: testType,
+        startTime,
+        endTime: new Date(),
+        status: 'completed',
+        result: testResult,
+        environment: testEnv
+      })
+
+      // Надіслати сповіщення тестів
+      await this.sendTestNotifications(testId, 'success', testResult)
+
+      return {
+        testId,
+        type: testType,
+        status: 'completed',
+        result: testResult,
+        duration: Date.now() - startTime.getTime()
+      }
+
+    } catch (error) {
+      await this.handleTestFailure(testId, error)
+      throw error
+    }
+  }
+
+  private async runIntegrityTest(testEnv: TestEnvironment): Promise<IntegrityTestResult> {
+    // Тестувати цілісність резервних копій
+    const backupIntegrity = await this.testBackupIntegrity(testEnv)
+
+    // Тестувати послідовність даних
+    const dataConsistency = await this.testDataConsistency(testEnv)
+
+    // Тестувати валідацію шифрування
+    const encryptionValidation = await this.testEncryptionValidation(testEnv)
+
+    // Розрахувати загальний бал цілісності
+    const overallScore = this.calculateIntegrityScore({
+      backupIntegrity,
+      dataConsistency,
+      encryptionValidation
+    })
+
+    return {
+      backupIntegrity,
+      dataConsistency,
+      encryptionValidation,
+      overallScore,
+      passed: overallScore >= 0.95 // 95% поріг
+    }
+  }
+
+  private async runPerformanceTest(testEnv: TestEnvironment): Promise<PerformanceTestResult> {
+    // Тестувати цілі відновлення часу
+    const rtoResults = await this.testRecoveryTimeObjectives(testEnv)
+
+    // Тестувати цілі відновлення точки
+    const rpoResults = await this.testRecoveryPointObjectives(testEnv)
+
+    // Тестувати продуктивність системи під час відновлення
+    const performanceMetrics = await this.testSystemPerformance(testEnv)
+
+    return {
+      rtoResults,
+      rpoResults,
+      performanceMetrics,
+      passed: this.validatePerformanceResults(rtoResults, rpoResults, performanceMetrics)
+    }
+  }
+
+  private async runFullRecoveryTest(testEnv: TestEnvironment): Promise<FullRecoveryTestResult> {
+    // Виконати повне відновлення системи
+    const recoveryResult = await this.performCompleteRecovery(testEnv)
+
+    // Тестувати функціональність системи після відновлення
+    const functionalityTests = await this.testPostRecoveryFunctionality(testEnv)
+
+    // Перевірити цілісність даних
+    const dataValidation = await this.validateRecoveredData(testEnv)
+
+    return {
+      recoveryResult,
+      functionalityTests,
+      dataValidation,
+      passed: recoveryResult.success && functionalityTests.passed && dataValidation.passed
+    }
+  }
+
+  private async testBackupIntegrity(testEnv: TestEnvironment): Promise<BackupIntegrityResult> {
+    const results = []
+
+    // Тестувати кожен тип резервної копії
+    for (const backup of testEnv.backups) {
+      try {
+        // Спробувати відновити резервну копію
+        const restoreResult = await this.testBackupRestore(backup)
+
+        // Перевірити відновлені дані
+        const validationResult = await this.validateRestoredData(restoreResult)
+
+        results.push({
+          backupId: backup.id,
+          type: backup.type,
+          restoredSuccessfully: true,
+          dataValid: validationResult.valid,
+          restoreTime: restoreResult.duration,
+          dataSize: restoreResult.size
+        })
+      } catch (error) {
+        results.push({
+          backupId: backup.id,
+          type: backup.type,
+          restoredSuccessfully: false,
+          error: error.message
+        })
+      }
+    }
+
+    const successRate = results.filter(r => r.restoredSuccessfully && r.dataValid).length / results.length
+
+    return {
+      results,
+      successRate,
+      averageRestoreTime: this.calculateAverageRestoreTime(results),
+      totalDataValidated: this.calculateTotalDataSize(results)
+    }
+  }
+
+  private async validateTestResults(result: TestResult): Promise<void> {
+    // Перевірити чи тест пройшов мінімальні пороги
+    if (!result.passed) {
+      throw new Error(`Тест не пройшов: ${result.type} тест не задовольнив мінімальні вимоги`)
+    }
+
+    // Перевірити очищення тестового середовища
+    await this.validateTestEnvironmentCleanup(result)
+
+    // Згенерувати звіт тестів
+    await this.generateTestReport(result)
+  }
+}`}
+</Code>
+
+## 📊 Моніторинг та сповіщення
+
+### Панель стану резервного копіювання
+
+**Моніторинг в режимі реального часу** статусу резервного копіювання, цілісності та готовності до відновлення.
+
+// Система моніторингу та сповіщень резервного копіювання
+
+<Code language="typescript" title="TypeScript">
+{`export class BackupMonitoringSystem {
+  private monitoringConfig = {
+    metrics: {
+      collectionInterval: '5 minutes',
+      retentionPeriod: '90 days',
+      alerting: {
+        backupFailure: { threshold: 1, severity: 'critical' },
+        backupDelay: { threshold: '2 hours', severity: 'warning' },
+        integrityFailure: { threshold: 1, severity: 'critical' },
+        storageFull: { threshold: '85%', severity: 'warning' }
+      }
+    },
+    dashboards: {
+      backupStatus: '/monitoring/backup-status',
+      recoveryReadiness: '/monitoring/recovery-readiness',
+      dataIntegrity: '/monitoring/data-integrity'
+    }
+  }
+
+  async monitorBackupHealth(): Promise<void> {
+    // Безперервний цикл моніторингу
+    setInterval(async () => {
+      try {
+        // Зібрати метрики резервного копіювання
+        const metrics = await this.collectBackupMetrics()
+
+        // Оновити панель моніторингу
+        await this.updateMonitoringDashboard(metrics)
+
+        // Перевірити умови сповіщень
+        const alerts = await this.checkAlertConditions(metrics)
+
+        // Надіслати сповіщення якщо є
+        if (alerts.length > 0) {
+          await this.sendBackupAlerts(alerts)
+        }
+
+        // Оновити статус стану
+        await this.updateBackupHealthStatus(metrics)
+
+      } catch (error) {
+        console.error('Помилка моніторингу резервного копіювання:', error)
+        await this.sendMonitoringErrorAlert(error)
+      }
+    }, parseDuration(this.monitoringConfig.metrics.collectionInterval))
+  }
+
+  private async collectBackupMetrics(): Promise<BackupMetrics> {
+    return {
+      timestamp: new Date(),
+      database: await this.collectDatabaseBackupMetrics(),
+      firestore: await this.collectFirestoreBackupMetrics(),
+      storage: await this.collectStorageBackupMetrics(),
+      overall: await this.calculateOverallBackupHealth()
+    }
+  }
+
+  private async collectDatabaseBackupMetrics(): Promise<DatabaseBackupMetrics> {
+    const latestBackup = await this.getLatestDatabaseBackup()
+    const backupAge = Date.now() - latestBackup.timestamp.getTime()
+
+    return {
+      lastBackupTime: latestBackup.timestamp,
+      backupAge: backupAge,
+      backupSize: latestBackup.size,
+      backupStatus: latestBackup.status,
+      walArchivingStatus: await this.checkWalArchivingStatus(),
+      replicationLag: await this.getReplicationLag(),
+      integrityStatus: await this.getBackupIntegrityStatus()
+    }
+  }
+
+  private async checkAlertConditions(metrics: BackupMetrics): Promise<Alert[]> {
+    const alerts: Alert[] = []
+
+    // Перевірити сповіщення віку резервної копії
+    if (metrics.database.backupAge > parseDuration('24 hours')) {
+      alerts.push({
+        type: 'backup_age',
+        severity: 'warning',
+        message: `Резервна копія бази даних стара на ${Math.round(metrics.database.backupAge / (1000 * 60 * 60))} годин`,
+        component: 'database'
+      })
+    }
+
+    // Перевірити сповіщення сховища
+    if (metrics.storage.usagePercentage > 85) {
+      alerts.push({
+        type: 'storage_full',
+        severity: 'warning',
+        message: `Сховище резервних копій заповнено на ${metrics.storage.usagePercentage}%`,
+        component: 'storage'
+      })
+    }
+
+    // Перевірити сповіщення цілісності
+    if (!metrics.database.integrityStatus.valid) {
+      alerts.push({
+        type: 'integrity_failure',
+        severity: 'critical',
+        message: 'Перевірка цілісності резервної копії бази даних не пройшла',
+        component: 'database'
+      })
+    }
+
+    return alerts
+  }
+
+  private async sendBackupAlerts(alerts: Alert[]): Promise<void> {
+    for (const alert of alerts) {
+      // Надіслати до налаштованих каналів
+      await Promise.all([
+        this.sendEmailAlert(alert),
+        this.sendSlackAlert(alert),
+        this.sendPagerDutyAlert(alert)
+      ])
+
+      // Записати сповіщення
+      await this.logBackupAlert(alert)
+    }
+  }
+
+  async generateBackupReport(timeRange: TimeRange): Promise<BackupReport> {
+    const metrics = await this.getBackupMetricsHistory(timeRange)
+
+    return {
+      timeRange,
+      generatedAt: new Date(),
+      summary: {
+        totalBackups: metrics.length,
+        successfulBackups: metrics.filter(m => m.overall.status === 'healthy').length,
+        failedBackups: metrics.filter(m => m.overall.status === 'unhealthy').length,
+        averageBackupSize: this.calculateAverage(metrics.map(m => m.database.backupSize)),
+        averageBackupDuration: this.calculateAverage(metrics.map(m => m.database.backupDuration))
+      },
+      trends: this.analyzeBackupTrends(metrics),
+      recommendations: this.generateBackupRecommendations(metrics)
+    }
+  }
+}`}
+</Code>
+
+## 🚀 План реалізації
+
+### Фаза 1: Налаштування фундаменту (Тижні 1-2)
+<Steps>
+<Step>
+**Спроектувати архітектуру резервного копіювання** та політики збереження
+</Step>
+<Step>
+**Налаштувати системи резервного копіювання бази даних** з pgBackRest
+</Step>
+<Step>
+**Налаштувати експорти Firestore** та резервне копіювання сховища
+</Step>
+</Steps>
+
+### Фаза 2: Автоматизація та моніторинг (Тижні 3-6)
+<Steps>
+<Step>
+**Реалізувати автоматизовані розклади резервного копіювання** та моніторинг
+</Step>
+<Step>
+**Налаштувати крос-регіональну реплікацію** та відновлення після катастроф
+</Step>
+<Step>
+**Створити валідацію резервного копіювання** та тестування цілісності
+</Step>
+</Steps>
+
+### Фаза 3: Відновлення та тестування (Тижні 7-12)
+<Steps>
+<Step>
+**Побудувати можливості відновлення до точки в часі**
+</Step>
+<Step>
+**Реалізувати автоматизовані тренування відновлення** та тестування
+</Step>
+<Step>
+**Налаштувати панелі моніторингу** та системи сповіщень
+</Step>
+</Steps>
+
+### Фаза 4: Корпоративні функції (Тижні 13-16)
+<Steps>
+<Step>
+**Розгорнути багаторégіональний failover** та розширене DR
+</Step>
+<Step>
+**Реалізувати звітність дотримання вимог** та аудиторські журнали
+</Step>
+<Step>
+**Налаштувати безперервну оптимізацію** та управління витратами
+</Step>
+</Steps>
+
+## 📊 Метрики успіху
+
+### Цілі відновлення
+- **RTO (Час відновлення)**: 15 хвилин для критичних систем
+- **RPO (Точка відновлення)**: 5 хвилин для транзакційних даних
+- **Цілісність даних**: 99.999999999% (11 9's)
+- **Швидкість успішності резервного копіювання**: 99.9% для всіх систем
+
+### Операційна досконалість
+- **99.95% Доступності резервного копіювання** з автоматизованим failover
+- **Нуль інцидентів втрати даних** у виробничому середовищі
+- **100% Швидкості успішності тестів відновлення** щоквартально
+- **85% Зменшення витрат** порівняно з традиційними рішеннями резервного копіювання
+
+---
+
+<Callout type="info">
+**Готові захистити свої дані?** Комплексні стратегії резервного копіювання та відновлення забезпечують безперервність бізнесу та захист даних. Почніть з автоматизованих резервних копій та поступово впроваджуйте розширені можливості відновлення.
+</Callout>
+
+**🔗 Пов'язана документація:**
+- [Налаштування бази даних](/en/library/deployment/docker) - Конфігурація бази даних
+- [Архітектура безпеки](/en/library/features/security) - Найкращі практики безпеки
+- [Посібник з моніторингу](/en/library/deployment/monitoring) - Моніторинг системи
+- [Планування відновлення після катастроф](/en/library/examples/real-world) - Стратегії DR

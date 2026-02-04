@@ -11,9 +11,10 @@ Complete authentication implementation patterns using Auth.js v5 with Ring Platf
 
 ### Basic Auth Configuration
 
-```typescript
 // auth.ts
-import NextAuth from 'next-auth'
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
 import Email from 'next-auth/providers/email'
 import { FirestoreAdapter } from '@auth/firebase-adapter'
@@ -67,16 +68,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signOut: '/auth/signout',
     error: '/auth/error',
   },
-})
-```
+})`}
+</Code>
 
 ## 🚀 Magic Link Authentication
 
 ### Custom Sign-In Page
 
-```typescript
 // app/auth/signin/page.tsx
-'use client'
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
 
 import { signIn, getSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
@@ -189,16 +191,17 @@ export default function SignIn() {
       </div>
     </div>
   )
-}
-```
+}`}
+</Code>
 
 ## 🔒 Role-Based Access Control
 
 ### Protected Route Component
 
-```typescript
 // components/ProtectedRoute.tsx
-import { auth } from '@/auth'
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 
 interface ProtectedRouteProps {
@@ -234,14 +237,15 @@ export default async function ProtectedRoute({
   }
 
   return <>{children}</>
-}
-```
+}`}
+</Code>
 
 ### Usage in Pages
 
-```typescript
 // app/admin/page.tsx
-import ProtectedRoute from '@/components/ProtectedRoute'
+
+<Code language="typescript" title="TypeScript">
+{`import ProtectedRoute from '@/components/ProtectedRoute'
 
 export default function AdminPage() {
   return (
@@ -252,16 +256,17 @@ export default function AdminPage() {
       </div>
     </ProtectedRoute>
   )
-}
-```
+}`}
+</Code>
 
 ## 👤 User Session Management
 
 ### Session Provider Setup
 
-```typescript
 // app/providers.tsx
-'use client'
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
 
 import { SessionProvider } from 'next-auth/react'
 
@@ -271,14 +276,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {children}
     </SessionProvider>
   )
-}
-```
+}`}
+</Code>
 
 ### Custom Session Hook
 
-```typescript
 // hooks/useAuth.ts
-import { useSession } from 'next-auth/react'
+
+<Code language="typescript" title="TypeScript">
+{`import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -305,16 +311,17 @@ export function useAuth(requiredRole?: string) {
     isLoading: status === 'loading',
     isAuthenticated: !!session,
   }
-}
-```
+}`}
+</Code>
 
 ## 🔄 Account Management
 
 ### Account Deletion (GDPR Compliant)
 
-```typescript
 // app/api/auth/delete-account/route.ts
-import { auth } from '@/auth'
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 
 export async function DELETE() {
@@ -348,16 +355,17 @@ async function deleteUserData(userId: string) {
 
 async function deleteAuthRecord(userId: string) {
   // Implementation for deleting auth record
-}
-```
+}`}
+</Code>
 
 ## 🎯 Advanced Patterns
 
 ### Middleware for Route Protection
 
-```typescript
 // middleware.ts
-import { auth } from '@/auth'
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 
 export default auth((req) => {
@@ -384,8 +392,8 @@ export default auth((req) => {
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
-```
+}`}
+</Code>
 
 ---
 

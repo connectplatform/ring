@@ -1,0 +1,147 @@
+{
+  "marketplace": {
+    "title": "NFT Marketplace",
+    "subtitle": "Discover, trade, and collect unique digital assets on Ring Platform's decentralized marketplace"
+  },
+  "collections": {
+    "title": "NFT Collections",
+    "subtitle": "Explore curated NFT collections from verified creators",
+    "browseCollections": "Browse Collections",
+    "trendingCollections": "Trending Collections",
+    "featuredCreators": "Featured Creators",
+    "allCollections": "All Collections",
+    "stats": {
+      "floorPrice": "Floor Price",
+      "totalVolume": "Total Volume",
+      "items": "Items",
+      "owners": "Owners"
+    },
+    "filters": {
+      "category": "Category",
+      "blockchain": "Blockchain",
+      "verified": "Verified Only",
+      "sortBy": "Sort By"
+    },
+    "empty": "No collections found",
+    "comingSoon": "NFT collections coming soon. Our marketplace will feature verified creators and curated digital art."
+  },
+  "collection": {
+    "title": "Collection",
+    "subtitle": "View collection details, statistics, and available NFTs",
+    "about": "About Collection",
+    "creator": "Creator",
+    "items": "Items",
+    "activity": "Activity",
+    "listings": "Listings",
+    "offers": "Offers",
+    "stats": {
+      "totalItems": "Total Items",
+      "owners": "Owners",
+      "floorPrice": "Floor Price",
+      "volumeTraded": "Volume Traded",
+      "listed": "Listed"
+    },
+    "tabs": {
+      "items": "Items",
+      "activity": "Activity",
+      "analytics": "Analytics"
+    },
+    "comingSoon": "Collection details coming soon"
+  },
+  "search": {
+    "title": "Search NFTs",
+    "subtitle": "Find unique digital assets across all collections",
+    "placeholder": "Search by name, collection, or creator",
+    "advancedFilters": "Advanced Filters",
+    "filters": {
+      "priceRange": "Price Range",
+      "attributes": "Attributes",
+      "blockchain": "Blockchain",
+      "collection": "Collection",
+      "status": "Status"
+    },
+    "status": {
+      "all": "All",
+      "listed": "Listed",
+      "onAuction": "On Auction",
+      "hasOffers": "Has Offers"
+    },
+    "sortBy": {
+      "recentlyListed": "Recently Listed",
+      "priceLowToHigh": "Price: Low to High",
+      "priceHighToLow": "Price: High to Low",
+      "mostViewed": "Most Viewed",
+      "endingSoon": "Ending Soon"
+    },
+    "results": "{{count}} results found",
+    "noResults": "No NFTs found matching your search",
+    "comingSoon": "NFT search coming soon. Search across collections, attributes, and creators."
+  },
+  "item": {
+    "title": "NFT Details",
+    "subtitle": "View NFT details, trading history, and make offers",
+    "details": "Details",
+    "properties": "Properties",
+    "about": "About",
+    "chain": "Chain",
+    "contract": "Contract",
+    "tokenId": "Token ID",
+    "tokenStandard": "Token Standard",
+    "owner": "Owner",
+    "creator": "Creator",
+    "actions": {
+      "buyNow": "Buy Now",
+      "makeOffer": "Make Offer",
+      "list": "List for Sale",
+      "cancel": "Cancel Listing",
+      "transfer": "Transfer"
+    },
+    "pricing": {
+      "currentPrice": "Current Price",
+      "lastSale": "Last Sale",
+      "floorPrice": "Floor Price",
+      "topOffer": "Top Offer"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "properties": "Properties",
+      "history": "History",
+      "offers": "Offers"
+    },
+    "history": {
+      "minted": "Minted",
+      "listed": "Listed",
+      "sold": "Sold",
+      "transferred": "Transferred",
+      "offer": "Offer",
+      "bid": "Bid"
+    },
+    "comingSoon": "NFT details coming soon"
+  },
+  "wallet": {
+    "connect": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "wrongNetwork": "Wrong Network",
+    "switchNetwork": "Switch to {{network}}",
+    "notOwner": "You don't own this NFT",
+    "notConnected": "Connect your wallet to interact with NFTs"
+  },
+  "status": {
+    "draft": "Draft",
+    "active": "Active",
+    "sold": "Sold",
+    "cancelled": "Cancelled",
+    "expired": "Expired"
+  },
+  "messages": {
+    "listingCreated": "NFT listed successfully",
+    "listingCancelled": "Listing cancelled",
+    "purchaseComplete": "Purchase complete! NFT transferred to your wallet",
+    "offerSubmitted": "Offer submitted successfully",
+    "transactionPending": "Transaction pending confirmation...",
+    "transactionFailed": "Transaction failed. Please try again.",
+    "walletRequired": "Please connect your wallet to continue",
+    "insufficientFunds": "Insufficient funds for this transaction"
+  }
+}
+

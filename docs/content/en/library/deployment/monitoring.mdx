@@ -1,0 +1,1004 @@
+---
+title: Monitoring & Analytics
+description: Complete monitoring setup, performance tracking, error handling, analytics integration, and alerting system for Ring Platform deployments
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Monitoring & Analytics
+
+Ring Platform provides comprehensive monitoring and analytics capabilities to ensure optimal performance, reliability, and user experience. Our monitoring system tracks everything from application performance to business metrics, with automated alerting and detailed analytics dashboards.
+
+<Callout type="info" title="📊 Multi-Layer Monitoring">
+Ring Platform implements **5-layer monitoring**: Infrastructure → Application → User Experience → Business → Security, providing complete visibility into system health and performance.
+</Callout>
+
+## 🏗️ Monitoring Architecture
+
+### Monitoring Stack
+
+```
+Infrastructure Monitoring → Application Metrics → User Analytics → Business Intelligence → Security Monitoring
+         ↓                           ↓                    ↓                    ↓                    ↓
+    Prometheus/Grafana         Vercel Analytics     PostHog/Mixpanel     Custom Dashboards    Security Logs
+```
+
+### Monitoring Layers
+
+- **Infrastructure**: Server resources, database performance, network health
+- **Application**: API response times, error rates, throughput
+- **User Experience**: Page load times, Core Web Vitals, user journeys
+- **Business**: Conversion rates, revenue tracking, user engagement
+- **Security**: Failed login attempts, suspicious activities, audit trails
+
+### Data Collection Strategy
+
+- **Real-time Metrics**: WebSocket connections, API calls, user interactions
+- **Performance Data**: Page loads, API response times, database queries
+- **Business Events**: Purchases, signups, feature usage, conversion funnels
+- **Error Tracking**: JavaScript errors, API failures, system exceptions
+- **Security Events**: Authentication attempts, permission changes, data access
+
+## 📊 Performance Monitoring
+
+### Core Web Vitals
+
+Ring Platform tracks Google's Core Web Vitals to ensure optimal user experience:
+
+#### Largest Contentful Paint (LCP)
+// Automatic LCP tracking with Vercel Analytics
+
+<Code language="typescript" title="TypeScript">
+{`import { trackWebVitals } from '@/lib/analytics'
+
+export function reportWebVitals(metric) {
+  // Track LCP, FID, CLS automatically
+  trackWebVitals(metric.name, metric.value, {
+    path: window.location.pathname,
+    device: getDeviceType(),
+    connection: navigator.connection?.effectiveType
+  })
+}`}
+</Code>
+
+#### First Input Delay (FID)
+// Real user interaction tracking
+
+<Code language="typescript" title="TypeScript">
+{`const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (entry.name === 'first-input') {
+      analytics.track('fid_measured', {
+        value: entry.processingStart - entry.startTime,
+        inputType: entry.name,
+        userAgent: navigator.userAgent
+      })
+    }
+  }
+})
+observer.observe({ entryTypes: ['first-input'] })`}
+</Code>
+
+#### Cumulative Layout Shift (CLS)
+// Layout stability monitoring
+
+<Code language="typescript" title="TypeScript">
+{`let clsValue = 0
+const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (!entry.hadRecentInput) {
+      clsValue += entry.value
+    }
+  }
+})
+
+observer.observe({ entryTypes: ['layout-shift'] })
+
+// Report CLS on page unload
+window.addEventListener('beforeunload', () => {
+  analytics.track('cls_measured', {
+    value: clsValue,
+    page: window.location.pathname
+  })
+})`}
+</Code>
+
+### API Performance Monitoring
+
+// Client-side API monitoring
+
+<Code language="typescript" title="TypeScript">
+{`const apiMonitor = {
+  requests: new Map(),
+
+  trackRequest(url: string, method: string, startTime: number) {
+    this.requests.set(`${method}-${url}`, {
+      startTime,
+      method,
+      url
+    })
+  },
+
+  trackResponse(url: string, method: string, status: number, endTime: number) {
+    const key = `${method}-${url}`
+    const request = this.requests.get(key)
+
+    if (request) {
+      const duration = endTime - request.startTime
+
+      analytics.track('api_call', {
+        url,
+        method,
+        status,
+        duration,
+        success: status >= 200 && status < 300,
+        slow: duration > 2000
+      })
+
+      this.requests.delete(key)
+    }
+  }
+}
+
+// Usage in API client
+fetch('/api/entities', {
+  method: 'GET',
+  headers: { 'Authorization': token }
+}).then(response => {
+  apiMonitor.trackResponse('/api/entities', 'GET', response.status, Date.now())
+  return response.json()
+})`}
+</Code>
+
+### Database Performance Tracking
+
+// Database query monitoring
+
+<Code language="typescript" title="TypeScript">
+{`const dbMonitor = {
+  trackQuery(query: string, startTime: number, success: boolean, duration: number, error?: string) {
+    analytics.track('db_query', {
+      query: query.substring(0, 100), // Truncate for privacy
+      duration,
+      success,
+      error: error ? error.substring(0, 100) : null,
+      slow: duration > 1000,
+      timestamp: new Date().toISOString()
+    })
+  }
+}
+
+// PostgreSQL query wrapper
+export async function executeQuery(query: string, params?: any[]) {
+  const startTime = Date.now()
+
+  try {
+    const result = await pool.query(query, params)
+    const duration = Date.now() - startTime
+
+    dbMonitor.trackQuery(query, startTime, true, duration)
+
+    return result
+  } catch (error) {
+    const duration = Date.now() - startTime
+
+    dbMonitor.trackQuery(query, startTime, false, duration, error.message)
+
+    throw error
+  }
+}`}
+</Code>
+
+## 🚨 Error Tracking & Alerting
+
+### Client-Side Error Monitoring
+
+// Global error handler
+
+<Code language="typescript" title="TypeScript">
+{`window.addEventListener('error', (event) => {
+  analytics.track('javascript_error', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    stack: event.error?.stack,
+    url: window.location.href,
+    userAgent: navigator.userAgent,
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  analytics.track('unhandled_promise_rejection', {
+    reason: event.reason?.toString(),
+    stack: event.reason?.stack,
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  })
+})
+
+// React error boundary
+class ErrorBoundary extends React.Component {
+  componentDidCatch(error, errorInfo) {
+    analytics.track('react_error', {
+      error: error.toString(),
+      stack: errorInfo.componentStack,
+      url: window.location.href,
+      timestamp: new Date().toISOString()
+    })
+  }
+}`}
+</Code>
+
+### Server-Side Error Monitoring
+
+// API route error tracking
+
+<Code language="typescript" title="TypeScript">
+{`export async function apiErrorHandler(error: Error, request: Request) {
+  const errorData = {
+    message: error.message,
+    stack: error.stack,
+    url: request.url,
+    method: request.method,
+    headers: Object.fromEntries(request.headers),
+    timestamp: new Date().toISOString(),
+    userAgent: request.headers.get('user-agent'),
+    ip: getClientIP(request)
+  }
+
+  // Track error
+  analytics.track('api_error', errorData)
+
+  // Log to monitoring system
+  logger.error('API Error', errorData)
+
+  return new Response(JSON.stringify({
+    error: 'Internal Server Error',
+    requestId: generateRequestId()
+  }), { status: 500 })
+}`}
+</Code>
+
+### Alert Configuration
+
+// Alert definitions
+
+<Code language="typescript" title="TypeScript">
+{`const alerts = {
+  // Performance alerts
+  slowApiResponse: {
+    condition: 'avg(api_response_time) > 2000',
+    threshold: '5 minutes',
+    severity: 'warning',
+    channels: ['slack', 'email'],
+    message: 'API response time exceeded 2 seconds for 5+ minutes'
+  },
+
+  highErrorRate: {
+    condition: 'rate(http_requests_total{status=~"5.."}[5m]) > 0.05',
+    threshold: '5 minutes',
+    severity: 'critical',
+    channels: ['slack', 'sms', 'email'],
+    message: 'Error rate exceeded 5% for 5+ minutes'
+  },
+
+  // Business alerts
+  failedPayments: {
+    condition: 'increase(payment_failures[1h]) > 10',
+    threshold: '1 hour',
+    severity: 'warning',
+    channels: ['slack'],
+    message: 'More than 10 payment failures in the last hour'
+  },
+
+  // Security alerts
+  failedLogins: {
+    condition: 'increase(failed_login_attempts[15m]) > 50',
+    threshold: '15 minutes',
+    severity: 'warning',
+    channels: ['slack', 'email'],
+    message: 'High number of failed login attempts detected'
+  }
+}`}
+</Code>
+
+## 📈 Analytics Integration
+
+### User Behavior Tracking
+
+// Page view tracking
+
+<Code language="typescript" title="TypeScript">
+{`const trackPageView = (page: string, properties?: Record<string, any>) => {
+  analytics.track('page_view', {
+    page,
+    referrer: document.referrer,
+    userAgent: navigator.userAgent,
+    screenSize: `${window.screen.width}x${window.screen.height}`,
+    language: navigator.language,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ...properties
+  })
+}
+
+// User journey tracking
+const trackUserJourney = (step: string, data?: Record<string, any>) => {
+  analytics.track('user_journey', {
+    step,
+    sessionId: getSessionId(),
+    timestamp: new Date().toISOString(),
+    ...data
+  })
+}
+
+// Example usage
+trackUserJourney('landing_page_viewed')
+trackUserJourney('signup_started', { source: 'google_ads' })
+trackUserJourney('signup_completed', { plan: 'premium' })`}
+</Code>
+
+### Conversion Funnel Analysis
+
+// Conversion funnel tracking
+
+<Code language="typescript" title="TypeScript">
+{`const trackConversion = (funnel: string, step: string, userId?: string) => {
+  analytics.track('conversion_funnel', {
+    funnel, // 'signup', 'purchase', 'onboarding'
+    step,   // 'started', 'step1_completed', 'completed'
+    userId,
+    timestamp: new Date().toISOString(),
+    sessionId: getSessionId()
+  })
+}
+
+// Funnel definitions
+const funnels = {
+  signup: ['landing_page', 'signup_form', 'email_verification', 'profile_setup', 'completed'],
+  purchase: ['product_view', 'add_to_cart', 'checkout_start', 'payment', 'completed'],
+  onboarding: ['login', 'profile_complete', 'first_entity', 'first_opportunity', 'first_message']
+}`}
+</Code>
+
+### A/B Testing Framework
+
+// A/B test tracking
+
+<Code language="typescript" title="TypeScript">
+{`const trackABTest = (testName: string, variant: string, event: string, data?: Record<string, any>) => {
+  analytics.track('ab_test', {
+    testName,
+    variant,
+    event,
+    userId: getCurrentUserId(),
+    sessionId: getSessionId(),
+    timestamp: new Date().toISOString(),
+    ...data
+  })
+}
+
+// Example usage
+trackABTest('checkout_flow', 'variant_a', 'checkout_started')
+trackABTest('pricing_page', 'variant_b', 'upgrade_clicked', {
+  currentPlan: 'free',
+  targetPlan: 'premium'
+})`}
+</Code>
+
+## 🔍 Log Management
+
+### Structured Logging
+
+// Logger configuration
+
+<Code language="typescript" title="TypeScript">
+{`const logger = {
+  info: (message: string, data?: any) => log('info', message, data),
+  warn: (message: string, data?: any) => log('warn', message, data),
+  error: (message: string, data?: any) => log('error', message, data),
+  debug: (message: string, data?: any) => log('debug', message, data)
+}
+
+function log(level: string, message: string, data?: any) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    service: 'ring-platform',
+    version: process.env.npm_package_version,
+    environment: process.env.NODE_ENV,
+    requestId: getCurrentRequestId(),
+    userId: getCurrentUserId(),
+    sessionId: getCurrentSessionId(),
+    ...data
+  }
+
+  // Console output for development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(JSON.stringify(logEntry, null, 2))
+  }
+
+  // Send to monitoring service
+  sendToLogService(logEntry)
+}`}
+</Code>
+
+### Log Aggregation
+
+// Log shipping configuration
+
+<Code language="typescript" title="TypeScript">
+{`const logShipper = {
+  // Vercel deployment
+  vercel: {
+    endpoint: process.env.VERCEL_LOG_DRAIN,
+    format: 'json'
+  },
+
+  // External services
+  datadog: {
+    apiKey: process.env.DD_API_KEY,
+    tags: ['service:ring-platform', 'env:production']
+  },
+
+  // Cloud services
+  cloudwatch: {
+    logGroup: '/ring-platform/production',
+    logStream: `instance-${process.env.INSTANCE_ID}`
+  }
+}
+
+// Log batching for efficiency
+class LogBatcher {
+  private logs: any[] = []
+  private flushInterval: NodeJS.Timeout
+
+  constructor() {
+    this.flushInterval = setInterval(() => this.flush(), 5000)
+  }
+
+  add(logEntry: any) {
+    this.logs.push(logEntry)
+
+    if (this.logs.length >= 100) {
+      this.flush()
+    }
+  }
+
+  async flush() {
+    if (this.logs.length === 0) return
+
+    const batch = [...this.logs]
+    this.logs = []
+
+    try {
+      await sendLogsToService(batch)
+    } catch (error) {
+      console.error('Failed to send logs:', error)
+      // Retry logic here
+    }
+  }
+}`}
+</Code>
+
+## 📊 Dashboards & Reporting
+
+### Real-time Dashboard
+
+// Dashboard data provider
+
+<Code language="typescript" title="TypeScript">
+{`const useDashboardData = () => {
+  const [metrics, setMetrics] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch('/api/admin/analytics?period=hour')
+        const data = await response.json()
+
+        setMetrics({
+          users: {
+            active: data.userMetrics.activity.dailyActiveUsers,
+            total: data.summary.totalUsers,
+            growth: calculateGrowth(data.userMetrics.registrations)
+          },
+          performance: {
+            responseTime: data.systemMetrics.performance.avgResponseTime,
+            errorRate: data.systemMetrics.performance.errorRate,
+            uptime: data.systemMetrics.performance.uptime
+          },
+          business: {
+            revenue: data.summary.revenue,
+            orders: data.summary.totalOrders,
+            conversion: data.userMetrics.registrations.conversion
+          }
+        })
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMetrics()
+
+    // Real-time updates every 30 seconds
+    const interval = setInterval(fetchMetrics, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return { metrics, loading }
+}`}
+</Code>
+
+### Custom Report Builder
+
+// Report configuration
+
+<Code language="typescript" title="TypeScript">
+{`interface ReportConfig {
+  name: string
+  dateRange: {
+    start: string
+    end: string
+  }
+  metrics: string[]
+  filters: Record<string, any>
+  groupBy: string[]
+  format: 'json' | 'csv' | 'pdf'
+}
+
+const generateReport = async (config: ReportConfig) => {
+  const response = await fetch('/api/admin/reports/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config)
+  })
+
+  if (config.format === 'json') {
+    return response.json()
+  } else {
+    // Handle file download
+    const blob = await response.blob()
+    downloadBlob(blob, `${config.name}.${config.format}`)
+  }
+}
+
+// Usage
+const monthlyReport = await generateReport({
+  name: 'Monthly User Activity',
+  dateRange: {
+    start: '2025-09-01',
+    end: '2025-09-30'
+  },
+  metrics: ['activeUsers', 'newUsers', 'revenue', 'errorRate'],
+  filters: { platform: 'web' },
+  groupBy: ['day'],
+  format: 'csv'
+})`}
+</Code>
+
+## 🔧 Implementation Examples
+
+### Monitoring Setup Guide
+
+<Steps>
+<Step>
+
+### 1. Vercel Analytics Integration
+
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { Analytics } from '@vercel/analytics/react'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}`}
+</Code>
+
+</Step>
+
+<Step>
+
+### 2. Error Boundary Setup
+
+// components/ErrorBoundary.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import React from 'react'
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // Log error to monitoring service
+    fetch('/api/errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: error.toString(),
+        stack: errorInfo.componentStack,
+        url: window.location.href,
+        timestamp: new Date().toISOString()
+      })
+    })
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>Something went wrong. Please refresh the page.</div>
+    }
+
+    return this.props.children
+  }
+}
+
+export default ErrorBoundary`}
+</Code>
+
+</Step>
+
+<Step>
+
+### 3. Performance Observer Setup
+
+// lib/performance.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function initPerformanceMonitoring() {
+  // Core Web Vitals
+  if ('web-vitals' in window) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS(console.log)
+      getFID(console.log)
+      getFCP(console.log)
+      getLCP(console.log)
+      getTTFB(console.log)
+    })
+  }
+
+  // Long tasks
+  if ('PerformanceObserver' in window) {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.duration > 50) { // Long task > 50ms
+          analytics.track('long_task', {
+            duration: entry.duration,
+            startTime: entry.startTime,
+            name: entry.name
+          })
+        }
+      }
+    })
+
+    observer.observe({ entryTypes: ['longtask'] })
+  }
+
+  // Resource loading
+  const resourceObserver = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (entry.duration > 2000) { // Slow resource > 2s
+        analytics.track('slow_resource', {
+          url: entry.name,
+          duration: entry.duration,
+          size: entry.transferSize,
+          type: entry.initiatorType
+        })
+      }
+    }
+  })
+
+  resourceObserver.observe({ entryTypes: ['resource'] })
+}`}
+</Code>
+
+</Step>
+
+<Step>
+
+### 4. Alert Webhook Handler
+
+// pages/api/alerts/webhook.ts
+
+<Code language="typescript" title="TypeScript">
+{`export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  try {
+    const alert = req.body
+
+    // Process alert based on type
+    switch (alert.type) {
+      case 'performance':
+        await handlePerformanceAlert(alert)
+        break
+      case 'error':
+        await handleErrorAlert(alert)
+        break
+      case 'security':
+        await handleSecurityAlert(alert)
+        break
+      default:
+        console.log('Unknown alert type:', alert.type)
+    }
+
+    res.status(200).json({ status: 'processed' })
+  } catch (error) {
+    console.error('Alert processing failed:', error)
+    res.status(500).json({ error: 'Processing failed' })
+  }
+}
+
+async function handlePerformanceAlert(alert) {
+  // Send Slack notification
+  await fetch(process.env.SLACK_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: `🚨 Performance Alert: ${alert.message}`,
+      attachments: [{
+        color: 'warning',
+        fields: [
+          { title: 'Metric', value: alert.metric, short: true },
+          { title: 'Value', value: alert.value, short: true },
+          { title: 'Threshold', value: alert.threshold, short: true }
+        ]
+      }]
+    })
+  })
+}`}
+</Code>
+
+</Step>
+</Steps>
+
+## 🚨 Alert Management
+
+### Alert Types
+
+| Alert Type | Severity | Description | Response Time |
+|------------|----------|-------------|---------------|
+| **Critical** | 🔴 | System down, data loss | Immediate (< 5 min) |
+| **High** | 🟠 | Service degradation, security breach | Within 15 minutes |
+| **Medium** | 🟡 | Performance issues, high error rates | Within 1 hour |
+| **Low** | 🔵 | Minor issues, informational | Within 4 hours |
+| **Info** | ℹ️ | System information, maintenance | As needed |
+
+### Alert Channels
+
+- **Slack**: Real-time notifications for development team
+- **Email**: Detailed reports and non-urgent alerts
+- **SMS**: Critical alerts requiring immediate attention
+- **PagerDuty**: Escalation for critical system issues
+- **Dashboard**: Visual indicators in monitoring dashboard
+
+### Alert Escalation
+
+// Escalation rules
+
+<Code language="typescript" title="TypeScript">
+{`const escalationRules = {
+  critical: {
+    immediate: ['sms', 'slack', 'pagerduty'],
+    '15min': ['email'],
+    '1hour': ['management_email']
+  },
+  high: {
+    immediate: ['slack'],
+    '30min': ['email'],
+    '2hours': ['sms']
+  },
+  medium: {
+    '1hour': ['slack', 'email'],
+    '4hours': ['sms']
+  }
+}`}
+</Code>
+
+## 📊 Business Intelligence
+
+### Revenue Analytics
+
+// Revenue tracking
+
+<Code language="typescript" title="TypeScript">
+{`const trackRevenue = (order: Order) => {
+  analytics.track('revenue', {
+    amount: order.totalAmount,
+    currency: order.currency,
+    paymentMethod: order.paymentMethod,
+    vendorId: order.vendorId,
+    customerType: order.customer.new ? 'new' : 'returning',
+    products: order.items.length,
+    timestamp: new Date().toISOString()
+  })
+
+  // Update revenue metrics
+  updateRevenueMetrics(order)
+}
+
+// Revenue metrics calculation
+const updateRevenueMetrics = (order: Order) => {
+  const metrics = {
+    dailyRevenue: getDailyRevenue(),
+    monthlyRevenue: getMonthlyRevenue(),
+    averageOrderValue: getAverageOrderValue(),
+    revenueByPaymentMethod: getRevenueByPaymentMethod(),
+    topProducts: getTopProducts(),
+    customerLifetimeValue: getCustomerLifetimeValue()
+  }
+
+  // Store metrics for dashboard
+  cache.set('revenue_metrics', metrics, 3600) // 1 hour cache
+}`}
+</Code>
+
+### User Segmentation
+
+// User segmentation tracking
+
+<Code language="typescript" title="TypeScript">
+{`const trackUserSegment = (userId: string, segment: string) => {
+  analytics.track('user_segment', {
+    userId,
+    segment, // 'free', 'premium', 'enterprise', 'inactive'
+    previousSegment: getPreviousSegment(userId),
+    timestamp: new Date().toISOString()
+  })
+}
+
+// Segment definitions
+const userSegments = {
+  free: {
+    criteria: 'plan === "free"',
+    value: 'Low value, high volume'
+  },
+  premium: {
+    criteria: 'plan === "premium" && active',
+    value: 'High value, engaged users'
+  },
+  enterprise: {
+    criteria: 'plan === "enterprise"',
+    value: 'Highest value, complex needs'
+  },
+  inactive: {
+    criteria: 'lastLogin > 90 days',
+    value: 'At risk of churn'
+  }
+}`}
+</Code>
+
+## 🔒 Security Monitoring
+
+### Authentication Monitoring
+
+// Failed login tracking
+
+<Code language="typescript" title="TypeScript">
+{`const trackFailedLogin = (email: string, ip: string, userAgent: string) => {
+  analytics.track('failed_login', {
+    email: hashEmail(email), // Privacy protection
+    ip,
+    userAgent,
+    timestamp: new Date().toISOString(),
+    attempts: getRecentFailedAttempts(ip)
+  })
+
+  // Check for brute force attacks
+  if (getRecentFailedAttempts(ip) > 5) {
+    securityAlert('brute_force_attempt', { ip, attempts: getRecentFailedAttempts(ip) })
+  }
+}
+
+// Suspicious activity detection
+const detectSuspiciousActivity = (userId: string, action: string, context: any) => {
+  const riskScore = calculateRiskScore(userId, action, context)
+
+  if (riskScore > 0.8) {
+    securityAlert('suspicious_activity', {
+      userId,
+      action,
+      riskScore,
+      context
+    })
+  }
+}`}
+</Code>
+
+### Audit Trail
+
+// Comprehensive audit logging
+
+<Code language="typescript" title="TypeScript">
+{`const auditLog = (action: string, actor: string, target: string, details: any) => {
+  const auditEntry = {
+    id: generateAuditId(),
+    timestamp: new Date().toISOString(),
+    action,
+    actor: {
+      id: actor,
+      type: 'user', // or 'system', 'api'
+      ip: getClientIP(),
+      userAgent: getUserAgent()
+    },
+    target: {
+      id: target,
+      type: getTargetType(target) // 'user', 'order', 'product', etc.
+    },
+    details,
+    checksum: generateChecksum(auditEntry)
+  }
+
+  // Store in tamper-proof audit log
+  storeAuditEntry(auditEntry)
+
+  // Send to security monitoring
+  securityMonitor.processAuditEntry(auditEntry)
+}`}
+</Code>
+
+## 🎛️ Configuration
+
+### Environment Variables
+
+Analytics & Monitoring Alert Configuration Performance Monitoring Security Monitoring Dashboard Configuration
+
+<Code language="bash" title="terminal">
+{`VERCEL_ANALYTICS_ID=your-vercel-analytics-id
+SENTRY_DSN=your-sentry-dsn
+MIXPANEL_TOKEN=your-mixpanel-token
+
+SLACK_WEBHOOK_URL=your-slack-webhook
+PAGERDUTY_INTEGRATION_KEY=your-pagerduty-key
+ALERT_EMAIL_RECIPIENTS=alerts@yourcompany.com
+
+PERFORMANCE_MONITORING_ENABLED=true
+WEB_VITALS_TRACKING_ENABLED=true
+ERROR_TRACKING_ENABLED=true
+
+SECURITY_MONITORING_ENABLED=true
+AUDIT_LOG_RETENTION_DAYS=2555
+BRUTE_FORCE_PROTECTION_ENABLED=true
+
+DASHBOARD_REFRESH_INTERVAL=30
+METRICS_RETENTION_DAYS=90
+REAL_TIME_UPDATES_ENABLED=true`}
+</Code>
+
+### Monitoring Dashboard URLs
+
+- **Vercel Analytics**: `https://vercel.com/your-project/analytics`
+- **Sentry Dashboard**: `https://sentry.io/organizations/your-org/issues/`
+- **Custom Dashboard**: `/admin/analytics` (Ring Platform built-in)
+- **Uptime Monitoring**: Configure external uptime monitoring service
+
+---
+
+*Ring Platform's monitoring and analytics system provides enterprise-grade observability with real-time insights, automated alerting, and comprehensive business intelligence.*

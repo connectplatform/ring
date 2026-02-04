@@ -1,0 +1,251 @@
+---
+title: Можливості
+description: Документація можливостей для Ring Platform
+---
+
+# Opportunities API
+
+Управління двоприродним маркетплейсом можливостей з **7 ендпоінтами**, що підтримують як пропозиції, так і запити для різних типів можливостей.
+
+## Огляд
+
+Система можливостей Ring Platform підтримує унікальний двоприродний підхід:
+- **Пропозиції**: Що надають організації (робота, партнерство, ресурси)
+- **Запити**: Що потрібно організаціям (послуги, партнерство, ресурси)
+
+**7 типів можливостей:**
+- Робочі можливості
+- Партнерські можливості
+- Волонтерські можливості
+- Менторські можливості
+- Ресурсні можливості
+- Подієві можливості
+- Користувацькі можливості
+
+## API Ендпоінти
+
+### `GET /api/opportunities`
+Список можливостей з розширеною фільтрацією
+
+### `POST /api/opportunities`
+Створити нову можливість (потрібна роль MEMBER)
+
+### `GET /api/opportunities/{id}`
+Отримати деталі можливості за ID
+
+### `PUT /api/opportunities/{id}`
+Оновити інформацію про можливість
+
+### `DELETE /api/opportunities/{id}`
+Видалити можливість
+
+### `POST /api/opportunities/{id}/apply`
+Подати заявку на можливість або виразити зацікавленість
+
+### `GET /api/opportunities/{id}/applications`
+Список заявок на можливість
+
+## Структура Можливості
+
+<Code language="typescript" title="interface Opportunity {">
+{`id: string
+  title: string
+  description: string
+  type: OpportunityType
+  nature: 'OFFER' | 'REQUEST'
+  entityId: string
+  entity: Entity
+  location?: string
+  remote: boolean
+  deadline?: Date
+  confidential: boolean
+  requirements: string[]
+  benefits: string[]
+  compensation?: {
+    type: 'SALARY' | 'HOURLY' | 'PROJECT' | 'EQUITY' | 'VOLUNTEER'
+    amount?: number
+    currency?: string
+    equity?: number
+  }
+  applications: Application[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+enum OpportunityType {
+  JOB = 'JOB',
+  PARTNERSHIP = 'PARTNERSHIP', 
+  VOLUNTEER = 'VOLUNTEER',
+  MENTORSHIP = 'MENTORSHIP',
+  RESOURCE = 'RESOURCE',
+  EVENT = 'EVENT',
+  CUSTOM = 'CUSTOM'
+}`}
+</Code>
+
+## Типи Можливостей
+
+### Робочі Можливості
+- Повна зайнятість
+- Часткова зайнятість
+- Контрактна робота
+- Стажування
+
+### Партнерські Можливості
+- Бізнес-партнерство
+- Стратегічні альянси
+- Спільні підприємства
+- Колаборативні проєкти
+
+### Волонтерські Можливості
+- Робота в НКО
+- Громадські послуги
+- Про боно проєкти
+- Соціальні ініціативи
+
+### Менторські Можливості
+- Професійне наставництво
+- Галузеве керівництво
+- Розвиток навичок
+- Кар'єрний коучинг
+
+### Ресурсні Можливості
+- Обмін обладнанням
+- Оренда приміщень
+- Обмін послугами
+- Обмін знаннями
+
+### Подієві Можливості
+- Виступи на конференціях
+- Проведення воркшопів
+- Нетворкінг події
+- Тренінгові сесії
+
+## Приклади Реалізації
+
+### Створити Робочу Можливість (Пропозиція)
+
+const jobOffer = await fetch('/api/opportunities', {
+
+<Code language="typescript" title="TypeScript">
+{`method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    title: 'Senior React Розробник',
+    description: 'Приєднуйтесь до нашої команди для створення веб-додатків нового покоління',
+    type: 'JOB',
+    nature: 'OFFER',
+    entityId: 'entity-123',
+    location: 'Київ, Україна',
+    remote: true,
+    requirements: [
+      '5+ років досвіду з React',
+      'Володіння TypeScript',
+      'Знання Next.js'
+    ],
+    compensation: {
+      type: 'SALARY',
+      amount: 150000,
+      currency: 'UAH'
+    }
+  })
+})`}
+</Code>
+
+### Створити Запит на Партнерство
+
+<Code language="typescript" title="TypeScript">
+{`const partnershipRequest = await fetch('/api/opportunities', {
+method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    title: 'Шукаємо Маркетингового Партнера',
+    description: 'Потрібна експертиза в цифровому маркетингу для запуску продукту',
+    type: 'PARTNERSHIP',
+    nature: 'REQUEST',
+    entityId: 'entity-456',
+    requirements: [
+      'Досвід цифрового маркетингу',
+      'Експертиза в соціальних мережах',
+      'Навички створення контенту'
+    ],
+    benefits: [
+      'Можливість розподілу доходів',
+      'Потенціал довгострокового партнерства',
+      'Галузевий нетворкінг'
+    ]
+  })
+})`}
+</Code>
+
+### Пошук Можливостей
+
+// Пошук віддалених робочих можливостей
+
+<Code language="typescript" title="TypeScript">
+{`const jobsResponse = await fetch('/api/opportunities?type=JOB&nature=OFFER&remote=true&limit=20')
+const { opportunities, total, hasMore } = await jobsResponse.json()
+
+// Пошук запитів на партнерство в IT індустрії
+const partnershipsResponse = await fetch('/api/opportunities?type=PARTNERSHIP&nature=REQUEST&industry=TECHNOLOGY_SOFTWARE')
+const partnerships = await partnershipsResponse.json()`}
+</Code>
+
+### Подати Заявку на Можливість
+
+<Code language="typescript" title="TypeScript">
+{`const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    coverLetter: 'Я з радістю подаю заявку на цю позицію...',
+    resume: 'https://example.com/resume.pdf',
+    portfolio: 'https://portfolio.example.com'
+  })
+})`}
+</Code>
+
+## Контроль Доступу
+
+### Видимість Можливостей
+- **Публічні Можливості**: Видимі всім користувачам
+- **Конфіденційні Можливості**: Потребують роль CONFIDENTIAL
+
+### Управління Можливостями
+- **Створення**: Потрібна роль MEMBER
+- **Оновлення/Видалення**: Створювач можливості або адміністратор організації
+- **Подача заявки**: Будь-який авторизований користувач (залежно від ролі)
+
+### Управління Заявками
+- **Перегляд Заявок**: Створювач можливості та адміністратори організації
+- **Управління Заявками**: Прийняття/відхилення заявок
+
+## Розширені Функції
+
+### Управління Дедлайнами
+- Автоматичне закінчення терміну можливостей
+- Сповіщення про дедлайни
+- Обробка закінчення прийому заявок
+
+### Розумне Співставлення
+- AI-рекомендації можливостей
+- Співставлення за навичками
+- Фільтрація за локацією та вподобаннями
+
+### Аналітика
+- Відстеження заявок
+- Метрики ефективності
+- Аналіз успішності
+
+---
+
+*Готові опублікувати свою першу можливість? Почніть з нашого посібника [Початок роботи](/uk/docs/getting-started).*

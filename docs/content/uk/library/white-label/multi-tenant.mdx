@@ -1,0 +1,866 @@
+---
+title: Багатотenant розгортання
+description: Обслуговуйте кілька організацій з одного екземпляра Ring з повною ізоляцією даних та налаштуванням
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Багатотenant розгортання
+
+<Callout type="info">
+  **Перевага багатотenant архітектури Ring**: Обслуговуйте сотні організацій з одного розгортання, підтримуючи повну ізоляцію даних, кастомне брендинг та незалежне адміністрування.
+</Callout>
+
+Багатотenant архітектура дозволяє запускати Ring як платформу, де кілька організацій (tenant'ів) ділять спільну інфраструктуру, але мають власні дані, брендинг та управління користувачами. Це ідеально для:
+
+- **Постачальників платформ**, що обслуговують кількох клієнтів
+- **Асоціацій галузей** з організаціями-членами
+- **Франчайзингових мереж** з брендованими екземплярами
+- **Урядових платформ** для різних департаментів
+
+## Огляд багатотenant архітектури
+
+### Моделі ізоляції даних
+
+**1. Спільна база даних з розділенням схем**
+```
+База даних
+├── public (спільні дані)
+├── tenant_1 (дані клієнта A)
+├── tenant_2 (дані клієнта B)
+└── tenant_3 (дані клієнта C)
+```
+
+**2. База даних на tenant**
+```
+Сервер бази даних
+├── shared_db (дані платформи)
+├── client_a_db (клієнт A)
+├── client_b_db (клієнт B)
+└── client_c_db (клієнт C)
+```
+
+**3. Гібридний підхід**
+```
+Сервер бази даних
+├── shared_db (платформа + деякі дані tenant'ів)
+├── tenant_dbs/ (великі tenant'и отримують власну БД)
+└── shared_storage/ (сховище файлів)
+```
+
+### Ідентифікація tenant'ів
+
+<Steps>
+  <Step>
+    **Ідентифікація на основі домену:**
+
+    // Маршрутизація субдоменів
+
+<Code language="typescript" title="TypeScript">
+{`app.use((req, res, next) => {
+      const hostname = req.hostname; // client-a.myplatform.com
+      const tenantId = extractTenantFromDomain(hostname);
+      req.tenantId = tenantId;
+      next();
+    });`}
+</Code>
+  </Step>
+
+  <Step>
+    **Ідентифікація на основі URL-шляху:**
+
+    // Маршрутизація на основі шляху
+
+<Code language="typescript" title="TypeScript">
+{`app.use('/org/:tenantId', (req, res, next) => {
+      req.tenantId = req.params.tenantId;
+      next();
+    });`}
+</Code>
+  </Step>
+
+  <Step>
+    **Ідентифікація на основі заголовків:**
+
+    // Ідентифікація через API заголовки
+
+<Code language="typescript" title="TypeScript">
+{`app.use((req, res, next) => {
+      const tenantId = req.headers['x-tenant-id'];
+      req.tenantId = tenantId;
+      next();
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+## Налаштування багатотenant Ring
+
+### 1. Конфігурація бази даних
+
+<Steps>
+  <Step>
+    **Налаштуйте базу даних tenant'ів:**
+
+    Режим багатотenant Ізоляція на основі схем (рекомендовано)
+
+<Code language="env" title="configuration">
+{`DATABASE_MODE=postgresql_only
+    MULTI_TENANT_ENABLED=true
+    TENANT_ISOLATION_LEVEL=schema  # schema, database, or hybrid
+
+    POSTGRESQL_URL=postgresql://user:pass@host:5432/platform_db
+    TENANT_SCHEMA_PREFIX=tenant_`}
+</Code>
+  </Step>
+
+  <Step>
+    **Створіть міграцію схеми tenant'а:**
+
+    <Code language="sql" title="-- Створити схему tenant'а">
+{`CREATE SCHEMA IF NOT EXISTS tenant_{tenant_id};
+
+    -- Створити таблиці tenant'а
+    CREATE TABLE tenant_{tenant_id}.users (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) UNIQUE,
+      tenant_id VARCHAR(50) NOT NULL DEFAULT '{tenant_id}',
+      -- tenant-специфічні поля
+    );
+
+    -- Додати security на рівні рядків
+    ALTER TABLE tenant_{tenant_id}.users
+    ENABLE ROW LEVEL SECURITY;
+
+    CREATE POLICY tenant_isolation ON tenant_{tenant_id}.users
+    FOR ALL USING (tenant_id = current_setting('app.tenant_id'));`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Система провізіонінгу tenant'ів
+
+<Steps>
+  <Step>
+    **Створіть API провізіонінгу tenant'ів:**
+
+    // app/api/admin/tenants/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function POST(request: Request) {
+      const { name, domain, adminEmail } = await request.json();
+
+      // Генерувати tenant ID
+      const tenantId = generateTenantId();
+
+      // Створити схему бази даних tenant'а
+      await createTenantSchema(tenantId);
+
+      // Створити адміністратора
+      const admin = await createTenantAdmin(tenantId, adminEmail);
+
+      // Налаштувати стандартну конфігурацію
+      await initializeTenantConfig(tenantId, { name, domain });
+
+      return Response.json({
+        tenantId,
+        adminCredentials: { email: adminEmail, tempPassword: admin.password }
+      });
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Схема конфігурації tenant'а:**
+
+    // lib/schemas/tenant-config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const tenantConfigSchema = z.object({
+      id: z.string(),
+      name: z.string(),
+      domain: z.string(),
+      branding: z.object({
+        logo: z.string().optional(),
+        colors: z.object({
+          primary: z.string(),
+          secondary: z.string(),
+        }),
+        customCss: z.string().optional(),
+      }),
+      features: z.object({
+        opportunities: z.boolean().default(true),
+        marketplace: z.boolean().default(false),
+        messaging: z.boolean().default(true),
+        // ... прапорці функцій
+      }),
+      limits: z.object({
+        maxUsers: z.number().default(1000),
+        maxStorage: z.string().default('10GB'),
+        // ... ліміти ресурсів
+      }),
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+### 3. Брендинг та налаштування на tenant
+
+<Steps>
+  <Step>
+    **Tenant-специфічні теми:**
+
+    // lib/themes/tenant-themes.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function getTenantTheme(tenantId: string) {
+      const config = getTenantConfig(tenantId);
+
+      return {
+        colors: {
+          primary: config.branding.colors.primary,
+          secondary: config.branding.colors.secondary,
+        },
+        logo: config.branding.logo || '/default-logo.svg',
+        customCss: config.branding.customCss,
+      };
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Динамічне завантаження теми:**
+
+    // components/theme/tenant-theme-provider.tsx
+
+<Code language="tsx" title="tsx">
+{`'use client';
+
+    import { useTenant } from '@/hooks/use-tenant';
+    import { getTenantTheme } from '@/lib/themes/tenant-themes';
+
+    export function TenantThemeProvider({ children }) {
+      const tenant = useTenant();
+      const theme = getTenantTheme(tenant.id);
+
+      return (
+        <ThemeProvider theme={theme}>
+          {children}
+        </ThemeProvider>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Ін'єкція кастомного CSS:**
+
+    // lib/styles/tenant-styles.ts
+
+<Code language="tsx" title="tsx">
+{`export function injectTenantStyles(tenantId: string) {
+      const config = getTenantConfig(tenantId);
+
+      if (config.branding.customCss) {
+        const style = document.createElement('style');
+        style.textContent = config.branding.customCss;
+        document.head.appendChild(style);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Панель управління tenant'ами
+
+### 1. Інтерфейс адміністратора платформи
+
+<Steps>
+  <Step>
+    **Створіть сторінки управління tenant'ами:**
+
+    ```
+    app/admin/tenants/
+    ├── page.tsx (список tenant'ів)
+    ├── [tenantId]/
+    │   ├── page.tsx (огляд tenant'а)
+    │   ├── users/page.tsx (управління користувачами)
+    │   ├── config/page.tsx (конфігурація)
+    │   └── analytics/page.tsx (аналітика tenant'а)
+    ```
+  </Step>
+
+  <Step>
+    **Панель огляду tenant'а:**
+
+    // app/admin/tenants/[tenantId]/page.tsx
+
+<Code language="tsx" title="tsx">
+{`export default function TenantOverview({ params }) {
+      const { tenantId } = params;
+      const tenant = await getTenant(tenantId);
+
+      return (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{tenant.name}</CardTitle>
+              <CardDescription>{tenant.domain}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <div className="text-2xl font-bold">{tenant.stats.users}</div>
+                  <div className="text-sm text-muted-foreground">Користувачів</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{tenant.stats.revenue}</div>
+                  <div className="text-sm text-muted-foreground">Дохід</div>
+                </div>
+                {/* Більше статистики */}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Портал самообслуговування tenant'ів
+
+<Steps>
+  <Step>
+    **Панель адміністратора tenant'а:**
+
+    <Code language="tsx" title="tsx">
+{`// app/tenant-admin/page.tsx (обмежено tenant'ом)
+export default function TenantAdmin() {
+      const tenant = useTenant();
+
+      return (
+        <div className="space-y-6">
+          <h1 className="text-3xl font-bold">Панель адміністратора - {tenant.name}</h1>
+
+          {/* Tenant-специфічні функції адміністратора */}
+          <Card>
+            <CardTitle>Брендинг</CardTitle>
+            <CardContent>
+              <LogoUploader />
+              <ColorPicker />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Користувачі</CardTitle>
+            <CardContent>
+              <UserManagement />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Перемикачі функцій для tenant'ів:**
+
+    // components/admin/tenant-feature-toggles.tsx
+
+<Code language="tsx" title="tsx">
+{`const availableFeatures = [
+      { id: 'opportunities', name: 'Стрічка можливостей', premium: false },
+      { id: 'marketplace', name: 'Ринок продавців', premium: true },
+      { id: 'nft', name: 'NFT ринок', premium: true },
+      { id: 'staking', name: 'Стейкінг токенів', premium: true },
+    ];
+
+    export function TenantFeatureToggles() {
+      const { tenant, updateTenant } = useTenantAdmin();
+
+      return (
+        <div className="space-y-4">
+          {availableFeatures.map(feature => (
+            <div key={feature.id} className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">{feature.name}</div>
+                {feature.premium && <Badge variant="premium">Premium</Badge>}
+              </div>
+              <Switch
+                checked={tenant.features[feature.id]}
+                onCheckedChange={(enabled) =>
+                  updateTenant({
+                    features: { ...tenant.features, [feature.id]: enabled }
+                  })
+                }
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Управління ресурсами та ліміти
+
+### 1. Квоти ресурсів tenant'ів
+
+<Steps>
+  <Step>
+    **Визначте ліміти ресурсів:**
+
+    // lib/limits/tenant-limits.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const defaultLimits = {
+      users: {
+        max: 1000,
+        overageCost: 0.10, // $0.10 за користувача понад ліміт
+      },
+      storage: {
+        max: '10GB',
+        overageCost: 0.02, // $0.02 за ГБ понад ліміт
+      },
+      apiCalls: {
+        max: 100000, // на місяць
+        overageCost: 0.001, // $0.001 за виклик понад ліміт
+      },
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Відстеження використання ресурсів:**
+
+    // lib/monitoring/resource-tracker.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ResourceTracker {
+      async trackUsage(tenantId: string, resource: string, amount: number) {
+        const current = await getTenantUsage(tenantId, resource);
+        const limit = getTenantLimit(tenantId, resource);
+
+        if (current + amount > limit) {
+          await handleOverage(tenantId, resource, amount);
+        }
+
+        await incrementTenantUsage(tenantId, resource, amount);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Білінг та моніторинг використання
+
+<Steps>
+  <Step>
+    **Панель використання для tenant'ів:**
+
+    // components/tenant/usage-dashboard.tsx
+
+<Code language="tsx" title="tsx">
+{`export function UsageDashboard() {
+      const { tenant } = useTenant();
+      const usage = useTenantUsage(tenant.id);
+
+      return (
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardTitle>Користувачі</CardTitle>
+            <CardContent>
+              <ProgressBar
+                value={usage.users.current}
+                max={usage.users.limit}
+              />
+              <div className="text-sm text-muted-foreground">
+                {usage.users.current} / {usage.users.limit}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Сховище</CardTitle>
+            <CardContent>
+              <ProgressBar
+                value={usage.storage.used}
+                max={usage.storage.limit}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>API виклики</CardTitle>
+            <CardContent>
+              <ProgressBar
+                value={usage.api.calls}
+                max={usage.api.limit}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Автоматизований білінг:**
+
+    // lib/billing/auto-billing.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function processMonthlyBilling() {
+      const tenants = await getAllTenants();
+
+      for (const tenant of tenants) {
+        const usage = await calculateTenantUsage(tenant.id);
+        const bill = calculateBill(usage, tenant.limits);
+
+        if (bill.total > 0) {
+          await createInvoice(tenant.id, bill);
+          await chargeTenant(tenant.id, bill);
+        }
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Безпека та відповідність
+
+### 1. Забезпечення ізоляції даних
+
+<Steps>
+  <Step>
+    **Ізоляція на рівні бази даних:**
+
+    <Code language="sql" title="query">
+{`-- Політики безпеки на рівні рядків (RLS)
+CREATE POLICY tenant_data_isolation ON users
+    FOR ALL USING (tenant_id = current_setting('app.tenant_id'));
+
+    -- Запобігти між-tenant запитам
+    CREATE OR REPLACE FUNCTION set_tenant_context(tenant_id text)
+    RETURNS void AS $$
+    BEGIN
+      PERFORM set_config('app.tenant_id', tenant_id, false);
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;`}
+</Code>
+  </Step>
+
+  <Step>
+    **Перевірки на рівні додатку:**
+
+    // middleware/tenant-isolation.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function enforceTenantIsolation(request: Request) {
+      const tenantId = getTenantFromRequest(request);
+      const userTenantId = getUserTenant(request.user.id);
+
+      if (tenantId !== userTenantId) {
+        throw new Error('Доступ заборонено: порушення ізоляції tenant\'а');
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Резервне копіювання та відновлення
+
+<Steps>
+  <Step>
+    **Tenant-специфічне резервне копіювання:**
+
+    Резервувати окремого tenant'а Відновити tenant'а
+
+<Code language="bash" title="terminal">
+{`pg_dump --schema=tenant_123 platform_db > tenant_123_backup.sql
+
+    psql platform_db < tenant_123_backup.sql`}
+</Code>
+  </Step>
+
+  <Step>
+    **Автоматизована система резервного копіювання:**
+
+    // lib/backup/tenant-backup.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TenantBackupService {
+      async createTenantBackup(tenantId: string) {
+        const schemaName = `tenant_${tenantId}`;
+        const filename = `backup_${tenantId}_${Date.now()}.sql`;
+
+        await exec(`pg_dump --schema=${schemaName} ${this.dbName} > ${filename}`);
+
+        // Завантажити до сховища
+        await this.storage.upload(filename);
+      }
+
+      async restoreTenantBackup(tenantId: string, backupId: string) {
+        const filename = await this.storage.download(backupId);
+
+        await exec(`psql ${this.dbName} < ${filename}`);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Оптимізація продуктивності
+
+### 1. Стратегія кешування багатотenant
+
+<Steps>
+  <Step>
+    **Tenant-усвідомлене кешування:**
+
+    // lib/cache/tenant-cache.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TenantCache {
+      private getTenantKey(tenantId: string, key: string) {
+        return `tenant:${tenantId}:${key}`;
+      }
+
+      async get(tenantId: string, key: string) {
+        const tenantKey = this.getTenantKey(tenantId, key);
+        return this.redis.get(tenantKey);
+      }
+
+      async set(tenantId: string, key: string, value: any, ttl?: number) {
+        const tenantKey = this.getTenantKey(tenantId, key);
+        return this.redis.set(tenantKey, value, 'EX', ttl);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Інвалідація кешу:**
+
+    // Інвалідувати кеш tenant'а при оновленнях
+
+<Code language="typescript" title="TypeScript">
+{`export async function invalidateTenantCache(tenantId: string, pattern: string) {
+      const keys = await redis.keys(`tenant:${tenantId}:${pattern}`);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Пулінг ресурсів
+
+<Steps>
+  <Step>
+    **Пулінг з'єднань на tenant:**
+
+    // lib/database/tenant-connection-pool.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class TenantConnectionPool {
+      private pools = new Map<string, Pool>();
+
+      getPool(tenantId: string): Pool {
+        if (!this.pools.has(tenantId)) {
+          this.pools.set(tenantId, this.createPool(tenantId));
+        }
+        return this.pools.get(tenantId)!;
+      }
+
+      private createPool(tenantId: string): Pool {
+        return new Pool({
+          connectionString: this.getTenantConnectionString(tenantId),
+          max: 10, // Макс з'єднань на tenant
+          idleTimeoutMillis: 30000,
+        });
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Забезпечення лімітів ресурсів:**
+
+    // middleware/resource-limits.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function checkResourceLimits(request: Request) {
+      const tenantId = getTenantFromRequest(request);
+      const limits = await getTenantLimits(tenantId);
+
+      // Перевірити різні ліміти ресурсів
+      await checkUserLimit(tenantId, limits.users);
+      await checkStorageLimit(tenantId, limits.storage);
+      await checkApiLimit(tenantId, limits.api);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Масштабування багатотenant Ring
+
+### Горизонтальне масштабування
+
+<Steps>
+  <Step>
+    **Конфігурація балансувальника навантаження:**
+
+    Конфіг балансувальника для багатотenant
+
+<Code language="nginx" title="configuration">
+{`upstream ring_app {
+      server app1:3000;
+      server app2:3000;
+      server app3:3000;
+    }
+
+    server {
+      listen 80;
+      server_name *.myplatform.com;
+
+      location / {
+        proxy_pass http://ring_app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Tenant-Domain $host;
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Масштабування бази даних:**
+
+    // lib/database/read-replica.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ReadReplicaManager {
+      async getConnection(tenantId: string, readOnly = false) {
+        if (readOnly && this.hasReadReplica(tenantId)) {
+          return this.getReadReplicaConnection(tenantId);
+        }
+        return this.getPrimaryConnection(tenantId);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Міграція tenant'ів
+
+<Steps>
+  <Step>
+    **Міграція tenant'а до виділеної бази даних:**
+
+    // lib/migration/tenant-migration.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function migrateTenantToDedicatedDb(tenantId: string) {
+      // Створити нову базу даних
+      await createTenantDatabase(tenantId);
+
+      // Експортувати дані зі спільної схеми
+      await exportTenantData(tenantId);
+
+      // Імпортувати до нової бази даних
+      await importTenantData(tenantId);
+
+      // Оновити конфігурацію tenant'а
+      await updateTenantConfig(tenantId, {
+        isolationLevel: 'database',
+        databaseUrl: getTenantDatabaseUrl(tenantId),
+      });
+
+      // Перемкнути маршрутизацію
+      await updateTenantRouting(tenantId, 'database');
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Міграція без простою:**
+
+    <Code language="typescript" title="TypeScript">
+{`export async function zeroDowntimeMigration(tenantId: string) {
+// 1. Встановити tenant у режим тільки читання
+      await setTenantReadOnly(tenantId, true);
+
+      // 2. Дочекатися завершення активних запитів
+      await waitForActiveRequests(tenantId);
+
+      // 3. Виконати міграцію
+      await migrateTenantToDedicatedDb(tenantId);
+
+      // 4. Оновити маршрутизацію атомарно
+      await atomicRouteUpdate(tenantId);
+
+      // 5. Зняти режим тільки читання
+      await setTenantReadOnly(tenantId, false);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Історії успіху
+
+<Callout type="success">
+  **Реальні багатотenant розгортання:**
+</Callout>
+
+### Мережа асоціації галузі
+- **50+ організацій-членів** ділять обладнання та можливості
+- **Ізоляція на основі схем** з кастомним брендингом на члена
+- **Спільне управління** при збереженні автономії членів
+
+### Франчайзингова платформа
+- **200+ франчайзингових локацій** зі стандартизованими процесами
+- **База даних на tenant** для великих франчайзів, на основі схем для менших
+- **Централізована аналітика** з tenant-специфічними панелями
+
+### Портал урядових послуг
+- **Кілька департаментів** обслуговують громадян через уніфіковану платформу
+- **Покращена безпека** з обов'язковим логуванням аудиту
+- **Автоматизація відповідності** з регуляторними вимогами
+
+---
+
+## Наступні кроки
+
+<Callout type="success">
+  **Готові розгорнути багатотenant Ring?**
+</Callout>
+
+### Фаза планування
+- [ ] Визначте вимоги ізоляції tenant'ів
+- [ ] Виберіть стратегію доменів (субдомен vs шлях)
+- [ ] Спроектуйте модель розподілу ресурсів
+
+### Технічне налаштування
+- [ ] Налаштуйте розділення схем бази даних
+- [ ] Реалізуйте middleware ідентифікації tenant'ів
+- [ ] Налаштуйте систему провізіонінгу tenant'ів
+
+### Налаштування управління
+- [ ] Побудуйте панель управління tenant'ами
+- [ ] Створіть білінг та моніторинг використання
+- [ ] Реалізуйте політики безпеки
+
+### Підготовка до масштабування
+- [ ] Спроектуйте стратегію горизонтального масштабування
+- [ ] Налаштуйте моніторинг та сповіщення
+- [ ] Заплануйте резервне копіювання та disaster recovery
+
+<Callout type="info">
+  **Потрібна експертиза багатотenant?** Опублікуйте [можливість налаштування Ring](/opportunities?type=ring_customization) для досвідчених архітекторів багатотenant.
+</Callout>

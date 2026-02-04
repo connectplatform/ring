@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useActionState, useOptimistic } from 'react'
+import { useActionState, useOptimistic, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Filter, X, ChevronDown, Search } from 'lucide-react'
@@ -190,7 +190,10 @@ export default function FilterForm({
 }: FilterFormProps) {
   const t = useTranslations('filters')
   const [filters, setFilters] = React.useState<ActiveFilters>(initialFilters)
-  
+
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition()
+
   // Optimistic updates for instant UI feedback
   const [optimisticFilters, addOptimisticFilter] = useOptimistic(
     filters,

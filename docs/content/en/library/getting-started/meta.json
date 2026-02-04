@@ -1,0 +1,11 @@
+{
+  "title": "Getting Started",
+  "pages": [
+    "index",
+    "prerequisites",
+    "installation",
+    "first-success",
+    "troubleshooting",
+    "next-steps"
+  ]
+}

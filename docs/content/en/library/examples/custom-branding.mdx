@@ -1,0 +1,360 @@
+---
+title: Custom Branding
+description: Custom Branding documentation for Ring Platform
+---
+
+# Custom Branding Example
+
+Transform Ring Platform into your brand - complete white-labeling with logos, colors, and themes.
+
+## 🎨 Branding Overview
+
+This example shows how to:
+- ✅ **Replace logos** in navigation and layouts
+- ✅ **Customize colors** with your brand palette
+- ✅ **Update typography** and fonts
+- ✅ **Configure themes** for light/dark modes
+- ✅ **Brand consistency** across all components
+
+## 🚀 Quick Brand Transformation
+
+### Step 1: Logo Replacement
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`const navbar = (
+  <Navbar 
+    logo={
+      <>
+        <img 
+          src="/your-logo.svg" 
+          alt="Your Company" 
+          width={32} 
+          height={32}
+          className="mr-2"
+        />
+        <span className="font-bold text-xl">Your Company</span>
+        <span className="text-gray-600 font-normal hidden lg:inline ml-2 text-sm">
+          Your Tagline Here
+        </span>
+      </>
+    }
+    projectLink="https://github.com/yourcompany/platform"
+    chatLink="https://discord.gg/yourcompany"
+  />
+)`}
+</Code>
+
+### Step 2: Color Customization
+/* app/globals.css */
+
+<Code language="css" title="styles">
+{`:root {
+  /* Your Brand Colors */
+  --color-primary: #6366f1;      /* Your primary brand color */
+  --color-secondary: #8b5cf6;    /* Your secondary color */
+  --color-accent: #06b6d4;       /* Accent color */
+  --color-success: #10b981;      /* Success states */
+  --color-warning: #f59e0b;      /* Warning states */
+  --color-error: #ef4444;        /* Error states */
+  
+  /* Brand Gradients */
+  --gradient-brand: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  --gradient-accent: linear-gradient(135deg, var(--color-accent), var(--color-primary));
+}
+
+/* Apply brand colors */
+.btn-primary {
+  background: var(--gradient-brand);
+  color: white;
+}
+
+.text-brand {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}`}
+</Code>
+
+### Step 3: Typography Customization
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { Inter, Poppins } from 'next/font/google'
+
+// Load your brand fonts
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter'
+})
+
+const poppins = Poppins({ 
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-poppins'
+})
+
+export default async function RootLayout({ children }) {
+  return (
+    <html
+      lang="en"
+      className={`${inter.variable} ${poppins.variable}`}
+    >
+      <body className="font-inter">
+        {children}
+      </body>
+    </html>
+  )
+}`}
+</Code>
+
+/* app/globals.css */
+
+<Code language="css" title="styles">
+{`.font-brand {
+  font-family: var(--font-poppins), sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-poppins), sans-serif;
+  font-weight: 600;
+}`}
+</Code>
+
+## 🎨 Advanced Branding
+
+### Custom Theme Configuration
+// lib/theme.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const brandTheme = {
+  colors: {
+    primary: {
+      50: '#eef2ff',
+      100: '#e0e7ff',
+      500: '#6366f1',  // Your primary color
+      600: '#4f46e5',
+      900: '#312e81'
+    },
+    secondary: {
+      50: '#faf5ff',
+      100: '#f3e8ff',
+      500: '#8b5cf6',  // Your secondary color
+      600: '#7c3aed',
+      900: '#581c87'
+    }
+  },
+  fonts: {
+    sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+    heading: ['var(--font-poppins)', 'system-ui', 'sans-serif']
+  },
+  borderRadius: {
+    brand: '12px'  // Your preferred border radius
+  }
+}`}
+</Code>
+
+### Component Theming
+// components/ui/Button.tsx
+
+<Code language="typescript" title="TypeScript">
+{`interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'brand'
+  children: React.ReactNode
+}
+
+export const Button: FC<ButtonProps> = ({ 
+  variant = 'primary', 
+  children,
+  ...props 
+}) => {
+  const variants = {
+    primary: 'bg-gradient-to-r from-primary-500 to-primary-600',
+    secondary: 'bg-gradient-to-r from-secondary-500 to-secondary-600',
+    brand: 'bg-gradient-brand'  // Your custom brand gradient
+  }
+
+  return (
+    <button 
+      className={`
+        px-6 py-3 rounded-[var(--border-radius-brand)] 
+        font-medium text-white transition-all
+        hover:scale-105 hover:shadow-lg
+        ${variants[variant]}
+      `}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}`}
+</Code>
+
+## 🖼️ Brand Assets Setup
+
+### Logo Variants
+// components/brand/Logo.tsx
+
+<Code language="typescript" title="TypeScript">
+{`interface LogoProps {
+  variant?: 'full' | 'icon' | 'text'
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+}
+
+export const Logo: FC<LogoProps> = ({ 
+  variant = 'full', 
+  size = 'md',
+  className = ''
+}) => {
+  const sizes = {
+    sm: 'h-8',
+    md: 'h-12',
+    lg: 'h-16'
+  }
+
+  if (variant === 'icon') {
+    return (
+      <img 
+        src="/brand/logo-icon.svg" 
+        alt="Your Company"
+        className={`${sizes[size]} w-auto ${className}`}
+      />
+    )
+  }
+
+  if (variant === 'text') {
+    return (
+      <span className={`font-brand font-bold text-brand ${className}`}>
+        Your Company
+      </span>
+    )
+  }
+
+  return (
+    <div className={`flex items-center ${className}`}>
+      <img 
+        src="/brand/logo-icon.svg" 
+        alt=""
+        className={`${sizes[size]} w-auto mr-3`}
+      />
+      <span className={`font-brand font-bold text-brand`}>
+        Your Company
+      </span>
+    </div>
+  )
+}`}
+</Code>
+
+### Favicon and Meta Images
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export const metadata = {
+  title: {
+    default: 'Your Company Platform',
+    template: '%s – Your Company'
+  },
+  description: 'Your company description here',
+  icons: {
+    icon: '/brand/favicon.ico',
+    apple: '/brand/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'Your Company Platform',
+    description: 'Your company description',
+    images: ['/brand/og-image.png'],
+    siteName: 'Your Company',
+  }
+}`}
+</Code>
+
+## 🎯 Brand Consistency Checklist
+
+### Visual Elements
+- [ ] **Logo** replaced in navigation
+- [ ] **Favicon** updated with brand icon
+- [ ] **Colors** match brand palette
+- [ ] **Typography** uses brand fonts
+- [ ] **Images** follow brand guidelines
+
+### Content Updates
+- [ ] **Company name** updated throughout
+- [ ] **Tagline** reflects your brand
+- [ ] **About content** customized
+- [ ] **Contact information** updated
+- [ ] **Social links** point to your accounts
+
+### Technical Branding
+- [ ] **Domain** configured (yourcompany.com)
+- [ ] **Email templates** branded
+- [ ] **Error pages** branded
+- [ ] **Loading states** branded
+- [ ] **Notifications** use brand colors
+
+## 🚀 Live Brand Examples
+
+### Example 1: Tech Startup
+<Code language="css" title=":root {">
+{`--color-primary: #3b82f6;    /* Modern blue */
+  --color-secondary: #1e40af;  /* Darker blue */
+  --color-accent: #06b6d4;     /* Cyan accent */
+}`}
+</Code>
+
+### Example 2: Healthcare
+<Code language="css" title=":root {">
+{`--color-primary: #10b981;    /* Medical green */
+  --color-secondary: #059669;  /* Darker green */
+  --color-accent: #3b82f6;     /* Trust blue */
+}`}
+</Code>
+
+### Example 3: Finance
+<Code language="css" title=":root {">
+{`--color-primary: #1e40af;    /* Professional blue */
+  --color-secondary: #1e3a8a;  /* Navy blue */
+  --color-accent: #f59e0b;     /* Gold accent */
+}`}
+</Code>
+
+## 📱 Multi-Brand Configuration
+
+For managing multiple brands:
+
+// lib/brands.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const brands = {
+  default: {
+    name: 'Ring Platform',
+    colors: { primary: '#3b82f6' },
+    logo: '/logos/ring.svg'
+  },
+  client1: {
+    name: 'Client Company',
+    colors: { primary: '#10b981' },
+    logo: '/logos/client1.svg'
+  }
+}
+
+export function getBrand(hostname: string) {
+  const brandMap = {
+    'client1.yourplatform.com': 'client1',
+    'demo.yourplatform.com': 'demo'
+  }
+  
+  return brands[brandMap[hostname]] || brands.default
+}`}
+</Code>
+
+---
+
+**🎨 Your Brand, Your Platform!** 
+
+With these customizations, Ring Platform becomes uniquely yours while maintaining all its powerful features.
+
+*Need help with advanced branding? Join our [Discord community](https://discord.gg/ring-platform) for design tips and examples.*

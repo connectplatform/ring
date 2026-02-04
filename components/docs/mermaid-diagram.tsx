@@ -29,7 +29,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
         const isDark = document.documentElement.classList.contains('dark')
         
         // Initialize Mermaid with better theme support
-        mermaid.initialize({
+        await mermaid.initialize({
           startOnLoad: false,
           theme: isDark ? 'dark' : 'neutral',
           securityLevel: 'loose',
@@ -37,6 +37,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
           flowchart: {
             htmlLabels: true,
             curve: 'basis',
+            useMaxWidth: true,
           },
           sequence: {
             diagramMarginX: 50,
@@ -49,13 +50,39 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
             noteMargin: 10,
             messageMargin: 35,
             mirrorActors: true,
+            useMaxWidth: true,
           },
+          themeVariables: isDark ? {
+            background: '#1f2937',
+            primaryColor: '#3b82f6',
+            primaryTextColor: '#ffffff',
+            primaryBorderColor: '#4b5563',
+            lineColor: '#6b7280',
+            secondaryColor: '#374151',
+            tertiaryColor: '#1f2937',
+          } : {
+            background: '#ffffff',
+            primaryColor: '#3b82f6',
+            primaryTextColor: '#000000',
+            primaryBorderColor: '#d1d5db',
+            lineColor: '#6b7280',
+            secondaryColor: '#f3f4f6',
+            tertiaryColor: '#ffffff',
+          }
         })
 
         const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`
-        const { svg } = await mermaid.render(id, chart)
-        setSvg(svg)
-        setError('')
+        try {
+          const { svg } = await mermaid.render(id, chart)
+          setSvg(svg)
+          setError('')
+        } catch (renderError: any) {
+          console.error('Mermaid render error:', renderError)
+          // Try to provide a more helpful error message
+          const errorMessage = renderError?.message || 'Failed to render diagram'
+          setError(`Diagram syntax error: ${errorMessage}`)
+          setSvg('')
+        }
       } catch (error) {
         console.error('Failed to render Mermaid diagram:', error)
         setError('Failed to render diagram. Please check the syntax.')

@@ -1,7 +1,6 @@
 'use server'
 
-import { getAdminDb } from '@/lib/firebase-admin.server'
-import { FieldValue } from 'firebase-admin/firestore'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 
 export interface MessageFormState {
@@ -44,16 +43,17 @@ export async function sendMessage(
       }
     }
 
-    // Get admin database instance
-    const db = getAdminDb()
+    // Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
     // Create message document
-    await db.collection('chats').add({
+    await db.create('chats', {
       chatId,
       participants: [entityCreatorId, session.user.id],
       senderId: session.user.id,
       content: messageContent.trim(),
-      timestamp: FieldValue.serverTimestamp(),
+      timestamp: new Date(),
       entityId,
       entityName,
       ...(opportunityId && { opportunityId }),

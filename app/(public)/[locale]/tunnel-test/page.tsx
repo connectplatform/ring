@@ -21,11 +21,11 @@ export default function TunnelTestPage() {
         
         <div className="mb-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <h2 className="text-xl font-semibold mb-2">About This Test</h2>
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            <p className="text-muted-foreground mb-4">
             This page demonstrates the Tunnel Transport Abstraction Layer, which provides
             automatic transport selection and fallback for real-time communication.
           </p>
-          <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
             <li>Automatically detects and uses the best transport for your environment</li>
             <li>Seamlessly falls back to alternative transports on failure</li>
             <li>Works on Vercel Edge Runtime, Firebase, and self-hosted deployments</li>
@@ -37,7 +37,7 @@ export default function TunnelTestPage() {
         
         <div className="mt-8 p-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
           <h2 className="text-xl font-semibold mb-2">API Test Endpoint</h2>
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            <p className="text-muted-foreground mb-4">
             You can also test the tunnel transport configuration via the API:
           </p>
           <code className="block p-3 bg-gray-900 text-green-400 rounded">

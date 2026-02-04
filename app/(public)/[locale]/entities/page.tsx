@@ -7,7 +7,7 @@ import EntitiesWrapper from "@/components/wrappers/entities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
-import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import EntitiesFiltersPanel from '@/components/entities/entities-filters-panel'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
@@ -17,8 +17,8 @@ import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-
 import { prefetchPublicEntities, prefetchFeaturedEntities, prefetchPageData } from '@/lib/build-cache/prefetch-manager'
 import { getCachedEntities } from '@/lib/build-cache/static-data-cache'
 
-// Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = "force-dynamic"
+// Allow caching for better performance - entities data doesn't change constantly
+export const dynamic = "auto"
 
 type EntitiesParams = {}
 

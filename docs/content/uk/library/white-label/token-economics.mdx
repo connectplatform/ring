@@ -1,0 +1,641 @@
+---
+title: Налаштування економіки токенів
+description: Запустіть власну токенну економіку - створюйте токени, конфігуруйте смарт-контракти та проектуйте стимули
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Налаштування економіки токенів
+
+<Callout type="info">
+  **Філософія Ring**: "Ваша платформа має працювати на вашій економіці." Кожне розгортання Ring може мати власну токенну систему.
+</Callout>
+
+Платформи Ring працюють на токенній економіці, що вирівнює стимули, уможливлює управління та створює стійну цінність. Цей посібник показує вам, як спроектувати та запустити власну токенну систему.
+
+## Чому важлива токенна економіка
+
+**Традиційні платформи:**
+- Централізований контроль засновниками/інвесторами
+- Значення, створене користувачами, захоплюється платформою
+- Обмежені стимули користувачів для участі
+
+**Токенні платформи Ring:**
+- Значення, створене користувачами, залишається з користувачами
+- Платформа керується власниками токенів
+- Економічні стимули стимулюють участь
+- Стійне довгострокове створення цінності
+
+## Використання токенів у Ring
+
+### 1. Лістинги можливостей та послуги
+- **Платіть за публікацію** можливостей (запобігає спаму)
+- **Платіть розробникам** за роботу з налаштування
+- **Винагороджуйте якість** внесків через bounties
+
+### 2. Управління та голосування
+- **Пріоритизація функцій** - власники токенів голосують за дорожню карту
+- **Коригування параметрів** - збори та ліміти, контрольовані спільнотою
+- **Управління скарбницею** - прозорий розподіл фондів
+
+### 3. Стейкінг та винагороди
+- **Стейк за переваги** - преміум функції, вища видимість
+- **Винагороджуйте учасників** - bug bounties, створення контенту
+- **Програми лояльності** - токенні винагороди за залученість
+
+### 4. Транзакції ринку
+- **Комісії транзакцій** у токенах
+- **Вимоги стейкінгу продавців**
+- **Оцінка довіри** на основі утримання токенів
+
+## Рамка проектування токенів
+
+### Крок 1: Визначте мету вашого токена
+
+<Steps>
+  <Step>
+    **Utility Token vs Security Token:**
+
+    **Utility Token** (Рекомендовано для Ring):
+    - Живить функції платформи
+    - Без очікування прибутку
+    - Дружній до регуляцій
+
+    **Security Token**:
+    - Представляє частку власності
+    - Застосовуються регуляції SEC
+    - Юридична складність
+  </Step>
+
+  <Step>
+    **Один токен vs Multi-Token:**
+
+    **Один токен** (Простіше):
+    - Один токен для всіх функцій
+    - Легше зрозуміти
+    - Простіша економіка
+
+    **Multi-Token** (Розширене):
+    - Токен управління + utility токени
+    - Різні графіки vesting
+    - Складне, але гнучке
+  </Step>
+</Steps>
+
+### Крок 2: Параметри токена
+
+<Steps>
+  <Step>
+    **Загальна пропозиція:**
+
+    // Приклад конфігурації
+
+<Code language="typescript" title="TypeScript">
+{`const tokenConfig = {
+      name: "Токен моєї платформи",
+      symbol: "MPT",
+      totalSupply: 100_000_000, // 100 мільйонів токенів
+      decimals: 18,
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Графік розподілу:**
+
+    - **Спільнота**: 40% - винагороди користувачів, airdrops
+    - **Розробка**: 30% - команда, майбутня розробка
+    - **Стейкінг пул**: 20% - винагороди за стейкінг
+    - **Засновники**: 10% - заблоковано з vesting
+
+    **Приклад vesting:**
+    - Засновники: 4-річний лінійний vesting
+    - Розробка: 2-річний cliff, потім щомісячно
+    - Спільнота: Негайний розподіл
+  </Step>
+
+  <Step>
+    **Інфляція/дефляція:**
+
+    **Фіксована пропозиція**: Нові токени не створюються
+    **Контрольована інфляція**: Нові токени для винагород стейкінгу
+    **Дефляційна**: Спалювати токени при транзакціях
+  </Step>
+</Steps>
+
+## Архітектура смарт-контрактів
+
+### Контракт ERC-20 токена
+
+<Steps>
+  <Step>
+    **Розгорніть базовий ERC-20:**
+
+    // contracts/MyToken.sol
+
+<Code language="solidity" title="Solidity">
+{`pragma solidity ^0.8.19;
+
+    import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+    contract MyToken is ERC20 {
+        constructor(
+            string memory name,
+            string memory symbol,
+            uint256 initialSupply
+        ) ERC20(name, symbol) {
+            _mint(msg.sender, initialSupply);
+        }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Додайте utility функції:**
+
+    // Спалювані токени
+
+<Code language="solidity" title="Solidity">
+{`function burn(uint256 amount) public {
+        _burn(msg.sender, amount);
+    }
+
+    // Призупиняється для надзвичайних ситуацій
+    function pause() public onlyOwner {
+        _pause();
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Контракт управління
+
+<Steps>
+  <Step>
+    **Реалізуйте управління:**
+
+    // contracts/Governance.sol
+
+<Code language="solidity" title="Solidity">
+{`contract MyGovernance {
+        struct Proposal {
+            uint256 id;
+            string description;
+            uint256 voteCount;
+            bool executed;
+        }
+
+        mapping(address => uint256) public votingPower;
+        mapping(uint256 => Proposal) public proposals;
+
+        function createProposal(string memory description) public {
+            // Створити пропозицію управління
+        }
+
+        function vote(uint256 proposalId, bool support) public {
+            // Голосувати за пропозиції
+        }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **З'єднайте з функціями Ring:**
+
+    - Збори за публікацію можливостей
+    - Голосування за функції
+    - Коригування параметрів
+  </Step>
+</Steps>
+
+## Інтеграція з платформою Ring
+
+### Інтеграція гаманця
+
+<Steps>
+  <Step>
+    **Налаштуйте токен у Ring:**
+
+    Відредагуйте `lib/config/token.ts`:
+
+    <Code language="typescript" title="export const tokenConfig = {">
+{`name: "Токен моєї платформи",
+      symbol: "MPT",
+      contractAddress: "0x1234...",
+      chainId: 1, // Ethereum mainnet
+      decimals: 18,
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Увімкніть функції гаманця:**
+
+    // Увімкнути токенні функції
+
+<Code language="typescript" title="TypeScript">
+{`const features = {
+      tokenPayments: true,
+      staking: true,
+      governance: true,
+      nftMarketplace: false, // Можна додати пізніше
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Конфігурація структури зборів
+
+<Steps>
+  <Step>
+    **Встановіть збори платформи:**
+
+    // config/fees.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const feeStructure = {
+      opportunityListing: 10, // 10 токенів за публікацію можливості
+      marketplaceTransaction: 0.01, // 1% у токенах
+      premiumFeatures: 100, // Місячна преміум підписка
+      stakingRequirement: 50, // Мінімальний стейк для продавців
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Реалізуйте збір зборів:**
+
+    // lib/fees/token-fees.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function collectListingFee(userId: string, amount: number) {
+      // Трансферувати токени від користувача до скарбниці платформи
+      await walletService.transfer({
+        from: userId,
+        to: TREASURY_ADDRESS,
+        amount,
+        token: 'MPT'
+      });
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Налаштування системи стейкінгу
+
+### Контракт стейкінгу
+
+<Steps>
+  <Step>
+    **Створіть контракт стейкінгу:**
+
+    // contracts/Staking.sol
+
+<Code language="solidity" title="Solidity">
+{`contract Staking {
+        mapping(address => uint256) public stakedBalance;
+        mapping(address => uint256) public stakingTimestamp;
+
+        function stake(uint256 amount) public {
+            require(amount > 0, "Cannot stake 0");
+            // Трансферувати токени до контракту
+            token.transferFrom(msg.sender, address(this), amount);
+            stakedBalance[msg.sender] += amount;
+            stakingTimestamp[msg.sender] = block.timestamp;
+        }
+
+        function unstake(uint256 amount) public {
+            require(stakedBalance[msg.sender] >= amount, "Insufficient stake");
+            // Повернути токени
+            token.transfer(msg.sender, amount);
+            stakedBalance[msg.sender] -= amount;
+        }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Розподіл винагород:**
+
+    <Code language="solidity" title="Solidity">
+{`function distributeRewards() public onlyOwner {
+// Розрахувати та розподілити винагороди стейкінгу
+      for (address staker : stakers) {
+        uint256 reward = calculateReward(staker);
+        token.mint(staker, reward);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### Конфігурація переваг стейкінгу
+
+<Steps>
+  <Step>
+    **Визначте рівні стейкінгу:**
+
+    // config/staking.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const stakingTiers = [
+      {
+        minStake: 0,
+        name: "Базовий",
+        benefits: ["Базові лістинги", "Стандартна підтримка"]
+      },
+      {
+        minStake: 100,
+        name: "Преміум",
+        benefits: ["Пріоритетні лістинги", "Розширена аналітика", "Преміум підтримка"]
+      },
+      {
+        minStake: 1000,
+        name: "Елітний",
+        benefits: ["Рекомендовані лістинги", "Кастомне брендинг", "Виділена підтримка"]
+      }
+    ]`}
+</Code>
+  </Step>
+
+  <Step>
+    **Реалізуйте перевірки переваг:**
+
+    // lib/staking/benefits.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function getUserBenefits(userId: string) {
+      const stakeAmount = await stakingService.getStake(userId);
+      return stakingTiers.find(tier => stakeAmount >= tier.minStake);
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Стратегія запуску
+
+### Фаза 1: Розгортання токена
+
+<Steps>
+  <Step>
+    **Спершу розгорніть у testnet:**
+
+    Розгорнути у Sepolia testnet
+
+<Code language="bash" title="terminal">
+{`npx hardhat run scripts/deploy.ts --network sepolia`}
+</Code>
+  </Step>
+
+  <Step>
+    **Протестуйте всі функції:**
+
+    - Трансфери токенів
+    - Стейкінг/unstaking
+    - Збір зборів
+    - Голосування управління
+  </Step>
+
+  <Step>
+    **Аудит смарт-контрактів:**
+
+    Найміть професійну аудиторську фірму перед розгортанням у mainnet.
+  </Step>
+
+  <Step>
+    **Розгорніть у mainnet:**
+
+    <Code language="bash" title="terminal">
+{`# npx hardhat run scripts/deploy.ts --network mainnet`}
+</Code>
+  </Step>
+</Steps>
+
+### Фаза 2: Розподіл спільноти
+
+<Steps>
+  <Step>
+    **Airdrop раннім користувачам:**
+
+    // scripts/airdrop.ts
+
+<Code language="typescript" title="TypeScript">
+{`const earlyUsers = [
+      '0x1234...',
+      '0x5678...',
+      // Ранні користувачі платформи
+    ];
+
+    for (const user of earlyUsers) {
+      await token.transfer(user, 1000); // 1000 токенів кожному
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Надання ліквідності:**
+
+    Забезпечте початкову ліквідність на Uniswap чи подібному DEX.
+  </Step>
+
+  <Step>
+    **Стимули стейкінгу:**
+
+    Винагороджуйте ранніх стейкерів бонусними токенами.
+  </Step>
+</Steps>
+
+### Фаза 3: Активація функцій
+
+<Steps>
+  <Step>
+    **Увімкніть базові функції:**
+
+    Почніть із зборів за лістинг можливостей та базового стейкінгу.
+  </Step>
+
+  <Step>
+    **Поступове розгортання:**
+
+    Увімкніть розширені функції зі зростанням спільноти:
+    - Голосування управління
+    - Розширені винагороди стейкінгу
+    - Інтеграція ринку
+  </Step>
+
+  <Step>
+    **Управління спільнотою:**
+
+    Дозвольте власникам токенів вирішувати щодо майбутніх функцій та параметрів.
+  </Step>
+</Steps>
+
+## Економічне моделювання
+
+### Аналіз потоку токенів
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Збори          │ -> │ Скарбниця        │ -> │ Винагороди      │
+│ користувачів    │    │ платформи        │    │ стейкінгу       │
+│                 │    │                  │    │                 │
+│ • Збори лістингу│    │ • Розробка       │    │ • Винагороди    │
+│ • Транзакції    │    │ • Операції       │    │ користувачів    │
+│ • Преміум підписки │ │ • Маркетинг     │    │ • Стимули       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+        ▲                        │                        │
+        │                        ▼                        │
+        └───────────────── Управління ────────────────────┘
+                                │
+                                ▼
+                      ┌──────────────────┐
+                      │  Голосування      │
+                      │  за функції       │
+                      │  Коригування      │
+                      │  параметрів       │
+                      │  Управління       │
+                      │  скарбницею       │
+                      └──────────────────┘
+```
+
+### Механізми спалювання
+
+// Спалювати токени при певних діях
+
+<Code language="typescript" title="TypeScript">
+{`export async function burnOnTransaction(amount: number, percentage: number) {
+  const burnAmount = (amount * percentage) / 100;
+  await token.burn(burnAmount);
+  return amount - burnAmount; // Повернути решту одержувачу
+}`}
+</Code>
+
+### Управління скарбницею
+
+// Контракт скарбниці для фондів спільноти
+
+<Code language="typescript" title="TypeScript">
+{`contract CommunityTreasury {
+  function proposeSpend(
+    address recipient,
+    uint256 amount,
+    string memory reason
+  ) public {
+    // Створити пропозицію витрат для голосування спільноти
+  }
+
+  function executeSpend(uint256 proposalId) public {
+    // Виконати затверджені витрати
+  }
+}`}
+</Code>
+
+## Юридичні міркування
+
+<Callout type="warning">
+  **Важливо**: Запуски токенів мають юридичні наслідки. Консультуйтеся з юридичними експертами.
+</Callout>
+
+### Відповідність регуляціям
+
+- **Класифікація utility токена** - Фокус на utility платформи, не на інвестиціях
+- **KYC/AML** - Розгляньте для великих транзакцій
+- **Податкові наслідки** - Користувачі можуть бути винні податки на доходи токенів
+- **Юрисдикція** - Виберіть відповідну юридичну структуру
+
+### Вимоги до документації
+
+- **Папір токеноміки** - Чітко поясніть економіку
+- **Аудити смарт-контрактів** - Професійний огляд безпеки
+- **Умови обслуговування** - Чіткі угоди користувачів
+- **Розкриття ризиків** - Прозоро про ризики волатильності
+
+## Метрики успіху
+
+### Індикатори економічного здоров'я
+
+- **Швидкість токена** - Наскільки швидко токени циркулюють
+- **Розподіл власників** - Уникайте концентрації у whale
+- **Співвідношення стейкінгу** - Відсоток застейканих токенів
+- **Обсяг транзакцій** - Щоденне/тижневе використання токенів
+- **Зростання скарбниці** - Накопичення стійкого фінансування
+
+### Залученість спільноти
+
+- **Активні власники** - Регулярні користувачі токенів
+- **Участь в управлінні** - Явка голосування
+- **Активність розробки** - Внесення до GitHub
+- **Зростання екосистеми** - Нові проекти, що використовують ваш токен
+
+## Приклади конфігурацій
+
+### Токен, орієнтований на спільноту
+
+<Code language="typescript" title="const communityToken = {">
+{`totalSupply: 1_000_000_000,
+  distribution: {
+    community: 0.5,      // 50% - негайний розподіл
+    development: 0.2,     // 20% - 4-річний vesting
+    staking: 0.2,         // 20% - пул винагород
+    treasury: 0.1,        // 10% - скарбниця спільноти
+  },
+  features: {
+    governance: true,
+    staking: true,
+    fees: 'low',          // Мінімальні збори
+    burns: true,          // Спалювання транзакцій
+  }
+}`}
+</Code>
+
+### Корпоративний токен
+
+<Code language="typescript" title="const enterpriseToken = {">
+{`totalSupply: 100_000_000,
+  distribution: {
+    enterprise: 0.4,      // 40% - контроль компанії
+    employees: 0.2,       // 20% - стимули команди
+    partners: 0.2,        // 20% - екосистемні партнери
+    community: 0.2,       // 20% - винагороди користувачів
+  },
+  features: {
+    governance: 'limited', // Компанія зберігає контроль
+    staking: true,
+    fees: 'market',        // Ринкові збори
+    burns: false,          // Стабільна пропозиція
+  }
+}`}
+</Code>
+
+---
+
+## Наступні кроки
+
+<Callout type="success">
+  **Готові запустити свою токенну економіку?** Ось що робити далі:
+</Callout>
+
+### Негайні дії
+- [ ] Визначте мету та випадки використання вашого токена
+- [ ] Спроектуйте базові параметри токена
+- [ ] Консультуйтеся з юридичними експертами щодо відповідності
+
+### Фаза розробки
+- [ ] Розгорніть контракти testnet
+- [ ] Побудуйте інтеграцію з платформою Ring
+- [ ] Ретельно протестуйте всі функції токенів
+
+### Підготовка запуску
+- [ ] Отримайте аудит смарт-контрактів
+- [ ] Налаштуйте ліквідність
+- [ ] Підготуйте розподіл спільноти
+
+### Після запуску
+- [ ] Моніторте метрики економічного здоров'я
+- [ ] Залучайте управління спільнотою
+- [ ] Ітеруйте на основі патернів використання
+
+<Callout type="info">
+  **Потрібна допомога з проектуванням токенів?** Перегляньте [можливості налаштування Ring](/opportunities?type=ring_customization) для експертів блокчейну, що спеціалізуються на токенних системах Ring.
+</Callout>

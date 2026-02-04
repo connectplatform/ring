@@ -1,5 +1,5 @@
 import type { Opportunity } from '@/types'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { isVectorStoreEnabled, upsertVector, querySimilar } from '@/lib/ai/vector-store'
 
 export interface Match { id: string; score: number; reason?: string }
@@ -23,15 +23,18 @@ export class NeuralMatcher {
     return tags.map(t => (t?.length || 0) % 7)
   }
 
-  // Baseline vector search: simple tag overlap against candidates from Firestore (top 50)
+  // Baseline vector search: simple tag overlap against candidates from DatabaseService (top 50)
   private async vectorSearch(_embedding: number[]): Promise<Match[]> {
     if (isVectorStoreEnabled()) {
       const results = await querySimilar('opportunities', _embedding, 10)
       return results
     }
-    const db = await getAdminDb()
-    const snap = await db.collection('opportunities').limit(50).get()
-    return snap.docs.map(d => ({ id: d.id, score: Math.random() }))
+    await initializeDatabase()
+    const db = getDatabaseService()
+    const result = await db.query({ collection: 'opportunities' })
+    return result.success && result.data ?
+      result.data.slice(0, 50).map((doc: any) => ({ id: doc.id, score: Math.random() })) :
+      []
   }
 
   private async rankMatches(matches: Match[]): Promise<Match[]> {

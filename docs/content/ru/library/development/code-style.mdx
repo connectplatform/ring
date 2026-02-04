@@ -1,0 +1,247 @@
+---
+title: Code Style
+description: Code Style documentation for Ring Platform
+---
+
+# Code Style Guide
+
+TypeScript, React, and Next.js conventions for Ring Platform development.
+
+## 📝 TypeScript Best Practices
+
+### Type Definitions
+// Use interfaces for object shapes
+
+<Code language="typescript" title="TypeScript">
+{`interface Entity {
+  id: string
+  name: string
+  type: EntityType
+  createdAt: Date
+}
+
+// Use type aliases for unions and primitives
+type EntityType = 'technology' | 'healthcare' | 'finance'
+type Status = 'active' | 'inactive'`}
+</Code>
+
+### Strict Type Safety
+// Enable strict mode in tsconfig.json
+
+<Code language="typescript" title="TypeScript">
+{`{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  }
+}`}
+</Code>
+
+## ⚛️ React Component Patterns
+
+### Component Structure
+// components/EntityCard.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { type FC } from 'react'
+
+interface EntityCardProps {
+  entity: Entity
+  onEdit?: (id: string) => void
+  className?: string
+}
+
+export const EntityCard: FC<EntityCardProps> = ({ 
+  entity, 
+  onEdit, 
+  className = '' 
+}) => {
+  return (
+    <div className={`entity-card ${className}`}>
+      <h3>{entity.name}</h3>
+      <p>{entity.type}</p>
+      {onEdit && (
+        <button onClick={() => onEdit(entity.id)}>
+          Edit
+        </button>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+### Custom Hooks
+// hooks/useEntity.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+
+export function useEntity(id: string) {
+  const [entity, setEntity] = useState<Entity | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchEntity(id)
+      .then(setEntity)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  return { entity, loading, error }
+}`}
+</Code>
+
+## 🔥 Next.js Patterns
+
+### Server Components
+// app/entities/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+import { getEntities } from '@/lib/entities'
+
+export default async function EntitiesPage() {
+  const session = await auth()
+  
+  if (!session) {
+    redirect('/auth/signin')
+  }
+
+  const entities = await getEntities(session.user.id)
+
+  return (
+    <div>
+      <h1>Your Entities</h1>
+      <EntityList entities={entities} />
+    </div>
+  )
+}`}
+</Code>
+
+### Server Actions
+// actions/create-entity.ts
+
+<Code language="typescript" title="TypeScript">
+{`'use server'
+
+import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+export async function createEntity(formData: FormData) {
+  const session = await auth()
+  
+  if (!session) {
+    redirect('/auth/signin')
+  }
+
+  const name = formData.get('name') as string
+  const type = formData.get('type') as EntityType
+
+  // Validation
+  if (!name || !type) {
+    return { error: 'Name and type are required' }
+  }
+
+  try {
+    const entity = await saveEntity({ name, type, userId: session.user.id })
+    redirect(`/entities/${entity.id}`)
+  } catch (error) {
+    return { error: 'Failed to create entity' }
+  }
+}`}
+</Code>
+
+## 🎨 Styling Guidelines
+
+### Tailwind CSS Conventions
+// Use consistent spacing scale
+
+<Code language="typescript" title="TypeScript">
+{`const spacing = {
+  xs: 'p-2',    // 8px
+  sm: 'p-4',    // 16px
+  md: 'p-6',    // 24px
+  lg: 'p-8',    // 32px
+  xl: 'p-12'    // 48px
+}
+
+// Component with consistent styling
+export const Card = ({ children, size = 'md' }) => (
+  <div className={`bg-white rounded-lg shadow-sm border ${spacing[size]}`}>
+    {children}
+  </div>
+)`}
+</Code>
+
+### CSS Custom Properties
+/* globals.css */
+
+<Code language="css" title="styles">
+{`:root {
+  --color-primary: #3b82f6;
+  --color-secondary: #8b5cf6;
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+}`}
+</Code>
+
+## 🧹 Code Organization
+
+### File Structure
+```
+src/
+├── app/                    # Next.js App Router
+├── components/            # Reusable UI components
+├── lib/                   # Utility functions and configs
+├── hooks/                 # Custom React hooks
+├── types/                 # TypeScript type definitions
+├── actions/               # Server actions
+└── styles/                # Global styles
+```
+
+### Import Organization
+// 1. React imports
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+
+// 2. Third-party imports
+import { NextPage } from 'next'
+import { toast } from 'sonner'
+
+// 3. Internal imports (absolute paths)
+import { Button } from '@/components/ui/Button'
+import { useEntity } from '@/hooks/useEntity'
+import { type Entity } from '@/types/entity'
+
+// 4. Relative imports
+import './EntityCard.css'`}
+</Code>
+
+## 📋 ESLint Configuration
+
+// .eslintrc.js
+
+<Code language="javascript" title="JavaScript">
+{`module.exports = {
+  extends: [
+    'next/core-web-vitals',
+    '@typescript-eslint/recommended',
+    'prettier'
+  ],
+  rules: {
+    '@typescript-eslint/no-unused-vars': 'error',
+    '@typescript-eslint/prefer-const': 'error',
+    'react-hooks/exhaustive-deps': 'warn',
+    'prefer-const': 'error',
+    'no-var': 'error'
+  }
+}`}
+</Code>
+
+---
+
+*Complete code style documentation coming soon.*

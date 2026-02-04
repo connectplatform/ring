@@ -1,0 +1,20 @@
+{
+  "title": "Функції",
+  "pages": [
+    "index",
+    "authentication",
+    "entities",
+    "opportunities",
+    "messaging",
+    "notifications",
+    "wallet",
+    "store",
+    "payments",
+    "wayforpay-integration",
+    "security",
+    "nft-market",
+    "staking",
+    "performance",
+    "mobile-experience"
+  ]
+}

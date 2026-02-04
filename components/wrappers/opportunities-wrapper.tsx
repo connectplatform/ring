@@ -6,7 +6,7 @@ import { useSearchParams, usePathname } from 'next/navigation'
 import { SerializedOpportunity, OpportunityVisibility, Attachment } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 import { useAppContext } from '@/contexts/app-context'
-import { useTranslations } from 'next-intl'
+import { Locale, useTranslations } from 'next-intl'
 import { OpportunitySuspenseBoundary } from '@/components/suspense/enhanced-suspense-boundary'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,9 @@ const OpportunityDetails = dynamic(() => import('@/features/opportunities/compon
 })
 
 interface OpportunitiesWrapperProps {
+  children?: React.ReactNode
+  locale: Locale
+  searchParams: { [key: string]: string | string[] | undefined }
   initialOpportunities?: SerializedOpportunity[]
   initialOpportunity?: (SerializedOpportunity & {
     attachments?: Attachment[];
@@ -36,7 +39,7 @@ interface OpportunitiesWrapperProps {
   initialEntity?: SerializedEntity | null
   initialError?: string | null
   lastVisible?: string | null
-  initialLimit: number
+  initialLimit?: number
 }
 
 export default function OpportunitiesWrapper({
@@ -63,7 +66,7 @@ export default function OpportunitiesWrapper({
   const locale = pathname.split('/')[1] || 'en'
   const isMyOpportunitiesPage = pathname.includes('/my-opportunities')
 
-  const limit = parseInt(searchParams.get('limit') || initialLimit.toString(), 10)
+  const limit = parseInt(searchParams.get('limit') || (initialLimit || 20).toString(), 10)
 
   // Initialize client-side state only once on mount
   React.useEffect(() => {

@@ -130,7 +130,7 @@ export default function EntityDetails({ initialEntity, initialError, chatCompone
       <EntityHeroSection entity={entity} t={t} />
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-8">
             <TabsTrigger value="overview">{t('status.overview', { defaultValue: 'Overview' })}</TabsTrigger>

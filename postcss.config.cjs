@@ -2,6 +2,7 @@
 module.exports = {
   plugins: {
     '@tailwindcss/postcss': {
+      darkMode: 'selector',
       theme: {
         extend: {
           colors: {

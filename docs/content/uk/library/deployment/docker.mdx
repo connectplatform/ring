@@ -3,31 +3,36 @@ title: Docker
 description: Документація по Docker для Ring Platform
 ---
 
-# Розгортання Docker
+# Docker Deployment для Ring Platform
 
-Ring Platform може бути розгорнутий з використанням контейнерів Docker з повною оркестрацією Kubernetes. Цей посібник охоплює як розробку, так і виробничі розгортання.
+Комплексне розгортання Ring Platform використовуючи Docker containers з Kubernetes оркестрацією. Підтримує як розробку, так і production середовища з повною ізоляцією та безпекою.
 
-## Попередні вимоги
+## Системні вимоги
 
-### Системні вимоги
-- Docker 20.10+
-- Docker Compose 2.0+
-- Кластер Kubernetes (для виробництва)
-- Мінімум 4 ГБ ОЗП, рекомендується 8 ГБ
-- 20 ГБ дискового простору
+### Мінімальні вимоги
+- **Docker**: 24.0+ (з BuildKit підтримкою)
+- **Docker Compose**: 2.20+
+- **Kubernetes**: 1.25+ (для production)
+- **CPU**: 2 cores minimum, 4 cores recommended
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 20GB для production deployment
 
 ### Мережеві вимоги
-- Вихідний доступ HTTPS для завантаження пакетів
-- Вхідний доступ на портах 80/443 (виробництво)
-- Доступ до реєстрів контейнерів (ghcr.io)
+- **Outbound HTTPS**: Для завантаження пакетів та API calls
+- **Inbound ports**: 80/443 для production, 3000 для development
+- **Container registry**: ghcr.io (GitHub Container Registry)
+- **External services**: PostgreSQL, Redis, WayForPay, Polygon RPC
+
+### Підтримувані архітектури
+- **linux/amd64**: Primary production architecture
+- **linux/arm64**: Secondary support для Apple Silicon development
 
 ## Розгортання в розробці
 
 ### Docker Compose (Розробка)
 
-```yaml
-version: '3.9'
-services:
+<Code language="yaml" title="version: '3.9'">
+{`services:
   ring-platform:
     build:
       context: .
@@ -57,25 +62,23 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-```
+  postgres_data:`}
+</Code>
 
 ### Швидке налаштування розробки
 
-```bash
-# Клонувати репозиторій
-git clone https://github.com/connectplatform/ring.git
+Клонувати репозиторій Запустити середовище розробки Переглянути логи Доступ до додатку
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
 cd ring/ring-platform.org
 
-# Запустити середовище розробки
 docker-compose -f docker-compose.dev.yml up -d
 
-# Переглянути логи
 docker-compose logs -f ring-platform
 
-# Доступ до додатку
-open http://localhost:3000
-```
+open http://localhost:3000`}
+</Code>
 
 ## Виробниче розгортання
 
@@ -85,12 +88,13 @@ open http://localhost:3000
 > **КРИТИЧНО**: Ніколи не використовуйте підсвітку синтаксису на стороні сервера або імпорти Mermaid.js на верхньому рівні - викликає 30-секундні затримки та таймаути 503!
 
 #### Специфікація платформи
-```bash
-# Завжди збирати з явним зазначенням платформи для вузлів Kubernetes AMD64
-docker build --platform linux/amd64 \
+Завжди збирати з явним зазначенням платформи для вузлів Kubernetes AMD64
+
+<Code language="bash" title="terminal">
+{`docker build --platform linux/amd64 \
   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
-  -f Dockerfile .
-```
+  -f Dockerfile .`}
+</Code>
 
 #### Конфігурація Docker
 - **НЕ** виключати директорію `docs/` з `.dockerignore`
@@ -100,30 +104,31 @@ docker build --platform linux/amd64 \
 ### Процес збірки та розгортання
 
 #### Крок 1: Зібрати образ Docker
-```bash
-cd ring-platform.org
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
 docker build --platform linux/amd64 \
   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
-  -f Dockerfile .
-```
+  -f Dockerfile .`}
+</Code>
 
 #### Крок 2: Надіслати до реєстру
-```bash
-docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
-```
+<Code language="bash" title="terminal">
+{`docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64`}
+</Code>
 
 #### Крок 3: Розгорнути в Kubernetes
-```bash
 ssh k8s-control-01 'kubectl -n ring-platform-org set image \
-  deployment/ring-platform \
-  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'
-```
+
+<Code language="bash" title="terminal">
+{`deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'`}
+</Code>
 
 #### Крок 4: Моніторити розгортання
-```bash
-ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
-ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'
-```
+<Code language="bash" title="terminal">
+{`ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
+ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'`}
+</Code>
 
 ---
 
@@ -145,31 +150,32 @@ Ring Platform розгортається в Kubernetes з використанн
 
 Налаштуйте вашого DNS-провайдера для вказівки `ring-platform.org` на ваші публічні IP:
 
-```bash
-# Основна настройка (Рекомендується)
-ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
+Основна настройка (Рекомендується) Розширена настройка з балансуванням навантаження
+
+<Code language="bash" title="terminal">
+{`ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
 www.ring-platform.org  CNAME ring-platform.org
 
-# Розширена настройка з балансуванням навантаження
 ring-platform.org      A     195.95.233.69    # Основний (HAProxy)
-ring-platform.org      A     195.95.233.15    # Другорядний (MetalLB)
-```
+ring-platform.org      A     195.95.233.15    # Другорядний (MetalLB)`}
+</Code>
 
 ## Налаштування простору імен
 
-```bash
-# Створити простір імен Ring
-kubectl create namespace ring-platform-org
+Створити простір імен Ring Встановити як простір за замовчуванням для розгортання
 
-# Встановити як простір за замовчуванням для розгортання
-kubectl config set-context --current --namespace=ring-platform-org
-```
+<Code language="bash" title="terminal">
+{`kubectl create namespace ring-platform-org
+
+kubectl config set-context --current --namespace=ring-platform-org`}
+</Code>
 
 ## Розгортання додатку Ring Platform
 
-```yaml
-# ring-platform-deployment.yaml
-apiVersion: apps/v1
+ring-platform-deployment.yaml Сервіс Ring Platform з MetalLB
+
+<Code language="yaml" title="configuration">
+{`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ring-platform
@@ -221,7 +227,6 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
 ---
-# Сервіс Ring Platform з MetalLB
 apiVersion: v1
 kind: Service
 metadata:
@@ -242,14 +247,15 @@ spec:
     targetPort: 3000
     protocol: TCP
   type: LoadBalancer
-  loadBalancerIP: 10.10.0.41
-```
+  loadBalancerIP: 10.10.0.41`}
+</Code>
 
 ## Конфігурація NGINX Ingress
 
-```yaml
-# ring-platform-ingress.yaml
-apiVersion: networking.k8s.io/v1
+ring-platform-ingress.yaml Основний додаток Документація субдомен
+
+<Code language="yaml" title="configuration">
+{`apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ring-platform-ingress
@@ -270,7 +276,6 @@ spec:
     - docs.ring-platform.org
     secretName: ring-platform-tls
   rules:
-  # Основний додаток
   - host: ring-platform.org
     http:
       paths:
@@ -291,7 +296,6 @@ spec:
             name: ring-platform-service
             port:
               number: 80
-  # Документація субдомен
   - host: docs.ring-platform.org
     http:
       paths:
@@ -301,7 +305,7 @@ spec:
           service:
             name: ring-platform-service
             port:
-              number: 80
-```
+              number: 80`}
+</Code>
 
 Це розгортання Kubernetes забезпечує масштабованість корпоративного рівня, високу доступність та надійне управління трафіком для платформи Ring з використанням балансувальників навантаження HAProxy та MetalLB.

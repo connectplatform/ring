@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useTransition, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { useSession } from "next-auth/react"
 import { useSearchParams, usePathname } from "next/navigation"
@@ -71,7 +71,10 @@ export default function EntitiesWrapper({
   const [limit, setLimit] = useState(initialLimit)
   const [sort, setSort] = useState(initialSort)
   const [filter, setFilter] = useState(initialFilter)
-  
+
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition()
+
   const locale = pathname.split('/')[1] || 'en'
 
   // Prevent hydration mismatches
@@ -89,7 +92,7 @@ export default function EntitiesWrapper({
 
     if (limitParam) setLimit(Number.parseInt(limitParam, 10))
     if (sortParam) setSort(sortParam)
-    if (filterParam) setFilter(filterParam)
+    if (filterParam) startTransition(() => setFilter(filterParam))
   }, [searchParams, mounted])
 
   // Show loading state until mounted to prevent hydration mismatches

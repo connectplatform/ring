@@ -1,0 +1,58 @@
+---
+title: Notifications
+description: Notifications documentation for Ring Platform
+---
+
+# Notifications API
+
+Comprehensive notification system with **9 endpoints** for real-time delivery, user preferences, and FCM push notifications.
+
+## Overview
+
+Ring Platform notifications provide:
+- Real-time notification delivery
+- User preference management
+- FCM push notification support
+- Bulk notification operations
+- Analytics and tracking
+
+## API Endpoints
+
+### `GET /api/notifications`
+List user notifications with filtering
+
+### `POST /api/notifications`
+Create new notification
+
+### `PUT /api/notifications/{id}/read`
+Mark notification as read
+
+### `DELETE /api/notifications/{id}`
+Delete notification
+
+### `GET /api/notifications/preferences`
+Get user notification preferences
+
+### `PUT /api/notifications/preferences`
+Update notification preferences
+
+### `POST /api/notifications/fcm/register`
+Register FCM token for push notifications
+
+### `POST /api/notifications/bulk`
+Send bulk notifications
+
+### `GET /api/notifications/analytics`
+Get notification analytics
+
+## Notification Types
+
+- **OPPORTUNITY** - New opportunities and applications
+- **MESSAGE** - New messages and conversations
+- **ENTITY** - Entity updates and invitations
+- **SYSTEM** - Platform announcements
+- **WALLET** - Transaction and balance updates
+
+---
+
+*Complete notifications documentation coming soon. Check our [Features](/ru/library/features/notifications) section for implementation details.*

@@ -1,0 +1,15 @@
+{
+  "title": "White-label & Customization",
+  "description": "Complete guides for deploying and customizing your own Ring platform instance",
+  "pages": [
+    "index",
+    "quick-start",
+    "customization-guide",
+    "database-selection",
+    "token-economics",
+    "multi-tenant",
+    "ai-customization",
+    "payment-integration",
+    "success-stories"
+  ]
+}

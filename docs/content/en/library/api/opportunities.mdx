@@ -47,9 +47,8 @@ List applications for opportunity
 
 ## Opportunity Structure
 
-```typescript
-interface Opportunity {
-  id: string
+<Code language="typescript" title="interface Opportunity {">
+{`id: string
   title: string
   description: string
   type: OpportunityType
@@ -81,8 +80,8 @@ enum OpportunityType {
   RESOURCE = 'RESOURCE',
   EVENT = 'EVENT',
   CUSTOM = 'CUSTOM'
-}
-```
+}`}
+</Code>
 
 ## Opportunity Types
 
@@ -126,9 +125,10 @@ enum OpportunityType {
 
 ### Create Job Opportunity (Offer)
 
-```typescript
 const jobOffer = await fetch('/api/opportunities', {
-  method: 'POST',
+
+<Code language="typescript" title="TypeScript">
+{`method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -152,14 +152,14 @@ const jobOffer = await fetch('/api/opportunities', {
       currency: 'USD'
     }
   })
-})
-```
+})`}
+</Code>
 
 ### Create Partnership Request
 
-```typescript
-const partnershipRequest = await fetch('/api/opportunities', {
-  method: 'POST',
+<Code language="typescript" title="TypeScript">
+{`const partnershipRequest = await fetch('/api/opportunities', {
+method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -181,26 +181,27 @@ const partnershipRequest = await fetch('/api/opportunities', {
       'Industry networking'
     ]
   })
-})
-```
+})`}
+</Code>
 
 ### Search Opportunities
 
-```typescript
 // Search for remote job opportunities
-const jobsResponse = await fetch('/api/opportunities?type=JOB&nature=OFFER&remote=true&limit=20')
+
+<Code language="typescript" title="TypeScript">
+{`const jobsResponse = await fetch('/api/opportunities?type=JOB&nature=OFFER&remote=true&limit=20')
 const { opportunities, total, hasMore } = await jobsResponse.json()
 
 // Search for partnership requests in tech industry
 const partnershipsResponse = await fetch('/api/opportunities?type=PARTNERSHIP&nature=REQUEST&industry=TECHNOLOGY_SOFTWARE')
-const partnerships = await partnershipsResponse.json()
-```
+const partnerships = await partnershipsResponse.json()`}
+</Code>
 
 ### Apply to Opportunity
 
-```typescript
-const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
-  method: 'POST',
+<Code language="typescript" title="TypeScript">
+{`const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -210,8 +211,8 @@ const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
     resume: 'https://example.com/resume.pdf',
     portfolio: 'https://portfolio.example.com'
   })
-})
-```
+})`}
+</Code>
 
 ## Access Control
 

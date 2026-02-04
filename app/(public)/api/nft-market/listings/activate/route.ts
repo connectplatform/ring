@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,9 +12,20 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   const { id, txHash } = body as { id: string, txHash?: string }
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-  const db = await getAdminDb()
-  const ref = db.collection('nft_listings').doc(id)
-  await ref.set({ status: 'active', txHash: txHash || null, updatedAt: new Date() }, { merge: true })
+
+  await initializeDatabase()
+  const db = getDatabaseService()
+
+  const result = await db.update('nft_listings', id, {
+    status: 'active',
+    txHash: txHash || null,
+    updatedAt: new Date()
+  })
+
+  if (!result.success) {
+    throw result.error || new Error('Failed to update listing')
+  }
+
   return NextResponse.json({ success: true })
 }
 

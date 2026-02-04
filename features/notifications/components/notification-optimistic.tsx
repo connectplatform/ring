@@ -275,7 +275,7 @@ export function OptimisticNotificationList({
     <div className={cn(className, isPending && 'opacity-70 transition-opacity')}>
       {/* Header with bulk actions */}
       <div className="mb-4 flex justify-between items-center">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-muted-foreground">
           {optimisticNotifications.length} notifications ({unreadCount} unread)
         </span>
         {unreadCount > 0 && (

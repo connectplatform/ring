@@ -1,0 +1,850 @@
+---
+title: Налаштування агентів ШІ
+description: Налаштуйте алгоритми підбору ШІ Ring та створіть кастомних агентів ШІ для спеціалізованих випадків використання
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Налаштування агентів ШІ
+
+<Callout type="info">
+  **Філософія ШІ Ring**: "ШІ має оркеструвати співпрацю людей, а не заміняти її." Налаштуйте алгоритми підбору відповідно до конкретних потреб та патернів співпраці вашої спільноти.
+</Callout>
+
+Ring постачається з потужними можливостями підбору ШІ одразу з коробки, але справжня сила лежить у налаштуванні. Цей посібник покаже вам, як:
+
+- Модифікувати 8-факторний алгоритм підбору
+- Додати домен-специфічні критерії підбору
+- Створити кастомних агентів ШІ для спеціалізованих завдань
+- Тренувати моделі на даних вашої спільноти
+- Інтегрувати зовнішні сервіси ШІ
+
+## Розуміння архітектури ШІ Ring
+
+### Основні компоненти ШІ
+
+**1. Рушій підбору можливостей**
+```
+Профіль користувача + Можливість → Аналіз ШІ → Оцінка підбору (0-100)
+                                      ↓
+Фактори підбору → Зважене оцінювання → Рекомендації
+```
+
+**2. Агенти ШІ**
+```
+Менеджер складу → Логіст → Бухгалтер → Продажі → Аналітик
+                                      ↓
+Координатор спільноти → Персональний агент → Кастомні агенти
+```
+
+**3. Система навчання**
+```
+Взаємодії користувачів → Зворотний зв'язок → Оновлення моделі → Покращений підбір
+```
+
+### Огляд алгоритму підбору
+
+Ring використовує 8-факторну систему оцінювання:
+
+<Code language="typescript" title="const matchingFactors = {">
+{`skills_match: { weight: 0.25, description: "Відповідність технічних навичок" },
+  experience_level: { weight: 0.20, description: "Сумісність рівня досвіду" },
+  location_proximity: { weight: 0.15, description: "Географічна доступність" },
+  availability_timeline: { weight: 0.15, description: "Відповідність часових зобов'язань" },
+  budget_compatibility: { weight: 0.10, description: "Відповідність бюджетних очікувань" },
+  past_collaboration: { weight: 0.08, description: "Попередні успішні партнерства" },
+  industry_expertise: { weight: 0.05, description: "Домен-специфічні знання" },
+  language_compatibility: { weight: 0.02, description: "Відповідність мови спілкування" },
+};`}
+</Code>
+
+## Налаштування алгоритму підбору
+
+### 1. Налаштування ваг факторів
+
+<Steps>
+  <Step>
+    **Проаналізуйте патерни вашої спільноти:**
+
+    Спочатку зрозуміти, що найважливіше для ваших користувачів:
+
+    // lib/ai/custom-matching.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const customMatchingFactors = {
+      // Пріоритети вашої спільноти
+      skills_match: { weight: 0.30, description: "Відповідність технічних навичок" },
+      trust_score: { weight: 0.20, description: "Оцінка перевіреної репутації" },
+      location_proximity: { weight: 0.10, description: "Географічна доступність" },
+      // ... налаштуйте відповідно до ваших потреб
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Створіть кастомну функцію оцінювання:**
+
+    // lib/ai/matching/custom-scorer.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function calculateCustomMatchScore(
+      userProfile: UserProfile,
+      opportunity: Opportunity
+    ): MatchResult {
+      let totalScore = 0;
+      let maxScore = 0;
+
+      for (const [factor, config] of Object.entries(customMatchingFactors)) {
+        const score = calculateFactorScore(factor, userProfile, opportunity);
+        const weightedScore = score * config.weight;
+
+        totalScore += weightedScore;
+        maxScore += config.weight;
+      }
+
+      const percentage = (totalScore / maxScore) * 100;
+
+      return {
+        score: Math.round(percentage),
+        factors: Object.keys(customMatchingFactors),
+        explanation: generateMatchExplanation(userProfile, opportunity, totalScore),
+      };
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Тестуйте та ітеруйте:**
+
+    // Тестуйте ваше кастомне оцінювання
+
+<Code language="typescript" title="TypeScript">
+{`const testCases = [
+      {
+        user: { skills: ['react', 'typescript'], experience: 3 },
+        opportunity: { skills: ['react', 'node'], budget: 5000 },
+        expectedScore: 85,
+      },
+      // Додайте більше тестових випадків
+    ];
+
+    testCases.forEach(testCase => {
+      const result = calculateCustomMatchScore(testCase.user, testCase.opportunity);
+      console.assert(
+        Math.abs(result.score - testCase.expectedScore) < 5,
+        `Тест провалився: очікувано ${testCase.expectedScore}, отримано ${result.score}`
+      );
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Додавання домен-специфічних факторів
+
+<Steps>
+  <Step>
+    **Визначте кастомні фактори:**
+
+    // Для платформи охорони здоров'я
+
+<Code language="typescript" title="TypeScript">
+{`export const healthcareMatchingFactors = {
+      medical_license: { weight: 0.25, type: 'boolean', description: "Дійсна медична ліцензія" },
+      specialization_match: { weight: 0.20, type: 'enum', values: ['cardiology', 'neurology', 'pediatrics'] },
+      hospital_privileges: { weight: 0.15, type: 'boolean', description: "Привілеї прийому в лікарні" },
+      malpractice_insurance: { weight: 0.10, type: 'boolean', description: "Поточне покриття страховки від недбалості" },
+      board_certification: { weight: 0.10, type: 'multiselect', values: ['ABIM', 'ABFM', 'ABO'] },
+      years_experience: { weight: 0.10, type: 'range', min: 0, max: 50 },
+      patient_volume_capacity: { weight: 0.05, type: 'number', description: "Ємність пацієнтів на місяць" },
+      telehealth_capability: { weight: 0.05, type: 'boolean', description: "Налаштування технології телемедицини" },
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Реалізуйте калькулятори факторів:**
+
+    // lib/ai/factors/healthcare-factors.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function calculateMedicalLicenseScore(profile: UserProfile): number {
+      const hasLicense = profile.verifications?.medicalLicense?.status === 'verified';
+      const isExpired = new Date(profile.verifications.medicalLicense.expiry) < new Date();
+
+      if (!hasLicense) return 0;
+      if (isExpired) return 25; // Часткова кредит за прострочену, але верифіковану
+
+      return 100;
+    }
+
+    export function calculateSpecializationMatch(
+      profile: UserProfile,
+      opportunity: Opportunity
+    ): number {
+      const userSpecs = profile.specializations || [];
+      const requiredSpecs = opportunity.requiredSpecializations || [];
+
+      if (requiredSpecs.length === 0) return 100; // Немає конкретних вимог
+
+      const matches = requiredSpecs.filter(spec => userSpecs.includes(spec));
+      return (matches.length / requiredSpecs.length) * 100;
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Додайте валідацію факторів:**
+
+    // lib/schemas/healthcare-profile.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const healthcareProfileSchema = baseProfileSchema.extend({
+      medicalLicense: z.object({
+        number: z.string(),
+        state: z.string(),
+        expiry: z.date(),
+        status: z.enum(['pending', 'verified', 'expired']),
+      }),
+      specializations: z.array(z.string()),
+      boardCertifications: z.array(z.string()),
+      hospitalAffiliations: z.array(z.object({
+        name: z.string(),
+        privileges: z.array(z.string()),
+      })),
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+## Створення кастомних агентів ШІ
+
+### 1. Архітектура агента
+
+<Steps>
+  <Step>
+    **Визначте інтерфейс агента:**
+
+    // lib/ai/agents/base-agent.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface AIAgent {
+      id: string;
+      name: string;
+      description: string;
+      capabilities: string[];
+
+      process(input: AgentInput): Promise<AgentOutput>;
+      learn(feedback: AgentFeedback): Promise<void>;
+    }
+
+    export interface AgentInput {
+      type: 'opportunity_analysis' | 'user_matching' | 'market_insights' | 'custom';
+      data: any;
+      context?: AgentContext;
+    }
+
+    export interface AgentOutput {
+      result: any;
+      confidence: number;
+      reasoning: string;
+      suggestions?: AgentSuggestion[];
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Створіть клас кастомного агента:**
+
+    // lib/ai/agents/healthcare-agent.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class HealthcareMatchingAgent implements AIAgent {
+      id = 'healthcare-matcher';
+      name = 'Спеціаліст з підбору в охороні здоров'я';
+      description = 'Спеціалізований на підборі медичних професій для медичних можливостей';
+
+      capabilities = [
+        'medical_credential_verification',
+        'specialization_matching',
+        'compliance_checking',
+        'risk_assessment'
+      ];
+
+      prompt = `
+        Ви - спеціаліст з підбору медичних можливостей. Ваша роль - аналізувати
+        медичні можливості та кваліфікації кандидатів з глибоким розумінням
+        вимог медичної галузі, ліцензування та стандартів відповідності.
+
+        Фокусуйтеся на: верифікації облікових даних, відповідності спеціалізацій,
+        перевірці відповідності, оцінці ризиків та міркуваннях безпеки пацієнтів.
+      `;
+
+      async process(input: AgentInput): Promise<AgentOutput> {
+        switch (input.type) {
+          case 'opportunity_analysis':
+            return this.analyzeHealthcareOpportunity(input.data);
+          case 'user_matching':
+            return this.matchHealthcareCandidate(input.data);
+          default:
+            throw new Error(`Непідтримуваний тип введення: ${input.type}`);
+        }
+      }
+
+      private async analyzeHealthcareOpportunity(opportunity: Opportunity): Promise<AgentOutput> {
+        // Медично-специфічний аналіз можливостей
+        const credentialRequirements = this.extractCredentialRequirements(opportunity);
+        const riskFactors = this.assessRiskFactors(opportunity);
+        const complianceNeeds = this.identifyComplianceRequirements(opportunity);
+
+        return {
+          result: {
+            credentialRequirements,
+            riskFactors,
+            complianceNeeds,
+            recommendedCandidates: await this.findQualifiedCandidates(opportunity),
+          },
+          confidence: 0.92,
+          reasoning: 'Аналіз на основі вимог медичного ліцензування та протоколів оцінки ризиків',
+          suggestions: this.generateHealthcareSuggestions(opportunity),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Тренування та навчання агентів
+
+<Steps>
+  <Step>
+    **Реалізуйте збір зворотного зв'язку:**
+
+    // lib/ai/learning/feedback-collector.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class FeedbackCollector {
+      async collectMatchFeedback(
+        userId: string,
+        opportunityId: string,
+        matchScore: number,
+        userFeedback: UserFeedback
+      ) {
+        const feedback = {
+          userId,
+          opportunityId,
+          originalScore: matchScore,
+          userRating: userFeedback.rating, // 1-5 зірок
+          userComments: userFeedback.comments,
+          outcome: userFeedback.outcome, // 'hired', 'interviewed', 'rejected', 'no_response'
+          timestamp: new Date(),
+        };
+
+        await this.storeFeedback(feedback);
+        await this.updateAgentModel(feedback);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Система безперервного навчання:**
+
+    // lib/ai/learning/model-updater.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ModelUpdater {
+      async updateMatchingModel(newFeedback: FeedbackData[]) {
+        // Проаналізуйте патерни зворотного зв'язку
+        const patterns = this.analyzeFeedbackPatterns(newFeedback);
+
+        // Налаштуйте ваги факторів на основі ставок успіху
+        const adjustedWeights = this.adjustWeightsBasedOnSuccess(patterns);
+
+        // Оновіть промпти агентів новими інсайтами
+        await this.updateAgentPrompts(patterns);
+
+        // Перетренуйте модель, якщо потрібно
+        if (this.shouldRetrainModel(patterns)) {
+          await this.retrainModel(newFeedback);
+        }
+      }
+
+      private analyzeFeedbackPatterns(feedback: FeedbackData[]) {
+        return {
+          highSuccessFactors: this.findHighSuccessFactors(feedback),
+          lowSuccessFactors: this.findLowSuccessFactors(feedback),
+          userPreferencePatterns: this.analyzeUserPreferences(feedback),
+          marketTrendInsights: this.extractMarketTrends(feedback),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Інтеграція зовнішніх сервісів ШІ
+
+### 1. Інтеграція LLM
+
+<Steps>
+  <Step>
+    **Налаштуйте провайдера LLM:**
+
+    // lib/ai/providers/llm-provider.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class LLMProvider {
+      constructor(private apiKey: string, private model: string = 'gpt-4') {}
+
+      async generateCompletion(prompt: string, options?: LLMOptions): Promise<LLMResponse> {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: options?.temperature || 0.7,
+            max_tokens: options?.maxTokens || 1000,
+          }),
+        });
+
+        const data = await response.json();
+
+        return {
+          text: data.choices[0].message.content,
+          usage: data.usage,
+          model: data.model,
+        };
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Створіть спеціалізовані промпти:**
+
+    // lib/ai/prompts/healthcare-prompts.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const healthcarePrompts = {
+      opportunityAnalysis: `
+        Проаналізуйте цю медичну можливість з точки зору підбору медичного персоналу:
+
+        Можливість: {opportunity_description}
+
+        Розгляньте:
+        1. Необхідні медичні облікові дані та ліцензії
+        2. Відповідність спеціалізацій та сумісність
+        3. Потреби відповідності регуляціям
+        4. Мікування оцінки ризиків
+        5. Імплікації безпеки пацієнтів
+
+        Надайте структурований аналіз з рекомендаціями для кваліфікованих кандидатів.
+      `,
+
+      candidateMatching: `
+        Оцініть цього медичного працівника для наступної можливості:
+
+        Профіль кандидата: {candidate_profile}
+        Можливість: {opportunity_details}
+
+        Оцініть:
+        1. Статус верифікації облікових даних
+        2. Відповідність спеціалізації
+        3. Підходящість рівня досвіду
+        4. Обмеження географії та доступності
+        5. Потенційна придатність та рекомендації
+
+        Надайте оцінку підбору (0-100) з детальним обґрунтуванням.
+      `,
+    };`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Спеціалізовані сервіси ШІ
+
+<Steps>
+  <Step>
+    **Інтегруйте домен-специфічний ШІ:**
+
+    <Code language="typescript" title="TypeScript">
+{`// Для охорони здоров'я - інтегруйте верифікацію медичних облікових даних
+export class MedicalCredentialVerifier {
+      async verifyLicense(licenseData: LicenseInfo): Promise<VerificationResult> {
+        // Інтегруйте API медичних рад
+        const verification = await this.queryMedicalBoardAPI(licenseData);
+
+        return {
+          status: verification.isValid ? 'verified' : 'invalid',
+          details: verification.details,
+          confidence: verification.confidence,
+        };
+      }
+
+      async checkMalpracticeHistory(providerData: ProviderInfo): Promise<RiskAssessment> {
+        // Інтегруйте бази даних недбалості
+        const history = await this.queryMalpracticeDatabase(providerData);
+
+        return this.assessRiskLevel(history);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Додайте функції на базі ШІ:**
+
+    // lib/ai/features/smart-scheduling.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class SmartSchedulingAI {
+      async optimizeSchedule(
+        provider: Provider,
+        opportunities: Opportunity[],
+        constraints: ScheduleConstraints
+      ): Promise<OptimizedSchedule> {
+        const prompt = `
+          Оптимізуйте графік цього медичного провайдера:
+
+          Доступність провайдера: ${JSON.stringify(provider.availability)}
+          Доступні можливості: ${JSON.stringify(opportunities)}
+          Обмеження: ${JSON.stringify(constraints)}
+
+          Розгляньте: ємність обсягу пацієнтів, час подорожей, вимоги облікових даних,
+          баланс роботи та життя, оптимізація доходів.
+
+          Надайте оптимізований тижневий графік з обґрунтуванням.
+        `;
+
+        const response = await this.llm.generateCompletion(prompt);
+        return this.parseScheduleResponse(response);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Тестування та валідація
+
+### 1. Тестова структура агента
+
+<Steps>
+  <Step>
+    **Створіть набори тестів:**
+
+    // lib/ai/testing/agent-tests.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class AgentTestSuite {
+      async testHealthcareAgent() {
+        const agent = new HealthcareMatchingAgent();
+
+        const testCases = [
+          {
+            input: {
+              type: 'opportunity_analysis',
+              data: mockCardiologyOpportunity,
+            },
+            expectedOutput: {
+              hasCredentialRequirements: true,
+              hasRiskAssessment: true,
+              confidence: expect.any(Number),
+            },
+          },
+          // Більше тестових випадків
+        ];
+
+        for (const testCase of testCases) {
+          const result = await agent.process(testCase.input);
+          this.assertMatchesExpected(result, testCase.expectedOutput);
+        }
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Бенчмаркінг продуктивності:**
+
+    // lib/ai/benchmarking/performance-tests.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class PerformanceBenchmark {
+      async benchmarkMatchingAccuracy() {
+        const testDataset = await this.loadTestDataset();
+
+        const results = {
+          customAgent: await this.testAgent(new CustomAgent(), testDataset),
+          defaultAgent: await this.testAgent(new DefaultAgent(), testDataset),
+        };
+
+        return {
+          accuracy: this.calculateAccuracy(results),
+          speed: this.calculateSpeed(results),
+          userSatisfaction: this.calculateUserSatisfaction(results),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. A/B тестування покращень ШІ
+
+<Steps>
+  <Step>
+    **Налаштуйте A/B тестування:**
+
+    // lib/ai/experiments/ab-testing.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ABTesting {
+      async runMatchingExperiment(experimentConfig: ExperimentConfig) {
+        const { controlGroup, testGroup } = await this.splitUsers();
+
+        // Контрольна група використовує стандартний підбір
+        const controlResults = await this.runMatchingForGroup(
+          controlGroup,
+          new DefaultMatchingAlgorithm()
+        );
+
+        // Тестова група використовує кастомний підбір
+        const testResults = await this.runMatchingForGroup(
+          testGroup,
+          new CustomMatchingAlgorithm()
+        );
+
+        return this.analyzeExperimentResults(controlResults, testResults);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Виміряйте метрики успіху:**
+
+    // lib/ai/metrics/success-metrics.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const successMetrics = {
+      matchingAccuracy: {
+        calculate: (matches: MatchResult[]) => {
+          const successfulHires = matches.filter(m => m.outcome === 'hired');
+          return successfulHires.length / matches.length;
+        },
+      },
+
+      userSatisfaction: {
+        calculate: (feedback: UserFeedback[]) => {
+          const averageRating = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
+          return averageRating / 5; // Нормалізувати до 0-1
+        },
+      },
+
+      timeToMatch: {
+        calculate: (matches: MatchResult[]) => {
+          const avgTime = matches.reduce((sum, m) => sum + m.timeToMatch, 0) / matches.length;
+          return avgTime;
+        },
+      },
+    };`}
+</Code>
+  </Step>
+</Steps>
+
+## Розгортання та моніторинг
+
+### 1. Конвеєр розгортання агента
+
+<Steps>
+  <Step>
+    **Контроль версій для агентів:**
+
+    // lib/ai/deployment/agent-deployer.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class AgentDeployer {
+      async deployAgent(agent: AIAgent, environment: 'staging' | 'production') {
+        // Перевірте агента
+        await this.validateAgent(agent);
+
+        // Створіть пакет розгортання
+        const package = await this.createDeploymentPackage(agent);
+
+        // Спочатку розгорніть на staging
+        if (environment === 'production') {
+          await this.deployToStaging(package);
+          await this.runIntegrationTests();
+        }
+
+        // Розгорніть в цільове середовище
+        await this.deployToEnvironment(package, environment);
+
+        // Оновіть маршрутизацію
+        await this.updateAgentRouting(agent.id, environment);
+
+        // Моніторте продуктивність
+        await this.startPerformanceMonitoring(agent.id);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Можливість відкату:**
+
+    <Code language="typescript" title="TypeScript">
+{`export async function rollbackAgent(agentId: string, version: string) {
+const backup = await this.getAgentBackup(agentId, version);
+      await this.restoreAgentFromBackup(backup);
+      await this.updateAgentRouting(agentId, 'production');
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Моніторинг та аналітика ШІ
+
+<Steps>
+  <Step>
+    **Панель продуктивності агента:**
+
+    // components/ai/agent-dashboard.tsx
+
+<Code language="tsx" title="tsx">
+{`export function AgentPerformanceDashboard() {
+      const metrics = useAgentMetrics();
+
+      return (
+        <div className="grid grid-cols-4 gap-4">
+          <Card>
+            <CardTitle>Точність підбору</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.accuracy}%</div>
+              <div className="text-sm text-muted-foreground">
+                +{metrics.accuracyChange}% vs минулого тижня
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Час відповіді</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.avgResponseTime}ms</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Задоволеність користувачів</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.satisfaction}/5</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Активні агенти</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.activeAgents}</div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Автоматизовані сповіщення:**
+
+    // lib/ai/monitoring/alerts.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class AIMonitoringAlerts {
+      async checkAgentHealth() {
+        const agents = await this.getAllAgents();
+
+        for (const agent of agents) {
+          const metrics = await this.getAgentMetrics(agent.id);
+
+          if (metrics.accuracy < 70) {
+            await this.sendAlert('Низька точність підбору', {
+              agent: agent.name,
+              accuracy: metrics.accuracy,
+              threshold: 70,
+            });
+          }
+
+          if (metrics.responseTime > 5000) {
+            await this.sendAlert('Повільний час відповіді', {
+              agent: agent.name,
+              responseTime: metrics.responseTime,
+              threshold: 5000,
+            });
+          }
+        }
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Історії успіху
+
+<Callout type="success">
+  **Налаштування ШІ в дії:**
+</Callout>
+
+### Платформа підбору в охороні здоров'я
+- **Кастомна верифікація медичних облікових даних** з інтеграцією API рад
+- **87% точність підбору** vs 65% зі стандартним алгоритмом
+- **ШІ оцінки ризиків** запобігає 40% проблематичних підборів
+- **Відповідність можливостей телемедицини** для дистанційної медичної допомоги
+
+### Мережа співпраці виробників
+- **ШІ сумісності обладнання** аналізує технічні специфікації
+- **Оцінка ризиків ланцюга постачання** прогнозує надійність доставки
+- **Географічна оптимізація** зменшує витрати на транспортування
+- **75% покращення** успішних партнерств
+
+### Ринок креативних послуг
+- **ШІ аналізу портфоліо** оцінює якість креативної роботи
+- **Відповідність стилю сумісності** між клієнтами та креаторами
+- **Оцінка складності проекту** забезпечує відповідний рівень експертизи
+- **62% збільшення** балів задоволеності клієнтів
+
+---
+
+## Наступні кроки
+
+<Callout type="success">
+  **Готові налаштувати ШІ Ring для вашого домену?**
+</Callout>
+
+### Фаза планування
+- [ ] Проаналізуйте патерни співпраці вашої спільноти
+- [ ] Визначте унікальні критерії підбору для вашого домену
+- [ ] Визначте метрики успіху для продуктивності ШІ
+
+### Фаза розробки
+- [ ] Почніть з налаштувань ваг факторів
+- [ ] Додайте домен-специфічні критерії підбору
+- [ ] Тестуйте покращення з A/B тестуванням
+
+### Розширена реалізація
+- [ ] Побудуйте кастомних агентів ШІ для спеціалізованих завдань
+- [ ] Інтегруйте зовнішні сервіси ШІ
+- [ ] Реалізуйте системи безперервного навчання
+
+### Розгортання та моніторинг
+- [ ] Налаштуйте моніторинг продуктивності
+- [ ] Створіть автоматизовані набори тестів
+- [ ] Встановіть системи збирання зворотного зв'язку
+
+<Callout type="info">
+  **Потрібна допомога з налаштування ШІ?** Опублікуйте [можливість налаштування Ring](/opportunities?type=ring_customization) для експертів з ШІ/МЛ, спеціалізованих на алгоритмах підбору та розробці агентів.
+</Callout>

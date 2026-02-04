@@ -1,0 +1,289 @@
+{
+  "title": "Панель продавця",
+  "becomeVendor": "Стати продавцем",
+
+  "onboarding": {
+    "title": "Станьте продавцем на GreenFood.live",
+    "subtitle": "Приєднайтесь до нашого сільськогосподарського ринку та досягніть тисяч клієнтів",
+    "success": "Ласкаво просимо до GreenFood! Ваш магазин створено.",
+    "redirecting": "Перенаправлення на панель управління...",
+    "form": {
+      "storeSlug": "URL-слаг магазину",
+      "storeSlugHint": "Ідентифікатор для URL (наприклад, 'zelena-dolyna-ferma')",
+      "storeSlugPlaceholder": "zelena-dolyna-ferma",
+      "storeName": "Назва магазину",
+      "storeNameHint": "Назва вашої ферми або бізнесу",
+      "storeNamePlaceholder": "Органічна ферма Зелена Долина",
+      "storeDescription": "Опис магазину",
+      "storeDescriptionHint": "Короткий опис вашої ферми та продуктів (макс. 500 символів)",
+      "storeDescriptionPlaceholder": "Ми сімейна органічна ферма, що спеціалізується на свіжих овочах та зелені...",
+      "storeCategories": "Категорії магазину",
+      "storeCategoriesHint": "Оберіть всі категорії, що підходять до ваших продуктів",
+      "storeLogo": "Логотип магазину",
+      "storeLogoHint": "Квадратне зображення, рекомендовано 512x512 (JPG, PNG, WebP, макс. 5МБ)",
+      "uploadLogo": "Завантажити логотип",
+      "changeLogo": "Змінити логотип",
+      "removeLogo": "Видалити логотип",
+      "submit": "Відкрити власну крамницю",
+      "submitting": "Створення крамниці..."
+    },
+    "categories": {
+      "organic-produce": "Органічна продукція",
+      "honey-sweets": "Мед та солодощі",
+      "essential-oils": "Ефірні олії",
+      "dairy-eggs": "Молочні продукти та яйця",
+      "meat-poultry": "М'ясо та птиця",
+      "herbs-spices": "Зелень і трави",
+      "grains-legumes": "Зернові і крупи",
+      "baked-goods": "Випічка",
+      "preserves-pickles": "Консервація та соління",
+      "beverages": "Напої",
+      "nuts-seeds": "Горіхи та насіння",
+      "handmade-crafts": "Ручні вироби"
+    },
+    "validation": {
+      "slugRequired": "Слаг магазину обов'язковий",
+      "slugInvalid": "Слаг може містити лише малі літери, цифри та дефіси",
+      "slugTooShort": "Слаг має бути не менше 3 символів",
+      "slugTooLong": "Слаг має бути менше 50 символів",
+      "nameRequired": "Назва магазину обов'язкова",
+      "nameTooShort": "Назва має бути не менше 3 символів",
+      "nameTooLong": "Назва має бути менше 100 символів",
+      "descriptionRequired": "Опис магазину обов'язковий",
+      "descriptionTooLong": "Опис має бути менше 500 символів",
+      "categoriesRequired": "Оберіть принаймні одну категорію",
+      "logoTooBig": "Розмір логотипу має бути менше 5МБ",
+      "logoInvalidType": "Логотип має бути JPG, PNG або WebP"
+    }
+  },
+
+  "dashboard": {
+    "title": "Панель продавця",
+    "welcome": "Ласкаво просимо",
+    "overview": "Огляд",
+    "analytics": "Аналітика",
+    "settings": "Налаштування"
+  },
+
+  "products": {
+    "title": "Мої продукти",
+    "myProducts": "Мої продукти",
+    "addProduct": "Додати продукт",
+    "editProduct": "Редагувати продукт",
+    "noProducts": "У вас ще немає доданих продуктів",
+    "addFirstProduct": "Додайте перший продукт, щоб почати продаж",
+    "totalProducts": "{count} продуктів",
+    "activeProducts": "{count} активних",
+    "pendingProducts": "{count} на розгляді",
+
+    "status": {
+      "active": "Активний",
+      "inactive": "Неактивний",
+      "pending": "На розгляді",
+      "approved": "Схвалено",
+      "rejected": "Відхилено"
+    },
+
+    "mainStore": {
+      "badge": "Головний магазин",
+      "submit": "Подати до головного магазину",
+      "pending": "⏳ Очікує розгляду адміном",
+      "approved": "✓ У головному магазині",
+      "rejected": "❌ Не схвалено",
+      "notSubmitted": "Не подано до головного магазину"
+    },
+
+    "actions": {
+      "edit": "Редагувати",
+      "duplicate": "Дублювати",
+      "delete": "Видалити",
+      "preview": "Попередній перегляд",
+      "activate": "Активувати",
+      "deactivate": "Деактивувати",
+      "viewInStore": "Переглянути в магазині",
+      "viewInMainStore": "Переглянути в головному магазині"
+    },
+
+    "filters": {
+      "all": "Всі продукти",
+      "active": "Активні",
+      "inactive": "Неактивні",
+      "pendingApproval": "На розгляді",
+      "approved": "Схвалені для головного магазину",
+      "rejected": "Відхилені",
+      "search": "Пошук продуктів...",
+      "sortBy": "Сортувати за",
+      "sortNewest": "Найновіші",
+      "sortOldest": "Найстаріші",
+      "sortPriceAsc": "Ціна: від низької до високої",
+      "sortPriceDesc": "Ціна: від високої до низької",
+      "sortNameAsc": "Назва: А до Я",
+      "sortNameDesc": "Назва: Я до А"
+    },
+
+    "form": {
+      "photo": "Фото продукту",
+      "photoHint": "Завантажте 1-5 якісних фото. Перше фото буде головним.",
+      "photoPlaceholder": "Перетягніть фото або натисніть для вибору",
+      "video": "Відео продукту (Опціонально)",
+      "videoHint": "Завантажте відео-презентацію (макс. 50МБ, MP4/WebM)",
+      "name": "Назва продукту",
+      "nameHint": "Чітка, описова назва",
+      "namePlaceholder": "Органічні помідори черрі",
+      "category": "Категорія",
+      "categoryHint": "Оберіть найбільш відповідну категорію",
+      "categoryPlaceholder": "Оберіть категорію...",
+      "priceUAH": "Ціна (грн)",
+      "priceHint": "Ціна в українських гривнях",
+      "pricePlaceholder": "100.00",
+      "stock": "Кількість на складі",
+      "stockHint": "Доступні одиниці",
+      "stockPlaceholder": "50",
+      "daarPrice": "Ціна в токенах DAAR (Опціонально)",
+      "daarPriceHint": "Розраховується автоматично з ціни в грн, якщо не вказано",
+      "description": "Короткий опис",
+      "descriptionHint": "Короткий опис продукту (макс. 200 символів)",
+      "descriptionPlaceholder": "Свіжі органічні помідори з нашої ферми...",
+      "activeInMyStore": "Активний у моєму магазині",
+      "activeInMyStoreHint": "Зробити продукт видимим у вашій вітрині",
+      "submitToMainStore": "Подати до головного магазину",
+      "submitToMainStoreHint": "Подати на розгляд адміну для розміщення в головному маркетплейсі",
+      "submit": "Створити продукт",
+      "update": "Оновити продукт",
+      "submitting": "Створення...",
+      "updating": "Оновлення...",
+      "cancel": "Скасувати"
+    },
+
+    "validation": {
+      "nameRequired": "Назва продукту обов'язкова",
+      "nameTooShort": "Назва має бути не менше 3 символів",
+      "nameTooLong": "Назва має бути менше 100 символів",
+      "categoryRequired": "Оберіть категорію",
+      "priceRequired": "Ціна обов'язкова",
+      "priceInvalid": "Ціна має бути додатним числом",
+      "stockRequired": "Кількість на складі обов'язкова",
+      "stockInvalid": "Кількість має бути невід'ємним числом",
+      "photoRequired": "Потрібно принаймні одне фото",
+      "photoCountExceeded": "Максимум 5 фото дозволено",
+      "photoSizeExceeded": "Розмір фото має бути менше 5МБ",
+      "photoInvalidType": "Фото має бути JPG, PNG або WebP",
+      "videoSizeExceeded": "Розмір відео має бути менше 50МБ",
+      "videoInvalidType": "Відео має бути MP4 або WebM",
+      "descriptionTooLong": "Опис має бути менше 200 символів"
+    },
+
+    "deleteConfirm": {
+      "title": "Видалити продукт",
+      "message": "Ви впевнені, що хочете видалити '{name}'? Цю дію неможливо скасувати.",
+      "confirm": "Так, видалити",
+      "cancel": "Скасувати"
+    }
+  },
+
+  "storefront": {
+    "title": "Магазин продавця",
+    "followVendor": "Підписатися",
+    "messageVendor": "Написати",
+    "memberSince": "Учасник з",
+    "totalSales": "Всього продажів",
+    "rating": "Рейтинг",
+    "responseTime": "Час відповіді",
+    "poweredBy": "На платформі",
+    "tabs": {
+      "products": "Продукти",
+      "about": "Про нас",
+      "reviews": "Відгуки",
+      "contact": "Контакти"
+    },
+    "about": {
+      "story": "Наша історія",
+      "location": "Розташування",
+      "shipping": "Умови доставки",
+      "returns": "Умови повернення",
+      "businessHours": "Години роботи",
+      "certifications": "Сертифікати",
+      "sustainability": "Екологічні практики"
+    },
+    "contact": {
+      "phone": "Телефон",
+      "email": "Email",
+      "address": "Адреса",
+      "sendMessage": "Надіслати повідомлення"
+    }
+  },
+
+  "navbar": {
+    "myStore": "Мій магазин",
+    "dashboard": "Панель управління",
+    "myProducts": "Мої продукти",
+    "addProduct": "Додати продукт",
+    "orders": "Замовлення",
+    "earnings": "Доходи",
+    "settings": "Налаштування",
+    "comingSoon": "Незабаром"
+  },
+
+  "notifications": {
+    "productCreated": "Продукт '{name}' успішно створено",
+    "productUpdated": "Продукт '{name}' успішно оновлено",
+    "productDeleted": "Продукт видалено",
+    "productSubmitted": "Продукт подано до головного магазину на розгляд",
+    "vendorCreated": "Магазин продавця успішно створено! Ласкаво просимо до GreenFood.live",
+    "approvalPending": "Ваш продукт очікує розгляду адміном",
+    "approvalApproved": "Вітаємо! '{name}' схвалено для головного магазину",
+    "approvalRejected": "Продукт '{name}' не схвалено. Причина: {reason}"
+  },
+
+  "startWrapper": {
+    "setupProgress": "Прогрес налаштування",
+    "storeDetails": "Інформація про магазин",
+    "completeStoreInfo": "Заповніть інформацію про магазин та логотип, щоб досягти 100%",
+    "whyChooseGreenFood": "Чому обрати GreenFood?",
+    "benefits": {
+      "aiEnrichment": {
+        "title": "AI збагачення продуктів",
+        "description": "Завантажте фото + основну інформацію, ШІ згенерує описи, теги та рекомендації"
+      },
+      "automatedSettlements": {
+        "title": "Автоматизовані розрахунки",
+        "description": "Продажі обробляються автоматично, комісії розраховуються, виплати плануються"
+      },
+      "daarRewards": {
+        "title": "Бонуси в токенах DAAR",
+        "description": "Отримайте до 25% бонусних токенів за регенеративні практики землеробства"
+      },
+      "trustTier": {
+        "title": "Система рівнів довіри",
+        "description": "Почніть з 20% комісії, заробіть до 12% через якість та продажі"
+      }
+    },
+    "nextSteps": {
+      "title": "Наступні кроки",
+      "completeStore": "Заповнити інформацію про магазин",
+      "uploadLogo": "Завантажити логотип магазину",
+      "addFirstProduct": "Додати перший продукт"
+    },
+    "vendorGuide": {
+      "title": "Посібник продавця",
+      "description": "Дізнайтеся, як налаштувати та керувати вашим магазином ефективно",
+      "viewGuide": "Переглянути посібник продавця →"
+    },
+    "progressBenefits": "Прогрес та переваги"
+  },
+
+  "startPage": {
+    "title": "Реєстрація продавця",
+    "subtitle": "Налаштуйте свій магазин та почніть продавати на GreenFood.live",
+    "progressSteps": {
+      "account": "Обліковий запис",
+      "storeSetup": "Налаштування магазину",
+      "launch": "Запуск"
+    },
+    "trustIndicators": {
+      "farms": "50+ ферм",
+      "activation": "Миттєва активація",
+      "security": "Безпечна платформа"
+    }
+  }
+}

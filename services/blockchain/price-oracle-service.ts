@@ -1,25 +1,41 @@
-import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
+import { createPublicClient, http, formatUnits, type PublicClient, type Chain } from 'viem';
+import { polygon, mainnet, arbitrum, optimism, base } from 'viem/chains';
 
 /**
- * Price data interface
+ * Multi-chain price data interface
  */
 export interface PriceData {
   price: string;
   timestamp: number;
   source: string;
   confidence: number; // 0-1 confidence score
+  chainId?: number; // Which chain this price came from
 }
 
 /**
- * Price oracle configuration
+ * Chain-specific oracle configuration
  */
-interface PriceOracleConfig {
+interface ChainOracleConfig {
   chainlink: {
     enabled: boolean;
     feedAddress?: string;
-    provider?: ethers.Provider;
+    aggregatorAbi?: any[];
   };
+  fallbacks: {
+    enabled: boolean;
+    coingecko: boolean;
+    coinmarketcap: boolean;
+    binance: boolean;
+  };
+}
+
+/**
+ * Multi-chain price oracle configuration
+ */
+interface PriceOracleConfig {
+  chains: Record<number, ChainOracleConfig>; // chainId -> config
+  defaultChain: number; // Default chain for RING/USD price
   fallbacks: {
     coingecko: boolean;
     coinmarketcap: boolean;
@@ -32,28 +48,103 @@ interface PriceOracleConfig {
 }
 
 /**
- * Cached price entry
+ * Cached price entry with chain awareness
  */
 interface CachedPrice {
   data: PriceData;
   expiresAt: number;
+  chainId: number;
 }
 
 /**
- * Service for fetching RING token price from various oracle sources
+ * Multi-Chain Price Oracle Service (Recaster)
+ * Provides decentralized price feeds across multiple blockchains
+ * Designed for Ring-powered projects with ErlangOTP scalability in mind
  */
 export class PriceOracleService {
   private static instance: PriceOracleService;
   private config: PriceOracleConfig;
+  private clients: Map<number, PublicClient> = new Map(); // chainId -> viem client
   private priceCache: Map<string, CachedPrice> = new Map();
-  private provider?: ethers.Provider;
 
   private constructor(config?: Partial<PriceOracleConfig>) {
-    this.config = {
-      chainlink: {
-        enabled: !!process.env.CHAINLINK_RING_USD_FEED,
-        feedAddress: process.env.CHAINLINK_RING_USD_FEED,
+    // Multi-chain configuration for different networks
+    const defaultChains: Record<number, ChainOracleConfig> = {
+      // Polygon (primary for RING)
+      137: {
+        chainlink: {
+          enabled: !!process.env.POLYGON_CHAINLINK_RING_USD_FEED,
+          feedAddress: process.env.POLYGON_CHAINLINK_RING_USD_FEED,
+          aggregatorAbi: this.getAggregatorAbi(),
+        },
+        fallbacks: {
+          enabled: true,
+          coingecko: true,
+          coinmarketcap: !!process.env.COINMARKETCAP_API_KEY,
+          binance: true,
+        },
       },
+      // Ethereum
+      1: {
+        chainlink: {
+          enabled: !!process.env.ETHEREUM_CHAINLINK_RING_USD_FEED,
+          feedAddress: process.env.ETHEREUM_CHAINLINK_RING_USD_FEED,
+          aggregatorAbi: this.getAggregatorAbi(),
+        },
+        fallbacks: {
+          enabled: true,
+          coingecko: true,
+          coinmarketcap: !!process.env.COINMARKETCAP_API_KEY,
+          binance: true,
+        },
+      },
+      // Arbitrum
+      42161: {
+        chainlink: {
+          enabled: !!process.env.ARBITRUM_CHAINLINK_RING_USD_FEED,
+          feedAddress: process.env.ARBITRUM_CHAINLINK_RING_USD_FEED,
+          aggregatorAbi: this.getAggregatorAbi(),
+        },
+        fallbacks: {
+          enabled: false, // Limited fallbacks for L2
+          coingecko: true,
+          coinmarketcap: false,
+          binance: false,
+        },
+      },
+      // Optimism
+      10: {
+        chainlink: {
+          enabled: !!process.env.OPTIMISM_CHAINLINK_RING_USD_FEED,
+          feedAddress: process.env.OPTIMISM_CHAINLINK_RING_USD_FEED,
+          aggregatorAbi: this.getAggregatorAbi(),
+        },
+        fallbacks: {
+          enabled: false,
+          coingecko: true,
+          coinmarketcap: false,
+          binance: false,
+        },
+      },
+      // Base
+      8453: {
+        chainlink: {
+          enabled: !!process.env.BASE_CHAINLINK_RING_USD_FEED,
+          feedAddress: process.env.BASE_CHAINLINK_RING_USD_FEED,
+          aggregatorAbi: this.getAggregatorAbi(),
+        },
+        fallbacks: {
+          enabled: false,
+          coingecko: true,
+          coinmarketcap: false,
+          binance: false,
+        },
+      },
+    };
+
+    this.config = {
+      chains: defaultChains,
+      defaultChain: 137, // Polygon as default
       fallbacks: {
         coingecko: true,
         coinmarketcap: !!process.env.COINMARKETCAP_API_KEY,
@@ -66,10 +157,8 @@ export class PriceOracleService {
       ...config,
     };
 
-    // Initialize blockchain provider if needed
-    if (this.config.chainlink.enabled) {
-      this.initializeProvider();
-    }
+    // Initialize viem clients for configured chains
+    this.initializeClients();
   }
 
   static getInstance(config?: Partial<PriceOracleConfig>): PriceOracleService {
@@ -80,31 +169,94 @@ export class PriceOracleService {
   }
 
   /**
-   * Get current RING/USD price with fallback sources
+   * Get Chainlink aggregator ABI
    */
-  async getRingUsdPrice(): Promise<PriceData> {
-    const cacheKey = 'RING_USD';
-    
+  private getAggregatorAbi() {
+    return [
+      {
+        inputs: [],
+        name: "latestRoundData",
+        outputs: [
+          { internalType: "uint80", name: "roundId", type: "uint80" },
+          { internalType: "int256", name: "answer", type: "int256" },
+          { internalType: "uint256", name: "startedAt", type: "uint256" },
+          { internalType: "uint256", name: "updatedAt", type: "uint256" },
+          { internalType: "uint80", name: "answeredInRound", type: "uint80" },
+        ],
+        stateMutability: "view",
+        type: "function",
+      },
+    ];
+  }
+
+  /**
+   * Initialize viem clients for configured chains
+   */
+  private initializeClients() {
+    const chainConfigs: Record<number, Chain> = {
+      1: mainnet,
+      137: polygon,
+      42161: arbitrum,
+      10: optimism,
+      8453: base,
+    };
+
+    for (const [chainId, chainConfig] of Object.entries(this.config.chains)) {
+      const chain = chainConfigs[parseInt(chainId)];
+      if (chain && chainConfig.chainlink.enabled) {
+        const rpcUrl = this.getChainRpcUrl(parseInt(chainId));
+        const client = createPublicClient({
+          chain,
+          transport: http(rpcUrl),
+        }) as any;
+        this.clients.set(parseInt(chainId), client);
+        logger.info(`Initialized price oracle client for chain ${chainId}`, { chain: chain.name });
+      }
+    }
+  }
+
+  /**
+   * Get RPC URL for a specific chain
+   */
+  private getChainRpcUrl(chainId: number): string {
+    const rpcUrls: Record<number, string> = {
+      1: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+      137: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
+      42161: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+      10: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
+      8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+    };
+    return rpcUrls[chainId] || 'https://polygon-rpc.com';
+  }
+
+  /**
+   * Get current RING/USD price with multi-chain fallback sources
+   */
+  async getRingUsdPrice(chainId?: number): Promise<PriceData> {
+    const targetChain = chainId || this.config.defaultChain;
+    const cacheKey = `RING_USD_${targetChain}`;
+
     // Check cache first
     if (this.config.cache.enabled) {
-      const cached = this.getCachedPrice(cacheKey);
+      const cached = this.getCachedPrice(cacheKey, targetChain);
       if (cached) {
-        logger.info('Returning cached RING price', { price: cached.price, source: cached.source });
+        logger.info('Returning cached RING price', { price: cached.price, source: cached.source, chainId: targetChain });
         return cached;
       }
     }
 
-    // Try primary source (Chainlink)
+    // Try primary source (Chainlink) for the specified chain
     let priceData: PriceData | null = null;
+    const chainConfig = this.config.chains[targetChain];
 
-    if (this.config.chainlink.enabled) {
+    if (chainConfig?.chainlink.enabled) {
       try {
-        priceData = await this.getChainlinkPrice();
+        priceData = await this.getChainlinkPrice(targetChain);
         if (priceData) {
-          logger.info('Got RING price from Chainlink', { price: priceData.price });
+          logger.info('Got RING price from Chainlink', { price: priceData.price, chainId: targetChain });
         }
       } catch (error) {
-        logger.warn('Chainlink price fetch failed', { error });
+        logger.warn('Chainlink price fetch failed', { error, chainId: targetChain });
       }
     }
 
@@ -113,20 +265,42 @@ export class PriceOracleService {
       priceData = await this.getFallbackPrice();
     }
 
+    // If still no price, try other chains
+    if (!priceData && chainId === undefined) {
+      for (const [otherChainId, otherConfig] of Object.entries(this.config.chains)) {
+        if (parseInt(otherChainId) !== targetChain && otherConfig.chainlink.enabled) {
+          try {
+            priceData = await this.getChainlinkPrice(parseInt(otherChainId));
+            if (priceData) {
+              logger.info('Got RING price from alternative chain', {
+                price: priceData.price,
+                originalChain: targetChain,
+                fallbackChain: otherChainId
+              });
+              break;
+            }
+          } catch (error) {
+            // Continue to next chain
+          }
+        }
+      }
+    }
+
     // If still no price, use default/last known price
     if (!priceData) {
-      logger.error('All price sources failed, using default price');
+      logger.error('All price sources failed, using default price', { chainId: targetChain });
       priceData = {
         price: '1.00', // Default $1 USD per RING
         timestamp: Date.now(),
         source: 'default',
         confidence: 0.1,
+        chainId: targetChain,
       };
     }
 
     // Cache the result
     if (this.config.cache.enabled && priceData.confidence > 0.5) {
-      this.setCachedPrice(cacheKey, priceData);
+      this.setCachedPrice(cacheKey, priceData, targetChain);
     }
 
     return priceData;
@@ -210,61 +384,35 @@ export class PriceOracleService {
   }
 
   /**
-   * Initialize blockchain provider for Chainlink
+   * Get price from Chainlink oracle for specific chain
    */
-  private initializeProvider() {
-    try {
-      const rpcUrl = process.env.POLYGON_RPC_URL;
-      if (!rpcUrl) {
-        logger.warn('No Polygon RPC URL configured for price oracle');
-        return;
-      }
-
-      this.provider = new ethers.JsonRpcProvider(rpcUrl);
-      logger.info('Initialized blockchain provider for price oracle');
-    } catch (error) {
-      logger.error('Failed to initialize blockchain provider', { error });
+  private async getChainlinkPrice(chainId: number): Promise<PriceData | null> {
+    const chainConfig = this.config.chains[chainId];
+    if (!chainConfig?.chainlink.enabled || !chainConfig.chainlink.feedAddress) {
+      return null;
     }
-  }
 
-  /**
-   * Get price from Chainlink oracle
-   */
-  private async getChainlinkPrice(): Promise<PriceData | null> {
-    if (!this.provider || !this.config.chainlink.feedAddress) {
+    const client = this.clients.get(chainId);
+    if (!client) {
+      logger.warn('No viem client available for chain', { chainId });
       return null;
     }
 
     try {
-      // Chainlink Price Feed ABI (minimal)
-      const aggregatorV3InterfaceABI = [
-        {
-          inputs: [],
-          name: "latestRoundData",
-          outputs: [
-            { internalType: "uint80", name: "roundId", type: "uint80" },
-            { internalType: "int256", name: "answer", type: "int256" },
-            { internalType: "uint256", name: "startedAt", type: "uint256" },
-            { internalType: "uint256", name: "updatedAt", type: "uint256" },
-            { internalType: "uint80", name: "answeredInRound", type: "uint80" },
-          ],
-          stateMutability: "view",
-          type: "function",
-        },
-      ];
+      const roundData = await client.readContract({
+        address: chainConfig.chainlink.feedAddress as `0x${string}`,
+        abi: chainConfig.chainlink.aggregatorAbi || this.getAggregatorAbi(),
+        functionName: 'latestRoundData',
+      } as any);
 
-      const priceFeed = new ethers.Contract(
-        this.config.chainlink.feedAddress,
-        aggregatorV3InterfaceABI,
-        this.provider
-      );
+      // Extract values from tuple return: [roundId, answer, startedAt, updatedAt, answeredInRound]
+      const roundDataTuple = roundData as any[];
+      const [, answer, , updatedAt] = roundDataTuple as [bigint, bigint, bigint, bigint, bigint];
 
-      const roundData = await priceFeed.latestRoundData();
-      
       // Chainlink prices are typically with 8 decimals
-      const price = (roundData.answer.toNumber() / 1e8).toFixed(6);
-      const timestamp = roundData.updatedAt.toNumber() * 1000;
-      
+      const price = (Number(answer) / 1e8).toFixed(6);
+      const timestamp = Number(updatedAt) * 1000;
+
       // Check if price is fresh (within last hour)
       const priceAge = Date.now() - timestamp;
       const maxAge = 60 * 60 * 1000; // 1 hour
@@ -275,10 +423,11 @@ export class PriceOracleService {
         timestamp,
         source: 'chainlink',
         confidence,
+        chainId,
       };
 
     } catch (error) {
-      logger.error('Chainlink price fetch failed', { error });
+      logger.error('Chainlink price fetch failed', { error, chainId });
       return null;
     }
   }
@@ -434,27 +583,28 @@ export class PriceOracleService {
   }
 
   /**
-   * Get cached price if still valid
+   * Get cached price if still valid (with chain awareness)
    */
-  private getCachedPrice(key: string): PriceData | null {
+  private getCachedPrice(key: string, chainId: number): PriceData | null {
     const cached = this.priceCache.get(key);
-    if (!cached) return null;
-    
+    if (!cached || cached.chainId !== chainId) return null;
+
     if (Date.now() > cached.expiresAt) {
       this.priceCache.delete(key);
       return null;
     }
-    
+
     return cached.data;
   }
 
   /**
-   * Set cached price with TTL
+   * Set cached price with TTL (with chain awareness)
    */
-  private setCachedPrice(key: string, data: PriceData): void {
+  private setCachedPrice(key: string, data: PriceData, chainId: number): void {
     this.priceCache.set(key, {
       data,
       expiresAt: Date.now() + (this.config.cache.ttl * 1000),
+      chainId,
     });
   }
 
@@ -467,21 +617,92 @@ export class PriceOracleService {
   }
 
   /**
-   * Get cache statistics
+   * Get price for a specific chain (for Ring-powered projects)
+   */
+  async getPriceForChain(chainId: number, tokenSymbol: string = 'RING'): Promise<PriceData> {
+    const cacheKey = `${tokenSymbol}_USD_${chainId}`;
+
+    // Check cache first
+    if (this.config.cache.enabled) {
+      const cached = this.getCachedPrice(cacheKey, chainId);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    // For now, only support RING token across chains
+    if (tokenSymbol !== 'RING') {
+      throw new Error(`Token ${tokenSymbol} not supported. Only RING is currently supported.`);
+    }
+
+    return await this.getRingUsdPrice(chainId);
+  }
+
+  /**
+   * Get prices across all configured chains (for Ring-powered projects)
+   */
+  async getMultiChainPrices(tokenSymbol: string = 'RING'): Promise<Record<number, PriceData>> {
+    const results: Record<number, PriceData> = {};
+
+    for (const [chainIdStr, chainConfig] of Object.entries(this.config.chains)) {
+      const chainId = parseInt(chainIdStr);
+      try {
+        if (chainConfig.chainlink.enabled || chainConfig.fallbacks.enabled) {
+          const priceData = await this.getPriceForChain(chainId, tokenSymbol);
+          results[chainId] = priceData;
+        }
+      } catch (error) {
+        logger.warn(`Failed to get price for chain ${chainId}`, { error });
+        // Continue with other chains
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get best price across all chains (highest confidence, then lowest latency)
+   */
+  async getBestPrice(tokenSymbol: string = 'RING'): Promise<PriceData & { chainId: number }> {
+    const multiChainPrices = await this.getMultiChainPrices(tokenSymbol);
+
+    let bestPrice: (PriceData & { chainId: number }) | null = null;
+
+    for (const [chainId, priceData] of Object.entries(multiChainPrices)) {
+      if (!bestPrice ||
+          priceData.confidence > bestPrice.confidence ||
+          (priceData.confidence === bestPrice.confidence &&
+           Date.now() - priceData.timestamp < Date.now() - bestPrice.timestamp)) {
+        bestPrice = { ...priceData, chainId: parseInt(chainId) };
+      }
+    }
+
+    if (!bestPrice) {
+      throw new Error(`No price data available for ${tokenSymbol}`);
+    }
+
+    return bestPrice;
+  }
+
+  /**
+   * Get cache statistics with chain awareness
    */
   getCacheStats(): {
     size: number;
-    entries: Array<{ key: string; expiresAt: number; source: string }>;
+    entries: Array<{ key: string; expiresAt: number; source: string; chainId: number }>;
+    chainsConfigured: number[];
   } {
     const entries = Array.from(this.priceCache.entries()).map(([key, cached]) => ({
       key,
       expiresAt: cached.expiresAt,
       source: cached.data.source,
+      chainId: cached.chainId,
     }));
 
     return {
       size: this.priceCache.size,
       entries,
+      chainsConfigured: Array.from(this.clients.keys()),
     };
   }
 }

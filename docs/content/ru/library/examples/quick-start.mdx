@@ -1,0 +1,296 @@
+---
+title: Quick Start
+description: Quick Start documentation for Ring Platform
+---
+
+# Quick Start Examples
+
+Get up and running with Ring Platform in minutes with these practical examples.
+
+## 🚀 5-Minute Setup
+
+### Basic Ring Platform Integration
+
+// app/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+export default async function HomePage() {
+  const session = await auth()
+  
+  if (!session) {
+    redirect('/auth/signin')
+  }
+
+  return (
+    <div className="container mx-auto p-8">
+      <h1>Welcome to Ring Platform</h1>
+      <p>Hello, {session.user?.name}!</p>
+    </div>
+  )
+}`}
+</Code>
+
+### Environment Setup
+
+.env.local Firebase Configuration OAuth Providers
+
+<Code language="bash" title="terminal">
+{`NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key
+
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret`}
+</Code>
+
+## 📱 Basic Components
+
+### User Profile Component
+
+// components/UserProfile.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useSession } from 'next-auth/react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
+export function UserProfile() {
+  const { data: session } = useSession()
+  
+  if (!session) return null
+
+  return (
+    <div className="flex items-center space-x-4">
+      <Avatar>
+        <AvatarImage src={session.user?.image || ''} />
+        <AvatarFallback>
+          {session.user?.name?.charAt(0) || 'U'}
+        </AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-medium">{session.user?.name}</p>
+        <p className="text-sm text-gray-500">{session.user?.email}</p>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+### Entity List Component
+
+// components/EntityList.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useEffect, useState } from 'react'
+
+interface Entity {
+  id: string
+  name: string
+  type: string
+  description: string
+}
+
+export function EntityList() {
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchEntities() {
+      try {
+        const response = await fetch('/api/entities')
+        const data = await response.json()
+        setEntities(data.entities || [])
+      } catch (error) {
+        console.error('Failed to fetch entities:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEntities()
+  }, [])
+
+  if (loading) {
+    return <div>Loading entities...</div>
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {entities.map((entity) => (
+        <div key={entity.id} className="border rounded-lg p-4 bg-white shadow-sm">
+          <h3 className="font-semibold text-lg mb-2">{entity.name}</h3>
+          <p className="text-sm text-gray-600 mb-2">{entity.type}</p>
+          <p className="text-gray-700">{entity.description}</p>
+        </div>
+      ))}
+    </div>
+  )
+}`}
+</Code>
+
+## 🔐 Authentication Examples
+
+### Magic Link Authentication
+
+// app/auth/signin/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { signIn } from 'next-auth/react'
+import { useState } from 'react'
+
+export default function SignIn() {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      await signIn('email', { 
+        email,
+        callbackUrl: '/dashboard'
+      })
+    } catch (error) {
+      console.error('Sign in failed:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-md mx-auto mt-8">
+      <form onSubmit={handleMagicLink} className="space-y-4">
+        <input
+          type="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 border rounded-lg"
+          required
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Sending...' : 'Send Magic Link'}
+        </button>
+      </form>
+    </div>
+  )
+}`}
+</Code>
+
+## 🌐 API Integration
+
+### Basic API Call
+
+// lib/api.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function createEntity(data: {
+  name: string
+  type: string
+  description: string
+}) {
+  const response = await fetch('/api/entities', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to create entity')
+  }
+
+  return response.json()
+}
+
+// Usage in component
+const handleCreateEntity = async () => {
+  try {
+    const entity = await createEntity({
+      name: 'My Company',
+      type: 'technology',
+      description: 'Building the future'
+    })
+    console.log('Entity created:', entity)
+  } catch (error) {
+    console.error('Error:', error)
+  }
+}`}
+</Code>
+
+## 💰 Web3 Integration
+
+### Wallet Connection
+
+// components/WalletConnect.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useEffect, useState } from 'react'
+
+export function WalletConnect() {
+  const [wallet, setWallet] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const connectWallet = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/wallet/create', {
+        method: 'POST',
+      })
+      const data = await response.json()
+      setWallet(data.address)
+    } catch (error) {
+      console.error('Failed to connect wallet:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-4 border rounded-lg">
+      {wallet ? (
+        <div>
+          <p className="text-sm text-gray-600">Wallet Connected:</p>
+          <p className="font-mono text-sm">{wallet}</p>
+        </div>
+      ) : (
+        <button
+          onClick={connectWallet}
+          disabled={loading}
+          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
+        >
+          {loading ? 'Connecting...' : 'Connect Wallet'}
+        </button>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+## 🎯 Next Steps
+
+1. **[Authentication Examples](/ru/library/examples/authentication)** - Explore advanced auth patterns
+2. **[API Integration](/ru/library/examples/api-integration)** - Deep dive into API usage
+3. **[Web3 Integration](/ru/library/examples/web3-integration)** - Advanced blockchain features
+4. **[Real World Apps](/ru/library/examples/real-world)** - Complete application examples
+
+---
+
+*Need help? Join our [Discord Community](https://discord.gg/ring-platform) or check the [API Documentation](/ru/library/api).*

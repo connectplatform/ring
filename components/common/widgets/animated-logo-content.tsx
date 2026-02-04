@@ -2,8 +2,13 @@
 
 import React, { useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+import EarthIcon from './earth-icon'
 
-const AnimatedLogoContent: React.FC = () => {
+export interface AnimatedLogoContentProps {
+  size?: number // Canvas render size (default: 77)
+}
+
+const AnimatedLogoContent: React.FC<AnimatedLogoContentProps> = ({ size = 77 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const { scene, camera, renderer, ring, waterRingMaterial, particles } = useMemo(() => {
@@ -11,7 +16,8 @@ const AnimatedLogoContent: React.FC = () => {
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas: document.createElement('canvas') })
 
-    renderer.setSize(77, 77) // 20% larger than 64x64 for better visual impact
+    renderer.setSize(size, size) // Configurable render size
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // High DPI support
     camera.position.z = 2.5 // Moved the camera closer to make the ring appear larger
 
     const ring = new THREE.Group()
@@ -139,7 +145,7 @@ const AnimatedLogoContent: React.FC = () => {
     ring.add(torus)
 
 return { scene, camera, renderer, ring, waterRingMaterial, particles }
-  }, [])
+  }, [size])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -177,7 +183,6 @@ return { scene, camera, renderer, ring, waterRingMaterial, particles }
 
     return () => {}
   }, [scene, camera, renderer, ring, waterRingMaterial, particles])
-
   return <canvas ref={canvasRef} />
 }
 

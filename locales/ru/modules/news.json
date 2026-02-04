@@ -1,0 +1,42 @@
+{
+  "title": "Новости и обновления",
+  "description": "Будьте в курсе последних новостей, обновлений платформы, объявлений о партнерствах и событий сообщества Ring Platform.",
+  "featuredStories": "Избранные материалы",
+  "allArticles": "Все статьи",
+  "readMore": "Читать далее",
+  "byAuthor": "Автор",
+  "featured": "Избранное",
+  "createArticle": "Создать статью",
+  "createFirstArticle": "Создать свою первую статью",
+  "myNews": "Мои новости",
+  "myNewsDescription": "Управляйте своими опубликованными статьями и статистикой написания",
+  "noArticles": "Еще нет статей",
+  "noArticlesDescription": "Начните писать свою первую статью, чтобы поделиться знаниями с сообществом.",
+  "allStatuses": "Все статусы",
+  "mostViewedArticle": "Самая просматриваемая статья",
+  "status": {
+    "published": "Опубликовано",
+    "draft": "Черновик",
+    "archived": "Архивировано"
+  },
+  "categories": {
+    "platform-updates": "Обновления платформы",
+    "partnerships": "Партнерства",
+    "community": "Сообщество",
+    "industry-news": "Новости индустрии",
+    "events": "События",
+    "announcements": "Объявления",
+    "press-releases": "Пресс-релизы",
+    "tutorials": "Руководства",
+    "other": "Другое"
+  },
+  "backToNews": "Назад к новостям",
+  "share": "Поделиться",
+  "relatedArticles": "Похожие статьи",
+  "tags": "Теги",
+  "gallery": "Галерея",
+  "authorBio": "Автор контента и contributor новостей платформы Ring.",
+  "joined": "Присоединился",
+  "articles": "статей",
+  "allCategories": "Все категории"
+}

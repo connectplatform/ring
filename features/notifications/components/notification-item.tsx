@@ -244,7 +244,7 @@ export function NotificationItem({
 
           {/* Title */}
           <h4 className={cn(
-            'font-semibold text-gray-900 dark:text-gray-100 mb-1',
+            'font-semibold text-foreground mb-1',
             compact ? 'text-sm' : 'text-base',
             isUnread && 'font-bold'
           )}>
@@ -253,7 +253,7 @@ export function NotificationItem({
 
           {/* Body */}
           <p className={cn(
-            'text-gray-700 dark:text-gray-300 mb-2',
+            'text-muted-foreground mb-2',
             compact ? 'text-xs line-clamp-1' : 'text-sm line-clamp-2'
           )}>
             {notification.body}

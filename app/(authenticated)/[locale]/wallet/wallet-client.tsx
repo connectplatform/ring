@@ -20,14 +20,17 @@ import {
 } from 'lucide-react'
 import { useCreditBalance } from '@/hooks/use-credit-balance'
 import { toast } from '@/hooks/use-toast'
+import { MultiChainWalletDashboard } from '@/components/web3/multi-chain-wallet-dashboard'
+import { GasOptimization } from '@/components/web3/gas-optimization'
 import type { Locale } from '@/i18n-config'
 
 interface WalletPageClientProps {
   locale: Locale
   searchParams: Record<string, string | string[] | undefined>
+  embedded?: boolean
 }
 
-export default function WalletPageClient({ locale, searchParams }: WalletPageClientProps) {
+export default function WalletPageClient({ locale, searchParams, embedded = false }: WalletPageClientProps) {
   const t = useTranslations('modules.wallet')
   const tCommon = useTranslations('common')
   const { data: session } = useSession()
@@ -85,7 +88,7 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
 
   if (balanceLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
@@ -98,7 +101,7 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
 
   if (balanceError) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Wallet Error</h2>
@@ -112,29 +115,31 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
-                <Wallet className="h-6 w-6 text-white" />
-              </div>
-              {t('title') || 'Wallet'}
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              {t('description') || 'Manage your RING tokens and view transaction history'}
-            </p>
+    <div className={embedded ? "space-y-6" : "min-h-screen"}>
+      <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
+        {/* Header - Only show in non-embedded mode */}
+        {!embedded && (
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
+                  <Wallet className="h-6 w-6 text-white" />
+                </div>
+                {t('title') || 'Wallet'}
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                {t('description') || 'Manage your RING tokens and view transaction history'}
+              </p>
+            </div>
+            <Button onClick={refetchBalance} variant="outline" size="sm">
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </div>
-          <Button onClick={refetchBalance} variant="outline" size="sm">
-            <ArrowUpDown className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        )}
 
         {/* Balance Overview Card */}
-        <Card className="mb-8 bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200/50 dark:border-green-800/30">
+        <Card className="mb-8 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 dark:from-green-950/30 dark:to-blue-950/30 dark:hover:from-green-900/40 dark:hover:to-blue-900/40 border border-green-200/50 dark:border-green-800/30 transition-all duration-200">
           <CardContent className="p-8">
             <div className="flex items-center justify-between">
               <div>
@@ -187,6 +192,12 @@ export default function WalletPageClient({ locale, searchParams }: WalletPageCli
             </div>
           </CardContent>
         </Card>
+
+        {/* Multi-Chain Web3 Dashboard */}
+        <MultiChainWalletDashboard />
+
+        {/* Gas Optimization */}
+        <GasOptimization />
 
         {/* Wallet Overview */}
         <div className="space-y-6">

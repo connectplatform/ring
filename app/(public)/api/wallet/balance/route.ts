@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Prevent caching for this route to ensure fresh wallet balance data on every request
+ * Allow caching for wallet balance with short revalidation for near real-time data
  */
-export const dynamic = 'force-dynamic';
+export const dynamic = 'auto'
+export const revalidate = 30 // 30 seconds for balance data

@@ -1,0 +1,14 @@
+{
+  "title": "API-інтерфейс",
+  "pages": [
+    "index",
+    "authentication",
+    "entities",
+    "opportunities",
+    "messaging",
+    "notifications",
+    "wallet",
+    "store",
+    "admin"
+  ]
+}

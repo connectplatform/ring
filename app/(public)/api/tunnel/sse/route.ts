@@ -58,38 +58,63 @@ export async function GET(request: NextRequest) {
         encoder.encode(MessageConverter.toSSE(connectMessage))
       );
 
-      // Send any queued messages
+      // Send any queued messages (batched for performance)
       const queue = messageQueues.get(userId!);
       if (queue && queue.length > 0) {
-        for (const message of queue) {
+        // Batch messages to reduce overhead
+        const batchSize = Math.min(queue.length, 10); // Send up to 10 messages at once
+        for (let i = 0; i < batchSize; i++) {
           controller.enqueue(
-            encoder.encode(MessageConverter.toSSE(message))
+            encoder.encode(MessageConverter.toSSE(queue[i]))
           );
         }
-        messageQueues.delete(userId!);
+
+        // Keep remaining messages in queue (don't delete entire queue)
+        if (batchSize < queue.length) {
+          messageQueues.set(userId!, queue.slice(batchSize));
+        } else {
+          messageQueues.delete(userId!);
+        }
       }
 
-      // Heartbeat interval
-      const heartbeatInterval = setInterval(() => {
+      // Adaptive heartbeat interval - less frequent for stable connections
+      let heartbeatIntervalMs = 30000; // Start with 30 seconds
+      let consecutiveHeartbeats = 0;
+      let heartbeatInterval: NodeJS.Timeout;
+
+      const sendHeartbeat = () => {
         try {
           const heartbeat = createTunnelMessage(
             TunnelMessageType.HEARTBEAT,
-            { timestamp: Date.now() },
+            { timestamp: Date.now(), sequence: consecutiveHeartbeats++ },
             { provider: TunnelProvider.SSE }
           );
-          
+
           controller.enqueue(
             encoder.encode(MessageConverter.toSSE(heartbeat))
           );
+
+          // Gradually increase heartbeat interval for stable connections (up to 2 minutes)
+          if (consecutiveHeartbeats > 5 && heartbeatIntervalMs < 120000) {
+            heartbeatIntervalMs = Math.min(120000, heartbeatIntervalMs * 1.2);
+          }
+
+          // Schedule next heartbeat
+          heartbeatInterval = setTimeout(sendHeartbeat, heartbeatIntervalMs);
         } catch (error) {
           // Connection closed
-          clearInterval(heartbeatInterval);
+          clearTimeout(heartbeatInterval);
         }
-      }, 30000); // 30 seconds
+      };
+
+      // Start heartbeat
+      heartbeatInterval = setTimeout(sendHeartbeat, heartbeatIntervalMs);
 
       // Cleanup on close
       request.signal.addEventListener('abort', () => {
-        clearInterval(heartbeatInterval);
+        if (heartbeatInterval) {
+          clearTimeout(heartbeatInterval);
+        }
         
         const connections = activeConnections.get(userId!);
         if (connections) {

@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import HomeContent from '@/components/common/pages/home'
 import { User } from 'next-auth'
-import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import MembershipUpsellCard from '@/components/common/membership-upsell-card'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
@@ -57,10 +57,11 @@ interface HomeWrapperProps {
  */
 export default function HomeWrapper({ userAgent, token, params, searchParams, user }: HomeWrapperProps) {
   const { data: session } = useSession()
-  const locale = useLocale()
+  const currentLocale = useLocale()
+  const t = useTranslations('navigation.sidebar')
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden relative transition-colors duration-300">
+    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
       {/* Static links for Google bot */}
       <div style={{position: 'absolute', top: '-9999px', left: '-9999px'}}>
         <Link href="/privacy">Privacy Policy</Link>
@@ -68,22 +69,22 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
       </div>
 
       {/* Desktop Layout - Three-column grid (desktop only, hidden on mobile and iPad) */}
-      <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
+      <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen" key={`desktop-${currentLocale}`}>
         {/* Left Sidebar - Navigation */}
         <div>
-          <DesktopSidebar />
+          <DesktopSidebar key={`sidebar-${currentLocale}`} />
         </div>
 
         {/* Main Content - Home Page */}
         <div>
           <Suspense fallback={<LoadingFallback />}>
-            <HomeContent session={session} />
+            <HomeContent key={`home-content-${currentLocale}`} session={session} />
           </Suspense>
         </div>
 
         {/* Right Sidebar - Membership and Quick Actions (desktop only) */}
         <div>
-          <RightSidebar>
+          <RightSidebar key={`right-sidebar-${currentLocale}`}>
             <div className="space-y-6">
               {/* Ecosystem Power Stats */}
               <div className="space-y-4">
@@ -122,30 +123,30 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
 
               {/* Explore Platform */}
               <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground mb-2">Explore Platform</h4>
+                <h4 className="font-medium text-sm mb-2">{t('explorePlatform')}</h4>
                 <div className="space-y-2">
                   <Link
-                    href={`/${locale}/entities`}
-                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-blue-50/50 to-green-50/50 dark:from-blue-950/10 dark:to-green-950/10 hover:from-blue-50 hover:to-green-50 dark:hover:from-blue-950/20 dark:hover:to-green-950/20 border border-blue-200/30 dark:border-blue-800/30 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                    href={`/${currentLocale}/entities`}
+                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-emerald-50/50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/30 hover:from-emerald-100 hover:to-green-100 dark:hover:from-emerald-950/50 dark:hover:to-green-950/50 border border-emerald-200/30 dark:border-emerald-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
-                      🏢
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
+                      🚜
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-foreground">Explore Entities</div>
-                      <div className="text-xs text-muted-foreground truncate">Verified organizations</div>
+                      <div className="font-semibold text-sm">{t('exploreFarms')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('verifiedFarms')}</div>
                     </div>
                   </Link>
                   <Link
-                    href={`/${locale}/opportunities`}
-                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-green-50/50 to-yellow-50/50 dark:from-green-950/10 dark:to-yellow-950/10 hover:from-green-50 hover:to-yellow-50 dark:hover:from-green-950/20 dark:hover:to-yellow-950/20 border border-green-200/30 dark:border-green-800/30 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                    href={`/${currentLocale}/opportunities`}
+                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-green-50/50 to-lime-50/50 dark:from-green-950/30 dark:to-lime-950/30 hover:from-green-100 hover:to-lime-100 dark:hover:from-green-950/50 dark:hover:to-lime-950/50 border border-green-200/30 dark:border-green-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-yellow-500 flex items-center justify-center flex-shrink-0 text-base">
-                      💼
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-lime-500 flex items-center justify-center flex-shrink-0 text-base">
+                      🌾
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-foreground">Explore Opportunities</div>
-                      <div className="text-xs text-muted-foreground truncate">Find collaborations</div>
+                      <div className="font-semibold text-sm">{t('freshHarvest')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('seasonalProducts')}</div>
                     </div>
                   </Link>
                 </div>
@@ -156,20 +157,20 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
       </div>
 
       {/* iPad Layout - Two-column grid (sidebar + feed), hidden on mobile and desktop */}
-      <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen">
+      <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen" key={`ipad-${currentLocale}`}>
         {/* Left Sidebar - Navigation */}
         <div>
-          <DesktopSidebar />
+          <DesktopSidebar key={`sidebar-ipad-${currentLocale}`} />
         </div>
 
         {/* Main Content - Home Page */}
         <div className="relative">
           <Suspense fallback={<LoadingFallback />}>
-            <HomeContent session={session} />
+            <HomeContent key={`home-content-ipad-${currentLocale}`} session={session} />
           </Suspense>
 
           {/* Floating Sidebar Toggle for Right Sidebar */}
-          <FloatingSidebarToggle>
+          <FloatingSidebarToggle key={`toggle-ipad-${currentLocale}`}>
             <div className="space-y-6">
               {/* Ecosystem Power Stats */}
               <div className="space-y-4">
@@ -208,30 +209,30 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
 
               {/* Explore Platform */}
               <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground mb-2">Explore Platform</h4>
+                <h4 className="font-medium text-sm mb-2">{t('explorePlatform')}</h4>
                 <div className="space-y-2">
                   <Link
-                    href={`/${locale}/entities`}
-                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-blue-50/50 to-green-50/50 dark:from-blue-950/10 dark:to-green-950/10 hover:from-blue-50 hover:to-green-50 dark:hover:from-blue-950/20 dark:hover:to-green-950/20 border border-blue-200/30 dark:border-blue-800/30 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                    href={`/${currentLocale}/entities`}
+                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-emerald-50/50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/30 hover:from-emerald-100 hover:to-green-100 dark:hover:from-emerald-950/50 dark:hover:to-green-950/50 border border-emerald-200/30 dark:border-emerald-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
-                      🏢
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
+                      🚜
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-foreground">Explore Entities</div>
-                      <div className="text-xs text-muted-foreground truncate">Verified organizations</div>
+                      <div className="font-semibold text-sm">{t('exploreFarms')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('verifiedFarms')}</div>
                     </div>
                   </Link>
                   <Link
-                    href={`/${locale}/opportunities`}
-                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-green-50/50 to-yellow-50/50 dark:from-green-950/10 dark:to-yellow-950/10 hover:from-green-50 hover:to-yellow-50 dark:hover:from-green-950/20 dark:hover:to-yellow-950/20 border border-green-200/30 dark:border-green-800/30 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                    href={`/${currentLocale}/opportunities`}
+                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-green-50/50 to-lime-50/50 dark:from-green-950/30 dark:to-lime-950/30 hover:from-green-100 hover:to-lime-100 dark:hover:from-green-950/50 dark:hover:to-lime-950/50 border border-green-200/30 dark:border-green-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-yellow-500 flex items-center justify-center flex-shrink-0 text-base">
-                      💼
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-lime-500 flex items-center justify-center flex-shrink-0 text-base">
+                      🌾
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm text-foreground">Explore Opportunities</div>
-                      <div className="text-xs text-muted-foreground truncate">Find collaborations</div>
+                      <div className="font-semibold text-sm">{t('freshHarvest')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('seasonalProducts')}</div>
                     </div>
                   </Link>
                 </div>
@@ -242,9 +243,9 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
       </div>
 
       {/* Mobile Layout - Stack vertically, hidden on iPad and desktop */}
-      <div className="md:hidden px-4">
+      <div className="md:hidden px-4" key={`mobile-${currentLocale}`}>
         <Suspense fallback={<LoadingFallback />}>
-          <HomeContent session={session} />
+          <HomeContent key={`home-content-mobile-${currentLocale}`} session={session} />
         </Suspense>
       </div>
 

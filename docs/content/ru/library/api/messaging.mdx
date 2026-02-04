@@ -1,0 +1,55 @@
+---
+title: Messaging
+description: Messaging documentation for Ring Platform
+---
+
+# Messaging API
+
+Real-time communication system with **8 endpoints** supporting conversations, messages, typing indicators, and file attachments.
+
+## Overview
+
+The Ring Platform messaging system provides:
+- Real-time conversation management
+- Message CRUD operations
+- Typing indicators and presence
+- File attachment support
+- Cross-platform compatibility
+
+## API Endpoints
+
+### `GET /api/conversations`
+List user conversations with pagination
+
+### `POST /api/conversations`
+Create new conversation
+
+### `GET /api/conversations/{id}/messages`
+Get messages in conversation
+
+### `POST /api/conversations/{id}/messages`
+Send message to conversation
+
+### `PUT /api/messages/{id}`
+Update message content
+
+### `DELETE /api/messages/{id}`
+Delete message
+
+### `POST /api/conversations/{id}/typing`
+Send typing indicator
+
+### `PUT /api/messages/{id}/read`
+Mark message as read
+
+## Real-time Features
+
+The messaging system uses **Tunnel Transport** abstraction for optimal performance:
+
+- **WebSocket** - Primary transport for real-time updates
+- **SSE (Server-Sent Events)** - Fallback for Edge Runtime
+- **Long-polling** - Universal fallback for all environments
+
+---
+
+*Complete messaging documentation coming soon. Check our [Features](/ru/library/features/messaging) section for implementation details.*

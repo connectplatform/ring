@@ -51,7 +51,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 import { formatDateValue, truncateDescription, formatBudget } from '@/lib/utils'
-import LoginForm from '@/features/auth/components/login-form'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 
 interface OpportunityListProps {
@@ -235,12 +235,18 @@ export default function OpportunityList({
   }
 
   if (!session) {
-    return <LoginForm />
+    return (
+      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+        <div className="max-w-md w-full">
+          <UnifiedLoginInline variant="hero" />
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
 
 
 

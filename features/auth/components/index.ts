@@ -4,8 +4,6 @@
 export { AnimatedLoginContainer } from './animated-login-content'
 export { default as AuthErrorContent } from './auth-error-content'
 export { default as EmailSignupForm } from './email-signup-form'
-export { default as GoogleSignInButton } from './google-sign-in-button'
-export { default as LoginForm } from './login-form'
 export { default as NewUserForm } from './new-user-form'
 export { default as ProfileContent } from './profile-content'
 export { SessionProvider } from './session-provider'

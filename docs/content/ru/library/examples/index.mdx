@@ -1,0 +1,99 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Examples
+
+Practical examples and code snippets to help you build with Ring Platform.
+
+## 📚 Example Categories
+
+### 🚀 Quick Start
+[Quick Start Examples](/ru/library/examples/quick-start) - Get up and running fast with basic examples
+
+### 🔐 Authentication
+[Authentication Examples](/ru/library/examples/authentication) - Auth.js v5 implementation patterns
+
+### 🔌 API Integration
+[API Integration](/ru/library/examples/api-integration) - Working with Ring Platform APIs
+
+### 🌐 Web3 Integration
+[Web3 Integration](/ru/library/examples/web3-integration) - Wallet and blockchain examples
+
+### 🎨 White Label
+[White Label Examples](/ru/library/examples/white-label) - Customization and branding examples
+
+### 🏗️ Real World Apps
+[Real World Apps](/ru/library/examples/real-world) - Complete application examples
+
+## 💡 Featured Examples
+
+### Simple Entity Creation
+
+<Code language="typescript" title="TypeScript">
+{`import { createEntity } from '@/lib/entities'
+const entity = await createEntity({
+  name: 'My Company',
+  type: 'technology',
+  description: 'Building the future',
+  logo: '/logo.png'
+})`}
+</Code>
+
+### OAuth Authentication
+
+import { signIn } from 'next-auth/react'
+
+<Code language="typescript" title="TypeScript">
+{`// Sign in with Google
+await signIn('google', { 
+  callbackUrl: '/dashboard' 
+})
+
+// Sign in with Magic Link
+await signIn('email', { 
+  email: 'user@example.com' 
+})`}
+</Code>
+
+### Web3 Wallet Creation
+
+<Code language="typescript" title="TypeScript">
+{`import { createWallet } from '@/lib/wallet'
+const wallet = await createWallet({
+  userId: session.user.id,
+  autoGenerate: true
+})
+
+console.log('Wallet address:', wallet.address)`}
+</Code>
+
+## 🎯 Interactive Examples
+
+import { Card, Cards } from 'fumadocs-ui/components/card'
+
+<Cards>
+  <Card title="Authentication Flow" href="/examples/authentication">
+    Complete authentication implementation with multiple providers
+  </Card>
+  <Card title="Entity Management" href="/examples/api-integration">
+    CRUD operations for entities with role-based access
+  </Card>
+  <Card title="Real-time Chat" href="/examples/real-world">
+    WebSocket-based messaging system
+  </Card>
+  <Card title="NFT Marketplace" href="/examples/web3-integration">
+    Complete NFT trading implementation
+  </Card>
+</Cards>
+
+## 🔗 Resources
+
+- [GitHub Repository](https://github.com/connectplatform/ring) - Source code
+- [API Documentation](/ru/library/api) - Complete API reference
+- [Live Demo](https://ring.ck.ua) - See it in action
+
+---
+
+*Looking for something specific? Check our [API Documentation](/ru/library/api) or [Feature Guides](/ru/library/features).*

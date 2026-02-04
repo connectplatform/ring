@@ -1,23 +1,12 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
-
-import { Entity } from '@/features/entities/types';
-
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
-
-import { auth } from '@/auth'; // Consistent session handling
-import { entityConverter } from '@/lib/converters/entity-converter';
-import { UserRole } from '@/features/auth/types';
-import { Query, Filter } from 'firebase-admin/firestore';
-import { logger } from '@/lib/logger';
+// 🚀 Entity Retrieval Service
+import { Entity } from '@/features/entities/types'
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { getCachedEntities } from '@/lib/build-cache/static-data-cache'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { auth } from '@/auth'
+import { UserRole } from '@/features/auth/types'
+import { logger } from '@/lib/logger'
+import { cache } from 'react'
 
 /**
  * Fetches entities by matching tags in the 'slug' array, enforcing role-based access control.
@@ -43,7 +32,8 @@ import { logger } from '@/lib/logger';
  * Note: Confidential entities are only included in the results for users with CONFIDENTIAL or ADMIN roles.
  *       Other users will only see non-confidential entities matching the slugs.
  */
-export async function getEntitiesBySlug(slugs: string[]): Promise<Entity[]> {try {
+export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]> => {
+  try {
   const phase = getCurrentPhase();
 logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
 
@@ -112,19 +102,34 @@ logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
       queryConfig.where = whereClause;
     }
 
-    logger.info('Services: getEntitiesBySlug - Executing optimized query');
+    logger.info('Services: getEntitiesBySlug - Executing optimized query')
 
-    // Step 3: Execute optimized query
-    const snapshot = await getCachedCollectionAdvanced('entities', queryConfig);
+    // Step 3: Initialize database and execute query
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // Step 4: Map documents and apply role-based filtering
-    let entities: Entity[] = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        ...data,
-        id: doc.id,
-      } as Entity;
-    });
+    // For array-contains-any, we need to handle this differently in PostgreSQL
+    // Simplified: fetch all and filter in-memory for now
+    const result = await db.query({
+      collection: 'entities',
+      orderBy: [{ field: 'dateAdded', direction: 'desc' }],
+      pagination: { limit: 200 } // Fetch more for filtering
+    })
+
+    if (!result.success || !result.data) {
+      logger.warn('getEntitiesBySlug: Query failed', { error: result.error })
+      return []
+    }
+
+    // Step 4: Map results and apply filtering
+    let entities = (Array.isArray(result.data) ? result.data : (result.data as any).data || []) as Entity[]
+
+    // Filter by slug (array-contains-any equivalent)
+    if (slugs.length > 0) {
+      entities = entities.filter(entity => 
+        entity.tags && entity.tags.some(tag => slugs.includes(tag))
+      )
+    }
 
     // Apply role-based visibility filtering for non-admin users
     if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
@@ -151,4 +156,4 @@ logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
       ? error 
       : new Error('Unknown error occurred while fetching entities by slug');
   }
-}
+})

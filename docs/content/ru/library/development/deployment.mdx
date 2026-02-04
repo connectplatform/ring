@@ -1,0 +1,390 @@
+---
+title: Deployment
+description: Deployment documentation for Ring Platform
+---
+
+# Deployment Guide
+
+Complete guide for deploying Ring Platform to production environments.
+
+## 🚀 Deployment Options
+
+### 1. Vercel (Recommended)
+**Best for**: Quick deployment, automatic scaling, edge optimization
+
+### 2. Docker
+**Best for**: Self-hosted environments, enterprise deployments
+
+### 3. Traditional Hosting
+**Best for**: Custom infrastructure, specific compliance requirements
+
+## 🔧 Vercel Deployment
+
+### Prerequisites
+- Vercel account
+- GitHub repository
+- Environment variables configured
+
+### Step-by-Step Deployment
+
+#### 1. Connect Repository
+Install Vercel CLI Login to Vercel Deploy from project directory
+
+<Code language="bash" title="terminal">
+{`npm i -g vercel
+
+vercel login
+
+vercel`}
+</Code>
+
+#### 2. Configure Environment Variables
+In Vercel dashboard, add these environment variables:
+
+Authentication Firebase OAuth Providers
+
+<Code language="bash" title="terminal">
+{`NEXTAUTH_URL=https://your-domain.vercel.app
+NEXTAUTH_SECRET=your-production-secret
+
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret`}
+</Code>
+
+#### 3. Build Configuration
+Create `vercel.json`:
+
+<Code language="json" title="{">
+{`"framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"]
+}`}
+</Code>
+
+### Automatic Deployments
+- **Main branch** → Production deployment
+- **Feature branches** → Preview deployments
+- **Pull requests** → Preview deployments with unique URLs
+
+## 🐳 Docker Deployment
+
+### Dockerfile
+Install dependencies only when needed Rebuild the source code only when needed Production image, copy all the files and run next Set the correct permission for prerender cache
+
+<Code language="dockerfile" title="FROM node:18-alpine AS base">
+{`FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
+
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED 1
+RUN npm run build
+
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["node", "server.js"]`}
+</Code>
+
+### Docker Compose
+<Code language="yaml" title="version: '3.8'">
+{`services:
+  ring-app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=your-secret
+      - NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:`}
+</Code>
+
+### Build and Run
+Build the image Run with docker-compose View logs
+
+<Code language="bash" title="terminal">
+{`docker build -t ring-platform .
+
+docker-compose up -d
+
+docker-compose logs -f ring-app`}
+</Code>
+
+## ☁️ Cloud Deployments
+
+### AWS Deployment
+Using AWS Amplify
+
+<Code language="bash" title="terminal">
+{`npm install -g @aws-amplify/cli
+amplify init
+amplify add hosting
+amplify publish`}
+</Code>
+
+### Google Cloud Platform
+Using Cloud Run
+
+<Code language="bash" title="terminal">
+{`gcloud run deploy ring-platform \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated`}
+</Code>
+
+### Azure Deployment
+Using Azure Static Web Apps
+
+<Code language="bash" title="terminal">
+{`az staticwebapp create \
+  --name ring-platform \
+  --resource-group myResourceGroup \
+  --source https://github.com/username/ring \
+  --location "Central US" \
+  --branch main`}
+</Code>
+
+## 🔒 Production Security
+
+### Environment Variables
+Generate secure secrets Use environment-specific values
+
+<Code language="bash" title="terminal">
+{`openssl rand -base64 32  # For NEXTAUTH_SECRET
+
+NEXTAUTH_URL=https://your-production-domain.com
+NODE_ENV=production`}
+</Code>
+
+### Security Headers
+Add to `next.config.js`:
+
+<Code language="javascript" title="const securityHeaders = [">
+{`{
+    key: 'X-DNS-Prefetch-Control',
+    value: 'on'
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload'
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY'
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff'
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'origin-when-cross-origin'
+  }
+]
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+    ]
+  },
+}`}
+</Code>
+
+## 📊 Monitoring & Analytics
+
+### Error Tracking
+Install Sentry Configure in sentry.client.config.js
+
+<Code language="bash" title="terminal">
+{`npm install @sentry/nextjs
+
+import * as Sentry from '@sentry/nextjs'
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+})`}
+</Code>
+
+### Performance Monitoring
+// pages/_app.js
+
+<Code language="javascript" title="JavaScript">
+{`import { Analytics } from '@vercel/analytics/react'
+
+export default function App({ Component, pageProps }) {
+  return (
+    <>
+      <Component {...pageProps} />
+      <Analytics />
+    </>
+  )
+}`}
+</Code>
+
+## 🔄 CI/CD Pipeline
+
+### GitHub Actions
+.github/workflows/deploy.yml
+
+<Code language="yaml" title="configuration">
+{`name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Build application
+        run: npm run build
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
+          vercel-args: '--prod'`}
+</Code>
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+#### Build Failures
+Clear Next.js cache Clear node_modules Check for TypeScript errors
+
+<Code language="bash" title="terminal">
+{`rm -rf .next
+
+rm -rf node_modules
+npm install
+
+npm run type-check`}
+</Code>
+
+#### Environment Variable Issues
+Verify environment variables are loaded
+
+<Code language="bash" title="terminal">
+{`console.log('Environment check:', {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  // Don't log secrets!
+})`}
+</Code>
+
+#### Database Connection Issues
+Test Firebase connection
+
+<Code language="bash" title="terminal">
+{`import { db } from '@/lib/firebase'
+
+try {
+  await db.collection('test').doc('test').get()
+  console.log('Firebase connected successfully')
+} catch (error) {
+  console.error('Firebase connection failed:', error)
+}`}
+</Code>
+
+## 📋 Deployment Checklist
+
+### Pre-Deployment
+- [ ] All tests passing
+- [ ] Environment variables configured
+- [ ] Database migrations completed
+- [ ] Security headers configured
+- [ ] Error tracking setup
+
+### Post-Deployment
+- [ ] Health checks passing
+- [ ] Authentication working
+- [ ] Database connectivity verified
+- [ ] Performance metrics baseline
+- [ ] Error tracking active
+
+---
+
+*Next: [Performance Optimization](/ru/library/development/performance) - Learn how to optimize Ring Platform for production.*

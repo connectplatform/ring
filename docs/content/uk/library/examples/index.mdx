@@ -1,0 +1,98 @@
+---
+title: Приклади
+description: Індексна документація прикладів для платформи Ring
+---
+
+# Приклади
+
+Практичні приклади та фрагменти коду, які допоможуть вам створювати додатки з платформою Ring.
+
+## 📚 Категорії прикладів
+
+### 🚀 Швидкий старт
+[Приклади швидкого старту](/uk/docs/examples/quick-start) - Швидко розпочніть роботу з базовими прикладами
+
+### 🔐 Автентифікація
+[Приклади автентифікації](/uk/docs/examples/authentication) - Шаблони реалізації Auth.js v5
+
+### 🔌 Інтеграція API
+[Інтеграція API](/uk/docs/examples/api-integration) - Робота з API платформи Ring
+
+### 🌐 Інтеграція Web3
+[Інтеграція Web3](/uk/docs/examples/web3-integration) - Приклади гаманців та блокчейну
+
+### 🎨 White Label
+[Приклади White Label](/uk/docs/examples/white-label) - Приклади налаштування та брендингу
+
+### 🏗️ Реальні додатки
+[Реальні додатки](/uk/docs/examples/real-world) - Повні приклади додатків
+
+## 💡 Рекомендовані приклади
+
+### Просте створення суб'єкта
+
+<Code language="typescript" title="TypeScript">
+{`import { createEntity } from '@/lib/entities'
+const entity = await createEntity({
+  name: 'My Company',
+  type: 'technology',
+  description: 'Building the future',
+  logo: '/logo.png'
+})`}
+</Code>
+### OAuth автентифікація
+
+import { signIn } from 'next-auth/react'
+
+<Code language="typescript" title="TypeScript">
+{`// Sign in with Google
+await signIn('google', { 
+  callbackUrl: '/dashboard' 
+})
+
+// Sign in with Magic Link
+await signIn('email', { 
+  email: 'user@example.com' 
+})`}
+</Code>
+
+### Створення Web3 гаманця
+
+<Code language="typescript" title="TypeScript">
+{`import { createWallet } from '@/lib/wallet'
+const wallet = await createWallet({
+  userId: session.user.id,
+  autoGenerate: true
+})
+
+console.log('Wallet address:', wallet.address)`}
+</Code>
+
+## 🎯 Інтерактивні приклади
+
+import { Card, Cards } from 'fumadocs-ui/components/card'
+
+<Cards>
+  <Card title="Потік автентифікації" href="/examples/authentication">
+    Повна реалізація автентифікації з кількома провайдерами
+  </Card>
+  <Card title="Управління суб'єктами" href="/examples/api-integration">
+    CRUD операції для суб'єктів з контролем доступу на основі ролей
+  </Card>
+  <Card title="Чат в реальному часі" href="/examples/real-world">
+    Система повідомлень на основі WebSocket
+  </Card>
+  <Card title="NFT ринок" href="/examples/web3-integration">
+    Повна реалізація торгівлі NFT
+  </Card>
+</Cards>
+
+## 🔗 Ресурси
+
+- [GitHub репозиторій](https://github.com/connectplatform/ring) - Вихідний код
+- [API документація](/uk/docs/api) - Повний довідник API
+- [Демо версія](https://ring.ck.ua) - Подивіться в дії
+
+---
+
+*Шукаєте щось конкретне? Перевірте нашу [API документацію](/uk/docs/api) або [Посібники з функцій](/uk/docs/features).*

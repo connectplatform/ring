@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { file as fileService } from '@/lib/file'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth' // Auth.js session handler
 import { UserRole } from '@/features/auth/types'
@@ -7,8 +7,8 @@ import { cookies, headers } from 'next/headers'
 /**
  * Handles POST requests for uploading files related to opportunities.
  * 
- * This route allows authenticated users to upload files for opportunities, which are then stored using Vercel Blob storage.
- * The route expects a file to be sent as part of a FormData object.
+ * This route allows authenticated users to upload files for opportunities, which are then stored using our file abstraction layer
+ * (supports both Vercel Blob and RingBase backends). The route expects a file to be sent as part of a FormData object.
  * 
  * User steps:
  * 1. Authenticate with the application.
@@ -97,27 +97,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       : 'opportunities'
     const uniqueFileName = `${fileNamePrefix}/${userId}_${timestamp}_${file.name}`
 
-    // Upload the file to Vercel Blob storage
-    const blob = await put(uniqueFileName, file, {
+    // Upload the file using our file abstraction layer
+    const result = await fileService().upload(uniqueFileName, file, {
       access: 'public',
     })
 
     console.log('API: /api/opportunities/upload - File uploaded successfully:', {
-      url: blob.url,
+      url: result.url,
       opportunityId: opportunityId || 'not specified'
     })
 
-    // Transform Vercel Blob response to match our documented API interface
+    // Check if upload was successful
+    if (!result.success) {
+      console.error('API: /api/opportunities/upload - File upload failed:', result.error)
+      return NextResponse.json(
+        { error: result.error || 'File upload failed' },
+        {
+          status: 500,
+          headers: { 'Cache-Control': 'no-store, max-age=0' }
+        }
+      )
+    }
+
+    // Transform response to match our documented API interface
     const response = {
-      success: true,
-      url: blob.url,
-      downloadUrl: blob.downloadUrl,
+      success: result.success,
+      url: result.url,
+      downloadUrl: result.downloadUrl || result.url,
       filename: file.name,
-      size: file.size,
-      contentType: blob.contentType,
+      size: result.size,
+      contentType: result.contentType,
       opportunityId: opportunityId || null,
       fileType: 'attachment', // Default file type for opportunities
-      uploadedAt: new Date().toISOString()
+      uploadedAt: result.uploadedAt
     }
 
     // Return the formatted response

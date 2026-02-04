@@ -2,26 +2,58 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js')
 
-// Firebase configuration - will be dynamically injected during build
-// This configuration object will be replaced by the build process with actual environment variables
-const firebaseConfig = {
-  apiKey: "AIzaSyCWd2YVU7mN0FkMMO9ZDuIv6MlnunH7VX8",
-  authDomain: "ring-main.firebaseapp.com",
-  projectId: "ring-main",
-  storageBucket: "ring-main.appspot.com",
-  messagingSenderId: "919637187324",
-  appId: "1:919637187324:web:af95cb1c3d96f2bc0bd579",
-  measurementId: "G-WVDVCRX12R"
+// Firebase configuration - conditionally initialized based on environment
+// In hybrid mode, Firebase config may be injected at runtime via environment variables
+const getFirebaseConfig = () => {
+  // Try to get config from environment variables first (runtime injection)
+  const envConfig = {
+    apiKey: self.FIREBASE_API_KEY,
+    authDomain: self.FIREBASE_AUTH_DOMAIN,
+    projectId: self.FIREBASE_PROJECT_ID,
+    storageBucket: self.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: self.FIREBASE_MESSAGING_SENDER_ID,
+    appId: self.FIREBASE_APP_ID,
+    measurementId: self.FIREBASE_MEASUREMENT_ID
+  };
+
+  // Check if we have valid config from environment
+  const hasValidEnvConfig = envConfig.apiKey && envConfig.projectId && envConfig.appId;
+
+  if (hasValidEnvConfig) {
+    console.log('FCM SW: Using runtime-injected Firebase config');
+    return envConfig;
+  }
+
+  // Fallback to build-time config (may be placeholder values)
+  const buildConfig = {
+    apiKey: "AIzaSyCWd2YVU7mN0FkMMO9ZDuIv6MlnunH7VX8",
+    authDomain: "ring-main.firebaseapp.com",
+    projectId: "ring-main",
+    storageBucket: "ring-main.appspot.com",
+    messagingSenderId: "919637187324",
+    appId: "1:919637187324:web:af95cb1c3d96f2bc0bd579",
+    measurementId: "G-WVDVCRX12R"
+  };
+
+  console.log('FCM SW: Using build-time Firebase config (may be placeholder)');
+  return buildConfig;
+};
+
+// Initialize Firebase conditionally
+let messaging = null;
+try {
+  const firebaseConfig = getFirebaseConfig();
+  firebase.initializeApp(firebaseConfig);
+  messaging = firebase.messaging();
+  console.log('FCM SW: Firebase initialized successfully');
+} catch (error) {
+  console.warn('FCM SW: Firebase initialization failed:', error);
+  // Service worker will still register but FCM features won't work
 }
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig)
-
-// Retrieve Firebase Messaging object
-const messaging = firebase.messaging()
-
 // Enhanced background message handler with React 19 features
-messaging.onBackgroundMessage((payload) => {
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
   console.log('Background message received:', payload)
 
   const notificationTitle = payload.notification?.title || 'Ring Notification'
@@ -58,6 +90,7 @@ messaging.onBackgroundMessage((payload) => {
   // Show notification with enhanced options
   return self.registration.showNotification(notificationTitle, notificationOptions)
 })
+}
 
 // Enhanced notification click handler with React 19 navigation
 self.addEventListener('notificationclick', (event) => {

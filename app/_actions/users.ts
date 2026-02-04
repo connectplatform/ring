@@ -3,8 +3,9 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
-import { getAdminDb } from '@/lib/firebase-admin.server'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { defaultLocale } from '@/i18n-config'
+import { revalidatePath } from 'next/cache'
 
 export interface UserFormState {
   success?: boolean
@@ -45,8 +46,8 @@ export async function updateUserSettings(
   }
 
   try {
-    const adminDb = await getAdminDb()
-    const userRef = adminDb.collection('users').doc(session.user.id)
+    await initializeDatabase()
+    const db = getDatabaseService()
 
     const updateData = {
       settings: {
@@ -58,7 +59,13 @@ export async function updateUserSettings(
       updatedAt: new Date(),
     }
 
-    await userRef.set(updateData, { merge: true })
+    const result = await db.update('users', session.user.id, updateData)
+    if (!result.success) {
+      throw result.error || new Error('Failed to update settings')
+    }
+    
+    // Revalidate user profile (React 19 pattern)
+    revalidatePath(`/[locale]/profile/${session.user.id}`)
 
     return {
       success: true,
@@ -138,38 +145,97 @@ export async function updateUserProfile(
   }
 
   try {
-    const adminDb = await getAdminDb()
-    const profilesCol = adminDb.collection('userProfiles')
-    const usernamesCol = adminDb.collection('usernames')
-    const userRef = profilesCol.doc(session.user.id)
+    await initializeDatabase()
+    const db = getDatabaseService()
 
-    // If username provided, ensure uniqueness and reserve it via transaction
+    // If username provided, ensure uniqueness via transaction with rollback protection
     if (username) {
       const usernameKey = username.toLowerCase()
-      await adminDb.runTransaction(async (tx) => {
-        const mapRef = usernamesCol.doc(usernameKey)
-        const mapSnap = await tx.get(mapRef)
-        const userSnap = await tx.get(userRef)
-        const current = userSnap.exists ? userSnap.data()?.username?.toLowerCase?.() : undefined
-        if (mapSnap.exists) {
-          const owner = (mapSnap.data() as any).userId
-          if (owner !== session.user.id) {
-            throw new Error('Username is already taken')
+      const RESERVATION_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
+      const now = new Date()
+      const expiryTime = new Date(now.getTime() + RESERVATION_EXPIRY_MS)
+      
+      try {
+        await db.transaction(async (txn) => {
+          // Check if username is taken by another user
+          const usernameDoc = await txn.read('usernames', usernameKey)
+          const userDoc = await txn.read('users', session.user.id)
+          
+          const currentUsername = userDoc ? (userDoc as any).username?.toLowerCase() : undefined
+          
+          // Check if username exists and belongs to someone else
+          if (usernameDoc) {
+            const reservationData = usernameDoc as any
+            const owner = reservationData.userId
+            const reservedAt = reservationData.reservedAt ? new Date(reservationData.reservedAt) : null
+            const confirmed = reservationData.confirmed || false
+            
+            // If owned by another user and either confirmed OR still within expiry window
+            if (owner !== session.user.id) {
+              if (confirmed) {
+                throw new Error('Username is already taken')
+              }
+              
+              // Check if reservation expired (5 minutes)
+              if (reservedAt && (now.getTime() - reservedAt.getTime()) < RESERVATION_EXPIRY_MS) {
+                throw new Error('Username is temporarily reserved by another user')
+              }
+              
+              // Expired reservation - we can claim it
+              console.log(`Username ${usernameKey} reservation expired, releasing for new user`)
+            }
+          }
+          
+          // Free old username mapping if user is changing username
+          if (currentUsername && currentUsername !== usernameKey) {
+            await txn.delete('usernames', currentUsername)
+          }
+          
+          // Reserve new username with expiration and confirmation tracking
+          await txn.create('usernames', {
+            userId: session.user.id,
+            username: username, // Store original case
+            reservedAt: now,
+            confirmedAt: null, // Will be set when profile update succeeds
+            confirmed: false, // Will be set to true on success
+            expiresAt: expiryTime,
+            updatedAt: now
+          }, { id: usernameKey })
+          
+          // Update user with username (temp reservation)
+          await txn.update('users', session.user.id, {
+            username,
+            usernameReservedAt: now,
+            usernameConfirmed: false,
+            updatedAt: now
+          })
+        })
+      } catch (txError) {
+        // Transaction error - rollback is automatic, username NOT reserved
+        console.error('Username reservation transaction failed:', txError)
+        if (txError instanceof Error && txError.message.includes('already taken')) {
+          return {
+            fieldErrors: { username: 'Username is already taken' }
           }
         }
-        // If user had a different username, free old mapping
-        if (current && current !== usernameKey) {
-          tx.delete(usernamesCol.doc(current))
+        if (txError instanceof Error && txError.message.includes('temporarily reserved')) {
+          return {
+            fieldErrors: { username: 'Username is temporarily reserved. Try again in a few minutes.' }
+          }
         }
-        tx.set(mapRef, { userId: session.user.id, updatedAt: new Date() })
-        tx.set(userRef, { username, updatedAt: new Date() }, { merge: true })
-      })
+        throw txError // Re-throw other transaction errors
+      }
     }
 
+    // Update full profile data
     const updateData = {
       name: name.trim(),
       email: email.trim(),
-      ...(username ? { username } : {}),
+      ...(username ? { 
+        username,
+        usernameConfirmed: true, // Confirm username after successful update
+        usernameConfirmedAt: new Date()
+      } : {}),
       bio: bio?.trim() || '',
       company: company?.trim() || '',
       position: position?.trim() || '',
@@ -183,7 +249,30 @@ export async function updateUserProfile(
       updatedAt: new Date(),
     }
 
-    await userRef.set(updateData, { merge: true })
+    const result = await db.update('users', session.user.id, updateData)
+    if (!result.success) {
+      // Profile update failed - username reservation will expire in 5 minutes
+      console.error('Profile update failed after username reservation:', result.error)
+      throw result.error || new Error('Failed to update profile')
+    }
+    
+    // Confirm username reservation permanently (only if profile update succeeded!)
+    if (username) {
+      const usernameKey = username.toLowerCase()
+      const confirmResult = await db.update('usernames', usernameKey, {
+        confirmed: true,
+        confirmedAt: new Date(),
+        expiresAt: null // Remove expiration - username now permanently owned
+      })
+      
+      if (!confirmResult.success) {
+        console.warn('Failed to confirm username reservation, but profile updated:', confirmResult.error)
+        // Don't fail the whole operation - username will expire but user profile is updated
+      }
+    }
+    
+    // Revalidate user profile (React 19 pattern)
+    revalidatePath(`/[locale]/profile/${session.user.id}`)
 
     return {
       success: true,
@@ -194,6 +283,49 @@ export async function updateUserProfile(
     return {
       error: 'Failed to update profile. Please try again.'
     }
+  }
+}
+
+/**
+ * Cleanup expired username reservations (should be called periodically via cron)
+ * Releases usernames that were reserved but never confirmed within 5 minutes
+ */
+export async function cleanupExpiredUsernameReservations(): Promise<{ cleaned: number }> {
+  try {
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    const now = new Date()
+    
+    // Query unconfirmed reservations that have expired
+    const expiredResult = await db.query({
+      collection: 'usernames',
+      filters: [
+        { field: 'confirmed', operator: '==', value: false },
+        { field: 'expiresAt', operator: '<', value: now }
+      ]
+    })
+    
+    if (!expiredResult.success || expiredResult.data.length === 0) {
+      return { cleaned: 0 }
+    }
+    
+    // Delete expired reservations
+    let cleaned = 0
+    for (const reservation of expiredResult.data) {
+      const deleteResult = await db.delete('usernames', reservation.id)
+      if (deleteResult.success) {
+        cleaned++
+        console.log(`Cleaned expired username reservation: ${reservation.id}`)
+      }
+    }
+    
+    console.log(`Cleaned ${cleaned} expired username reservations`)
+    return { cleaned }
+    
+  } catch (error) {
+    console.error('Failed to cleanup expired username reservations:', error)
+    return { cleaned: 0 }
   }
 }
 

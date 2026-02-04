@@ -11,9 +11,10 @@ description: Документація автентифікації для пла
 
 ### Базова конфігурація автентифікації
 
-```typescript
 // auth.ts
-import NextAuth from 'next-auth'
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
 import Email from 'next-auth/providers/email'
 import { FirestoreAdapter } from '@auth/firebase-adapter'
@@ -67,15 +68,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signOut: '/auth/signout',
     error: '/auth/error',
   },
-})
-```
+})`}
+</Code>
 ## 🚀 Автентифікація через Magic Link
 
 ### Кастомна сторінка входу
 
-```typescript
 // app/auth/signin/page.tsx
-'use client'
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
 
 import { signIn, getSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
@@ -188,16 +190,17 @@ export default function SignIn() {
       </div>
     </div>
   )
-}
-```
+}`}
+</Code>
 
 ## 🔒 Контроль доступу на основі ролей
 
 ### Компонент захищеного маршруту
 
-```typescript
 // components/ProtectedRoute.tsx
-import { auth } from '@/auth'
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 
 interface ProtectedRouteProps {
@@ -233,14 +236,15 @@ export default async function ProtectedRoute({
   }
 
   return <>{children}</>
-}
-```
+}`}
+</Code>
 
 ### Usage in Pages
 
-```typescript
 // app/admin/page.tsx
-import ProtectedRoute from '@/components/ProtectedRoute'
+
+<Code language="typescript" title="TypeScript">
+{`import ProtectedRoute from '@/components/ProtectedRoute'
 
 export default function AdminPage() {
   return (
@@ -251,15 +255,16 @@ export default function AdminPage() {
       </div>
     </ProtectedRoute>
   )
-}
-```
+}`}
+</Code>
 ## 👤 Управління сесіями користувачів
 
 ### Налаштування провайдера сесій
 
-```typescript
 // app/providers.tsx
-'use client'
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
 
 import { SessionProvider } from 'next-auth/react'
 
@@ -269,13 +274,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {children}
     </SessionProvider>
   )
-}
-```
+}`}
+</Code>
 ### Кастомний хук сесії
 
-```typescript
 // hooks/useAuth.ts
-import { useSession } from 'next-auth/react'
+
+<Code language="typescript" title="TypeScript">
+{`import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -302,15 +308,16 @@ export function useAuth(requiredRole?: string) {
     isLoading: status === 'loading',
     isAuthenticated: !!session,
   }
-}
-```
+}`}
+</Code>
 ## 🔄 Управління обліковими записами
 
 ### Видалення облікового запису (відповідно до GDPR)
 
-```typescript
 // app/api/auth/delete-account/route.ts
-import { auth } from '@/auth'
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 
 export async function DELETE() {
@@ -344,16 +351,17 @@ async function deleteUserData(userId: string) {
 
 async function deleteAuthRecord(userId: string) {
   // Implementation for deleting auth record
-}
-```
+}`}
+</Code>
 
 ## 🎯 Розширені шаблони
 
 ### Middleware для захисту маршрутів
 
-```typescript
 // middleware.ts
-import { auth } from '@/auth'
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 import { NextResponse } from 'next/server'
 
 export default auth((req) => {
@@ -380,8 +388,8 @@ export default auth((req) => {
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
-```
+}`}
+</Code>
 
 ---
-*Готові до більшого? Перегляньте [Інтеграція API](/uk/library/examples/api-integration) або [Web3 Інтеграція](/uk/library/examples/web3-integration).*
+*Готові до більшого? Перегляньте [Інтеграція API](/uk/docs/examples/api-integration) або [Web3 Інтеграція](/uk/docs/examples/web3-integration).*

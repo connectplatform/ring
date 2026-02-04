@@ -5,11 +5,11 @@ import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Activity, 
-  Users, 
-  Eye, 
-  TrendingUp, 
+import {
+  Activity,
+  Users,
+  Eye,
+  TrendingUp,
   TrendingDown,
   Clock,
   Globe,
@@ -26,8 +26,11 @@ import {
   Cpu,
   HardDrive
 } from 'lucide-react';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 
-export const dynamic = 'force-dynamic';
+// Allow caching for admin analytics with short revalidation for monitoring data
+export const dynamic = "auto"
+export const revalidate = 60 // 1 minute for admin analytics data
 
 // Types for analytics data
 interface WebVitalsMetric {
@@ -158,7 +161,7 @@ export default async function AdminAnalyticsPage({
       case 'down':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       default:
-        return <Activity className="h-4 w-4 text-gray-600" />;
+        return <Activity className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -192,13 +195,13 @@ export default async function AdminAnalyticsPage({
     <>
       <title>Analytics Dashboard | Ring Platform Admin</title>
       <meta name="description" content="Comprehensive analytics dashboard for Ring Platform administrators" />
-      
-      <div className="container mx-auto px-4 py-8">
+
+      <AdminWrapper locale={validLocale} pageContext="analytics">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Analytics Dashboard
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Comprehensive platform performance monitoring and user engagement analytics
           </p>
         </div>
@@ -430,7 +433,7 @@ export default async function AdminAnalyticsPage({
                         {getTrendIcon(metric.trend)}
                       </div>
                       <p className={`text-xs mt-2 flex items-center ${
-                        metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-gray-600'
+                        metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-muted-foreground'
                       }`}>
                         {metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}% from last period
                       </p>
@@ -608,7 +611,7 @@ export default async function AdminAnalyticsPage({
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </AdminWrapper>
     </>
   );
 } 

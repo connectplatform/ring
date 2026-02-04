@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +32,10 @@ interface WalletTopUpClientProps {
 
 export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpClientProps) {
   const t = useTranslations('modules.wallet')
+
+  // React 19 useTransition for non-blocking tab and payment method changes
+  const [isPending, startTransition] = useTransition()
+
   const [activeTab, setActiveTab] = useState<string>('ring')
   
   // RING Token state
@@ -178,7 +182,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => startTransition(() => setActiveTab(value))} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8">
           <TabsTrigger value="ring" className="flex items-center gap-2">
             <Coins className="h-4 w-4" />
@@ -370,7 +374,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                 <Label className="text-sm font-medium">Payment Method</Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div
-                    onClick={() => setPaymentMethod('card')}
+                    onClick={() => startTransition(() => setPaymentMethod('card'))}
                     className={cn(
                       'p-4 border rounded-lg cursor-pointer transition-colors',
                       paymentMethod === 'card'
@@ -385,7 +389,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                   </div>
 
                   <div
-                    onClick={() => setPaymentMethod('applepay')}
+                    onClick={() => startTransition(() => setPaymentMethod('applepay'))}
                     className={cn(
                       'p-4 border rounded-lg cursor-pointer transition-colors',
                       paymentMethod === 'applepay'
@@ -400,7 +404,7 @@ export default function WalletTopUpClient({ locale, searchParams }: WalletTopUpC
                   </div>
 
                   <div
-                    onClick={() => setPaymentMethod('googlepay')}
+                    onClick={() => startTransition(() => setPaymentMethod('googlepay'))}
                     className={cn(
                       'p-4 border rounded-lg cursor-pointer transition-colors',
                       paymentMethod === 'googlepay'

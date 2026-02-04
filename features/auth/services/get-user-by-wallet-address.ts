@@ -4,13 +4,9 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { AuthUser } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import { getFirebaseServiceManager } from '@/lib/services/firebase-service-manager';
+import { AuthUser } from '@/features/auth/types'
+import { cache } from 'react'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -30,7 +26,7 @@ import { auth } from '@/auth'; // Auth.js v5 session handler
  * - Throws an error if the requesting user is not authenticated
  * - Returns null if there's an error retrieving the profile from Firestore or if not authorized
  */
-export async function getUserByWalletAddress(walletAddress: string): Promise<AuthUser | null> {
+export const getUserByWalletAddress = cache(async (walletAddress: string): Promise<AuthUser | null> => {
   console.log(`Services: getUserByWalletAddress - Starting retrieval process for wallet address: ${walletAddress}`);
 
   try {
@@ -44,40 +40,47 @@ export async function getUserByWalletAddress(walletAddress: string): Promise<Aut
 
     console.log(`Services: getUserByWalletAddress - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
-    // Step 2: Firestore setup
-    // 🚀 OPTIMIZED: Use centralized service manager with phase detection
-    const phase = getCurrentPhase();
-    const serviceManager = getFirebaseServiceManager();
-    const adminDb = serviceManager.db;
-    const usersRef = adminDb.collection('users');
+    // Step 2: Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
 
     // Step 3: Query for user with the given wallet address
-    const querySnapshot = await usersRef.where('walletAddress', '==', walletAddress).limit(1).get();
+    const result = await db.query({
+      collection: 'users',
+      filters: [{ field: 'walletAddress', operator: '=', value: walletAddress }],
+      pagination: { limit: 1 }
+    })
 
-    if (querySnapshot.empty) {
-      console.log(`Services: getUserByWalletAddress - No user found with wallet address: ${walletAddress}`);
-      return null;
+    if (!result.success || !result.data) {
+      console.log(`getUserByWalletAddress: No user found with wallet address: ${walletAddress}`)
+      return null
     }
 
-    const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data() as AuthUser;
+    const users = Array.isArray(result.data) ? result.data : (result.data as any).data || []
+    if (users.length === 0) {
+      console.log(`getUserByWalletAddress: No user found with wallet address: ${walletAddress}`)
+      return null
+    }
+
+    const userDoc = users[0]
+    const userData = userDoc.data || userDoc
 
     // Step 4: Check authorization
-    if (requestingUserId !== userData.id && requestingUserRole !== 'admin') {
-      console.log(`Services: getUserByWalletAddress - Unauthorized access attempt to user ${userData.id} by user ${requestingUserId}`);
-      return null; // Only allow users to access their own profile or admins to access any profile
+    if (requestingUserId !== userDoc.id && requestingUserRole !== 'admin') {
+      console.log(`getUserByWalletAddress: Unauthorized access attempt to user ${userDoc.id} by user ${requestingUserId}`)
+      return null
     }
 
-    console.log(`Services: getUserByWalletAddress - User found and authorized for wallet address: ${walletAddress}`);
-    return userData;
+    console.log(`getUserByWalletAddress: User found and authorized for wallet address: ${walletAddress}`)
+    
+    return {
+      id: userDoc.id,
+      ...userData
+    } as AuthUser
 
   } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: getUserByWalletAddress - Firebase error:', error.code, error.message);
-    } else {
-      console.error('Services: getUserByWalletAddress - Error retrieving user profile:', error);
-    }
-    return null; // Indicate failure by returning null
+    console.error('getUserByWalletAddress: Error:', error)
+    return null
   }
-}
+})
 

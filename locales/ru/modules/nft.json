@@ -1,0 +1,147 @@
+{
+  "marketplace": {
+    "title": "NFT Маркетплейс",
+    "subtitle": "Открывайте, торгуйте и коллекционируйте уникальные цифровые активы на децентрализованном рынке Ring Platform"
+  },
+  "collections": {
+    "title": "NFT Коллекции",
+    "subtitle": "Исследуйте кураторские NFT коллекции от верифицированных творцов",
+    "browseCollections": "Просмотреть коллекции",
+    "trendingCollections": "Трендовые коллекции",
+    "featuredCreators": "Рекомендуемые творцы",
+    "allCollections": "Все коллекции",
+    "stats": {
+      "floorPrice": "Минимальная цена",
+      "totalVolume": "Общий объем",
+      "items": "Предметов",
+      "owners": "Владельцев"
+    },
+    "filters": {
+      "category": "Категория",
+      "blockchain": "Блокчейн",
+      "verified": "Только верифицированные",
+      "sortBy": "Сортировать по"
+    },
+    "empty": "Коллекции не найдены",
+    "comingSoon": "NFT коллекции скоро. Наш рынок представит верифицированных творцов и кураторское цифровое искусство."
+  },
+  "collection": {
+    "title": "Коллекция",
+    "subtitle": "Просматривайте детали коллекции, статистику и доступные NFT",
+    "about": "О коллекции",
+    "creator": "Творец",
+    "items": "Предметы",
+    "activity": "Активность",
+    "listings": "Листинги",
+    "offers": "Предложения",
+    "stats": {
+      "totalItems": "Всего предметов",
+      "owners": "Владельцев",
+      "floorPrice": "Минимальная цена",
+      "volumeTraded": "Объем торговли",
+      "listed": "В продаже"
+    },
+    "tabs": {
+      "items": "Предметы",
+      "activity": "Активность",
+      "analytics": "Аналитика"
+    },
+    "comingSoon": "Детали коллекции скоро"
+  },
+  "search": {
+    "title": "Поиск NFT",
+    "subtitle": "Находите уникальные цифровые активы во всех коллекциях",
+    "placeholder": "Искать по названию, коллекции или творцу",
+    "advancedFilters": "Расширенные фильтры",
+    "filters": {
+      "priceRange": "Диапазон цен",
+      "attributes": "Атрибуты",
+      "blockchain": "Блокчейн",
+      "collection": "Коллекция",
+      "status": "Статус"
+    },
+    "status": {
+      "all": "Все",
+      "listed": "В продаже",
+      "onAuction": "На аукционе",
+      "hasOffers": "Есть предложения"
+    },
+    "sortBy": {
+      "recentlyListed": "Недавно добавленные",
+      "priceLowToHigh": "Цена: от низкой к высокой",
+      "priceHighToLow": "Цена: от высокой к низкой",
+      "mostViewed": "Самые популярные",
+      "endingSoon": "Скоро заканчиваются"
+    },
+    "results": "Найдено {{count}} результатов",
+    "noResults": "NFT не найдены по вашему запросу",
+    "comingSoon": "Поиск NFT скоро. Ищите по коллекциям, атрибутам и творцам."
+  },
+  "item": {
+    "title": "Детали NFT",
+    "subtitle": "Просматривайте детали NFT, историю торговли и делайте предложения",
+    "details": "Детали",
+    "properties": "Свойства",
+    "about": "Описание",
+    "chain": "Цепь",
+    "contract": "Контракт",
+    "tokenId": "ID токена",
+    "tokenStandard": "Стандарт токена",
+    "owner": "Владелец",
+    "creator": "Творец",
+    "actions": {
+      "buyNow": "Купить сейчас",
+      "makeOffer": "Сделать предложение",
+      "list": "Выставить на продажу",
+      "cancel": "Отменить листинг",
+      "transfer": "Передать"
+    },
+    "pricing": {
+      "currentPrice": "Текущая цена",
+      "lastSale": "Последняя продажа",
+      "floorPrice": "Минимальная цена",
+      "topOffer": "Лучшее предложение"
+    },
+    "tabs": {
+      "overview": "Обзор",
+      "properties": "Свойства",
+      "history": "История",
+      "offers": "Предложения"
+    },
+    "history": {
+      "minted": "Создан",
+      "listed": "Выставлен",
+      "sold": "Продан",
+      "transferred": "Передан",
+      "offer": "Предложение",
+      "bid": "Ставка"
+    },
+    "comingSoon": "Детали NFT скоро"
+  },
+  "wallet": {
+    "connect": "Подключить кошелек",
+    "disconnect": "Отключить",
+    "wrongNetwork": "Неправильная сеть",
+    "switchNetwork": "Переключить на {{network}}",
+    "notOwner": "Вы не являетесь владельцем этого NFT",
+    "notConnected": "Подключите кошелек для взаимодействия с NFT"
+  },
+  "status": {
+    "draft": "Черновик",
+    "active": "Активный",
+    "sold": "Продано",
+    "cancelled": "Отменено",
+    "expired": "Просрочено"
+  },
+  "messages": {
+    "listingCreated": "NFT успешно выставлен",
+    "listingCancelled": "Листинг отменен",
+    "purchaseComplete": "Покупка завершена! NFT передан в ваш кошелек",
+    "offerSubmitted": "Предложение успешно отправлено",
+    "transactionPending": "Транзакция ожидает подтверждения...",
+    "transactionFailed": "Транзакция не удалась. Попробуйте еще раз.",
+    "walletRequired": "Подключите кошелек для продолжения",
+    "insufficientFunds": "Недостаточно средств для этой транзакции"
+  }
+}
+

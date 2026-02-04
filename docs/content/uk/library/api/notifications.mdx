@@ -1,0 +1,868 @@
+---
+title: API повідомлень
+description: Повна документація API системи повідомлень платформи Ring з доставкою у режимі реального часу, push-сповіщеннями FCM та комплексним управлінням
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# API повідомлень
+
+Платформа Ring надає комплексну систему повідомлень із **9 REST кінцевими точками** та доставкою WebSocket у режимі реального часу. Система підтримує push-сповіщення FCM, налаштування користувачів, масові операції та детальну аналітику.
+
+<Callout type="info" title="🔥 Функції реального часу">
+Побудовано на **Tunnel Transport** абстракції, що підтримує WebSocket, SSE та long-polling фолбеки для універсальної сумісності.
+</Callout>
+
+## 🏗️ Архітектура системи
+
+### Потік повідомлень
+
+```
+Подія тригер → Сервіс повідомлень → Доставка у режимі реального часу → Налаштування користувачів → Push FCM → Аналітика
+```
+
+### Стратегія зберігання
+
+- **Первинне**: PostgreSQL з оптимізованими запитами
+- **Кешування**: Redis для зберігання сесій (необов'язково)
+- **Реальний час**: WebSocket з'єднання через Tunnel Transport
+- **Push**: Firebase Cloud Messaging (FCM) інтеграція
+
+## 📋 Довідка кінцевих точок API
+
+### `GET /api/notifications`
+
+Список повідомлень користувачів із розширеним фільтруванням та пагінацією.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Елементів на сторінку (за замовчуванням: 20, макс: 100) |
+| `status` | string | Ні | Фільтр за статусом: `unread`, `read`, `archived` |
+| `type` | string | Ні | Фільтр за типом: `OPPORTUNITY`, `MESSAGE`, `ENTITY`, `SYSTEM`, `WALLET` |
+| `priority` | string | Ні | Фільтр за пріоритетом: `low`, `normal`, `high`, `urgent` |
+| `before` | string | Ні | ISO дата - показати повідомлення до цієї дати |
+| `after` | string | Ні | ISO дата - показати повідомлення після цієї дати |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/notifications?page=1&limit=10&status=unread&type=OPPORTUNITY" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"notifications": [
+    {
+      "id": "notif_123456",
+      "userId": "user_789",
+      "type": "OPPORTUNITY",
+      "title": "Нова можливість партнерства",
+      "message": "TechCorp шукає партнерів з розробки AI",
+      "data": {
+        "opportunityId": "opp_456",
+        "entityId": "ent_123",
+        "actionUrl": "/opportunities/opp_456"
+      },
+      "priority": "normal",
+      "status": "unread",
+      "createdAt": "2025-10-16T10:30:00Z",
+      "readAt": null,
+      "expiresAt": "2025-11-16T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 47,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "unreadCount": 23
+}`}
+</Code>
+
+### `POST /api/notifications`
+
+Створити нове повідомлення (використання переважно системою/адміном).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"userId": "user_789",
+  "type": "SYSTEM",
+  "title": "Обслуговування платформи",
+  "message": "Заплановане обслуговування за 2 години",
+  "priority": "high",
+  "data": {
+    "maintenanceStart": "2025-10-16T14:00:00Z",
+    "expectedDuration": "30 хвилин"
+  },
+  "expiresAt": "2025-10-16T16:00:00Z"
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"notification": {
+    "id": "notif_123457",
+    "userId": "user_789",
+    "type": "SYSTEM",
+    "title": "Обслуговування платформи",
+    "message": "Заплановане обслуговування за 2 години",
+    "priority": "high",
+    "status": "unread",
+    "createdAt": "2025-10-16T12:00:00Z",
+    "expiresAt": "2025-10-16T16:00:00Z"
+  },
+  "delivered": true,
+  "pushSent": true
+}`}
+</Code>
+
+### `PUT /api/notifications/{id}/read`
+
+Позначити конкретне повідомлення як прочитане.
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X PUT "http://localhost:3000/api/notifications/notif_123456/read" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"notification": {
+    "id": "notif_123456",
+    "status": "read",
+    "readAt": "2025-10-16T12:30:00Z"
+  },
+  "unreadCount": 22
+}`}
+</Code>
+
+### `PUT /api/notifications/read-all`
+
+Позначити всі повідомлення користувача як прочитані.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `type` | string | Ні | Позначити тільки конкретний тип як прочитаний |
+| `before` | string | Ні | Позначити тільки повідомлення до цієї дати |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X PUT "http://localhost:3000/api/notifications/read-all?type=OPPORTUNITY" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"markedCount": 15,
+  "unreadCount": 8
+}`}
+</Code>
+
+### `DELETE /api/notifications/{id}`
+
+Видалити конкретне повідомлення.
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X DELETE "http://localhost:3000/api/notifications/notif_123456" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"deleted": true,
+  "notificationId": "notif_123456"
+}`}
+</Code>
+
+### `GET /api/notifications/preferences`
+
+Отримати поточні налаштування повідомлень користувача.
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"preferences": {
+    "emailNotifications": true,
+    "pushNotifications": true,
+    "smsNotifications": false,
+    "types": {
+      "OPPORTUNITY": {
+        "enabled": true,
+        "email": true,
+        "push": true,
+        "sms": false
+      },
+      "MESSAGE": {
+        "enabled": true,
+        "email": false,
+        "push": true,
+        "sms": false
+      },
+      "ENTITY": {
+        "enabled": true,
+        "email": true,
+        "push": false,
+        "sms": false
+      },
+      "SYSTEM": {
+        "enabled": true,
+        "email": true,
+        "push": true,
+        "sms": false
+      },
+      "WALLET": {
+        "enabled": true,
+        "email": true,
+        "push": true,
+        "sms": true
+      }
+    },
+    "quietHours": {
+      "enabled": false,
+      "start": "22:00",
+      "end": "08:00",
+      "timezone": "UTC"
+    },
+    "frequency": "immediate"
+  }
+}`}
+</Code>
+
+### `PUT /api/notifications/preferences`
+
+Оновити налаштування повідомлень користувача.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"emailNotifications": true,
+  "pushNotifications": false,
+  "types": {
+    "OPPORTUNITY": {
+      "enabled": true,
+      "email": true,
+      "push": false
+    },
+    "MESSAGE": {
+      "enabled": true,
+      "email": false,
+      "push": true
+    }
+  },
+  "quietHours": {
+    "enabled": true,
+    "start": "23:00",
+    "end": "07:00"
+  }
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"updated": true,
+  "preferences": { /* оновлені налаштування */ }
+}`}
+</Code>
+
+### `POST /api/notifications/fcm/register`
+
+Зареєструвати токен FCM для push-сповіщень.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"token": "fcm_token_from_firebase_sdk",
+  "deviceType": "web",
+  "deviceId": "unique-device-identifier",
+  "userAgent": "Mozilla/5.0..."
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"registered": true,
+  "tokenId": "fcm_123456",
+  "previousToken": "fcm_123455"
+}`}
+</Code>
+
+### `POST /api/notifications/bulk`
+
+Надіслати масові повідомлення кільком користувачам (тільки адмін).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"userIds": ["user_123", "user_456", "user_789"],
+  "notification": {
+    "type": "SYSTEM",
+    "title": "Важливе оновлення",
+    "message": "Доступні нові функції",
+    "priority": "normal",
+    "data": {
+      "actionUrl": "/updates"
+    }
+  },
+  "sendPush": true,
+  "sendEmail": false
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"sent": true,
+  "totalUsers": 3,
+  "successful": 3,
+  "failed": 0,
+  "notificationIds": ["notif_123", "notif_124", "notif_125"]
+}`}
+</Code>
+
+### `GET /api/notifications/analytics`
+
+Отримати аналітику повідомлень (тільки адмін).
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `period` | string | Ні | Період часу: `day`, `week`, `month` (за замовчуванням: `week`) |
+| `startDate` | string | Ні | ISO дата для власного діапазону |
+| `endDate` | string | Ні | ISO дата для власного діапазону |
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"period": "week",
+  "totalSent": 1250,
+  "totalRead": 980,
+  "readRate": 78.4,
+  "byType": {
+    "OPPORTUNITY": { "sent": 450, "read": 380, "rate": 84.4 },
+    "MESSAGE": { "sent": 320, "read": 280, "rate": 87.5 },
+    "SYSTEM": { "sent": 180, "read": 120, "rate": 66.7 },
+    "ENTITY": { "sent": 150, "read": 110, "rate": 73.3 },
+    "WALLET": { "sent": 150, "read": 90, "rate": 60.0 }
+  },
+  "byPriority": {
+    "urgent": { "sent": 50, "read": 48, "rate": 96.0 },
+    "high": { "sent": 200, "read": 175, "rate": 87.5 },
+    "normal": { "sent": 800, "read": 620, "rate": 77.5 },
+    "low": { "sent": 200, "read": 137, "rate": 68.5 }
+  },
+  "deliveryStats": {
+    "realTimeDelivered": 1200,
+    "pushDelivered": 1100,
+    "emailDelivered": 950
+  }
+}`}
+</Code>
+
+## 🔄 Повідомлення у режимі реального часу
+
+### Інтеграція WebSocket
+
+Платформа Ring використовує **Tunnel Transport** для повідомлень у режимі реального часу:
+
+// Клієнтське WebSocket з'єднання
+
+<Code language="typescript" title="TypeScript">
+{`import { io } from 'socket.io-client'
+
+const socket = io('/notifications', {
+  auth: {
+    token: sessionToken
+  }
+})
+
+// Прослуховування повідомлень
+socket.on('notification', (notification) => {
+  console.log('Нове повідомлення:', notification)
+  // Оновити UI негайно
+  updateNotificationList(notification)
+})
+
+// Прослуховування оновлень лічильника непрочитаних
+socket.on('unread-count', (count) => {
+  updateUnreadBadge(count)
+})`}
+</Code>
+
+### Фолбек Server-Sent Events (SSE)
+
+Для середовищ без підтримки WebSocket:
+
+// SSE з'єднання для повідомлень
+
+<Code language="typescript" title="TypeScript">
+{`const eventSource = new EventSource('/api/notifications/stream')
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data)
+  if (data.type === 'notification') {
+    handleNewNotification(data.notification)
+  }
+}`}
+</Code>
+
+## 📱 Push-сповіщення
+
+### Інтеграція FCM
+
+Платформа Ring інтегрується з Firebase Cloud Messaging для кросплатформних push-сповіщень.
+
+#### Налаштування клієнта
+
+// Ініціалізація Firebase
+
+<Code language="typescript" title="TypeScript">
+{`import { initializeApp } from 'firebase/app'
+import { getMessaging, getToken, onMessage } from 'firebase/messaging'
+
+const app = initializeApp(firebaseConfig)
+const messaging = getMessaging(app)
+
+// Запит дозволу та отримання токена
+const token = await getToken(messaging, {
+  vapidKey: 'your-vapid-key'
+})
+
+// Реєстрація токена на Ring Platform
+await fetch('/api/notifications/fcm/register', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ token, deviceType: 'web' })
+})
+
+// Обробка вхідних повідомлень
+onMessage(messaging, (payload) => {
+  console.log('Отримано push-сповіщення:', payload)
+  showNotification(payload.notification)
+})`}
+</Code>
+
+#### Service Worker
+
+// public/firebase-messaging-sw.js
+
+<Code language="javascript" title="JavaScript">
+{`importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js')
+
+const app = firebase.initializeApp(firebaseConfig)
+const messaging = firebase.messaging()
+
+messaging.onBackgroundMessage((payload) => {
+  console.log('Фонове повідомлення:', payload)
+
+  self.registration.showNotification(payload.notification.title, {
+    body: payload.notification.body,
+    icon: '/icon-192x192.png',
+    badge: '/badge-72x72.png',
+    data: payload.data
+  })
+})`}
+</Code>
+
+## 🎯 Типи повідомлень
+
+### OPPORTUNITY
+
+Тригериться коли:
+- Нові можливості відповідають налаштуванням користувача
+- Отримано заявки на можливості
+- Наближаються дедлайни можливостей
+
+<Code language="json" title="{">
+{`"type": "OPPORTUNITY",
+  "title": "Нова можливість відповідності",
+  "message": "AI-підібрано: потрібен старший розробник React",
+  "data": {
+    "opportunityId": "opp_123",
+    "matchScore": 95,
+    "actionUrl": "/opportunities/opp_123"
+  }
+}`}
+</Code>
+
+### MESSAGE
+
+Тригериться коли:
+- Отримано нові прямі повідомлення
+- Оновлення групових розмов
+- Повідомлення про згадки
+
+<Code language="json" title="{">
+{`"type": "MESSAGE",
+  "title": "Нове повідомлення",
+  "message": "John Doe: Давай обговоримо пропозицію проекту",
+  "data": {
+    "conversationId": "conv_456",
+    "senderId": "user_789",
+    "actionUrl": "/messages/conv_456"
+  }
+}`}
+</Code>
+
+### ENTITY
+
+Тригериться коли:
+- Отримано запрошення сутностей
+- Оновлення та оголошення сутностей
+- Зміни статусу верифікації
+
+<Code language="json" title="{">
+{`"type": "ENTITY",
+  "title": "Запрошення сутності",
+  "message": "TechCorp запросив вас приєднатися до їх мережі",
+  "data": {
+    "entityId": "ent_123",
+    "invitationId": "inv_456",
+    "actionUrl": "/entities/ent_123"
+  }
+}`}
+</Code>
+
+### SYSTEM
+
+Для:
+- Оголошення платформи
+- Повідомлення про обслуговування
+- Сповіщення безпеки
+- Оновлення функцій
+
+<Code language="json" title="{">
+{`"type": "SYSTEM",
+  "title": "Доступна нова функція",
+  "message": "AI-підібрані можливості тепер у режимі онлайн!",
+  "data": {
+    "feature": "ai-matching",
+    "actionUrl": "/features/ai-matching"
+  }
+}`}
+</Code>
+
+### WALLET
+
+Для:
+- Підтвердження транзакцій
+- Оновлення балансів
+- Нагороди стейкінгу
+- Квитанції платежів
+
+<Code language="json" title="{">
+{`"type": "WALLET",
+  "title": "Отримано платіж",
+  "message": "Отримано 500 токенів RING від завершеного проекту",
+  "data": {
+    "transactionId": "tx_123",
+    "amount": "500",
+    "currency": "RING",
+    "actionUrl": "/wallet/transactions/tx_123"
+  }
+}`}
+</Code>
+
+## 🔧 Приклади реалізації
+
+### React Hook для повідомлень
+
+// hooks/useNotifications.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+import { io, Socket } from 'socket.io-client'
+
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  status: 'unread' | 'read'
+  createdAt: string
+  data?: Record<string, any>
+}
+
+export function useNotifications() {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [socket, setSocket] = useState<Socket | null>(null)
+
+  useEffect(() => {
+    // Отримати початкові повідомлення
+    fetchNotifications()
+
+    // Налаштувати WebSocket з'єднання
+    const newSocket = io('/notifications')
+    setSocket(newSocket)
+
+    newSocket.on('notification', (notification: Notification) => {
+      setNotifications(prev => [notification, ...prev])
+      setUnreadCount(prev => prev + 1)
+    })
+
+    newSocket.on('unread-count', (count: number) => {
+      setUnreadCount(count)
+    })
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [])
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications')
+      const data = await response.json()
+      setNotifications(data.notifications)
+      setUnreadCount(data.unreadCount)
+    } catch (error) {
+      console.error('Не вдалося отримати повідомлення:', error)
+    }
+  }
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PUT'
+      })
+      setNotifications(prev =>
+        prev.map(n =>
+          n.id === notificationId ? { ...n, status: 'read' } : n
+        )
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error('Не вдалося позначити як прочитане:', error)
+    }
+  }
+
+  return {
+    notifications,
+    unreadCount,
+    markAsRead,
+    refresh: fetchNotifications
+  }
+}`}
+</Code>
+
+### Компонент центру повідомлень
+
+// components/NotificationCenter.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useNotifications } from '@/hooks/useNotifications'
+import { Bell, Check } from 'lucide-react'
+
+export function NotificationCenter() {
+  const { notifications, unreadCount, markAsRead } = useNotifications()
+
+  return (
+    <div className="notification-center">
+      <div className="flex items-center gap-2 mb-4">
+        <Bell className="w-5 h-5" />
+        <span className="font-semibold">Повідомлення</span>
+        {unreadCount > 0 && (
+          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+            {unreadCount}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {notifications.map(notification => (
+          <div
+            key={notification.id}
+            className={`p-3 rounded-lg border ${
+              notification.status === 'unread'
+                ? 'bg-blue-50 border-blue-200'
+                : 'bg-white border-gray-200'
+            }`}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h4 className="font-medium text-sm">{notification.title}</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  {notification.message}
+                </p>
+                <span className="text-xs text-gray-400 mt-1 block">
+                  {new Date(notification.createdAt).toLocaleString()}
+                </span>
+              </div>
+              {notification.status === 'unread' && (
+                <button
+                  onClick={() => markAsRead(notification.id)}
+                  className="ml-2 p-1 hover:bg-gray-100 rounded"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Обробка помилок
+
+### Поширені відповіді про помилки
+
+// Помилка аутентифікації
+
+<Code language="json" title="configuration">
+{`{
+  "error": "Unauthorized",
+  "message": "Необхідна аутентифікація",
+  "statusCode": 401
+}
+
+// Помилка валідації
+{
+  "error": "ValidationError",
+  "message": "Недійсні дані повідомлення",
+  "details": {
+    "type": "Недійсний тип повідомлення",
+    "userId": "ID користувача обов'язковий"
+  },
+  "statusCode": 400
+}
+
+// Помилка обмеження швидкості
+{
+  "error": "RateLimitError",
+  "message": "Забагато запитів",
+  "retryAfter": 60,
+  "statusCode": 429
+}
+
+// Серверна помилка
+{
+  "error": "InternalServerError",
+  "message": "Не вдалося надіслати повідомлення",
+  "requestId": "req_123456",
+  "statusCode": 500
+}`}
+</Code>
+
+## 🔒 Заходи безпеки
+
+### Аутентифікація
+- Усі кінцеві точки вимагають дійсної аутентифікації сесії
+- Адмін кінцеві точки вимагають ролі `ADMIN`
+- FCM токени зашифровані та безпечно збережені
+
+### Обмеження швидкості
+- Стандартні користувачі: 100 запитів/хвилину
+- Адмін користувачі: 500 запитів/хвилину
+- Масові операції: 10 операцій/хвилину
+
+### Валідація даних
+- Усі вхідні дані валідуються за допомогою схем Zod
+- HTML контент санітізується для запобігання XSS
+- Завантаження файлів сканується на віруси та шкідливе ПЗ
+
+### Конфіденційність
+- Повідомлення поважають налаштування користувачів
+- Ніякої конфіденційної інформації у корисних даних push-сповіщень
+- GDPR-сумісна обробка даних
+
+## 📊 Моніторинг та аналітика
+
+### Метрики у режимі реального часу
+
+// Відстеження подій повідомлень
+
+<Code language="typescript" title="TypeScript">
+{`import { trackEvent } from '@/lib/analytics'
+
+socket.on('notification', (notification) => {
+  trackEvent('notification_received', {
+    type: notification.type,
+    priority: notification.priority,
+    deliveryMethod: 'websocket'
+  })
+})
+
+// Відстеження продуктивності доставки
+const startTime = Date.now()
+
+socket.emit('notification', notificationData, (ack) => {
+  const deliveryTime = Date.now() - startTime
+  trackEvent('notification_delivered', {
+    deliveryTime,
+    method: 'websocket'
+  })
+})`}
+</Code>
+
+## 🎛️ Конфігурація
+
+### Змінні середовища
+
+Конфігурація FCM Налаштування повідомлень Redis (необов'язково)
+
+<Code language="bash" title="terminal">
+{`FCM_SERVER_KEY=your-fcm-server-key
+FCM_VAPID_KEY=your-vapid-public-key
+
+NOTIFICATION_RATE_LIMIT=100
+NOTIFICATION_BULK_LIMIT=50
+NOTIFICATION_RETENTION_DAYS=90
+
+REDIS_URL=redis://localhost:6379`}
+</Code>
+
+### Схема бази даних
+
+<Code language="sql" title="-- Таблиця повідомлень">
+{`CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  data JSONB,
+  priority VARCHAR(20) DEFAULT 'normal',
+  status VARCHAR(20) DEFAULT 'unread',
+  created_at TIMESTAMP DEFAULT NOW(),
+  read_at TIMESTAMP,
+  expires_at TIMESTAMP
+);
+
+-- Налаштування користувачів
+CREATE TABLE notification_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users(id),
+  email_notifications BOOLEAN DEFAULT true,
+  push_notifications BOOLEAN DEFAULT true,
+  preferences JSONB DEFAULT '{}',
+  updated_at TIMESTAMP DEFAULT NOW()
+);`}
+</Code>
+
+---
+
+*Система повідомлень платформи Ring забезпечує надійність корпоративного рівня з доставкою у режимі реального часу, комплексною аналітикою та кросплатформною сумісністю.*

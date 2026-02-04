@@ -1,0 +1,182 @@
+---
+title: Local Setup
+description: Local Setup documentation for Ring Platform
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+
+# Local Development Setup
+
+Complete guide to setting up Ring Platform for local development.
+
+## 🛠️ Prerequisites
+
+### Required Software
+- **Node.js 18.17+** - [Download from nodejs.org](https://nodejs.org/)
+- **npm 9+** or **pnpm 8+** - Package manager
+- **Git** - Version control
+- **VS Code** - Recommended IDE
+
+### Optional Tools
+- **MongoDB Compass** - Database GUI (if using local MongoDB)
+- **Postman** - API testing
+- **Docker** - For containerized development
+
+## 📦 Installation
+
+### 1. Clone the Repository
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring`}
+</Code>
+
+### 2. Install Dependencies
+
+<Tabs items={['npm', 'pnpm', 'yarn']}>
+  <Tab value="npm">
+    <Code language="bash" title="terminal">
+{`npm install`}
+</Code>
+  </Tab>
+  <Tab value="pnpm">
+    <Code language="bash" title="terminal">
+{`pnpm install`}
+</Code>
+  </Tab>
+  <Tab value="yarn">
+    <Code language="bash" title="yarn install">
+{``}
+</Code>
+  </Tab>
+</Tabs>
+
+### 3. Environment Configuration
+
+Copy the environment template:
+
+<Code language="bash" title="terminal">
+{`# cp .env.local.template .env.local`}
+</Code>
+
+Configure your `.env.local` file:
+
+Authentication Firebase Configuration Google OAuth Development Settings
+
+<Code language="bash" title="terminal">
+{`NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+NODE_ENV=development
+NEXT_PUBLIC_APP_URL=http://localhost:3000`}
+</Code>
+
+## 🚀 Development Server
+
+Start the development server:
+
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+The application will be available at:
+- **Frontend**: http://localhost:3000
+- **API Routes**: http://localhost:3000/api/*
+
+## 🔧 Development Tools
+
+### Hot Reload
+The development server supports hot reload for:
+- React components
+- API routes
+- CSS/Tailwind changes
+- Environment variables (requires restart)
+
+### TypeScript
+Type checking runs automatically. For manual checking:
+
+<Code language="bash" title="terminal">
+{`npm run type-check`}
+</Code>
+
+### Linting
+ESLint runs automatically. For manual linting:
+
+<Code language="bash" title="terminal">
+{`npm run lint`}
+</Code>
+
+## 📁 Project Structure
+
+```
+ring/
+├── app/                 # Next.js 15 App Router
+│   ├── (auth)/         # Auth-related pages
+│   ├── api/            # API routes
+│   └── globals.css     # Global styles
+├── components/         # React components
+│   ├── ui/            # Base UI components
+│   └── features/      # Feature-specific components
+├── lib/               # Utility functions
+│   ├── auth.ts        # Auth.js configuration
+│   ├── firebase.ts    # Firebase setup
+│   └── utils.ts       # General utilities
+├── features/          # Feature modules
+│   ├── entities/      # Entity management
+│   ├── opportunities/ # Opportunity system
+│   └── wallet/        # Web3 wallet
+├── @actions/          # Server actions
+└── public/            # Static assets
+```
+
+## 🧪 Testing Setup
+
+Run tests in development:
+
+Unit tests Integration tests E2E tests
+
+<Code language="bash" title="terminal">
+{`npm run test
+
+npm run test:integration
+
+npm run test:e2e`}
+</Code>
+
+## 🐛 Common Issues
+
+### Port Already in Use
+If port 3000 is busy:
+
+Use different port
+
+<Code language="bash" title="terminal">
+{`npm run dev -- -p 3001`}
+</Code>
+
+### Firebase Connection Issues
+1. Verify Firebase configuration in `.env.local`
+2. Check Firebase project settings
+3. Ensure service account has proper permissions
+
+### Authentication Problems
+1. Verify OAuth provider configuration
+2. Check callback URLs in provider settings
+3. Ensure NEXTAUTH_SECRET is set
+
+## 📚 Next Steps
+
+- [Code Structure/ru/library](/development/code-structure) - Understanding the codebase
+- [Development Workflow](/ru/library/development/workflow) - Git workflow and best practices
+- [Testing](/ru/library/development/testing) - Writing and running tests
+
+---
+
+*Need help? Join our [Discord Community](https://discord.gg/ring-platform) or check the [troubleshooting guide](/ru/library/getting-started/troubleshooting).*

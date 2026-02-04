@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useTransition, useCallback } from 'react';
 import { 
   Search, 
   Filter, 
@@ -31,6 +31,9 @@ interface NotificationListProps {
 }
 
 export function NotificationList({ className }: NotificationListProps) {
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition();
+
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | NotificationType>('all');
@@ -61,6 +64,39 @@ export function NotificationList({ className }: NotificationListProps) {
 
   // React 19 Enhanced Navigation
   const { navigateToSettings, isNavigating } = useNotificationNavigation();
+
+  // Search and filter change handlers - wrapped in useTransition for non-blocking updates
+  const handleSearchChange = useCallback((value: string) => {
+    startTransition(() => {
+      setSearchQuery(value);
+    });
+  }, [startTransition]);
+
+  const handleFilterChange = useCallback((filter: 'all' | 'unread' | NotificationType) => {
+    startTransition(() => {
+      setSelectedFilter(filter);
+    });
+  }, [startTransition]);
+
+  const handlePriorityChange = useCallback((priority: 'all' | NotificationPriority) => {
+    startTransition(() => {
+      setSelectedPriority(priority);
+    });
+  }, [startTransition]);
+
+  const handleSortChange = useCallback((sort: 'newest' | 'oldest' | 'priority') => {
+    startTransition(() => {
+      setSortBy(sort);
+    });
+  }, [startTransition]);
+
+  const handleClearFilters = useCallback(() => {
+    startTransition(() => {
+      setSearchQuery('');
+      setSelectedFilter('all');
+      setSelectedPriority('all');
+    });
+  }, [startTransition]);
 
   // Filter and sort notifications
   const filteredAndSortedNotifications = useMemo(() => {
@@ -165,8 +201,8 @@ export function NotificationList({ className }: NotificationListProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+            <p className="text-muted-foreground mt-1">
             {totalCount} total, {unreadCount} unread
           </p>
         </div>
@@ -206,13 +242,13 @@ export function NotificationList({ className }: NotificationListProps) {
             type="text"
             placeholder="Search notifications..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={() => handleSearchChange('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-muted-foreground"
             >
               <X className="w-5 h-5" />
             </button>
@@ -237,7 +273,7 @@ export function NotificationList({ className }: NotificationListProps) {
             </button>
 
             {/* Quick stats */}
-            <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
               Showing {filteredAndSortedNotifications.length} of {totalCount} notifications
             </div>
           </div>
@@ -245,7 +281,7 @@ export function NotificationList({ className }: NotificationListProps) {
           {/* Bulk actions */}
           {selectedNotifications.size > 0 && (
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 {selectedNotifications.size} selected
               </span>
               <button
@@ -272,12 +308,12 @@ export function NotificationList({ className }: NotificationListProps) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Type filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Type
                 </label>
                 <select
                   value={selectedFilter}
-                  onChange={(e) => setSelectedFilter(e.target.value as any)}
+                  onChange={(e) => handleFilterChange(e.target.value as any)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {filterOptions.map(option => (
@@ -290,12 +326,12 @@ export function NotificationList({ className }: NotificationListProps) {
 
               {/* Priority filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Priority
                 </label>
                 <select
                   value={selectedPriority}
-                  onChange={(e) => setSelectedPriority(e.target.value as any)}
+                  onChange={(e) => handlePriorityChange(e.target.value as any)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {priorityOptions.map(option => (
@@ -308,12 +344,12 @@ export function NotificationList({ className }: NotificationListProps) {
 
               {/* Sort filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Sort By
                 </label>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
+                  onChange={(e) => handleSortChange(e.target.value as any)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {sortOptions.map(option => (
@@ -364,7 +400,7 @@ export function NotificationList({ className }: NotificationListProps) {
                 onChange={handleSelectAll}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-muted-foreground">
                 Select all notifications
               </span>
             </label>
@@ -375,7 +411,7 @@ export function NotificationList({ className }: NotificationListProps) {
         {loading && notifications.length === 0 ? (
           <div className="flex items-center justify-center p-12">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="ml-3 text-gray-600">Loading notifications...</span>
+                <span className="ml-3 text-muted-foreground">Loading notifications...</span>
           </div>
         ) : error ? (
           <div className="text-center p-12">
@@ -394,13 +430,13 @@ export function NotificationList({ className }: NotificationListProps) {
         ) : filteredAndSortedNotifications.length === 0 ? (
           <div className="text-center p-12">
             <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-foreground mb-2">
               {searchQuery || selectedFilter !== 'all' || selectedPriority !== 'all'
                 ? 'No matching notifications'
                 : 'No notifications yet'
               }
             </h3>
-            <p className="text-gray-600">
+              <p className="text-muted-foreground">
               {searchQuery || selectedFilter !== 'all' || selectedPriority !== 'all'
                 ? 'Try adjusting your search or filters'
                 : 'New notifications will appear here when they arrive'
@@ -408,11 +444,7 @@ export function NotificationList({ className }: NotificationListProps) {
             </p>
             {(searchQuery || selectedFilter !== 'all' || selectedPriority !== 'all') && (
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedFilter('all');
-                  setSelectedPriority('all');
-                }}
+                onClick={handleClearFilters}
                 className="mt-3 text-blue-600 hover:text-blue-800 font-medium"
               >
                 Clear all filters

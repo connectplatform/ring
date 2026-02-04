@@ -1,15 +1,20 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { ethers } from 'ethers'
+// ethers.js removed - fully migrated to wagmi + viem
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { eventBus } from '@/lib/event-bus.client'
 import { POLYGON_CHAIN_ID, POLYGON_RPC_URL } from '@/constants/web3'
 
+// Wagmi imports for modern Web3 functionality
+import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, useChainId } from 'wagmi'
+import { mainnet, polygon, arbitrum, optimism, base } from 'wagmi/chains'
+
 export interface Web3ContextType {
-  provider?: ethers.BrowserProvider | null
-  signer?: ethers.Signer | null
+  // Legacy API - removed (fully migrated to wagmi)
+  // provider?: ethers.BrowserProvider | null
+  // signer?: ethers.Signer | null
   address?: string | null
   isConnected: boolean
   isConnecting: boolean
@@ -21,11 +26,16 @@ export interface Web3ContextType {
   connectWithMetaMask: () => Promise<void>
   switchNetwork: (targetChainId: number) => Promise<void>
   getBalance: (tokenAddress?: string) => Promise<string>
+
+  // Modern API (wagmi) - primary functionality
+  wagmiAddress?: `0x${string}` | undefined
+  wagmiIsConnected: boolean
+  wagmiIsConnecting: boolean
+  wagmiChainId?: number
 }
 
 const Web3Context = createContext<Web3ContextType>({
-  provider: null,
-  signer: null,
+  // Legacy API - removed
   address: null,
   isConnected: false,
   isConnecting: false,
@@ -37,6 +47,12 @@ const Web3Context = createContext<Web3ContextType>({
   connectWithMetaMask: async () => {},
   switchNetwork: async () => {},
   getBalance: async () => '0',
+
+  // Modern API defaults
+  wagmiAddress: undefined,
+  wagmiIsConnected: false,
+  wagmiIsConnecting: false,
+  wagmiChainId: undefined,
 })
 
 export const useWeb3 = () => {
@@ -55,109 +71,52 @@ interface Web3ProviderProps {
 
 export function Web3Provider({ children }: Web3ProviderProps) {
   const { data: session, status } = useSession()
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
-  const [signer, setSigner] = useState<ethers.Signer | null>(null)
+
+  // Legacy state - removed (using wagmi directly)
   const [address, setAddress] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [chainId, setChainId] = useState<number | null>(null)
   const [error, setError] = useState<Error | null>(null)
 
+  // Modern wagmi hooks
+  const { address: wagmiAddress, isConnected: wagmiIsConnected, isConnecting: wagmiIsConnecting } = useAccount()
+  const { connect: wagmiConnect, connectors } = useConnect()
+  const { disconnect: wagmiDisconnect } = useDisconnect()
+  const { switchChain: wagmiSwitchChain } = useSwitchChain()
+  const wagmiChainId = useChainId()
+  const { data: wagmiBalance } = useBalance({ address: wagmiAddress })
+
+  // Sync wagmi state with legacy state for backward compatibility
+  useEffect(() => {
+    setAddress(wagmiAddress || null)
+    setIsConnected(wagmiIsConnected)
+    setIsConnecting(wagmiIsConnecting)
+    setChainId(wagmiChainId || null)
+  }, [wagmiAddress, wagmiIsConnected, wagmiIsConnecting, wagmiChainId])
+
   // Connect with Ring platform wallet (from Auth.js session)
   const connectWithWallet = useCallback(async () => {
-    setIsConnecting(true)
-    setError(null)
-    
-    try {
-      if (!session?.user?.wallets?.[0]?.address) {
-        throw new Error('No wallet found in session. Please log in first.')
-      }
+    // For Ring platform wallets, we redirect to the multi-chain dashboard
+    // since wallet connections are now handled by wagmi/RainbowKit
+    toast({
+      title: 'Wallet Connection Updated',
+      description: 'Please use the multi-chain wallet dashboard for connections',
+    })
 
-      // For Ring platform wallets, we use a read-only provider
-      // Transactions will be handled server-side with encrypted private keys
-      const readOnlyProvider = new ethers.JsonRpcProvider(POLYGON_RPC_URL)
-      setProvider(readOnlyProvider as any)
-      
-      const walletAddress = session.user.wallets[0].address
-      setAddress(walletAddress)
-      setIsConnected(true)
-      
-      // Get chain ID
-      const network = await readOnlyProvider.getNetwork()
-      setChainId(Number(network.chainId))
-      
-      localStorage.setItem('walletConnected', 'true')
-      localStorage.setItem('connectionMethod', 'wallet')
-      
-      // Notify listeners for an immediate balance refresh
-      eventBus.emit('wallet:balance:refresh', { reason: 'connect:session-wallet', address: walletAddress })
+    // Could redirect to wallet dashboard here if needed
+    // router.push('/wallet')
+  }, [])
 
-      toast({
-        title: 'Wallet Connected',
-        description: `Connected to Ring wallet: ${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}`,
-      })
-    } catch (err) {
-      console.error('Error connecting to Ring wallet:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to connect wallet'
-      setError(new Error(errorMessage))
-      toast({
-        title: 'Connection Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      })
-    } finally {
-      setIsConnecting(false)
-    }
-  }, [session])
-
-  // Connect with MetaMask
+  // Connect with MetaMask (using wagmi)
   const connectWithMetaMask = useCallback(async () => {
-    setIsConnecting(true)
-    setError(null)
-    
     try {
-      if (!window.ethereum) {
-        throw new Error('MetaMask is not installed. Please install MetaMask to continue.')
+      const metaMaskConnector = connectors.find(connector => connector.name === 'MetaMask')
+      if (metaMaskConnector) {
+        wagmiConnect({ connector: metaMaskConnector })
+      } else {
+        throw new Error('MetaMask connector not found')
       }
-
-      // Request account access
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      })
-
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No accounts found. Please unlock MetaMask.')
-      }
-
-      // Create provider and signer
-      const browserProvider = new ethers.BrowserProvider(window.ethereum)
-      setProvider(browserProvider)
-      
-      const browserSigner = await browserProvider.getSigner()
-      setSigner(browserSigner)
-      
-      const walletAddress = await browserSigner.getAddress()
-      setAddress(walletAddress)
-      setIsConnected(true)
-      
-      // Get chain ID
-      const network = await browserProvider.getNetwork()
-      setChainId(Number(network.chainId))
-      
-      // Check if on Polygon network
-      if (Number(network.chainId) !== POLYGON_CHAIN_ID) {
-        await switchNetwork(POLYGON_CHAIN_ID)
-      }
-      
-      localStorage.setItem('walletConnected', 'true')
-      localStorage.setItem('connectionMethod', 'metamask')
-      
-      eventBus.emit('wallet:balance:refresh', { reason: 'connect:metamask', address: walletAddress })
-
-      toast({
-        title: 'MetaMask Connected',
-        description: `Connected to ${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}`,
-      })
     } catch (err) {
       console.error('Error connecting to MetaMask:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to connect MetaMask'
@@ -167,85 +126,37 @@ export function Web3Provider({ children }: Web3ProviderProps) {
         description: errorMessage,
         variant: 'destructive',
       })
-    } finally {
-      setIsConnecting(false)
     }
-  }, [])
+  }, [connectors, wagmiConnect])
 
-  // Switch network
+  // Switch network (using wagmi)
   const switchNetwork = useCallback(async (targetChainId: number) => {
-    if (!window.ethereum) {
-      throw new Error('MetaMask is not available')
-    }
-
     try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-      })
-      
-      setChainId(targetChainId)
-      
+      wagmiSwitchChain({ chainId: targetChainId })
+
       toast({
         title: 'Network Switched',
-        description: 'Successfully switched to Polygon network',
+        description: 'Successfully switched network',
       })
-    } catch (err: any) {
-      // If the chain hasn't been added to MetaMask
-      if (err.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: `0x${targetChainId.toString(16)}`,
-              chainName: 'Polygon',
-              nativeCurrency: {
-                name: 'MATIC',
-                symbol: 'MATIC',
-                decimals: 18,
-              },
-              rpcUrls: [POLYGON_RPC_URL],
-              blockExplorerUrls: ['https://polygonscan.com/'],
-            }],
-          })
-          
-          setChainId(targetChainId)
-        } catch (addError) {
-          console.error('Error adding network:', addError)
-          throw new Error('Failed to add Polygon network to MetaMask')
-        }
-      } else {
-        throw err
-      }
-    }
-  }, [])
-
-  // Get token balance
-  const getBalance = useCallback(async (tokenAddress?: string): Promise<string> => {
-    if (!address) return '0'
-    
-    try {
-      const currentProvider = provider || new ethers.JsonRpcProvider(POLYGON_RPC_URL)
-      
-      if (!tokenAddress) {
-        // Get native token balance (MATIC)
-        const balance = await currentProvider.getBalance(address)
-        return ethers.formatEther(balance)
-      } else {
-        // Get ERC20 token balance
-        const tokenContract = new ethers.Contract(
-          tokenAddress,
-          ['function balanceOf(address) view returns (uint256)'],
-          currentProvider
-        )
-        const balance = await tokenContract.balanceOf(address)
-        return ethers.formatEther(balance)
-      }
     } catch (err) {
-      console.error('Error getting balance:', err)
-      return '0'
+      console.error('Error switching network:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to switch network'
+      setError(new Error(errorMessage))
+      toast({
+        title: 'Network Switch Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
     }
-  }, [address, provider])
+  }, [wagmiSwitchChain])
+
+  // Get token balance (deprecated - use wagmi hooks directly)
+  const getBalance = useCallback(async (tokenAddress?: string): Promise<string> => {
+    // Balance fetching is now handled by wagmi hooks in components
+    // Use useBalance and useReadContract hooks directly
+    console.warn('getBalance function is deprecated - use wagmi hooks directly')
+    return wagmiBalance ? wagmiBalance.formatted : '0'
+  }, [wagmiBalance])
 
   // Generic connect function
   const connect = useCallback(async (method: 'metamask' | 'wallet' | 'google' = 'wallet') => {
@@ -256,25 +167,27 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     }
   }, [connectWithMetaMask, connectWithWallet])
 
-  // Disconnect wallet
+  // Disconnect wallet (using wagmi)
   const disconnect = useCallback(() => {
+    // Disconnect wagmi first
+    wagmiDisconnect()
+
     const connectionMethod = localStorage.getItem('connectionMethod')
-    
-    setProvider(null)
-    setSigner(null)
+
+    // Legacy state cleared via wagmi disconnect
     setAddress(null)
     setIsConnected(false)
     setChainId(null)
     setError(null)
-    
+
     localStorage.removeItem('walletConnected')
     localStorage.removeItem('connectionMethod')
-    
+
     toast({
       title: 'Wallet Disconnected',
       description: 'Your wallet has been disconnected',
     })
-  }, [])
+  }, [wagmiDisconnect])
 
   // Auto-connect Ring wallet when session is available
   useEffect(() => {
@@ -351,8 +264,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   }, [address, disconnect])
 
   const value: Web3ContextType = {
-    provider,
-    signer,
+    // Legacy API - removed (fully migrated to wagmi)
     address,
     isConnected,
     isConnecting,
@@ -364,6 +276,12 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     connectWithMetaMask,
     switchNetwork,
     getBalance,
+
+    // Modern API (wagmi) - primary functionality
+    wagmiAddress,
+    wagmiIsConnected,
+    wagmiIsConnecting,
+    wagmiChainId,
   }
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>

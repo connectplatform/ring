@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useTransition, useCallback, useState } from 'react';
 import { Review, ReviewFilters, ReviewSort } from '@/types/reviews';
 import { ReviewCard } from './review-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,22 +82,36 @@ export function ReviewList({
   onVoteHelpful,
   onVoteUnhelpful
 }: ReviewListProps) {
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [localFilters, setLocalFilters] = React.useState(filters);
-  const [localSort, setLocalSort] = React.useState(sort);
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition();
 
-  // Client-side filter change handler
-  const handleFiltersChange = (newFilters: Partial<ReviewFilters>) => {
-    const updatedFilters = { ...localFilters, ...newFilters };
-    setLocalFilters(updatedFilters);
-    onFiltersChange?.(updatedFilters);
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [localFilters, setLocalFilters] = useState(filters);
+  const [localSort, setLocalSort] = useState(sort);
 
-  // Client-side sort change handler
-  const handleSortChange = (newSort: ReviewSort) => {
-    setLocalSort(newSort);
-    onSortChange?.(newSort);
-  };
+  // Client-side filter change handler - wrapped in useTransition for non-blocking updates
+  const handleFiltersChange = useCallback((newFilters: Partial<ReviewFilters>) => {
+    startTransition(() => {
+      const updatedFilters = { ...localFilters, ...newFilters };
+      setLocalFilters(updatedFilters);
+      onFiltersChange?.(updatedFilters);
+    });
+  }, [startTransition, localFilters, onFiltersChange]);
+
+  // Client-side sort change handler - wrapped in useTransition for non-blocking updates
+  const handleSortChange = useCallback((newSort: ReviewSort) => {
+    startTransition(() => {
+      setLocalSort(newSort);
+      onSortChange?.(newSort);
+    });
+  }, [startTransition, onSortChange]);
+
+  // Search change handler - wrapped in useTransition for non-blocking updates
+  const handleSearchChange = useCallback((value: string) => {
+    startTransition(() => {
+      setSearchTerm(value);
+    });
+  }, [startTransition]);
 
   // Calculate average rating
   const averageRating = reviews.length > 0 
@@ -211,7 +225,7 @@ export function ReviewList({
                   />
                 ))}
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Based on {reviews.length} review{reviews.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -232,7 +246,7 @@ export function ReviewList({
                       }}
                     />
                   </div>
-                  <span className="text-sm text-gray-600 w-8">
+                  <span className="text-sm text-muted-foreground w-8">
                     {ratingDistribution[rating as keyof typeof ratingDistribution]}
                   </span>
                 </div>
@@ -263,7 +277,7 @@ export function ReviewList({
                       id="search"
                       placeholder="Search reviews..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => handleSearchChange(e.target.value)}
                       className="pl-10"
                     />
                   </div>
@@ -317,7 +331,7 @@ export function ReviewList({
 
             {/* Filter Summary */}
             <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 Showing {filteredReviews.length} of {reviews.length} review{reviews.length !== 1 ? 's' : ''}
               </span>
               {(localFilters.rating !== 'all' || localFilters.verified !== 'all' || searchTerm.trim()) && (
@@ -325,7 +339,7 @@ export function ReviewList({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setSearchTerm('');
+                    handleSearchChange('');
                     setLocalFilters({ rating: 'all', verified: 'all' });
                     handleFiltersChange({ rating: 'all', verified: 'all' });
                   }}
@@ -344,13 +358,13 @@ export function ReviewList({
           <Card>
             <CardContent className="p-8 text-center">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 {searchTerm.trim() || localFilters.rating !== 'all' || localFilters.verified !== 'all'
                   ? "No reviews match your criteria"
                   : "No reviews yet"
                 }
               </h3>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 {emptyMessage}
               </p>
             </CardContent>

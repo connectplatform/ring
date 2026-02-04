@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
 import { NewsCard } from './news-card';
 import { NewsArticle, NewsFilters, NewsCategoryInfo } from '@/features/news/types';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,9 @@ export function NewsList({
   className = '',
   locale = 'en'
 }: NewsListProps) {
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition();
+
   const [articles, setArticles] = useState<NewsArticle[]>(initialArticles);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<NewsFilters>({
@@ -39,6 +42,29 @@ export function NewsList({
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [hasMore, setHasMore] = useState(true);
+
+  // Search and filter change handlers - wrapped in useTransition for non-blocking updates
+  const handleSearchChange = useCallback((value: string) => {
+    startTransition(() => {
+      setSearchTerm(value);
+    });
+  }, [startTransition]);
+
+  const handleFilterChange = useCallback((key: keyof NewsFilters, value: any) => {
+    startTransition(() => {
+      setFilters(prev => ({
+        ...prev,
+        [key]: value,
+        offset: 0 // Reset offset when filters change
+      }));
+    });
+  }, [startTransition]);
+
+  const handleSearch = useCallback(() => {
+    startTransition(() => {
+      setFilters(prev => ({ ...prev, offset: 0 }));
+    });
+  }, [startTransition]);
 
   // Fetch articles based on current filters
   const fetchArticles = async (reset = false) => {
@@ -87,19 +113,6 @@ export function NewsList({
     }));
   };
 
-  // Handle filter changes
-  const handleFilterChange = (key: keyof NewsFilters, value: any) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value,
-      offset: 0 // Reset offset when filters change
-    }));
-  };
-
-  // Handle search
-  const handleSearch = () => {
-    setFilters(prev => ({ ...prev, offset: 0 }));
-  };
 
   // Effect to fetch articles when filters change
   useEffect(() => {
@@ -122,7 +135,7 @@ export function NewsList({
                 <Input
                   placeholder="Search news articles..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   className="pl-10"
                 />

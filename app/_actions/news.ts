@@ -157,4 +157,110 @@ export async function publishArticle(
   // Set status to published and save
   formData.set('status', 'published')
   return saveArticle(prevState, formData)
+}
+
+export async function deleteArticle(
+  articleId: string,
+  locale: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Get current user session
+    const session = await auth()
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: 'Authentication required'
+      }
+    }
+
+    // Import service function
+    const { deleteNewsArticle } = await import('@/features/news/services/news-service')
+
+    const result = await deleteNewsArticle(articleId)
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Failed to delete article'
+      }
+    }
+
+    // Revalidate paths after successful deletion
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath(`/${locale}/my-news`)
+    revalidatePath(`/${locale}/news`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting article:', error)
+    return {
+      success: false,
+      error: 'Failed to delete article. Please try again.'
+    }
+  }
+}
+
+export async function getMyArticlesAction(
+  locale: string,
+  filters?: { status?: NewsStatus }
+): Promise<{ success: boolean; data?: NewsArticle[]; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: 'Authentication required'
+      }
+    }
+
+    const { getMyArticles } = await import('@/features/news/services/news-service')
+    const result = await getMyArticles(session.user.id, filters)
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Failed to fetch articles'
+      }
+    }
+
+    return { success: true, data: result.data }
+  } catch (error) {
+    console.error('Error fetching my articles:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch articles. Please try again.'
+    }
+  }
+}
+
+export async function getUserArticleStatsAction(
+  locale: string
+): Promise<{ success: boolean; stats?: any; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: 'Authentication required'
+      }
+    }
+
+    const { getUserArticleStats } = await import('@/features/news/services/news-service')
+    const result = await getUserArticleStats(session.user.id)
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Failed to fetch stats'
+      }
+    }
+
+    return { success: true, stats: result.stats }
+  } catch (error) {
+    console.error('Error fetching user stats:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch stats. Please try again.'
+    }
+  }
 } 

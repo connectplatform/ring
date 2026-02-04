@@ -1,0 +1,62 @@
+---
+title: Installation
+description: Installation documentation for Ring Platform
+---
+
+# Installation
+
+This guide walks you through a complete setup of Ring Platform for local development.
+
+## Prerequisites
+
+- Node.js 22.9+ and npm 10.8+
+- Firebase project (Firestore + Auth)
+- Google Cloud OAuth credentials
+
+## 1) Initialize the project
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+npm install`}
+</Code>
+
+## 2) Configure environment
+
+cp env.local.template .env.local
+
+<Code language="bash" title="terminal">
+{`npm run setup:env`}
+</Code>
+
+Essential keys (see `ring/env.local.template`):
+
+<Code language="dotenv" title="AUTH_FIREBASE_PROJECT_ID=">
+{`AUTH_FIREBASE_CLIENT_EMAIL=
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+WALLET_ENCRYPTION_KEY=`}
+</Code>
+
+## 3) Firebase setup
+
+1. Enable Authentication (Google provider)
+2. Create Firestore DB (test mode for local)
+3. Optional: configure Storage and Cloud Messaging (VAPID key)
+
+## 4) Run
+
+✅ http://localhost:3000
+
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="warning">Keep private keys quoted and with literal newlines.</Callout>
+
+

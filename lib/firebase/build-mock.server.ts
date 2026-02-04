@@ -56,12 +56,39 @@ export function isBuildTime(): boolean {
  */
 class MockFirestore {
   /**
+   * Creates a mock query object with chainable methods
+   * 
+   * @returns Mock query object with all Firestore query methods
+   */
+  private createMockQuery() {
+    const query: any = {
+      get: async () => ({
+        empty: true,
+        size: 0,
+        docs: [],
+        forEach: () => {}
+      }),
+      where: () => query,
+      orderBy: () => query,
+      limit: () => query,
+      offset: () => query,
+      startAt: () => query,
+      startAfter: () => query,
+      endAt: () => query,
+      endBefore: () => query
+    };
+    return query;
+  }
+
+  /**
    * Mock collection reference with full query interface
    * 
    * @param path - Collection path
    * @returns Mock collection reference with all Firestore methods
    */
   collection(path: string) {
+    const query = this.createMockQuery();
+    
     return {
       doc: (id?: string) => ({
         get: async () => ({
@@ -74,20 +101,11 @@ class MockFirestore {
         delete: async () => ({ writeTime: new Date() }),
         collection: (subPath: string) => this.collection(`${path}/${id}/${subPath}`)
       }),
-      get: async () => ({
-        empty: true,
-        size: 0,
-        docs: [],
-        forEach: () => {}
-      }),
       add: async () => ({
         id: 'mock-doc-id',
         get: async () => ({ exists: false, data: () => null })
       }),
-      where: () => this,
-      orderBy: () => this,
-      limit: () => this,
-      offset: () => this
+      ...query
     };
   }
 
@@ -310,8 +328,14 @@ class MockDatabase {
  * ```
  */
 export function getMockFirebaseServices() {
-  if (!isBuildTime()) {
-    throw new Error('Mock Firebase services should only be used during build time');
+  // Allow mock services during:
+  // 1. Build time (Next.js SSG)
+  // 2. PostgreSQL-only mode (k8s-postgres-fcm or supabase-fcm)
+  const { shouldUseFirebaseForDatabase } = require('../database/backend-mode-config');
+  const isPostgreSQLMode = !shouldUseFirebaseForDatabase();
+  
+  if (!isBuildTime() && !isPostgreSQLMode) {
+    throw new Error('Mock Firebase services should only be used during build time or PostgreSQL-only mode');
   }
 
   return {

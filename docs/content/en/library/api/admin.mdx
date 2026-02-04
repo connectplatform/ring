@@ -1,0 +1,1039 @@
+---
+title: Admin API
+description: Complete administrative API documentation for Ring Platform system management, user administration, analytics access, and configuration control
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Admin API
+
+Ring Platform provides a comprehensive administrative API with **12 secure endpoints** for system management, user administration, analytics access, and configuration control. All admin endpoints require **ADMIN role** and implement enterprise-grade security measures.
+
+<Callout type="warning" title="🔒 Admin Access Required">
+All admin endpoints require **ADMIN role** authentication and are subject to strict rate limiting and audit logging. Unauthorized access attempts are logged and may trigger security alerts.
+</Callout>
+
+## 🏗️ System Architecture
+
+### Admin Access Control
+
+```
+Authentication → Role Verification → Permission Check → Action Logging → Response
+```
+
+### Security Features
+
+- **Role-based Access Control**: Multi-level permission system
+- **Audit Logging**: All admin actions are logged with timestamps and user context
+- **Rate Limiting**: Admin endpoints have stricter rate limits (100 req/hour vs 1000 req/hour for regular users)
+- **IP Whitelisting**: Optional IP-based access restrictions
+- **Two-Factor Authentication**: Required for sensitive operations
+- **Session Management**: Admin sessions have shorter timeouts (1 hour vs 24 hours)
+
+### Data Protection
+
+- **Encryption at Rest**: Sensitive admin data encrypted in database
+- **Secure Audit Logs**: Admin actions logged to tamper-proof storage
+- **GDPR Compliance**: Admin data handling follows strict privacy regulations
+- **Data Retention**: Admin logs retained for 7 years for compliance
+
+## 📋 API Endpoints Reference
+
+### `GET /api/admin/users`
+
+List and search platform users with advanced filtering and pagination.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Users per page (default: 50, max: 200) |
+| `search` | string | No | Search by name, email, or username |
+| `role` | string | No | Filter by role: `VISITOR`, `MEMBER`, `CONFIDENTIAL`, `ADMIN` |
+| `status` | string | No | Filter by status: `active`, `suspended`, `banned` |
+| `verified` | boolean | No | Filter by email verification status |
+| `createdAfter` | string | No | ISO date - users created after this date |
+| `createdBefore` | string | No | ISO date - users created before this date |
+| `lastLoginAfter` | string | No | ISO date - users logged in after this date |
+| `sortBy` | string | No | Sort field: `createdAt`, `lastLogin`, `name`, `email` |
+| `sortOrder` | string | No | Sort order: `asc`, `desc` (default: `desc`) |
+
+#### Example Request
+
+<Code language="bash" title="terminal">
+{`curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&status=active&sortBy=createdAt&sortOrder=desc" \-H "Authorization: Bearer admin-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="json">
+{`"users": [
+    {
+      "id": "user_123456",
+      "email": "john.doe@example.com",
+      "name": "John Doe",
+      "username": "johndoe",
+      "role": "MEMBER",
+      "status": "active",
+      "emailVerified": true,
+      "avatar": "https://cdn.example.com/avatars/user_123456.jpg",
+      "createdAt": "2025-01-15T10:30:00Z",
+      "lastLogin": "2025-10-16T09:15:00Z",
+      "loginCount": 47,
+      "walletAddress": "0x1234567890abcdef...",
+      "profile": {
+        "company": "TechCorp",
+        "title": "Senior Developer",
+        "location": "San Francisco, CA"
+      },
+      "stats": {
+        "entitiesCreated": 12,
+        "opportunitiesPosted": 8,
+        "messagesSent": 234,
+        "lastActivity": "2025-10-16T09:15:00Z"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1250,
+    "totalPages": 63,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "filters": {
+    "applied": {
+      "role": "MEMBER",
+      "status": "active"
+    },
+    "counts": {
+      "total": 1250,
+      "active": 1189,
+      "suspended": 45,
+      "banned": 16,
+      "byRole": {
+        "VISITOR": 234,
+        "MEMBER": 890,
+        "CONFIDENTIAL": 89,
+        "ADMIN": 37
+      }
+    }
+  }
+}`}
+</Code>
+
+### `GET /api/admin/users/{id}`
+
+Get detailed information about a specific user.
+
+#### Response
+
+<Code language="json" title="json">
+{`"user": {
+    "id": "user_123456",
+    "email": "john.doe@example.com",
+    "name": "John Doe",
+    "username": "johndoe",
+    "role": "MEMBER",
+    "status": "active",
+    "emailVerified": true,
+    "emailVerifiedAt": "2025-01-15T10:35:00Z",
+    "avatar": "https://cdn.example.com/avatars/user_123456.jpg",
+    "createdAt": "2025-01-15T10:30:00Z",
+    "updatedAt": "2025-10-16T09:15:00Z",
+    "lastLogin": "2025-10-16T09:15:00Z",
+    "loginCount": 47,
+    "walletAddress": "0x1234567890abcdef...",
+    "walletBalance": {
+      "RING": 1250.50,
+      "ETH": 0.0234
+    },
+    "profile": {
+      "company": "TechCorp",
+      "title": "Senior Developer",
+      "location": "San Francisco, CA",
+      "bio": "Full-stack developer with 5+ years experience...",
+      "website": "https://johndoe.dev",
+      "linkedin": "https://linkedin.com/in/johndoe"
+    },
+    "preferences": {
+      "theme": "dark",
+      "language": "en",
+      "timezone": "America/Los_Angeles",
+      "notifications": {
+        "email": true,
+        "push": true,
+        "marketing": false
+      }
+    },
+    "stats": {
+      "entitiesCreated": 12,
+      "opportunitiesPosted": 8,
+      "opportunitiesApplied": 15,
+      "messagesSent": 234,
+      "notificationsReceived": 89,
+      "lastActivity": "2025-10-16T09:15:00Z"
+    },
+    "security": {
+      "twoFactorEnabled": true,
+      "lastPasswordChange": "2025-09-01T14:20:00Z",
+      "suspiciousLogins": 0,
+      "trustedDevices": 3
+    }
+  },
+  "activity": [
+    {
+      "type": "login",
+      "timestamp": "2025-10-16T09:15:00Z",
+      "ip": "192.168.1.100",
+      "userAgent": "Mozilla/5.0...",
+      "location": "San Francisco, CA"
+    }
+  ]
+}`}
+</Code>
+
+### `PUT /api/admin/users/{id}/role`
+
+Update a user's role and permissions.
+
+#### Request Body
+
+<Code language="json" title="json">
+{`"role": "CONFIDENTIAL",
+  "reason": "Promoted to Confidential role for project access",
+  "notifyUser": true,
+  "notificationMessage": "Congratulations! You've been promoted to Confidential role with access to premium features."
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="json">
+{`"user": {
+    "id": "user_123456",
+    "email": "john.doe@example.com",
+    "role": "CONFIDENTIAL",
+    "updatedAt": "2025-10-16T10:00:00Z"
+  },
+  "change": {
+    "previousRole": "MEMBER",
+    "newRole": "CONFIDENTIAL",
+    "changedBy": "admin_789",
+    "changedAt": "2025-10-16T10:00:00Z",
+    "reason": "Promoted to Confidential role for project access"
+  },
+  "notificationSent": true
+}`}
+</Code>
+
+### `PUT /api/admin/users/{id}/status`
+
+Update a user's account status (suspend, ban, activate).
+
+#### Request Body
+
+<Code language="json" title="json">
+{`"status": "suspended",
+  "reason": "Violation of community guidelines - spam posting",
+  "duration": "7 days",
+  "notifyUser": true,
+  "appealAllowed": true
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="json">
+{`"user": {
+    "id": "user_123456",
+    "status": "suspended",
+    "statusUpdatedAt": "2025-10-16T10:05:00Z",
+    "statusExpiresAt": "2025-10-23T10:05:00Z"
+  },
+  "action": {
+    "type": "suspension",
+    "reason": "Violation of community guidelines - spam posting",
+    "duration": "7 days",
+    "expiresAt": "2025-10-23T10:05:00Z",
+    "appealAllowed": true,
+    "performedBy": "admin_789"
+  },
+  "notificationSent": true
+}`}
+</Code>
+
+### `DELETE /api/admin/users/{id}`
+
+Permanently delete a user account (GDPR compliance).
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `anonymize` | boolean | No | Replace user data with anonymous placeholders (default: true) |
+| `deleteContent` | boolean | No | Delete all user-generated content (default: false) |
+| `reason` | string | Yes | Reason for account deletion |
+
+#### Request Body
+
+<Code language="json" title="json">
+{`"reason": "User requested account deletion under GDPR",
+  "anonymize": true,
+  "deleteContent": false,
+  "confirmation": "DELETE_USER_ACCOUNT"
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="json">
+{`"deleted": true,
+  "userId": "user_123456",
+  "anonymized": true,
+  "contentPreserved": true,
+  "deletedAt": "2025-10-16T10:10:00Z",
+  "gdprCompliant": true
+}`}
+</Code>
+
+### `GET /api/admin/analytics`
+
+Get comprehensive platform analytics and metrics.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `period` | string | No | Time period: `hour`, `day`, `week`, `month`, `year` (default: `week`) |
+| `startDate` | string | No | ISO date string for custom range |
+| `endDate` | string | No | ISO date string for custom range |
+| `metrics` | string[] | No | Specific metrics to include |
+
+#### Response
+
+<Code language="json" title="json">
+{`"period": "week",
+  "dateRange": {
+    "start": "2025-10-09T00:00:00Z",
+    "end": "2025-10-16T23:59:59Z"
+  },
+  "summary": {
+    "totalUsers": 1250,
+    "activeUsers": 890,
+    "newUsers": 47,
+    "totalEntities": 2340,
+    "totalOpportunities": 156,
+    "totalMessages": 45670,
+    "totalTransactions": 2341,
+    "revenue": {
+      "RING": 125000.50,
+      "USD": 45230.75
+    }
+  },
+  "userMetrics": {
+    "registrations": {
+      "total": 47,
+      "byDay": [5, 8, 6, 7, 9, 6, 6],
+      "conversion": 78.4
+    },
+    "activity": {
+      "dailyActiveUsers": 890,
+      "weeklyActiveUsers": 1156,
+      "monthlyActiveUsers": 1234,
+      "retention": {
+        "day1": 85.2,
+        "day7": 72.1,
+        "day30": 64.8
+      }
+    },
+    "engagement": {
+      "avgSessionDuration": "24m 32s",
+      "pagesPerSession": 8.7,
+      "bounceRate": 23.4
+    }
+  },
+  "contentMetrics": {
+    "entities": {
+      "created": 156,
+      "active": 1890,
+      "byIndustry": {
+        "technology": 567,
+        "healthcare": 234,
+        "finance": 189
+      }
+    },
+    "opportunities": {
+      "posted": 89,
+      "filled": 67,
+      "conversionRate": 75.3,
+      "avgBudget": 15400
+    }
+  },
+  "systemMetrics": {
+    "performance": {
+      "avgResponseTime": "245ms",
+      "errorRate": 0.012,
+      "uptime": 99.98
+    },
+    "database": {
+      "connections": 45,
+      "queryTime": "89ms",
+      "cacheHitRate": 94.2
+    },
+    "api": {
+      "totalRequests": 4567890,
+      "avgRequestsPerSecond": 54.3,
+      "topEndpoints": [
+        { "path": "/api/entities", "count": 123456 },
+        { "path": "/api/opportunities", "count": 98765 }
+      ]
+    }
+  }
+}`}
+</Code>
+
+### `GET /api/admin/analytics/users`
+
+Get detailed user analytics.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `groupBy` | string | No | Group results by: `day`, `week`, `month`, `role`, `status` |
+| `includeInactive` | boolean | No | Include inactive users in results (default: false) |
+
+### `GET /api/admin/config`
+
+Get current system configuration settings.
+
+#### Response
+
+<Code language="json" title="json">
+{`"config": {
+    "system": {
+      "maintenanceMode": false,
+      "registrationEnabled": true,
+      "emailVerificationRequired": true,
+      "twoFactorRequired": false,
+      "maxFileSize": 10485760,
+      "allowedDomains": ["ring-platform.org", "ringplatform.com"]
+    },
+    "features": {
+      "aiMatcher": true,
+      "nftMarketplace": true,
+      "staking": true,
+      "messaging": true,
+      "notifications": true,
+      "wallet": true,
+      "store": true
+    },
+    "limits": {
+      "maxEntitiesPerUser": 50,
+      "maxOpportunitiesPerUser": 20,
+      "maxMessagesPerDay": 1000,
+      "maxFileUploadsPerHour": 50
+    },
+    "integrations": {
+      "firebase": {
+        "enabled": true,
+        "projectId": "ring-platform-org"
+      },
+      "wayforpay": {
+        "enabled": true,
+        "testMode": false
+      },
+      "web3": {
+        "polygonRpcUrl": "https://polygon-rpc.com",
+        "ipfsGateway": "https://ipfs.io/ipfs/"
+      }
+    },
+    "security": {
+      "sessionTimeout": 86400,
+      "passwordMinLength": 8,
+      "rateLimitRequests": 1000,
+      "rateLimitWindow": 3600
+    },
+    "whiteLabel": {
+      "brandName": "Ring Platform",
+      "logoUrl": "https://cdn.ring-platform.org/logo.png",
+      "primaryColor": "#3b82f6",
+      "customDomain": "ring-platform.org"
+    }
+  },
+  "lastUpdated": "2025-10-15T14:30:00Z",
+  "updatedBy": "admin_789"
+}`}
+</Code>
+
+### `PUT /api/admin/config`
+
+Update system configuration settings.
+
+#### Request Body
+
+<Code language="json" title="json">
+{`"config": {
+    "system": {
+      "maintenanceMode": true,
+      "maintenanceMessage": "Scheduled maintenance in progress. We'll be back soon!"
+    },
+    "features": {
+      "nftMarketplace": false
+    }
+  },
+  "reason": "Enabling maintenance mode for system updates",
+  "rollbackEnabled": true,
+  "notifyUsers": true
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="json">
+{`"updated": true,
+  "changes": {
+    "system.maintenanceMode": {
+      "from": false,
+      "to": true
+    },
+    "features.nftMarketplace": {
+      "from": true,
+      "to": false
+    }
+  },
+  "rollbackId": "rollback_123456",
+  "appliedAt": "2025-10-16T11:00:00Z",
+  "usersNotified": 1189
+}`}
+</Code>
+
+### `POST /api/admin/config/rollback`
+
+Rollback configuration changes.
+
+#### Request Body
+
+<Code language="json" title="json">
+{`"rollbackId": "rollback_123456",
+  "reason": "Maintenance completed ahead of schedule"
+}`}
+</Code>
+
+### `GET /api/admin/audit`
+
+Get audit logs for admin actions.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Logs per page (default: 50) |
+| `action` | string | No | Filter by action type |
+| `userId` | string | No | Filter by user who performed action |
+| `targetUserId` | string | No | Filter by user who was affected |
+| `startDate` | string | No | ISO date - logs after this date |
+| `endDate` | string | No | ISO date - logs before this date |
+
+#### Response
+
+<Code language="json" title="json">
+{`"logs": [
+    {
+      "id": "audit_123456",
+      "timestamp": "2025-10-16T10:00:00Z",
+      "action": "user_role_update",
+      "actor": {
+        "id": "admin_789",
+        "name": "Admin User",
+        "role": "ADMIN"
+      },
+      "target": {
+        "id": "user_123",
+        "name": "John Doe",
+        "type": "user"
+      },
+      "details": {
+        "previousRole": "MEMBER",
+        "newRole": "CONFIDENTIAL",
+        "reason": "Promoted for project access"
+      },
+      "ip": "192.168.1.100",
+      "userAgent": "Mozilla/5.0...",
+      "success": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1250,
+    "totalPages": 25
+  }
+}`}
+</Code>
+
+## 🔧 Implementation Examples
+
+### Admin Dashboard Component
+
+// components/admin/AdminDashboard.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+interface AdminStats {
+  totalUsers: number
+  activeUsers: number
+  newUsersToday: number
+  totalEntities: number
+  totalOpportunities: number
+  systemHealth: 'healthy' | 'warning' | 'critical'
+}
+
+export function AdminDashboard() {
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAdminStats()
+  }, [])
+
+  const fetchAdminStats = async () => {
+    try {
+      const [usersRes, analyticsRes] = await Promise.all([
+        fetch('/api/admin/users?limit=1'),
+        fetch('/api/admin/analytics?period=day')
+      ])
+
+      const usersData = await usersRes.json()
+      const analyticsData = await analyticsRes.json()
+
+      setStats({
+        totalUsers: usersData.pagination.total,
+        activeUsers: analyticsData.userMetrics.activity.dailyActiveUsers,
+        newUsersToday: analyticsData.userMetrics.registrations.byDay.slice(-1)[0],
+        totalEntities: analyticsData.contentMetrics.entities.active,
+        totalOpportunities: analyticsData.contentMetrics.opportunities.posted,
+        systemHealth: analyticsData.systemMetrics.performance.errorRate < 0.01 ? 'healthy' :
+                     analyticsData.systemMetrics.performance.errorRate < 0.05 ? 'warning' : 'critical'
+      })
+    } catch (error) {
+      console.error('Failed to fetch admin stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <div>Loading admin dashboard...</div>
+
+  return (
+    <div className="admin-dashboard">
+      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalUsers.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Active Today</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.activeUsers.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">New Today</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">+{stats?.newUsersToday}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">System Health</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${
+              stats?.systemHealth === 'healthy' ? 'text-green-600' :
+              stats?.systemHealth === 'warning' ? 'text-yellow-600' : 'text-red-600'
+            }`}>
+              {stats?.systemHealth.toUpperCase()}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional admin components */}
+      <UserManagement />
+      <SystemConfiguration />
+      <AuditLogs />
+    </div>
+  )
+}`}
+</Code>
+
+### User Management Component
+
+// components/admin/UserManagement.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: string
+  createdAt: string
+}
+
+export function UserManagement() {
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: newRole,
+          reason: 'Administrative role update',
+          notifyUser: true
+        })
+      })
+
+      if (response.ok) {
+        // Update local state
+        setUsers(users.map(user =>
+          user.id === userId ? { ...user, role: newRole } : user
+        ))
+      }
+    } catch (error) {
+      console.error('Failed to update user role:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const suspendUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'suspended',
+          reason: 'Administrative action',
+          duration: '7 days',
+          notifyUser: true
+        })
+      })
+
+      if (response.ok) {
+        setUsers(users.map(user =>
+          user.id === userId ? { ...user, status: 'suspended' } : user
+        ))
+      }
+    } catch (error) {
+      console.error('Failed to suspend user:', error)
+    }
+  }
+
+  return (
+    <div className="user-management">
+      <h2 className="text-xl font-semibold mb-4">User Management</h2>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left p-2">User</th>
+              <th className="text-left p-2">Role</th>
+              <th className="text-left p-2">Status</th>
+              <th className="text-left p-2">Joined</th>
+              <th className="text-left p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map(user => (
+              <tr key={user.id} className="border-b">
+                <td className="p-2">
+                  <div>
+                    <div className="font-medium">{user.name}</div>
+                    <div className="text-sm text-gray-500">{user.email}</div>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <Badge variant={user.role === 'ADMIN' ? 'destructive' : 'default'}>
+                    {user.role}
+                  </Badge>
+                </td>
+                <td className="p-2">
+                  <Badge variant={
+                    user.status === 'active' ? 'default' :
+                    user.status === 'suspended' ? 'secondary' : 'destructive'
+                  }>
+                    {user.status}
+                  </Badge>
+                </td>
+                <td className="p-2 text-sm text-gray-500">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </td>
+                <td className="p-2">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateUserRole(user.id, 'CONFIDENTIAL')}
+                      disabled={loading}
+                    >
+                      Promote
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => suspendUser(user.id)}
+                      disabled={loading || user.status === 'suspended'}
+                    >
+                      Suspend
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Error Handling
+
+### Common Admin Error Responses
+
+// Insufficient Permissions
+
+<Code language="json" title="configuration">
+{`{
+  "error": "InsufficientPermissionsError",
+  "message": "Admin role required for this operation",
+  "requiredRole": "ADMIN",
+  "currentRole": "MEMBER",
+  "statusCode": 403
+}
+
+// Rate Limit Exceeded
+{
+  "error": "RateLimitError",
+  "message": "Admin API rate limit exceeded",
+  "limit": 100,
+  "window": "1 hour",
+  "resetTime": "2025-10-16T11:00:00Z",
+  "statusCode": 429
+}
+
+// Validation Error
+{
+  "error": "ValidationError",
+  "message": "Invalid admin operation",
+  "details": {
+    "role": "Invalid role specified",
+    "reason": "Reason is required for role changes"
+  },
+  "statusCode": 400
+}
+
+// System Protection
+{
+  "error": "SystemProtectionError",
+  "message": "Operation blocked by system protection",
+  "reason": "Cannot delete admin user",
+  "protectionType": "admin_protection",
+  "statusCode": 403
+}`}
+</Code>
+
+## 🔒 Security Considerations
+
+### Access Control
+- **Multi-level Authentication**: Admin operations require fresh authentication
+- **Session Validation**: Admin sessions validated on every request
+- **IP Restrictions**: Optional IP whitelisting for admin access
+- **Time-based Access**: Admin operations restricted during certain hours
+
+### Audit & Compliance
+- **Complete Audit Trail**: Every admin action logged with full context
+- **GDPR Compliance**: Admin data handling follows privacy regulations
+- **Data Retention**: Admin logs retained for 7 years
+- **Tamper Detection**: Cryptographic signatures on audit logs
+
+### Operational Security
+- **Principle of Least Privilege**: Admins only get required permissions
+- **Two-Person Rule**: Critical operations require secondary approval
+- **Emergency Access**: Break-glass procedures for system recovery
+- **Security Monitoring**: Real-time monitoring of admin activities
+
+## 📊 Monitoring & Analytics
+
+### Admin Activity Dashboard
+
+// Track admin actions for monitoring
+
+<Code language="typescript" title="TypeScript">
+{`const trackAdminAction = (action: string, details: any) => {
+  // Send to analytics
+  analytics.track('admin_action', {
+    action,
+    adminId: currentAdmin.id,
+    timestamp: new Date().toISOString(),
+    details,
+    ipAddress: getClientIP(),
+    userAgent: navigator.userAgent
+  })
+
+  // Log to security system
+  securityLogger.log('ADMIN_ACTION', {
+    action,
+    adminId: currentAdmin.id,
+    details,
+    severity: getActionSeverity(action)
+  })
+}`}
+</Code>
+
+### Performance Metrics
+
+// Monitor admin API performance
+
+<Code language="typescript" title="TypeScript">
+{`const measureAdminApiCall = async (endpoint: string, operation: () => Promise<any>) => {
+  const startTime = Date.now()
+  try {
+    const result = await operation()
+    const duration = Date.now() - startTime
+
+    // Track performance
+    analytics.track('admin_api_performance', {
+      endpoint,
+      duration,
+      success: true
+    })
+
+    return result
+  } catch (error) {
+    const duration = Date.now() - startTime
+
+    // Track errors
+    analytics.track('admin_api_error', {
+      endpoint,
+      duration,
+      error: error.message,
+      statusCode: error.statusCode
+    })
+
+    throw error
+  }
+}`}
+</Code>
+
+## 🎛️ Configuration
+
+### Environment Variables
+
+Admin Security Audit Logging System Protection Monitoring
+
+<Code language="bash" title="terminal">
+{`ADMIN_SESSION_TIMEOUT=3600
+ADMIN_RATE_LIMIT_REQUESTS=100
+ADMIN_RATE_LIMIT_WINDOW=3600
+ADMIN_IP_WHITELIST=192.168.1.0/24,10.0.0.0/8
+
+AUDIT_LOG_RETENTION_DAYS=2555
+AUDIT_LOG_ENCRYPTION_KEY=your-encryption-key
+AUDIT_LOG_STORAGE_TYPE=encrypted_postgresql
+
+SYSTEM_PROTECTION_ENABLED=true
+ADMIN_USER_PROTECTION=true
+CRITICAL_CONFIG_PROTECTION=true
+
+ADMIN_ACTIVITY_MONITORING=true
+ADMIN_PERFORMANCE_TRACKING=true
+ADMIN_SECURITY_ALERTS=true`}
+</Code>
+
+### Database Schema
+
+<Code language="sql" title="-- Admin audit log">
+{`CREATE TABLE admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL REFERENCES users(id),
+  action VARCHAR(100) NOT NULL,
+  target_type VARCHAR(50),
+  target_id UUID,
+  details JSONB,
+  ip_address INET,
+  user_agent TEXT,
+  success BOOLEAN DEFAULT TRUE,
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Admin sessions
+CREATE TABLE admin_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL REFERENCES users(id),
+  token_hash VARCHAR(128) UNIQUE NOT NULL,
+  ip_address INET,
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL,
+  last_activity TIMESTAMP DEFAULT NOW()
+);
+
+-- System configuration
+CREATE TABLE system_config (
+  key VARCHAR(255) PRIMARY KEY,
+  value JSONB,
+  updated_by UUID REFERENCES users(id),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  version INTEGER DEFAULT 1
+);
+
+-- Configuration change history
+CREATE TABLE config_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  config_key VARCHAR(255) NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  changed_by UUID REFERENCES users(id),
+  changed_at TIMESTAMP DEFAULT NOW(),
+  rollback_id UUID
+);`}
+</Code>
+
+---
+
+*Ring Platform's Admin API provides enterprise-grade administrative control with comprehensive security, audit trails, and operational monitoring.*

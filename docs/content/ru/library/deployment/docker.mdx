@@ -25,9 +25,8 @@ Ring Platform может быть развернут с использовани
 
 ### Docker Compose (Разработка)
 
-```yaml
-version: '3.9'
-services:
+<Code language="yaml" title="version: '3.9'">
+{`services:
   ring-platform:
     build:
       context: .
@@ -57,25 +56,23 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-```
+  postgres_data:`}
+</Code>
 
 ### Быстрая настройка разработки
 
-```bash
-# Клонировать репозиторий
-git clone https://github.com/connectplatform/ring.git
+Клонировать репозиторий Запустить среду разработки Просмотреть логи Доступ к приложению
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
 cd ring/ring-platform.org
 
-# Запустить среду разработки
 docker-compose -f docker-compose.dev.yml up -d
 
-# Просмотреть логи
 docker-compose logs -f ring-platform
 
-# Доступ к приложению
-open http://localhost:3000
-```
+open http://localhost:3000`}
+</Code>
 
 ## Продакшн-развертывание
 
@@ -85,12 +82,13 @@ open http://localhost:3000
 > **КРИТИЧНО**: Никогда не используйте подсветку синтаксиса на стороне сервера или импорты Mermaid.js на верхнем уровне - вызывает 30-секундные задержки и таймауты 503!
 
 #### Спецификация платформы
-```bash
-# Всегда собирать с явным указанием платформы для узлов Kubernetes AMD64
-docker build --platform linux/amd64 \
+Всегда собирать с явным указанием платформы для узлов Kubernetes AMD64
+
+<Code language="bash" title="terminal">
+{`docker build --platform linux/amd64 \
   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
-  -f Dockerfile .
-```
+  -f Dockerfile .`}
+</Code>
 
 #### Конфигурация Docker
 - **НЕ** исключать директорию `docs/` из `.dockerignore`
@@ -100,30 +98,31 @@ docker build --platform linux/amd64 \
 ### Процесс сборки и развертывания
 
 #### Шаг 1: Собрать образ Docker
-```bash
-cd ring-platform.org
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
 docker build --platform linux/amd64 \
   -t ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64 \
-  -f Dockerfile .
-```
+  -f Dockerfile .`}
+</Code>
 
 #### Шаг 2: Отправить в реестр
-```bash
-docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64
-```
+<Code language="bash" title="terminal">
+{`docker push ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64`}
+</Code>
 
 #### Шаг 3: Развернуть в Kubernetes
-```bash
 ssh k8s-control-01 'kubectl -n ring-platform-org set image \
-  deployment/ring-platform \
-  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'
-```
+
+<Code language="bash" title="terminal">
+{`deployment/ring-platform \
+  ring-platform=ghcr.io/connectplatform/ring:v0.9.18-ring-platform.org-amd64'`}
+</Code>
 
 #### Шаг 4: Мониторить развертывание
-```bash
-ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
-ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'
-```
+<Code language="bash" title="terminal">
+{`ssh k8s-control-01 'kubectl -n ring-platform-org rollout status deployment/ring-platform'
+ssh k8s-control-01 'kubectl -n ring-platform-org get pods -l app=ring-platform'`}
+</Code>
 
 ---
 
@@ -145,31 +144,32 @@ Ring Platform развертывается в Kubernetes с использова
 
 Настройте вашего DNS-провайдера для указания `ring-platform.org` на ваши публичные IP:
 
-```bash
-# Основная настройка (Рекомендуется)
-ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
+Основная настройка (Рекомендуется) Расширенная настройка с балансировкой нагрузки
+
+<Code language="bash" title="terminal">
+{`ring-platform.org      A     195.95.233.69    # HAProxy LoadBalancer
 www.ring-platform.org  CNAME ring-platform.org
 
-# Расширенная настройка с балансировкой нагрузки
 ring-platform.org      A     195.95.233.69    # Основной (HAProxy)
-ring-platform.org      A     195.95.233.15    # Вторичный (MetalLB)
-```
+ring-platform.org      A     195.95.233.15    # Вторичный (MetalLB)`}
+</Code>
 
 ## Настройка пространства имен
 
-```bash
-# Создать пространство имен Ring
-kubectl create namespace ring-platform-org
+Создать пространство имен Ring Установить как пространство по умолчанию для развертывания
 
-# Установить как пространство по умолчанию для развертывания
-kubectl config set-context --current --namespace=ring-platform-org
-```
+<Code language="bash" title="terminal">
+{`kubectl create namespace ring-platform-org
+
+kubectl config set-context --current --namespace=ring-platform-org`}
+</Code>
 
 ## Развертывание приложения Ring Platform
 
-```yaml
-# ring-platform-deployment.yaml
-apiVersion: apps/v1
+ring-platform-deployment.yaml Сервис Ring Platform с MetalLB
+
+<Code language="yaml" title="configuration">
+{`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ring-platform
@@ -221,7 +221,6 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
 ---
-# Сервис Ring Platform с MetalLB
 apiVersion: v1
 kind: Service
 metadata:
@@ -242,14 +241,15 @@ spec:
     targetPort: 3000
     protocol: TCP
   type: LoadBalancer
-  loadBalancerIP: 10.10.0.41
-```
+  loadBalancerIP: 10.10.0.41`}
+</Code>
 
 ## Конфигурация NGINX Ingress
 
-```yaml
-# ring-platform-ingress.yaml
-apiVersion: networking.k8s.io/v1
+ring-platform-ingress.yaml Основное приложение Документация субдомен
+
+<Code language="yaml" title="configuration">
+{`apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ring-platform-ingress
@@ -270,7 +270,6 @@ spec:
     - docs.ring-platform.org
     secretName: ring-platform-tls
   rules:
-  # Основное приложение
   - host: ring-platform.org
     http:
       paths:
@@ -291,7 +290,6 @@ spec:
             name: ring-platform-service
             port:
               number: 80
-  # Документация субдомен
   - host: docs.ring-platform.org
     http:
       paths:
@@ -301,7 +299,7 @@ spec:
           service:
             name: ring-platform-service
             port:
-              number: 80
-```
+              number: 80`}
+</Code>
 
 Это развертывание Kubernetes обеспечивает масштабируемость корпоративного уровня, высокую доступность и надежное управление трафиком для платформы Ring с использованием балансировщиков нагрузки HAProxy и MetalLB.

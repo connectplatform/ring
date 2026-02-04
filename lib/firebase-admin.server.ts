@@ -8,6 +8,9 @@ import { isBuildTime, getMockFirebaseServices, logBuildOptimization } from './fi
  * Global variables to hold Firebase Admin instances with singleton optimization.
  */
 let adminApp: App;
+
+// Flag to prevent repeated logging of PostgreSQL mode
+let loggedPostgresMode = false;
 let adminDb: Firestore;
 let adminAuth: Auth;
 let adminRtdb: Database;
@@ -164,10 +167,14 @@ export function getAdminDb(): Firestore {
     return mockDb;
   }
   
-  // POSTGRESQL MODE: Return mock service when DB_HYBRID_MODE=false
-  // This prevents Firebase initialization when using PostgreSQL-only mode
-  if (process.env.DB_HYBRID_MODE === 'false') {
-    console.log('🔧 Firebase disabled (DB_HYBRID_MODE=false) - returning mock Firestore');
+  // POSTGRESQL-ONLY MODE: Return mock service when Firebase is not used for database
+  // This prevents Firebase initialization in k8s-postgres-fcm and supabase-fcm modes
+  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config');
+  if (!shouldUseFirebaseForDatabase()) {
+    if (!loggedPostgresMode) {
+      console.log('🔧 Firebase database disabled (using PostgreSQL) - returning mock Firestore');
+      loggedPostgresMode = true;
+    }
     const { mockDb } = getMockFirebaseServices();
     return mockDb;
   }
@@ -205,9 +212,13 @@ export function getAdminAuth(): Auth {
     return mockAuth;
   }
   
-  // POSTGRESQL MODE: Return mock service when DB_HYBRID_MODE=false
-  if (process.env.DB_HYBRID_MODE === 'false') {
-    console.log('🔧 Firebase disabled (DB_HYBRID_MODE=false) - returning mock Auth');
+  // POSTGRESQL-ONLY MODE: Return mock service when Firebase is not used for database
+  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config');
+  if (!shouldUseFirebaseForDatabase()) {
+    if (!loggedPostgresMode) {
+      console.log('🔧 Firebase auth disabled (using PostgreSQL) - returning mock Auth');
+      loggedPostgresMode = true;
+    }
     const { mockAuth } = getMockFirebaseServices();
     return mockAuth;
   }
@@ -245,9 +256,13 @@ export function getAdminRtdb(): Database {
     return mockRtdb;
   }
   
-  // POSTGRESQL MODE: Return mock service when DB_HYBRID_MODE=false
-  if (process.env.DB_HYBRID_MODE === 'false') {
-    console.log('🔧 Firebase disabled (DB_HYBRID_MODE=false) - returning mock Realtime Database');
+  // POSTGRESQL-ONLY MODE: Return mock service when Firebase is not used for database
+  const { shouldUseFirebaseForDatabase } = require('./database/backend-mode-config');
+  if (!shouldUseFirebaseForDatabase()) {
+    if (!loggedPostgresMode) {
+      console.log('🔧 Firebase realtime database disabled (using PostgreSQL) - returning mock Realtime DB');
+      loggedPostgresMode = true;
+    }
     const { mockRtdb } = getMockFirebaseServices();
     return mockRtdb;
   }

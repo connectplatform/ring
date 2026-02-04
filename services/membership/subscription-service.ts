@@ -1,16 +1,10 @@
 import { SubscriptionStatusSchema, SubscriptionStatus } from '@/lib/zod/credit-schemas';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { priceOracleService } from '@/services/blockchain/price-oracle-service';
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced,
-  runTransaction,
-  updateDocument,
-  getActiveSubscriptions
-} from '@/lib/services/firebase-service-manager';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Subscription creation result
@@ -96,19 +90,20 @@ export class SubscriptionService {
         payments_count: 1,
       };
 
-      // Save to database using optimized transaction
-      await runTransaction(async (transaction) => {
-        const db = getAdminDb();
-        const subscriptionRef = db.collection('ring_subscriptions').doc(subscriptionId);
-        transaction.set(subscriptionRef, {
+      // Save to database using PostgreSQL transaction (FINANCIAL - NO CACHE!)
+      await initializeDatabase();
+      const db = getDatabaseService();
+      
+      await db.transaction(async (txn) => {
+        // Create subscription record (transaction methods return directly, no .success check)
+        await txn.create('ring_subscriptions', {
           ...subscription,
           created_at: now,
           updated_at: now,
-        });
+        }, { id: subscriptionId });
 
         // Update user profile with subscription info
-        const userRef = db.collection('users').doc(userId);
-        transaction.update(userRef, {
+        await txn.update('users', userId, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
           'membership.tier': 'MEMBER',
@@ -117,6 +112,9 @@ export class SubscriptionService {
           'membership.auto_renew': true,
         });
       });
+      
+      // Revalidate user profile and subscriptions (React 19 pattern)
+      revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription created successfully', {
         userId,
@@ -149,32 +147,44 @@ export class SubscriptionService {
 
       const now = Date.now();
 
-      // Update subscription status in database using optimized transaction
-      await runTransaction(async (transaction) => {
-        const db = getAdminDb();
-        const subscriptionsRef = db.collection('ring_subscriptions');
-        const querySnapshot = await subscriptionsRef.where('user_id', '==', userId).where('status', '==', 'ACTIVE').get();
+      // Update subscription status using PostgreSQL transaction (FINANCIAL - NO CACHE!)
+      await initializeDatabase();
+      const db = getDatabaseService();
+      
+      // Query active subscription BEFORE transaction
+      const queryResult = await db.query({
+        collection: 'ring_subscriptions',
+        filters: [
+          { field: 'user_id', operator: '==', value: userId },
+          { field: 'status', operator: '==', value: 'ACTIVE' }
+        ]
+      });
 
-        if (querySnapshot.empty) {
-          throw new Error('Active subscription not found in database');
-        }
-
-        querySnapshot.forEach((subscriptionDoc) => {
-          transaction.update(subscriptionDoc.ref, {
-            status: 'CANCELLED',
-            cancelled_at: now,
-            updated_at: now,
-          });
+      if (!queryResult.success || queryResult.data.length === 0) {
+        throw new Error('Active subscription not found in database');
+      }
+      
+      const activeSubscriptionId = queryResult.data[0].id;
+      
+      // Update in transaction
+      await db.transaction(async (txn) => {
+        // Cancel subscription
+        await txn.update('ring_subscriptions', activeSubscriptionId, {
+          status: 'CANCELLED',
+          cancelled_at: now,
+          updated_at: now,
         });
 
         // Update user profile
-        const userRef = db.collection('users').doc(userId);
-        transaction.update(userRef, {
+        await txn.update('users', userId, {
           'credit_balance.subscription_active': false,
           'credit_balance.subscription_next_payment': null,
           'membership.auto_renew': false,
         });
       });
+      
+      // Revalidate after mutation (React 19 pattern)
+      revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription cancelled', { userId });
 
@@ -222,33 +232,44 @@ export class SubscriptionService {
       const now = Date.now();
       const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000);
 
-      // Update subscription in database using optimized transaction
-      await runTransaction(async (transaction) => {
-        const db = getAdminDb();
-        const subscriptionsRef = db.collection('ring_subscriptions');
-        const querySnapshot = await subscriptionsRef.where('user_id', '==', userId).get();
+      // Update subscription using PostgreSQL transaction (FINANCIAL - NO CACHE!)
+      await initializeDatabase();
+      const db = getDatabaseService();
+      
+      // Query BEFORE transaction
+      const queryResult = await db.query({
+        collection: 'ring_subscriptions',
+        filters: [{ field: 'user_id', operator: '==', value: userId }]
+      });
 
-        if (!querySnapshot.empty) {
-          const subscriptionDoc = querySnapshot.docs[0];
-          const currentData = subscriptionDoc.data() as SubscriptionStatus;
-          
-          transaction.update(subscriptionDoc.ref, {
-            status: 'ACTIVE',
-            next_payment_due: nextPaymentDue,
-            failed_attempts: 0,
-            total_paid: (parseFloat(currentData.total_paid) + parseFloat(membershipFee)).toString(),
-            payments_count: currentData.payments_count + 1,
-            updated_at: now,
-          });
-        }
+      if (!queryResult.success || queryResult.data.length === 0) {
+        throw new Error('Subscription not found');
+      }
+
+      const subscriptionDoc = queryResult.data[0];
+      const currentData = subscriptionDoc as any as SubscriptionStatus;
+      
+      // Update in transaction
+      await db.transaction(async (txn) => {
+        // Update subscription with new payment
+        await txn.update('ring_subscriptions', subscriptionDoc.id, {
+          status: 'ACTIVE',
+          next_payment_due: nextPaymentDue,
+          failed_attempts: 0,
+          total_paid: (parseFloat(currentData.total_paid) + parseFloat(membershipFee)).toString(),
+          payments_count: currentData.payments_count + 1,
+          updated_at: now,
+        });
 
         // Update user profile
-        const userRef = db.collection('users').doc(userId);
-        transaction.update(userRef, {
+        await txn.update('users', userId, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
         });
       });
+      
+      // Revalidate after financial mutation (React 19 pattern)
+      revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription renewed', {
         userId,
@@ -272,25 +293,31 @@ export class SubscriptionService {
   }
 
   /**
-   * Get subscription status for user
+   * Get subscription status for user (READ operation - uses cache)
    */
   async getSubscriptionStatus(userId: string): Promise<SubscriptionStatus | null> {
     try {
-      // Use cached collection query for better performance
-      const querySnapshot = await getCachedCollectionAdvanced('ring_subscriptions', {
-        where: [{ field: 'user_id', operator: '==', value: userId }]
+      await initializeDatabase();
+      const db = getDatabaseService();
+      
+      // Query for user's subscriptions with orderBy to get latest
+      const queryResult = await db.query({
+        collection: 'ring_subscriptions',
+        filters: [{ field: 'user_id', operator: '==', value: userId }],
+        orderBy: [{ field: 'start_time', direction: 'desc' }],
+        pagination: { limit: 1 }
       });
 
-      if (querySnapshot.empty) {
+      if (!queryResult.success) {
+        throw queryResult.error || new Error('Failed to query subscriptions');
+      }
+
+      if (queryResult.data.length === 0) {
         return null;
       }
 
       // Get the most recent subscription
-      const subscriptions = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as SubscriptionStatus & { id: string }))
-        .sort((a, b) => b.start_time! - a.start_time!);
-
-      const latestSubscription = subscriptions[0];
+      const latestSubscription = queryResult.data[0] as any as SubscriptionStatus & { id: string };
 
       // Check if subscription has expired
       if (latestSubscription.status === 'ACTIVE' && 
@@ -341,18 +368,32 @@ export class SubscriptionService {
    */
   private async markSubscriptionExpired(userId: string, subscriptionId: string): Promise<void> {
     try {
-      // Update subscription document
-      await updateDocument('ring_subscriptions', subscriptionId, {
+      await initializeDatabase();
+      const db = getDatabaseService();
+      
+      // Update subscription document (MUTATION - NO CACHE!)
+      const subResult = await db.update('ring_subscriptions', subscriptionId, {
         status: 'EXPIRED',
         expired_at: Date.now(),
         updated_at: Date.now(),
       });
+      
+      if (!subResult.success) {
+        throw subResult.error || new Error('Failed to update subscription');
+      }
 
       // Update user profile
-      await updateDocument('users', userId, {
+      const userResult = await db.update('users', userId, {
         'credit_balance.subscription_active': false,
         'membership.tier': 'SUBSCRIBER', // Downgrade to subscriber
       });
+      
+      if (!userResult.success) {
+        throw userResult.error || new Error('Failed to update user profile');
+      }
+      
+      // Revalidate after mutation
+      revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription marked as expired', { userId, subscriptionId });
 
@@ -372,11 +413,26 @@ export class SubscriptionService {
     total_revenue: string;
   }> {
     try {
-      // Use cached collection query for all subscriptions
-      const allSubscriptions = await getCachedCollectionAdvanced('ring_subscriptions', {});
+      await initializeDatabase();
+      const db = getDatabaseService();
       
-      // Use optimized query for active subscriptions due for payment
-      const dueSubscriptions = await getActiveSubscriptions();
+      // Query all subscriptions (READ operation)
+      const allSubsResult = await db.query({ collection: 'ring_subscriptions' });
+      if (!allSubsResult.success) {
+        throw allSubsResult.error || new Error('Failed to fetch subscriptions');
+      }
+      
+      // Query active subscriptions due for payment
+      const dueResult = await db.query({
+        collection: 'ring_subscriptions',
+        filters: [
+          { field: 'status', operator: '==', value: 'ACTIVE' },
+          { field: 'next_payment_due', operator: '<', value: Date.now() }
+        ]
+      });
+      if (!dueResult.success) {
+        throw dueResult.error || new Error('Failed to fetch due subscriptions');
+      }
       
       let totalActive = 0;
       let totalExpired = 0;
@@ -384,8 +440,8 @@ export class SubscriptionService {
       let totalRevenue = 0;
 
       // Count subscriptions by status
-      allSubscriptions.forEach(doc => {
-        const data = doc.data() as SubscriptionStatus;
+      allSubsResult.data.forEach(doc => {
+        const data = doc as any as SubscriptionStatus;
         
         switch (data.status) {
           case 'ACTIVE':
@@ -402,14 +458,11 @@ export class SubscriptionService {
         totalRevenue += parseFloat(data.total_paid);
       });
 
-      // Get due payment count from pre-calculated query
-      const dueForPayment = dueSubscriptions.size;
-
       return {
         total_active: totalActive,
         total_expired: totalExpired,
         total_cancelled: totalCancelled,
-        due_for_payment: dueForPayment,
+        due_for_payment: dueResult.data.length,
         total_revenue: totalRevenue.toFixed(6),
       };
 

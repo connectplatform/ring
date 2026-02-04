@@ -1,0 +1,873 @@
+---
+title: Notifications API
+description: Complete API documentation for Ring Platform's notification system with real-time delivery, FCM push notifications, and comprehensive management
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Notifications API
+
+Ring Platform provides a comprehensive notification system with **9 REST endpoints** and real-time WebSocket delivery. The system supports FCM push notifications, user preferences, bulk operations, and detailed analytics.
+
+<Callout type="info" title="🔥 Real-time Features">
+Built on **Tunnel Transport** abstraction supporting WebSocket, SSE, and long-polling fallbacks for universal compatibility.
+</Callout>
+
+## 🏗️ System Architecture
+
+### Notification Flow
+
+```
+Event Trigger → Notification Service → Real-time Delivery → User Preferences → FCM Push → Analytics
+```
+
+### Storage Strategy
+
+- **Primary**: PostgreSQL with optimized queries
+- **Caching**: Redis for session storage (optional)
+- **Real-time**: WebSocket connections via Tunnel Transport
+- **Push**: Firebase Cloud Messaging (FCM) integration
+
+## 📋 API Endpoints Reference
+
+### `GET /api/notifications`
+
+List user notifications with advanced filtering and pagination.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page` | number | No | Page number (default: 1) |
+| `limit` | number | No | Items per page (default: 20, max: 100) |
+| `status` | string | No | Filter by status: `unread`, `read`, `archived` |
+| `type` | string | No | Filter by type: `OPPORTUNITY`, `MESSAGE`, `ENTITY`, `SYSTEM`, `WALLET` |
+| `priority` | string | No | Filter by priority: `low`, `normal`, `high`, `urgent` |
+| `before` | string | No | ISO date string - show notifications before this date |
+| `after` | string | No | ISO date string - show notifications after this date |
+
+#### Example Request
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/notifications?page=1&limit=10&status=unread&type=OPPORTUNITY" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"notifications": [
+    {
+      "id": "notif_123456",
+      "userId": "user_789",
+      "type": "OPPORTUNITY",
+      "title": "New Partnership Opportunity",
+      "message": "TechCorp is looking for AI development partners",
+      "data": {
+        "opportunityId": "opp_456",
+        "entityId": "ent_123",
+        "actionUrl": "/opportunities/opp_456"
+      },
+      "priority": "normal",
+      "status": "unread",
+      "createdAt": "2025-10-16T10:30:00Z",
+      "readAt": null,
+      "expiresAt": "2025-11-16T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 47,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "unreadCount": 23
+}`}
+</Code>
+
+### `POST /api/notifications`
+
+Create a new notification (admin/system use primarily).
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"userId": "user_789",
+  "type": "SYSTEM",
+  "title": "Platform Maintenance",
+  "message": "Scheduled maintenance in 2 hours",
+  "priority": "high",
+  "data": {
+    "maintenanceStart": "2025-10-16T14:00:00Z",
+    "expectedDuration": "30 minutes"
+  },
+  "expiresAt": "2025-10-16T16:00:00Z"
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"notification": {
+    "id": "notif_123457",
+    "userId": "user_789",
+    "type": "SYSTEM",
+    "title": "Platform Maintenance",
+    "message": "Scheduled maintenance in 2 hours",
+    "priority": "high",
+    "status": "unread",
+    "createdAt": "2025-10-16T12:00:00Z",
+    "expiresAt": "2025-10-16T16:00:00Z"
+  },
+  "delivered": true,
+  "pushSent": true
+}`}
+</Code>
+
+### `PUT /api/notifications/{id}/read`
+
+Mark a specific notification as read.
+
+#### Example Request
+
+<Code language="bash" title="curl -X PUT "http://localhost:3000/api/notifications/notif_123456/read" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"notification": {
+    "id": "notif_123456",
+    "status": "read",
+    "readAt": "2025-10-16T12:30:00Z"
+  },
+  "unreadCount": 22
+}`}
+</Code>
+
+### `PUT /api/notifications/read-all`
+
+Mark all user notifications as read.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | string | No | Only mark specific type as read |
+| `before` | string | No | Only mark notifications before this date |
+
+#### Example Request
+
+<Code language="bash" title="curl -X PUT "http://localhost:3000/api/notifications/read-all?type=OPPORTUNITY" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"markedCount": 15,
+  "unreadCount": 8
+}`}
+</Code>
+
+### `DELETE /api/notifications/{id}`
+
+Delete a specific notification.
+
+#### Example Request
+
+<Code language="bash" title="curl -X DELETE "http://localhost:3000/api/notifications/notif_123456" \">
+{`-H "Authorization: Bearer your-session-token"`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"deleted": true,
+  "notificationId": "notif_123456"
+}`}
+</Code>
+
+### `GET /api/notifications/preferences`
+
+Get current user's notification preferences.
+
+#### Response
+
+<Code language="json" title="{">
+{`"preferences": {
+    "emailNotifications": true,
+    "pushNotifications": true,
+    "smsNotifications": false,
+    "types": {
+      "OPPORTUNITY": {
+        "enabled": true,
+        "email": true,
+        "push": true,
+        "sms": false
+      },
+      "MESSAGE": {
+        "enabled": true,
+        "email": false,
+        "push": true,
+        "sms": false
+      },
+      "ENTITY": {
+        "enabled": true,
+        "email": true,
+        "push": false,
+        "sms": false
+      },
+      "SYSTEM": {
+        "enabled": true,
+        "email": true,
+        "push": true,
+        "sms": false
+      },
+      "WALLET": {
+        "enabled": true,
+        "email": true,
+        "push": true,
+        "sms": true
+      }
+    },
+    "quietHours": {
+      "enabled": false,
+      "start": "22:00",
+      "end": "08:00",
+      "timezone": "UTC"
+    },
+    "frequency": "immediate"
+  }
+}`}
+</Code>
+
+### `PUT /api/notifications/preferences`
+
+Update user notification preferences.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"emailNotifications": true,
+  "pushNotifications": false,
+  "types": {
+    "OPPORTUNITY": {
+      "enabled": true,
+      "email": true,
+      "push": false
+    },
+    "MESSAGE": {
+      "enabled": true,
+      "email": false,
+      "push": true
+    }
+  },
+  "quietHours": {
+    "enabled": true,
+    "start": "23:00",
+    "end": "07:00"
+  }
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"updated": true,
+  "preferences": { /* updated preferences */ }
+}`}
+</Code>
+
+### `POST /api/notifications/fcm/register`
+
+Register FCM token for push notifications.
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"token": "fcm_token_from_firebase_sdk",
+  "deviceType": "web",
+  "deviceId": "unique-device-identifier",
+  "userAgent": "Mozilla/5.0..."
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"registered": true,
+  "tokenId": "fcm_123456",
+  "previousToken": "fcm_123455"
+}`}
+</Code>
+
+### `POST /api/notifications/bulk`
+
+Send bulk notifications to multiple users (admin only).
+
+#### Request Body
+
+<Code language="json" title="{">
+{`"userIds": ["user_123", "user_456", "user_789"],
+  "notification": {
+    "type": "SYSTEM",
+    "title": "Important Update",
+    "message": "New features available",
+    "priority": "normal",
+    "data": {
+      "actionUrl": "/updates"
+    }
+  },
+  "sendPush": true,
+  "sendEmail": false
+}`}
+</Code>
+
+#### Response
+
+<Code language="json" title="{">
+{`"sent": true,
+  "totalUsers": 3,
+  "successful": 3,
+  "failed": 0,
+  "notificationIds": ["notif_123", "notif_124", "notif_125"]
+}`}
+</Code>
+
+### `GET /api/notifications/analytics`
+
+Get notification analytics (admin only).
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `period` | string | No | Time period: `day`, `week`, `month` (default: `week`) |
+| `startDate` | string | No | ISO date string for custom range |
+| `endDate` | string | No | ISO date string for custom range |
+
+#### Response
+
+<Code language="json" title="{">
+{`"period": "week",
+  "totalSent": 1250,
+  "totalRead": 980,
+  "readRate": 78.4,
+  "byType": {
+    "OPPORTUNITY": { "sent": 450, "read": 380, "rate": 84.4 },
+    "MESSAGE": { "sent": 320, "read": 280, "rate": 87.5 },
+    "SYSTEM": { "sent": 180, "read": 120, "rate": 66.7 },
+    "ENTITY": { "sent": 150, "read": 110, "rate": 73.3 },
+    "WALLET": { "sent": 150, "read": 90, "rate": 60.0 }
+  },
+  "byPriority": {
+    "urgent": { "sent": 50, "read": 48, "rate": 96.0 },
+    "high": { "sent": 200, "read": 175, "rate": 87.5 },
+    "normal": { "sent": 800, "read": 620, "rate": 77.5 },
+    "low": { "sent": 200, "read": 137, "rate": 68.5 }
+  },
+  "deliveryStats": {
+    "realTimeDelivered": 1200,
+    "pushDelivered": 1100,
+    "emailDelivered": 950
+  }
+}`}
+</Code>
+
+## 🔄 Real-time Notifications
+
+### WebSocket Integration
+
+Ring Platform uses **Tunnel Transport** for real-time notifications:
+
+// Client-side WebSocket connection
+
+<Code language="typescript" title="TypeScript">
+{`import { io } from 'socket.io-client'
+
+const socket = io('/notifications', {
+  auth: {
+    token: sessionToken
+  }
+})
+
+// Listen for notifications
+socket.on('notification', (notification) => {
+  console.log('New notification:', notification)
+  // Update UI immediately
+  updateNotificationList(notification)
+})
+
+// Listen for unread count updates
+socket.on('unread-count', (count) => {
+  updateUnreadBadge(count)
+})`}
+</Code>
+
+### Server-Sent Events (SSE) Fallback
+
+For environments without WebSocket support:
+
+// SSE connection for notifications
+
+<Code language="typescript" title="TypeScript">
+{`const eventSource = new EventSource('/api/notifications/stream')
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data)
+  if (data.type === 'notification') {
+    handleNewNotification(data.notification)
+  }
+}`}
+</Code>
+
+## 📱 Push Notifications
+
+### FCM Integration
+
+Ring Platform integrates with Firebase Cloud Messaging for cross-platform push notifications.
+
+#### Client Setup
+
+// Initialize Firebase
+
+<Code language="typescript" title="TypeScript">
+{`import { initializeApp } from 'firebase/app'
+import { getMessaging, getToken, onMessage } from 'firebase/messaging'
+
+const app = initializeApp(firebaseConfig)
+const messaging = getMessaging(app)
+
+// Request permission and get token
+const token = await getToken(messaging, {
+  vapidKey: 'your-vapid-key'
+})
+
+// Register token with Ring Platform
+await fetch('/api/notifications/fcm/register', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ token, deviceType: 'web' })
+})
+
+// Handle incoming messages
+onMessage(messaging, (payload) => {
+  console.log('Push notification received:', payload)
+  showNotification(payload.notification)
+})`}
+</Code>
+
+#### Service Worker
+
+// public/firebase-messaging-sw.js
+
+<Code language="javascript" title="JavaScript">
+{`importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js')
+
+const app = firebase.initializeApp(firebaseConfig)
+const messaging = firebase.messaging()
+
+messaging.onBackgroundMessage((payload) => {
+  console.log('Background message:', payload)
+  
+  self.registration.showNotification(payload.notification.title, {
+    body: payload.notification.body,
+    icon: '/icon-192x192.png',
+    badge: '/badge-72x72.png',
+    data: payload.data
+  })
+})`}
+</Code>
+
+## 🎯 Notification Types
+
+### OPPORTUNITY
+
+Triggered when:
+- New opportunities match user preferences
+- Opportunity applications are received
+- Opportunity deadlines are approaching
+
+<Code language="json" title="{">
+{`"type": "OPPORTUNITY",
+  "title": "New Matching Opportunity",
+  "message": "AI-powered match: Senior React Developer needed",
+  "data": {
+    "opportunityId": "opp_123",
+    "matchScore": 95,
+    "actionUrl": "/opportunities/opp_123"
+  }
+}`}
+</Code>
+
+### MESSAGE
+
+Triggered when:
+- New direct messages received
+- Group conversation updates
+- Mention notifications
+
+<Code language="json" title="{">
+{`"type": "MESSAGE",
+  "title": "New Message",
+  "message": "John Doe: Let's discuss the project proposal",
+  "data": {
+    "conversationId": "conv_456",
+    "senderId": "user_789",
+    "actionUrl": "/messages/conv_456"
+  }
+}`}
+</Code>
+
+### ENTITY
+
+Triggered when:
+- Entity invitations received
+- Entity updates and announcements
+- Verification status changes
+
+<Code language="json" title="{">
+{`"type": "ENTITY",
+  "title": "Entity Invitation",
+  "message": "TechCorp invited you to join their network",
+  "data": {
+    "entityId": "ent_123",
+    "invitationId": "inv_456",
+    "actionUrl": "/entities/ent_123"
+  }
+}`}
+</Code>
+
+### SYSTEM
+
+Triggered for:
+- Platform announcements
+- Maintenance notifications
+- Security alerts
+- Feature updates
+
+<Code language="json" title="{">
+{`"type": "SYSTEM",
+  "title": "New Feature Available",
+  "message": "AI-powered opportunity matching is now live!",
+  "data": {
+    "feature": "ai-matching",
+    "actionUrl": "/features/ai-matching"
+  }
+}`}
+</Code>
+
+### WALLET
+
+Triggered for:
+- Transaction confirmations
+- Balance updates
+- Staking rewards
+- Payment receipts
+
+<Code language="json" title="{">
+{`"type": "WALLET",
+  "title": "Payment Received",
+  "message": "Received 500 RING tokens from completed project",
+  "data": {
+    "transactionId": "tx_123",
+    "amount": "500",
+    "currency": "RING",
+    "actionUrl": "/wallet/transactions/tx_123"
+  }
+}`}
+</Code>
+
+## 🔧 Implementation Examples
+
+### React Hook for Notifications
+
+// hooks/useNotifications.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+import { io, Socket } from 'socket.io-client'
+
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  status: 'unread' | 'read'
+  createdAt: string
+  data?: Record<string, any>
+}
+
+export function useNotifications() {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [socket, setSocket] = useState<Socket | null>(null)
+
+  useEffect(() => {
+    // Fetch initial notifications
+    fetchNotifications()
+
+    // Setup WebSocket connection
+    const newSocket = io('/notifications')
+    setSocket(newSocket)
+
+    newSocket.on('notification', (notification: Notification) => {
+      setNotifications(prev => [notification, ...prev])
+      setUnreadCount(prev => prev + 1)
+    })
+
+    newSocket.on('unread-count', (count: number) => {
+      setUnreadCount(count)
+    })
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [])
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications')
+      const data = await response.json()
+      setNotifications(data.notifications)
+      setUnreadCount(data.unreadCount)
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+    }
+  }
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PUT'
+      })
+      setNotifications(prev =>
+        prev.map(n =>
+          n.id === notificationId ? { ...n, status: 'read' } : n
+        )
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error('Failed to mark as read:', error)
+    }
+  }
+
+  return {
+    notifications,
+    unreadCount,
+    markAsRead,
+    refresh: fetchNotifications
+  }
+}`}
+</Code>
+
+### Notification Component
+
+// components/NotificationCenter.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useNotifications } from '@/hooks/useNotifications'
+import { Bell, Check } from 'lucide-react'
+
+export function NotificationCenter() {
+  const { notifications, unreadCount, markAsRead } = useNotifications()
+
+  return (
+    <div className="notification-center">
+      <div className="flex items-center gap-2 mb-4">
+        <Bell className="w-5 h-5" />
+        <span className="font-semibold">Notifications</span>
+        {unreadCount > 0 && (
+          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+            {unreadCount}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {notifications.map(notification => (
+          <div
+            key={notification.id}
+            className={`p-3 rounded-lg border ${
+              notification.status === 'unread'
+                ? 'bg-blue-50 border-blue-200'
+                : 'bg-white border-gray-200'
+            }`}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h4 className="font-medium text-sm">{notification.title}</h4>
+                <p className="text-sm text-gray-600 mt-1">
+                  {notification.message}
+                </p>
+                <span className="text-xs text-gray-400 mt-1 block">
+                  {new Date(notification.createdAt).toLocaleString()}
+                </span>
+              </div>
+              {notification.status === 'unread' && (
+                <button
+                  onClick={() => markAsRead(notification.id)}
+                  className="ml-2 p-1 hover:bg-gray-100 rounded"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Error Handling
+
+### Common Error Responses
+
+// Authentication Error
+
+<Code language="json" title="configuration">
+{`{
+  "error": "Unauthorized",
+  "message": "Authentication required",
+  "statusCode": 401
+}
+
+// Validation Error
+{
+  "error": "ValidationError",
+  "message": "Invalid notification data",
+  "details": {
+    "type": "Invalid notification type",
+    "userId": "User ID is required"
+  },
+  "statusCode": 400
+}
+
+// Rate Limit Error
+{
+  "error": "RateLimitError",
+  "message": "Too many requests",
+  "retryAfter": 60,
+  "statusCode": 429
+}
+
+// Server Error
+{
+  "error": "InternalServerError",
+  "message": "Failed to send notification",
+  "requestId": "req_123456",
+  "statusCode": 500
+}`}
+</Code>
+
+## 🔒 Security Considerations
+
+### Authentication
+- All endpoints require valid session authentication
+- Admin endpoints require `ADMIN` role
+- FCM tokens are encrypted and stored securely
+
+### Rate Limiting
+- Standard users: 100 requests/minute
+- Admin users: 500 requests/minute
+- Bulk operations: 10 operations/minute
+
+### Data Validation
+- All input data is validated using Zod schemas
+- HTML content is sanitized to prevent XSS
+- File uploads are scanned for malware
+
+### Privacy
+- Notifications respect user preferences
+- No sensitive data in push notification payloads
+- GDPR-compliant data handling
+
+## 📊 Monitoring & Analytics
+
+### Real-time Metrics
+
+// Track notification events
+
+<Code language="typescript" title="TypeScript">
+{`import { trackEvent } from '@/lib/analytics'
+
+socket.on('notification', (notification) => {
+  trackEvent('notification_received', {
+    type: notification.type,
+    priority: notification.priority,
+    deliveryMethod: 'websocket'
+  })
+})`}
+</Code>
+
+### Performance Monitoring
+
+// Monitor delivery times
+
+<Code language="typescript" title="TypeScript">
+{`const startTime = Date.now()
+
+socket.emit('notification', notificationData, (ack) => {
+  const deliveryTime = Date.now() - startTime
+  trackEvent('notification_delivered', {
+    deliveryTime,
+    method: 'websocket'
+  })
+})`}
+</Code>
+
+## 🎛️ Configuration
+
+### Environment Variables
+
+FCM Configuration Notification Settings Redis (optional)
+
+<Code language="bash" title="terminal">
+{`FCM_SERVER_KEY=your-fcm-server-key
+FCM_VAPID_KEY=your-vapid-public-key
+
+NOTIFICATION_RATE_LIMIT=100
+NOTIFICATION_BULK_LIMIT=50
+NOTIFICATION_RETENTION_DAYS=90
+
+REDIS_URL=redis://localhost:6379`}
+</Code>
+
+### Database Schema
+
+<Code language="sql" title="-- Notifications table">
+{`CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  data JSONB,
+  priority VARCHAR(20) DEFAULT 'normal',
+  status VARCHAR(20) DEFAULT 'unread',
+  created_at TIMESTAMP DEFAULT NOW(),
+  read_at TIMESTAMP,
+  expires_at TIMESTAMP
+);
+
+-- User preferences
+CREATE TABLE notification_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users(id),
+  email_notifications BOOLEAN DEFAULT true,
+  push_notifications BOOLEAN DEFAULT true,
+  preferences JSONB DEFAULT '{}',
+  updated_at TIMESTAMP DEFAULT NOW()
+);`}
+</Code>
+
+---
+
+*Ring Platform's notification system provides enterprise-grade reliability with real-time delivery, comprehensive analytics, and cross-platform compatibility.*

@@ -1,113 +1,243 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ethers } from 'ethers'
+import { createWalletClient, createPublicClient, http, formatEther, parseEther, isAddress } from 'viem'
+import { polygon } from 'viem/chains'
+import { privateKeyToAccount } from 'viem/accounts'
 import { getAdminDb } from '@/lib/firebase-admin.server'
 import { auth } from "@/auth"
-import { isValidAddress, parseTokenAmount } from '@/features/evm/utils'
+import { decryptPrivateKey } from '@/lib/crypto'
 
 /**
- * POST handler for transferring funds from user's wallet
- * 
- * This API route handles the transfer of funds from a user's wallet to another address.
- * It performs the following steps:
- * 1. Authenticates the user
- * 2. Validates the request parameters
- * 3. Retrieves the user's wallet information
- * 4. Initializes the Ethereum provider and wallet
- * 5. Executes the transfer transaction
- * 6. Returns the transaction hash or an error response
- * 
- * User steps:
- * 1. User must be authenticated before calling this endpoint
- * 2. User sends a POST request to /api/wallet/transfer with toAddress and amount in the request body
- * 3. If successful, user receives the transaction hash
- * 4. If an error occurs, user receives an error message
- * 
- * @param request The incoming NextRequest object
- * @returns NextResponse with the transaction hash or an error message
+ * POST handler for transferring native tokens (POL/MATIC) from user's wallet
+ *
+ * Modern Web3 implementation using viem for type-safe blockchain interactions.
+ * This route handles server-side transaction signing for user wallets.
+ *
+ * Security considerations:
+ * - Private keys are encrypted at rest
+ * - Transactions are signed server-side (consider user-side signing for better UX)
+ * - Rate limiting and transaction monitoring should be implemented
+ *
+ * @param request - Contains toAddress and amount in JSON body
+ * @returns Transaction hash on success, error message on failure
  */
 export async function POST(request: NextRequest) {
-  console.log('API: /api/wallet/transfer - Starting POST request')
+  const startTime = Date.now()
+  console.log('🚀 API: /api/wallet/transfer - Starting native token transfer')
 
   try {
-    // Step 1: Authenticate the user
+    // 1. Authenticate user session
     const session = await auth()
-    if (!session || !session.user) {
-      console.log('API: /api/wallet/transfer - Unauthorized access attempt')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user?.id) {
+      console.log('❌ API: /api/wallet/transfer - Authentication failed')
+      return NextResponse.json(
+        { error: 'Authentication required', code: 'AUTH_REQUIRED' },
+        { status: 401 }
+      )
     }
 
-    console.log(`API: /api/wallet/transfer - User authenticated with ID: ${session.user.id}`)
+    // 2. Parse and validate request body
+    const body = await request.json()
+    const { toAddress, amount, tokenSymbol = 'POL' } = body
 
-    // Step 2: Parse and validate the request body
-    const { toAddress, amount } = await request.json()
-
+    // Input validation
     if (!toAddress || !amount) {
-      console.log('API: /api/wallet/transfer - Missing required parameters')
-      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Missing required fields: toAddress and amount', code: 'INVALID_PARAMS' },
+        { status: 400 }
+      )
     }
 
-    if (!isValidAddress(toAddress)) {
-      return NextResponse.json({ error: 'Invalid recipient address' }, { status: 400 })
+    if (!isAddress(toAddress)) {
+      return NextResponse.json(
+        { error: 'Invalid recipient address format', code: 'INVALID_ADDRESS' },
+        { status: 400 }
+      )
     }
 
-    console.log('API: /api/wallet/transfer - Request parameters', { toAddress, amount })
+    // Parse and validate amount
+    const transferAmount = parseFloat(amount)
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Invalid transfer amount', code: 'INVALID_AMOUNT' },
+        { status: 400 }
+      )
+    }
 
-    // Step 3: Retrieve user's wallet information
+    // For now, only support native POL transfers
+    if (tokenSymbol !== 'POL') {
+      return NextResponse.json(
+        { error: 'Only native POL transfers supported', code: 'UNSUPPORTED_TOKEN' },
+        { status: 400 }
+      )
+    }
+
+    console.log(`📋 API: /api/wallet/transfer - Processing transfer: ${amount} ${tokenSymbol} to ${toAddress}`)
+
+    // 3. Retrieve and validate user wallet
     const adminDb = await getAdminDb()
     const userDoc = await adminDb.collection('users').doc(session.user.id).get()
+
+    if (!userDoc.exists) {
+      console.log('❌ API: /api/wallet/transfer - User document not found')
+      return NextResponse.json(
+        { error: 'User wallet not configured', code: 'WALLET_NOT_FOUND' },
+        { status: 404 }
+      )
+    }
+
     const userData = userDoc.data()
+    const wallets = userData?.wallets || []
 
-    if (!userData?.wallets || userData.wallets.length === 0) {
-      console.log('API: /api/wallet/transfer - User wallet not found')
-      return NextResponse.json({ error: 'User wallet not found' }, { status: 404 })
-    }
-    // Use default wallet or first wallet
-    const senderWallet = userData.wallets.find((w: any) => w.isDefault) || userData.wallets[0]
-    if (!senderWallet?.encryptedPrivateKey) {
-      return NextResponse.json({ error: 'Encrypted private key missing' }, { status: 500 })
+    if (!wallets.length) {
+      return NextResponse.json(
+        { error: 'No wallets configured for user', code: 'NO_WALLETS' },
+        { status: 404 }
+      )
     }
 
-    // Step 4: Initialize Ethereum provider and wallet
-    const provider = new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL)
-    if (!provider) {
-      throw new Error('Failed to initialize Ethereum provider')
+    // Find default wallet or use first available
+    const wallet = wallets.find((w: any) => w.isDefault) || wallets[0]
+
+    if (!wallet?.encryptedPrivateKey || !wallet?.address) {
+      return NextResponse.json(
+        { error: 'Wallet configuration incomplete', code: 'WALLET_INCOMPLETE' },
+        { status: 500 }
+      )
     }
 
-    // SECURITY NOTE: Prefer secure KMS. Here we decrypt the key for transaction signing.
+    // 4. Decrypt private key following Secrets Keeper protocols
     const encryptionKey = process.env.WALLET_ENCRYPTION_KEY
     if (!encryptionKey) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      console.error('SECRETS KEEPER: WALLET_ENCRYPTION_KEY not configured - CRITICAL SECURITY BREACH')
+      return NextResponse.json(
+        { error: 'Server security configuration error', code: 'SECRETS_KEEPER_CONFIG_ERROR' },
+        { status: 500 }
+      )
     }
-    const decrypted = await ethers.Wallet.fromEncryptedJson(senderWallet.encryptedPrivateKey, encryptionKey)
-    const wallet = new ethers.Wallet(decrypted.privateKey, provider)
 
-    // Step 5: Execute the transfer transaction
-    console.log('API: /api/wallet/transfer - Initiating transfer')
-    const wei = parseTokenAmount(amount, 18)
-    const tx = await wallet.sendTransaction({ to: toAddress, value: BigInt(wei) })
+    let privateKey: `0x${string}`
+    try {
+      console.log('SECRETS KEEPER: Initiating private key decryption for wallet transfer')
+      privateKey = decryptPrivateKey(wallet.encryptedPrivateKey, encryptionKey)
 
-    // Wait for the transaction to be mined
-    await tx.wait()
+      // Secrets Keeper: Audit trail - log successful decryption without exposing key
+      console.log(`SECRETS KEEPER: Private key decrypted successfully for wallet ${wallet.address.slice(0, 8)}...${wallet.address.slice(-6)}`)
 
-    console.log('API: /api/wallet/transfer - Transfer successful', { txHash: tx.hash })
+    } catch (decryptError) {
+      // Secrets Keeper: Security incident logging
+      console.error(`SECRETS KEEPER: CRITICAL - Private key decryption failed for wallet ${wallet.address}:`, {
+        error: decryptError.message,
+        walletId: wallet.address,
+        timestamp: new Date().toISOString(),
+        action: 'wallet_transfer_attempt',
+        severity: 'CRITICAL'
+      })
 
-    // Step 6: Return the transaction hash
-    return NextResponse.json({ txHash: tx.hash })
+      return NextResponse.json(
+        { error: 'Wallet security access failed', code: 'SECRETS_KEEPER_DECRYPTION_FAILED' },
+        { status: 500 }
+      )
+    }
+
+    // 5. Initialize viem wallet client
+    const account = privateKeyToAccount(privateKey)
+
+    // Verify the account matches the stored address
+    if (account.address.toLowerCase() !== wallet.address.toLowerCase()) {
+      console.error('❌ API: /api/wallet/transfer - Address mismatch in decrypted wallet')
+      return NextResponse.json(
+        { error: 'Wallet integrity check failed', code: 'ADDRESS_MISMATCH' },
+        { status: 500 }
+      )
+    }
+
+    const walletClient = createWalletClient({
+      account,
+      chain: polygon,
+      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+    })
+
+    // 6. Execute the transfer
+    console.log('⚡ API: /api/wallet/transfer - Sending transaction...')
+
+    const value = parseEther(amount)
+
+    const hash = await walletClient.sendTransaction({
+      to: toAddress as `0x${string}`,
+      value: value,
+    } as any)
+
+    console.log(`✅ API: /api/wallet/transfer - Transaction sent: ${hash}`)
+
+    // 7. Wait for transaction confirmation using public client
+    // Create a public client for reading transaction receipts
+    const publicClient = createPublicClient({
+      chain: polygon,
+      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+    })
+
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+
+    if (receipt.status === 'success') {
+      const duration = Date.now() - startTime
+      console.log(`🎉 API: /api/wallet/transfer - Transfer completed in ${duration}ms: ${hash}`)
+
+      return NextResponse.json({
+        success: true,
+        txHash: hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        effectiveGasPrice: receipt.effectiveGasPrice,
+        amount: amount,
+        tokenSymbol,
+        toAddress,
+        fromAddress: wallet.address,
+        timestamp: new Date().toISOString(),
+        processingTime: duration
+      })
+    } else {
+      throw new Error('Transaction failed on-chain')
+    }
 
   } catch (error) {
-    console.error('API: /api/wallet/transfer - Error transferring funds:', error)
+    const duration = Date.now() - startTime
+    console.error(`❌ API: /api/wallet/transfer - Transfer failed after ${duration}ms:`, error)
 
-    // Error handling
+    // Enhanced error handling
     if (error instanceof Error) {
+      // Viem-specific errors
       if (error.message.includes('insufficient funds')) {
-        return NextResponse.json({ error: 'Insufficient funds for transfer' }, { status: 400 })
+        return NextResponse.json(
+          { error: 'Insufficient funds for transfer', code: 'INSUFFICIENT_FUNDS' },
+          { status: 400 }
+        )
       }
-      if (error.message.includes('nonce too low')) {
-        return NextResponse.json({ error: 'Transaction nonce error. Please try again.' }, { status: 500 })
+
+      if (error.message.includes('nonce too low') || error.message.includes('replacement transaction underpriced')) {
+        return NextResponse.json(
+          { error: 'Transaction conflict. Please try again.', code: 'NONCE_ERROR' },
+          { status: 409 }
+        )
       }
+
+      if (error.message.includes('gas required exceeds allowance')) {
+        return NextResponse.json(
+          { error: 'Transaction would exceed gas limit', code: 'GAS_LIMIT_EXCEEDED' },
+          { status: 400 }
+        )
+      }
+
+      // Generic error fallback
+      return NextResponse.json(
+        { error: 'Transaction failed', details: error.message, code: 'TRANSACTION_FAILED' },
+        { status: 500 }
+      )
     }
 
-    return NextResponse.json({ error: 'Failed to transfer funds' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Unexpected error occurred', code: 'UNKNOWN_ERROR' },
+      { status: 500 }
+    )
   }
 }
 

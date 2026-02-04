@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { CheckCircle2 } from 'lucide-react'
 
 export interface StepsProps {
   children: React.ReactNode
@@ -19,8 +18,8 @@ export function Steps({ children }: StepsProps) {
       {steps.map((step, index) => (
         <div key={index} className="relative flex gap-4">
           {/* Step number/indicator */}
-          <div className="flex flex-col items-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary/10 font-semibold text-primary">
+          <div className="flex flex-col items-center flex-shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary/10 font-semibold text-primary text-sm shrink-0">
               {index + 1}
             </div>
             {/* Connector line */}
@@ -29,11 +28,9 @@ export function Steps({ children }: StepsProps) {
             )}
           </div>
           
-          {/* Step content */}
-          <div className="flex-1 pb-8">
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              {step}
-            </div>
+          {/* Step content - MDXRemote handles all styling, no prose needed */}
+          <div className="flex-1 pb-8 min-w-0">
+            {step}
           </div>
         </div>
       ))}
@@ -42,6 +39,6 @@ export function Steps({ children }: StepsProps) {
 }
 
 export function Step({ children }: StepProps) {
-  return <div className="step-content">{children}</div>
+  return <div className="space-y-3">{children}</div>
 }
 

@@ -10,44 +10,67 @@ export interface EvmMarketplaceConfig {
   getSigner: () => Promise<EthersLikeSigner | null>
 }
 
-async function toContract(address: string, abi: any[], signer: EthersLikeSigner): Promise<EthersLikeContract> {
-  const { Contract } = await import('ethers')
-  return new Contract(address, abi, signer)
+import { createPublicClient, http } from 'viem'
+import { polygon } from 'viem/chains'
+
+// Public client for read operations
+const publicClient = createPublicClient({
+  chain: polygon,
+  transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+})
+
+// Read operations using viem (server-safe)
+async function executeContractRead(config: {
+  address: `0x${string}`
+  abi: any[]
+  functionName: string
+  args?: any[]
+}): Promise<any> {
+  return await publicClient.readContract(config as any)
+}
+
+// For write operations, we need to use wagmi hooks in React components
+// This adapter now provides read-only functionality for server-side use
+// Write operations should be handled by React components using wagmi hooks
+
+// Write operations require wagmi hooks in React components
+// Use the useNftMarketplace hook for write operations
+export interface NftMarketplaceWriteOperations {
+  list: (item: NFTItemRef, priceWei: bigint) => Promise<{ txHash: string }>
+  buy: (listingId: string, valueWei: bigint) => Promise<{ txHash: string }>
+  cancel: (listingId: string) => Promise<{ txHash: string }>
 }
 
 export function createEvmMarketplaceAdapter(cfg: EvmMarketplaceConfig) {
-  async function withSigner<T>(fn: (signer: EthersLikeSigner) => Promise<T>): Promise<T> {
-    const signer = await cfg.getSigner()
-    if (!signer) throw new Error('Wallet not connected')
-    return fn(signer)
-  }
-
   return {
+    // Write operations - these require wagmi hooks and should be used in React components
     async list(item: NFTItemRef, priceWei: bigint): Promise<{ txHash: string }> {
-      return withSigner(async (signer) => {
-        const market = await toContract(cfg.marketContract.address, cfg.marketContract.abi, signer)
-        const method = item.standard === 'ERC1155' ? 'list1155' : 'list721'
-        const tx = await market[method](item.address, item.tokenId, priceWei)
-        const receipt = await tx.wait()
-        return { txHash: receipt?.hash || tx.hash }
-      })
+      throw new Error('Use useNftMarketplace hook in React components for write operations')
     },
 
     async buy(listingId: string, valueWei: bigint): Promise<{ txHash: string }> {
-      return withSigner(async (signer) => {
-        const market = await toContract(cfg.marketContract.address, cfg.marketContract.abi, signer)
-        const tx = await market.buy(listingId, { value: valueWei })
-        const receipt = await tx.wait()
-        return { txHash: receipt?.hash || tx.hash }
-      })
+      throw new Error('Use useNftMarketplace hook in React components for write operations')
     },
 
     async cancel(listingId: string): Promise<{ txHash: string }> {
-      return withSigner(async (signer) => {
-        const market = await toContract(cfg.marketContract.address, cfg.marketContract.abi, signer)
-        const tx = await market.cancel(listingId)
-        const receipt = await tx.wait()
-        return { txHash: receipt?.hash || tx.hash }
+      throw new Error('Use useNftMarketplace hook in React components for write operations')
+    },
+
+    async getListing(listingId: string): Promise<any> {
+      return await executeContractRead({
+        address: cfg.marketContract.address as `0x${string}`,
+        abi: cfg.marketContract.abi,
+        functionName: 'getListing',
+        args: [listingId],
+      })
+    },
+
+    async getListings(filters?: any): Promise<any[]> {
+      return await executeContractRead({
+        address: cfg.marketContract.address as `0x${string}`,
+        abi: cfg.marketContract.abi,
+        functionName: 'getListings',
+        args: [filters || {}],
       })
     }
   }

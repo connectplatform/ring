@@ -415,7 +415,7 @@ export function NotificationCenter({
         aria-label={`Notifications ${optimisticUnreadCount > 0 ? `(${optimisticUnreadCount} unread)` : ''}`}
         disabled={isNavigating}
       >
-        <Bell className="w-6 h-6 text-gray-600" />
+                <Bell className="w-6 h-6 text-muted-foreground" />
         
         {/* Real-time unread count badge */}
         <AnimatePresence>
@@ -462,7 +462,7 @@ export function NotificationCenter({
                       className="p-1 rounded hover:bg-gray-100 transition-colors"
                       aria-label="Reconnect"
                     >
-                      <RefreshCw className="w-4 h-4 text-gray-600" />
+                      <RefreshCw className="w-4 h-4 text-muted-foreground" />
                     </button>
                   )}
                   
@@ -476,7 +476,7 @@ export function NotificationCenter({
                     aria-label="Notification settings"
                     disabled={isNavigating || isPending}
                   >
-                    <Settings className="w-4 h-4 text-gray-600" />
+                    <Settings className="w-4 h-4 text-muted-foreground" />
                   </button>
                   
                   {/* Close button */}
@@ -485,7 +485,7 @@ export function NotificationCenter({
                     className="p-1 rounded hover:bg-gray-100 transition-colors"
                     aria-label="Close notifications"
                   >
-                    <X className="w-4 h-4 text-gray-600" />
+                    <X className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </div>
               </div>
@@ -506,7 +506,7 @@ export function NotificationCenter({
               {/* Quick Actions */}
               {optimisticUnreadCount > 0 && (
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-muted-foreground">
                     {optimisticUnreadCount} unread
                   </span>
                   <button
@@ -528,7 +528,7 @@ export function NotificationCenter({
               {isLoadingInitial ? (
                 <div className="p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-sm text-gray-600 mt-2">Loading notifications...</p>
+                  <p className="text-sm text-muted-foreground mt-2">Loading notifications...</p>
                 </div>
               ) : loadError && !isConnected ? (
                 <div className="p-8 text-center">
@@ -544,7 +544,7 @@ export function NotificationCenter({
               ) : recentNotifications.length === 0 ? (
                 <div className="p-8 text-center">
                   <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     {searchQuery ? 'No notifications match your search' : 'No notifications yet'}
                   </p>
                   {searchQuery && (
@@ -644,7 +644,7 @@ export function NotificationBadge({
           'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-all duration-200',
           isConnected 
             ? 'bg-red-100 text-red-800 hover:bg-red-200' 
-            : 'bg-gray-100 text-gray-600',
+                  : 'bg-gray-100 text-muted-foreground',
           animated && 'animate-pulse',
           className
         )}
@@ -721,10 +721,10 @@ export function NotificationToast() {
             <CheckCircle className="w-5 h-5 text-green-500" />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-medium text-gray-900">
+                <h4 className="text-sm font-medium text-foreground">
               {displayedNotification.title}
             </h4>
-            <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
               {displayedNotification.body}
             </p>
           </div>

@@ -1,0 +1,185 @@
+---
+title: Налагодження
+description: Документація налагодження для платформи Ring
+last_modified: 2025-10-16
+---
+
+# Налагодження та усунення несправностей
+
+Систематичні підходи до налагодження та рішення для поширених проблем розробки платформи Ring.
+
+## 🔍 Стратегії налагодження
+
+### Проблеми середовища розробки
+
+#### Конфлікти версій Node.js
+Перевірити версію Node.js Використати Node Version Manager
+
+<Code language="bash" title="terminal">
+{`node --version  # Має бути 18.x або вище
+
+nvm install 18
+nvm use 18`}
+</Code>
+
+#### Проблеми встановлення пакетів
+Очистити кеш npm Видалити node_modules та перевстановити
+
+<Code language="bash" title="terminal">
+{`npm cache clean --force
+
+rm -rf node_modules package-lock.json
+npm install`}
+</Code>
+
+## 🚨 Поширені помилки збірки
+
+### Помилки TypeScript
+<Code language="typescript" title="TypeScript">
+{`// Помилка: Property 'user' does not exist on type 'Session | null'
+// Рішення: Додати правильні type guards
+if (session?.user) {
+  console.log(session.user.name) // ✅ Безпечний доступ
+}`}
+</Code>
+
+### Проблеми збірки Next.js
+Очистити кеш Next.js Перебудувати
+
+<Code language="bash" title="terminal">
+{`rm -rf .next
+
+npm run build`}
+</Code>
+
+## 🔧 Налагодження під час виконання
+
+### React DevTools
+1. Встановіть розширення браузера React Developer Tools
+2. Використовуйте вкладку Components для перевірки стану компонентів
+3. Використовуйте Profiler для ідентифікації проблем продуктивності
+
+### Налагодження через консоль
+// Структуроване логування
+
+<Code language="typescript" title="TypeScript">
+{`console.log('🔍 Debug:', { userId, entityId, timestamp: Date.now() })
+
+// Умовне налагодження
+if (process.env.NODE_ENV === 'development') {
+  console.log('Інформація налагодження тільки для розробки')
+}`}
+</Code>
+
+### Налагодження мережі
+// Налагодження викликів API
+
+<Code language="typescript" title="TypeScript">
+{`const response = await fetch('/api/entities', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data)
+})
+
+console.log('Відповідь API:', {
+  status: response.status,
+  headers: Object.fromEntries(response.headers),
+  url: response.url
+})`}
+</Code>
+
+## 🗄️ Проблеми бази даних
+
+### Проблеми підключення Firestore
+// Перевірити підключення Firestore
+
+<Code language="typescript" title="TypeScript">
+{`import { db } from '@/lib/firebase'
+import { doc, getDoc } from 'firebase/firestore'
+
+try {
+  const testDoc = await getDoc(doc(db, 'test', 'connection'))
+  console.log('✅ Firestore підключено')
+} catch (error) {
+  console.error('❌ Не вдалося підключитися до Firestore:', error)
+}`}
+</Code>
+
+### Проблеми аутентифікації
+// Налагодження сесії Auth.js
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+
+export default async function DebugPage() {
+  const session = await auth()
+
+  return (
+    <pre>{JSON.stringify(session, null, 2)}</pre>
+  )
+}`}
+</Code>
+
+## 🔄 Налагодження продуктивності
+
+### Проблеми продуктивності React
+// Використати React Profiler
+
+<Code language="typescript" title="TypeScript">
+{`import { Profiler } from 'react'
+
+function onRenderCallback(id, phase, actualDuration) {
+  console.log('Рендер компонента:', { id, phase, actualDuration })
+}
+
+<Profiler id="EntityList" onRender={onRenderCallback}>
+  <EntityList />
+</Profiler>`}
+</Code>
+
+### Аналіз бандлу
+Проаналізувати розмір бандлу Перевірити великі залежності
+
+<Code language="bash" title="terminal">
+{`npm run build
+npm run analyze
+
+npx webpack-bundle-analyzer .next/static/chunks/`}
+</Code>
+
+## 🚀 Налагодження в продакшені
+
+### Відстеження помилок
+// Інтеграція Sentry
+
+<Code language="typescript" title="TypeScript">
+{`import * as Sentry from '@sentry/nextjs'
+
+Sentry.captureException(error, {
+  tags: {
+    component: 'EntityCreation',
+    userId: session?.user?.id
+  }
+})`}
+</Code>
+
+### Моніторинг продуктивності
+// Відстеження Web Vitals
+
+<Code language="typescript" title="TypeScript">
+{`export function reportWebVitals(metric) {
+  console.log(metric)
+
+  // Надіслати до аналітики
+  if (metric.label === 'web-vital') {
+    gtag('event', metric.name, {
+      value: Math.round(metric.value),
+      event_label: metric.id
+    })
+  }
+}`}
+</Code>
+
+---
+
+*Повна документація налагодження незабаром.*

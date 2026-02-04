@@ -1,14 +1,16 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useState } from 'react'
+import { useGoogleLogin, GoogleLogin } from '@react-oauth/google'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { useLocale } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { FcGoogle } from 'react-icons/fc'
 import { Loader2 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n-config'
+import { defaultLocale } from '@/i18n-config'
 
 interface GoogleSignInButtonGISProps {
   disabled?: boolean
@@ -16,15 +18,19 @@ interface GoogleSignInButtonGISProps {
   className?: string
   variant?: 'default' | 'outline' | 'secondary'
   size?: 'default' | 'sm' | 'lg'
+  onAuthStart?: () => void
+  onAuthEnd?: () => void
+  showSigningInStatus?: boolean // Show "Signing in..." status page during auth
 }
 
 /**
- * Modern Google Sign-In Button using Google Identity Services (GIS)
+ * Modern Google Sign-In Button using @react-oauth/google (GIS Specialist Recommended)
  *
  * Features:
- * - No page redirects
- * - Seamless authentication experience using GIS
- * - Works with Auth.js v5 session management
+ * - Uses GIS specialist-recommended @react-oauth/google library
+ * - Proper React integration and lifecycle management
+ * - Automatic theme handling and styling
+ * - One Tap compatible architecture
  * - React 19 useActionState compatible
  * - Accessible and responsive
  */
@@ -33,173 +39,98 @@ export default function GoogleSignInButtonGIS({
   redirectUrl = '/profile',
   className = '',
   variant = 'outline',
-  size = 'default'
+  size = 'default',
+  onAuthStart,
+  onAuthEnd,
+  showSigningInStatus = true // Default to showing status page
 }: GoogleSignInButtonGISProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { theme, resolvedTheme } = useTheme()
-  const locale = useLocale() as 'en' | 'uk'
-  const buttonRef = useRef<HTMLDivElement>(null)
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [gisLoaded, setGisLoaded] = React.useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // Extract locale from pathname (e.g., /uk/login -> uk)
+  const locale = (pathname?.split('/')[1] || defaultLocale) as Locale
 
-  // Load Google Identity Services script
-  useEffect(() => {
-    // Check if GIS is already loaded
-    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-      setGisLoaded(true)
-      return
-    }
-
-    // Load GIS script if not already loaded
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      console.log('🟢 Google Identity Services loaded')
-      setGisLoaded(true)
-    }
-    script.onerror = () => {
-      console.error('🟢 Failed to load Google Identity Services')
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      // Cleanup script if component unmounts
-      if (document.head.contains(script)) {
-        document.head.removeChild(script)
-      }
-    }
-  }, [])
-
-  // Initialize GIS button when script is loaded
-  useEffect(() => {
-    if (!gisLoaded || !buttonRef.current) return
+  // GIS Specialist recommended: Use GoogleLogin component for proper OAuth flow
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    console.log('🟢 Google GIS credential received')
+    setIsLoading(true)
+    onAuthStart?.()
 
     try {
-      window.google.accounts.id.initialize({
-        client_id: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID!,
-        callback: async (response: any) => {
-          console.log('🟢 GIS button callback received')
-          setIsLoading(true)
-
-          try {
-            // Use the google-one-tap credentials provider for consistent handling
-            const result = await signIn('google-one-tap', {
-              credential: response.credential,
-              redirect: false,
-            })
-
-            if (result?.ok) {
-              console.log('🟢 GIS authentication successful, redirecting to status page')
-              // Redirect to "Signing in..." status page with return destination
-              const statusUrl = ROUTES.AUTH_STATUS('login', 'pending', locale)
-              const finalUrl = `${statusUrl}?returnTo=${encodeURIComponent(redirectUrl)}`
-              router.push(finalUrl)
-            } else {
-              console.error('🟢 GIS authentication failed:', result?.error)
-              setIsLoading(false)
-            }
-          } catch (error) {
-            console.error('🟢 GIS authentication error:', error)
-            setIsLoading(false)
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      })
-
-      // Determine GIS theme based on current app theme
-      const currentTheme = theme === 'system' ? resolvedTheme : theme
-      const gisTheme = currentTheme === 'dark' ? 'filled_black' : 'outline'
-
-      // Get container width for full-width button
-      const containerWidth = buttonRef.current.parentElement?.offsetWidth || buttonRef.current.offsetWidth || 400
-
-      // Render the GIS button
-      window.google.accounts.id.renderButton(buttonRef.current, {
-        theme: gisTheme,
-        size: 'large',
-        width: containerWidth,
-        text: 'signin_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        height: 48, // Increased height
-      })
-
-      console.log('🟢 GIS button rendered')
-    } catch (error) {
-      console.error('🟢 Failed to initialize GIS button:', error)
-    }
-  }, [gisLoaded, redirectUrl, router, theme, resolvedTheme, locale])
-
-  // Fallback button for when GIS fails to load or for development
-  const handleFallbackSignIn = async () => {
-    try {
-      setIsLoading(true)
-      console.log('🟢 Using fallback Google sign-in...')
-
-      const result = await signIn('google', {
+      // Send JWT credential to google-one-tap credentials provider
+      const result = await signIn('google-one-tap', {
+        credential: credentialResponse.credential,
         redirect: false,
-        callbackUrl: redirectUrl
+        callbackUrl: redirectUrl,
       })
 
-      console.log('🟢 Fallback sign-in result:', result)
-
-      if (result?.error) {
-        console.error('🟢 Fallback Google sign-in failed:', result.error)
-        setIsLoading(false)
-      } else if (result?.url) {
-        console.log('🟢 Fallback authentication successful, redirecting to status page')
-        // Redirect to "Signing in..." status page with return destination
-        const statusUrl = ROUTES.AUTH_STATUS('login', 'pending', locale)
-        const finalUrl = `${statusUrl}?returnTo=${encodeURIComponent(redirectUrl)}`
-        router.push(finalUrl)
-      } else {
-        console.log('🟢 Fallback sign-in completed without redirect')
-        setIsLoading(false)
-      }
+        if (result?.ok) {
+          console.log('🟢 Google authentication successful, waiting for session to propagate...')
+          // GIS Fix: 100ms delay ensures session cookie is fully established before redirect
+          // This prevents race conditions where NotificationProvider sees session but API calls fail
+          // Pattern: Small timeout ensures session is established before redirect (AI-CONTEXT documented)
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          onAuthEnd?.()
+          
+          // Show "Signing in..." status page if enabled (improves UX during OAuth flow)
+          if (showSigningInStatus) {
+            const statusUrl = `${ROUTES.AUTH_STATUS('login', 'pending', locale)}?returnTo=${encodeURIComponent(redirectUrl)}`
+            console.log('🟢 Showing signing in status, then redirecting to:', redirectUrl)
+            router.push(statusUrl)
+          } else {
+            console.log('🟢 Session propagated, redirecting directly to:', redirectUrl)
+            router.push(redirectUrl)
+          }
+        } else {
+          console.error('🟢 Google authentication failed:', result?.error)
+          setIsLoading(false)
+          onAuthEnd?.()
+        }
     } catch (error) {
-      console.error('🟢 Fallback Google sign-in error:', error)
+      console.error('🟢 Google authentication error:', error)
       setIsLoading(false)
+      onAuthEnd?.()
     }
   }
 
+
+  // GIS Specialist recommended: Use GoogleLogin component for proper theming
+  const currentTheme = theme === 'system' ? resolvedTheme : theme
+  const gisTheme = currentTheme === 'dark' ? 'filled_black' : 'outline'
+
   return (
     <div className={`w-full ${className}`}>
-      {gisLoaded ? (
-        // GIS button container - key ensures re-render on theme change
-        <div
-          key={`${theme}-${resolvedTheme}`}
-          ref={buttonRef}
-          className="w-full flex justify-center overflow-hidden [&_iframe]:!border-0 [&_iframe]:!m-0 [&_iframe]:!p-0 [&_iframe]:!shadow-none [&_iframe]:!outline-none"
-          style={{ 
-            minHeight: '48px',
-            backgroundColor: 'transparent'
-          }}
-        />
-      ) : (
-        // Fallback button while GIS loads
-        <Button
-          onClick={handleFallbackSignIn}
-          disabled={disabled || isLoading}
-          variant={variant}
-          size={size}
-          className="w-full justify-center font-medium"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Signing in...
-            </>
-          ) : (
-            <>
-              <FcGoogle className="mr-2 h-4 w-4" />
-              Sign in as Ray
-            </>
-          )}
-        </Button>
-      )}
+      <GoogleLogin
+        onSuccess={(credentialResponse) => {
+          console.log('🟢 Google Login component success')
+          if (!disabled && !isLoading) {
+            handleGoogleSuccess(credentialResponse)
+          }
+        }}
+        onError={() => {
+          console.error('🟢 Google Login component error')
+          setIsLoading(false)
+          onAuthEnd?.()
+        }}
+        theme={gisTheme}
+        size="large"
+        text="signin_with"
+        shape="rectangular"
+        useOneTap={false} // GIS specialist: disable One Tap for button-only usage
+        containerProps={{
+          style: {
+            backgroundColor: 'transparent',
+            border: 'none',
+            boxShadow: 'none',
+            borderRadius: '0',
+            padding: '0',
+            margin: '0'
+          }
+        }}
+      />
     </div>
   )
 }

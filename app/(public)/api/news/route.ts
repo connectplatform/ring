@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getCachedCollectionAdvanced,
-  getCachedNewsBySlug,
-  getCachedDocument,
-  createDocument
-} from '@/lib/services/firebase-service-manager';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { NewsFilters, NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
-import { FieldValue } from 'firebase-admin/firestore';
+import { revalidatePath } from 'next/cache';
 
 /**
  * GET /api/news
@@ -37,49 +32,50 @@ export async function GET(request: NextRequest) {
       filters.tags = tagsParam.split(',').map(tag => tag.trim());
     }
 
-    // Build query configuration for firebase-service-manager
-    const queryConfig: any = {
-      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
-      limit: filters.limit || 10
-    };
-
-    // Build where clauses array
-    const whereClause = [];
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
+    // Build query filters
+    const queryFilters: any[] = [];
     
     if (filters.category) {
-      whereClause.push({ field: 'category', operator: '==', value: filters.category });
+      queryFilters.push({ field: 'category', operator: '==', value: filters.category });
     }
     
     if (filters.status) {
-      whereClause.push({ field: 'status', operator: '==', value: filters.status });
+      queryFilters.push({ field: 'status', operator: '==', value: filters.status });
     }
     
     if (filters.visibility) {
-      whereClause.push({ field: 'visibility', operator: '==', value: filters.visibility });
+      queryFilters.push({ field: 'visibility', operator: '==', value: filters.visibility });
     }
     
     if (filters.featured !== undefined) {
-      whereClause.push({ field: 'featured', operator: '==', value: filters.featured });
+      queryFilters.push({ field: 'featured', operator: '==', value: filters.featured });
     }
     
     if (filters.authorId) {
-      whereClause.push({ field: 'authorId', operator: '==', value: filters.authorId });
+      queryFilters.push({ field: 'authorId', operator: '==', value: filters.authorId });
     }
 
-    if (whereClause.length > 0) {
-      queryConfig.where = whereClause;
+    // Query database (READ - Server Component can cache)
+    const result = await db.query({
+      collection: 'news',
+      filters: queryFilters,
+      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
+      pagination: { 
+        limit: filters.limit || 10,
+        offset: filters.offset || 0
+      }
+    });
+
+    if (!result.success) {
+      throw result.error || new Error('Failed to fetch news articles')
     }
 
-    const snapshot = await getCachedCollectionAdvanced('news', queryConfig);
-    let articles: any[] = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return { ...data, id: doc.id };
-    }).filter((article: any) => article.title); // Filter out any invalid articles
-
-    // Apply pagination offset (since getCachedCollectionAdvanced may not support offset)
-    if (filters.offset && filters.offset > 0) {
-      articles = articles.slice(filters.offset);
-    }
+    let articles: any[] = result.data.map(doc => {
+      return { ...doc, id: doc.id };
+    }).filter((article: any) => article.title);
 
     // Filter by search term if provided (client-side filtering for now)
     let filteredArticles = articles;
@@ -163,19 +159,24 @@ export async function POST(request: NextRequest) {
       .replace(/-+/g, '-')
       .trim();
 
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
     // Check if slug already exists
-    const existingSlugSnapshot = await getCachedCollectionAdvanced('news', {
-      where: [{ field: 'slug', operator: '==', value: slug }],
-      limit: 1
+    const slugResult = await db.query({
+      collection: 'news',
+      filters: [{ field: 'slug', operator: '==', value: slug }],
+      pagination: { limit: 1 }
     });
     
-    if (existingSlugSnapshot.docs.length > 0) {
+    if (slugResult.success && slugResult.data.length > 0) {
       return NextResponse.json(
         { success: false, error: 'Article with this slug already exists' },
         { status: 400 }
       );
     }
 
+    const now = new Date()
     const newArticle = {
       title: formData.title,
       slug: slug,
@@ -193,18 +194,24 @@ export async function POST(request: NextRequest) {
       views: 0,
       likes: 0,
       comments: 0,
-      publishedAt: formData.status === 'published' ? FieldValue.serverTimestamp() : null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      publishedAt: formData.status === 'published' ? now : null,
+      createdAt: now,
+      updatedAt: now,
       seo: formData.seo || null,
     };
 
-    const docRef = await createDocument('news', newArticle);
-    const createdArticle = await getCachedDocument('news', docRef.id);
+    const createResult = await db.create('news', newArticle);
+    if (!createResult.success) {
+      throw createResult.error || new Error('Failed to create news article')
+    }
+
+    // Revalidate (React 19 pattern - MUTATION!)
+    revalidatePath('/[locale]/news')
+    revalidatePath(`/[locale]/news/${slug}`)
 
     return NextResponse.json({
       success: true,
-      data: createdArticle.data(),
+      data: createResult.data,
       message: 'News article created successfully',
     });
 

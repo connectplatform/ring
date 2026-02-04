@@ -1,0 +1,251 @@
+---
+title: Opportunities
+description: Opportunities documentation for Ring Platform
+---
+
+# Opportunities API
+
+Manage the dual-nature opportunity marketplace with **7 endpoints** supporting both offers and requests across multiple opportunity types.
+
+## Overview
+
+The Ring Platform opportunity system supports a unique dual-nature approach:
+- **Offers**: What entities provide (jobs, partnerships, resources)
+- **Requests**: What entities need (services, partnerships, resources)
+
+**7 Opportunity Types:**
+- Job opportunities
+- Partnership opportunities  
+- Volunteer opportunities
+- Mentorship opportunities
+- Resource opportunities
+- Event opportunities
+- Custom opportunities
+
+## API Endpoints
+
+### `GET /api/opportunities`
+List opportunities with advanced filtering
+
+### `POST /api/opportunities`
+Create new opportunity (requires MEMBER role)
+
+### `GET /api/opportunities/{id}`
+Get opportunity details by ID
+
+### `PUT /api/opportunities/{id}`
+Update opportunity information
+
+### `DELETE /api/opportunities/{id}`
+Delete opportunity
+
+### `POST /api/opportunities/{id}/apply`
+Apply to opportunity or express interest
+
+### `GET /api/opportunities/{id}/applications`
+List applications for opportunity
+
+## Opportunity Structure
+
+<Code language="typescript" title="interface Opportunity {">
+{`id: string
+  title: string
+  description: string
+  type: OpportunityType
+  nature: 'OFFER' | 'REQUEST'
+  entityId: string
+  entity: Entity
+  location?: string
+  remote: boolean
+  deadline?: Date
+  confidential: boolean
+  requirements: string[]
+  benefits: string[]
+  compensation?: {
+    type: 'SALARY' | 'HOURLY' | 'PROJECT' | 'EQUITY' | 'VOLUNTEER'
+    amount?: number
+    currency?: string
+    equity?: number
+  }
+  applications: Application[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+enum OpportunityType {
+  JOB = 'JOB',
+  PARTNERSHIP = 'PARTNERSHIP', 
+  VOLUNTEER = 'VOLUNTEER',
+  MENTORSHIP = 'MENTORSHIP',
+  RESOURCE = 'RESOURCE',
+  EVENT = 'EVENT',
+  CUSTOM = 'CUSTOM'
+}`}
+</Code>
+
+## Opportunity Types
+
+### Job Opportunities
+- Full-time positions
+- Part-time roles
+- Contract work
+- Internships
+
+### Partnership Opportunities
+- Business partnerships
+- Strategic alliances
+- Joint ventures
+- Collaboration projects
+
+### Volunteer Opportunities
+- Non-profit work
+- Community service
+- Pro bono projects
+- Social impact initiatives
+
+### Mentorship Opportunities
+- Professional mentoring
+- Industry guidance
+- Skill development
+- Career coaching
+
+### Resource Opportunities
+- Equipment sharing
+- Space rental
+- Service exchange
+- Knowledge sharing
+
+### Event Opportunities
+- Conference speaking
+- Workshop hosting
+- Networking events
+- Training sessions
+
+## Implementation Examples
+
+### Create Job Opportunity (Offer)
+
+const jobOffer = await fetch('/api/opportunities', {
+
+<Code language="typescript" title="TypeScript">
+{`method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    title: 'Senior React Developer',
+    description: 'Join our team building next-gen web applications',
+    type: 'JOB',
+    nature: 'OFFER',
+    entityId: 'entity-123',
+    location: 'San Francisco, CA',
+    remote: true,
+    requirements: [
+      '5+ years React experience',
+      'TypeScript proficiency',
+      'Next.js knowledge'
+    ],
+    compensation: {
+      type: 'SALARY',
+      amount: 150000,
+      currency: 'USD'
+    }
+  })
+})`}
+</Code>
+
+### Create Partnership Request
+
+<Code language="typescript" title="TypeScript">
+{`const partnershipRequest = await fetch('/api/opportunities', {
+method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    title: 'Seeking Marketing Partner',
+    description: 'Looking for digital marketing expertise for product launch',
+    type: 'PARTNERSHIP',
+    nature: 'REQUEST',
+    entityId: 'entity-456',
+    requirements: [
+      'Digital marketing experience',
+      'Social media expertise',
+      'Content creation skills'
+    ],
+    benefits: [
+      'Revenue sharing opportunity',
+      'Long-term partnership potential',
+      'Industry networking'
+    ]
+  })
+})`}
+</Code>
+
+### Search Opportunities
+
+// Search for remote job opportunities
+
+<Code language="typescript" title="TypeScript">
+{`const jobsResponse = await fetch('/api/opportunities?type=JOB&nature=OFFER&remote=true&limit=20')
+const { opportunities, total, hasMore } = await jobsResponse.json()
+
+// Search for partnership requests in tech industry
+const partnershipsResponse = await fetch('/api/opportunities?type=PARTNERSHIP&nature=REQUEST&industry=TECHNOLOGY_SOFTWARE')
+const partnerships = await partnershipsResponse.json()`}
+</Code>
+
+### Apply to Opportunity
+
+<Code language="typescript" title="TypeScript">
+{`const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    coverLetter: 'I am excited to apply for this position...',
+    resume: 'https://example.com/resume.pdf',
+    portfolio: 'https://portfolio.example.com'
+  })
+})`}
+</Code>
+
+## Access Control
+
+### Opportunity Visibility
+- **Public Opportunities**: Visible to all users
+- **Confidential Opportunities**: Require CONFIDENTIAL role
+
+### Opportunity Management
+- **Create**: Requires MEMBER role
+- **Update/Delete**: Opportunity creator or entity admin
+- **Apply**: Any authenticated user (role-dependent)
+
+### Application Management
+- **View Applications**: Opportunity creator and entity admins
+- **Manage Applications**: Accept/reject applications
+
+## Advanced Features
+
+### Deadline Management
+- Automatic opportunity expiration
+- Deadline notifications
+- Application cutoff handling
+
+### Smart Matching
+- AI-powered opportunity recommendations
+- Skill-based matching
+- Location and preference filtering
+
+### Analytics
+- Application tracking
+- Performance metrics
+- Success rate analysis
+
+---
+
+*Ready to post your first opportunity? Start with our [Getting Started](/ru/library/getting-started) guide.*

@@ -3,26 +3,27 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Shield, 
-  AlertTriangle, 
-  Lock, 
-  Unlock, 
-  Eye, 
-  KeyRound, 
-  Globe, 
-  User, 
-  Server, 
-  Database, 
-  Wifi, 
-  Activity, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  TrendingUp, 
+import {
+  Shield,
+  AlertTriangle,
+  Lock,
+  Unlock,
+  Eye,
+  KeyRound,
+  Globe,
+  User,
+  Server,
+  Database,
+  Wifi,
+  Activity,
+  CheckCircle,
+  XCircle,
+  Clock,
+  TrendingUp,
   TrendingDown,
   Filter,
   Search,
@@ -309,7 +310,7 @@ export default async function SecurityPage({
       case 'down':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       default:
-        return <Activity className="h-4 w-4 text-gray-600" />;
+        return <Activity className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -318,7 +319,7 @@ export default async function SecurityPage({
       case 'login':
         return <User className="h-4 w-4 text-green-600" />;
       case 'logout':
-        return <User className="h-4 w-4 text-gray-600" />;
+        return <User className="h-4 w-4 text-muted-foreground" />;
       case 'failed_login':
         return <XCircle className="h-4 w-4 text-red-600" />;
       case 'permission_change':
@@ -328,7 +329,7 @@ export default async function SecurityPage({
       case 'security_violation':
         return <AlertTriangle className="h-4 w-4 text-red-600" />;
       default:
-        return <Shield className="h-4 w-4 text-gray-600" />;
+        return <Shield className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -345,15 +346,15 @@ export default async function SecurityPage({
     <>
       <title>Security Dashboard | Ring Platform Admin</title>
       <meta name="description" content="Advanced security monitoring and audit dashboard for Ring Platform administrators" />
-      
-      <div className="container mx-auto px-4 py-8">
+
+      <AdminWrapper locale={validLocale} pageContext="security">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold text-foreground mb-2">
                 Security Dashboard
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-muted-foreground">
                 Advanced security monitoring, authentication tracking, and permission auditing
               </p>
             </div>
@@ -384,7 +385,7 @@ export default async function SecurityPage({
                   <div className="flex flex-col items-end">
                     {getTrendIcon(metric.trend)}
                     <div className={`text-xs mt-1 ${
-                      metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-gray-600'
+                        metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-muted-foreground'
                     }`}>
                       {metric.change > 0 ? '+' : ''}{metric.change}%
                     </div>
@@ -456,7 +457,7 @@ export default async function SecurityPage({
                               </span>
                             </div>
                             
-                            <p className="text-sm text-gray-900 dark:text-gray-100 mb-2">
+                                <p className="text-sm text-foreground mb-2">
                               {event.details}
                             </p>
                             
@@ -762,7 +763,7 @@ export default async function SecurityPage({
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
+      </AdminWrapper>
     </>
   );
 } 

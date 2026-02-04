@@ -1,11 +1,13 @@
 import NextAuth from "next-auth"
-import { FirestoreAdapter } from "@auth/firebase-adapter"
+import { getAuthAdapter } from "@/lib/auth-adapter-singleton"
 import { getAdminDb } from "@/lib/firebase-admin.server"
-import { PostgreSQLAdapter } from "@/lib/auth/postgres-adapter"
-import { getDatabaseService } from "@/lib/database/DatabaseService"
+import { getDatabaseService, initializeDatabase } from "@/lib/database/DatabaseService"
 import authConfig from "./auth.config"
+import GoogleProvider from "next-auth/providers/google"
+import AppleProvider from "next-auth/providers/apple"
+import CredentialsProvider from "next-auth/providers/credentials"
 import Resend from "next-auth/providers/resend"
-import { ethers } from "ethers"
+import { verifyMessage } from "viem"
 import { OAuth2Client } from 'google-auth-library'
 import { generateInternalJWT } from "@/lib/auth/generate-jwt"
 import {
@@ -16,6 +18,7 @@ import {
   type NotificationPreferences,
 } from "@/features/auth/types"
 import { ensureWallet } from "@/features/wallet/services/ensure-wallet"
+import { userMigrationService } from "@/features/auth/services/user-migration"
 
 // Initialize Google Auth client for ID token verification (server-side only)
 const googleAuthClient = new OAuth2Client(process.env.AUTH_GOOGLE_ID)
@@ -41,40 +44,19 @@ const authLog = (...args: any[]) => {
  * Main authentication configuration with database adapter
  * This is used in server components and API routes
  * 
- * Adapter selection respects DB_HYBRID_MODE environment variable:
- * - When DB_HYBRID_MODE=false: Uses PostgreSQL adapter (routes through BackendSelector)
- * - When DB_HYBRID_MODE=true or undefined: Uses Firebase adapter (legacy mode)
+ * Adapter selection respects DB_BACKEND_MODE environment variable:
+ * - k8s-postgres-fcm: Uses PostgreSQL adapter (routes through BackendSelector)
+ * - firebase-full: Uses Firebase adapter (Firestore)
+ * - supabase-fcm: Uses PostgreSQL adapter (Supabase connection)
  */
 
-// Determine database backend from environment
-const usePostgreSQL = process.env.DB_HYBRID_MODE === 'false'
-const useFirebase = !usePostgreSQL && process.env.AUTH_FIREBASE_PROJECT_ID
+// Get cached auth adapter (singleton pattern for performance)
+const authAdapter = await getAuthAdapter()
 
-// Log adapter configuration when explicitly requested
-authLog('🔧 Auth.js adapter:', usePostgreSQL ? 'PostgreSQL' : useFirebase ? 'Firebase' : 'JWT-only')
-
-// Initialize appropriate adapter based on configuration
-let authAdapter;
-
-if (usePostgreSQL) {
-  try {
-    authAdapter = PostgreSQLAdapter()
-  } catch (error) {
-    console.error("Failed to initialize PostgreSQL adapter:", error);
-  }
-} else if (useFirebase) {
-  try {
-    const adminDb = getAdminDb();
-    if (adminDb) {
-      authAdapter = FirestoreAdapter(adminDb);
-    }
-  } catch (error) {
-    console.error("Failed to initialize Firestore adapter:", error);
-    console.warn("Continuing without database adapter - JWT-only mode")
-  }
-} else {
-  console.warn('⚠️  No database adapter configured - running in JWT-only mode')
-}
+// Import backend mode utilities for conditional logic
+const { shouldUseFirebaseForDatabase } = require('./lib/database/backend-mode-config')
+const useFirebase = shouldUseFirebaseForDatabase()
+const usePostgreSQL = !useFirebase
 
 // Determine if we should include Resend based on adapter availability
 const hasAdapter = !!authAdapter
@@ -116,103 +98,168 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     ...(hasAdapter && hasResendKey ? [
       Resend({
         // Auth.js v5 automatically uses AUTH_RESEND_KEY
-        from: "noreply@ring.ck.ua",
+        from: process.env.AUTH_RESEND_FROM || "noreply@ring-platform.org",
       })
     ] : []),
-    ...authConfig.providers.map(provider => {
-      const providerOptions = (provider as any).options || {}
-      const providerId = providerOptions.id || provider.id
-      // Debug: Log all providers to see what's happening (commented for production)
-      // console.log('🔵 Processing provider:', { 
-      //   id: provider.id, 
-      //   name: provider.name, 
-      //   optionsId: providerId,
-      //   options: providerOptions 
-      // })
-
-      // Google One Tap provider is handled by auth.config.ts edge provider
-      // Token verification happens in the signIn callback
-      // Override crypto wallet provider with full server-side validation
-      if (provider.id === "crypto-wallet") {
-        return {
-          ...provider,
-          async authorize(credentials) {
-            if (!credentials) return null
-
-            const { walletAddress, signedNonce } = credentials
-
-            try {
-              const db = getAdminDb()
-              if (!db) {
-                throw new Error("Firestore instance is not available")
-              }
-
-              const userDoc = await db
-                .collection("users")
-                .doc(walletAddress as string)
-                .get()
-              const userData = userDoc.data()
-
-              if (!userData || !userData.nonce) return null
-
-              const signerAddress = ethers.verifyMessage(userData.nonce, signedNonce as string)
-
-              if (signerAddress !== walletAddress) return null
-
-              if (userData.nonceExpires && userData.nonceExpires < Date.now()) return null
-
-              await userDoc.ref.update({
-                nonce: null,
-                nonceExpires: null,
-              })
-
-              const now = new Date()
-
-              return {
-                id: walletAddress as string,
-                email: userData.email || "",
-                name: userData.name || null,
-                image: userData.photoURL || null,
-                role: userData.role || UserRole.SUBSCRIBER,
-                isVerified: !!userData.isVerified,
-                createdAt: userData.createdAt || now,
-                lastLogin: now,
-              }
-            } catch (error) {
-              console.error("Crypto wallet auth error:", error)
-              return null
-            }
-          },
+    
+    // Google OAuth (Traditional flow - kept for compatibility)
+    GoogleProvider({
+      // Auth.js v5 automatically uses AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET
+      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
+      authorization: {
+        params: {
+          response_type: "code",
+        },
+      },
+      // Auth.js v5 stricter OAuth compliance - ensure proper PKCE and state handling
+      checks: ["pkce", "state"],
+      // Explicitly set wellKnown endpoint for better reliability
+      wellKnown: "https://accounts.google.com/.well-known/openid-configuration",
+    }),
+    
+    // Google Identity Services (GIS) JWT credentials handler
+    // Receives JWT credential from client-side GIS button
+    // Verified server-side in signIn callback below
+    CredentialsProvider({
+      id: 'google-one-tap',
+      name: 'Google One Tap',
+      credentials: {
+        credential: { type: 'text' },
+      },
+      async authorize(credentials) {
+        // Minimal validation - full verification happens in signIn callback
+        if (!credentials?.credential) {
+          authLog('🟡 No GIS JWT credential provided')
+          return null
         }
-      }
-      return provider
+
+        authLog('🟡 GIS JWT provider - passing credential for server verification')
+        authLog('🟡 JWT length:', (credentials.credential as string).length)
+
+        // Return placeholder user with JWT embedded in email field
+        // This is how we pass the JWT to the signIn callback
+        return {
+          id: 'gis-jwt-pending',
+          email: credentials.credential as string, // Store JWT credential here for signIn callback
+          name: 'GIS User',
+          image: null,
+          role: UserRole.SUBSCRIBER,
+        }
+      },
+    }),
+    
+    // Apple OAuth
+    AppleProvider({
+      // Auth.js v5 automatically uses AUTH_APPLE_ID and AUTH_APPLE_SECRET
+      allowDangerousEmailAccountLinking: true, // Allow linking accounts with same email
+    }),
+    
+    // Crypto Wallet Authentication (MetaMask, WalletConnect, etc)
+    CredentialsProvider({
+      id: "crypto-wallet",
+      name: "Crypto Wallet",
+      credentials: {
+        walletAddress: { label: "Wallet Address", type: "text" },
+        signedNonce: { label: "Signed Nonce", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials) return null
+
+        const { walletAddress, signedNonce } = credentials
+
+        try {
+          const db = getAdminDb()
+          if (!db) {
+            throw new Error("Firestore instance is not available")
+          }
+
+          const userDoc = await db
+            .collection("users")
+            .doc(walletAddress as string)
+            .get()
+          const userData = userDoc.data()
+
+          if (!userData || !userData.nonce) return null
+
+          // Verify the signature against the expected address
+          const signerAddress = verifyMessage({
+            address: walletAddress as `0x${string}`,
+            message: userData.nonce,
+            signature: signedNonce as `0x${string}`,
+          })
+
+          if (signerAddress !== walletAddress) return null
+
+          if (userData.nonceExpires && userData.nonceExpires < Date.now()) return null
+
+          await userDoc.ref.update({
+            nonce: null,
+            nonceExpires: null,
+          })
+
+          const now = new Date()
+
+          return {
+            id: String(walletAddress),
+            email: String(userData.email || ""),
+            name: userData.name || null,
+            image: userData.photoURL || null,
+            role: userData.role || UserRole.SUBSCRIBER,
+            isVerified: !!userData.isVerified,
+            createdAt: userData.createdAt || now,
+            lastLogin: now,
+          }
+        } catch (error) {
+          console.error("Crypto wallet auth error:", error)
+          return null
+        }
+      },
     }),
   ],
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, user, account, trigger }) {
-      // Only log on significant events (new login, update, or errors)
-      if (trigger === 'update' || (user && account)) {
-        authLog('JWT callback:', { trigger, hasUser: !!user, userId: user?.id })
+      // Only log on significant events in development or when explicitly requested
+      if (process.env.NODE_ENV === 'development' || process.env.AUTH_DEBUG === 'true') {
+        if (trigger === 'update' || (user && account)) {
+          authLog('JWT callback:', { trigger, hasUser: !!user, userId: user?.id })
+        }
       }
 
-      // Fetch fresh user data when needed (on update or new login)
-      if (trigger === 'update' || (user && account) || (user && !token.name)) {
-        authLog('Fetching fresh user data for userId:', token.userId || user?.id)
+      // Only fetch fresh role data when necessary - optimize JWT caching
+      const needsUserData = trigger === 'update' ||
+                           (user && account) ||
+                           (user && !token.name) ||
+                           (token.userId && !token.role) // Only fetch if role not cached
+
+      if (needsUserData) {
+        if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
+          authLog('Fetching fresh user data for userId:', token.userId || user?.id)
+        }
         
         try {
           if (usePostgreSQL) {
             // Fetch from PostgreSQL via database abstraction
+            // Initialize database service with proper error handling
+            const initResult = await initializeDatabase()
+            if (!initResult.success) {
+              authLog('Database initialization failed in JWT callback:', initResult.error)
+              return token // Return token without user data if DB fails
+            }
             const db = getDatabaseService()
             const userId = (token.userId as string) || user?.id
             
             if (userId) {
-              authLog('Looking up user in PostgreSQL via BackendSelector:', userId)
+              if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
+                authLog('Looking up user in PostgreSQL via BackendSelector:', userId)
+              }
               const result = await db.read('users', userId)
-              
+
               if (result.success && result.data) {
                 const userData = result.data.data
-                authLog('Found user data in PostgreSQL:', { name: userData?.name, email: userData?.email, role: userData?.role })
+                if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
+                  authLog('Found user data in PostgreSQL:', { name: userData?.name, email: userData?.email, role: userData?.role })
+                }
                 
                 token.username = userData?.username
                 token.phoneNumber = userData?.phoneNumber
@@ -221,7 +268,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                 token.position = userData?.position
                 token.photoURL = userData?.photoURL || userData?.image
                 token.role = userData?.role ?? UserRole.SUBSCRIBER
-                token.isSuperAdmin = userData?.isSuperAdmin ?? false
                 token.isVerified = userData?.isVerified ?? false
               } else {
                 authLog('User document not found in PostgreSQL for ID:', userId)
@@ -246,7 +292,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                 token.position = userData?.position
                 token.photoURL = userData?.photoURL
                 token.role = userData?.role ?? UserRole.SUBSCRIBER
-                token.isSuperAdmin = userData?.isSuperAdmin ?? false
                 token.isVerified = userData?.isVerified ?? false
               } else {
                 console.log('User document not found in Firebase for ID:', userId)
@@ -261,7 +306,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       if (user) {
         token.userId = user.id
         token.role = (user as any).role ?? UserRole.SUBSCRIBER
-        token.isSuperAdmin = (user as any).isSuperAdmin ?? false
         token.isVerified = (user as any).isVerified ?? false
         token.username = (user as any).username
         token.phoneNumber = (user as any).phoneNumber
@@ -316,7 +360,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       if (token) {
         session.user.id = token.userId as string
         session.user.role = token.role as UserRole
-        session.user.isSuperAdmin = token.isSuperAdmin as boolean
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
@@ -417,13 +460,32 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             try {
               console.log('🔵 Google One Tap condition met - ensuring user exists in PostgreSQL:', user.id)
               const db = getDatabaseService()
-              await db.initialize()
-              
+
+              // First, try to initialize the database
+              try {
+                await db.initialize()
+                console.log('🔵 Database initialized successfully')
+              } catch (initError) {
+                console.error('🔵 Database initialization failed:', initError)
+                // Continue anyway - the database might still work
+              }
+
               // Check if user already exists
-              const existingUser = await db.read('users', user.id)
-              if (!existingUser.success || !existingUser.data) {
+              let existingUser = null
+              try {
+                const readResult = await db.read('users', user.id)
+                if (readResult.success && readResult.data) {
+                  existingUser = readResult.data
+                  console.log('🔵 Google One Tap user already exists in PostgreSQL:', user.id)
+                }
+              } catch (readError) {
+                console.log('🔵 Error reading user (might not exist yet):', (readError as any).message)
+              }
+
+              // Create new user if not found
+              if (!existingUser) {
                 console.log('🔵 Creating new Google One Tap user in PostgreSQL:', user.email)
-                
+
                 const now = new Date()
                 const userData = {
                   email: user.email,
@@ -432,10 +494,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                   image: user.image,
                   role: 'SUBSCRIBER',
                   isVerified: !!(user as any).emailVerified,
-                  isSuperAdmin: false,
                   createdAt: now,
                   lastLogin: now,
                   bio: '',
+                  username: null,
+                  phoneNumber: null,
+                  organization: null,
+                  position: null,
                   wallets: [],
                   canPostConfidentialOpportunities: false,
                   canViewConfidentialOpportunities: false,
@@ -452,33 +517,29 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                     notifications: false,
                   },
                 }
-                
-                const createResult = await db.create('users', userData, { id: user.id })
-                if (createResult.success) {
-                  console.log('🔵 Google One Tap user created successfully in PostgreSQL:', user.id)
-                } else {
-                  console.error('🔵 Failed to create Google One Tap user:', createResult.error)
+
+                try {
+                  const createResult = await db.create('users', userData, { id: user.id })
+                  if (createResult.success) {
+                    console.log('✅ Google One Tap user created successfully in PostgreSQL:', user.id)
+                  } else {
+                    console.error('❌ Failed to create Google One Tap user:', createResult.error)
+                    // Don't fail the authentication if user creation fails
+                    // The user can still use the app with JWT session
+                  }
+                } catch (createError) {
+                  console.error('❌ Exception during Google One Tap user creation:', createError)
+                  // Continue with authentication even if database operations fail
                 }
-              } else {
-                console.log('🔵 Google One Tap user already exists in PostgreSQL:', user.id)
               }
             } catch (error) {
-              console.error('🔵 Error ensuring Google One Tap user exists:', error)
+              console.error('❌ Error in Google One Tap user handling:', error)
+              // Continue with authentication - don't fail due to database issues
             }
           }
           
-          // Handle wallet creation for new OAuth users
-          if (account?.provider === "google" || account?.provider === "apple" || account?.provider === "google-one-tap") {
-            // Ensure wallet is created for the authenticated user
-            try {
-              console.log('Ensuring wallet for OAuth user:', user.email)
-              await ensureWallet()
-              console.log('Wallet ensured successfully for OAuth user')
-            } catch (error) {
-              console.error('Failed to ensure wallet for OAuth user:', error)
-              // Don't fail authentication if wallet creation fails
-            }
-          }
+          // NOTE: Wallet creation moved to events.signIn callback (non-blocking)
+          // This allows profile to load instantly without waiting for wallet creation
           
           return true
         } else if (useFirebase) {
@@ -503,6 +564,29 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   events: {
     async signIn({ user, account, profile, isNewUser }) {
       console.log(`User ${user.email} signed in with ${account?.provider}`)
+
+      // Ensure user document exists in database (migration for existing Auth.js users)
+      try {
+        console.log('Ensuring user document exists for authenticated user:', user.email)
+        await userMigrationService.ensureUserDocument(user as any)
+        console.log('User document ensured successfully for authenticated user')
+      } catch (error) {
+        console.error('Failed to ensure user document exists:', error)
+        // Don't fail authentication if user document creation fails
+      }
+
+      // Ensure wallet is created for the authenticated user
+      try {
+        console.log('Ensuring wallet for OAuth user:', user.email)
+        await ensureWallet({
+          id: user.id,
+          role: (user as any).role || 'SUBSCRIBER'
+        })
+        console.log('Wallet ensured successfully for OAuth user')
+      } catch (error) {
+        console.error('Failed to ensure wallet for OAuth user:', error)
+        // Don't fail authentication if wallet creation fails
+      }
     },
     async signOut() {
       console.log(`User signed out`)

@@ -1,0 +1,893 @@
+---
+title: API адміністратора
+description: Повна документація адміністративного API платформи Ring для управління системою, адміністрування користувачів, доступу до аналітики та контролю конфігурації
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# API адміністратора
+
+Платформа Ring надає комплексний адміністративний API із **12 захищеними кінцевими точками** для управління системою, адміністрування користувачів, доступу до аналітики та контролю конфігурації. Усі адмін кінцеві точки вимагають ролі **ADMIN** та реалізують заходи безпеки корпоративного рівня.
+
+<Callout type="warning" title="🔒 Потрібен адмін доступ">
+Усі адмін кінцеві точки вимагають аутентифікації ролі **ADMIN** та підлягають суворому обмеженню швидкості та логуванню аудитів. Спроби несанкціонованого доступу логуються та можуть спричинити сповіщення безпеки.
+</Callout>
+
+## 🏗️ Архітектура системи
+
+### Контроль доступу адміністратора
+
+```
+Аутентифікація → Перевірка ролі → Перевірка дозволів → Логування дій → Відповідь
+```
+
+### Функції безпеки
+
+- **Контроль доступу на основі ролей**: Багаторівнева система дозволів
+- **Логування аудитів**: Усі адмін дії логуються з мітками часу та контекстом користувача
+- **Обмеження швидкості**: Адмін кінцеві точки мають суворіші обмеження швидкості (100 запитів/годину проти 1000 запитів/годину для звичайних користувачів)
+- **Фільтри IP**: Необов'язкові обмеження доступу на основі IP
+- **Двофакторна аутентифікація**: Обов'язкова для конфіденційних операцій
+- **Управління сесіями**: Адмін сесії мають коротші таймаути (1 година проти 24 годин)
+
+### Захист даних
+
+- **Шифрування даних у спокої**: Конфіденційні адмін дані зашифровані у базі даних
+- **Безпечні логи аудитів**: Адмін дії логуються до захищеного від підробки сховища
+- **Сумісність із GDPR**: Обробка адмін даних дотримується суворих правил конфіденційності
+- **Збереження даних**: Адмін логи зберігаються протягом 7 років для дотримання вимог
+
+## 📋 Довідка кінцевих точок API
+
+### `GET /api/admin/users`
+
+Список та пошук користувачів платформи із розширеним фільтруванням та пагінацією.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Користувачів на сторінку (за замовчуванням: 50, макс: 200) |
+| `search` | string | Ні | Пошук за ім'ям, email або ім'ям користувача |
+| `role` | string | Ні | Фільтр за роллю: `VISITOR`, `MEMBER`, `CONFIDENTIAL`, `ADMIN` |
+| `status` | string | Ні | Фільтр за статусом: `active`, `suspended`, `banned` |
+| `verified` | boolean | Ні | Фільтр за статусом верифікації email |
+| `createdAfter` | string | Ні | ISO дата - користувачі створені після цієї дати |
+| `createdBefore` | string | Ні | ISO дата - користувачі створені до цієї дати |
+| `lastLoginAfter` | string | Ні | ISO дата - користувачі увійшли після цієї дати |
+| `sortBy` | string | Ні | Сортувати за: `createdAt`, `lastLogin`, `name`, `email` |
+| `sortOrder` | string | Ні | Порядок сортування: `asc`, `desc` (за замовчуванням: `desc`) |
+
+#### Приклад запиту
+
+<Code language="bash" title="curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&status=active&sortBy=createdAt&sortOrder=desc" \">
+{`-H "Authorization: Bearer admin-session-token"`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"users": [
+    {
+      "id": "user_123456",
+      "email": "john.doe@example.com",
+      "name": "John Doe",
+      "username": "johndoe",
+      "role": "MEMBER",
+      "status": "active",
+      "emailVerified": true,
+      "avatar": "https://cdn.example.com/avatars/user_123456.jpg",
+      "createdAt": "2025-01-15T10:30:00Z",
+      "lastLogin": "2025-10-16T09:15:00Z",
+      "loginCount": 47,
+      "walletAddress": "0x1234567890abcdef...",
+      "profile": {
+        "company": "TechCorp",
+        "title": "Senior Developer",
+        "location": "San Francisco, CA"
+      },
+      "stats": {
+        "entitiesCreated": 12,
+        "opportunitiesPosted": 8,
+        "messagesSent": 234,
+        "lastActivity": "2025-10-16T09:15:00Z"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1250,
+    "totalPages": 63,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "filters": {
+    "applied": {
+      "role": "MEMBER",
+      "status": "active"
+    },
+    "counts": {
+      "total": 1250,
+      "active": 1189,
+      "suspended": 45,
+      "banned": 16,
+      "byRole": {
+        "VISITOR": 234,
+        "MEMBER": 890,
+        "CONFIDENTIAL": 89,
+        "ADMIN": 37
+      }
+    }
+  }
+}`}
+</Code>
+
+### `GET /api/admin/users/{id}`
+
+Отримати детальну інформацію про конкретного користувача.
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"user": {
+    "id": "user_123456",
+    "email": "john.doe@example.com",
+    "name": "John Doe",
+    "username": "johndoe",
+    "role": "MEMBER",
+    "status": "active",
+    "emailVerified": true,
+    "emailVerifiedAt": "2025-01-15T10:35:00Z",
+    "avatar": "https://cdn.example.com/avatars/user_123456.jpg",
+    "createdAt": "2025-01-15T10:30:00Z",
+    "updatedAt": "2025-10-16T09:15:00Z",
+    "lastLogin": "2025-10-16T09:15:00Z",
+    "loginCount": 47,
+    "walletAddress": "0x1234567890abcdef...",
+    "walletBalance": {
+      "RING": 1250.50,
+      "ETH": 0.0234
+    },
+    "profile": {
+      "company": "TechCorp",
+      "title": "Senior Developer",
+      "location": "San Francisco, CA",
+      "bio": "Full-stack developer with 5+ years experience...",
+      "website": "https://johndoe.dev",
+      "linkedin": "https://linkedin.com/in/johndoe"
+    },
+    "preferences": {
+      "theme": "dark",
+      "language": "en",
+      "timezone": "America/Los_Angeles",
+      "notifications": {
+        "email": true,
+        "push": true,
+        "marketing": false
+      }
+    },
+    "stats": {
+      "entitiesCreated": 12,
+      "opportunitiesPosted": 8,
+      "opportunitiesApplied": 15,
+      "messagesSent": 234,
+      "notificationsReceived": 89,
+      "lastActivity": "2025-10-16T09:15:00Z"
+    },
+    "security": {
+      "twoFactorEnabled": true,
+      "lastPasswordChange": "2025-09-01T14:20:00Z",
+      "suspiciousLogins": 0,
+      "trustedDevices": 3
+    }
+  },
+  "activity": [
+    {
+      "type": "login",
+      "timestamp": "2025-10-16T09:15:00Z",
+      "ip": "192.168.1.100",
+      "userAgent": "Mozilla/5.0...",
+      "location": "San Francisco, CA"
+    }
+  ]
+}`}
+</Code>
+
+### `PUT /api/admin/users/{id}/role`
+
+Оновити роль та дозволи користувача.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"role": "CONFIDENTIAL",
+  "reason": "Підвищений до ролі Confidential для доступу до проектів",
+  "notifyUser": true,
+  "notificationMessage": "Вітаємо! Вас підвищили до ролі Confidential з доступом до преміум функцій."
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"user": {
+    "id": "user_123456",
+    "email": "john.doe@example.com",
+    "role": "CONFIDENTIAL",
+    "updatedAt": "2025-10-16T10:00:00Z"
+  },
+  "change": {
+    "previousRole": "MEMBER",
+    "newRole": "CONFIDENTIAL",
+    "changedBy": "admin_789",
+    "changedAt": "2025-10-16T10:00:00Z",
+    "reason": "Підвищений до ролі Confidential для доступу до проектів"
+  },
+  "notificationSent": true
+}`}
+</Code>
+
+### `PUT /api/admin/users/{id}/status`
+
+Оновити статус облікового запису користувача (призупинити, заблокувати, активувати).
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"status": "suspended",
+  "reason": "Порушення правил спільноти - спам-публікації",
+  "duration": "7 days",
+  "notifyUser": true,
+  "appealAllowed": true
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"user": {
+    "id": "user_123456",
+    "status": "suspended",
+    "statusUpdatedAt": "2025-10-16T10:05:00Z",
+    "statusExpiresAt": "2025-10-23T10:05:00Z"
+  },
+  "action": {
+    "type": "suspension",
+    "reason": "Порушення правил спільноти - спам-публікації",
+    "duration": "7 days",
+    "expiresAt": "2025-10-23T10:05:00Z",
+    "appealAllowed": true,
+    "performedBy": "admin_789"
+  },
+  "notificationSent": true
+}`}
+</Code>
+
+### `DELETE /api/admin/users/{id}`
+
+Назавжди видалити обліковий запис користувача (відповідність GDPR).
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `anonymize` | boolean | Ні | Замінити дані користувача анонімними плейсхолдерами (за замовчуванням: true) |
+| `deleteContent` | boolean | Ні | Видалити весь користувацький контент (за замовчуванням: false) |
+| `reason` | string | Так | Причина видалення облікового запису |
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"reason": "Користувач запросив видалення облікового запису відповідно до GDPR",
+  "anonymize": true,
+  "deleteContent": false,
+  "confirmation": "DELETE_USER_ACCOUNT"
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"deleted": true,
+  "userId": "user_123456",
+  "anonymized": true,
+  "contentPreserved": true,
+  "deletedAt": "2025-10-16T10:10:00Z",
+  "gdprCompliant": true
+}`}
+</Code>
+
+### `GET /api/admin/analytics`
+
+Отримати комплексну аналітику та метрики платформи.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `period` | string | Ні | Період часу: `hour`, `day`, `week`, `month`, `year` (за замовчуванням: `week`) |
+| `startDate` | string | Ні | ISO дата для власного діапазону |
+| `endDate` | string | Ні | ISO дата для власного діапазону |
+| `metrics` | string[] | Ні | Конкретні метрики для включення |
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"period": "week",
+  "dateRange": {
+    "start": "2025-10-09T00:00:00Z",
+    "end": "2025-10-16T23:59:59Z"
+  },
+  "summary": {
+    "totalUsers": 1250,
+    "activeUsers": 890,
+    "newUsers": 47,
+    "totalEntities": 2340,
+    "totalOpportunities": 156,
+    "totalMessages": 45670,
+    "totalTransactions": 2341,
+    "revenue": {
+      "RING": 125000.50,
+      "USD": 45230.75
+    }
+  },
+  "userMetrics": {
+    "registrations": {
+      "total": 47,
+      "byDay": [5, 8, 6, 7, 9, 6, 6],
+      "conversion": 78.4
+    },
+    "activity": {
+      "dailyActiveUsers": 890,
+      "weeklyActiveUsers": 1156,
+      "monthlyActiveUsers": 1234,
+      "retention": {
+        "day1": 85.2,
+        "day7": 72.1,
+        "day30": 64.8
+      }
+    },
+    "engagement": {
+      "avgSessionDuration": "24m 32s",
+      "pagesPerSession": 8.7,
+      "bounceRate": 23.4
+    }
+  },
+  "contentMetrics": {
+    "entities": {
+      "created": 156,
+      "active": 1890,
+      "byIndustry": {
+        "technology": 567,
+        "healthcare": 234,
+        "finance": 189
+      }
+    },
+    "opportunities": {
+      "posted": 89,
+      "filled": 67,
+      "conversionRate": 75.3,
+      "avgBudget": 15400
+    }
+  },
+  "systemMetrics": {
+    "performance": {
+      "avgResponseTime": "245ms",
+      "errorRate": 0.012,
+      "uptime": 99.98
+    },
+    "database": {
+      "connections": 45,
+      "queryTime": "89ms",
+      "cacheHitRate": 94.2
+    },
+    "api": {
+      "totalRequests": 4567890,
+      "avgRequestsPerSecond": 54.3,
+      "topEndpoints": [
+        { "path": "/api/entities", "count": 123456 },
+        { "path": "/api/opportunities", "count": 98765 }
+      ]
+    }
+  }
+}`}
+</Code>
+
+### `GET /api/admin/analytics/users`
+
+Отримати детальну аналітику користувачів.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `groupBy` | string | Ні | Групувати результати за: `day`, `week`, `month`, `role`, `status` |
+| `includeInactive` | boolean | Ні | Включити неактивних користувачів у результати (за замовчуванням: false) |
+
+### `GET /api/admin/config`
+
+Отримати поточні налаштування конфігурації системи.
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"config": {
+    "system": {
+      "maintenanceMode": false,
+      "registrationEnabled": true,
+      "emailVerificationRequired": true,
+      "twoFactorRequired": false,
+      "maxFileSize": 10485760,
+      "allowedDomains": ["ring-platform.org", "ringplatform.com"]
+    },
+    "features": {
+      "aiMatcher": true,
+      "nftMarketplace": true,
+      "staking": true,
+      "messaging": true,
+      "notifications": true,
+      "wallet": true,
+      "store": true
+    },
+    "limits": {
+      "maxEntitiesPerUser": 50,
+      "maxOpportunitiesPerUser": 20,
+      "maxMessagesPerDay": 1000,
+      "maxFileUploadsPerHour": 50
+    },
+    "integrations": {
+      "firebase": {
+        "enabled": true,
+        "projectId": "ring-platform-org"
+      },
+      "wayforpay": {
+        "enabled": true,
+        "testMode": false
+      },
+      "web3": {
+        "polygonRpcUrl": "https://polygon-rpc.com",
+        "ipfsGateway": "https://ipfs.io/ipfs/"
+      }
+    },
+    "security": {
+      "sessionTimeout": 86400,
+      "passwordMinLength": 8,
+      "rateLimitRequests": 1000,
+      "rateLimitWindow": 3600
+    },
+    "whiteLabel": {
+      "brandName": "Ring Platform",
+      "logoUrl": "https://cdn.ring-platform.org/logo.png",
+      "primaryColor": "#3b82f6",
+      "customDomain": "ring-platform.org"
+    }
+  },
+  "lastUpdated": "2025-10-15T14:30:00Z",
+  "updatedBy": "admin_789"
+}`}
+</Code>
+
+### `PUT /api/admin/config`
+
+Оновити налаштування конфігурації системи.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"config": {
+    "system": {
+      "maintenanceMode": true,
+      "maintenanceMessage": "Заплановане обслуговування триває. Ми скоро повернемося!"
+    },
+    "features": {
+      "nftMarketplace": false
+    }
+  },
+  "reason": "Увімкнення режиму обслуговування для оновлень системи",
+  "rollbackEnabled": true,
+  "notifyUsers": true
+}`}
+</Code>
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"updated": true,
+  "changes": {
+    "system.maintenanceMode": {
+      "from": false,
+      "to": true
+    },
+    "features.nftMarketplace": {
+      "from": true,
+      "to": false
+    }
+  },
+  "rollbackId": "rollback_123456",
+  "appliedAt": "2025-10-16T11:00:00Z",
+  "usersNotified": 1189
+}`}
+</Code>
+
+### `POST /api/admin/config/rollback`
+
+Відкатити зміни конфігурації.
+
+#### Тіло запиту
+
+<Code language="json" title="{">
+{`"rollbackId": "rollback_123456",
+  "reason": "Обслуговування завершено раніше за графіком"
+}`}
+</Code>
+
+### `GET /api/admin/audit`
+
+Отримати логи аудитів для адмін дій.
+
+#### Параметри
+
+| Параметр | Тип | Обов'язковий | Опис |
+|-----------|-----|--------------|------|
+| `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
+| `limit` | number | Ні | Логів на сторінку (за замовчуванням: 50) |
+| `action` | string | Ні | Фільтр за типом дії |
+| `userId` | string | Ні | Фільтр за користувачем, який виконав дію |
+| `targetUserId` | string | Ні | Фільтр за користувачем, на якого вплинула дія |
+| `startDate` | string | Ні | ISO дата - логи після цієї дати |
+| `endDate` | string | Ні | ISO дата - логи до цієї дати |
+
+#### Відповідь
+
+<Code language="json" title="{">
+{`"logs": [
+    {
+      "id": "audit_123456",
+      "timestamp": "2025-10-16T10:00:00Z",
+      "action": "user_role_update",
+      "actor": {
+        "id": "admin_789",
+        "name": "Admin User",
+        "role": "ADMIN"
+      },
+      "target": {
+        "id": "user_123",
+        "name": "John Doe",
+        "type": "user"
+      },
+      "details": {
+        "previousRole": "MEMBER",
+        "newRole": "CONFIDENTIAL",
+        "reason": "Підвищений для доступу до проектів"
+      },
+      "ip": "192.168.1.100",
+      "userAgent": "Mozilla/5.0...",
+      "success": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1250,
+    "totalPages": 25
+  }
+}`}
+</Code>
+
+## 🔧 Приклади реалізації
+
+### Компонент адмін дашборду
+
+// components/admin/AdminDashboard.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+interface AdminStats {
+  totalUsers: number
+  activeUsers: number
+  newUsersToday: number
+  totalEntities: number
+  totalOpportunities: number
+  systemHealth: 'healthy' | 'warning' | 'critical'
+}
+
+export function AdminDashboard() {
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAdminStats()
+  }, [])
+
+  const fetchAdminStats = async () => {
+    try {
+      const [usersRes, analyticsRes] = await Promise.all([
+        fetch('/api/admin/users?limit=1'),
+        fetch('/api/admin/analytics?period=day')
+      ])
+
+      const usersData = await usersRes.json()
+      const analyticsData = await analyticsRes.json()
+
+      setStats({
+        totalUsers: usersData.pagination.total,
+        activeUsers: analyticsData.userMetrics.activity.dailyActiveUsers,
+        newUsersToday: analyticsData.userMetrics.registrations.byDay.slice(-1)[0],
+        totalEntities: analyticsData.contentMetrics.entities.active,
+        totalOpportunities: analyticsData.contentMetrics.opportunities.posted,
+        systemHealth: analyticsData.systemMetrics.performance.errorRate < 0.01 ? 'healthy' :
+                     analyticsData.systemMetrics.performance.errorRate < 0.05 ? 'warning' : 'critical'
+      })
+    } catch (error) {
+      console.error('Не вдалося отримати адмін статистику:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <div>Завантаження адмін дашборду...</div>
+
+  return (
+    <div className="admin-dashboard">
+      <h1 className="text-2xl font-bold mb-6">Адмін дашборд</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Загалом користувачів</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalUsers.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Активних сьогодні</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.activeUsers.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Нових сьогодні</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">+{stats?.newUsersToday}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Стан системи</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${
+              stats?.systemHealth === 'healthy' ? 'text-green-600' :
+              stats?.systemHealth === 'warning' ? 'text-yellow-600' : 'text-red-600'
+            }`}>
+              {stats?.systemHealth.toUpperCase()}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Додаткові адмін компоненти */}
+      <UserManagement />
+      <SystemConfiguration />
+      <AuditLogs />
+    </div>
+  )
+}`}
+</Code>
+
+## 🚨 Обробка помилок
+
+### Поширені відповіді про помилки адміністратора
+
+// Недостатні дозволи
+
+<Code language="json" title="configuration">
+{`{
+  "error": "InsufficientPermissionsError",
+  "message": "Необхідна роль ADMIN для цієї операції",
+  "requiredRole": "ADMIN",
+  "currentRole": "MEMBER",
+  "statusCode": 403
+}
+
+// Обмеження швидкості перевищено
+{
+  "error": "RateLimitError",
+  "message": "Обмеження швидкості API адміністратора перевищено",
+  "limit": 100,
+  "window": "1 hour",
+  "resetTime": "2025-10-16T11:00:00Z",
+  "statusCode": 429
+}
+
+// Помилка валідації
+{
+  "error": "ValidationError",
+  "message": "Недійсна адмін операція",
+  "details": {
+    "role": "Вказана недійсна роль",
+    "reason": "Причина обов'язкова для змін ролі"
+  },
+  "statusCode": 400
+}
+
+// Захист системи
+{
+  "error": "SystemProtectionError",
+  "message": "Операція заблокована захистом системи",
+  "reason": "Неможливо видалити користувача admin",
+  "protectionType": "admin_protection",
+  "statusCode": 403
+}`}
+</Code>
+
+## 🔒 Заходи безпеки
+
+### Контроль доступу
+- **Багаторівнева аутентифікація**: Адмін операції вимагають свіжої аутентифікації
+- **Валідація сесій**: Адмін сесії валідуються при кожному запиті
+- **Обмеження IP**: Необов'язкові фільтри доступу на основі IP
+- **Часовий доступ**: Адмін операції обмежені у певні години
+
+### Аудит та відповідність
+- **Повний слід аудиту**: Кожна адмін дія логується з повним контекстом
+- **Відповідність GDPR**: Обробка адмін даних дотримується правил конфіденційності
+- **Збереження даних**: Адмін логи зберігаються протягом 7 років
+- **Виявлення підробки**: Криптографічні підписи на логах аудиту
+
+### Операційна безпека
+- **Принцип найменших привілеїв**: Адміни отримують тільки необхідні дозволи
+- **Правило двох осіб**: Критичні операції вимагають вторинного затвердження
+- **Надзвичайний доступ**: Процедури break-glass для відновлення системи
+- **Моніторинг безпеки**: Моніторинг активності адмінів у режимі реального часу
+
+## 📊 Моніторинг та аналітика
+
+### Активність адміністратора
+
+// Відстеження адмін дій для моніторингу
+
+<Code language="typescript" title="TypeScript">
+{`const trackAdminAction = (action: string, details: any) => {
+  // Надіслати до аналітики
+  analytics.track('admin_action', {
+    action,
+    adminId: currentAdmin.id,
+    timestamp: new Date().toISOString(),
+    details,
+    ipAddress: getClientIP(),
+    userAgent: navigator.userAgent
+  })
+
+  // Логувати до системи безпеки
+  securityLogger.log('ADMIN_ACTION', {
+    action,
+    adminId: currentAdmin.id,
+    details,
+    severity: getActionSeverity(action)
+  })
+}
+
+// Метрики продуктивності
+const measureAdminApiCall = async (endpoint: string, operation: () => Promise<any>) => {
+  const startTime = Date.now()
+  try {
+    const result = await operation()
+    const duration = Date.now() - startTime
+
+    // Відстежити продуктивність
+    analytics.track('admin_api_performance', {
+      endpoint,
+      duration,
+      success: true
+    })
+
+    return result
+  } catch (error) {
+    const duration = Date.now() - startTime
+
+    // Відстежити помилки
+    analytics.track('admin_api_error', {
+      endpoint,
+      duration,
+      error: error.message,
+      statusCode: error.statusCode
+    })
+
+    throw error
+  }
+}`}
+</Code>
+
+## 🎛️ Конфігурація
+
+### Змінні середовища
+
+Безпека адміністратора Логування аудиту Захист системи Моніторинг
+
+<Code language="bash" title="terminal">
+{`ADMIN_SESSION_TIMEOUT=3600
+ADMIN_RATE_LIMIT_REQUESTS=100
+ADMIN_RATE_LIMIT_WINDOW=3600
+ADMIN_IP_WHITELIST=192.168.1.0/24,10.0.0.0/8
+
+AUDIT_LOG_RETENTION_DAYS=2555
+AUDIT_LOG_ENCRYPTION_KEY=your-encryption-key
+AUDIT_LOG_STORAGE_TYPE=encrypted_postgresql
+
+SYSTEM_PROTECTION_ENABLED=true
+ADMIN_USER_PROTECTION=true
+CRITICAL_CONFIG_PROTECTION=true
+
+ADMIN_ACTIVITY_MONITORING=true
+ADMIN_PERFORMANCE_TRACKING=true
+ADMIN_SECURITY_ALERTS=true`}
+</Code>
+
+### Схема бази даних
+
+<Code language="sql" title="-- Лог аудиту адміністратора">
+{`CREATE TABLE admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL REFERENCES users(id),
+  action VARCHAR(100) NOT NULL,
+  target_type VARCHAR(50),
+  target_id UUID,
+  details JSONB,
+  ip_address INET,
+  user_agent TEXT,
+  success BOOLEAN DEFAULT TRUE,
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Сесії адміністратора
+CREATE TABLE admin_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL REFERENCES users(id),
+  token_hash VARCHAR(128) UNIQUE NOT NULL,
+  ip_address INET,
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP NOT NULL,
+  last_activity TIMESTAMP DEFAULT NOW()
+);
+
+-- Конфігурація системи
+CREATE TABLE system_config (
+  key VARCHAR(255) PRIMARY KEY,
+  value JSONB,
+  updated_by UUID REFERENCES users(id),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  version INTEGER DEFAULT 1
+);
+
+-- Історія змін конфігурації
+CREATE TABLE config_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  config_key VARCHAR(255) NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  changed_by UUID REFERENCES users(id),
+  changed_at TIMESTAMP DEFAULT NOW(),
+  rollback_id UUID
+);`}
+</Code>
+
+---
+
+*Адмін API платформи Ring забезпечує корпоративний контроль із комплексною безпекою, слідами аудиту та операційним моніторингом.*

@@ -98,28 +98,30 @@ export function useFCM(): FCMHookReturn {
     checkSupport()
   }, [])
 
-  // Initialize FCM service worker when user is authenticated (but don't request permission yet)
+  // Initialize FCM service worker when user is authenticated and Firebase is available
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id && state.isSupported) {
       const initializeFCMServiceWorker = async () => {
-        // Only register service worker, don't request permission
-        if ('serviceWorker' in navigator) {
+        // Only register service worker if Firebase is properly configured
+        if ('serviceWorker' in navigator && validateFirebaseConfig()) {
           try {
             // Check if service worker is already registered
             const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-            
+
             if (!existingRegistration) {
               const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
                 scope: '/'
               });
-              console.log('Service Worker registered:', registration);
+              console.log('FCM Service Worker registered:', registration);
             } else {
-              console.log('Service Worker already registered:', existingRegistration);
+              console.log('FCM Service Worker already registered:', existingRegistration);
             }
           } catch (swError) {
-            console.warn('Service Worker registration failed:', swError);
+            console.warn('FCM Service Worker registration failed:', swError);
             // Continue without service worker for background notifications
           }
+        } else {
+          console.log('FCM Service Worker not registered - Firebase not configured');
         }
       }
 

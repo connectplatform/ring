@@ -1,0 +1,20 @@
+{
+  "title": "Filters",
+  "apply": "Apply Filters",
+  "clear": "Clear All",
+  "reset": "Reset",
+  "search": "Search",
+  "sortBy": "Sort by",
+  "category": "Category",
+  "tags": "Tags",
+  "location": "Location",
+  "dateRange": "Date Range",
+  "priceRange": "Price Range",
+  "status": "Status",
+  "type": "Type",
+  "all": "All",
+  "none": "None",
+  "loading": "Loading filters...",
+  "noResults": "No results found",
+  "results": "{count} results found"
+}

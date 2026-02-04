@@ -1,0 +1,851 @@
+---
+title: AI Agent Customization
+description: Customize Ring's AI matching algorithms and build custom AI agents for specialized use cases
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# AI Agent Customization
+
+<Callout type="info">
+  **Ring's AI Philosophy**: "AI should orchestrate human collaboration, not replace it." Customize matching algorithms to fit your community's specific needs and collaboration patterns.
+</Callout>
+
+Ring comes with powerful AI matching capabilities out of the box, but the real power lies in customization. This guide shows you how to:
+
+- Modify the 8-factor matching algorithm
+- Add domain-specific matching criteria
+- Create custom AI agents for specialized tasks
+- Train models on your community's data
+- Integrate external AI services
+
+## Understanding Ring's AI Architecture
+
+### Core AI Components
+
+**1. Opportunity Matching Engine**
+```
+User Profile + Opportunity → AI Analysis → Match Score (0-100)
+                                      ↓
+Matching Factors → Weighted Scoring → Recommendations
+```
+
+**2. AI Agents**
+```
+Warehouse Manager → Logistician → Accountant → Sales → Analyst
+                                      ↓
+Community Coordinator → Personal Agent → Custom Agents
+```
+
+**3. Learning System**
+```
+User Interactions → Feedback Loop → Model Updates → Improved Matching
+```
+
+### Matching Algorithm Overview
+
+Ring uses an 8-factor scoring system:
+
+<Code language="typescript" title="const matchingFactors = {">
+{`skills_match: { weight: 0.25, description: "Technical skills alignment" },
+  experience_level: { weight: 0.20, description: "Experience level compatibility" },
+  location_proximity: { weight: 0.15, description: "Geographic availability" },
+  availability_timeline: { weight: 0.15, description: "Time commitment match" },
+  budget_compatibility: { weight: 0.10, description: "Budget expectations alignment" },
+  past_collaboration: { weight: 0.08, description: "Previous successful partnerships" },
+  industry_expertise: { weight: 0.05, description: "Domain-specific knowledge" },
+  language_compatibility: { weight: 0.02, description: "Communication language match" },
+};`}
+</Code>
+
+## Customizing the Matching Algorithm
+
+### 1. Adjusting Factor Weights
+
+<Steps>
+  <Step>
+    **Analyze your community's patterns:**
+
+    First, understand what matters most to your users:
+
+    // lib/ai/custom-matching.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const customMatchingFactors = {
+      // Your community's priorities
+      skills_match: { weight: 0.30, description: "Technical skills alignment" },
+      trust_score: { weight: 0.20, description: "Verified reputation score" },
+      location_proximity: { weight: 0.10, description: "Geographic availability" },
+      // ... adjust based on your needs
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create custom scoring function:**
+
+    // lib/ai/matching/custom-scorer.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function calculateCustomMatchScore(
+      userProfile: UserProfile,
+      opportunity: Opportunity
+    ): MatchResult {
+      let totalScore = 0;
+      let maxScore = 0;
+
+      for (const [factor, config] of Object.entries(customMatchingFactors)) {
+        const score = calculateFactorScore(factor, userProfile, opportunity);
+        const weightedScore = score * config.weight;
+
+        totalScore += weightedScore;
+        maxScore += config.weight;
+      }
+
+      const percentage = (totalScore / maxScore) * 100;
+
+      return {
+        score: Math.round(percentage),
+        factors: Object.keys(customMatchingFactors),
+        explanation: generateMatchExplanation(userProfile, opportunity, totalScore),
+      };
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Test and iterate:**
+
+    // Test your custom scoring
+
+<Code language="typescript" title="TypeScript">
+{`const testCases = [
+      {
+        user: { skills: ['react', 'typescript'], experience: 3 },
+        opportunity: { skills: ['react', 'node'], budget: 5000 },
+        expectedScore: 85,
+      },
+      // Add more test cases
+    ];
+
+    testCases.forEach(testCase => {
+      const result = calculateCustomMatchScore(testCase.user, testCase.opportunity);
+      console.assert(
+        Math.abs(result.score - testCase.expectedScore) < 5,
+        `Test failed: expected ${testCase.expectedScore}, got ${result.score}`
+      );
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Adding Domain-Specific Factors
+
+<Steps>
+  <Step>
+    **Define custom factors:**
+
+    // For a healthcare platform
+
+<Code language="typescript" title="TypeScript">
+{`export const healthcareMatchingFactors = {
+      medical_license: { weight: 0.25, type: 'boolean', description: "Valid medical license" },
+      specialization_match: { weight: 0.20, type: 'enum', values: ['cardiology', 'neurology', 'pediatrics'] },
+      hospital_privileges: { weight: 0.15, type: 'boolean', description: "Hospital admitting privileges" },
+      malpractice_insurance: { weight: 0.10, type: 'boolean', description: "Current malpractice coverage" },
+      board_certification: { weight: 0.10, type: 'multiselect', values: ['ABIM', 'ABFM', 'ABO'] },
+      years_experience: { weight: 0.10, type: 'range', min: 0, max: 50 },
+      patient_volume_capacity: { weight: 0.05, type: 'number', description: "Patients per month capacity" },
+      telehealth_capability: { weight: 0.05, type: 'boolean', description: "Telehealth technology setup" },
+    };`}
+</Code>
+  </Step>
+
+  <Step>
+    **Implement factor calculators:**
+
+    // lib/ai/factors/healthcare-factors.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function calculateMedicalLicenseScore(profile: UserProfile): number {
+      const hasLicense = profile.verifications?.medicalLicense?.status === 'verified';
+      const isExpired = new Date(profile.verifications.medicalLicense.expiry) < new Date();
+
+      if (!hasLicense) return 0;
+      if (isExpired) return 25; // Partial credit for expired but verifiable
+
+      return 100;
+    }
+
+    export function calculateSpecializationMatch(
+      profile: UserProfile,
+      opportunity: Opportunity
+    ): number {
+      const userSpecs = profile.specializations || [];
+      const requiredSpecs = opportunity.requiredSpecializations || [];
+
+      if (requiredSpecs.length === 0) return 100; // No specific requirements
+
+      const matches = requiredSpecs.filter(spec => userSpecs.includes(spec));
+      return (matches.length / requiredSpecs.length) * 100;
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Add factor validation:**
+
+    // lib/schemas/healthcare-profile.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const healthcareProfileSchema = baseProfileSchema.extend({
+      medicalLicense: z.object({
+        number: z.string(),
+        state: z.string(),
+        expiry: z.date(),
+        status: z.enum(['pending', 'verified', 'expired']),
+      }),
+      specializations: z.array(z.string()),
+      boardCertifications: z.array(z.string()),
+      hospitalAffiliations: z.array(z.object({
+        name: z.string(),
+        privileges: z.array(z.string()),
+      })),
+    });`}
+</Code>
+  </Step>
+</Steps>
+
+## Building Custom AI Agents
+
+### 1. Agent Architecture
+
+<Steps>
+  <Step>
+    **Define agent interface:**
+
+    // lib/ai/agents/base-agent.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface AIAgent {
+      id: string;
+      name: string;
+      description: string;
+      capabilities: string[];
+      prompt: string;
+
+      process(input: AgentInput): Promise<AgentOutput>;
+      learn(feedback: AgentFeedback): Promise<void>;
+    }
+
+    export interface AgentInput {
+      type: 'opportunity_analysis' | 'user_matching' | 'market_insights' | 'custom';
+      data: any;
+      context?: AgentContext;
+    }
+
+    export interface AgentOutput {
+      result: any;
+      confidence: number;
+      reasoning: string;
+      suggestions?: AgentSuggestion[];
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create custom agent class:**
+
+    // lib/ai/agents/healthcare-agent.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class HealthcareMatchingAgent implements AIAgent {
+      id = 'healthcare-matcher';
+      name = 'Healthcare Opportunity Specialist';
+      description = 'Specialized in matching healthcare professionals with medical opportunities';
+
+      capabilities = [
+        'medical_credential_verification',
+        'specialization_matching',
+        'compliance_checking',
+        'risk_assessment'
+      ];
+
+      prompt = `
+        You are a healthcare opportunity matching specialist. Your role is to analyze
+        medical opportunities and candidate qualifications with deep understanding of
+        healthcare industry requirements, licensing, and compliance standards.
+
+        Focus on: credential verification, specialization alignment, regulatory compliance,
+        risk management, and patient safety considerations.
+      `;
+
+      async process(input: AgentInput): Promise<AgentOutput> {
+        switch (input.type) {
+          case 'opportunity_analysis':
+            return this.analyzeHealthcareOpportunity(input.data);
+          case 'user_matching':
+            return this.matchHealthcareCandidate(input.data);
+          default:
+            throw new Error(`Unsupported input type: ${input.type}`);
+        }
+      }
+
+      private async analyzeHealthcareOpportunity(opportunity: Opportunity): Promise<AgentOutput> {
+        // Healthcare-specific opportunity analysis
+        const credentialRequirements = this.extractCredentialRequirements(opportunity);
+        const riskFactors = this.assessRiskFactors(opportunity);
+        const complianceNeeds = this.identifyComplianceRequirements(opportunity);
+
+        return {
+          result: {
+            credentialRequirements,
+            riskFactors,
+            complianceNeeds,
+            recommendedCandidates: await this.findQualifiedCandidates(opportunity),
+          },
+          confidence: 0.92,
+          reasoning: 'Analysis based on medical licensing requirements and risk assessment protocols',
+          suggestions: this.generateHealthcareSuggestions(opportunity),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Agent Training & Learning
+
+<Steps>
+  <Step>
+    **Implement feedback collection:**
+
+    // lib/ai/learning/feedback-collector.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class FeedbackCollector {
+      async collectMatchFeedback(
+        userId: string,
+        opportunityId: string,
+        matchScore: number,
+        userFeedback: UserFeedback
+      ) {
+        const feedback = {
+          userId,
+          opportunityId,
+          originalScore: matchScore,
+          userRating: userFeedback.rating, // 1-5 stars
+          userComments: userFeedback.comments,
+          outcome: userFeedback.outcome, // 'hired', 'interviewed', 'rejected', 'no_response'
+          timestamp: new Date(),
+        };
+
+        await this.storeFeedback(feedback);
+        await this.updateAgentModel(feedback);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Continuous learning system:**
+
+    // lib/ai/learning/model-updater.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ModelUpdater {
+      async updateMatchingModel(newFeedback: FeedbackData[]) {
+        // Analyze feedback patterns
+        const patterns = this.analyzeFeedbackPatterns(newFeedback);
+
+        // Adjust factor weights based on success rates
+        const adjustedWeights = this.adjustWeightsBasedOnSuccess(patterns);
+
+        // Update agent prompts with new insights
+        await this.updateAgentPrompts(patterns);
+
+        // Retrain model if needed
+        if (this.shouldRetrainModel(patterns)) {
+          await this.retrainModel(newFeedback);
+        }
+      }
+
+      private analyzeFeedbackPatterns(feedback: FeedbackData[]) {
+        return {
+          highSuccessFactors: this.findHighSuccessFactors(feedback),
+          lowSuccessFactors: this.findLowSuccessFactors(feedback),
+          userPreferencePatterns: this.analyzeUserPreferences(feedback),
+          marketTrendInsights: this.extractMarketTrends(feedback),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Integrating External AI Services
+
+### 1. LLM Integration
+
+<Steps>
+  <Step>
+    **Set up LLM provider:**
+
+    // lib/ai/providers/llm-provider.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class LLMProvider {
+      constructor(private apiKey: string, private model: string = 'gpt-4') {}
+
+      async generateCompletion(prompt: string, options?: LLMOptions): Promise<LLMResponse> {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: options?.temperature || 0.7,
+            max_tokens: options?.maxTokens || 1000,
+          }),
+        });
+
+        const data = await response.json();
+
+        return {
+          text: data.choices[0].message.content,
+          usage: data.usage,
+          model: data.model,
+        };
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Create specialized prompts:**
+
+    // lib/ai/prompts/healthcare-prompts.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const healthcarePrompts = {
+      opportunityAnalysis: `
+        Analyze this healthcare opportunity from a medical staffing perspective:
+
+        Opportunity: {opportunity_description}
+
+        Consider:
+        1. Required medical credentials and licenses
+        2. Specialization requirements and compatibility
+        3. Regulatory compliance needs
+        4. Risk management considerations
+        5. Patient safety implications
+
+        Provide a structured analysis with recommendations for qualified candidates.
+      `,
+
+      candidateMatching: `
+        Evaluate this healthcare professional for the following opportunity:
+
+        Candidate Profile: {candidate_profile}
+        Opportunity: {opportunity_details}
+
+        Assess:
+        1. Credential verification status
+        2. Specialization alignment
+        3. Experience level appropriateness
+        4. Geographic and availability constraints
+        5. Potential fit and recommendations
+
+        Provide a match score (0-100) with detailed reasoning.
+      `,
+    };`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. Specialized AI Services
+
+<Steps>
+  <Step>
+    **Integrate domain-specific AI:**
+
+    <Code language="typescript" title="TypeScript">
+{`// For healthcare - integrate with medical credential verification
+export class MedicalCredentialVerifier {
+      async verifyLicense(licenseData: LicenseInfo): Promise<VerificationResult> {
+        // Integrate with medical board APIs
+        const verification = await this.queryMedicalBoardAPI(licenseData);
+
+        return {
+          status: verification.isValid ? 'verified' : 'invalid',
+          details: verification.details,
+          confidence: verification.confidence,
+        };
+      }
+
+      async checkMalpracticeHistory(providerData: ProviderInfo): Promise<RiskAssessment> {
+        // Integrate with malpractice databases
+        const history = await this.queryMalpracticeDatabase(providerData);
+
+        return this.assessRiskLevel(history);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Add AI-powered features:**
+
+    // lib/ai/features/smart-scheduling.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class SmartSchedulingAI {
+      async optimizeSchedule(
+        provider: Provider,
+        opportunities: Opportunity[],
+        constraints: ScheduleConstraints
+      ): Promise<OptimizedSchedule> {
+        const prompt = `
+          Optimize this healthcare provider's schedule:
+
+          Provider availability: ${JSON.stringify(provider.availability)}
+          Available opportunities: ${JSON.stringify(opportunities)}
+          Constraints: ${JSON.stringify(constraints)}
+
+          Consider: patient volume capacity, travel time, credential requirements,
+          work-life balance, and revenue optimization.
+
+          Provide an optimized weekly schedule with reasoning.
+        `;
+
+        const response = await this.llm.generateCompletion(prompt);
+        return this.parseScheduleResponse(response);
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Testing & Validation
+
+### 1. Agent Testing Framework
+
+<Steps>
+  <Step>
+    **Create test suites:**
+
+    // lib/ai/testing/agent-tests.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class AgentTestSuite {
+      async testHealthcareAgent() {
+        const agent = new HealthcareMatchingAgent();
+
+        const testCases = [
+          {
+            input: {
+              type: 'opportunity_analysis',
+              data: mockCardiologyOpportunity,
+            },
+            expectedOutput: {
+              hasCredentialRequirements: true,
+              hasRiskAssessment: true,
+              confidence: expect.any(Number),
+            },
+          },
+          // More test cases
+        ];
+
+        for (const testCase of testCases) {
+          const result = await agent.process(testCase.input);
+          this.assertMatchesExpected(result, testCase.expectedOutput);
+        }
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Performance benchmarking:**
+
+    // lib/ai/benchmarking/performance-tests.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class PerformanceBenchmark {
+      async benchmarkMatchingAccuracy() {
+        const testDataset = await this.loadTestDataset();
+
+        const results = {
+          customAgent: await this.testAgent(new CustomAgent(), testDataset),
+          defaultAgent: await this.testAgent(new DefaultAgent(), testDataset),
+        };
+
+        return {
+          accuracy: this.calculateAccuracy(results),
+          speed: this.calculateSpeed(results),
+          userSatisfaction: this.calculateUserSatisfaction(results),
+        };
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. A/B Testing AI Improvements
+
+<Steps>
+  <Step>
+    **Set up A/B testing:**
+
+    // lib/ai/experiments/ab-testing.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class ABTesting {
+      async runMatchingExperiment(experimentConfig: ExperimentConfig) {
+        const { controlGroup, testGroup } = await this.splitUsers();
+
+        // Control group uses default matching
+        const controlResults = await this.runMatchingForGroup(
+          controlGroup,
+          new DefaultMatchingAlgorithm()
+        );
+
+        // Test group uses custom matching
+        const testResults = await this.runMatchingForGroup(
+          testGroup,
+          new CustomMatchingAlgorithm()
+        );
+
+        return this.analyzeExperimentResults(controlResults, testResults);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Measure success metrics:**
+
+    // lib/ai/metrics/success-metrics.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const successMetrics = {
+      matchingAccuracy: {
+        calculate: (matches: MatchResult[]) => {
+          const successfulHires = matches.filter(m => m.outcome === 'hired');
+          return successfulHires.length / matches.length;
+        },
+      },
+
+      userSatisfaction: {
+        calculate: (feedback: UserFeedback[]) => {
+          const averageRating = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
+          return averageRating / 5; // Normalize to 0-1
+        },
+      },
+
+      timeToMatch: {
+        calculate: (matches: MatchResult[]) => {
+          const avgTime = matches.reduce((sum, m) => sum + m.timeToMatch, 0) / matches.length;
+          return avgTime;
+        },
+      },
+    };`}
+</Code>
+  </Step>
+</Steps>
+
+## Deployment & Monitoring
+
+### 1. Agent Deployment Pipeline
+
+<Steps>
+  <Step>
+    **Version control for agents:**
+
+    // lib/ai/deployment/agent-deployer.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class AgentDeployer {
+      async deployAgent(agent: AIAgent, environment: 'staging' | 'production') {
+        // Validate agent
+        await this.validateAgent(agent);
+
+        // Create deployment package
+        const package = await this.createDeploymentPackage(agent);
+
+        // Deploy to staging first
+        if (environment === 'production') {
+          await this.deployToStaging(package);
+          await this.runIntegrationTests();
+        }
+
+        // Deploy to target environment
+        await this.deployToEnvironment(package, environment);
+
+        // Update routing
+        await this.updateAgentRouting(agent.id, environment);
+
+        // Monitor performance
+        await this.startPerformanceMonitoring(agent.id);
+      }
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Rollback capability:**
+
+    <Code language="typescript" title="TypeScript">
+{`export async function rollbackAgent(agentId: string, version: string) {
+const backup = await this.getAgentBackup(agentId, version);
+      await this.restoreAgentFromBackup(backup);
+      await this.updateAgentRouting(agentId, 'production');
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+### 2. AI Monitoring & Analytics
+
+<Steps>
+  <Step>
+    **Agent performance dashboard:**
+
+    // components/ai/agent-dashboard.tsx
+
+<Code language="tsx" title="tsx">
+{`export function AgentPerformanceDashboard() {
+      const metrics = useAgentMetrics();
+
+      return (
+        <div className="grid grid-cols-4 gap-4">
+          <Card>
+            <CardTitle>Match Accuracy</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.accuracy}%</div>
+              <div className="text-sm text-muted-foreground">
+                +{metrics.accuracyChange}% vs last week
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Response Time</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.avgResponseTime}ms</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>User Satisfaction</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.satisfaction}/5</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardTitle>Active Agents</CardTitle>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.activeAgents}</div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }`}
+</Code>
+  </Step>
+
+  <Step>
+    **Automated alerts:**
+
+    // lib/ai/monitoring/alerts.ts
+
+<Code language="typescript" title="TypeScript">
+{`export class AIMonitoringAlerts {
+      async checkAgentHealth() {
+        const agents = await this.getAllAgents();
+
+        for (const agent of agents) {
+          const metrics = await this.getAgentMetrics(agent.id);
+
+          if (metrics.accuracy < 70) {
+            await this.sendAlert('Low matching accuracy', {
+              agent: agent.name,
+              accuracy: metrics.accuracy,
+              threshold: 70,
+            });
+          }
+
+          if (metrics.responseTime > 5000) {
+            await this.sendAlert('Slow response time', {
+              agent: agent.name,
+              responseTime: metrics.responseTime,
+              threshold: 5000,
+            });
+          }
+        }
+      }
+    }`}
+</Code>
+  </Step>
+</Steps>
+
+## Success Stories
+
+<Callout type="success">
+  **AI Customization in Action:**
+</Callout>
+
+### Healthcare Matching Platform
+- **Custom medical credential verification** with board API integration
+- **87% match accuracy** vs 65% with default algorithm
+- **Risk assessment AI** preventing 40% of problematic matches
+- **Telehealth capability matching** for remote healthcare delivery
+
+### Manufacturing Collaboration Network
+- **Equipment compatibility AI** analyzing technical specifications
+- **Supply chain risk assessment** predicting delivery reliability
+- **Geographic optimization** minimizing transportation costs
+- **75% improvement** in successful partnerships
+
+### Creative Services Marketplace
+- **Portfolio analysis AI** evaluating creative work quality
+- **Style compatibility matching** between clients and creatives
+- **Project complexity assessment** ensuring right expertise level
+- **62% increase** in client satisfaction scores
+
+---
+
+## Next Steps
+
+<Callout type="success">
+  **Ready to customize Ring's AI for your domain?**
+</Callout>
+
+### Planning Phase
+- [ ] Analyze your community's collaboration patterns
+- [ ] Identify unique matching criteria for your domain
+- [ ] Define success metrics for AI performance
+
+### Development Phase
+- [ ] Start with factor weight adjustments
+- [ ] Add domain-specific matching criteria
+- [ ] Test improvements with A/B testing
+
+### Advanced Implementation
+- [ ] Build custom AI agents for specialized tasks
+- [ ] Integrate external AI services
+- [ ] Implement continuous learning systems
+
+### Deployment & Monitoring
+- [ ] Set up performance monitoring
+- [ ] Create automated testing suites
+- [ ] Establish feedback collection systems
+
+<Callout type="info">
+  **Need AI customization help?** Post a [Ring customization opportunity](/opportunities?type=ring_customization) for AI/ML experts specializing in matching algorithms and agent development.
+</Callout>

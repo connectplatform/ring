@@ -93,7 +93,7 @@ export function WebSocketDiagnostics({ className = '' }: { className?: string })
   }
 
   return (
-    <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
+    <div className={`fixed bottom-20 right-4 z-50 ${className}`}>
       {/* Floating toggle button */}
       <Button
         onClick={() => setShowDetails(!showDetails)}

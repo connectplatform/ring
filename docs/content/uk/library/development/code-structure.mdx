@@ -1,0 +1,382 @@
+---
+title: Структура коду
+description: Документація структури коду для платформи Ring
+---
+
+# Структура коду
+
+Розуміння архітектури та організації кодової бази платформи Ring.
+
+## 📁 Високорівнева архітектура
+
+Платформа Ring дотримується **архітектури на основі функцій** з чітким розділенням обов'язків:
+
+```
+ring/
+├── app/               # Next.js 15 App Router
+├── components/        # Багаторазові React компоненти
+├── features/          # Модулі функцій (керовані доменом)
+├── lib/               # Спільні утиліти та конфігурації
+├── @actions/          # Серверні дії (Next.js 15)
+├── public/            # Статичні ресурси
+└── AI-CONTEXT/        # Система AI документації
+```
+## 🏗️ Структура директорії App
+
+### App Router (Next.js 15)
+
+```
+app/
+├── (auth)/            # Групи маршрутів для сторінок автентифікації
+│   ├── login/
+│   └── register/
+├── (dashboard)/       # Захищені маршрути панелі керування
+│   ├── entities/
+│   ├── opportunities/
+│   └── wallet/
+├── api/               # API маршрути
+│   ├── auth/
+│   ├── entities/
+│   └── opportunities/
+├── globals.css        # Глобальні стилі
+├── layout.tsx         # Кореневий макет
+└── page.tsx           # Головна сторінка
+```
+
+### Групи маршрутів
+- `(auth)` - Сторінки, пов'язані з автентифікацією
+- `(dashboard)` - Захищена панель користувача
+- `(public)` - Публічні маркетингові сторінки
+
+## 🧩 Архітектура компонентів
+
+### Ієрархія компонентів
+
+```
+components/
+├── ui/               # Базові UI компоненти (shadcn/ui)
+│   ├── button.tsx
+│   ├── input.tsx
+│   └── dialog.tsx
+├── features/         # Компоненти функцій
+│   ├── entities/
+│   ├── opportunities/
+│   └── wallet/
+├── layout/           # Компоненти макету
+│   ├── navbar.tsx
+│   ├── sidebar.tsx
+│   └── footer.tsx
+└── shared/           # Спільні бізнес-компоненти
+    ├── user-avatar.tsx
+    └── loading-spinner.tsx
+```
+
+### Патерни компонентів
+
+#### 1. Базові UI компоненти
+// components/ui/button.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { cn } from '@/lib/utils'
+
+interface ButtonProps {
+  variant?: 'default' | 'destructive' | 'outline'
+  size?: 'default' | 'sm' | 'lg'
+  children: React.ReactNode
+}
+
+export function Button({ variant = 'default', size = 'default', children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(
+        'inline-flex items-center justify-center rounded-md font-medium',
+        variants[variant],
+        sizes[size]
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}`}
+</Code>
+
+#### 2. Компоненти функцій
+// components/features/entities/entity-card.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { Entity } from '@/types/entities'
+import { Button } from '@/components/ui/button'
+
+interface EntityCardProps {
+  entity: Entity
+  onEdit?: (entity: Entity) => void
+}
+
+export function EntityCard({ entity, onEdit }: EntityCardProps) {
+  return (
+    <div className="border rounded-lg p-4">
+      <h3 className="font-semibold">{entity.name}</h3>
+      <p className="text-gray-600">{entity.description}</p>
+      {onEdit && (
+        <Button onClick={() => onEdit(entity)}>
+          Edit
+        </Button>
+      )}
+    </div>
+  )
+}`}
+</Code>
+## 🎯 Архітектура функцій
+
+### Організація на основі функцій
+
+```
+features/
+├── entities/       # Функція управління сутностями
+│   ├── components/ # Компоненти специфічні для функції
+│   ├── hooks/      # Користувацькі хуки
+│   ├── types/      # TypeScript типи
+│   ├── utils/      # Утиліти функції
+│   └── index.ts    # Публічний API
+├── opportunities/  # Функція можливостей
+├── wallet/         # Функція Web3 гаманця
+└── messaging/      # Обмін повідомленнями в реальному часі
+```
+
+### Патерн модуля функцій
+
+// features/entities/index.ts - Public API
+
+<Code language="typescript" title="TypeScript">
+{`export { EntityCard } from './components/entity-card'
+export { useEntities } from './hooks/use-entities'
+export type { Entity, EntityType } from './types'
+export { createEntity, updateEntity } from './utils/entity-operations'`}
+</Code>
+
+### Патерн користувацьких хуків
+
+// features/entities/hooks/use-entities.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { useQuery } from '@tanstack/react-query'
+import { getEntities } from '../utils/entity-operations'
+
+export function useEntities(userId?: string) {
+  return useQuery({
+    queryKey: ['entities', userId],
+    queryFn: () => getEntities(userId),
+    enabled: !!userId
+  })
+}`}
+</Code>
+
+## 🔧 Директорія Lib
+
+### Спільні утиліти
+
+```
+lib/
+├── auth.ts         # Конфігурація Auth.js
+├── firebase.ts     # Налаштування Firebase
+├── db.ts           # Утиліти бази даних
+├── utils.ts        # Загальні утиліти
+├── validations.ts  # Zod схеми
+├── constants.ts    # Константи додатку
+└── types.ts        # Глобальні типи
+```
+### Ключові утиліти
+
+#### Конфігурація автентифікації
+// lib/auth.ts
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
+import GoogleProvider from 'next-auth/providers/google'
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+  // ... configuration
+})`}
+</Code>
+#### Утиліти бази даних
+// lib/db.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { initializeApp } from 'firebase/app'
+import { getFirestore } from 'firebase/firestore'
+
+const app = initializeApp(firebaseConfig)
+export const db = getFirestore(app)`}
+</Code>
+## ⚡ Серверні дії
+
+### Структура серверних дій
+
+```
+@actions/
+├── entities/
+│   ├── create-entity.ts
+│   ├── update-entity.ts
+│   └── delete-entity.ts
+├── opportunities/
+└── auth/
+```
+### Патерн серверних дій
+
+<Code language="typescript" title="TypeScript">
+{`// @actions/entities/create-entity.ts
+'use server'
+
+import { auth } from '@/lib/auth'
+import { createEntitySchema } from '@/lib/validations'
+import { redirect } from 'next/navigation'
+
+export async function createEntity(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    redirect('/login')
+  }
+
+  const validatedFields = createEntitySchema.safeParse({
+    name: formData.get('name'),
+    type: formData.get('type'),
+    description: formData.get('description'),
+  })
+
+  if (!validatedFields.success) {
+    return { error: 'Invalid fields' }
+  }
+
+  // Create entity logic...
+  
+  redirect('/dashboard/entities')
+}`}
+</Code>
+## 📝 Патерни TypeScript
+
+### Організація типів
+
+// types/entities.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface Entity {
+  id: string
+  name: string
+  type: EntityType
+  description: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type EntityType = 
+  | 'technology'
+  | 'healthcare'
+  | 'finance'
+  // ... other types
+
+export interface CreateEntityRequest {
+  name: string
+  type: EntityType
+  description: string
+}`}
+</Code>
+
+### API Response Types
+
+// types/api.ts
+
+<Code language="typescript" title="TypeScript">
+{`export interface ApiResponse<T = any> {
+  data?: T
+  error?: string
+  message?: string
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+}`}
+</Code>
+
+## 🎨 Архітектура стилізації
+
+### Організація Tailwind CSS
+
+```
+app/globals.css
+├── @tailwind base;
+├── @tailwind components;
+├── @tailwind utilities;
+└── /* Custom component styles */
+```
+### Патерни стилізації компонентів
+
+// Using cn utility for conditional classes
+
+<Code language="typescript" title="TypeScript">
+{`import { cn } from '@/lib/utils'
+
+function Component({ variant, className }: Props) {
+  return (
+    <div
+      className={cn(
+        'base-styles',
+        {
+          'variant-styles': variant === 'special',
+        },
+        className
+      )}
+    >
+      Content
+    </div>
+  )
+}`}
+</Code>
+
+## 📚 Найкращі практики
+
+### 1. Організація імпортів
+// External imports first
+
+<Code language="typescript" title="TypeScript">
+{`import React from 'react'
+import { NextPage } from 'next'
+
+// Internal imports
+import { Button } from '@/components/ui/button'
+import { useEntities } from '@/features/entities'
+import { cn } from '@/lib/utils'
+
+// Type imports last
+import type { Entity } from '@/types/entities'`}
+</Code>
+
+### 2. Структура файлів компонентів
+// 1. Imports
+
+<Code language="typescript" title="TypeScript">
+{`// 2. Types/Interfaces
+// 3. Component implementation
+// 4. Default export
+// 5. Named exports (if any)`}
+</Code>
+### 3. Межі функцій
+- Зберігайте код функцій у відповідних директоріях функцій
+- Використовуйте публічні API для міжфункціональної комунікації
+- Уникайте глибоких імпортів з інших функцій
+
+---
+
+*Далі: [Робочий процес розробки](/uk/docs/development/workflow) - Дізнайтеся про наш Git робочий процес та процес розробки.*

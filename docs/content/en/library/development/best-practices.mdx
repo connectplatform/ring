@@ -1,0 +1,456 @@
+---
+title: Best Practices
+description: Best Practices documentation for Ring Platform
+---
+
+# Best Practices
+
+Development best practices and coding standards for Ring Platform.
+
+## 🎯 General Principles
+
+### 1. Code Quality
+- **Readability First** - Code is read more than written
+- **Consistency** - Follow established patterns
+- **Simplicity** - Prefer simple solutions over complex ones
+- **Documentation** - Document complex logic and decisions
+
+### 2. Performance
+- **Lazy Loading** - Load components and data on demand
+- **Memoization** - Use React.memo, useMemo, useCallback appropriately
+- **Bundle Optimization** - Keep bundle sizes minimal
+- **Database Efficiency** - Optimize queries and reduce calls
+
+## ⚛️ React Best Practices
+
+### Component Design
+
+#### 1. Single Responsibility
+// ❌ Bad - Component doing too much
+
+<Code language="typescript" title="TypeScript">
+{`function UserDashboard({ user }: { user: User }) {
+  // Handles user profile, notifications, settings, etc.
+  return (
+    <div>
+      {/* 200+ lines of mixed concerns */}
+    </div>
+  )
+}
+
+// ✅ Good - Focused components
+function UserDashboard({ user }: { user: User }) {
+  return (
+    <div>
+      <UserProfile user={user} />
+      <NotificationCenter userId={user.id} />
+      <UserSettings userId={user.id} />
+    </div>
+  )
+}`}
+</Code>
+
+#### 2. Props Interface Design
+// ❌ Bad - Unclear props
+
+<Code language="typescript" title="TypeScript">
+{`interface Props {
+  data: any
+  onClick: () => void
+  flag: boolean
+}
+
+// ✅ Good - Clear, typed props
+interface EntityCardProps {
+  entity: Entity
+  onEdit?: (entity: Entity) => void
+  isEditable?: boolean
+  variant?: 'default' | 'compact'
+}`}
+</Code>
+
+#### 3. Custom Hooks
+// ✅ Extract complex logic into custom hooks
+
+<Code language="typescript" title="TypeScript">
+{`function useEntityOperations(entityId: string) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const updateEntity = useCallback(async (data: UpdateEntityData) => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      await updateEntityAction(entityId, data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [entityId])
+
+  return { updateEntity, isLoading, error }
+}`}
+</Code>
+
+### State Management
+
+#### 1. Local State First
+// ✅ Use local state for component-specific data
+
+<Code language="typescript" title="TypeScript">
+{`function SearchInput() {
+  const [query, setQuery] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  
+  return (
+    <div>
+      <input 
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+      />
+      {isOpen && <SearchResults query={query} />}
+    </div>
+  )
+}`}
+</Code>
+
+#### 2. Server State with React Query
+// ✅ Use React Query for server state
+
+<Code language="typescript" title="TypeScript">
+{`function EntitiesPage() {
+  const { 
+    data: entities, 
+    isLoading, 
+    error 
+  } = useQuery({
+    queryKey: ['entities'],
+    queryFn: fetchEntities,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+
+  if (isLoading) return <LoadingSpinner />
+  if (error) return <ErrorMessage error={error} />
+  
+  return <EntitiesList entities={entities} />
+}`}
+</Code>
+
+## 🔧 TypeScript Best Practices
+
+### 1. Strict Type Safety
+// ✅ Use strict types
+
+<Code language="typescript" title="TypeScript">
+{`interface CreateEntityRequest {
+  name: string
+  type: EntityType // Union type, not string
+  description: string
+  tags?: string[] // Optional with specific type
+}
+
+// ❌ Avoid any
+function processData(data: any) { ... }
+
+// ✅ Use generics or specific types
+function processData<T>(data: T): ProcessedData<T> { ... }`}
+</Code>
+
+### 2. Utility Types
+// ✅ Use utility types for transformations
+
+<Code language="typescript" title="TypeScript">
+{`interface Entity {
+  id: string
+  name: string
+  description: string
+  createdAt: Date
+}
+
+// Create types from existing ones
+type CreateEntityData = Omit<Entity, 'id' | 'createdAt'>
+type EntitySummary = Pick<Entity, 'id' | 'name'>
+type PartialEntity = Partial<Entity>`}
+</Code>
+
+### 3. Type Guards
+// ✅ Use type guards for runtime type checking
+
+<Code language="typescript" title="TypeScript">
+{`function isEntity(obj: unknown): obj is Entity {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'name' in obj &&
+    typeof (obj as Entity).id === 'string'
+  )
+}
+
+// Usage
+if (isEntity(data)) {
+  // TypeScript knows data is Entity here
+  console.log(data.name)
+}`}
+</Code>
+
+## 🗄️ Database Best Practices
+
+### 1. Query Optimization
+// ❌ Bad - Multiple queries
+
+<Code language="typescript" title="TypeScript">
+{`async function getUserWithEntities(userId: string) {
+  const user = await getUser(userId)
+  const entities = await getEntitiesByUserId(userId)
+  return { user, entities }
+}
+
+// ✅ Good - Single optimized query
+async function getUserWithEntities(userId: string) {
+  return await db.collection('users')
+    .doc(userId)
+    .get()
+    .then(async (userDoc) => {
+      const entitiesSnapshot = await db.collection('entities')
+        .where('userId', '==', userId)
+        .get()
+      
+      return {
+        user: userDoc.data(),
+        entities: entitiesSnapshot.docs.map(doc => doc.data())
+      }
+    })
+}`}
+</Code>
+
+### 2. Data Validation
+// ✅ Validate data at boundaries
+
+<Code language="typescript" title="TypeScript">
+{`import { z } from 'zod'
+
+const createEntitySchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum(['technology', 'healthcare', 'finance']),
+  description: z.string().max(500),
+})
+
+export async function createEntity(data: unknown) {
+  const validatedData = createEntitySchema.parse(data)
+  // Now TypeScript knows the exact shape
+  return await db.collection('entities').add(validatedData)
+}`}
+</Code>
+
+## 🔒 Security Best Practices
+
+### 1. Authentication Checks
+// ✅ Always verify authentication
+
+<Code language="typescript" title="TypeScript">
+{`export async function updateEntity(entityId: string, data: UpdateEntityData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Verify ownership
+  const entity = await getEntity(entityId)
+  if (entity.userId !== session.user.id) {
+    throw new Error('Forbidden')
+  }
+
+  return await updateEntityInDb(entityId, data)
+}`}
+</Code>
+
+### 2. Input Sanitization
+// ✅ Sanitize user inputs
+
+<Code language="typescript" title="TypeScript">
+{`import DOMPurify from 'dompurify'
+
+function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em'],
+    ALLOWED_ATTR: []
+  })
+}`}
+</Code>
+
+## 🎨 Styling Best Practices
+
+### 1. Consistent Design System
+// ✅ Use design tokens
+
+<Code language="typescript" title="TypeScript">
+{`const theme = {
+  colors: {
+    primary: {
+      50: '#eff6ff',
+      500: '#3b82f6',
+      900: '#1e3a8a',
+    }
+  },
+  spacing: {
+    xs: '0.5rem',
+    sm: '1rem',
+    md: '1.5rem',
+  }
+}`}
+</Code>
+
+### 2. Component Variants
+// ✅ Use variant patterns
+
+<Code language="typescript" title="TypeScript">
+{`const buttonVariants = {
+  variant: {
+    default: 'bg-primary text-white',
+    outline: 'border border-primary text-primary',
+    ghost: 'text-primary hover:bg-primary/10',
+  },
+  size: {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2',
+    lg: 'px-6 py-3 text-lg',
+  }
+}`}
+</Code>
+
+## 📝 Documentation Best Practices
+
+### 1. Code Comments
+// ✅ Document complex logic
+
+<Code language="typescript" title="TypeScript">
+{`/**
+ * Calculates the confidence score for entity matching
+ * based on name similarity, industry overlap, and location proximity.
+ * 
+ * @param entity1 - First entity to compare
+ * @param entity2 - Second entity to compare
+ * @returns Confidence score between 0 and 1
+ */
+function calculateMatchConfidence(entity1: Entity, entity2: Entity): number {
+  // Weight factors for different matching criteria
+  const NAME_WEIGHT = 0.4
+  const INDUSTRY_WEIGHT = 0.3
+  const LOCATION_WEIGHT = 0.3
+  
+  // ... implementation
+}`}
+</Code>
+
+### 2. README Files
+Feature Name # Usage
+
+<Code language="markdown" title="content">
+{`Brief description of what this feature does.`}
+</Code>typescript
+import { useFeature } from './hooks/use-feature'
+
+function Component() {
+  const { data, isLoading } = useFeature()
+  // ...
+}
+```
+
+## API
+
+### `useFeature(options?)`
+
+- `options.enabled` - Whether to enable the query
+- Returns: `{ data, isLoading, error }`
+```
+
+## 🧪 Testing Best Practices
+
+### 1. Test Structure
+// ✅ Arrange, Act, Assert pattern
+
+<Code language="typescript" title="TypeScript">
+{`describe('EntityCard', () => {
+  it('should display entity information', () => {
+    // Arrange
+    const mockEntity = {
+      id: '1',
+      name: 'Test Entity',
+      description: 'Test description'
+    }
+
+    // Act
+    render(<EntityCard entity={mockEntity} />)
+
+    // Assert
+    expect(screen.getByText('Test Entity')).toBeInTheDocument()
+    expect(screen.getByText('Test description')).toBeInTheDocument()
+  })
+})`}
+</Code>
+
+### 2. Mock External Dependencies
+// ✅ Mock external services
+
+<Code language="typescript" title="TypeScript">
+{`jest.mock('@/lib/firebase', () => ({
+  db: {
+    collection: jest.fn(() => ({
+      add: jest.fn().mockResolvedValue({ id: 'mock-id' })
+    }))
+  }
+}))`}
+</Code>
+
+## 📊 Performance Best Practices
+
+### 1. React Optimization
+// ✅ Memoize expensive calculations
+
+<Code language="typescript" title="TypeScript">
+{`const ExpensiveComponent = memo(({ data }: { data: ComplexData }) => {
+  const processedData = useMemo(() => {
+    return processComplexData(data)
+  }, [data])
+
+  return <div>{processedData.result}</div>
+})
+
+// ✅ Optimize re-renders
+const OptimizedList = memo(({ items, onItemClick }: Props) => {
+  return (
+    <div>
+      {items.map(item => (
+        <OptimizedItem 
+          key={item.id}
+          item={item}
+          onClick={onItemClick}
+        />
+      ))}
+    </div>
+  )
+})`}
+</Code>
+
+### 2. Bundle Optimization
+// ✅ Dynamic imports for code splitting
+
+<Code language="typescript" title="TypeScript">
+{`const HeavyComponent = lazy(() => import('./HeavyComponent'))
+
+function App() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <HeavyComponent />
+    </Suspense>
+  )
+}`}
+</Code>
+
+---
+
+*Next: [Development Workflow](/en/library/development/workflow) - Learn about our Git workflow and development process.*

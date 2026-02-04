@@ -86,6 +86,7 @@ export function useAuth(): UseAuthReturn {
   // Map Auth.js session to AuthUser type
   const user: AuthUser | null = isAuthenticated && session?.user ? {
     id: session.user.id || '',
+    globalUserId: (session.user as any).globalUserId || session.user.id || '', // Use global ID if available
     email: session.user.email || '',
     emailVerified: (session.user as any).emailVerified || null,
     name: session.user.name || null,
@@ -97,6 +98,7 @@ export function useAuth(): UseAuthReturn {
     isVerified: (session.user as any).isVerified || false,
     createdAt: new Date((session.user as any).createdAt || Date.now()),
     lastLogin: new Date((session.user as any).lastLogin || Date.now()),
+    accountStatus: (session.user as any).accountStatus || 'ACTIVE',
     bio: (session.user as any).bio || '',
     canPostconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
     canViewconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,

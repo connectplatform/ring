@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n-config'
@@ -9,13 +9,7 @@ import { Facebook, Twitter, Linkedin, Instagram, BookOpen } from 'lucide-react'
 export default function Footer() {
   const t = useTranslations('common.footer')
   const locale = useLocale() as Locale
-  const [mounted, setMounted] = useState(false)
   const currentYear = new Date().getFullYear()
-
-  // Fix hydration mismatch by only rendering dynamic content after mount
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   return (
     <footer className="bg-background text-foreground border-t">
@@ -29,52 +23,52 @@ export default function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('aboutUs') : 'About Us'}
+                {t('aboutUs')}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {mounted ? t('aboutUsDescription') : 'About our platform and services'}
+                {t('aboutUsDescription')}
               </p>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('quickLinks') : 'Quick Links'}
+                {t('quickLinks')}
               </h3>
               <ul className="space-y-2 text-sm">
                 <li><Link href={`/${locale}/entities`} className="hover:text-primary transition-colors">
-                  {mounted ? t('entities') : 'Entities'}
+                  {t('entities')}
                 </Link></li>
                 <li><Link href={`/${locale}/opportunities`} className="hover:text-primary transition-colors">
-                  {mounted ? t('opportunities') : 'Opportunities'}
+                  {t('opportunities')}
                 </Link></li>
                 <li><Link href={`/${locale}/contact`} className="hover:text-primary transition-colors">
-                  {mounted ? t('contacts') : 'Contact'}
+                  {t('contacts')}
                 </Link></li>
                 <li><Link href={`/${locale}/docs`} className="hover:text-primary transition-colors">
-                  {mounted ? t('documentation') : 'Documentation'}
+                  {t('documentation')}
                 </Link></li>
               </ul>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('contacts') : 'Contact'}
+                {t('contacts')}
               </h3>
               <address className="text-sm text-muted-foreground not-italic">
-                <p>{mounted ? t('addressFull') : 'Address'}</p>
+                <p>{t('addressFull')}</p>
                 <p className="mt-2">
                   <a href="mailto:contact@ring.ck.ua" className="hover:text-primary transition-colors">
-                    {mounted ? t('emailFull') : 'contact@ring.ck.ua'}
+                    {t('emailFull')}
                   </a>
                 </p>
                 <p className="mt-2">
                   <a href="tel:+380975328801" className="hover:text-primary transition-colors">
-                    {mounted ? t('phoneFull') : '+38 097 532 8801'}
+                    {t('phoneFull')}
                   </a>
                 </p>
               </address>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('followUs') : 'Follow Us'}
+                {t('followUs')}
               </h3>
               <div className="flex space-x-4">
                 <a href="#" aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors">
@@ -107,13 +101,13 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4">
               <p className="text-sm text-muted-foreground">
-                {mounted ? t('copyright', { year: currentYear.toString() }) : `© ${currentYear} Ring`}
+                {t('copyright', { year: currentYear.toString() })}
               </p>
               <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                {mounted ? t('privacyPolicy') : 'Privacy Policy'}
+                {t('privacyPolicy')}
               </Link>
               <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                {mounted ? t('termsOfService') : 'Terms of Service'}
+                {t('termsOfService')}
               </Link>
             </div>
           </div>
@@ -126,52 +120,52 @@ export default function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('aboutUs') : 'About Us'}
+                {t('aboutUs')}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {mounted ? t('aboutUsDescription') : 'About our platform and services'}
+                {t('aboutUsDescription')}
               </p>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('quickLinks') : 'Quick Links'}
+                {t('quickLinks')}
               </h3>
               <ul className="space-y-2 text-sm">
                 <li><Link href={`/${locale}/entities`} className="hover:text-primary transition-colors">
-                  {mounted ? t('entities') : 'Entities'}
+                  {t('entities')}
                 </Link></li>
                 <li><Link href={`/${locale}/opportunities`} className="hover:text-primary transition-colors">
-                  {mounted ? t('opportunities') : 'Opportunities'}
+                  {t('opportunities')}
                 </Link></li>
                 <li><Link href={`/${locale}/contact`} className="hover:text-primary transition-colors">
-                  {mounted ? t('contacts') : 'Contact'}
+                  {t('contacts')}
                 </Link></li>
                 <li><Link href={`/${locale}/docs`} className="hover:text-primary transition-colors">
-                  {mounted ? t('documentation') : 'Documentation'}
+                  {t('documentation')}
                 </Link></li>
               </ul>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('contacts') : 'Contact'}
+                {t('contacts')}
               </h3>
               <address className="text-sm text-muted-foreground not-italic">
-                <p>{mounted ? t('addressFull') : 'Address'}</p>
+                <p>{t('addressFull')}</p>
                 <p className="mt-2">
                   <a href="mailto:contact@ring.ck.ua" className="hover:text-primary transition-colors">
-                    {mounted ? t('emailFull') : 'contact@ring.ck.ua'}
+                    {t('emailFull')}
                   </a>
                 </p>
                 <p className="mt-2">
                   <a href="tel:+380975328801" className="hover:text-primary transition-colors">
-                    {mounted ? t('phoneFull') : '+38 097 532 8801'}
+                    {t('phoneFull')}
                   </a>
                 </p>
               </address>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">
-                {mounted ? t('followUs') : 'Follow Us'}
+                {t('followUs')}
               </h3>
               <div className="flex space-x-4">
                 <a href="#" aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors">
@@ -195,13 +189,13 @@ export default function Footer() {
           <div className="mt-12 pt-8 border-t border-muted flex flex-col md:flex-row justify-between items-center">
             <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4">
               <p className="text-sm text-muted-foreground">
-                {mounted ? t('copyright', { year: currentYear.toString() }) : `© ${currentYear} Ring`}
+                {t('copyright', { year: currentYear.toString() })}
               </p>
               <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                {mounted ? t('privacyPolicy') : 'Privacy Policy'}
+                {t('privacyPolicy')}
               </Link>
               <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                {mounted ? t('termsOfService') : 'Terms of Service'}
+                {t('termsOfService')}
               </Link>
             </div>
           </div>

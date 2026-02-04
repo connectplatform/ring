@@ -1,5 +1,6 @@
 {
   "title": "Організації",
+  "subtitle": "Досліджуйте організації в екосистемі",
   "entitiesTitle": "Каталог організацій",
   "confidentialEntitiesTitle": "Конфіденційні організації",
   "loadingMessage": "Завантаження організацій...",
@@ -7,7 +8,37 @@
   "foundedIn": "Засновано у {year}",
   "employees": "{count} співробітників",
   "tags": "Теги",
-  "filters": "Фільтри",
+  "filters": {
+    "search": {
+      "label": "Пошук організацій",
+      "placeholder": "Введіть назву організації, галузь або місцезнаходження..."
+    },
+    "sections": {
+      "types": "Типи організацій",
+      "location": "Місцезнаходження",
+      "companySize": "Розмір компанії",
+      "foundedYear": "Рік заснування",
+      "verification": "Верифікація"
+    },
+    "location": {
+      "placeholder": "Введіть місцезнаходження..."
+    },
+    "companySize": {
+      "min": "Мін",
+      "max": "Макс"
+    },
+    "foundedYear": {
+      "from": "З",
+      "to": "До"
+    },
+    "verification": {
+      "anyStatus": "Будь-який статус",
+      "verified": "Верифіковано",
+      "pending": "Очікує",
+      "unverified": "Не верифіковано"
+    },
+    "apply": "Застосувати фільтри"
+  },
   "clearFilters": "Очистити фільтри",
   "certifications": "Сертифікації",
   "viewDetails": "Детальніше",

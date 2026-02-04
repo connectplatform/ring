@@ -1,0 +1,42 @@
+{
+  "title": "News & Updates",
+  "description": "Stay informed with the latest news, platform updates, partnership announcements, and community highlights from Ring Platform.",
+  "featuredStories": "Featured Stories",
+  "allArticles": "All Articles",
+  "readMore": "Read more",
+  "byAuthor": "By",
+  "featured": "Featured",
+  "createArticle": "Create Article",
+  "createFirstArticle": "Create Your First Article",
+  "myNews": "My News",
+  "myNewsDescription": "Manage your published articles and writing statistics",
+  "noArticles": "No articles yet",
+  "noArticlesDescription": "Start writing your first article to share your knowledge with the community.",
+  "allStatuses": "All Statuses",
+  "mostViewedArticle": "Most Viewed Article",
+  "status": {
+    "published": "Published",
+    "draft": "Draft",
+    "archived": "Archived"
+  },
+  "categories": {
+    "platform-updates": "Platform Updates",
+    "partnerships": "Partnerships",
+    "community": "Community",
+    "industry-news": "Industry News",
+    "events": "Events",
+    "announcements": "Announcements",
+    "press-releases": "Press Releases",
+    "tutorials": "Tutorials",
+    "other": "Other"
+  },
+  "backToNews": "Back to News",
+  "share": "Share",
+  "relatedArticles": "Related Articles",
+  "tags": "Tags",
+  "gallery": "Gallery",
+  "authorBio": "Content creator and contributor to Ring Platform news and updates.",
+  "joined": "Joined",
+  "articles": "articles",
+  "allCategories": "All Categories"
+}

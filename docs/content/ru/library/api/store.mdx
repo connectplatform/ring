@@ -1,0 +1,52 @@
+---
+title: Store
+description: Store documentation for Ring Platform
+---
+
+# Store API
+
+Multi-vendor marketplace with **7 endpoints** for vendor management, product catalog, order processing, and automated settlements.
+
+## Overview
+
+Ring Platform store system provides:
+- Vendor onboarding and management
+- Product catalog with inventory tracking
+- Order processing and fulfillment
+- Payment integration with WayForPay
+- Automated vendor settlements
+
+## API Endpoints
+
+### `GET /api/store/products`
+List products with filtering and search
+
+### `POST /api/store/products`
+Create new product (vendor only)
+
+### `GET /api/store/orders`
+List orders for user or vendor
+
+### `POST /api/store/orders`
+Create new order
+
+### `PUT /api/store/orders/{id}/status`
+Update order status
+
+### `GET /api/store/vendors`
+List verified vendors
+
+### `POST /api/store/vendors/apply`
+Apply to become vendor
+
+## Vendor Features
+
+- **Product Management** - Create and manage product listings
+- **Inventory Tracking** - Real-time stock management
+- **Order Fulfillment** - Process and ship orders
+- **Analytics Dashboard** - Sales and performance metrics
+- **Automated Settlements** - Daily payment processing
+
+---
+
+*Complete store documentation coming soon. Check our [Features](/ru/library/features/store) section for implementation details.*

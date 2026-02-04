@@ -1,0 +1,1004 @@
+---
+title: Моніторинг та аналітика
+description: Повне налаштування моніторингу, відстеження продуктивності, обробка помилок, інтеграція аналітики та система сповіщень для розгортань платформи Ring
+last_modified: "2025-10-16"
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Моніторинг та аналітика
+
+Платформа Ring надає комплексні можливості моніторингу та аналітики для забезпечення оптимальної продуктивності, надійності та користувацького досвіду. Наша система моніторингу відстежує все: від продуктивності додатку до бізнес-метрик, із автоматизованими сповіщеннями та детальними аналітичними панелями.
+
+<Callout type="info" title="📊 Багаторівневий моніторинг">
+Платформа Ring реалізує **5-рівневу систему моніторингу**: Інфраструктура → Додаток → Користувацький досвід → Бізнес-розвідка → Безпека, що забезпечує повну видимість стану системи та продуктивності.
+</Callout>
+
+## 🏗️ Архітектура моніторингу
+
+### Стек моніторингу
+
+```
+Інфраструктурний моніторинг → Метрики додатку → Аналітика користувачів → Бізнес-розвідка → Моніторинг безпеки
+              ↓                           ↓                    ↓                    ↓                    ↓
+    Prometheus/Grafana         Vercel Analytics     PostHog/Mixpanel     Кастомні панелі    Журнали безпеки
+```
+
+### Рівні моніторингу
+
+- **Інфраструктура**: Ресурси сервера, продуктивність бази даних, стан мережі
+- **Додаток**: Часи відповідей API, частота помилок, пропускна здатність
+- **Користувацький досвід**: Час завантаження сторінок, Core Web Vitals, шляхи користувачів
+- **Бізнес**: Коефіцієнти конверсії, відстеження доходів, залученість користувачів
+- **Безпека**: Спроби невдалих входів, підозрілі дії, аудиторські журнали
+
+### Стратегія збору даних
+
+- **Метрики в режимі реального часу**: WebSocket з'єднання, виклики API, взаємодії користувачів
+- **Дані продуктивності**: Завантаження сторінок, часи відповідей API, запити до бази даних
+- **Бізнес-події**: Покупки, реєстрації, використання функцій, воронки конверсії
+- **Відстеження помилок**: Помилки JavaScript, невдачі API, системні виключення
+- **Події безпеки**: Спроби аутентифікації, зміни дозволів, доступ до даних
+
+## 📊 Моніторинг продуктивності
+
+### Core Web Vitals
+
+Платформа Ring відстежує Core Web Vitals від Google для забезпечення оптимального користувацького досвіду:
+
+#### Largest Contentful Paint (LCP)
+// Автоматичне відстеження LCP з Vercel Analytics
+
+<Code language="typescript" title="TypeScript">
+{`import { trackWebVitals } from '@/lib/analytics'
+
+export function reportWebVitals(metric) {
+  // Автоматично відстежувати LCP, FID, CLS
+  trackWebVitals(metric.name, metric.value, {
+    path: window.location.pathname,
+    device: getDeviceType(),
+    connection: navigator.connection?.effectiveType
+  })
+}`}
+</Code>
+
+#### First Input Delay (FID)
+// Відстеження взаємодії реальних користувачів
+
+<Code language="typescript" title="TypeScript">
+{`const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (entry.name === 'first-input') {
+      analytics.track('fid_measured', {
+        value: entry.processingStart - entry.startTime,
+        inputType: entry.name,
+        userAgent: navigator.userAgent
+      })
+    }
+  }
+})
+observer.observe({ entryTypes: ['first-input'] })`}
+</Code>
+
+#### Cumulative Layout Shift (CLS)
+// Моніторинг стабільності макета
+
+<Code language="typescript" title="TypeScript">
+{`let clsValue = 0
+const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (!entry.hadRecentInput) {
+      clsValue += entry.value
+    }
+  }
+})
+
+observer.observe({ entryTypes: ['layout-shift'] })
+
+// Повідомити CLS при закритті сторінки
+window.addEventListener('beforeunload', () => {
+  analytics.track('cls_measured', {
+    value: clsValue,
+    page: window.location.pathname
+  })
+})`}
+</Code>
+
+### Моніторинг продуктивності API
+
+// Клієнтський моніторинг API
+
+<Code language="typescript" title="TypeScript">
+{`const apiMonitor = {
+  requests: new Map(),
+
+  trackRequest(url: string, method: string, startTime: number) {
+    this.requests.set(`${method}-${url}`, {
+      startTime,
+      method,
+      url
+    })
+  },
+
+  trackResponse(url: string, method: string, status: number, endTime: number) {
+    const key = `${method}-${url}`
+    const request = this.requests.get(key)
+
+    if (request) {
+      const duration = endTime - request.startTime
+
+      analytics.track('api_call', {
+        url,
+        method,
+        status,
+        duration,
+        success: status >= 200 && status < 300,
+        slow: duration > 2000
+      })
+
+      this.requests.delete(key)
+    }
+  }
+}
+
+// Використання в клієнті API
+fetch('/api/entities', {
+  method: 'GET',
+  headers: { 'Authorization': token }
+}).then(response => {
+  apiMonitor.trackResponse('/api/entities', 'GET', response.status, Date.now())
+  return response.json()
+})`}
+</Code>
+
+### Відстеження продуктивності бази даних
+
+// Моніторинг запитів до бази даних
+
+<Code language="typescript" title="TypeScript">
+{`const dbMonitor = {
+  trackQuery(query: string, startTime: number, success: boolean, duration: number, error?: string) {
+    analytics.track('db_query', {
+      query: query.substring(0, 100), // Обрізати для конфіденційності
+      duration,
+      success,
+      error: error ? error.substring(0, 100) : null,
+      slow: duration > 1000,
+      timestamp: new Date().toISOString()
+    })
+  }
+}
+
+// Обгортка запитів PostgreSQL
+export async function executeQuery(query: string, params?: any[]) {
+  const startTime = Date.now()
+
+  try {
+    const result = await pool.query(query, params)
+    const duration = Date.now() - startTime
+
+    dbMonitor.trackQuery(query, startTime, true, duration)
+
+    return result
+  } catch (error) {
+    const duration = Date.now() - startTime
+
+    dbMonitor.trackQuery(query, startTime, false, duration, error.message)
+
+    throw error
+  }
+}`}
+</Code>
+
+## 🚨 Відстеження помилок та сповіщення
+
+### Моніторинг помилок на стороні клієнта
+
+// Глобальний обробник помилок
+
+<Code language="typescript" title="TypeScript">
+{`window.addEventListener('error', (event) => {
+  analytics.track('javascript_error', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    stack: event.error?.stack,
+    url: window.location.href,
+    userAgent: navigator.userAgent,
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Обробник відхилених промісів
+window.addEventListener('unhandledrejection', (event) => {
+  analytics.track('unhandled_promise_rejection', {
+    reason: event.reason?.toString(),
+    stack: event.reason?.stack,
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Error boundary у React
+class ErrorBoundary extends React.Component {
+  componentDidCatch(error, errorInfo) {
+    analytics.track('react_error', {
+      error: error.toString(),
+      stack: errorInfo.componentStack,
+      url: window.location.href,
+      timestamp: new Date().toISOString()
+    })
+  }
+}`}
+</Code>
+
+### Моніторинг помилок на стороні сервера
+
+// Відстеження помилок маршрутів API
+
+<Code language="typescript" title="TypeScript">
+{`export async function apiErrorHandler(error: Error, request: Request) {
+  const errorData = {
+    message: error.message,
+    stack: error.stack,
+    url: request.url,
+    method: request.method,
+    headers: Object.fromEntries(request.headers),
+    timestamp: new Date().toISOString(),
+    userAgent: request.headers.get('user-agent'),
+    ip: getClientIP(request)
+  }
+
+  // Відстежити помилку
+  analytics.track('api_error', errorData)
+
+  // Записати до системи моніторингу
+  logger.error('API Error', errorData)
+
+  return new Response(JSON.stringify({
+    error: 'Internal Server Error',
+    requestId: generateRequestId()
+  }), { status: 500 })
+}`}
+</Code>
+
+### Конфігурація сповіщень
+
+// Визначення сповіщень
+
+<Code language="typescript" title="TypeScript">
+{`const alerts = {
+  // Сповищення продуктивності
+  slowApiResponse: {
+    condition: 'avg(api_response_time) > 2000',
+    threshold: '5 minutes',
+    severity: 'warning',
+    channels: ['slack', 'email'],
+    message: 'Час відповіді API перевищив 2 секунди протягом 5+ хвилин'
+  },
+
+  highErrorRate: {
+    condition: 'rate(http_requests_total{status=~"5.."}[5m]) > 0.05',
+    threshold: '5 minutes',
+    severity: 'critical',
+    channels: ['slack', 'sms', 'email'],
+    message: 'Частота помилок перевищила 5% протягом 5+ хвилин'
+  },
+
+  // Бізнес-сповіщення
+  failedPayments: {
+    condition: 'increase(payment_failures[1h]) > 10',
+    threshold: '1 hour',
+    severity: 'warning',
+    channels: ['slack'],
+    message: 'Більше 10 невдалих платежів за останню годину'
+  },
+
+  // Сповищення безпеки
+  failedLogins: {
+    condition: 'increase(failed_login_attempts[15m]) > 50',
+    threshold: '15 minutes',
+    severity: 'warning',
+    channels: ['slack', 'email'],
+    message: 'Виявлено велику кількість невдалих спроб входу'
+  }
+}`}
+</Code>
+
+## 📈 Інтеграція аналітики
+
+### Відстеження поведінки користувачів
+
+// Відстеження перегляду сторінок
+
+<Code language="typescript" title="TypeScript">
+{`const trackPageView = (page: string, properties?: Record<string, any>) => {
+  analytics.track('page_view', {
+    page,
+    referrer: document.referrer,
+    userAgent: navigator.userAgent,
+    screenSize: `${window.screen.width}x${window.screen.height}`,
+    language: navigator.language,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ...properties
+  })
+}
+
+// Відстеження шляху користувача
+const trackUserJourney = (step: string, data?: Record<string, any>) => {
+  analytics.track('user_journey', {
+    step,
+    sessionId: getSessionId(),
+    timestamp: new Date().toISOString(),
+    ...data
+  })
+}
+
+// Приклад використання
+trackUserJourney('landing_page_viewed')
+trackUserJourney('signup_started', { source: 'google_ads' })
+trackUserJourney('signup_completed', { plan: 'premium' })`}
+</Code>
+
+### Аналіз воронки конверсії
+
+// Відстеження конверсії
+
+<Code language="typescript" title="TypeScript">
+{`const trackConversion = (funnel: string, step: string, userId?: string) => {
+  analytics.track('conversion_funnel', {
+    funnel, // 'signup', 'purchase', 'onboarding'
+    step,   // 'started', 'step1_completed', 'completed'
+    userId,
+    timestamp: new Date().toISOString(),
+    sessionId: getSessionId()
+  })
+}
+
+// Визначення воронок
+const funnels = {
+  signup: ['landing_page', 'signup_form', 'email_verification', 'profile_setup', 'completed'],
+  purchase: ['product_view', 'add_to_cart', 'checkout_start', 'payment', 'completed'],
+  onboarding: ['login', 'profile_complete', 'first_entity', 'first_opportunity', 'first_message']
+}`}
+</Code>
+
+### Фреймворк A/B тестування
+
+// Відстеження A/B тестів
+
+<Code language="typescript" title="TypeScript">
+{`const trackABTest = (testName: string, variant: string, event: string, data?: Record<string, any>) => {
+  analytics.track('ab_test', {
+    testName,
+    variant,
+    event,
+    userId: getCurrentUserId(),
+    sessionId: getSessionId(),
+    timestamp: new Date().toISOString(),
+    ...data
+  })
+}
+
+// Приклад використання
+trackABTest('checkout_flow', 'variant_a', 'checkout_started')
+trackABTest('pricing_page', 'variant_b', 'upgrade_clicked', {
+  currentPlan: 'free',
+  targetPlan: 'premium'
+})`}
+</Code>
+
+## 🔍 Управління журналами
+
+### Структуроване логування
+
+// Конфігурація логера
+
+<Code language="typescript" title="TypeScript">
+{`const logger = {
+  info: (message: string, data?: any) => log('info', message, data),
+  warn: (message: string, data?: any) => log('warn', message, data),
+  error: (message: string, data?: any) => log('error', message, data),
+  debug: (message: string, data?: any) => log('debug', message, data)
+}
+
+function log(level: string, message: string, data?: any) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    service: 'ring-platform',
+    version: process.env.npm_package_version,
+    environment: process.env.NODE_ENV,
+    requestId: getCurrentRequestId(),
+    userId: getCurrentUserId(),
+    sessionId: getCurrentSessionId(),
+    ...data
+  }
+
+  // Вивід до консолі для розробки
+  if (process.env.NODE_ENV === 'development') {
+    console.log(JSON.stringify(logEntry, null, 2))
+  }
+
+  // Надіслати до сервісу моніторингу
+  sendToLogService(logEntry)
+}`}
+</Code>
+
+### Агрегація журналів
+
+// Конфігурація відправки журналів
+
+<Code language="typescript" title="TypeScript">
+{`const logShipper = {
+  // Розгортання Vercel
+  vercel: {
+    endpoint: process.env.VERCEL_LOG_DRAIN,
+    format: 'json'
+  },
+
+  // Зовнішні сервіси
+  datadog: {
+    apiKey: process.env.DD_API_KEY,
+    tags: ['service:ring-platform', 'env:production']
+  },
+
+  // Хмарні сервіси
+  cloudwatch: {
+    logGroup: '/ring-platform/production',
+    logStream: `instance-${process.env.INSTANCE_ID}`
+  }
+}
+
+// Пакетування журналів для ефективності
+class LogBatcher {
+  private logs: any[] = []
+  private flushInterval: NodeJS.Timeout
+
+  constructor() {
+    this.flushInterval = setInterval(() => this.flush(), 5000)
+  }
+
+  add(logEntry: any) {
+    this.logs.push(logEntry)
+
+    if (this.logs.length >= 100) {
+      this.flush()
+    }
+  }
+
+  async flush() {
+    if (this.logs.length === 0) return
+
+    const batch = [...this.logs]
+    this.logs = []
+
+    try {
+      await sendLogsToService(batch)
+    } catch (error) {
+      console.error('Не вдалося надіслати журнали:', error)
+      // Логіка повтору тут
+    }
+  }
+}`}
+</Code>
+
+## 📊 Панелі та звітність
+
+### Панель в режимі реального часу
+
+// Постачальник даних панелі
+
+<Code language="typescript" title="TypeScript">
+{`const useDashboardData = () => {
+  const [metrics, setMetrics] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await fetch('/api/admin/analytics?period=hour')
+        const data = await response.json()
+
+        setMetrics({
+          users: {
+            active: data.userMetrics.activity.dailyActiveUsers,
+            total: data.summary.totalUsers,
+            growth: calculateGrowth(data.userMetrics.registrations)
+          },
+          performance: {
+            responseTime: data.systemMetrics.performance.avgResponseTime,
+            errorRate: data.systemMetrics.performance.errorRate,
+            uptime: data.systemMetrics.performance.uptime
+          },
+          business: {
+            revenue: data.summary.revenue,
+            orders: data.summary.totalOrders,
+            conversion: data.userMetrics.registrations.conversion
+          }
+        })
+      } catch (error) {
+        console.error('Не вдалося отримати дані панелі:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMetrics()
+
+    // Оновлення в режимі реального часу кожні 30 секунд
+    const interval = setInterval(fetchMetrics, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return { metrics, loading }
+}`}
+</Code>
+
+### Конструктор кастомних звітів
+
+// Конфігурація звіту
+
+<Code language="typescript" title="TypeScript">
+{`interface ReportConfig {
+  name: string
+  dateRange: {
+    start: string
+    end: string
+  }
+  metrics: string[]
+  filters: Record<string, any>
+  groupBy: string[]
+  format: 'json' | 'csv' | 'pdf'
+}
+
+const generateReport = async (config: ReportConfig) => {
+  const response = await fetch('/api/admin/reports/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config)
+  })
+
+  if (config.format === 'json') {
+    return response.json()
+  } else {
+    // Обробити завантаження файлу
+    const blob = await response.blob()
+    downloadBlob(blob, `${config.name}.${config.format}`)
+  }
+}
+
+// Використання
+const monthlyReport = await generateReport({
+  name: 'Місячна активність користувачів',
+  dateRange: {
+    start: '2025-09-01',
+    end: '2025-09-30'
+  },
+  metrics: ['activeUsers', 'newUsers', 'revenue', 'errorRate'],
+  filters: { platform: 'web' },
+  groupBy: ['day'],
+  format: 'csv'
+})`}
+</Code>
+
+## 🔧 Приклади реалізації
+
+### Посібник з налаштування моніторингу
+
+<Steps>
+<Step>
+
+### 1. Інтеграція Vercel Analytics
+
+// app/layout.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { Analytics } from '@vercel/analytics/react'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}`}
+</Code>
+
+</Step>
+
+<Step>
+
+### 2. Налаштування Error Boundary
+
+// components/ErrorBoundary.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import React from 'react'
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // Записати помилку до сервісу моніторингу
+    fetch('/api/errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: error.toString(),
+        stack: errorInfo.componentStack,
+        url: window.location.href,
+        timestamp: new Date().toISOString()
+      })
+    })
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>Щось пішло не так. Будь ласка, оновіть сторінку.</div>
+    }
+
+    return this.props.children
+  }
+}
+
+export default ErrorBoundary`}
+</Code>
+
+</Step>
+
+<Step>
+
+### 3. Налаштування Performance Observer
+
+// lib/performance.ts
+
+<Code language="typescript" title="TypeScript">
+{`export function initPerformanceMonitoring() {
+  // Core Web Vitals
+  if ('web-vitals' in window) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS(console.log)
+      getFID(console.log)
+      getFCP(console.log)
+      getLCP(console.log)
+      getTTFB(console.log)
+    })
+  }
+
+  // Довгі завдання
+  if ('PerformanceObserver' in window) {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.duration > 50) { // Довге завдання > 50мс
+          analytics.track('long_task', {
+            duration: entry.duration,
+            startTime: entry.startTime,
+            name: entry.name
+          })
+        }
+      }
+    })
+
+    observer.observe({ entryTypes: ['longtask'] })
+  }
+
+  // Завантаження ресурсів
+  const resourceObserver = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      if (entry.duration > 2000) { // Повільний ресурс > 2с
+        analytics.track('slow_resource', {
+          url: entry.name,
+          duration: entry.duration,
+          size: entry.transferSize,
+          type: entry.initiatorType
+        })
+      }
+    }
+  })
+
+  resourceObserver.observe({ entryTypes: ['resource'] })
+}`}
+</Code>
+
+</Step>
+
+<Step>
+
+### 4. Обробник вебхуків сповіщень
+
+// pages/api/alerts/webhook.ts
+
+<Code language="typescript" title="TypeScript">
+{`export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  try {
+    const alert = req.body
+
+    // Обробити сповіщення залежно від типу
+    switch (alert.type) {
+      case 'performance':
+        await handlePerformanceAlert(alert)
+        break
+      case 'error':
+        await handleErrorAlert(alert)
+        break
+      case 'security':
+        await handleSecurityAlert(alert)
+        break
+      default:
+        console.log('Невідомий тип сповіщення:', alert.type)
+    }
+
+    res.status(200).json({ status: 'processed' })
+  } catch (error) {
+    console.error('Не вдалося обробити сповіщення:', error)
+    res.status(500).json({ error: 'Processing failed' })
+  }
+}
+
+async function handlePerformanceAlert(alert) {
+  // Надіслати сповіщення Slack
+  await fetch(process.env.SLACK_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: `🚨 Сповищення продуктивності: ${alert.message}`,
+      attachments: [{
+        color: 'warning',
+        fields: [
+          { title: 'Метрика', value: alert.metric, short: true },
+          { title: 'Значення', value: alert.value, short: true },
+          { title: 'Поріг', value: alert.threshold, short: true }
+        ]
+      }]
+    })
+  })
+}`}
+</Code>
+
+</Step>
+</Steps>
+
+## 🚨 Управління сповіщеннями
+
+### Типи сповіщень
+
+| Тип сповіщення | Серйозність | Опис | Час відповіді |
+|----------------|-------------|------|---------------|
+| **Критичний** | 🔴 | Система не працює, втрата даних | Негайно (< 5 хв) |
+| **Високий** | 🟠 | Погіршення сервісу, порушення безпеки | Протягом 15 хвилин |
+| **Середній** | 🟡 | Проблеми продуктивності, висока частота помилок | Протягом 1 години |
+| **Низький** | 🔵 | Дрібні проблеми, інформаційні | Протягом 4 годин |
+| **Інформаційний** | ℹ️ | Інформація системи, обслуговування | За потреби |
+
+### Канали сповіщень
+
+- **Slack**: Сповіщення в режимі реального часу для команди розробки
+- **Email**: Детальні звіти та некритичні сповіщення
+- **SMS**: Критичні сповіщення, що потребують негайної уваги
+- **PagerDuty**: Ескалація для критичних системних проблем
+- **Панель**: Візуальні індикатори на панелі моніторингу
+
+### Ескалація сповіщень
+
+// Правила ескалації
+
+<Code language="typescript" title="TypeScript">
+{`const escalationRules = {
+  critical: {
+    immediate: ['sms', 'slack', 'pagerduty'],
+    '15min': ['email'],
+    '1hour': ['management_email']
+  },
+  high: {
+    immediate: ['slack'],
+    '30min': ['email'],
+    '2hours': ['sms']
+  },
+  medium: {
+    '1hour': ['slack', 'email'],
+    '4hours': ['sms']
+  }
+}`}
+</Code>
+
+## 📊 Бізнес-розвідка
+
+### Аналітика доходів
+
+// Відстеження доходів
+
+<Code language="typescript" title="TypeScript">
+{`const trackRevenue = (order: Order) => {
+  analytics.track('revenue', {
+    amount: order.totalAmount,
+    currency: order.currency,
+    paymentMethod: order.paymentMethod,
+    vendorId: order.vendorId,
+    customerType: order.customer.new ? 'new' : 'returning',
+    products: order.items.length,
+    timestamp: new Date().toISOString()
+  })
+
+  // Оновити метрики доходів
+  updateRevenueMetrics(order)
+}
+
+// Розрахунок метрик доходів
+const updateRevenueMetrics = (order: Order) => {
+  const metrics = {
+    dailyRevenue: getDailyRevenue(),
+    monthlyRevenue: getMonthlyRevenue(),
+    averageOrderValue: getAverageOrderValue(),
+    revenueByPaymentMethod: getRevenueByPaymentMethod(),
+    topProducts: getTopProducts(),
+    customerLifetimeValue: getCustomerLifetimeValue()
+  }
+
+  // Зберегти метрики для панелі
+  cache.set('revenue_metrics', metrics, 3600) // Кеш на 1 годину
+}`}
+</Code>
+
+### Сегментація користувачів
+
+// Відстеження сегментації користувачів
+
+<Code language="typescript" title="TypeScript">
+{`const trackUserSegment = (userId: string, segment: string) => {
+  analytics.track('user_segment', {
+    userId,
+    segment, // 'free', 'premium', 'enterprise', 'inactive'
+    previousSegment: getPreviousSegment(userId),
+    timestamp: new Date().toISOString()
+  })
+}
+
+// Визначення сегментів
+const userSegments = {
+  free: {
+    criteria: 'plan === "free"',
+    value: 'Низька цінність, високий обсяг'
+  },
+  premium: {
+    criteria: 'plan === "premium" && active',
+    value: 'Висока цінність, залучені користувачі'
+  },
+  enterprise: {
+    criteria: 'plan === "enterprise"',
+    value: 'Найвища цінність, складні потреби'
+  },
+  inactive: {
+    criteria: 'lastLogin > 90 days',
+    value: 'Під ризиком відтоку'
+  }
+}`}
+</Code>
+
+## 🔒 Моніторинг безпеки
+
+### Моніторинг аутентифікації
+
+// Відстеження невдалих входів
+
+<Code language="typescript" title="TypeScript">
+{`const trackFailedLogin = (email: string, ip: string, userAgent: string) => {
+  analytics.track('failed_login', {
+    email: hashEmail(email), // Захист конфіденційності
+    ip,
+    userAgent,
+    timestamp: new Date().toISOString(),
+    attempts: getRecentFailedAttempts(ip)
+  })
+
+  // Перевірити на brute force атаки
+  if (getRecentFailedAttempts(ip) > 5) {
+    securityAlert('brute_force_attempt', { ip, attempts: getRecentFailedAttempts(ip) })
+  }
+}
+
+// Виявлення підозрілої активності
+const detectSuspiciousActivity = (userId: string, action: string, context: any) => {
+  const riskScore = calculateRiskScore(userId, action, context)
+
+  if (riskScore > 0.8) {
+    securityAlert('suspicious_activity', {
+      userId,
+      action,
+      riskScore,
+      context
+    })
+  }
+}`}
+</Code>
+
+### Аудиторський слід
+
+// Комплексне аудиторське логування
+
+<Code language="typescript" title="TypeScript">
+{`const auditLog = (action: string, actor: string, target: string, details: any) => {
+  const auditEntry = {
+    id: generateAuditId(),
+    timestamp: new Date().toISOString(),
+    action,
+    actor: {
+      id: actor,
+      type: 'user', // або 'system', 'api'
+      ip: getClientIP(),
+      userAgent: getUserAgent()
+    },
+    target: {
+      id: target,
+      type: getTargetType(target) // 'user', 'order', 'product' тощо
+    },
+    details,
+    checksum: generateChecksum(auditEntry)
+  }
+
+  // Зберегти в захищеному від змін аудиторському журналі
+  storeAuditEntry(auditEntry)
+
+  // Надіслати до моніторингу безпеки
+  securityMonitor.processAuditEntry(auditEntry)
+}`}
+</Code>
+
+## 🎛️ Конфігурація
+
+### Змінні середовища
+
+Аналітика та моніторинг Конфігурація сповіщень Моніторинг продуктивності Моніторинг безпеки Конфігурація панелі
+
+<Code language="bash" title="terminal">
+{`VERCEL_ANALYTICS_ID=your-vercel-analytics-id
+SENTRY_DSN=your-sentry-dsn
+MIXPANEL_TOKEN=your-mixpanel-token
+
+SLACK_WEBHOOK_URL=your-slack-webhook
+PAGERDUTY_INTEGRATION_KEY=your-pagerduty-key
+ALERT_EMAIL_RECIPIENTS=alerts@yourcompany.com
+
+PERFORMANCE_MONITORING_ENABLED=true
+WEB_VITALS_TRACKING_ENABLED=true
+ERROR_TRACKING_ENABLED=true
+
+SECURITY_MONITORING_ENABLED=true
+AUDIT_LOG_RETENTION_DAYS=2555
+BRUTE_FORCE_PROTECTION_ENABLED=true
+
+DASHBOARD_REFRESH_INTERVAL=30
+METRICS_RETENTION_DAYS=90
+REAL_TIME_UPDATES_ENABLED=true`}
+</Code>
+
+### URL-адреси панелей моніторингу
+
+- **Vercel Analytics**: `https://vercel.com/your-project/analytics`
+- **Панель Sentry**: `https://sentry.io/organizations/your-org/issues/`
+- **Кастомна панель**: `/admin/analytics` (вбудована в Ring Platform)
+- **Моніторинг доступності**: Налаштувати зовнішній сервіс моніторингу доступності
+
+---
+
+*Система моніторингу та аналітики платформи Ring забезпечує спостережуваність корпоративного рівня з інсайтами в режимі реального часу, автоматизованими сповіщеннями та комплексною бізнес-розвідкою.*

@@ -272,11 +272,11 @@ export function StarRating({
       {/* Rating Value and Label */}
       {showValue && (
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-foreground">
             {loading ? '...' : displayRating.toFixed(allowHalf ? 1 : 0)}
           </span>
           {interactive && isHovering && (
-            <span className="text-gray-600">
+            <span className="text-muted-foreground">
               ({currentLabel})
             </span>
           )}

@@ -7,7 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import RightSidebar from '@/features/layout/components/right-sidebar'
-import DesktopSidebar from '@/features/layout/components/desktop-sidebar'
+import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import DocsWrapper from '@/components/wrappers/docs-wrapper'
+import { isValidLocale, defaultLocale, type Locale } from '@/i18n-config'
+
+// Route segment configuration for docs hub page
+export const dynamic = 'auto'
+export const revalidate = 3600 // Revalidate every hour
 import {
   FileText,
   Search,
@@ -15,15 +21,8 @@ import {
   Code,
   Zap,
   MessageSquare,
-  Star,
-  Clock,
-  Users,
-  TrendingUp,
-  Lightbulb,
-  Settings,
   Play,
-  ChevronRight,
-  ExternalLink
+  Clock
 } from 'lucide-react'
 
 interface DocSection {
@@ -45,37 +44,33 @@ interface PageProps {
 
 export default async function DocumentationHubPage({ params }: PageProps) {
   // Await params to avoid sync dynamic API error
-  const { locale } = await params
+  const { locale: rawLocale } = await params
+  const locale = isValidLocale(rawLocale) ? rawLocale : defaultLocale
 
-  // Redirect to the comprehensive documentation index with mermaid diagrams
-  const { redirect } = await import('next/navigation')
-  redirect(`/${locale}/docs/library`)
+  const docsDirectory = path.join(process.cwd(), 'content/docs')
 
-  // This code below is unreachable but kept for reference
   const docsSections: DocSection[] = []
-  const docsRoot = path.join(process.cwd(), 'docs', 'content', locale, 'library')
 
   try {
-    if (fs.existsSync(docsRoot)) {
-      const sections = fs.readdirSync(docsRoot)
+    if (fs.existsSync(docsDirectory)) {
+      const sections = fs.readdirSync(docsDirectory, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name)
 
       for (const section of sections) {
-        const sectionPath = path.join(docsRoot, section)
-        if (fs.statSync(sectionPath).isDirectory()) {
-          const files = fs.readdirSync(sectionPath).filter(f => f.endsWith('.mdx'))
+        const sectionPath = path.join(docsDirectory, section)
+        const files = fs.readdirSync(sectionPath)
 
-          for (const file of files) {
+        for (const file of files) {
+          if (file.endsWith('.mdx')) {
             try {
               const filePath = path.join(sectionPath, file)
-              const content = fs.readFileSync(filePath, 'utf8')
-              const { data } = matter(content)
+              const fileContents = fs.readFileSync(filePath, 'utf8')
+              const { data } = matter(fileContents)
 
-              // Use full path as unique ID to avoid duplicates
-              const uniqueId = `${section}-${file.replace('.mdx', '')}`
-              
               docsSections.push({
-                id: uniqueId,
-                title: data.title || file.replace('.mdx', ''),
+                id: `${section}-${file}`,
+                title: data.title || 'Untitled',
                 description: data.description || '',
                 category: section.charAt(0).toUpperCase() + section.slice(1),
                 slug: file === 'index.mdx' ? section : `${section}/${file.replace('.mdx', '')}`,
@@ -95,19 +90,19 @@ export default async function DocumentationHubPage({ params }: PageProps) {
   }
 
   const featuredDocs = docsSections.filter(doc => doc.featured)
-  
-  const getDifficultyColor = (category: string) => {
-    const colors: Record<string, string> = {
-      'Getting-started': 'green',
-      'Api': 'blue',
-      'Features': 'purple',
-      'Development': 'orange',
-      'Deployment': 'red',
-      'Examples': 'indigo',
-      'Architecture': 'teal',
-      'Customization': 'pink'
+
+  const getCategoryBadgeClasses = (category: string) => {
+    const classes: Record<string, string> = {
+      'Getting-started': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      'Api': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      'Features': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      'Development': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      'Deployment': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      'Examples': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+      'Architecture': 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+      'Customization': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200'
     }
-    return colors[category.toLowerCase()] || 'gray'
+    return classes[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
   }
 
   const getFeatureIcon = (type: string) => {
@@ -123,7 +118,7 @@ export default async function DocumentationHubPage({ params }: PageProps) {
   // Localized content
   const t = {
     title: locale === 'uk' ? 'Центр документації' : 'Documentation Hub',
-    subtitle: locale === 'uk' 
+    subtitle: locale === 'uk'
       ? 'Комплексна система документації з пошуком на основі ШІ, інтерактивними прикладами та базою знань, що підтримується спільнотою.'
       : 'Comprehensive documentation system with AI-powered search, interactive examples, and community-driven knowledge base.',
     articles: locale === 'uk' ? 'Статей' : 'Articles',
@@ -139,37 +134,29 @@ export default async function DocumentationHubPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop Layout - Hidden on mobile */}
-      <div className="hidden lg:block">
-        <div className="grid grid-cols-[280px_1fr_320px] gap-6 min-h-screen">
-          {/* Left Sidebar - Navigation */}
-          <div>
-            <DesktopSidebar />
+    <DocsWrapper locale={locale as Locale}>
+      {/* Main Content - Documentation Hub */}
+      <div className="container mx-auto px-0 py-0">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <FileText className="w-8 h-8 text-primary mr-3" />
+            <h1 className="text-4xl font-bold text-foreground">{t.title}</h1>
           </div>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            {t.subtitle}
+          </p>
+        </div>
 
-          {/* Main Content - Documentation Hub */}
-          <div className="container mx-auto px-4 py-8">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-primary mr-3" />
-                <h1 className="text-4xl font-bold text-foreground">{t.title}</h1>
-              </div>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                {t.subtitle}
-              </p>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{docsSections.length}+</div>
-                  <p className="text-xs text-muted-foreground">{t.articles}</p>
-                </CardContent>
-              </Card>
-              <Card>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{docsSections.length}+</div>
+              <p className="text-xs text-muted-foreground">{t.articles}</p>
+            </CardContent>
+          </Card>
+          <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">8</div>
               <p className="text-xs text-muted-foreground">{t.categories}</p>
@@ -183,150 +170,126 @@ export default async function DocumentationHubPage({ params }: PageProps) {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">AI</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">AI</div>
               <p className="text-xs text-muted-foreground">{t.aiPoweredSearch}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content */}
-        <div className="space-y-6">
-          {/* Featured Articles */}
-          {featuredDocs.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-4 flex items-center">
-                <Star className="w-5 h-5 mr-2 text-yellow-500" />
-                {t.featuredArticles}
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {featuredDocs.slice(0, 4).map((doc) => (
-                  <Card key={doc.id} className="group hover:shadow-xl transition-all duration-300">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-xl group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors mb-2">
-                            {doc.title}
-                          </CardTitle>
-                          <CardDescription className="text-sm mb-3 line-clamp-2">
-                            {doc.description}
-                          </CardDescription>
-                        </div>
-                        <Badge className={`bg-${getDifficultyColor(doc.category)}-100 text-${getDifficultyColor(doc.category)}-800 dark:bg-${getDifficultyColor(doc.category)}-900 dark:text-${getDifficultyColor(doc.category)}-200`}>
-                          {doc.category}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between mb-4">
+        {/* Featured Articles */}
+        {featuredDocs.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-6">{t.featuredArticles}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {featuredDocs.map((doc) => (
+                <Card key={doc.slug} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary" />
+                      {doc.title}
+                    </CardTitle>
+                    <CardDescription>{doc.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Badge variant="outline" className="text-xs">
+                        {doc.category}
+                      </Badge>
+                      {doc.readTime && (
                         <div className="flex items-center text-sm text-muted-foreground">
                           <Clock className="w-4 h-4 mr-1" />
                           {doc.readTime} {t.minRead}
                         </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-muted-foreground">
-                          {doc.lastUpdated && `${t.updated} ${new Date(doc.lastUpdated).toLocaleDateString()}`}
-                        </div>
-                        <Link href={`/${locale}/docs/${doc.slug}`}>
-                          <Button size="sm" className="group-hover:bg-purple-600 transition-colors">
-                            {t.readMore}
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* All Documentation */}
-          <div>
-            <h2 className="text-2xl font-bold mb-4">{t.allDocumentation}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {docsSections.map((doc) => (
-                <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-lg">{doc.title}</h3>
-                      <Badge variant="outline" className="text-xs">
-                        {doc.category}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                      {doc.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{doc.readTime} {t.minRead}</span>
-                      <Link href={`/${locale}/docs/${doc.slug}`}>
-                        <Button size="sm" variant="outline">
-                          {t.read}
-                          <ChevronRight className="w-3 h-3 ml-1" />
-                        </Button>
-                      </Link>
+                      )}
+                      <Button asChild className="w-full">
+                        <Link href={`/${locale}/docs/${doc.slug}`}>{t.readMore}</Link>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
-          </div>
+        )}
 
-          {/* Right Sidebar - Documentation Quick Links */}
+        {/* All Documentation */}
+        <div>
+          <h2 className="text-2xl font-bold mb-6">{t.allDocumentation}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {docsSections.map((doc) => (
+              <Card key={doc.slug} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    {doc.title}
+                  </CardTitle>
+                  <CardDescription>{doc.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Badge variant="outline" className="text-xs">
+                      {doc.category}
+                    </Badge>
+                    {doc.readTime && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {doc.readTime} {t.minRead}
+                      </div>
+                    )}
+                    <Button asChild className="w-full">
+                      <Link href={`/${locale}/docs/${doc.slug}`}>{t.read}</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Sidebar - Quick Links */}
+      <RightSidebar title="Quick Links">
+        <div className="space-y-4">
           <div>
-            <RightSidebar title="Quick Links">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Getting Started</h4>
-                  <div className="space-y-2">
-                    <Link href={`/${locale}/docs/getting-started`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
-                      Installation Guide
-                    </Link>
-                    <Link href={`/${locale}/docs/quick-start`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
-                      Quick Start
-                    </Link>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2">Popular Topics</h4>
-                  <div className="space-y-2">
-                    <Link href={`/${locale}/docs/architecture`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
-                      Architecture
-                    </Link>
-                    <Link href={`/${locale}/docs/api`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
-                      API Reference
-                    </Link>
-                    <Link href={`/${locale}/docs/deployment`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
-                      Deployment
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </RightSidebar>
+            <h4 className="font-medium mb-2">Getting Started</h4>
+            <div className="space-y-2">
+              <Link href={`/${locale}/docs/getting-started`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                Getting Started
+              </Link>
+              <Link href={`/${locale}/docs/api-reference`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                API Reference
+              </Link>
+              <Link href={`/${locale}/docs/best-practices`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                Best Practices
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </RightSidebar>
 
-      {/* Mobile Layout - Hidden on desktop */}
-      <div className="lg:hidden">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <FileText className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-foreground mb-4">{t.title}</h1>
-            <p className="text-muted-foreground mb-6">
-              {t.subtitle}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Please view this page on a desktop device for the full documentation experience.
-            </p>
+      {/* iPad Layout - Floating Sidebar */}
+      <FloatingSidebarToggle>
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-medium mb-2">Getting Started</h4>
+            <div className="space-y-2">
+              <Link href={`/${locale}/docs/getting-started`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                Getting Started
+              </Link>
+              <Link href={`/${locale}/docs/api-reference`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                API Reference
+              </Link>
+            </div>
           </div>
         </div>
+      </FloatingSidebarToggle>
+
+      {/* Mobile Layout */}
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          Please view this page on a desktop device for the full documentation experience.
+        </p>
       </div>
-    </div>
-    </div>
+    </DocsWrapper>
   )
 }
-
-

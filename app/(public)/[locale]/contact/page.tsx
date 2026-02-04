@@ -10,8 +10,11 @@ import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
+import AboutWrapper from '@/components/wrappers/about-wrapper'
 
-export const dynamic = 'force-dynamic'
+// Allow caching for better performance - contact page content doesn't change constantly
+export const dynamic = "auto"
+export const revalidate = 600 // 10 minutes for static content
 
 type ContactPageParams = {}
 
@@ -88,9 +91,10 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
   console.log('ContactPage: Rendering');
 
   return (
-    <>
-      {/* React 19 Native Document Metadata with Localized SEO */}
-      <title>{seoData?.title || 'Contact Ring Platform - Get in Touch'}</title>
+    <AboutWrapper locale={locale}>
+      <>
+        {/* React 19 Native Document Metadata with Localized SEO */}
+        <title>{seoData?.title || 'Contact Ring Platform - Get in Touch'}</title>
       <meta name="description" content={seoData?.description || 'Get in touch with the Ring Platform team. Contact us for support, partnerships, or general inquiries'} />
       {seoData?.keywords && (
         <meta name="keywords" content={seoData.keywords.join(', ')} />
@@ -215,8 +219,9 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
             </div>
           </CardContent>
         </Card>
-      </div>
-    </>
+        </div>
+      </>
+    </AboutWrapper>
   )
 }
 

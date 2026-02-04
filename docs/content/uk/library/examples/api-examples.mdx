@@ -1,0 +1,144 @@
+---
+title: Приклади API
+description: Документація прикладів API для платформи Ring
+last_modified: 2025-10-16
+---
+
+# Приклади API
+
+Комплексна документація API платформи Ring з 80+ endpoint'ами, включаючи можливості, сутності, гаманець, повідомлення та багато іншого.
+
+## 🔌 Інструменти тестування API
+
+### Колекція Postman
+Завантажте нашу повну колекцію Postman з:
+- **Попередньо налаштованими середовищами** - Розробка, staging, production
+- **Налаштуванням аутентифікації** - Автоматичне управління токенами
+- **Прикладами запитів** - Робочі приклади для всіх 80+ endpoint'ів
+- **Тестовими скриптами** - Автоматизована валідація відповідей
+
+### Приклади cURL
+Готові до використання команди cURL для основних API endpoint'ів:
+
+Аутентифікація через NextAuth Перевірка імені користувача Створити сутність Отримати сутності Створити можливість Отримати можливості з фільтрацією
+
+<Code language="bash" title="terminal">
+{`curl -X POST https://ring.ck.ua/api/auth/signin/google \
+  -H "Content-Type: application/json"
+
+curl -X POST https://ring.ck.ua/api/auth/check-username \
+  -H "Content-Type: application/json" \
+  -d '{"username": "newuser"}'
+
+curl -X POST https://ring.ck.ua/api/entities/create \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Технологічна Компанія", "type": "technology", "description": "Інноваційні рішення"}'
+
+curl -X GET https://ring.ck.ua/api/entities \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST https://ring.ck.ua/api/opportunities/create \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Розробка веб-додатку", "type": "request", "budget": 5000, "deadline": "2025-12-31"}'
+
+curl -X GET "https://ring.ck.ua/api/opportunities?type=request&category=development" \
+  -H "Authorization: Bearer YOUR_TOKEN"`}
+</Code>
+
+### API домени платформи
+
+#### 💰 API гаманця
+Створити гаманець Отримати баланс RING токенів Поповнити кредит (WayForPay) Переказ токенів
+
+<Code language="bash" title="terminal">
+{`curl -X POST https://ring.ck.ua/api/wallet/create \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X GET https://ring.ck.ua/api/wallet/balance \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST https://ring.ck.ua/api/wallet/credit/topup \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 100, "currency": "USD"}'
+
+curl -X POST https://ring.ck.ua/api/wallet/transfer \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"toAddress": "0x...", "amount": 50}'`}
+</Code>
+
+#### 💬 API повідомлень та чатів
+Отримати розмови Надіслати повідомлення Позначити як прочитане
+
+<Code language="bash" title="terminal">
+{`curl -X GET https://ring.ck.ua/api/conversations \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST https://ring.ck.ua/api/conversations/[id]/messages \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Привіт! Зацікавлений у вашій пропозиції"}'
+
+curl -X POST https://ring.ck.ua/api/conversations/[id]/read \
+  -H "Authorization: Bearer YOUR_TOKEN"`}
+</Code>
+
+#### 🔔 API сповіщень
+Отримати сповіщення Позначити сповіщення як прочитане Зареєструвати FCM токен для push-сповіщень
+
+<Code language="bash" title="terminal">
+{`curl -X GET https://ring.ck.ua/api/notifications \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST https://ring.ck.ua/api/notifications/[id]/read \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST https://ring.ck.ua/api/notifications/fcm/register \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "fcm_token_here", "platform": "web"}'`}
+</Code>
+
+#### 🛒 API магазину
+Отримати товари Створити замовлення
+
+<Code language="bash" title="terminal">
+{`curl -X GET https://ring.ck.ua/api/store/products \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST https://ring.ck.ua/api/store/checkout \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productId": "123", "quantity": 1, "paymentMethod": "ring"}'`}
+</Code>
+
+### Приклади SDK
+Приклади реалізації на декількох мовах програмування:
+- **JavaScript/TypeScript** - Frontend та Node.js з Next.js 15
+- **Python** - Інтеграція з backend через FastAPI
+- **PHP** - Інтеграція веб-додатків
+- **Go** - Інтеграція мікросервісів
+
+### Інтерактивна документація API
+- **Swagger UI**: `https://ring.ck.ua/api/docs` (якщо доступно)
+- **OpenAPI специфікація**: Доступна для автоматичної генерації клієнтів
+- **TypeScript типи**: Автогенеровані типи для всіх API відповідей
+
+---
+
+**📋 Повний список API доменів:**
+- **Автентифікація**: `/api/auth/*` - NextAuth.js інтеграція
+- **Сутності**: `/api/entities/*` - Управління компаніями та профілями
+- **Можливості**: `/api/opportunities/*` - Створення та пошук можливостей
+- **Гаманець**: `/api/wallet/*` - RING токени та транзакції
+- **Повідомлення**: `/api/messages/*`, `/api/conversations/*` - Чат система
+- **Сповіщення**: `/api/notifications/*` - Push та in-app сповіщення
+- **Магазин**: `/api/store/*` - E-commerce функціональність
+- **Адміністрування**: `/api/admin/*` - Управління користувачами та системою
+- **Аналітика**: `/api/analytics/*` - Метрики та звіти
+- **Тунель**: `/api/tunnel/*` - Real-time транспортний шар
+
+*Для повної документації кожного endpoint'а зверніться до відповідних розділів API документації.*

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth'; 
+import { auth } from '@/auth';
+import { cache } from 'react';
 import { getCachedOpportunitiesForRole } from '@/lib/cached-data';
 import { UserRole } from '@/features/auth/types';
 
@@ -109,9 +110,14 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Prevent caching for this route
+ * Use React 19 cache() for automatic request deduplication and intelligent caching
  */
-export const dynamic = 'force-dynamic';
+const getOpportunities = cache(async (params: any) => {
+  return await getCachedOpportunitiesForRole(params)
+})
+
+export const dynamic = 'auto'
+export const revalidate = 180 // 3 minutes for opportunities data
 
 /**
  * Note: If you need to add POST, PUT, or DELETE methods in the future,

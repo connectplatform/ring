@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  getCachedDocument,
-  getCachedCollectionAdvanced,
-  updateDocument,
-  deleteDocument
-} from '@/lib/services/firebase-service-manager'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
-import { FieldValue } from 'firebase-admin/firestore'
+import { revalidatePath } from 'next/cache'
 import { NewsCategory } from '@/features/news/types'
 
 /**
@@ -20,22 +15,19 @@ export async function GET(
   try {
     const { id } = params
 
-    const categoryDoc = await getCachedDocument('newsCategories', id)
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    const categoryResult = await db.read('newsCategories', id)
     
-    if (!categoryDoc || !categoryDoc.exists) {
+    if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
       )
     }
 
-    const category = categoryDoc.data()
-    if (!category) {
-      return NextResponse.json(
-        { success: false, error: 'Category data not found' },
-        { status: 404 }
-      )
-    }
+    const category = categoryResult.data as any
 
     return NextResponse.json({
       success: true,
@@ -88,36 +80,34 @@ export async function PUT(
       )
     }
 
-    // Check if category exists using firebase-service-manager
-    const categoryDoc = await getCachedDocument('newsCategories', id)
-    if (!categoryDoc || !categoryDoc.exists) {
-      return NextResponse.json(
-        { success: false, error: 'Category not found' },
-        { status: 404 }
-      )
-    }
+    // Category existence will be checked by update operation
 
+    await initializeDatabase()
+    const db = getDatabaseService()
+    
     const updateData = {
       name: name.trim(),
       description: description?.trim() || '',
       color: color.trim(),
       icon: icon.trim(),
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: new Date(),
     }
 
-    await updateDocument('newsCategories', id, updateData)
-
-    const updatedCategory = await getCachedDocument('newsCategories', id)
-    if (!updatedCategory) {
+    const updateResult = await db.update('newsCategories', id, updateData)
+    if (!updateResult.success) {
       return NextResponse.json(
-        { success: false, error: 'Failed to retrieve updated category' },
+        { success: false, error: 'Failed to update category' },
         { status: 500 }
       )
     }
 
+    // Revalidate news pages (React 19 pattern)
+    revalidatePath('/[locale]/news')
+    revalidatePath('/[locale]/admin/news/categories')
+
     return NextResponse.json({
       success: true,
-      data: { id, ...updatedCategory.data() },
+      data: { id, ...updateResult.data },
       message: 'Category updated successfully',
     })
 
@@ -158,9 +148,12 @@ export async function DELETE(
 
     const { id } = params
 
-    // Check if category exists using firebase-service-manager
-    const categoryDoc = await getCachedDocument('newsCategories', id)
-    if (!categoryDoc || !categoryDoc.exists) {
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Check if category exists
+    const categoryResult = await db.read('newsCategories', id)
+    if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
         { status: 404 }
@@ -168,12 +161,13 @@ export async function DELETE(
     }
 
     // Check if any articles are using this category
-    const articlesWithCategory = await getCachedCollectionAdvanced('news', {
-      where: [{ field: 'category', operator: '==', value: id as NewsCategory }],
-      limit: 1
+    const articlesResult = await db.query({
+      collection: 'news',
+      filters: [{ field: 'category', operator: '==', value: id as NewsCategory }],
+      pagination: { limit: 1 }
     })
 
-    if (articlesWithCategory.docs.length > 0) {
+    if (articlesResult.success && articlesResult.data.length > 0) {
       return NextResponse.json(
         { 
           success: false, 
@@ -183,8 +177,14 @@ export async function DELETE(
       )
     }
 
-    // Delete the category using firebase-service-manager
-    await deleteDocument('newsCategories', id)
+    // Delete the category (MUTATION - NO CACHE!)
+    const deleteResult = await db.delete('newsCategories', id)
+    if (!deleteResult.success) {
+      throw deleteResult.error || new Error('Failed to delete category')
+    }
+
+    // Revalidate (React 19 pattern)
+    revalidatePath('/[locale]/admin/news/categories')
 
     return NextResponse.json({
       success: true,

@@ -257,6 +257,171 @@ export class FirebaseAdapter implements IDatabaseService {
     }
   }
 
+  async readAll<T = FirebaseDocumentData>(
+    collection: string,
+    options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    try {
+      const startTime = Date.now();
+      const firestore = await this.getFirestore();
+
+      let query: Query = firestore.collection(collection);
+
+      // Add orderBy if specified
+      if (options.orderBy) {
+        query = query.orderBy(options.orderBy.field, options.orderBy.direction === 'desc' ? 'desc' : 'asc');
+      }
+
+      // Add limit
+      if (options.limit) {
+        query = query.limit(options.limit);
+      }
+
+      // Add offset (startAfter in Firestore)
+      if (options.offset && options.offset > 0) {
+        // For offset, we need to get the document at that position first
+        // This is a simplified implementation - in production you'd want more sophisticated pagination
+        query = query.offset(options.offset);
+      }
+
+      const querySnapshot = await query.get();
+      const documents: DatabaseDocument<T>[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirebaseDocumentData;
+        documents.push({
+          id: doc.id,
+          data: data as T,
+          metadata: {
+            createdAt: data.createdAt instanceof Date ? data.createdAt : data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt instanceof Date ? data.updatedAt : data.updatedAt?.toDate() || new Date(),
+            version: data.version || 1
+          }
+        });
+      });
+
+      return {
+        success: true,
+        data: documents,
+        metadata: {
+          operation: 'readAll',
+          duration: Date.now() - startTime,
+          backend: 'firebase',
+          timestamp: new Date()
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'readAll',
+          duration: 0,
+          backend: 'firebase',
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  async findByField<T = FirebaseDocumentData>(
+    collection: string,
+    field: string,
+    value: any,
+    options: { limit?: number; orderBy?: DatabaseOrderBy } = {}
+  ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    try {
+      const startTime = Date.now();
+      const firestore = await this.getFirestore();
+
+      let query: Query = firestore.collection(collection).where(field, '==', value);
+
+      // Add orderBy if specified
+      if (options.orderBy) {
+        query = query.orderBy(options.orderBy.field, options.orderBy.direction === 'desc' ? 'desc' : 'asc');
+      }
+
+      // Add limit
+      if (options.limit) {
+        query = query.limit(options.limit);
+      }
+
+      const querySnapshot = await query.get();
+      const documents: DatabaseDocument<T>[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirebaseDocumentData;
+        documents.push({
+          id: doc.id,
+          data: data as T,
+          metadata: {
+            createdAt: data.createdAt instanceof Date ? data.createdAt : data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt instanceof Date ? data.updatedAt : data.updatedAt?.toDate() || new Date(),
+            version: data.version || 1
+          }
+        });
+      });
+
+      return {
+        success: true,
+        data: documents,
+        metadata: {
+          operation: 'findByField',
+          duration: Date.now() - startTime,
+          backend: 'firebase',
+          timestamp: new Date()
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'findByField',
+          duration: 0,
+          backend: 'firebase',
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  async exists(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<boolean>> {
+    try {
+      const startTime = Date.now();
+      const firestore = await this.getFirestore();
+
+      const docRef = firestore.collection(collection).doc(id);
+      const docSnap = await docRef.get();
+
+      return {
+        success: true,
+        data: docSnap.exists,
+        metadata: {
+          operation: 'exists',
+          duration: Date.now() - startTime,
+          backend: 'firebase',
+          timestamp: new Date()
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        metadata: {
+          operation: 'exists',
+          duration: 0,
+          backend: 'firebase',
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
   async update<T = FirebaseDocumentData>(
     collection: string,
     id: string,

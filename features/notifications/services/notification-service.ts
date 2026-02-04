@@ -10,6 +10,7 @@
  * Follows Ring's established service patterns with Firebase Admin SDK
  */
 
+import { cache } from 'react';
 import {
   getDatabaseService,
   initializeDatabase
@@ -36,6 +37,45 @@ import { MulticastMessage } from 'firebase-admin/messaging';
 import { FCMService } from './fcm-service';
 
 const fcmService = new FCMService();
+
+/**
+ * PHASE 1: Publish unread count updates via tunnel for real-time UI updates
+ */
+async function publishUnreadCountUpdates(notifications: Notification[]): Promise<void> {
+  try {
+    // Get unique user IDs from notifications
+    const userIds = [...new Set(notifications.map(n => n.userId))];
+
+    // For each user, calculate unread count and publish via tunnel
+    for (const userId of userIds) {
+      try {
+        // Get current unread count for this user
+        const dbService = getDatabaseService();
+        const unreadCount = await dbService.count(
+          'notifications',
+          [
+            { field: 'user_id', operator: '==', value: userId },
+            { field: 'read_at', operator: '==', value: null }
+          ]
+        );
+
+        // Publish update via tunnel
+        const { publishToTunnel } = await import('@/lib/tunnel/publisher');
+        await publishToTunnel(userId, 'notifications:unread', {
+          unreadCount,
+          timestamp: Date.now()
+        });
+
+        console.log(`NotificationService: Published unread count ${unreadCount} for user ${userId}`);
+      } catch (userError) {
+        console.warn(`NotificationService: Failed to publish for user ${userId}:`, userError);
+      }
+    }
+  } catch (error) {
+    console.error('NotificationService: Error publishing tunnel updates:', error);
+    // Don't throw - tunnel publishing failure shouldn't break notifications
+  }
+}
 
 /**
  * Create a new notification
@@ -129,6 +169,15 @@ export async function createNotification(
     }
 
     console.log(`NotificationService: Created ${notifications.length} notifications`);
+
+    // PHASE 1: Publish unread count updates via tunnel for real-time updates
+    try {
+      await publishUnreadCountUpdates(notifications);
+    } catch (tunnelError) {
+      console.warn('NotificationService: Failed to publish tunnel updates:', tunnelError);
+      // Don't fail the notification creation if tunnel publishing fails
+    }
+
     return notifications[0]; // Return first notification for single user case
 
   } catch (error) {
@@ -156,14 +205,17 @@ export async function getUserNotifications(
   console.log('NotificationService: Getting user notifications', { userId, options });
 
   try {
+    // Ensure database is initialized once per request
+    await initializeDatabase();
+
     // Build database query
-    const filters: Array<{ field: string; operator: string; value: any }> = [{ field: 'user_id', operator: '==', value: userId }];
+    const filters: Array<{ field: string; operator: string; value: any }> = [{ field: 'userId', operator: '==', value: userId }];
     const orderBy = [{ field: 'created_at', direction: 'desc' as const }];
     const pagination: any = {};
 
     // Apply filters
     if (options.unreadOnly) {
-      filters.push({ field: 'read_at', operator: '==' as const, value: null });
+      filters.push({ field: 'readAt', operator: '==' as const, value: null });
     }
 
     if (options.types && options.types.length > 0) {

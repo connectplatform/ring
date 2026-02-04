@@ -16,8 +16,8 @@ description: Документация по аутентификации плат
 
 ## Поток Аутентификации
 
-```mermaid
-sequenceDiagram
+<Mermaid>
+{`sequenceDiagram
     participant User
     participant Frontend
     participant Auth.js
@@ -32,8 +32,8 @@ sequenceDiagram
     Provider->>Auth.js: Вернуть код аутентификации
     Auth.js->>Database: Создать/обновить пользователя
     Auth.js->>Frontend: Вернуть сессию
-    Frontend->>User: Аутентифицированное состояние
-```
+    Frontend->>User: Аутентифицированное состояние`}
+</Mermaid>
 
 ## Поддерживаемые Провайдеры
 
@@ -62,9 +62,8 @@ sequenceDiagram
 
 ### Аутентификация на стороне сервера
 
-```typescript
-import { auth } from '@/auth'
-
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 export default async function ProtectedPage() {
   const session = await auth()
 
@@ -73,14 +72,13 @@ export default async function ProtectedPage() {
   }
 
   return <div>Добро пожаловать, {session.user.name}!</div>
-}
-```
+}`}
+</Code>
 
 ### Аутентификация на стороне клиента
 
-```typescript
-'use client'
-import { useSession } from 'next-auth/react'
+<Code language="typescript" title="'use client'">
+{`import { useSession } from 'next-auth/react'
 
 export default function UserProfile() {
   const { data: session, status } = useSession()
@@ -89,14 +87,13 @@ export default function UserProfile() {
   if (!session) return <div>Не аутентифицирован</div>
 
   return <div>Привет, {session.user.name}!</div>
-}
-```
+}`}
+</Code>
 
 ### Контроль доступа на основе ролей
 
-```typescript
-import { auth } from '@/auth'
-
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
 export default async function AdminPage() {
   const session = await auth()
 
@@ -105,8 +102,8 @@ export default async function AdminPage() {
   }
 
   return <div>Панель администратора</div>
-}
-```
+}`}
+</Code>
 
 ## Иерархия ролей
 

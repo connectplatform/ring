@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { LocalePageProps } from "@/utils/page-props";
 import { isValidLocale, defaultLocale } from '@/i18n-config';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 
 // Force dynamic rendering for real-time metrics
 export const dynamic = "force-dynamic";
@@ -103,23 +104,23 @@ const MetricCard = ({
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
         <StatusBadge status={status} value={value} unit={unit} />
       </div>
       
       <div className="mt-4">
-        <div className="text-3xl font-bold text-gray-900">
+        <div className="text-3xl font-bold text-foreground">
           {typeof value === 'number' ? value.toFixed(1) : value}{unit}
         </div>
         
         {change !== undefined && (
-          <div className={`text-sm mt-1 ${change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+          <div className={`text-sm mt-1 ${change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
             {change > 0 ? '↗' : change < 0 ? '↘' : '→'} {Math.abs(change).toFixed(1)}% change
           </div>
         )}
       </div>
       
-      <p className="text-sm text-gray-600 mt-3">{description}</p>
+      <p className="text-sm text-muted-foreground mt-3">{description}</p>
     </div>
   );
 };
@@ -131,18 +132,19 @@ export default async function PerformancePage(props: LocalePageProps<Performance
   const metrics = getPerformanceMetrics();
 
   return (
-    <>
-      <title>🚀 Firebase Performance Dashboard | Ring Admin</title>
-      <meta name="description" content="Real-time monitoring of Firebase optimization performance and build improvements" />
-      
-      <div className="min-h-screen bg-gray-50 py-8">
+    <AdminWrapper locale={locale} pageContext="performance">
+      <>
+        <title>🚀 Firebase Performance Dashboard | Ring Admin</title>
+        <meta name="description" content="Real-time monitoring of Firebase optimization performance and build improvements" />
+        
+        <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-foreground">
               🚀 Firebase Performance Dashboard
             </h1>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-muted-foreground">
               Real-time monitoring of Firebase optimization impact and build performance improvements.
             </p>
           </div>
@@ -231,7 +233,7 @@ export default async function PerformancePage(props: LocalePageProps<Performance
 
           {/* Optimization Summary */}
           <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
               🎯 Optimization Impact Summary
             </h2>
             
@@ -240,7 +242,7 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                 <div className="text-3xl font-bold text-green-600 mb-2">
                   {metrics.buildPerformance.improvement}%
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Build Time Improvement
                 </div>
               </div>
@@ -249,7 +251,7 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                 <div className="text-3xl font-bold text-blue-600 mb-2">
                   {metrics.firebaseOptimization.callReduction.toFixed(0)}%
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Firebase Calls Reduced
                 </div>
               </div>
@@ -258,14 +260,14 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                 <div className="text-3xl font-bold text-purple-600 mb-2">
                   {metrics.cachePerformance.hitRate.toFixed(0)}%
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Cache Hit Rate
                 </div>
               </div>
             </div>
             
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              <h3 className="text-lg font-semibold text-foreground mb-3">
                 🚀 Key Optimizations Implemented
               </h3>
               
@@ -275,8 +277,8 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                     <span className="text-green-600 text-sm font-bold">✓</span>
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900">Firebase Singleton Pattern</div>
-                    <div className="text-sm text-gray-600">Single initialization per build process</div>
+                    <div className="font-semibold text-foreground">Firebase Singleton Pattern</div>
+                    <div className="text-sm text-muted-foreground">Single initialization per build process</div>
                   </div>
                 </div>
                 
@@ -285,8 +287,8 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                     <span className="text-green-600 text-sm font-bold">✓</span>
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900">Build-Time Mocking</div>
-                    <div className="text-sm text-gray-600">Zero Firebase calls during static generation</div>
+                    <div className="font-semibold text-foreground">Build-Time Mocking</div>
+                    <div className="text-sm text-muted-foreground">Zero Firebase calls during static generation</div>
                   </div>
                 </div>
                 
@@ -295,8 +297,8 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                     <span className="text-green-600 text-sm font-bold">✓</span>
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900">React 19 Caching</div>
-                    <div className="text-sm text-gray-600">Automatic request deduplication</div>
+                    <div className="font-semibold text-foreground">React 19 Caching</div>
+                    <div className="text-sm text-muted-foreground">Automatic request deduplication</div>
                   </div>
                 </div>
                 
@@ -305,8 +307,8 @@ export default async function PerformancePage(props: LocalePageProps<Performance
                     <span className="text-green-600 text-sm font-bold">✓</span>
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900">Intelligent Prefetching</div>
-                    <div className="text-sm text-gray-600">Predictive data loading strategies</div>
+                    <div className="font-semibold text-foreground">Intelligent Prefetching</div>
+                    <div className="text-sm text-muted-foreground">Predictive data loading strategies</div>
                   </div>
                 </div>
               </div>
@@ -322,7 +324,8 @@ export default async function PerformancePage(props: LocalePageProps<Performance
             </p>
           </div>
         </div>
-      </div>
-    </>
+        </div>
+      </>
+    </AdminWrapper>
   );
 }

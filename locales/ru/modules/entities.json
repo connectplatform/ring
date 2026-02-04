@@ -1,20 +1,51 @@
 {
-  "title": "Entities",
-  "entitiesTitle": "Entities Directory",
-  "confidentialEntitiesTitle": "Confidential Entities",
-  "loadingMessage": "Loading entities...",
-  "visitWebsite": "Visit website",
-  "foundedIn": "Founded in {year}",
-  "employees": "{count} employees",
-  "tags": "Tags",
+  "title": "Организации",
+  "subtitle": "Исследуйте организации в экосистеме",
+  "entitiesTitle": "Каталог организаций",
+  "confidentialEntitiesTitle": "Конфиденциальные организации",
+  "loadingMessage": "Загрузка организаций...",
+  "visitWebsite": "Посетить сайт",
+  "foundedIn": "Основана в {year}",
+  "employees": "{count} сотрудников",
+  "tags": "Теги",
   "certifications": "Certifications",
   "viewDetails": "View details",
   "membersOnly": "Members only",
   "showingentities": "Showing {start}-{end} of {total}",
   "previous": "Previous",
   "next": "Next",
-  "filters": "Filters",
-  "clearFilters": "Clear Filters",
+  "filters": {
+    "search": {
+      "label": "Поиск организаций",
+      "placeholder": "Введите название организации, отрасль или местоположение..."
+    },
+    "sections": {
+      "types": "Типы организаций",
+      "location": "Местоположение",
+      "companySize": "Размер компании",
+      "foundedYear": "Год основания",
+      "verification": "Верификация"
+    },
+    "location": {
+      "placeholder": "Введите местоположение..."
+    },
+    "companySize": {
+      "min": "Мин",
+      "max": "Макс"
+    },
+    "foundedYear": {
+      "from": "С",
+      "to": "По"
+    },
+    "verification": {
+      "anyStatus": "Любой статус",
+      "verified": "Верифицировано",
+      "pending": "Ожидает",
+      "unverified": "Не верифицировано"
+    },
+    "apply": "Применить фильтры"
+  },
+  "clearFilters": "Очистить фильтры",
   "addMyEntity": "Add my Entity",
   "addMyEntityDescription": "Add your entity to the platform and manage it easily. Upgrade to Member to access full platform features.",
   "upgradeToBeMember": "Upgrade to Member",

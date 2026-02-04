@@ -67,7 +67,7 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
       </motion.div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div>
-          <p className="text-lg mb-4 text-gray-700">{opportunity.briefDescription}</p>
+          <p className="text-lg mb-4 text-muted-foreground">{opportunity.briefDescription}</p>
           {opportunity.tags && (
             <div className="flex flex-wrap gap-2 mb-4">
               {opportunity.tags.map((tag: string) => (
@@ -77,7 +77,7 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
               ))}
             </div>
           )}
-          {opportunity.fullDescription && <p className="mb-4 text-gray-600">{opportunity.fullDescription}</p>}
+          {opportunity.fullDescription && <p className="mb-4 text-muted-foreground">{opportunity.fullDescription}</p>}
           <div className="flex gap-4">
             <Button
               onClick={() => setIsContactPopupOpen(true)}
@@ -93,36 +93,36 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
           </h2>
           <div className="space-y-4">
             <div className="flex items-center">
-              <Building className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.organization')}: {opportunity.organizationId}</span>
+              <Building className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.organization')}: {opportunity.organizationId}</span>
             </div>
             <div className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.dateCreated')}: {formatDate(opportunity.dateCreated)}</span>
+              <Calendar className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.dateCreated')}: {formatDate(opportunity.dateCreated)}</span>
             </div>
             <div className="flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.expirationDate')}: {formatDate(opportunity.expirationDate)}</span>
+              <Clock className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.expirationDate')}: {formatDate(opportunity.expirationDate)}</span>
             </div>
             <div className="flex items-center">
-              <MapPin className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.location')}: {opportunity.location}</span>
+              <MapPin className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.location')}: {opportunity.location}</span>
             </div>
             <div className="flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.budget')}: {opportunity.budget ? formatBudget(opportunity.budget) : 'N/A'}</span>
+              <DollarSign className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.budget')}: {opportunity.budget ? formatBudget(opportunity.budget) : 'N/A'}</span>
             </div>
             <div className="flex items-center">
-              <Tag className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.category')}: {opportunity.category}</span>
+              <Tag className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.category')}: {opportunity.category}</span>
             </div>
             <div className="flex items-center">
-              <FileText className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.requiredDocuments')}: {opportunity.requiredDocuments?.join(', ') || 'N/A'}</span>
+              <FileText className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.requiredDocuments')}: {opportunity.requiredDocuments?.join(', ') || 'N/A'}</span>
             </div>
             <div className="flex items-center">
-              <User className="w-5 h-5 mr-2 text-gray-600" />
-              <span className="text-gray-700">{t('opportunity.requiredSkills')}: {opportunity.requiredSkills?.join(', ') || 'N/A'}</span>
+              <User className="w-5 h-5 mr-2 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('opportunity.requiredSkills')}: {opportunity.requiredSkills?.join(', ') || 'N/A'}</span>
             </div>
           </div>
         </div>
@@ -139,7 +139,7 @@ function ConfidentialOpportunityDetailsContent({ initialOpportunity }: { initial
                 href={attachment.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg transition-colors duration-300 flex items-center"
+                className="bg-gray-100 hover:bg-gray-200 text-foreground px-4 py-2 rounded-lg transition-colors duration-300 flex items-center"
               >
                 <FileText className="w-5 h-5 mr-2" />
                 <span>{attachment.name}</span>

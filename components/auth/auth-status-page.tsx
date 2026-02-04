@@ -243,26 +243,26 @@ export default function AuthStatusPage({ action, status, locale, email, token, r
           </motion.div>
 
           {/* Status Content */}
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl font-bold text-foreground mb-4">
             {t(`${action}.${status}.title`) || t(`${status}.title`) || `${action} ${status}`}
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-muted-foreground mb-6">
             {t(`${action}.${status}.description`) || t(`${status}.description`) || `Your ${action} is ${status}.`}
           </p>
 
           {/* Email (if provided) */}
           {email && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">{t('email')}</p>
-              <p className="font-medium text-gray-900">{email}</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('email')}</p>
+              <p className="font-medium text-foreground">{email}</p>
             </div>
           )}
 
           {/* Request ID (if provided) */}
           {requestId && (
             <div className="bg-white/80 rounded-lg p-4 mb-6 border">
-              <p className="text-sm text-gray-600 mb-1">{t('requestId')}</p>
-              <p className="font-mono text-sm font-medium text-gray-900">{requestId}</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('requestId')}</p>
+              <p className="font-mono text-sm font-medium text-foreground">{requestId}</p>
             </div>
           )}
 

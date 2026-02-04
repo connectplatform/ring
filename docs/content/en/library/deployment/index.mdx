@@ -1,0 +1,75 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Deployment Overview
+
+Recommended: Vercel with Edge Runtime.
+
+- Environments: dev, staging, production
+- Secrets: use Vercel / cloud secret stores
+- CDN: global distribution
+- Monitoring: analytics + error tracking
+
+## Kubernetes Cluster Setup
+
+### Production Deployment Architecture
+
+<Mermaid>
+{`flowchart TD
+    subgraph Internet
+        Users[Users Worldwide]
+        CDN[CDN / CloudFlare]
+    end
+
+    subgraph K8s[Kubernetes Cluster]
+        Ingress[Nginx Ingress Controller]
+
+        subgraph Apps[Application Layer]
+            Ring1[Ring Pod 1]
+            Ring2[Ring Pod 2]
+            Ring3[Ring Pod 3]
+        end
+
+        subgraph Services[Service Layer]
+            LB[Load Balancer]
+            WS[WebSocket Service]
+            API[API Service]
+        end
+
+        subgraph Data[Data Layer]
+            PG[(PostgreSQL Primary)]
+            PGR[(PostgreSQL Replica)]
+            Redis[(Redis Cache)]
+        end
+    end
+
+    subgraph External[External Services]
+        OAuth[OAuth Providers]
+        WayForPay[WayForPay Gateway]
+        Blockchain[Polygon Network]
+    end
+
+    Users --> CDN
+    CDN --> Ingress
+    Ingress --> LB
+
+    LB --> Ring1
+    LB --> Ring2
+    LB --> Ring3
+
+    Ring1 --> WS
+    Ring2 --> API
+    Ring3 --> WS
+
+    WS --> PG
+    API --> PG
+
+    PG -.replicate.-> PGR
+    API --> Redis
+
+    Ring1 --> OAuth
+    Ring2 --> WayForPay
+    Ring3 --> Blockchain`}
+</Mermaid>

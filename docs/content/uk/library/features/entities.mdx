@@ -33,9 +33,10 @@ description: Документація сутностей для платформ
 
 ## Реалізація
 
-```typescript
 // Create new entity
-const entity = await createEntity({
+
+<Code language="typescript" title="TypeScript">
+{`const entity = await createEntity({
   name: 'Технологічні Інноватори ТОВ',
   description: 'Провідна компанія з розробки програмного забезпечення',
   industry: 'TECHNOLOGY_SOFTWARE',
@@ -47,8 +48,8 @@ await requestVerification(entity.id, {
   documents: ['business-license.pdf', 'tax-certificate.pdf'],
   contactPerson: 'John Doe',
   contactEmail: 'john@techinnovators.com'
-})
-```
+})`}
+</Code>
 ## Управління сутностями
 
 ### Процес створення
@@ -64,4 +65,4 @@ await requestVerification(entity.id, {
 
 ---
 
-*Готові створити свою сутність? Перевірте наш [API довідник](/uk/library/api/entities) для деталей реалізації.*
+*Готові створити свою сутність? Перевірте наш [API довідник](/uk/docs/api/entities) для деталей реалізації.*

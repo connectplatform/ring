@@ -1,0 +1,12 @@
+{
+  "title": "Messages",
+  "loadingChat": "Loading chat...",
+  "signInToChat": "Please sign in to access the chat.",
+  "authError": "Authentication error. Please refresh the page.",
+  "messages": "Messages",
+  "selectConversation": "Select a conversation to start messaging",
+  "conversationHint": "Choose from your conversations or start a new one",
+  "reconnecting": "Reconnecting to chat server..."
+}
+
+

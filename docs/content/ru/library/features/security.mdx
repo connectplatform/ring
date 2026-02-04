@@ -1,0 +1,545 @@
+---
+title: Безопасность и соответствие
+description: Аутентификация, авторизация, защита данных и паттерны соответствия
+---
+
+# Безопасность и соответствие
+
+Комплексная система безопасности с ролевым контролем доступа, соблюдением GDPR и корпоративной защитой данных для платформы Ring.
+
+## Обзор
+
+Платформа Ring реализует многоуровневый подход к безопасности:
+
+- **Аутентификация**: Auth.js v5 с magic links и мульти-провайдер OAuth
+- **Авторизация**: Иерархический ролевой контроль доступа (5-уровневая система)
+- **Защита данных**: Соблюдение GDPR/CCPA с аудитом
+- **Соответствие**: PCI DSS для платежей, стандарты SOC 2
+- **Инфраструктура**: Правила безопасности Firebase и шифрованное хранение данных
+
+## Безопасность аутентификации
+
+### Реализация Auth.js v5
+
+**Аутентификация через magic links** - Основной метод аутентификации:
+
+// lib/auth.ts - Конфигурация Auth.js v5
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
+import { Resend } from 'next-auth/providers/resend'
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    Resend({
+      server: process.env.EMAIL_SERVER,
+      from: 'noreply@ring.ck.ua',
+      maxAge: 15 * 60, // 15 минут
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    })
+  ],
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = await getUserRole(user.id)
+      }
+      return token
+    },
+    async session({ session, token }) {
+      session.user.role = token.role
+      return session
+    }
+  }
+})`}
+</Code>
+
+#### Функции безопасности
+- **Ограниченные по времени токены**: 15-минутное истечение для magic links
+- **Одноразовые токены**: Автоматическая инвалидация после использования
+- **Ограничение скорости**: 5 запросов/минуту на IP
+- **Верификация email**: Обязательна для создания аккаунта
+
+### Мульти-провайдер OAuth
+
+**Безопасная интеграция OAuth с валидацией провайдера:**
+
+// Безопасная конфигурация OAuth
+
+<Code language="typescript" title="TypeScript">
+{`const oauthProviders = {
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    authorization: {
+      params: {
+        prompt: 'consent',
+        access_type: 'offline',
+        scope: 'openid email profile'
+      }
+    }
+  },
+  apple: {
+    clientId: process.env.APPLE_CLIENT_ID,
+    clientSecret: process.env.APPLE_CLIENT_SECRET,
+    authorization: {
+      params: {
+        scope: 'name email'
+      }
+    }
+  }
+}`}
+</Code>
+
+## Ролевой контроль доступа
+
+### Иерархическая ролевая система
+
+**5-уровневая иерархия ролей с эскалирующими разрешениями:**
+
+// Определение иерархии ролей
+
+<Code language="typescript" title="TypeScript">
+{`export enum UserRole {
+  VISITOR = 0,      // Только публичный контент
+  SUBSCRIBER = 1,   // Основные аутентифицированные функции
+  MEMBER = 2,       // Создание сущностей, платные функции
+  CONFIDENTIAL = 3, // Конфиденциальные сущности/возможности
+  ADMIN = 4         // Полное администрирование системы
+}
+
+// Матрица разрешений
+const rolePermissions = {
+  [UserRole.VISITOR]: ['read:public'],
+  [UserRole.SUBSCRIBER]: ['read:public', 'read:authenticated'],
+  [UserRole.MEMBER]: ['read:public', 'read:authenticated', 'write:entities'],
+  [UserRole.CONFIDENTIAL]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
+  [UserRole.ADMIN]: ['*']
+}`}
+</Code>
+
+### Серверная валидация
+
+**Всегда валидируйте роли на стороне сервера:**
+
+// Server action с валидацией ролей
+
+<Code language="typescript" title="TypeScript">
+{`'use server'
+
+import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+export async function createEntity(formData: FormData) {
+  const session = await auth()
+
+  // Проверка аутентификации
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
+
+  // Проверка авторизации
+  if (session.user.role < UserRole.MEMBER) {
+    throw new Error('Недостаточно прав')
+  }
+
+  // Бизнес логика...
+  const entity = await createEntityInDb(formData)
+  return entity
+}`}
+</Code>
+
+### Защита владения сущностями
+
+**Пользователи могут модифицировать только свои сущности:**
+
+// Валидация владения сущностью
+
+<Code language="typescript" title="TypeScript">
+{`export async function updateEntity(entityId: string, data: UpdateData) {
+  const session = await auth()
+
+  if (!session?.user) {
+    throw new Error('Не авторизован')
+  }
+
+  // Получить сущность и проверить владение
+  const entity = await getEntity(entityId)
+
+  if (entity.userId !== session.user.id && session.user.role < UserRole.ADMIN) {
+    throw new Error('Запрещено: Не владелец сущности')
+  }
+
+  return updateEntityInDb(entityId, data)
+}`}
+</Code>
+
+## Защита данных и соблюдение GDPR
+
+### Право на удаление
+
+**30-дневный льготный период с полным удалением данных:**
+
+// GDPR-совместимое удаление данных
+
+<Code language="typescript" title="TypeScript">
+{`export async function deleteUserData(userId: string) {
+  // Шаг 1: Отметить для удаления (льготный период)
+  await markUserForDeletion(userId, 30) // 30 дней
+
+  // Шаг 2: Мягкое удаление (во время льготного периода)
+  await softDeleteUser(userId)
+
+  // Шаг 3: Жесткое удаление (после льготного периода)
+  setTimeout(async () => {
+    await hardDeleteUser(userId)
+  }, 30 * 24 * 60 * 60 * 1000) // 30 дней
+}`}
+</Code>
+
+### Минимизация данных
+
+**Собирайте только необходимые данные с четкими целями:**
+
+// Минимальный сбор данных
+
+<Code language="typescript" title="TypeScript">
+{`interface UserProfile {
+  id: string
+  email: string           // Обязательно для аутентификации
+  name?: string          // Опционально, для персонализации
+  role: UserRole         // Обязательно для авторизации
+  createdAt: Date       // Обязательно для аудита
+  // Без ненужных полей
+}`}
+</Code>
+
+### Управление согласием
+
+**Отслеживание явного согласия на обработку данных:**
+
+// Отслеживание согласия
+
+<Code language="typescript" title="TypeScript">
+{`interface UserConsent {
+  userId: string
+  consentType: 'marketing' | 'analytics' | 'payments'
+  consented: boolean
+  timestamp: Date
+  ipAddress: string
+  userAgent: string
+}
+
+// Валидация согласия
+export async function validateConsent(userId: string, type: string) {
+  const consent = await getUserConsent(userId, type)
+  if (!consent?.consented) {
+    throw new Error(`Пользователь не согласился на обработку данных ${type}`)
+  }
+}`}
+</Code>
+
+## Соответствие PCI DSS
+
+### Безопасность платежных данных
+
+**Никогда не храните данные платежных карт:**
+
+// PCI DSS совместная обработка платежей
+
+<Code language="typescript" title="TypeScript">
+{`export async function processPayment(amount: number, currency: string) {
+  // Генерировать URL платежа WayForPay
+  const paymentUrl = await createWayForPayPayment({
+    amount,
+    currency,
+    returnUrl: '/payment/success',
+    webhookUrl: '/api/payments/webhook'
+  })
+
+  // Перенаправить на хостинговую форму оплаты (данные карт не хранятся)
+  return paymentUrl
+}`}
+</Code>
+
+### Безопасная обработка webhook
+
+**Верификация подписи webhook и предотвращение дублирования:**
+
+// Безопасный обработчик webhook
+
+<Code language="typescript" title="TypeScript">
+{`export async function handleWayForPayWebhook(webhookData: any) {
+  // Проверить HMAC подпись
+  const isValid = verifyWayForPaySignature(webhookData)
+  if (!isValid) {
+    throw new Error('Неверная подпись webhook')
+  }
+
+  // Предотвратить дублированную обработку
+  const processed = await checkWebhookProcessed(webhookData.orderReference)
+  if (processed) {
+    return { status: 'already_processed' }
+  }
+
+  // Обработать платеж
+  await processPaymentUpdate(webhookData)
+
+  // Отметить как обработанный
+  await markWebhookProcessed(webhookData.orderReference)
+
+  return { status: 'success' }
+}`}
+</Code>
+
+## Безопасность API
+
+### Ограничение скорости
+
+**Защита от злоупотреблений с комплексным ограничением скорости:**
+
+// Конфигурация ограничения скорости
+
+<Code language="typescript" title="TypeScript">
+{`const rateLimits = {
+  auth: {
+    window: '1m',      // 1 минута
+    max: 5            // 5 запросов в минуту
+  },
+  entityCreation: {
+    window: '1h',     // 1 час
+    max: 10           // 10 сущностей в час
+  },
+  messaging: {
+    window: '1m',     // 1 минута
+    max: 100          // 100 сообщений в минуту
+  },
+  api: {
+    window: '1h',     // 1 час
+    max: 1000         // 1000 запросов в час
+  }
+}`}
+</Code>
+
+### Валидация входных данных
+
+**Комплексная валидация входных данных со схемами Zod:**
+
+<Code language="typescript" title="import { z } from 'zod'">
+{`// Схемы валидации входных данных
+const createEntitySchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum(['technology', 'healthcare', 'finance']),
+  description: z.string().max(500).optional()
+})
+
+const createMessageSchema = z.object({
+  content: z.string().min(1).max(1000),
+  conversationId: z.string().uuid(),
+  attachments: z.array(z.string().url()).max(5).optional()
+})
+
+// Серверная валидация
+export async function createEntity(data: unknown) {
+  const validated = createEntitySchema.parse(data)
+  return createEntityInDb(validated)
+}`}
+</Code>
+
+### Безопасная обработка ошибок
+
+**Не раскрывайте внутренние детали системы:**
+
+// Безопасные ответы об ошибках
+
+<Code language="typescript" title="TypeScript">
+{`export async function handleApiError(error: unknown) {
+  // Записать детальную ошибку для отладки
+  console.error('API Error:', {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date(),
+    userAgent: getUserAgent(),
+    ipAddress: getClientIP()
+  })
+
+  // Вернуть общую ошибку клиенту
+  if (error instanceof ValidationError) {
+    return { error: 'Неверные входные данные', code: 'VALIDATION_ERROR' }
+  }
+
+  if (error instanceof PermissionError) {
+    return { error: 'Доступ запрещен', code: 'PERMISSION_DENIED' }
+  }
+
+  // Общая ошибка для неизвестных проблем
+  return { error: 'Внутренняя ошибка сервера', code: 'INTERNAL_ERROR' }
+}`}
+</Code>
+
+## Аудит логирования
+
+### Комплексный аудиторский след
+
+**Логируйте все события, связанные с безопасностью:**
+
+// Интерфейс аудиторского логирования
+
+<Code language="typescript" title="TypeScript">
+{`interface AuditLog {
+  id: string
+  timestamp: Date
+  userId: string
+  action: string
+  resource: string
+  resourceId: string
+  ipAddress: string
+  userAgent: string
+  metadata: Record<string, any>
+}
+
+// Логирование событий безопасности
+export async function logSecurityEvent(
+  userId: string,
+  action: string,
+  resource: string,
+  resourceId: string,
+  metadata: any = {}
+) {
+  const auditLog: AuditLog = {
+    id: generateId(),
+    timestamp: new Date(),
+    userId,
+    action,
+    resource,
+    resourceId,
+    ipAddress: getClientIP(),
+    userAgent: getUserAgent(),
+    metadata
+  }
+
+  await saveAuditLog(auditLog)
+}
+
+// События для логирования
+const securityEvents = [
+  'authentication.success',
+  'authentication.failure',
+  'authorization.denied',
+  'entity.created',
+  'entity.updated',
+  'entity.deleted',
+  'payment.processed',
+  'payment.failed',
+  'user.deleted',
+  'role.changed'
+]`}
+</Code>
+
+## Мониторинг безопасности
+
+### Мониторинг безопасности в реальном времени
+
+**Мониторьте и оповещайте о событиях безопасности:**
+
+// Панель мониторинга безопасности
+
+<Code language="typescript" title="TypeScript">
+{`const securityMetrics = {
+  failedAuthAttempts: () => {
+    return countFailedAuthentications('24h')
+  },
+
+  suspiciousActivities: () => {
+    return detectSuspiciousPatterns()
+  },
+
+  rateLimitViolations: () => {
+    return countRateLimitViolations('1h')
+  },
+
+  unauthorizedAccess: () => {
+    return countUnauthorizedAccess('24h')
+  }
+}
+
+// Автоматизированные оповещения
+const securityAlerts = {
+  bruteForce: {
+    condition: 'failedAuthAttempts > 10',
+    action: 'block_ip',
+    duration: '1h'
+  },
+
+  rateLimit: {
+    condition: 'rateLimitViolations > 100',
+    action: 'alert_admin',
+    severity: 'medium'
+  },
+
+  unauthorized: {
+    condition: 'unauthorizedAccess > 5',
+    action: 'alert_admin',
+    severity: 'high'
+  }
+}`}
+</Code>
+
+## Чек-листы соответствия
+
+### Чек-лист соответствия GDPR
+- [x] Реализована минимизация данных
+- [x] Сбор явного согласия
+- [x] Право на удаление (30-дневный льготный период)
+- [x] Аудиторское логирование доступа к данным
+- [x] Поддержка переносимости данных
+- [x] Опубликована политика конфиденциальности
+- [x] Ведется реестр обработки данных
+
+### Чек-лист соответствия PCI DSS
+- [x] Отсутствие хранения данных карт
+- [x] Шифрованная передача данных (HTTPS)
+- [x] Безопасные подписи webhook
+- [x] Ограничение скорости на платежных конечных точках
+- [x] Регулярные оценки безопасности
+- [x] План реагирования на инциденты
+- [x] Контроль доступа к платежным системам
+
+### Чек-лист безопасности SOC 2
+- [x] Многофакторная аутентификация
+- [x] Ролевой контроль доступа
+- [x] Регулярные аудиты безопасности
+- [x] Процедуры реагирования на инциденты
+- [x] Процессы управления изменениями
+- [x] Планирование непрерывности бизнеса
+- [x] Обучение осведомленности о безопасности
+
+## Лучшие практики безопасности
+
+### Безопасность разработки
+- **Code Reviews**: Все изменения, связанные с безопасностью, требуют проверки
+- **Тестирование безопасности**: Автоматизированные сканы безопасности в CI/CD
+- **Управление зависимостями**: Регулярные обновления безопасности
+- **Управление секретами**: Безопасное хранение учетных данных
+
+### Безопасность в продакшене
+- **Сегрегация окружений**: Отдельные dev/staging/production
+- **Контроль доступа**: Принцип наименьших привилегий
+- **Мониторинг**: Мониторинг безопасности в реальном времени
+- **Реагирование на инциденты**: Документированные процедуры реагирования
+
+### Образование пользователей по безопасности
+- **Политики паролей**: Требования к сильным паролям
+- **Двухфакторная аутентификация**: Опциональный 2FA для усиленной безопасности
+- **Оповещения безопасности**: Оповещение пользователей о подозрительной активности
+- **Контроли конфиденциальности**: Управление данными и предпочтениями пользователей
+
+---
+
+*Система безопасности платформы Ring обеспечивает корпоративную защиту при сохранении отличного пользовательского опыта и полного соблюдения нормативных требований.*

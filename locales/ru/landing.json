@@ -1,0 +1,39 @@
+{
+  "title": "Welcome to Ring",
+  "subtitle": "Connect with the Cherkasy tech community",
+  "hero": {
+    "title": "Join the Ring Community",
+    "subtitle": "Connect, collaborate, and grow with innovators in Cherkasy region",
+    "cta": "Get Started",
+    "learnMore": "Learn More"
+  },
+  "features": {
+    "title": "Why Choose Ring",
+    "networking": {
+      "title": "Networking",
+      "description": "Connect with local tech professionals and entrepreneurs"
+    },
+    "opportunities": {
+      "title": "Opportunities",
+      "description": "Discover jobs, partnerships, and collaboration opportunities"
+    },
+    "resources": {
+      "title": "Resources",
+      "description": "Access tools, knowledge, and support for your projects"
+    },
+    "community": {
+      "title": "Community",
+      "description": "Join a vibrant community of tech enthusiasts"
+    }
+  },
+  "sections": {
+    "about": {
+      "title": "About Ring",
+      "content": "Ring is a community platform designed to foster innovation and collaboration in the Cherkasy region of Ukraine."
+    },
+    "join": {
+      "title": "Join Our Community",
+      "content": "Ready to connect with the local tech ecosystem? Sign up today and start building meaningful connections."
+    }
+  }
+}

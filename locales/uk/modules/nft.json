@@ -1,0 +1,147 @@
+{
+  "marketplace": {
+    "title": "NFT Маркетплейс",
+    "subtitle": "Відкривайте, торгуйте та колекціонуйте унікальні цифрові активи на децентралізованому ринку Ring Platform"
+  },
+  "collections": {
+    "title": "NFT Колекції",
+    "subtitle": "Досліджуйте кураторські NFT колекції від верифікованих творців",
+    "browseCollections": "Переглянути колекції",
+    "trendingCollections": "Трендові колекції",
+    "featuredCreators": "Рекомендовані творці",
+    "allCollections": "Всі колекції",
+    "stats": {
+      "floorPrice": "Мінімальна ціна",
+      "totalVolume": "Загальний обсяг",
+      "items": "Предметів",
+      "owners": "Власників"
+    },
+    "filters": {
+      "category": "Категорія",
+      "blockchain": "Блокчейн",
+      "verified": "Тільки верифіковані",
+      "sortBy": "Сортувати за"
+    },
+    "empty": "Колекції не знайдено",
+    "comingSoon": "NFT колекції незабаром. Наш ринок представить верифікованих творців та кураторське цифрове мистецтво."
+  },
+  "collection": {
+    "title": "Колекція",
+    "subtitle": "Переглядайте деталі колекції, статистику та доступні NFT",
+    "about": "Про колекцію",
+    "creator": "Творець",
+    "items": "Предмети",
+    "activity": "Активність",
+    "listings": "Лістинги",
+    "offers": "Пропозиції",
+    "stats": {
+      "totalItems": "Всього предметів",
+      "owners": "Власників",
+      "floorPrice": "Мінімальна ціна",
+      "volumeTraded": "Обсяг торгівлі",
+      "listed": "В продажу"
+    },
+    "tabs": {
+      "items": "Предмети",
+      "activity": "Активність",
+      "analytics": "Аналітика"
+    },
+    "comingSoon": "Деталі колекції незабаром"
+  },
+  "search": {
+    "title": "Пошук NFT",
+    "subtitle": "Знаходьте унікальні цифрові активи у всіх колекціях",
+    "placeholder": "Шукати за назвою, колекцією або творцем",
+    "advancedFilters": "Розширені фільтри",
+    "filters": {
+      "priceRange": "Діапазон цін",
+      "attributes": "Атрибути",
+      "blockchain": "Блокчейн",
+      "collection": "Колекція",
+      "status": "Статус"
+    },
+    "status": {
+      "all": "Всі",
+      "listed": "В продажу",
+      "onAuction": "На аукціоні",
+      "hasOffers": "Є пропозиції"
+    },
+    "sortBy": {
+      "recentlyListed": "Нещодавно додані",
+      "priceLowToHigh": "Ціна: від низької до високої",
+      "priceHighToLow": "Ціна: від високої до низької",
+      "mostViewed": "Найпопулярніші",
+      "endingSoon": "Скоро закінчуються"
+    },
+    "results": "Знайдено {{count}} результатів",
+    "noResults": "NFT не знайдено за вашим запитом",
+    "comingSoon": "Пошук NFT незабаром. Шукайте по колекціях, атрибутах та творцях."
+  },
+  "item": {
+    "title": "Деталі NFT",
+    "subtitle": "Переглядайте деталі NFT, історію торгівлі та робіть пропозиції",
+    "details": "Деталі",
+    "properties": "Властивості",
+    "about": "Опис",
+    "chain": "Ланцюг",
+    "contract": "Контракт",
+    "tokenId": "ID токена",
+    "tokenStandard": "Стандарт токена",
+    "owner": "Власник",
+    "creator": "Творець",
+    "actions": {
+      "buyNow": "Купити зараз",
+      "makeOffer": "Зробити пропозицію",
+      "list": "Виставити на продаж",
+      "cancel": "Скасувати лістинг",
+      "transfer": "Передати"
+    },
+    "pricing": {
+      "currentPrice": "Поточна ціна",
+      "lastSale": "Останній продаж",
+      "floorPrice": "Мінімальна ціна",
+      "topOffer": "Найкраща пропозиція"
+    },
+    "tabs": {
+      "overview": "Огляд",
+      "properties": "Властивості",
+      "history": "Історія",
+      "offers": "Пропозиції"
+    },
+    "history": {
+      "minted": "Створено",
+      "listed": "Виставлено",
+      "sold": "Продано",
+      "transferred": "Передано",
+      "offer": "Пропозиція",
+      "bid": "Ставка"
+    },
+    "comingSoon": "Деталі NFT незабаром"
+  },
+  "wallet": {
+    "connect": "Підключити гаманець",
+    "disconnect": "Відключити",
+    "wrongNetwork": "Неправильна мережа",
+    "switchNetwork": "Переключити на {{network}}",
+    "notOwner": "Ви не є власником цього NFT",
+    "notConnected": "Підключіть гаманець для взаємодії з NFT"
+  },
+  "status": {
+    "draft": "Чернетка",
+    "active": "Активний",
+    "sold": "Продано",
+    "cancelled": "Скасовано",
+    "expired": "Прострочено"
+  },
+  "messages": {
+    "listingCreated": "NFT успішно виставлено",
+    "listingCancelled": "Лістинг скасовано",
+    "purchaseComplete": "Покупка завершена! NFT переданий до вашого гаманця",
+    "offerSubmitted": "Пропозицію успішно відправлено",
+    "transactionPending": "Транзакція очікує підтвердження...",
+    "transactionFailed": "Транзакція не вдалася. Спробуйте ще раз.",
+    "walletRequired": "Підключіть гаманець для продовження",
+    "insufficientFunds": "Недостатньо коштів для цієї транзакції"
+  }
+}
+

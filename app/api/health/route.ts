@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
   try {
     const startTime = Date.now()
     
+    // Detect database backend early for use throughout health check
+    const isPostgresBackend = process.env.DATABASE_BACKEND === 'postgresql' || 
+                               !!process.env.DB_HOST || 
+                               !!process.env.POSTGRES_HOST
+    
     // Basic health checks
     const health: HealthResponse = {
       status: 'healthy',
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest) {
         pid: process.pid,
       },
       services: {
-        database: 'firebase', // Ring uses Firebase as primary database
+        database: isPostgresBackend ? 'postgresql' : 'firebase',
         auth: 'auth.js-v5',
         realtime: 'websocket',
         storage: 'vercel-blob',
@@ -94,18 +99,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check critical environment variables
-    const criticalEnvVars = [
-      'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-      'AUTH_SECRET',
-      'AUTH_FIREBASE_PROJECT_ID',
-    ]
+    // Check critical environment variables based on database backend
+    const criticalEnvVars = isPostgresBackend 
+      ? ['AUTH_SECRET'] // PostgreSQL backend only needs auth secret
+      : ['NEXT_PUBLIC_FIREBASE_PROJECT_ID', 'AUTH_SECRET', 'AUTH_FIREBASE_PROJECT_ID'] // Firebase backend
 
     const missingEnvVars = criticalEnvVars.filter(envVar => !process.env[envVar])
     
     if (missingEnvVars.length > 0) {
-      health.status = 'degraded'
-      health.warnings = [`Missing environment variables: ${missingEnvVars.join(', ')}`]
+      // Only degrade for truly critical missing vars, add warnings for others
+      const warningVars = missingEnvVars.filter(v => v !== 'AUTH_SECRET')
+      const criticalMissing = missingEnvVars.filter(v => v === 'AUTH_SECRET')
+      
+      if (criticalMissing.length > 0) {
+        health.status = 'degraded'
+        health.warnings = [`Missing critical environment variables: ${criticalMissing.join(', ')}`]
+      } else if (warningVars.length > 0) {
+        health.warnings = [`Optional environment variables not set: ${warningVars.join(', ')}`]
+      }
     }
 
     // Return appropriate HTTP status based on health

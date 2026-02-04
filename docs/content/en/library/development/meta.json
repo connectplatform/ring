@@ -1,0 +1,17 @@
+{
+  "title": "Development",
+  "pages": [
+    "index",
+    "local-setup",
+    "code-structure",
+    "whitelabel-navigation",
+    "best-practices",
+    "workflow",
+    "code-style",
+    "performance",
+    "testing",
+    "deployment",
+    "debugging",
+    "contributing"
+  ]
+}

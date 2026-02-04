@@ -38,7 +38,17 @@ const BASE_ROUTES = {
   WALLET: '/wallet',
   DOCS: '/docs',
   MARKETPLACE: '/marketplace',
-  MESSAGES: '/messages'
+  MESSAGES: '/messages',
+  // Admin routes
+  ADMIN: '/admin',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_ANALYTICS: '/admin/analytics',
+  ADMIN_SECURITY: '/admin/security',
+  ADMIN_NEWS: '/admin/news',
+  ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_MATCHER: '/admin/matcher',
+  ADMIN_PERFORMANCE: '/admin/performance',
+  ADMIN_STORE_ORDERS: '/admin/store/orders'
 }
 
 // Localized routes
@@ -81,7 +91,23 @@ export const ROUTES = {
   WALLET: (locale: Locale = defaultLocale) => `/${locale}/wallet`,
   DOCS: (locale: Locale = defaultLocale) => `/${locale}/docs`,
   MARKETPLACE: (locale: Locale = defaultLocale) => `/${locale}/marketplace`,
-  MESSAGES: (locale: Locale = defaultLocale) => `/${locale}/messages`
+  MESSAGES: (locale: Locale = defaultLocale) => `/${locale}/messages`,
+  VENDOR_PRODUCTS: (locale: Locale = defaultLocale) => `/${locale}/vendor/products`,
+  VENDOR_PRODUCTS_ADD: (locale: Locale = defaultLocale) => `/${locale}/vendor/products/add`,
+  VENDOR_PRODUCTS_EDIT: (locale: Locale = defaultLocale, id: string) => `/${locale}/vendor/products/${id}/edit`,
+  VENDOR_START: (locale: Locale = defaultLocale) => `/${locale}/vendor/start`,
+  VENDOR_DASHBOARD: (locale: Locale = defaultLocale) => `/${locale}/vendor/dashboard`,
+  VENDOR_STOREFRONT: (locale: Locale = defaultLocale, vendorId: string) => `/${locale}/store/vendors/${vendorId}`,
+  // Admin routes
+  ADMIN: (locale: Locale = defaultLocale) => `/${locale}/admin`,
+  ADMIN_USERS: (locale: Locale = defaultLocale) => `/${locale}/admin/users`,
+  ADMIN_ANALYTICS: (locale: Locale = defaultLocale) => `/${locale}/admin/analytics`,
+  ADMIN_SECURITY: (locale: Locale = defaultLocale) => `/${locale}/admin/security`,
+  ADMIN_NEWS: (locale: Locale = defaultLocale) => `/${locale}/admin/news`,
+  ADMIN_SETTINGS: (locale: Locale = defaultLocale) => `/${locale}/admin/settings`,
+  ADMIN_MATCHER: (locale: Locale = defaultLocale) => `/${locale}/admin/matcher`,
+  ADMIN_PERFORMANCE: (locale: Locale = defaultLocale) => `/${locale}/admin/performance`,
+  ADMIN_STORE_ORDERS: (locale: Locale = defaultLocale) => `/${locale}/admin/store/orders`
 }
 
 // Legacy routes for backward compatibility (these will redirect to localized versions)

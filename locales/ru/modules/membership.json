@@ -1,0 +1,128 @@
+{
+  "upgrade_to_member": "Upgrade to Member",
+  "hero": {
+    "title": "Unlock Full Platform Access",
+    "subtitle": "Create entities, post opportunities, and connect with professionals worldwide"
+  },
+  "benefits": {
+    "entity_management": {
+      "title": "Entity Management",
+      "description": "Create, manage, and showcase your organization or services"
+    },
+    "advanced_networking": {
+      "title": "Advanced Networking",
+      "description": "Connect with industry professionals and potential partners"
+    },
+    "priority_support": {
+      "title": "Priority Support",
+      "description": "Get faster responses and dedicated assistance"
+    },
+    "premium_features": {
+      "title": "Premium Features",
+      "description": "Access exclusive tools and advanced platform features"
+    },
+    "enhanced_visibility": {
+      "title": "Enhanced Visibility",
+      "description": "Get discovered by potential partners and clients"
+    },
+    "verified_profile": {
+      "title": "Verified Profile",
+      "description": "Build trust with a verified member badge"
+    }
+  },
+  "comparison": {
+    "title": "What You'll Get",
+    "feature": "Feature",
+    "subscriber": "Subscriber",
+    "member": "Member"
+  },
+  "features": {
+    "browse_entities": "Browse entities",
+    "view_opportunities": "View opportunities",
+    "basic_messaging": "Basic messaging",
+    "create_entities": "Create entities",
+    "manage_entities": "Manage entities",
+    "confidential_access": "Access confidential content",
+    "priority_support": "Priority support"
+  },
+  "cta": {
+    "title": "Ready to Upgrade?",
+    "subtitle": "Join professionals who are growing their business with Ring Platform"
+  },
+  "pricing": {
+    "amount": "₴299",
+    "period": "UAH",
+    "features_included": "All member features included"
+  },
+  "modal": {
+    "title": "Upgrade to Member",
+    "description": "You need member status to create entities and unlock premium features.",
+    "upgrade_required": "Member Status Required",
+    "benefits_title": "What you'll get:",
+    "benefits": {
+      "entity_creation": "Create and manage entities",
+      "entity_management": "Full entity management tools",
+      "premium_access": "Access to premium features"
+    },
+    "upgrade_now": "Upgrade Now",
+    "learn_more": "Learn More"
+  },
+  "payment": {
+    "title": "Complete Payment",
+    "placeholder": "WayForPay integration will be implemented in Phase 3. For now, this is a placeholder.",
+    "membership_fee": "One-time membership upgrade fee",
+    "proceed": "Proceed to Payment (Coming Soon)",
+    "cancel": "Cancel",
+    "ring_tokens": "RING Tokens",
+    "fiat": "Fiat Currency",
+    "recommended": "Recommended",
+    "cost": "Cost",
+    "your_balance": "Your Balance",
+    "ring": {
+      "title": "Pay with RING Tokens",
+      "sufficient": "Sufficient Balance",
+      "instant": "Instant upgrade with no transaction fees",
+      "insufficient": "Insufficient RING Balance",
+      "need_more": "You need {amount} more RING tokens to upgrade your account",
+      "pay_now": "Pay with RING",
+      "top_up": "Top Up RING Balance"
+    },
+    "fiat_details": {
+      "placeholder": "Traditional payment methods will be available soon. For now, please use RING tokens or contact support.",
+      "proceed": "Proceed to Payment (Coming Soon)"
+    }
+  },
+  "page": {
+    "title": "Upgrade to Member",
+    "subtitle": "Unlock the full potential of Ring Platform. Create entities, post opportunities, and grow your professional network.",
+    "success_title": "Request Submitted Successfully!",
+    "success_description": "We'll review your request and notify you within 24-48 hours.",
+    "pending_title": "Upgrade Request Pending",
+    "pending_description": "You have already submitted an upgrade request on {date}. Status: {status}",
+    "comparison_title": "Feature Comparison",
+    "comparison_subtitle": "See what you'll unlock as a member",
+    "current_plan": "(Current)",
+    "cta_title": "Ready to Upgrade?",
+    "cta_subtitle": "Join hundreds of professionals who are already using Ring Platform to grow their business",
+    "upgrade_now": "Upgrade Now",
+    "back_to_profile": "Back to Profile",
+    "upgrade_notice": "Upgrade requests are typically reviewed within 24-48 hours",
+    "faq_title": "Frequently Asked Questions",
+    "faq_time_question": "How long does the upgrade process take?",
+    "faq_time_answer": "Most upgrade requests are reviewed within 24-48 hours. You'll receive an email notification once your request has been processed.",
+    "faq_info_question": "What information do I need to provide?",
+    "faq_info_answer": "We'll ask for basic information about your organization, your role, and why you'd like to upgrade. LinkedIn profile or portfolio links can help speed up the review process.",
+    "faq_downgrade_question": "Can I downgrade later?",
+    "faq_downgrade_answer": "Yes, you can request to change your account type at any time through your profile settings. Note that downgrading may affect your access to certain features."
+  },
+  "features": {
+    "view_entities": "View public entities",
+    "view_opportunities": "View opportunities",
+    "basic_messaging": "Basic messaging",
+    "create_entities": "Create entities",
+    "post_opportunities": "Post opportunities",
+    "advanced_analytics": "Advanced analytics",
+    "priority_search": "Priority in search results",
+    "custom_branding": "Custom branding"
+  }
+}

@@ -1,0 +1,82 @@
+---
+title: Notifications
+description: Notifications documentation for Ring Platform
+---
+
+# Notification System
+
+Real-time notification delivery with FCM push notifications, user preferences, and performance optimization.
+
+## Overview
+
+Ring Platform's notification system ensures users stay informed about opportunities, messages, entity updates, and platform activities through multiple delivery channels.
+
+## Key Features
+
+### Notification Types
+- **OPPORTUNITY** - New opportunities and applications
+- **MESSAGE** - New messages and conversations  
+- **ENTITY** - Entity updates and invitations
+- **SYSTEM** - Platform announcements and updates
+- **WALLET** - Transaction and balance notifications
+
+### Delivery Channels
+- **In-app Notifications** - Real-time browser notifications
+- **Push Notifications** - Mobile FCM push messages
+- **Email Notifications** - Important updates via email
+- **SMS Notifications** - Critical alerts via SMS
+
+### User Preferences
+- **Granular Control** - Enable/disable by type and channel
+- **Quiet Hours** - Schedule notification-free periods
+- **Priority Levels** - High, medium, low priority handling
+- **Frequency Limits** - Prevent notification spam
+
+## Implementation
+
+### Send Notifications
+// Send opportunity notification
+
+<Code language="typescript" title="TypeScript">
+{`await sendNotification({
+  userId: 'user-123',
+  type: 'OPPORTUNITY',
+  title: 'New Job Opportunity',
+  message: 'Senior React Developer position at Tech Corp',
+  data: {
+    opportunityId: 'opp-456',
+    entityId: 'entity-789'
+  },
+  channels: ['in-app', 'push', 'email']
+})`}
+</Code>
+
+### User Preferences
+// Update notification preferences
+
+<Code language="typescript" title="TypeScript">
+{`await updateNotificationPreferences(userId, {
+  OPPORTUNITY: {
+    inApp: true,
+    push: true,
+    email: false,
+    sms: false
+  },
+  MESSAGE: {
+    inApp: true,
+    push: true,
+    email: true,
+    sms: false
+  },
+  quietHours: {
+    enabled: true,
+    start: '22:00',
+    end: '08:00',
+    timezone: 'UTC'
+  }
+})`}
+</Code>
+
+---
+
+*Complete notifications documentation coming soon.*

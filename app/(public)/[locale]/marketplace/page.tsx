@@ -1,7 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import StoreWrapper from '@/components/wrappers/store-wrapper'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -172,6 +174,7 @@ const mockServices: Service[] = [
 ]
 
 export default function MVMarketplacePage() {
+  const t = useTranslations('pages.marketplace')
   const [vendors, setVendors] = useState<Vendor[]>(mockVendors)
   const [services, setServices] = useState<Service[]>(mockServices)
   const [searchQuery, setSearchQuery] = useState('')
@@ -234,16 +237,17 @@ export default function MVMarketplacePage() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Store className="w-8 h-8 text-green-600 mr-3" />
-            <h1 className="text-4xl font-bold">MV Marketplace</h1>
-          </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Marketplace for Ring-powered site development and services. Become a MEMBER-level vendor and offer your expertise.
+    <StoreWrapper locale="en">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="container mx-auto px-0 py-0">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <Store className="w-8 h-8 text-green-600 mr-3" />
+              <h1 className="text-4xl font-bold">{t('title')}</h1>
+            </div>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            {t('subtitle')}
           </p>
         </div>
 
@@ -255,20 +259,20 @@ export default function MVMarketplacePage() {
               className={`px-6 py-2 rounded-md font-medium transition-colors ${
                 viewMode === 'vendors'
                   ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  : 'text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
-              Browse Vendors ({vendors.length})
+              {t('tabs.vendors')} ({vendors.length})
             </button>
             <button
               onClick={() => setViewMode('services')}
               className={`px-6 py-2 rounded-md font-medium transition-colors ${
                 viewMode === 'services'
                   ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  : 'text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
-              Service Packages ({services.length})
+              {t('tabs.services')} ({services.length})
             </button>
           </div>
         </div>
@@ -280,7 +284,7 @@ export default function MVMarketplacePage() {
               <div className="relative">
                 <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder={`Search ${viewMode}...`}
+                  placeholder={`${t('search.placeholder')} ${viewMode}...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -291,14 +295,14 @@ export default function MVMarketplacePage() {
             {viewMode === 'services' && (
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder={t('search.allCategories')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Platform Setup">Platform Setup</SelectItem>
-                  <SelectItem value="Web3 Integration">Web3 Integration</SelectItem>
-                  <SelectItem value="Security">Security</SelectItem>
-                  <SelectItem value="UI/UX">UI/UX</SelectItem>
+                  <SelectItem value="all">{t('search.allCategories')}</SelectItem>
+                  <SelectItem value="Platform Setup">{t('categories.platformSetup')}</SelectItem>
+                  <SelectItem value="Web3 Integration">{t('categories.web3Integration')}</SelectItem>
+                  <SelectItem value="Security">{t('categories.security')}</SelectItem>
+                  <SelectItem value="UI/UX">{t('categories.uiUx')}</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -306,30 +310,30 @@ export default function MVMarketplacePage() {
             {viewMode === 'vendors' && (
               <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All Availability" />
+                  <SelectValue placeholder={t('search.allAvailability')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Availability</SelectItem>
-                  <SelectItem value="available">Available Now</SelectItem>
-                  <SelectItem value="busy">Currently Busy</SelectItem>
+                  <SelectItem value="all">{t('search.allAvailability')}</SelectItem>
+                  <SelectItem value="available">{t('search.availableNow')}</SelectItem>
+                  <SelectItem value="busy">{t('search.currentlyBusy')}</SelectItem>
                 </SelectContent>
               </Select>
             )}
 
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger>
-                <SelectValue placeholder="Sort by" />
+                <SelectValue placeholder={t('search.sortBy')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="rating">Highest Rated</SelectItem>
+                <SelectItem value="rating">{t('search.highestRated')}</SelectItem>
                 {viewMode === 'vendors' && (
                   <>
-                    <SelectItem value="reviews">Most Reviews</SelectItem>
-                    <SelectItem value="rate">Hourly Rate</SelectItem>
+                    <SelectItem value="reviews">{t('search.mostReviews')}</SelectItem>
+                    <SelectItem value="rate">{t('search.hourlyRate')}</SelectItem>
                   </>
                 )}
                 {viewMode === 'services' && (
-                  <SelectItem value="price">Price</SelectItem>
+                  <SelectItem value="price">{t('search.price')}</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -345,7 +349,7 @@ export default function MVMarketplacePage() {
                   <div className="absolute top-4 right-4 z-10">
                     <Badge className="bg-green-600 text-white">
                       <Award className="w-3 h-3 mr-1" />
-                      Featured
+                      {t('vendor.featured')}
                     </Badge>
                   </div>
                 )}
@@ -366,12 +370,12 @@ export default function MVMarketplacePage() {
                         )}
                         {!vendor.available && (
                           <Badge variant="outline" className="text-orange-600 border-orange-200">
-                            Busy
+                            {t('vendor.busy')}
                           </Badge>
                         )}
                       </div>
                       <CardDescription className="text-base mb-2">{vendor.title}</CardDescription>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                         <div className="flex items-center">
                           <Star className="w-4 h-4 text-yellow-500 mr-1" />
                           {vendor.rating} ({vendor.reviews} reviews)
@@ -386,12 +390,12 @@ export default function MVMarketplacePage() {
                 </CardHeader>
 
                 <CardContent>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+                  <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
                     {vendor.description}
                   </p>
 
                   <div className="mb-4">
-                    <h4 className="font-semibold mb-2">Specialties:</h4>
+                    <h4 className="font-semibold mb-2">{t('vendor.specialties')}</h4>
                     <div className="flex flex-wrap gap-1">
                       {vendor.specialties.slice(0, 3).map((specialty) => (
                         <Badge key={specialty} variant="secondary" className="text-xs">
@@ -402,7 +406,7 @@ export default function MVMarketplacePage() {
                   </div>
 
                   <div className="mb-4">
-                    <h4 className="font-semibold mb-2">Skills:</h4>
+                    <h4 className="font-semibold mb-2">{t('vendor.skills')}</h4>
                     <div className="flex flex-wrap gap-1">
                       {vendor.skills.slice(0, 4).map((skill) => (
                         <Badge key={skill} variant="outline" className="text-xs">
@@ -411,7 +415,7 @@ export default function MVMarketplacePage() {
                       ))}
                       {vendor.skills.length > 4 && (
                         <Badge variant="outline" className="text-xs">
-                          +{vendor.skills.length - 4} more
+                          +{vendor.skills.length - 4} {t('vendor.more')}
                         </Badge>
                       )}
                     </div>
@@ -420,7 +424,7 @@ export default function MVMarketplacePage() {
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                     <div className="flex items-center">
                       <Users className="w-4 h-4 mr-1" />
-                      {vendor.completedProjects} projects
+                      {vendor.completedProjects} {t('vendor.projects')}
                     </div>
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
@@ -431,10 +435,10 @@ export default function MVMarketplacePage() {
                   <div className="flex space-x-2">
                     <Button variant="outline" size="sm" className="flex-1">
                       <MessageSquare className="w-4 h-4 mr-1" />
-                      Message
+                      {t('vendor.message')}
                     </Button>
                     <Button size="sm" className="flex-1" disabled={!vendor.available}>
-                      {vendor.available ? 'Hire Now' : 'Unavailable'}
+                      {vendor.available ? t('vendor.hireNow') : t('vendor.unavailable')}
                     </Button>
                   </div>
                 </CardContent>
@@ -449,7 +453,7 @@ export default function MVMarketplacePage() {
                   <div className="absolute top-4 right-4 z-10">
                     <Badge className="bg-green-600 text-white">
                       <TrendingUp className="w-3 h-3 mr-1" />
-                      Featured
+                      {t('service.featured')}
                     </Badge>
                   </div>
                 )}
@@ -499,7 +503,7 @@ export default function MVMarketplacePage() {
                   </div>
 
                   <Button className="w-full bg-green-600 hover:bg-green-700">
-                    Order Service
+                    {t('service.orderService')}
                   </Button>
                 </CardContent>
               </Card>
@@ -510,15 +514,16 @@ export default function MVMarketplacePage() {
         {filteredItems.length === 0 && (
           <div className="text-center py-12">
             <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
-              No {viewMode} found
+            <h3 className="text-xl font-semibold text-muted-foreground mb-2">
+              {t('empty.title', { type: viewMode })}
             </h3>
             <p className="text-gray-500 dark:text-gray-400">
-              Try adjusting your search criteria or check back later.
+              {t('empty.description')}
             </p>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </StoreWrapper>
   )
 }

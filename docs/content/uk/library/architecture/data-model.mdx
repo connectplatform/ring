@@ -1,0 +1,17 @@
+---
+title: Data Model
+description: Data Model documentation for Ring Platform
+---
+
+# Data Model
+
+Core collections and relationships (Firestore):
+
+- `users` ↔ profiles, wallets
+- `entities` ↔ owners (users), verification, visibility tiers
+- `opportunities` ↔ entities, applicants
+- `notifications` ↔ users
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="warning">Deploy required indexes per Firestore config.</Callout>

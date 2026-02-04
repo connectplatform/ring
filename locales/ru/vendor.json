@@ -1,0 +1,289 @@
+{
+  "title": "Панель продавца",
+  "becomeVendor": "Стать продавцом",
+
+  "onboarding": {
+    "title": "Станьте продавцом на GreenFood.live",
+    "subtitle": "Присоединяйтесь к нашему сельскохозяйственному рынку и достигните тысяч клиентов",
+    "success": "Добро пожаловать в GreenFood! Ваш магазин создан.",
+    "redirecting": "Перенаправление на панель управления...",
+    "form": {
+      "storeSlug": "URL-слаг магазина",
+      "storeSlugHint": "Идентификатор для URL (например, 'zelenaya-dolina-ferma')",
+      "storeSlugPlaceholder": "zelenaya-dolina-ferma",
+      "storeName": "Название магазина",
+      "storeNameHint": "Название вашей фермы или бизнеса",
+      "storeNamePlaceholder": "Органическая ферма Зеленая Долина",
+      "storeDescription": "Описание магазина",
+      "storeDescriptionHint": "Краткое описание вашей фермы и продуктов (макс. 500 символов)",
+      "storeDescriptionPlaceholder": "Мы семейная органическая ферма, специализирующаяся на свежих овощах и зелени...",
+      "storeCategories": "Категории магазина",
+      "storeCategoriesHint": "Выберите все категории, подходящие к вашим продуктам",
+      "storeLogo": "Логотип магазина",
+      "storeLogoHint": "Квадратное изображение, рекомендуется 512x512 (JPG, PNG, WebP, макс. 5МБ)",
+      "uploadLogo": "Загрузить логотип",
+      "changeLogo": "Изменить логотип",
+      "removeLogo": "Удалить логотип",
+      "submit": "Создать магазин продавца",
+      "submitting": "Создание магазина..."
+    },
+    "categories": {
+      "organic-produce": "Органическая продукция",
+      "honey-sweets": "Мёд и сладости",
+      "essential-oils": "Эфирные масла",
+      "dairy-eggs": "Молочные продукты и яйца",
+      "meat-poultry": "Мясо и птица",
+      "herbs-spices": "Травы и специи",
+      "grains-legumes": "Зерно и бобовые",
+      "baked-goods": "Выпечка",
+      "preserves-pickles": "Консервация и соленья",
+      "beverages": "Напитки",
+      "nuts-seeds": "Орехи и семена",
+      "handmade-crafts": "Ручные изделия"
+    },
+    "validation": {
+      "slugRequired": "Слаг магазина обязателен",
+      "slugInvalid": "Слаг может содержать только малые буквы, цифры и дефисы",
+      "slugTooShort": "Слаг должен быть не менее 3 символов",
+      "slugTooLong": "Слаг должен быть менее 50 символов",
+      "nameRequired": "Название магазина обязательно",
+      "nameTooShort": "Название должно быть не менее 3 символов",
+      "nameTooLong": "Название должно быть менее 100 символов",
+      "descriptionRequired": "Описание магазина обязательно",
+      "descriptionTooLong": "Описание должно быть менее 500 символов",
+      "categoriesRequired": "Выберите хотя бы одну категорию",
+      "logoTooBig": "Размер логотипа должен быть менее 5МБ",
+      "logoInvalidType": "Логотип должен быть JPG, PNG или WebP"
+    }
+  },
+
+  "dashboard": {
+    "title": "Панель продавца",
+    "welcome": "Добро пожаловать",
+    "overview": "Обзор",
+    "analytics": "Аналитика",
+    "settings": "Настройки"
+  },
+
+  "products": {
+    "title": "Мои продукты",
+    "myProducts": "Мои продукты",
+    "addProduct": "Добавить продукт",
+    "editProduct": "Редактировать продукт",
+    "noProducts": "У вас еще нет добавленных продуктов",
+    "addFirstProduct": "Добавьте первый продукт, чтобы начать продажу",
+    "totalProducts": "{count} продуктов",
+    "activeProducts": "{count} активных",
+    "pendingProducts": "{count} на рассмотрении",
+
+    "status": {
+      "active": "Активный",
+      "inactive": "Неактивный",
+      "pending": "На рассмотрении",
+      "approved": "Одобрено",
+      "rejected": "Отклонено"
+    },
+
+    "mainStore": {
+      "badge": "Главный магазин",
+      "submit": "Подать в главный магазин",
+      "pending": "⏳ Ожидает проверки админом",
+      "approved": "✓ В главном магазине",
+      "rejected": "❌ Не одобрено",
+      "notSubmitted": "Не подано в главный магазин"
+    },
+
+    "actions": {
+      "edit": "Редактировать",
+      "duplicate": "Дублировать",
+      "delete": "Удалить",
+      "preview": "Предпросмотр",
+      "activate": "Активировать",
+      "deactivate": "Деактивировать",
+      "viewInStore": "Просмотреть в магазине",
+      "viewInMainStore": "Просмотреть в главном магазине"
+    },
+
+    "filters": {
+      "all": "Все продукты",
+      "active": "Активные",
+      "inactive": "Неактивные",
+      "pendingApproval": "На рассмотрении",
+      "approved": "Одобрены для главного магазина",
+      "rejected": "Отклонены",
+      "search": "Поиск продуктов...",
+      "sortBy": "Сортировать по",
+      "sortNewest": "Новейшие",
+      "sortOldest": "Старейшие",
+      "sortPriceAsc": "Цена: от низкой к высокой",
+      "sortPriceDesc": "Цена: от высокой к низкой",
+      "sortNameAsc": "Название: А до Я",
+      "sortNameDesc": "Название: Я до А"
+    },
+
+    "form": {
+      "photo": "Фото продукта",
+      "photoHint": "Загрузите 1-5 качественных фото. Первое фото будет главным.",
+      "photoPlaceholder": "Перетащите фото или нажмите для выбора",
+      "video": "Видео продукта (Опционально)",
+      "videoHint": "Загрузите видео-презентацию (макс. 50МБ, MP4/WebM)",
+      "name": "Название продукта",
+      "nameHint": "Четкое, описательное название",
+      "namePlaceholder": "Органические помидоры черри",
+      "category": "Категория",
+      "categoryHint": "Выберите наиболее подходящую категорию",
+      "categoryPlaceholder": "Выберите категорию...",
+      "priceUAH": "Цена (грн)",
+      "priceHint": "Цена в украинских гривнах",
+      "pricePlaceholder": "100.00",
+      "stock": "Количество на складе",
+      "stockHint": "Доступные единицы",
+      "stockPlaceholder": "50",
+      "daarPrice": "Цена в токенах DAAR (Опционально)",
+      "daarPriceHint": "Рассчитывается автоматически из цены в грн, если не указано",
+      "description": "Краткое описание",
+      "descriptionHint": "Краткое описание продукта (макс. 200 символов)",
+      "descriptionPlaceholder": "Свежие органические помидоры с нашей фермы...",
+      "activeInMyStore": "Активен в моём магазине",
+      "activeInMyStoreHint": "Сделать продукт видимым в вашей витрине",
+      "submitToMainStore": "Подать в главный магазин",
+      "submitToMainStoreHint": "Подать на рассмотрение админу для размещения в главном маркетплейсе",
+      "submit": "Создать продукт",
+      "update": "Обновить продукт",
+      "submitting": "Создание...",
+      "updating": "Обновление...",
+      "cancel": "Отменить"
+    },
+
+    "validation": {
+      "nameRequired": "Название продукта обязательно",
+      "nameTooShort": "Название должно быть не менее 3 символов",
+      "nameTooLong": "Название должно быть менее 100 символов",
+      "categoryRequired": "Выберите категорию",
+      "priceRequired": "Цена обязательна",
+      "priceInvalid": "Цена должна быть положительным числом",
+      "stockRequired": "Количество на складе обязательно",
+      "stockInvalid": "Количество должно быть неотрицательным числом",
+      "photoRequired": "Требуется хотя бы одно фото",
+      "photoCountExceeded": "Максимум 5 фото разрешено",
+      "photoSizeExceeded": "Размер фото должен быть менее 5МБ",
+      "photoInvalidType": "Фото должно быть JPG, PNG или WebP",
+      "videoSizeExceeded": "Размер видео должен быть менее 50МБ",
+      "videoInvalidType": "Видео должно быть MP4 или WebM",
+      "descriptionTooLong": "Описание должно быть менее 200 символов"
+    },
+
+    "deleteConfirm": {
+      "title": "Удалить продукт",
+      "message": "Вы уверены, что хотите удалить '{name}'? Это действие нельзя отменить.",
+      "confirm": "Да, удалить",
+      "cancel": "Отменить"
+    }
+  },
+
+  "storefront": {
+    "title": "Магазин продавца",
+    "followVendor": "Подписаться",
+    "messageVendor": "Написать",
+    "memberSince": "Участник с",
+    "totalSales": "Всего продаж",
+    "rating": "Рейтинг",
+    "responseTime": "Время ответа",
+    "poweredBy": "На платформе",
+    "tabs": {
+      "products": "Продукты",
+      "about": "О нас",
+      "reviews": "Отзывы",
+      "contact": "Контакты"
+    },
+    "about": {
+      "story": "Наша история",
+      "location": "Расположение",
+      "shipping": "Условия доставки",
+      "returns": "Условия возврата",
+      "businessHours": "Часы работы",
+      "certifications": "Сертификаты",
+      "sustainability": "Экологические практики"
+    },
+    "contact": {
+      "phone": "Телефон",
+      "email": "Email",
+      "address": "Адрес",
+      "sendMessage": "Отправить сообщение"
+    }
+  },
+
+  "navbar": {
+    "myStore": "Мой магазин",
+    "dashboard": "Панель управления",
+    "myProducts": "Мои продукты",
+    "addProduct": "Добавить продукт",
+    "orders": "Заказы",
+    "earnings": "Доходы",
+    "settings": "Настройки",
+    "comingSoon": "Скоро"
+  },
+
+  "notifications": {
+    "productCreated": "Продукт '{name}' успешно создан",
+    "productUpdated": "Продукт '{name}' успешно обновлен",
+    "productDeleted": "Продукт удален",
+    "productSubmitted": "Продукт подан в главный магазин на рассмотрение",
+    "vendorCreated": "Магазин продавца успешно создан! Добро пожаловать в GreenFood.live",
+    "approvalPending": "Ваш продукт ожидает рассмотрения админом",
+    "approvalApproved": "Поздравляем! '{name}' одобрен для главного магазина",
+    "approvalRejected": "Продукт '{name}' не одобрен. Причина: {reason}"
+  },
+
+  "startWrapper": {
+    "setupProgress": "Прогресс настройки",
+    "storeDetails": "Информация о магазине",
+    "completeStoreInfo": "Заполните информацию о магазине и логотип, чтобы достичь 100%",
+    "whyChooseGreenFood": "Почему выбрать GreenFood?",
+    "benefits": {
+      "aiEnrichment": {
+        "title": "AI обогащение продуктов",
+        "description": "Загрузите фото + основную информацию, ИИ сгенерирует описания, теги и рекомендации"
+      },
+      "automatedSettlements": {
+        "title": "Автоматизированные расчеты",
+        "description": "Продажи обрабатываются автоматически, комиссии рассчитываются, выплаты планируются"
+      },
+      "daarRewards": {
+        "title": "Бонусы в токенах DAAR",
+        "description": "Получите до 25% бонусных токенов за регенеративные практики земледелия"
+      },
+      "trustTier": {
+        "title": "Система уровней доверия",
+        "description": "Начните с 20% комиссии, заработайте до 12% через качество и продажи"
+      }
+    },
+    "nextSteps": {
+      "title": "Следующие шаги",
+      "completeStore": "Заполнить информацию о магазине",
+      "uploadLogo": "Загрузить логотип магазина",
+      "addFirstProduct": "Добавить первый продукт"
+    },
+    "vendorGuide": {
+      "title": "Руководство продавца",
+      "description": "Узнайте, как настроить и управлять вашим магазином эффективно",
+      "viewGuide": "Посмотреть руководство продавца →"
+    },
+    "progressBenefits": "Прогресс и преимущества"
+  },
+
+  "startPage": {
+    "title": "Регистрация продавца",
+    "subtitle": "Настройте свой магазин и начните продавать на GreenFood.live",
+    "progressSteps": {
+      "account": "Аккаунт",
+      "storeSetup": "Настройка магазина",
+      "launch": "Запуск"
+    },
+    "trustIndicators": {
+      "farms": "50+ ферм",
+      "activation": "Мгновенная активация",
+      "security": "Безопасная платформа"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+---
+title: Встановлення
+description: Встановлення платформи Ring
+---
+
+# Встановлення
+
+Цей посібник проведе вас через повну настройку платформи Ring для локальної розробки.
+
+## Передумови
+
+- Node.js 22.9+ та npm 10.8+
+- Проект Firebase (Firestore + Auth)
+- Облікові дані Google Cloud OAuth
+
+## 1) Ініціалізація проекту
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+npm install`}
+</Code>
+
+## 2) Налаштування середовища
+
+cp env.local.template .env.local
+
+<Code language="bash" title="terminal">
+{`npm run setup:env`}
+</Code>
+
+Основні ключі (дивіться `ring/env.local.template`):
+
+<Code language="dotenv" title="AUTH_FIREBASE_PROJECT_ID=">
+{`AUTH_FIREBASE_CLIENT_EMAIL=
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+WALLET_ENCRYPTION_KEY=`}
+</Code>
+
+## 3) Налаштування Firebase
+
+1. Увімкнути аутентифікацію (провайдер Google)
+2. Створити базу даних Firestore (тестовий режим для локальної розробки)
+3. Опціонально: налаштувати Storage та Cloud Messaging (VAPID ключ)
+
+## 4) Запуск
+
+✅ http://localhost:3000
+
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="warning">Тримайте приватні ключі в лапках з літературними перенесеннями рядків.</Callout>
+
+

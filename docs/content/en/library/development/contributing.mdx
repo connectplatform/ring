@@ -1,0 +1,225 @@
+---
+title: Contributing
+description: Contributing documentation for Ring Platform
+---
+
+# Contributing Guide
+
+How to contribute to Ring Platform - from your first contribution to becoming a core contributor.
+
+## 🤝 Welcome Contributors!
+
+Ring Platform is an **open-source project** that thrives on community contributions. Whether you're fixing a bug, adding a feature, or improving documentation, your contributions are valued and appreciated.
+
+## 🚀 Getting Started
+
+### 1. Fork and Clone
+Fork the repository on GitHub Then clone your fork Add upstream remote
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/YOUR_USERNAME/ring.git
+cd ring
+
+git remote add upstream https://github.com/connectplatform/ring.git`}
+</Code>
+
+### 2. Development Setup
+Install dependencies Copy environment template Start development server
+
+<Code language="bash" title="terminal">
+{`npm install
+
+cp env.local.template .env.local
+
+npm run dev`}
+</Code>
+
+### 3. Create Feature Branch
+Create branch from develop
+
+<Code language="bash" title="terminal">
+{`git checkout develop
+git pull upstream develop
+git checkout -b feature/your-feature-name`}
+</Code>
+
+## 📝 Contribution Types
+
+### 🐛 Bug Reports
+Before creating a bug report, please:
+1. Check existing issues
+2. Use the bug report template
+3. Include reproduction steps
+4. Provide system information
+
+### ✨ Feature Requests
+For new features:
+1. Check existing feature requests
+2. Discuss in Discord first for major features
+3. Use the feature request template
+4. Explain the use case and benefits
+
+### 📚 Documentation
+Documentation improvements are always welcome:
+- Fix typos and grammar
+- Add missing examples
+- Improve clarity and structure
+- Add translations
+
+### 🔧 Code Contributions
+
+#### Small Changes
+- Bug fixes
+- Performance improvements
+- Code cleanup
+- Test additions
+
+#### Major Changes
+- New features
+- Breaking changes
+- Architecture modifications
+- API changes
+
+> [!IMPORTANT]
+> Discuss major changes in GitHub Issues or Discord before starting work.
+
+## 📋 Development Guidelines
+
+### Code Quality Standards
+Before committing, ensure:
+
+<Code language="bash" title="terminal">
+{`npm run lint        # ESLint passes
+npm run type-check  # TypeScript compiles
+npm run test        # Tests pass
+npm run build       # Production build succeeds`}
+</Code>
+
+### Commit Convention
+We use [Conventional Commits](https://conventionalcommits.org/):
+
+<Code language="bash" title="feat: add user authentication system">
+{`fix: resolve wallet connection timeout
+docs: update API documentation
+style: fix code formatting
+refactor: simplify entity creation logic
+test: add unit tests for opportunities
+chore: update dependencies`}
+</Code>
+
+### Pull Request Process
+
+#### 1. Create Quality PR
+- Write clear title and description
+- Reference related issues
+- Include screenshots for UI changes
+- Add tests for new functionality
+- Update documentation
+
+#### 2. PR Template
+# Description # Type of Change # Testing # Screenshots # Checklist
+
+<Code language="markdown" title="content">
+{`Brief description of changes
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+- [ ] Unit tests added/updated
+- [ ] Integration tests pass
+- [ ] Manual testing completed
+
+(If applicable)
+
+- [ ] Code follows style guidelines
+- [ ] Self-review completed
+- [ ] Documentation updated
+- [ ] No breaking changes (or documented)`}
+</Code>
+
+#### 3. Review Process
+1. Automated checks run (CI/CD)
+2. Code review by maintainers
+3. Address feedback
+4. Approval and merge
+
+## 🏆 Recognition
+
+### Contributor Levels
+
+#### **Community Contributor**
+- First-time contributors
+- Occasional contributors
+- Bug reporters and documentation improvers
+
+#### **Regular Contributor**
+- Multiple merged PRs
+- Consistent quality contributions
+- Helps other contributors
+
+#### **Core Contributor**
+- Significant feature contributions
+- Code review participation
+- Community leadership
+- Issue triage and management
+
+### Recognition Program
+- **Contributors page** - All contributors listed
+- **Release notes** - Major contributors mentioned
+- **Discord roles** - Special contributor roles
+- **Swag program** - T-shirts and stickers for active contributors
+
+## 📞 Getting Help
+
+### Communication Channels
+
+#### 💬 Discord Community
+- **#contributors** - General contributor discussion
+- **#development** - Technical development questions
+- **#design** - UI/UX discussion
+- **#documentation** - Documentation improvements
+
+#### 📧 Direct Contact
+- **Maintainer Email**: maintainers@ring.ck.ua
+- **Security Issues**: security@ring.ck.ua
+
+### Mentorship Program
+New contributors can request mentorship:
+1. Join Discord and introduce yourself in #contributors
+2. Mention you're looking for mentorship
+3. A core contributor will guide your first contribution
+
+## 📜 Code of Conduct
+
+Ring Platform follows the [Contributor Covenant](https://www.contributor-covenant.org/) Code of Conduct. By participating, you agree to uphold this code.
+
+### Our Standards
+- **Be respectful** - Treat everyone with respect
+- **Be inclusive** - Welcome people of all backgrounds
+- **Be constructive** - Provide helpful feedback
+- **Be collaborative** - Work together toward common goals
+
+### Enforcement
+Code of conduct violations can be reported to conduct@ring.ck.ua. All reports will be handled confidentially.
+
+## 🎯 Contribution Ideas
+
+### Good First Issues
+Look for issues labeled `good-first-issue`:
+- Documentation improvements
+- Small bug fixes
+- Test additions
+- UI polish
+
+### Help Wanted
+Issues labeled `help-wanted` need community assistance:
+- Feature implementations
+- Complex bug fixes
+- Performance optimizations
+- Accessibility improvements
+
+---
+
+*Thank you for contributing to Ring Platform! Together, we're building the future of professional networking. 🚀*

@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { cookies, headers } from 'next/headers'
 import AddEntityForm from '@/features/entities/components/add-entity'
+import EntityFormWrapper from '@/components/wrappers/entity-form-wrapper'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
@@ -150,13 +151,15 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
         }}
       />
 
-      <Suspense fallback={
-        <div className="flex justify-center items-center h-screen">
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
-        </div>
-      }>
-        <AddEntityForm locale={locale} translations={translations} />
-      </Suspense>
+      <EntityFormWrapper locale={locale}>
+        <Suspense fallback={
+          <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+        }>
+          <AddEntityForm locale={locale} translations={translations} />
+        </Suspense>
+      </EntityFormWrapper>
     </>
   )
 }

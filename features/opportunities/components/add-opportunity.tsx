@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useTransition } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -236,6 +236,9 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showOptionalFields, setShowOptionalFields] = useState(false)
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
+
+  // React 19 useTransition for non-blocking tag/skill updates
+  const [isPending, startTransition] = useTransition()
 
   const [state, formAction] = useActionState<OpportunityFormState | null, FormData>(
     createOpportunity,

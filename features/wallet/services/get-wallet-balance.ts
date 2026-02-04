@@ -4,7 +4,8 @@
 // - Build-time phase detection and caching
 // - Intelligent data strategies per environment
 
-import { ethers } from 'ethers'
+import { createPublicClient, http, formatEther } from 'viem'
+import { polygon } from 'viem/chains'
 import { auth } from "@/auth"
 import { AuthUser, Wallet } from '@/features/auth/types'
 import { selectDefaultWallet } from './utils'
@@ -75,12 +76,18 @@ export async function getWalletBalance(): Promise<string> {
     }
     const walletAddress = defaultWallet.address;
 
-    // Step 3: Connect to Polygon network
-    const provider = new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL);
-    
-    // Step 4: Fetch balance
-    const balance = await provider.getBalance(walletAddress);
-    const balanceInEther = ethers.formatEther(balance);
+    // Step 3: Create viem public client for Polygon
+    const client = createPublicClient({
+      chain: polygon,
+      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+    })
+
+    // Step 4: Fetch balance using viem
+    const balance = await client.getBalance({
+      address: walletAddress as `0x${string}`,
+    })
+
+    const balanceInEther = formatEther(balance)
 
     console.log(`Services: getWalletBalance - Balance fetched successfully for user ${userId}`);
     return balanceInEther;

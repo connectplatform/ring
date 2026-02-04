@@ -27,6 +27,26 @@ Ring Platform's Web3 wallet system transforms traditional financial interactions
 
 ## 🎯 The Web3 Wallet Revolution
 
+### System Architecture
+
+<Mermaid>
+{`mindmap
+  root((Web3 Wallet))
+    Tokens
+      RING Utility
+      DAAR Governance
+      DAARION Rewards
+    Features
+      Mobile Integration
+      Balance Display
+      Subscription Mgmt
+      Top-up System
+    Security
+      Multi-signature
+      KYC Integration
+      Hardware Security`}
+</Mermaid>
+
 ### Democratizing Blockchain Finance
 
 Traditional financial systems create barriers that prevent most users from participating in the digital economy. Ring Platform's Web3 wallet eliminates these barriers by:
@@ -146,9 +166,10 @@ Traditional financial systems create barriers that prevent most users from parti
 - **Analytics Platform**: Comprehensive financial reporting and insights
 
 ### DeFi Protocol Integration
-```typescript
 // Connect to external DeFi protocols
-const defiConnection = await wallet.connectDeFiProtocol({
+
+<Code language="typescript" title="TypeScript">
+{`const defiConnection = await wallet.connectDeFiProtocol({
   protocol: 'uniswap',
   tokens: ['RING', 'ETH'],
   strategy: 'yield-farming'
@@ -159,8 +180,8 @@ const optimizedYield = await wallet.optimizeYield({
   tokens: ['RING', 'DAAR'],
   riskTolerance: 'moderate',
   lockPeriod: '6-months'
-})
-```
+})`}
+</Code>
 
 ## 🏆 Why Choose Ring Platform's Web3 Wallet?
 
@@ -185,6 +206,80 @@ const optimizedYield = await wallet.optimizeYield({
 - ✅ **Educational Resources**: Learn Web3 while using the platform
 - ✅ **Community Support**: 24/7 assistance for all wallet operations
 
+## 📱 Mobile Wallet Experience
+
+### Revolutionary Mobile-First Design
+Ring Platform's wallet system delivers a seamless mobile experience that rivals the finest banking applications, with complete functionality accessible on-the-go.
+
+#### 🎨 **Mobile Wallet Features**
+- **Profile Integration**: Access full wallet functionality through your profile tabs
+- **Real-Time Balance**: Live RING token balance with USD equivalent display
+- **Subscription Management**: View active subscriptions and next payment dates
+- **Spending Limits**: Monitor monthly limits and remaining balance
+- **Quick Actions**: One-tap access to top-up, balance refresh, and full wallet view
+- **Secure Operations**: Address copying and transaction management on mobile
+
+#### 📊 **Mobile Dashboard Overview**
+// Mobile wallet integration example
+
+<Code language="typescript" title="TypeScript">
+{`const mobileWallet = {
+  balance: "1,250.75 RING",
+  usdValue: "$2,501.50",
+  subscription: {
+    status: "Active",
+    nextPayment: "2025-11-01"
+  },
+  limits: {
+    monthly: "5,000 RING",
+    remaining: "3,749.25 RING"
+  }
+}`}
+</Code>
+
+### Mobile-First User Experience
+- **Intuitive Navigation**: Top-right gradient avatar button for instant profile access
+- **Fullscreen Menu**: 9-dots menu revealing all Ring platform modules
+- **Touch-Optimized**: Large touch targets and gesture-friendly interactions
+- **Offline Capability**: View balance and recent transactions without internet
+- **Push Notifications**: Real-time alerts for balance changes and opportunities
+
+### Mobile Navigation Revolution
+Ring Platform introduces cutting-edge mobile navigation that transforms how users interact with comprehensive business platforms:
+
+#### 🎨 **Modern Navigation Design**
+- **Gradient Avatar Button**: Beautiful top-right positioned avatar with modern gradient borders
+- **9-Dots Menu System**: Clean replacement for traditional navigation bars
+- **Fullscreen Modal**: Immersive menu experience with colorful gradient widgets
+- **8-Module Access**: Complete Ring platform accessibility through organized widgets
+
+#### 📱 **Navigation Architecture**
+// Mobile navigation system
+
+<Code language="typescript" title="TypeScript">
+{`const mobileNavigation = {
+  avatarButton: {
+    position: "top-right",
+    style: "gradient-border",
+    functionality: "profile-access"
+  },
+  menuSystem: {
+    trigger: "9-dots-icon",
+    modal: "fullscreen-gradient-widgets",
+    modules: [
+      "Wallet", "Store", "Entities", "Opportunities",
+      "Docs", "Notifications", "Settings", "Support"
+    ]
+  }
+}`}
+</Code>
+
+### Mobile Architecture Highlights
+- **Component Separation**: Proper architectural patterns with reusable components
+- **Performance Optimized**: Efficient rendering and state management for mobile devices
+- **Accessibility First**: WCAG compliant touch targets and screen reader support
+- **Cross-Platform**: Consistent experience across iOS, Android, and web platforms
+
 ## 🚀 Getting Started with Web3 Finance
 
 ### Step 1: Automatic Wallet Creation
@@ -205,9 +300,10 @@ Connect external DeFi protocols and explore advanced earning opportunities
 ## 💡 Advanced Financial Strategies
 
 ### Yield Optimization
-```typescript
 // Advanced staking strategy
-const stakingStrategy = await wallet.createStakingStrategy({
+
+<Code language="typescript" title="TypeScript">
+{`const stakingStrategy = await wallet.createStakingStrategy({
   tokens: ['RING', 'DAAR'],
   totalAmount: '10000',
   distribution: {
@@ -217,20 +313,21 @@ const stakingStrategy = await wallet.createStakingStrategy({
   },
   autoRebalance: true,
   targetAPY: 12
-})
-```
+})`}
+</Code>
 
 ### Automated Portfolio Management
-```typescript
 // Set up automated financial goals
-const financialGoals = await wallet.createFinancialGoals({
+
+<Code language="typescript" title="TypeScript">
+{`const financialGoals = await wallet.createFinancialGoals({
   monthlyTarget: 1000,  // Earn $1000/month in rewards
   riskTolerance: 'moderate',
   investmentHorizon: '2-years',
   autoAdjust: true,
   notifications: true
-})
-```
+})`}
+</Code>
 
 ---
 

@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
-import { 
-  Users, 
-  FileText, 
-  Settings, 
-  BarChart3, 
+import {
+  Users,
+  FileText,
+  Settings,
+  BarChart3,
   Shield,
   Database,
   Activity,
@@ -17,8 +17,11 @@ import {
   Lock
 } from 'lucide-react';
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
+import AdminWrapper from '@/components/wrappers/admin-wrapper'
 
-export const dynamic = 'force-dynamic';
+// Allow caching for admin dashboard with short revalidation for monitoring data
+export const dynamic = "auto"
+export const revalidate = 60 // 1 minute for admin dashboard data
 
 export default async function AdminDashboardPage({ 
   params 
@@ -155,12 +158,12 @@ export default async function AdminDashboardPage({
         }}
       />
 
-      <div className="container mx-auto px-4 py-8">
+      <AdminWrapper locale={validLocale} pageContext="dashboard">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             {(t as any).admin?.dashboard || 'Admin Dashboard'}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             {(t as any).admin?.dashboardDescription || 'Administrative dashboard for Ring Platform management and monitoring.'}
           </p>
         </div>
@@ -232,7 +235,7 @@ export default async function AdminDashboardPage({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     {section.stats}
                   </p>
                   <Link href={section.href}>
@@ -277,7 +280,7 @@ export default async function AdminDashboardPage({
             </div>
           </CardContent>
         </Card>
-      </div>
+      </AdminWrapper>
     </>
   );
 }

@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   })
 }
 
-export const dynamic = 'force-dynamic'
+// Allow caching for platform statistics with moderate revalidation for analytics data
+export const dynamic = 'auto'
+export const revalidate = 300 // 5 minutes for platform statistics
 
 

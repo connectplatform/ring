@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
-import { getAdminDb } from '@/lib/firebase-admin.server'
-import { Timestamp } from 'firebase-admin/firestore'
-
-const db = getAdminDb()
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,41 +29,55 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const tokensCollection = db.collection('fcm_tokens')
+    await initializeDatabase()
+    const db = getDatabaseService()
 
     // Check if token already exists
-    const existingToken = await tokensCollection
-      .where('token', '==', token)
-      .limit(1)
-      .get()
+    const existingTokensResult = await db.query({
+      collection: 'fcm_tokens',
+      filters: [{ field: 'token', operator: '==', value: token }]
+    })
+    
+    if (!existingTokensResult.success) {
+      throw existingTokensResult.error || new Error('Failed to check existing tokens')
+    }
 
-    if (!existingToken.empty) {
+    if (existingTokensResult.data.length > 0) {
       // Update existing token
-      const doc = existingToken.docs[0]
-      await doc.ref.update({
+      const existingToken = existingTokensResult.data[0]
+      
+      const updateResult = await db.update('fcm_tokens', existingToken.id, {
         userId: session.user.id,
         deviceInfo: {
           ...deviceInfo,
-          lastSeen: Timestamp.fromDate(new Date(deviceInfo.lastSeen))
+          lastSeen: new Date(deviceInfo.lastSeen)
         },
         isActive: true,
-        updatedAt: Timestamp.now()
+        updatedAt: new Date()
       })
+      
+      if (!updateResult.success) {
+        throw updateResult.error || new Error('Failed to update FCM token')
+      }
 
       console.log(`FCM token updated for user ${session.user.id}`)
     } else {
       // Create new token
-      await tokensCollection.add({
+      const createResult = await db.create('fcm_tokens', {
         userId: session.user.id,
         token,
         deviceInfo: {
           ...deviceInfo,
-          lastSeen: Timestamp.fromDate(new Date(deviceInfo.lastSeen))
+          lastSeen: new Date(deviceInfo.lastSeen)
         },
         isActive: true,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
+      
+      if (!createResult.success) {
+        throw createResult.error || new Error('Failed to create FCM token')
+      }
 
       console.log(`FCM token registered for user ${session.user.id}`)
     }
@@ -102,20 +113,33 @@ export async function DELETE(req: NextRequest) {
       )
     }
 
-    const tokensCollection = db.collection('fcm_tokens')
+    await initializeDatabase()
+    const db = getDatabaseService()
 
     // Find and deactivate token
-    const tokenSnapshot = await tokensCollection
-      .where('token', '==', token)
-      .where('userId', '==', session.user.id)
-      .limit(1)
-      .get()
+    const tokenResult = await db.query({
+      collection: 'fcm_tokens',
+      filters: [
+        { field: 'token', operator: '==', value: token },
+        { field: 'userId', operator: '==', value: session.user.id }
+      ]
+    })
+    
+    if (!tokenResult.success) {
+      throw tokenResult.error || new Error('Failed to find FCM token')
+    }
 
-    if (!tokenSnapshot.empty) {
-      await tokenSnapshot.docs[0].ref.update({
+    if (tokenResult.data.length > 0) {
+      const foundToken = tokenResult.data[0]
+      
+      const updateResult = await db.update('fcm_tokens', foundToken.id, {
         isActive: false,
-        updatedAt: Timestamp.now()
+        updatedAt: new Date()
       })
+      
+      if (!updateResult.success) {
+        throw updateResult.error || new Error('Failed to deactivate FCM token')
+      }
 
       console.log(`FCM token removed for user ${session.user.id}`)
     }
@@ -129,4 +153,4 @@ export async function DELETE(req: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

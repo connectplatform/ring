@@ -1,0 +1,149 @@
+---
+title: Messaging
+description: Messaging documentation for Ring Platform
+---
+
+# Real-time Messaging
+
+Advanced communication system with **Tunnel Transport** abstraction, WebSocket support, and Edge Runtime compatibility.
+
+## Overview
+
+Ring Platform messaging provides seamless real-time communication between entities, opportunity applicants, and platform users with multi-transport reliability.
+
+## Transport Architecture
+
+### Tunnel Transport Abstraction
+Intelligent transport selection for optimal performance:
+
+// Automatic transport selection
+
+<Code language="typescript" title="TypeScript">
+{`const transport = new TunnelTransport({
+  primary: 'websocket',
+  fallbacks: ['sse', 'longpolling']
+})`}
+</Code>
+
+### Transport Options
+
+#### WebSocket (Primary)
+- **Real-time bidirectional** communication
+- **Low latency** message delivery
+- **Connection persistence** across sessions
+- **Optimal for** desktop and mobile apps
+
+#### Server-Sent Events (SSE)
+- **Edge Runtime compatible** fallback
+- **Unidirectional** server-to-client messaging
+- **HTTP/2 multiplexing** support
+- **Optimal for** Vercel Edge deployments
+
+#### Long-polling (Universal)
+- **Universal compatibility** fallback
+- **HTTP-based** communication
+- **Works everywhere** including restricted networks
+- **Optimal for** maximum compatibility
+
+## Features
+
+### Real-time Messaging
+- **Instant delivery** of messages
+- **Typing indicators** and presence
+- **Read receipts** and message status
+- **File attachments** and media sharing
+
+### Conversation Management
+- **Group conversations** for team collaboration
+- **Direct messaging** between users
+- **Conversation history** and search
+- **Message threading** for organized discussions
+
+### Cross-platform Support
+- **Web applications** with full features
+- **Mobile apps** with push notifications
+- **Desktop clients** with native integration
+- **API access** for custom implementations
+
+## Implementation
+
+### Basic Messaging
+
+<Code language="typescript" title="TypeScript">
+{`import { useMessaging } from '@/hooks/useMessaging'
+export function ChatComponent() {
+  const { 
+    conversations, 
+    sendMessage, 
+    markAsRead,
+    isTyping 
+  } = useMessaging()
+
+  const handleSendMessage = async (conversationId: string, content: string) => {
+    await sendMessage(conversationId, {
+      content,
+      type: 'text'
+    })
+  }
+
+  return (
+    <div className="chat-interface">
+      {conversations.map(conversation => (
+        <ConversationView 
+          key={conversation.id}
+          conversation={conversation}
+          onSendMessage={handleSendMessage}
+        />
+      ))}
+    </div>
+  )
+}`}
+</Code>
+
+### Real-time Updates
+
+<Code language="typescript" title="import { useEffect } from 'react'">
+{`import { messagingService } from '@/services/messaging'
+
+export function useRealTimeMessages(conversationId: string) {
+  useEffect(() => {
+    const unsubscribe = messagingService.subscribe(conversationId, {
+      onMessage: (message) => {
+        // Handle new message
+        console.log('New message:', message)
+      },
+      onTyping: (userId) => {
+        // Handle typing indicator
+        console.log('User typing:', userId)
+      },
+      onRead: (messageId) => {
+        // Handle read receipt
+        console.log('Message read:', messageId)
+      }
+    })
+
+    return unsubscribe
+  }, [conversationId])
+}`}
+</Code>
+
+## Performance Optimizations
+
+### Message Caching
+- **Local storage** for offline access
+- **Intelligent prefetching** of conversation history
+- **Memory management** for large conversations
+
+### Connection Management
+- **Automatic reconnection** on network issues
+- **Heartbeat monitoring** for connection health
+- **Graceful degradation** across transports
+
+### Scalability Features
+- **Message pagination** for large conversations
+- **Lazy loading** of conversation history
+- **Efficient updates** with minimal data transfer
+
+---
+
+*Ready to implement messaging? Check our [API Reference](/ru/library/api/messaging) for technical details.*

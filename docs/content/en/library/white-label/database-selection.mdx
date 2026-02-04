@@ -1,0 +1,369 @@
+---
+title: Database Backend Selection
+description: Choose the right database for your Ring deployment - Firebase, PostgreSQL, or ConnectPlatform
+---
+
+import { Callout } from '@/components/docs/callout'
+import { Steps, Step } from '@/components/docs/steps'
+
+# Database Backend Selection
+
+<Callout type="info">
+  **Key Decision**: Your database choice affects scalability, cost, and features. Ring supports Firebase, PostgreSQL, and ConnectPlatform - migrate anytime.
+</Callout>
+
+Ring's unique database abstraction layer allows you to start with one database and migrate to another without rewriting application code. This guide helps you choose the right backend for your needs.
+
+## Database Options Overview
+
+| Feature | Firebase | PostgreSQL | ConnectPlatform |
+|---------|----------|------------|-----------------|
+| **Best For** | Rapid prototyping | Production scale | Enterprise features |
+| **Cost** | Pay-per-use | Predictable hosting | Subscription-based |
+| **Setup Time** | 5 minutes | 30 minutes | 15 minutes |
+| **Scalability** | Auto-scaling | Manual scaling | Auto-scaling |
+| **Real-time** | Built-in | Extensions needed | Built-in |
+| **Advanced Queries** | Limited | Full SQL | Advanced abstraction |
+| **Backup** | Automatic | Configure | Managed |
+| **Multi-region** | Easy | Complex | Built-in |
+
+## Firebase - Start Here (Recommended for New Deployments)
+
+<Callout type="success">
+  **Perfect for**: Prototyping, MVPs, small teams, rapid development
+</Callout>
+
+### Why Choose Firebase?
+
+- **Zero configuration** - works out of the box
+- **Real-time features** built-in (perfect for Ring's messaging)
+- **Authentication** integrated
+- **Hosting** included
+- **Pay only for what you use**
+
+### Setup (5 minutes)
+
+<Steps>
+  <Step>
+    **Create Firebase project:**
+
+    Go to [Firebase Console](https://console.firebase.google.com/) and create a new project.
+  </Step>
+
+  <Step>
+    **Enable services:**
+
+    Enable Firestore, Authentication, Storage, and Hosting in your Firebase project.
+  </Step>
+
+  <Step>
+    **Get credentials:**
+
+    Go to Project Settings → Service Accounts → Generate private key to download credentials JSON.
+  </Step>
+
+  <Step>
+    **Configure Ring:**
+
+    Add to your `.env.local`:
+
+    <Code language="env" title="DATABASE_MODE=firebase_only">
+{`FIREBASE_PROJECT_ID=your-project-id
+    FIREBASE_PRIVATE_KEY=your-private-key
+    FIREBASE_CLIENT_EMAIL=your-client-email`}
+</Code>
+  </Step>
+
+  <Step>
+    **Deploy:**
+
+    <Code language="bash" title="terminal">
+{`npm run build
+firebase deploy`}
+</Code>
+  </Step>
+</Steps>
+
+### Firebase Limitations
+
+- **Query complexity** - No complex joins or aggregations
+- **Cost scaling** - Can become expensive at scale
+- **Vendor lock-in** - Harder to migrate away
+- **Data export** - Limited options
+
+## PostgreSQL - Production Scale
+
+<Callout type="success">
+  **Perfect for**: Established businesses, high-traffic platforms, data-intensive applications
+</Callout>
+
+### Why Choose PostgreSQL?
+
+- **Full SQL power** - Complex queries, joins, aggregations
+- **ACID compliance** - Data integrity guaranteed
+- **Extensions** - PostGIS, full-text search, advanced analytics
+- **Cost effective** at scale
+- **Open source** - No vendor lock-in
+- **JSONB support** - Perfect for Ring's flexible data model
+
+### Setup (30 minutes)
+
+<Steps>
+  <Step>
+    **Choose PostgreSQL provider:**
+
+    **Options:**
+    - **Supabase** (Recommended) - PostgreSQL with Firebase-like features
+    - **Neon** - Serverless PostgreSQL
+    - **AWS RDS** - Managed PostgreSQL
+    - **Self-hosted** - DigitalOcean, Linode, etc.
+  </Step>
+
+  <Step>
+    **Create database:**
+
+    Create a new PostgreSQL database with these requirements:
+    - PostgreSQL 15+
+    - Connection pooling enabled
+    - Backup configured
+  </Step>
+
+  <Step>
+    **Run schema migration:**
+
+    Ring provides automated schema setup. Configure your connection:
+
+    <Code language="env" title="DATABASE_MODE=postgresql_only">
+{`POSTGRESQL_URL=postgresql://user:password@host:5432/database
+    POSTGRESQL_SSL=true`}
+</Code>
+  </Step>
+
+  <Step>
+    **Migrate from Firebase (optional):**
+
+    If migrating existing data:
+
+    <Code language="bash" title="terminal">
+{`npm run db:migrate -- --from firebase --to postgresql`}
+</Code>
+  </Step>
+</Steps>
+
+### PostgreSQL Advantages
+
+- **Performance** - Excellent for complex queries
+- **Scalability** - Handles millions of records
+- **Analytics** - Advanced reporting capabilities
+- **Extensions** - Specialized functionality available
+- **Cost** - Very cost-effective at scale
+
+## ConnectPlatform - Enterprise Features
+
+<Callout type="success">
+  **Perfect for**: Large organizations, multi-tenant platforms, enterprise integrations
+</Callout>
+
+### Why Choose ConnectPlatform?
+
+- **Built by Trinity Ukraine** - Same team that built Ring
+- **Multi-tenant** architecture built-in
+- **Advanced caching** with Redis integration
+- **Real-time messaging** optimized
+- **Enterprise security** features
+- **Migration tools** between backends
+- **Professional support** included
+
+### Setup (15 minutes)
+
+<Steps>
+  <Step>
+    **Get ConnectPlatform access:**
+
+    Contact Trinity Ukraine or visit [connect.software](https://connect.software) for enterprise licensing.
+  </Step>
+
+  <Step>
+    **Configure connection:**
+
+    <Code language="env" title="DATABASE_MODE=connect_platform">
+{`CONNECT_PLATFORM_URL=https://your-connect-instance.com
+    CONNECT_PLATFORM_API_KEY=your-api-key`}
+</Code>
+  </Step>
+
+  <Step>
+    **Enable advanced features:**
+
+    ConnectPlatform provides additional features:
+    - Advanced user management
+    - Audit logging
+    - Compliance tools
+    - Multi-region replication
+  </Step>
+</Steps>
+
+## Migration Between Databases
+
+<Callout type="warning">
+  **Ring's superpower**: Migrate between any supported database without code changes
+</Callout>
+
+### Migration Process
+
+<Steps>
+  <Step>
+    **Backup your data:**
+
+    Always backup before migration:
+
+    <Code language="bash" title="terminal">
+{`npm run db:backup`}
+</Code>
+  </Step>
+
+  <Step>
+    **Configure new database:**
+
+    Set up your target database (PostgreSQL, ConnectPlatform, etc.)
+  </Step>
+
+  <Step>
+    **Update environment:**
+
+    Change `DATABASE_MODE` in your environment:
+
+    Before After
+
+<Code language="env" title="configuration">
+{`DATABASE_MODE=firebase_only
+
+    DATABASE_MODE=postgresql_only
+    POSTGRESQL_URL=postgresql://...`}
+</Code>
+  </Step>
+
+  <Step>
+    **Run migration:**
+
+    <Code language="bash" title="terminal">
+{`npm run db:migrate -- --source firebase --target postgresql`}
+</Code>
+  </Step>
+
+  <Step>
+    **Test thoroughly:**
+
+    Test all features after migration:
+    - User authentication
+    - Data retrieval
+    - Real-time features
+    - Search functionality
+  </Step>
+
+  <Step>
+    **Update production:**
+
+    Deploy with new configuration and monitor closely.
+  </Step>
+</Steps>
+
+### Migration Scenarios
+
+#### Firebase → PostgreSQL
+<Code language="bash" title="terminal">
+{`npm run db:migrate firebase postgresql --schema-only
+npm run db:migrate firebase postgresql --data-only`}
+</Code>
+
+#### PostgreSQL → ConnectPlatform
+<Code language="bash" title="terminal">
+{`npm run db:migrate postgresql connect_platform --incremental`}
+</Code>
+
+## Performance Considerations
+
+### Firebase Performance
+- **Reads/Writes**: Charged per operation
+- **Real-time**: Excellent for live features
+- **Caching**: Built-in CDN
+- **Global**: Multi-region replication
+
+### PostgreSQL Performance
+- **Queries**: Optimize with indexes
+- **Connection pooling**: Essential for high traffic
+- **Read replicas**: For read-heavy workloads
+- **Partitioning**: For large datasets
+
+### ConnectPlatform Performance
+- **Caching**: Redis integration
+- **Multi-tenant**: Optimized for isolation
+- **Real-time**: WebSocket optimization
+- **Enterprise**: High availability features
+
+## Cost Analysis
+
+### Firebase Costs (Monthly estimate)
+- **100 users, low activity**: $5-15
+- **1,000 users, medium activity**: $50-150
+- **10,000 users, high activity**: $500-2,000+
+
+### PostgreSQL Costs (Monthly estimate)
+- **Database hosting**: $20-100
+- **Backup storage**: $5-20
+- **Connection pooling**: $0-50
+- **Monitoring**: $10-50
+- **Total**: $35-220
+
+### ConnectPlatform Costs
+- **Contact sales** for enterprise pricing
+- **Includes support** and advanced features
+- **Scales with usage** but predictable
+
+## Decision Framework
+
+### Choose Firebase if:
+- ✅ Building MVP or prototype
+- ✅ Small team (< 10 people)
+- ✅ Need real-time features immediately
+- ✅ Prefer managed service
+- ✅ Budget < $100/month initially
+
+### Choose PostgreSQL if:
+- ✅ Planning for significant scale
+- ✅ Need complex queries/analytics
+- ✅ Have database administration experience
+- ✅ Want cost predictability
+- ✅ Need full data control
+
+### Choose ConnectPlatform if:
+- ✅ Large organization (> 1000 users)
+- ✅ Need enterprise features
+- ✅ Want Trinity Ukraine support
+- ✅ Multi-tenant requirements
+- ✅ Compliance requirements
+
+## Recommended Migration Path
+
+<Callout type="success">
+  **Start with Firebase, migrate to PostgreSQL, upgrade to ConnectPlatform**
+</Callout>
+
+1. **Month 1-3**: Firebase for rapid development
+2. **Month 3-6**: Migrate to PostgreSQL for scale
+3. **Month 6+**: Upgrade to ConnectPlatform for enterprise features
+
+This path minimizes risk while maximizing flexibility. Each migration preserves all your data and customizations.
+
+---
+
+## Next Steps
+
+- [Complete Customization Guide](customization-guide) - Brand your platform
+- [Token Economics Setup](token-economics) - Add your own economy
+- [Payment Integration](payment-integration) - Enable monetization
+- [Success Stories](success-stories) - Learn from real deployments
+
+<Callout type="info">
+  **Need help choosing?** Post in our [developer community](https://github.com/connectplatform/ring-platform/discussions) or browse [Ring customization opportunities](/opportunities?type=ring_customization) for expert consultation.
+</Callout>

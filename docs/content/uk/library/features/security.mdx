@@ -1,0 +1,545 @@
+---
+title: Безпека та відповідність
+description: Аутентифікація, авторизація, захист даних та паттерни відповідності
+---
+
+# Безпека та відповідність
+
+Комплексна система безпеки з ролевим контролем доступу, дотриманням GDPR та корпоративним захистом даних для платформи Ring.
+
+## Огляд
+
+Платформа Ring реалізовує багаторівневий підхід до безпеки:
+
+- **Аутентифікація**: Auth.js v5 з magic links та мульти-провайдер OAuth
+- **Авторизація**: Ієрархічний ролевий контроль доступу (5-рівнева система)
+- **Захист даних**: Дотримання GDPR/CCPA з аудитом
+- **Відповідність**: PCI DSS для платежів, стандарти SOC 2
+- **Інфраструктура**: Правила безпеки Firebase та шифроване зберігання даних
+
+## Безпека аутентифікації
+
+### Реалізація Auth.js v5
+
+**Аутентифікація через magic links** - Основний метод аутентифікації:
+
+// lib/auth.ts - Конфігурація Auth.js v5
+
+<Code language="typescript" title="TypeScript">
+{`import NextAuth from 'next-auth'
+import { Resend } from 'next-auth/providers/resend'
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers: [
+    Resend({
+      server: process.env.EMAIL_SERVER,
+      from: 'noreply@ring.ck.ua',
+      maxAge: 15 * 60, // 15 хвилин
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    })
+  ],
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = await getUserRole(user.id)
+      }
+      return token
+    },
+    async session({ session, token }) {
+      session.user.role = token.role
+      return session
+    }
+  }
+})`}
+</Code>
+
+#### Функції безпеки
+- **Обмежені за часом токени**: 15-хвилинне закінчення для magic links
+- **Одноразові токени**: Автоматична інвалідація після використання
+- **Обмеження швидкості**: 5 запитів/хвилину на IP
+- **Верифікація email**: Обов'язкова для створення аккаунта
+
+### Мульти-провайдер OAuth
+
+**Безпечна інтеграція OAuth з валідацією провайдера:**
+
+// Безпечна конфігурація OAuth
+
+<Code language="typescript" title="TypeScript">
+{`const oauthProviders = {
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    authorization: {
+      params: {
+        prompt: 'consent',
+        access_type: 'offline',
+        scope: 'openid email profile'
+      }
+    }
+  },
+  apple: {
+    clientId: process.env.APPLE_CLIENT_ID,
+    clientSecret: process.env.APPLE_CLIENT_SECRET,
+    authorization: {
+      params: {
+        scope: 'name email'
+      }
+    }
+  }
+}`}
+</Code>
+
+## Ролевий контроль доступу
+
+### Ієрархічна ролева система
+
+**5-рівнева ієрархія ролей з ескалюючими дозволами:**
+
+// Визначення ієрархії ролей
+
+<Code language="typescript" title="TypeScript">
+{`export enum UserRole {
+  VISITOR = 0,      // Тільки публічний контент
+  SUBSCRIBER = 1,   // Основні аутентифіковані функції
+  MEMBER = 2,       // Створення сутностей, платні функції
+  CONFIDENTIAL = 3, // Конфіденційні сутності/можливості
+  ADMIN = 4         // Повне адміністрування системи
+}
+
+// Матриця дозволів
+const rolePermissions = {
+  [UserRole.VISITOR]: ['read:public'],
+  [UserRole.SUBSCRIBER]: ['read:public', 'read:authenticated'],
+  [UserRole.MEMBER]: ['read:public', 'read:authenticated', 'write:entities'],
+  [UserRole.CONFIDENTIAL]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
+  [UserRole.ADMIN]: ['*']
+}`}
+</Code>
+
+### Серверна валідація
+
+**Завжди валідуйте ролі на стороні сервера:**
+
+// Server action з валідацією ролей
+
+<Code language="typescript" title="TypeScript">
+{`'use server'
+
+import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+export async function createEntity(formData: FormData) {
+  const session = await auth()
+
+  // Перевірка аутентифікації
+  if (!session?.user) {
+    redirect('/auth/signin')
+  }
+
+  // Перевірка авторизації
+  if (session.user.role < UserRole.MEMBER) {
+    throw new Error('Недостатньо прав')
+  }
+
+  // Бізнес логіка...
+  const entity = await createEntityInDb(formData)
+  return entity
+}`}
+</Code>
+
+### Захист володіння сутностями
+
+**Користувачі можуть модифікувати тільки свої сутності:**
+
+// Валідація володіння сутністю
+
+<Code language="typescript" title="TypeScript">
+{`export async function updateEntity(entityId: string, data: UpdateData) {
+  const session = await auth()
+
+  if (!session?.user) {
+    throw new Error('Не авторизовано')
+  }
+
+  // Отримати сутність і перевірити володіння
+  const entity = await getEntity(entityId)
+
+  if (entity.userId !== session.user.id && session.user.role < UserRole.ADMIN) {
+    throw new Error('Заборонено: Не власник сутності')
+  }
+
+  return updateEntityInDb(entityId, data)
+}`}
+</Code>
+
+## Захист даних та дотримання GDPR
+
+### Право на видалення
+
+**30-денний пільговий період з повним видаленням даних:**
+
+// GDPR-сумісне видалення даних
+
+<Code language="typescript" title="TypeScript">
+{`export async function deleteUserData(userId: string) {
+  // Крок 1: Позначити для видалення (пільговий період)
+  await markUserForDeletion(userId, 30) // 30 днів
+
+  // Крок 2: М'яке видалення (під час пільгового періоду)
+  await softDeleteUser(userId)
+
+  // Крок 3: Жорстке видалення (після пільгового періоду)
+  setTimeout(async () => {
+    await hardDeleteUser(userId)
+  }, 30 * 24 * 60 * 60 * 1000) // 30 днів
+}`}
+</Code>
+
+### Мінімізація даних
+
+**Збирайте тільки необхідні дані з чіткими цілями:**
+
+// Мінімальний збір даних
+
+<Code language="typescript" title="TypeScript">
+{`interface UserProfile {
+  id: string
+  email: string           // Обов'язково для аутентифікації
+  name?: string          // Опціонально, для персоналізації
+  role: UserRole         // Обов'язково для авторизації
+  createdAt: Date       // Обов'язково для аудиту
+  // Без непотрібних полів
+}`}
+</Code>
+
+### Управління згодою
+
+**Відстеження явної згоди на обробку даних:**
+
+// Відстеження згоди
+
+<Code language="typescript" title="TypeScript">
+{`interface UserConsent {
+  userId: string
+  consentType: 'marketing' | 'analytics' | 'payments'
+  consented: boolean
+  timestamp: Date
+  ipAddress: string
+  userAgent: string
+}
+
+// Валідація згоди
+export async function validateConsent(userId: string, type: string) {
+  const consent = await getUserConsent(userId, type)
+  if (!consent?.consented) {
+    throw new Error(`Користувач не погодився на обробку даних ${type}`)
+  }
+}`}
+</Code>
+
+## Відповідність PCI DSS
+
+### Безпека платіжних даних
+
+**Ніколи не зберігайте дані платіжних карт:**
+
+// PCI DSS сумісна обробка платежів
+
+<Code language="typescript" title="TypeScript">
+{`export async function processPayment(amount: number, currency: string) {
+  // Згенерувати URL платежу WayForPay
+  const paymentUrl = await createWayForPayPayment({
+    amount,
+    currency,
+    returnUrl: '/payment/success',
+    webhookUrl: '/api/payments/webhook'
+  })
+
+  // Перенаправити на хостингову форму оплати (дані карт не зберігаються)
+  return paymentUrl
+}`}
+</Code>
+
+### Безпечна обробка webhook
+
+**Верифікація підпису webhook та запобігання дублюванню:**
+
+// Безпечний обробник webhook
+
+<Code language="typescript" title="TypeScript">
+{`export async function handleWayForPayWebhook(webhookData: any) {
+  // Перевірити HMAC підпис
+  const isValid = verifyWayForPaySignature(webhookData)
+  if (!isValid) {
+    throw new Error('Невірний підпис webhook')
+  }
+
+  // Запобігти дублюваній обробці
+  const processed = await checkWebhookProcessed(webhookData.orderReference)
+  if (processed) {
+    return { status: 'already_processed' }
+  }
+
+  // Обробити платіж
+  await processPaymentUpdate(webhookData)
+
+  // Позначити як оброблений
+  await markWebhookProcessed(webhookData.orderReference)
+
+  return { status: 'success' }
+}`}
+</Code>
+
+## Безпека API
+
+### Обмеження швидкості
+
+**Захист від зловживань з комплексним обмеженням швидкості:**
+
+// Конфігурація обмеження швидкості
+
+<Code language="typescript" title="TypeScript">
+{`const rateLimits = {
+  auth: {
+    window: '1m',      // 1 хвилина
+    max: 5            // 5 запитів за хвилину
+  },
+  entityCreation: {
+    window: '1h',     // 1 година
+    max: 10           // 10 сутностей за годину
+  },
+  messaging: {
+    window: '1m',     // 1 хвилина
+    max: 100          // 100 повідомлень за хвилину
+  },
+  api: {
+    window: '1h',     // 1 година
+    max: 1000         // 1000 запитів за годину
+  }
+}`}
+</Code>
+
+### Валідація вхідних даних
+
+**Комплексна валідація вхідних даних зі схемами Zod:**
+
+<Code language="typescript" title="import { z } from 'zod'">
+{`// Схеми валідації вхідних даних
+const createEntitySchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum(['technology', 'healthcare', 'finance']),
+  description: z.string().max(500).optional()
+})
+
+const createMessageSchema = z.object({
+  content: z.string().min(1).max(1000),
+  conversationId: z.string().uuid(),
+  attachments: z.array(z.string().url()).max(5).optional()
+})
+
+// Серверна валідація
+export async function createEntity(data: unknown) {
+  const validated = createEntitySchema.parse(data)
+  return createEntityInDb(validated)
+}`}
+</Code>
+
+### Безпечна обробка помилок
+
+**Не розкривайте внутрішні деталі системи:**
+
+// Безпечні відповіді про помилки
+
+<Code language="typescript" title="TypeScript">
+{`export async function handleApiError(error: unknown) {
+  // Записати детальну помилку для відлагодження
+  console.error('API Error:', {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date(),
+    userAgent: getUserAgent(),
+    ipAddress: getClientIP()
+  })
+
+  // Повернути загальну помилку клієнту
+  if (error instanceof ValidationError) {
+    return { error: 'Невірні вхідні дані', code: 'VALIDATION_ERROR' }
+  }
+
+  if (error instanceof PermissionError) {
+    return { error: 'Доступ заборонено', code: 'PERMISSION_DENIED' }
+  }
+
+  // Загальна помилка для невідомих проблем
+  return { error: 'Внутрішня помилка сервера', code: 'INTERNAL_ERROR' }
+}`}
+</Code>
+
+## Аудит логування
+
+### Комплексний аудиторський слід
+
+**Логуйте всі події, пов'язані з безпекою:**
+
+// Інтерфейс аудиторського логування
+
+<Code language="typescript" title="TypeScript">
+{`interface AuditLog {
+  id: string
+  timestamp: Date
+  userId: string
+  action: string
+  resource: string
+  resourceId: string
+  ipAddress: string
+  userAgent: string
+  metadata: Record<string, any>
+}
+
+// Логування подій безпеки
+export async function logSecurityEvent(
+  userId: string,
+  action: string,
+  resource: string,
+  resourceId: string,
+  metadata: any = {}
+) {
+  const auditLog: AuditLog = {
+    id: generateId(),
+    timestamp: new Date(),
+    userId,
+    action,
+    resource,
+    resourceId,
+    ipAddress: getClientIP(),
+    userAgent: getUserAgent(),
+    metadata
+  }
+
+  await saveAuditLog(auditLog)
+}
+
+// Події для логування
+const securityEvents = [
+  'authentication.success',
+  'authentication.failure',
+  'authorization.denied',
+  'entity.created',
+  'entity.updated',
+  'entity.deleted',
+  'payment.processed',
+  'payment.failed',
+  'user.deleted',
+  'role.changed'
+]`}
+</Code>
+
+## Моніторинг безпеки
+
+### Моніторинг безпеки в реальному часі
+
+**Моніторьте та сповіщайте про події безпеки:**
+
+// Панель моніторингу безпеки
+
+<Code language="typescript" title="TypeScript">
+{`const securityMetrics = {
+  failedAuthAttempts: () => {
+    return countFailedAuthentications('24h')
+  },
+
+  suspiciousActivities: () => {
+    return detectSuspiciousPatterns()
+  },
+
+  rateLimitViolations: () => {
+    return countRateLimitViolations('1h')
+  },
+
+  unauthorizedAccess: () => {
+    return countUnauthorizedAccess('24h')
+  }
+}
+
+// Автоматизовані сповіщення
+const securityAlerts = {
+  bruteForce: {
+    condition: 'failedAuthAttempts > 10',
+    action: 'block_ip',
+    duration: '1h'
+  },
+
+  rateLimit: {
+    condition: 'rateLimitViolations > 100',
+    action: 'alert_admin',
+    severity: 'medium'
+  },
+
+  unauthorized: {
+    condition: 'unauthorizedAccess > 5',
+    action: 'alert_admin',
+    severity: 'high'
+  }
+}`}
+</Code>
+
+## Чек-листи відповідності
+
+### Чек-лист відповідності GDPR
+- [x] Реалізована мінімізація даних
+- [x] Збір явної згоди
+- [x] Право на видалення (30-денний пільговий період)
+- [x] Аудиторське логування доступу до даних
+- [x] Підтримка переносимості даних
+- [x] Опублікована політика конфіденційності
+- [x] Ведеться реєстр обробки даних
+
+### Чек-лист відповідності PCI DSS
+- [x] Відсутність зберігання даних карт
+- [x] Шифрована передача даних (HTTPS)
+- [x] Безпечні підписи webhook
+- [x] Обмеження швидкості на платіжних кінцевих точках
+- [x] Регулярні оцінки безпеки
+- [x] План реагування на інциденти
+- [x] Контроль доступу до платіжних систем
+
+### Чек-лист безпеки SOC 2
+- [x] Багатофакторна аутентифікація
+- [x] Ролевий контроль доступу
+- [x] Регулярні аудити безпеки
+- [x] Процедури реагування на інциденти
+- [x] Процеси управління змінами
+- [x] Планування неперервності бізнесу
+- [x] Навчання обізнаності про безпеку
+
+## Кращі практики безпеки
+
+### Безпека розробки
+- **Code Reviews**: Всі зміни, пов'язані з безпекою, вимагають перевірки
+- **Тестування безпеки**: Автоматизовані сканування безпеки в CI/CD
+- **Управління залежностями**: Регулярні оновлення безпеки
+- **Управління секретами**: Безпечне зберігання облікових даних
+
+### Безпека в продакшені
+- **Сегрегація середовищ**: Окремі dev/staging/production
+- **Контроль доступу**: Принцип найменших привілеїв
+- **Моніторинг**: Моніторинг безпеки в реальному часі
+- **Реагування на інциденти**: Документовані процедури реагування
+
+### Освіта користувачів з безпеки
+- **Політики паролів**: Вимоги до сильних паролів
+- **Двофакторна аутентифікація**: Опціональний 2FA для посиленої безпеки
+- **Сповіщення безпеки**: Сповіщення користувачів про підозрілу активність
+- **Контролі конфіденційності**: Управління даними та вподобаннями користувачів
+
+---
+
+*Система безпеки платформи Ring забезпечує корпоративний захист при збереженні відмінного користувацького досвіду та повного дотримання нормативних вимог.*

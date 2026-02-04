@@ -1,0 +1,908 @@
+---
+title: Інтеграція Web3
+description: Документація інтеграції Web3 для платформи Ring
+---
+
+# Приклади інтеграції Web3
+
+Повні приклади інтеграції Web3 для блокчейн-функцій платформи Ring, включаючи гаманці, NFT та стейкінг токенів.
+
+## 💰 Інтеграція гаманця
+
+### Автоматичне створення гаманця
+
+// lib/wallet-service.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { ethers } from 'ethers'
+
+export class WalletService {
+  private provider: ethers.JsonRpcProvider
+
+  constructor() {
+    this.provider = new ethers.JsonRpcProvider(
+      process.env.NEXT_PUBLIC_RPC_URL || 'https://mainnet.infura.io/v3/YOUR_KEY'
+    )
+  }
+
+  async createWallet(userId: string) {
+    try {
+      // Generate new wallet
+      const wallet = ethers.Wallet.createRandom()
+      
+      // Store encrypted wallet (in production, use proper encryption)
+      const encryptedWallet = await wallet.encrypt('user-password')
+      
+      // Save to database
+      const response = await fetch('/api/wallet/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          address: wallet.address,
+          encryptedWallet,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create wallet')
+      }
+
+      return {
+        address: wallet.address,
+        privateKey: wallet.privateKey, // Handle securely!
+      }
+    } catch (error) {
+      console.error('Wallet creation failed:', error)
+      throw error
+    }
+  }
+
+  async getBalance(address: string, tokenAddress?: string) {
+    try {
+      if (tokenAddress) {
+        // ERC-20 token balance
+        const contract = new ethers.Contract(
+          tokenAddress,
+          ['function balanceOf(address) view returns (uint256)'],
+          this.provider
+        )
+        const balance = await contract.balanceOf(address)
+        return ethers.formatEther(balance)
+      } else {
+        // ETH balance
+        const balance = await this.provider.getBalance(address)
+        return ethers.formatEther(balance)
+      }
+    } catch (error) {
+      console.error('Failed to get balance:', error)
+      return '0'
+    }
+  }
+
+  async sendTransaction(
+    fromPrivateKey: string,
+    toAddress: string,
+    amount: string,
+    tokenAddress?: string
+  ) {
+    try {
+      const wallet = new ethers.Wallet(fromPrivateKey, this.provider)
+
+      if (tokenAddress) {
+        // ERC-20 transfer
+        const contract = new ethers.Contract(
+          tokenAddress,
+          [
+            'function transfer(address to, uint256 amount) returns (bool)',
+            'function decimals() view returns (uint8)'
+          ],
+          wallet
+        )
+
+        const decimals = await contract.decimals()
+        const amountWei = ethers.parseUnits(amount, decimals)
+        
+        const tx = await contract.transfer(toAddress, amountWei)
+        return await tx.wait()
+      } else {
+        // ETH transfer
+        const tx = await wallet.sendTransaction({
+          to: toAddress,
+          value: ethers.parseEther(amount),
+        })
+        return await tx.wait()
+      }
+    } catch (error) {
+      console.error('Transaction failed:', error)
+      throw error
+    }
+  }
+}
+
+export const walletService = new WalletService()`}
+</Code>
+### Компонент панелі гаманця
+
+// components/WalletDashboard.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+import { walletService } from '@/lib/wallet-service'
+
+interface TokenBalance {
+  symbol: string
+  balance: string
+  address: string
+  logo?: string
+}
+
+export function WalletDashboard() {
+  const [wallet, setWallet] = useState<{ address: string } | null>(null)
+  const [balances, setBalances] = useState<TokenBalance[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  // Токени платформи Ring
+  const supportedTokens = [
+    { symbol: 'ETH', address: '', logo: '⚡' },
+    { symbol: 'RING', address: process.env.NEXT_PUBLIC_RING_TOKEN_ADDRESS, logo: '🔗' },
+    { symbol: 'DAAR', address: process.env.NEXT_PUBLIC_DAAR_TOKEN_ADDRESS, logo: '💎' },
+    { symbol: 'DAARION', address: process.env.NEXT_PUBLIC_DAARION_TOKEN_ADDRESS, logo: '👑' },
+  ]
+
+  useEffect(() => {
+    loadWallet()
+  }, [])
+
+  useEffect(() => {
+    if (wallet) {
+      loadBalances()
+    }
+  }, [wallet])
+
+  const loadWallet = async () => {
+    try {
+      const response = await fetch('/api/wallet')
+      const data = await response.json()
+      
+      if (data.wallet) {
+        setWallet(data.wallet)
+      }
+    } catch (error) {
+      console.error('Не вдалося завантажити гаманець:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadBalances = async () => {
+    if (!wallet) return
+
+    const balancePromises = supportedTokens.map(async (token) => {
+      const balance = await walletService.getBalance(
+        wallet.address,
+        token.address || undefined
+      )
+      return { ...token, balance }
+    })
+
+    const tokenBalances = await Promise.all(balancePromises)
+    setBalances(tokenBalances)
+  }
+
+  const createWallet = async () => {
+    setCreating(true)
+    try {
+      const newWallet = await walletService.createWallet('current-user-id')
+      setWallet({ address: newWallet.address })
+    } catch (error) {
+      console.error('Не вдалося створити гаманець:', error)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4">Завантаження гаманця...</div>
+  }
+
+  if (!wallet) {
+    return (
+      <div className="max-w-md mx-auto p-6 text-center">
+        <h2 className="text-2xl font-bold mb-4">Створіть свій гаманець</h2>
+        <p className="text-gray-600 mb-6">
+          Створіть безпечний гаманець для участі у Web3 функціях платформи Ring.
+        </p>
+        <button
+          onClick={createWallet}
+          disabled={creating}
+          className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+        >
+          {creating ? 'Створення гаманця...' : 'Створити гаманець'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg p-6 mb-6">
+        <h2 className="text-2xl font-bold mb-2">Ваш гаманець</h2>
+        <p className="font-mono text-sm opacity-90">{wallet.address}</p>
+        <button
+          onClick={() => navigator.clipboard.writeText(wallet.address)}
+          className="mt-2 text-sm bg-white/20 px-3 py-1 rounded hover:bg-white/30"
+        >
+          Копіювати адресу
+        </button>
+      </div>
+
+      {/* Баланси токенів */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {balances.map((token) => (
+          <div key={token.symbol} className="bg-white border rounded-lg p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">{token.logo}</span>
+              <div>
+                <h3 className="font-semibold">{token.symbol}</h3>
+                <p className="text-2xl font-bold">
+                  {parseFloat(token.balance).toFixed(4)}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Швидкі дії */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700">
+          <div className="text-lg font-semibold">Надіслати токени</div>
+          <div className="text-sm opacity-90">Перевести в інший гаманець</div>
+        </button>
+        
+        <button className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700">
+          <div className="text-lg font-semibold">Застейкати токени</div>
+          <div className="text-sm opacity-90">Отримувати винагороди за стейкінг</div>
+        </button>
+        
+        <button className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700">
+          <div className="text-lg font-semibold">NFT Маркетплейс</div>
+          <div className="text-sm opacity-90">Купувати та продавати NFT</div>
+        </button>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+
+## 🎨 NFT Marketplace
+
+### NFT Listing Component
+
+// components/NFTMarketplace.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+
+interface NFT {
+  id: string
+  tokenId: string
+  name: string
+  description: string
+  image: string
+  price: string
+  currency: 'ETH' | 'RING'
+  owner: string
+  ownerName: string
+  listed: boolean
+  createdAt: string
+}
+
+export function NFTMarketplace() {
+  const [nfts, setNfts] = useState<NFT[]>([])
+  const [filter, setFilter] = useState<'all' | 'listed' | 'owned'>('all')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadNFTs()
+  }, [filter])
+
+  const loadNFTs = async () => {
+    try {
+      const response = await fetch(`/api/nft/marketplace?filter=${filter}`)
+      const data = await response.json()
+      setNfts(data.nfts || [])
+    } catch (error) {
+      console.error('Failed to load NFTs:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const buyNFT = async (nftId: string, price: string, currency: string) => {
+    try {
+      const response = await fetch(`/api/nft/${nftId}/buy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price, currency }),
+      })
+
+      if (response.ok) {
+        loadNFTs() // Refresh the list
+        alert('NFT purchased successfully!')
+      } else {
+        throw new Error('Purchase failed')
+      }
+    } catch (error) {
+      console.error('Failed to buy NFT:', error)
+      alert('Failed to purchase NFT')
+    }
+  }
+
+  const listNFT = async (nftId: string, price: string, currency: string) => {
+    try {
+      const response = await fetch(`/api/nft/${nftId}/list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price, currency }),
+      })
+
+      if (response.ok) {
+        loadNFTs()
+        alert('NFT listed successfully!')
+      } else {
+        throw new Error('Listing failed')
+      }
+    } catch (error) {
+      console.error('Failed to list NFT:', error)
+      alert('Failed to list NFT')
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4">Loading NFTs...</div>
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold">NFT Marketplace</h2>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded ${
+              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            }`}
+          >
+            All NFTs
+          </button>
+          <button
+            onClick={() => setFilter('listed')}
+            className={`px-4 py-2 rounded ${
+              filter === 'listed' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            }`}
+          >
+            For Sale
+          </button>
+          <button
+            onClick={() => setFilter('owned')}
+            className={`px-4 py-2 rounded ${
+              filter === 'owned' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            }`}
+          >
+            My NFTs
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {nfts.map((nft) => (
+          <div key={nft.id} className="bg-white border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="aspect-square bg-gray-200">
+              <img
+                src={nft.image}
+                alt={nft.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            
+            <div className="p-4">
+              <h3 className="font-semibold text-lg mb-1">{nft.name}</h3>
+              <p className="text-sm text-gray-600 mb-2">by {nft.ownerName}</p>
+              <p className="text-sm text-gray-700 mb-3 line-clamp-2">
+                {nft.description}
+              </p>
+              
+              {nft.listed && (
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="text-lg font-bold">{nft.price}</span>
+                    <span className="text-sm text-gray-600 ml-1">{nft.currency}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {nft.listed && filter !== 'owned' && (
+                  <button
+                    onClick={() => buyNFT(nft.id, nft.price, nft.currency)}
+                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+                  >
+                    Buy Now
+                  </button>
+                )}
+                
+                {filter === 'owned' && !nft.listed && (
+                  <button
+                    onClick={() => {
+                      const price = prompt('Enter price:')
+                      const currency = prompt('Currency (ETH/RING):') as 'ETH' | 'RING'
+                      if (price && currency) {
+                        listNFT(nft.id, price, currency)
+                      }
+                    }}
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+                  >
+                    List for Sale
+                  </button>
+                )}
+                
+                <button className="px-4 py-2 border rounded hover:bg-gray-50">
+                  View Details
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {nfts.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No NFTs found.</p>
+        </div>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+## 🏆 Token Staking
+
+### Staking Dashboard
+
+// components/StakingDashboard.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+
+interface StakingPool {
+  id: string
+  name: string
+  token: 'DAAR' | 'DAARION'
+  apr: number
+  totalStaked: string
+  userStaked: string
+  rewards: string
+  lockPeriod: number // дні
+  minStake: string
+}
+
+export function StakingDashboard() {
+  const [pools, setPools] = useState<StakingPool[]>([])
+  const [loading, setLoading] = useState(true)
+  const [staking, setStaking] = useState<string | null>(null)
+
+  useEffect(() => {
+    loadStakingPools()
+  }, [])
+
+  const loadStakingPools = async () => {
+    try {
+      const response = await fetch('/api/staking/pools')
+      const data = await response.json()
+      setPools(data.pools || [])
+    } catch (error) {
+      console.error('Не вдалося завантажити пули стейкінгу:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const stakeTokens = async (poolId: string, amount: string) => {
+    setStaking(poolId)
+    try {
+      const response = await fetch(`/api/staking/pools/${poolId}/stake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      })
+
+      if (response.ok) {
+        loadStakingPools()
+        alert('Токени успішно застейкано!')
+      } else {
+        throw new Error('Стейкінг не вдався')
+      }
+    } catch (error) {
+      console.error('Не вдалося застейкати токени:', error)
+      alert('Не вдалося застейкати токени')
+    } finally {
+      setStaking(null)
+    }
+  }
+
+  const unstakeTokens = async (poolId: string) => {
+    try {
+      const response = await fetch(`/api/staking/pools/${poolId}/unstake`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        loadStakingPools()
+        alert('Токени успішно знято зі стейкінгу!')
+      } else {
+        throw new Error('Зняття зі стейкінгу не вдалося')
+      }
+    } catch (error) {
+      console.error('Не вдалося зняти токени зі стейкінгу:', error)
+      alert('Не вдалося зняти токени зі стейкінгу')
+    }
+  }
+
+  const claimRewards = async (poolId: string) => {
+    try {
+      const response = await fetch(`/api/staking/pools/${poolId}/claim`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        loadStakingPools()
+        alert('Винагороди успішно отримано!')
+      } else {
+        throw new Error('Отримання винагород не вдалося')
+      }
+    } catch (error) {
+      console.error('Не вдалося отримати винагороди:', error)
+      alert('Не вдалося отримати винагороди')
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4">Завантаження пулів стейкінгу...</div>
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <h2 className="text-3xl font-bold mb-6">Стейкінг токенів</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {pools.map((pool) => (
+          <div key={pool.id} className="bg-white border rounded-lg p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-semibold">{pool.name}</h3>
+                <p className="text-gray-600">Пул стейкінгу {pool.token}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-600">{pool.apr}%</div>
+                <div className="text-sm text-gray-600">Річна дохідність</div>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Загалом застейкано:</span>
+                <span className="font-medium">{pool.totalStaked} {pool.token}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Ваш стейк:</span>
+                <span className="font-medium">{pool.userStaked} {pool.token}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Очікувані винагороди:</span>
+                <span className="font-medium text-green-600">{pool.rewards} {pool.token}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Період блокування:</span>
+                <span className="font-medium">{pool.lockPeriod} днів</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Мін. стейк:</span>
+                <span className="font-medium">{pool.minStake} {pool.token}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {parseFloat(pool.userStaked) === 0 ? (
+                <button
+                  onClick={() => {
+                    const amount = prompt(`Введіть суму для стейкінгу (мін. ${pool.minStake} ${pool.token}):`)
+                    if (amount && parseFloat(amount) >= parseFloat(pool.minStake)) {
+                      stakeTokens(pool.id, amount)
+                    }
+                  }}
+                  disabled={staking === pool.id}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {staking === pool.id ? 'Стейкінг...' : 'Застейкати токени'}
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      const amount = prompt(`Введіть додаткову суму для стейкінгу:`)
+                      if (amount && parseFloat(amount) > 0) {
+                        stakeTokens(pool.id, amount)
+                      }
+                    }}
+                    disabled={staking === pool.id}
+                    className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Додати стейк
+                  </button>
+                  <button
+                    onClick={() => unstakeTokens(pool.id)}
+                    className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+                  >
+                    Зняти стейк
+                  </button>
+                </div>
+              )}
+              
+              {parseFloat(pool.rewards) > 0 && (
+                <button
+                  onClick={() => claimRewards(pool.id)}
+                  className="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+                >
+                  Отримати винагороди ({pool.rewards} {pool.token})
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {pools.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">Пули стейкінгу недоступні.</p>
+        </div>
+      )}
+    </div>
+  )
+}`}
+</Code>
+## 🔗 Інтеграція смарт-контрактів
+
+### Сервіс взаємодії з контрактами
+
+// lib/contract-service.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { ethers } from 'ethers'
+
+export class ContractService {
+  private provider: ethers.JsonRpcProvider
+  private signer?: ethers.Wallet
+
+  constructor(privateKey?: string) {
+    this.provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL)
+    if (privateKey) {
+      this.signer = new ethers.Wallet(privateKey, this.provider)
+    }
+  }
+
+  // Ring Token Contract
+  getRingTokenContract(address: string) {
+    const abi = [
+      'function balanceOf(address owner) view returns (uint256)',
+      'function transfer(address to, uint256 amount) returns (bool)',
+      'function approve(address spender, uint256 amount) returns (bool)',
+      'function allowance(address owner, address spender) view returns (uint256)',
+      'function totalSupply() view returns (uint256)',
+      'function decimals() view returns (uint8)',
+      'function symbol() view returns (string)',
+      'function name() view returns (string)',
+    ]
+
+    return new ethers.Contract(address, abi, this.signer || this.provider)
+  }
+
+  // NFT Contract
+  getNFTContract(address: string) {
+    const abi = [
+      'function balanceOf(address owner) view returns (uint256)',
+      'function ownerOf(uint256 tokenId) view returns (address)',
+      'function tokenURI(uint256 tokenId) view returns (string)',
+      'function approve(address to, uint256 tokenId)',
+      'function getApproved(uint256 tokenId) view returns (address)',
+      'function setApprovalForAll(address operator, bool approved)',
+      'function isApprovedForAll(address owner, address operator) view returns (bool)',
+      'function transferFrom(address from, address to, uint256 tokenId)',
+      'function safeTransferFrom(address from, address to, uint256 tokenId)',
+      'function mint(address to, string memory tokenURI) returns (uint256)',
+    ]
+
+    return new ethers.Contract(address, abi, this.signer || this.provider)
+  }
+
+  // Staking Contract
+  getStakingContract(address: string) {
+    const abi = [
+      'function stake(uint256 amount)',
+      'function unstake(uint256 amount)',
+      'function claimRewards()',
+      'function getStakedAmount(address user) view returns (uint256)',
+      'function getPendingRewards(address user) view returns (uint256)',
+      'function getPoolInfo() view returns (uint256 totalStaked, uint256 rewardRate, uint256 lastUpdateTime)',
+    ]
+
+    return new ethers.Contract(address, abi, this.signer || this.provider)
+  }
+
+  // Utility functions
+  async getTransactionReceipt(txHash: string) {
+    return await this.provider.getTransactionReceipt(txHash)
+  }
+
+  async waitForTransaction(txHash: string, confirmations = 1) {
+    return await this.provider.waitForTransaction(txHash, confirmations)
+  }
+
+  formatTokenAmount(amount: string, decimals = 18) {
+    return ethers.formatUnits(amount, decimals)
+  }
+
+  parseTokenAmount(amount: string, decimals = 18) {
+    return ethers.parseUnits(amount, decimals)
+  }
+}
+
+export const contractService = new ContractService()`}
+</Code>
+## 🎯 Моніторинг транзакцій
+
+### Компонент статусу транзакцій
+
+// components/TransactionMonitor.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useState, useEffect } from 'react'
+
+interface Transaction {
+  hash: string
+  type: 'stake' | 'unstake' | 'transfer' | 'nft_purchase' | 'nft_list'
+  status: 'pending' | 'confirmed' | 'failed'
+  amount?: string
+  token?: string
+  timestamp: string
+  confirmations: number
+}
+
+export function TransactionMonitor() {
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadTransactions()
+    
+    // Poll for transaction updates
+    const interval = setInterval(loadTransactions, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadTransactions = async () => {
+    try {
+      const response = await fetch('/api/transactions')
+      const data = await response.json()
+      setTransactions(data.transactions || [])
+    } catch (error) {
+      console.error('Failed to load transactions:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return '⏳'
+      case 'confirmed': return '✅'
+      case 'failed': return '❌'
+      default: return '❓'
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'text-yellow-600'
+      case 'confirmed': return 'text-green-600'
+      case 'failed': return 'text-red-600'
+      default: return 'text-gray-600'
+    }
+  }
+
+  const getTypeLabel = (type: string) => {
+    const labels = {
+      stake: 'Token Staking',
+      unstake: 'Token Unstaking',
+      transfer: 'Token Transfer',
+      nft_purchase: 'NFT Purchase',
+      nft_list: 'NFT Listing'
+    }
+    return labels[type as keyof typeof labels] || type
+  }
+
+  if (loading) {
+    return <div className="p-4">Loading transactions...</div>
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <h2 className="text-2xl font-bold mb-6">Transaction History</h2>
+      
+      <div className="space-y-4">
+        {transactions.map((tx) => (
+          <div key={tx.hash} className="bg-white border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{getStatusIcon(tx.status)}</span>
+                <div>
+                  <h3 className="font-semibold">{getTypeLabel(tx.type)}</h3>
+                  <p className="text-sm text-gray-600">
+                    {tx.amount && tx.token && `${tx.amount} ${tx.token}`}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className={`font-medium ${getStatusColor(tx.status)}`}>
+                  {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {tx.confirmations}/12 confirmations
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-3 pt-3 border-t">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">
+                  {new Date(tx.timestamp).toLocaleString()}
+                </span>
+                <a
+                  href={`https://etherscan.io/tx/${tx.hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  View on Etherscan →
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {transactions.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No transactions yet.</p>
+        </div>
+      )}
+    </div>
+  )
+}`}
+</Code>
+
+---
+
+*Готові створювати повноцінні додатки? Перевірте [Реальні додатки](/uk/docs/examples/real-world) або дослідіть [Приклади White Label](/uk/docs/examples/white-label).*

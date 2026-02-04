@@ -1,0 +1,211 @@
+---
+title: Магазин
+description: Документація магазину для платформи Ring
+---
+
+# Мультивендорний магазин
+
+Повноцінне e-commerce рішення з управлінням постачальниками, автоматизованими розрахунками та інтегрованою обробкою платежів.
+
+## Огляд
+
+Мультивендорний магазин платформи Ring дозволяє суб'єктам продавати товари та послуги, забезпечуючи клієнтам уніфікований досвід покупок у різних постачальників.
+
+## Ключові функції
+
+### Управління постачальниками
+- **Адаптація постачальників** - Спрощений процес подання заявки та затвердження
+- **Панель постачальника** - Комплексний інтерфейс управління
+- **Аналітика продуктивності** - Метрики продажів та аналітичні дані
+- **Автоматизовані розрахунки** - Щоденна обробка платежів
+
+### Каталог товарів
+- **Управління товарами** - Легке створення та редагування товарів
+- **Відстеження запасів** - Управління складськими залишками в реальному часі
+- **Організація категорій** - Структурована категоризація товарів
+- **Пошук та фільтрація** - Розширені можливості пошуку товарів
+
+### Обробка замовлень
+- **Управління замовленнями** - Повне відстеження життєвого циклу замовлення
+- **Інтеграція платежів** - Платіжний шлюз WayForPay
+- **Інтеграція доставки** - Підтримка кількох провайдерів доставки
+- **Комунікація з клієнтами** - Автоматичні оновлення замовлень
+
+## Функції для постачальників
+
+### Store Setup
+// Apply to become vendor
+
+<Code language="typescript" title="TypeScript">
+{`const vendorApplication = await applyForVendor({
+  entityId: 'entity-123',
+  businessInfo: {
+    name: 'Tech Gadgets Store',
+    description: 'Premium technology products',
+    category: 'ELECTRONICS',
+    website: 'https://techgadgets.com'
+  },
+  documents: {
+    businessLicense: 'license.pdf',
+    taxCertificate: 'tax-cert.pdf'
+  }
+})`}
+</Code>
+
+### Product Management
+// Create product listing
+
+<Code language="typescript" title="TypeScript">
+{`const product = await createProduct({
+  vendorId: 'vendor-456',
+  name: 'Wireless Bluetooth Headphones',
+  description: 'Premium noise-canceling headphones',
+  price: 199.99,
+  currency: 'USD',
+  category: 'ELECTRONICS',
+  inventory: {
+    quantity: 50,
+    sku: 'WBH-001',
+    trackInventory: true
+  },
+  images: [
+    'https://example.com/headphones-1.jpg',
+    'https://example.com/headphones-2.jpg'
+  ],
+  specifications: {
+    'Battery Life': '30 hours',
+    'Connectivity': 'Bluetooth 5.0',
+    'Weight': '250g'
+  }
+})`}
+</Code>
+
+### Order Fulfillment
+// Process vendor orders
+
+<Code language="typescript" title="TypeScript">
+{`const orders = await getVendorOrders(vendorId, {
+  status: 'PENDING',
+  limit: 20
+})
+
+// Update order status
+await updateOrderStatus(orderId, {
+  status: 'PROCESSING',
+  trackingNumber: 'TRK123456789',
+  estimatedDelivery: '2024-01-15'
+})`}
+</Code>
+## Досвід клієнтів
+
+### Процес покупок
+1. **Пошук товарів** - Перегляд та пошук продукції
+2. **Деталі товару** - Повна інформація про продукт
+3. **Додати до кошика** - Управління кошиком від кількох постачальників
+4. **Оформлення замовлення** - Єдине оформлення для всіх постачальників
+5. **Оплата** - Безпечна обробка платежів
+6. **Відстеження замовлення** - Оновлення статусу в реальному часі
+
+### Кошик покупок
+// Додавання товарів від кількох постачальників
+
+<Code language="typescript" title="TypeScript">
+{`await addToCart({
+  productId: 'prod-123',
+  vendorId: 'vendor-456',
+  quantity: 2,
+  options: {
+    color: 'Black',
+    size: 'Large'
+  }
+})
+
+// Оформлення замовлення з кількома постачальниками
+const checkout = await processCheckout({
+  items: cartItems,
+  shippingAddress: customerAddress,
+  paymentMethod: 'wayforpay'
+})`}
+</Code>
+## Інтеграція платежів
+
+### Платіжний шлюз WayForPay
+- **Український платіжний шлюз** - Локальна обробка платежів
+- **Множинні способи оплати** - Картки, банківські перекази, цифрові гаманці
+- **Безпечна обробка** - Відповідність стандартам PCI DSS
+- **Автоматичні розрахунки** - Щоденні виплати постачальникам
+
+### Потік платежів
+// Process payment
+
+<Code language="typescript" title="TypeScript">
+{`const payment = await processPayment({
+  orderId: 'order-789',
+  amount: 299.98,
+  currency: 'UAH',
+  paymentMethod: 'card',
+  customer: {
+    email: 'customer@example.com',
+    phone: '+380123456789'
+  }
+})
+
+// Обробка webhook платежу
+app.post('/webhooks/wayforpay', async (req, res) => {
+  const paymentResult = await verifyPaymentWebhook(req.body)
+  
+  if (paymentResult.status === 'success') {
+    await updateOrderStatus(paymentResult.orderId, 'PAID')
+    await notifyVendor(paymentResult.vendorId, 'NEW_ORDER')
+  }
+})`}
+</Code>
+## Аналітика постачальників
+
+### Показники ефективності
+- **Обсяг продажів** - Щоденні, тижневі, місячні продажі
+- **Ефективність товарів** - Найпопулярніші товари
+- **Аналітика клієнтів** - Аналіз поведінки покупців
+- **Відстеження доходів** - Детальна фінансова звітність
+
+### Функції панелі керування
+// Get vendor analytics
+
+<Code language="typescript" title="TypeScript">
+{`const analytics = await getVendorAnalytics(vendorId, {
+  period: '30d',
+  metrics: ['sales', 'orders', 'customers', 'revenue']
+})
+
+console.log('Total Sales:', analytics.sales.total)
+console.log('Average Order Value:', analytics.orders.averageValue)
+console.log('Top Products:', analytics.products.topSelling)`}
+</Code>
+## Автоматизовані Розрахунки
+
+### Щоденні Виплати
+- **Автоматична обробка** - Щоденні розрахунки врегулювання
+- **Вирахування комісії** - Обробка платформних зборів
+- **Банківська інтеграція** - Прямі банківські перекази
+- **Звіти про розрахунки** - Детальні виписки виплат
+
+### Потік Розрахунків
+<Code language="typescript" title="TypeScript">
+{`// Daily settlement process (automated)
+const settlements = await processDailySettlements()
+
+settlements.forEach(async (settlement) => {
+  await transferToVendor({
+    vendorId: settlement.vendorId,
+    amount: settlement.netAmount,
+    currency: settlement.currency,
+    reference: settlement.settlementId
+  })
+  
+  await sendSettlementReport(settlement)
+})`}
+</Code>
+
+---
+
+*Готові налаштувати свій магазин? Перевірте наш [API довідник](/uk/docs/api/store) для деталей реалізації.*

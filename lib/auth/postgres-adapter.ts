@@ -2,10 +2,10 @@
  * PostgreSQL Adapter for Auth.js v5
  * 
  * Custom adapter that routes authentication data through Ring Platform's
- * database abstraction layer (BackendSelector) instead of directly to Firebase.
+ * database abstraction layer (BackendSelector).
  * 
- * This ensures all user data respects the DB_HYBRID_MODE configuration
- * and is stored in PostgreSQL when Firebase is disabled.
+ * This ensures all user data respects the DB_BACKEND_MODE configuration
+ * and is stored in the appropriate backend (PostgreSQL, Firebase, or Supabase).
  */
 
 import type { Adapter, AdapterUser, AdapterAccount, AdapterSession, VerificationToken } from "next-auth/adapters"
@@ -52,7 +52,6 @@ export function PostgreSQLAdapter(): Adapter {
         image: user.image,
         role: 'SUBSCRIBER',
         isVerified: !!user.emailVerified,
-        isSuperAdmin: false,
         createdAt: now,
         lastLogin: now,
         bio: '',

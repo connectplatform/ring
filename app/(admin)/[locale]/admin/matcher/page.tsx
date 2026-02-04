@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -122,7 +123,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     switch (trend) {
       case 'up': return 'text-green-600';
       case 'down': return 'text-red-600';
-      default: return 'text-gray-600';
+      default: return 'text-muted-foreground';
     }
   };
 
@@ -139,7 +140,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-2xl font-bold">{value}</p>
             {change !== undefined && (
               <p className={`text-sm flex items-center gap-1 ${getTrendColor()}`}>
@@ -188,11 +189,12 @@ const MatcherAnalyticsDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('title')}</h1>
+    <AdminWrapper locale="en" pageContext="matcher">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">{t('title')}</h1>
           <p className="text-gray-600">
             {t('subtitle')}
           </p>
@@ -347,19 +349,19 @@ const MatcherAnalyticsDashboard: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{mockAnalyticsData.performance.llmUsage.totalTokens.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">{t('performance.totalTokens')}</div>
+                  <div className="text-sm text-muted-foreground">{t('performance.totalTokens')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold">{mockAnalyticsData.performance.llmUsage.totalRequests.toLocaleString()}</div>
-                  <div className="text-sm text-gray-600">{t('performance.totalRequests')}</div>
+                  <div className="text-sm text-muted-foreground">{t('performance.totalRequests')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold">{mockAnalyticsData.performance.llmUsage.averageResponseTime}s</div>
-                  <div className="text-sm text-gray-600">{t('performance.avgResponseTime')}</div>
+                  <div className="text-sm text-muted-foreground">{t('performance.avgResponseTime')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold">${mockAnalyticsData.performance.llmUsage.costPerMatch}</div>
-                  <div className="text-sm text-gray-600">{t('performance.costPerMatch')}</div>
+                  <div className="text-sm text-muted-foreground">{t('performance.costPerMatch')}</div>
                 </div>
               </div>
             </CardContent>
@@ -490,7 +492,8 @@ const MatcherAnalyticsDashboard: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </AdminWrapper>
   );
 };
 

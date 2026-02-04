@@ -135,16 +135,16 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 217 33% 12%;
  
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
  
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
- 
+    --popover-foreground: 217 33% 12%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 217 33% 12%;
  
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
@@ -232,5 +232,44 @@
     --foreground: hsl(var(--foreground));
     --muted: hsl(var(--muted));
     --muted-foreground: hsl(var(--muted-foreground));
+  }
+  
+  /* Fix Shiki code blocks appearing selected - remove background color from spans */
+  pre.shiki {
+    user-select: text;
+  }
+  
+  pre.shiki code {
+    background: transparent !important;
+  }
+  
+  pre.shiki code > span {
+    background: transparent !important;
+  }
+  
+  /* Shiki dual theme support - show light theme by default, dark theme in dark mode */
+  pre.shiki[data-theme="nord"],
+  pre.shiki[data-theme="tokyo-night"] {
+    display: block;
+  }
+  
+  /* Hide dark theme in light mode */
+  :root:not(.dark) pre.shiki[data-theme="tokyo-night"] {
+    display: none;
+  }
+  
+  /* Hide light theme in dark mode */
+  .dark pre.shiki[data-theme="nord"] {
+    display: none;
+  }
+  
+  /* Show dark theme in dark mode */
+  .dark pre.shiki[data-theme="tokyo-night"] {
+    display: block;
+  }
+  
+  /* Ensure proper styling for code blocks */
+  pre.shiki {
+    @apply rounded-lg border border-gray-200 dark:border-gray-700 p-4 overflow-x-auto my-6;
   }
 } 

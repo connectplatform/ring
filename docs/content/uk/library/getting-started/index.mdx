@@ -1,0 +1,52 @@
+---
+title: Індекс
+description: Індекс документації платформи Ring
+---
+
+# Початок роботи
+
+Ласкаво просимо до платформи Ring! Цей посібник допоможе вам запустити систему за лічені хвилини.
+
+## Швидкий старт (5 хвилин)
+
+<Steps>
+<Step>
+### Клонуйте репозиторій
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring`}
+</Code>
+</Step>
+<Step>
+### Встановіть залежності
+<Code language="bash" title="terminal">
+{`npm install`}
+</Code>
+</Step>
+<Step>
+### Налаштуйте середовище
+cp env.local.template .env.local
+<Code language="bash" title="terminal">
+{`npm run setup:env`}
+</Code>
+</Step>
+<Step>
+### Запустіть сервер розробки
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+</Step>
+</Steps>
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="success">
+  ✅ Успіх! Перейдіть на http://localhost:3000, щоб побачити ваш екземпляр платформи Ring.
+</Callout>
+
+## Що далі?
+
+- [Передумови](/uk/docs/getting-started/prerequisites) - Системні вимоги
+- [Встановлення](/uk/docs/getting-started/installation) - Детальний посібник зі встановлення
+- [Перший успіх](/uk/docs/getting-started/first-success) - Перевірка ваших налаштувань
+- [Усунення несправностей](/uk/docs/getting-started/troubleshooting) - Поширені проблеми

@@ -1,0 +1,12 @@
+{
+  "title": "Розгортання",
+  "pages": [
+    "index",
+    "vercel",
+    "docker",
+    "environment",
+    "monitoring",
+    "performance",
+    "backup"
+  ]
+}

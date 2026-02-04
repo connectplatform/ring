@@ -8,6 +8,7 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, use } from 'react';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import { getTunnelTransportManager, TunnelTransportManager } from '@/lib/tunnel/transport-manager';
 import {
   TunnelConnectionState,
@@ -16,6 +17,7 @@ import {
   TunnelHealth,
   TunnelConfig,
 } from '@/lib/tunnel/types';
+import { tunnelTimingManager, TunnelTimingStrategy } from '@/lib/tunnel/tunnel-timing';
 import { toast } from '@/hooks/use-toast';
 
 interface TunnelContextType {
@@ -23,23 +25,24 @@ interface TunnelContextType {
   isConnected: boolean;
   connectionState: TunnelConnectionState;
   provider: TunnelProviderType | null;
-  
+
   // Connection management
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  
+  manualConnect?: () => Promise<void>;
+
   // Messaging
   publish: (channel: string, event: string, data: any) => Promise<void>;
   subscribe: (channel: string, handler: (message: TunnelMessage) => void) => () => void;
-  
+
   // Health and diagnostics
   health: TunnelHealth | null;
   latency: number;
-  
+
   // Transport management
   switchProvider: (provider: TunnelProviderType) => Promise<void>;
   availableProviders: TunnelProviderType[];
-  
+
   // Error state
   error: Error | null;
 }
@@ -59,19 +62,22 @@ interface TunnelProviderProps {
   config?: Partial<TunnelConfig>;
   autoConnect?: boolean;
   debug?: boolean;
+  timingStrategy?: TunnelTimingStrategy;
 }
 
 /**
  * Tunnel Provider Component
  * Manages a single shared tunnel instance for the entire app
  */
-export function TunnelProvider({ 
-  children, 
+export function TunnelProvider({
+  children,
   config,
   autoConnect = true,
-  debug = false 
+  debug = false,
+  timingStrategy = TunnelTimingStrategy.PROGRESSIVE
 }: TunnelProviderProps) {
   const { status: sessionStatus } = useSession();
+  const pathname = usePathname();
   
   // State
   const [isConnected, setIsConnected] = useState(false);
@@ -81,19 +87,34 @@ export function TunnelProvider({
   const [latency, setLatency] = useState(0);
   const [error, setError] = useState<Error | null>(null);
   const [availableProviders, setAvailableProviders] = useState<TunnelProviderType[]>([]);
+  // Authentication racing protection
+  const [lastAuthTime, setLastAuthTime] = useState<number | null>(null);
   
   // Refs
   const managerRef = useRef<TunnelTransportManager | null>(null);
   const subscriptionsRef = useRef<Map<string, Map<symbol, (message: TunnelMessage) => void>>>(new Map());
   const channelSubscriptionsRef = useRef<Map<string, any>>(new Map());
 
+  // Track authentication state changes for racing protection
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && !lastAuthTime) {
+      setLastAuthTime(Date.now());
+      console.log('[TunnelProvider] Authentication completed - enabling racing protection');
+    }
+  }, [sessionStatus, lastAuthTime]);
+
   // Initialize manager once
   useEffect(() => {
+    // Configure timing strategy
+    tunnelTimingManager.updateConfig({
+      strategy: timingStrategy
+    });
+
     const manager = getTunnelTransportManager({
       ...config,
       debug,
     });
-    
+
     managerRef.current = manager;
     
     // Capture ref values for cleanup
@@ -173,12 +194,31 @@ export function TunnelProvider({
     manager.on('transport:switch', handleTransportSwitch);
     manager.on('message', handleMessage);
     
-    // Auto-connect if enabled (supports both authenticated and anonymous users)
+    // Auto-connect using timing strategy (supports both authenticated and anonymous users)
     if (autoConnect && sessionStatus !== 'loading' && !manager.isConnected()) {
-      manager.connect().catch(err => {
-        console.error('[TunnelProvider] Failed to auto-connect:', err);
-        setError(err);
-      });
+      // Racing protection: Add extra delay for recently authenticated users
+      // This prevents tunnel connection while database operations in signIn callbacks are still running
+      const now = Date.now();
+      const timeSinceAuth = lastAuthTime ? now - lastAuthTime : Infinity;
+      const isRecentlyAuthenticated = sessionStatus === 'authenticated' && timeSinceAuth < 2000; // 2 second buffer
+
+      if (isRecentlyAuthenticated) {
+        console.log(`[TunnelProvider] Recently authenticated (${timeSinceAuth}ms ago) - delaying tunnel connection to prevent racing`);
+        setTimeout(() => {
+          if (!manager.isConnected()) {
+            tunnelTimingManager.initializeForRoute(pathname).catch(err => {
+              console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
+              setError(err);
+            });
+          }
+        }, Math.max(0, 2000 - timeSinceAuth)); // Wait remaining time up to 2 seconds
+      } else {
+        // Normal timing for anonymous users or well-established authenticated sessions
+        tunnelTimingManager.initializeForRoute(pathname).catch(err => {
+          console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
+          setError(err);
+        });
+      }
     }
     
     // Cleanup
@@ -202,12 +242,12 @@ export function TunnelProvider({
       currentChannelSubscriptions.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, autoConnect, debug, sessionStatus]);
+  }, [config, autoConnect, debug, sessionStatus, timingStrategy, pathname, lastAuthTime]);
 
   // Connect method
   const connect = useCallback(async () => {
     if (!managerRef.current) return;
-    
+
     try {
       setError(null);
       setConnectionState(TunnelConnectionState.CONNECTING);
@@ -218,6 +258,12 @@ export function TunnelProvider({
       throw err;
     }
   }, []);
+
+  // Manual connect method (for manual-only timing strategy)
+  const manualConnect = useCallback(async () => {
+    console.log('[TunnelProvider] Manual connect requested');
+    await connect();
+  }, [connect]);
 
   // Disconnect method
   const disconnect = useCallback(async () => {
@@ -345,23 +391,24 @@ export function TunnelProvider({
     isConnected,
     connectionState,
     provider,
-    
+
     // Connection management
     connect,
     disconnect,
-    
+    manualConnect,
+
     // Messaging
     publish,
     subscribe,
-    
+
     // Health and diagnostics
     health,
     latency,
-    
+
     // Transport management
     switchProvider,
     availableProviders,
-    
+
     // Error state
     error,
   }), [
@@ -370,6 +417,7 @@ export function TunnelProvider({
     provider,
     connect,
     disconnect,
+    manualConnect,
     publish,
     subscribe,
     health,

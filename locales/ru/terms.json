@@ -1,0 +1,45 @@
+{
+  "termsOfServiceText": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: {date}",
+    "introduction": {
+      "title": "Introduction",
+      "content": "Welcome to Ring Platform. By using our service, you agree to these terms."
+    },
+    "userAgreement": {
+      "title": "User Agreement",
+      "content": "By accessing and using Ring Platform, you accept and agree to be bound by the terms and provision of this agreement."
+    },
+    "accountResponsibilities": {
+      "title": "Account Responsibilities",
+      "content": "As a user of Ring Platform, you are responsible for:",
+      "item1": "Maintaining the confidentiality of your account credentials",
+      "item2": "Providing accurate and up-to-date information",
+      "item3": "Complying with all applicable laws and regulations"
+    },
+    "contentGuidelines": {
+      "title": "Content Guidelines",
+      "content": "Users must ensure that all content posted on the platform complies with our community guidelines and does not violate any laws or regulations."
+    },
+    "intellectualProperty": {
+      "title": "Intellectual Property",
+      "content": "All content and materials on Ring Platform are protected by intellectual property rights. Users retain ownership of their content while granting us a license to use it."
+    },
+    "limitationOfLiability": {
+      "title": "Limitation of Liability",
+      "content": "Ring Platform shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the service."
+    },
+    "termination": {
+      "title": "Account Termination",
+      "content": "We reserve the right to terminate or suspend your account at any time for violations of these terms or for any other reason at our sole discretion."
+    },
+    "changes": {
+      "title": "Changes to Terms",
+      "content": "We may update these terms of service from time to time. We will notify users of any material changes by posting the updated terms on our platform."
+    },
+    "contact": {
+      "title": "Contact Information",
+      "content": "If you have any questions about these Terms of Service, please contact us at legal@ring.ck.ua"
+    }
+  }
+}

@@ -45,9 +45,8 @@ description: Документация по сущностям платформы
 
 ## Структура сущности
 
-```typescript
-interface Entity {
-  id: string
+<Code language="typescript" title="interface Entity {">
+{`id: string
   name: string
   description: string
   industry: IndustryType
@@ -64,8 +63,8 @@ interface EntityMember {
   userId: string
   role: 'OWNER' | 'ADMIN' | 'MEMBER'
   joinedAt: Date
-}
-```
+}`}
+</Code>
 
 ## Отрасли
 Платформа Ring поддерживает **26 типов отраслей**:
@@ -101,9 +100,10 @@ interface EntityMember {
 
 ### Create Entity
 
-```typescript
 const response = await fetch('/api/entities', {
-  method: 'POST',
+
+<Code language="typescript" title="TypeScript">
+{`method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -117,26 +117,26 @@ const response = await fetch('/api/entities', {
   })
 })
 
-const entity = await response.json()
-```
+const entity = await response.json()`}
+</Code>
 
 ### Список Сущностей с Фильтрацией
 
-```typescript
-const response = await fetch('/api/entities?industry=TECHNOLOGY_SOFTWARE&verified=true&limit=10')
-const { entities, total, hasMore } = await response.json()
-```
+<Code language="typescript" title="TypeScript">
+{`const response = await fetch('/api/entities?industry=TECHNOLOGY_SOFTWARE&verified=true&limit=10')
+const { entities, total, hasMore } = await response.json()`}
+</Code>
 
 ### Получение Детальной Информации о Сущности
 
-```typescript
-const response = await fetch(`/api/entities/${entityId}`)
+<Code language="typescript" title="TypeScript">
+{`const response = await fetch(`/api/entities/${entityId}`)
 const entity = await response.json()
 
 if (entity.confidential && !hasConfidentialAccess) {
   // Handle confidential entity access
-}
-```
+}`}
+</Code>
 
 ## Контроль Доступа
 

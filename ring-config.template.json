@@ -1,0 +1,248 @@
+{
+  "$schema": "./ring-config.schema.json",
+  "_comment": "Ring Platform Clone Configuration Template - Copy to ring-config.json and customize",
+  
+  "clone": {
+    "name": "my-ring-clone",
+    "displayName": "My Ring Clone",
+    "description": "A Ring Platform clone for [your use case]",
+    "version": "1.0.0",
+    "organization": "Your Organization Name",
+    "contactEmail": "contact@your-domain.com",
+    "supportEmail": "support@your-domain.com"
+  },
+
+  "branding": {
+    "logo": {
+      "light": "/images/logo-light.svg",
+      "dark": "/images/logo-dark.svg",
+      "favicon": "/favicon.ico",
+      "appleTouchIcon": "/apple-touch-icon.png"
+    },
+    "colors": {
+      "primary": "#6366f1",
+      "primaryForeground": "#ffffff",
+      "secondary": "#f1f5f9",
+      "secondaryForeground": "#0f172a",
+      "accent": "#8b5cf6",
+      "accentForeground": "#ffffff",
+      "background": "#ffffff",
+      "foreground": "#0f172a",
+      "muted": "#f1f5f9",
+      "mutedForeground": "#64748b",
+      "destructive": "#ef4444",
+      "destructiveForeground": "#ffffff",
+      "border": "#e2e8f0",
+      "input": "#e2e8f0",
+      "ring": "#6366f1"
+    },
+    "darkColors": {
+      "primary": "#818cf8",
+      "primaryForeground": "#0f172a",
+      "secondary": "#1e293b",
+      "secondaryForeground": "#f8fafc",
+      "accent": "#a78bfa",
+      "accentForeground": "#0f172a",
+      "background": "#0f172a",
+      "foreground": "#f8fafc",
+      "muted": "#1e293b",
+      "mutedForeground": "#94a3b8",
+      "destructive": "#f87171",
+      "destructiveForeground": "#0f172a",
+      "border": "#334155",
+      "input": "#334155",
+      "ring": "#818cf8"
+    },
+    "fonts": {
+      "sans": "Inter, system-ui, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    }
+  },
+
+  "domains": {
+    "production": "https://your-domain.com",
+    "staging": "https://staging.your-domain.com",
+    "development": "http://localhost:3000",
+    "cdn": "https://cdn.your-domain.com",
+    "api": "https://api.your-domain.com"
+  },
+
+  "features": {
+    "entities": {
+      "enabled": true,
+      "types": ["company", "startup", "organization", "ngo", "agency"]
+    },
+    "opportunities": {
+      "enabled": true,
+      "types": ["offer", "request", "ring_customization"],
+      "accessTiers": ["public", "subscriber", "member", "confidential"]
+    },
+    "store": {
+      "enabled": true,
+      "multiVendor": true,
+      "currency": "USD",
+      "currencySymbol": "$",
+      "taxEnabled": false,
+      "taxRate": 0
+    },
+    "payments": {
+      "enabled": true,
+      "provider": "wayforpay",
+      "subscriptionPlans": ["free", "subscriber", "member", "confidential"]
+    },
+    "web3": {
+      "enabled": true,
+      "walletConnect": true,
+      "ringToken": true,
+      "nftMarketplace": false,
+      "staking": false,
+      "defaultChain": "polygon"
+    },
+    "messaging": {
+      "enabled": true,
+      "realtime": true,
+      "fileSharing": true
+    },
+    "notifications": {
+      "push": true,
+      "email": true,
+      "inApp": true
+    },
+    "ai": {
+      "enabled": true,
+      "matcher": true,
+      "productConsultant": false
+    },
+    "analytics": {
+      "enabled": true,
+      "webVitals": true,
+      "googleAnalytics": false,
+      "mixpanel": false
+    }
+  },
+
+  "localization": {
+    "defaultLocale": "en",
+    "supportedLocales": ["en", "uk", "ru"],
+    "fallbackLocale": "en",
+    "dateFormat": "MMMM d, yyyy",
+    "timeFormat": "HH:mm",
+    "timezone": "UTC"
+  },
+
+  "seo": {
+    "siteName": "My Ring Clone",
+    "siteDescription": "Professional networking platform powered by Ring",
+    "siteKeywords": ["professional networking", "opportunities", "business", "web3"],
+    "ogImage": "/images/og-image.png",
+    "twitterHandle": "@your_handle",
+    "googleSiteVerification": "",
+    "bingSiteVerification": ""
+  },
+
+  "social": {
+    "twitter": "https://twitter.com/your_handle",
+    "linkedin": "https://linkedin.com/company/your-company",
+    "github": "https://github.com/your-org",
+    "discord": "https://discord.gg/your-invite",
+    "telegram": "https://t.me/your_channel"
+  },
+
+  "legal": {
+    "companyName": "Your Company Name",
+    "companyAddress": "123 Main Street, City, Country",
+    "companyRegistration": "REG-12345678",
+    "privacyPolicyUrl": "/legal/privacy",
+    "termsOfServiceUrl": "/legal/terms",
+    "cookiePolicyUrl": "/legal/cookies",
+    "gdprEnabled": true,
+    "ccpaEnabled": false
+  },
+
+  "database": {
+    "backendMode": "k8s-postgres-fcm",
+    "schemaPrefix": "my_ring_clone",
+    "poolSize": 20,
+    "connectionTimeout": 30000,
+    "retries": 3
+  },
+
+  "storage": {
+    "provider": "vercel_blob",
+    "maxFileSize": "10MB",
+    "allowedMimeTypes": [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "video/mp4"
+    ]
+  },
+
+  "security": {
+    "rateLimiting": {
+      "authWindowMs": 60000,
+      "authMaxRequests": 5,
+      "apiWindowMs": 60000,
+      "apiMaxRequests": 100
+    },
+    "cors": {
+      "allowedOrigins": ["https://your-domain.com"],
+      "allowCredentials": true
+    },
+    "csp": {
+      "enabled": true,
+      "reportUri": "/api/csp-report"
+    }
+  },
+
+  "deployment": {
+    "platform": "kubernetes",
+    "namespace": "my-ring-clone",
+    "replicas": 2,
+    "resources": {
+      "requests": {
+        "cpu": "500m",
+        "memory": "512Mi"
+      },
+      "limits": {
+        "cpu": "1000m",
+        "memory": "1Gi"
+      }
+    },
+    "autoscaling": {
+      "enabled": false,
+      "minReplicas": 2,
+      "maxReplicas": 10,
+      "targetCPUUtilization": 80
+    }
+  },
+
+  "integrations": {
+    "wayforpay": {
+      "enabled": true,
+      "testMode": true
+    },
+    "firebase": {
+      "enabled": true,
+      "fcmEnabled": true,
+      "firestoreEnabled": false
+    },
+    "openai": {
+      "enabled": true,
+      "model": "gpt-4o"
+    },
+    "anthropic": {
+      "enabled": false,
+      "model": "claude-3-5-sonnet-20241022"
+    },
+    "novaPoshta": {
+      "enabled": false
+    },
+    "sentry": {
+      "enabled": false,
+      "dsn": ""
+    }
+  }
+}

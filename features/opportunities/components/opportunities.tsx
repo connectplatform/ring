@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -45,6 +45,9 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   const [loading, setLoading] = React.useState(false)
   const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
   const { ref, inView } = useInView()
+
+  // React 19 useTransition for non-blocking filter updates
+  const [isPending, startTransition] = useTransition()
 
   // Extract locale from pathname
   const locale = pathname.split('/')[1] || 'en'

@@ -154,14 +154,14 @@ export default function RingOpportunitiesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-0 py-0">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Briefcase className="w-8 h-8 text-blue-600 mr-3" />
             <h1 className="text-4xl font-bold">Ring Opportunities</h1>
           </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Discover Ring customizations and Web3 opportunities. Connect with clients and turn conversations into successful projects.
           </p>
         </div>
@@ -223,7 +223,7 @@ export default function RingOpportunitiesPage() {
         {/* Results Summary */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <span className="text-gray-600 dark:text-gray-300">
+            <span className="text-muted-foreground">
               {filteredOpportunities.length} opportunities found
             </span>
             <div className="flex items-center space-x-2">
@@ -279,19 +279,19 @@ export default function RingOpportunitiesPage() {
 
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex items-center text-sm text-muted-foreground">
                     <DollarSign className="w-4 h-4 mr-1" />
                     {opportunity.budget}
                   </div>
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex items-center text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4 mr-1" />
                     {new Date(opportunity.deadline).toLocaleDateString()}
                   </div>
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex items-center text-sm text-muted-foreground">
                     <MapPin className="w-4 h-4 mr-1" />
                     {opportunity.location}
                   </div>
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex items-center text-sm text-muted-foreground">
                     <Users className="w-4 h-4 mr-1" />
                     {opportunity.applications} applications
                   </div>
@@ -335,7 +335,7 @@ export default function RingOpportunitiesPage() {
         {filteredOpportunities.length === 0 && (
           <div className="text-center py-12">
             <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">
+            <h3 className="text-xl font-semibold text-muted-foreground mb-2">
               No opportunities found
             </h3>
             <p className="text-gray-500 dark:text-gray-400">

@@ -48,19 +48,9 @@ export const WalletConnectPopup: React.FC<WalletConnectPopupProps> = ({ isOpen, 
    */
   const fetchMaticBalance = useCallback(async (walletAddress: string) => {
     try {
-      const { ethers } = await import('ethers')
-      const provider = new ethers.JsonRpcProvider('https://polygon-rpc.com')
-      const balance = await provider.getBalance(walletAddress)
-      const formattedBalance = ethers.formatEther(balance)
-      setMaticBalance(parseFloat(formattedBalance).toFixed(4))
-      
-      // Update the wallet object with the new balance
-      setWallet(prevWallet => {
-        if (prevWallet) {
-          return { ...prevWallet, balance: formattedBalance }
-        }
-        return prevWallet
-      })
+      // const { ethers } = await import('ethers') // Temporarily disabled - using wagmi
+      // const provider = new ethers.JsonRpcProvider('https://polygon-rpc.com')
+      throw new Error('Legacy wallet popup disabled - use multi-chain dashboard')
     } catch (error) {
       console.error('Error fetching Matic balance:', error)
       setMaticBalance(t('error'))

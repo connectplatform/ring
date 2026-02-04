@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import MembershipContent from '@/features/auth/components/membership-content'
 import type { AuthUser } from '@/features/auth/types'
+import AboutWrapper from '@/components/wrappers/about-wrapper'
 
 interface MembershipPageProps {
   params: Promise<{ locale: string }>
@@ -68,10 +69,12 @@ export default async function MembershipPage(props: MembershipPageProps) {
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
       ))}
       
-      <MembershipContent 
-        user={user}
-        locale={locale}
-      />
+      <AboutWrapper locale={locale}>
+        <MembershipContent 
+          user={user}
+          locale={locale}
+        />
+      </AboutWrapper>
     </>
   )
 }

@@ -30,25 +30,14 @@ export async function updateProfile(prevState: ProfileUpdateState, formData: For
       });
     }
 
-    // Extract user ID from form data and validate authorization
-    const requestedUserId = formData.get("userId") as string
-    const currentUserId = session.user.id
-    
+    // For security, we always use the session user ID for profile updates
     // Users can only update their own profile (unless they're admin)
+    const currentUserId = session.user.id
     const isAdmin = session.user.role === 'admin'
-    
-    if (!isAdmin && requestedUserId !== currentUserId) {
-      throw new ProfileAuthError('Insufficient permissions', undefined, {
-        timestamp: Date.now(),
-        requestedUserId,
-        currentUserId,
-        isAdmin,
-        userRole: session.user.role
-      });
-    }
 
-    // Use the session user ID for security (don't trust client data)
-    const userId = isAdmin ? requestedUserId : currentUserId
+    // If admin, allow updating other users (would need additional validation)
+    // For now, all users can only update their own profile
+    const userId = currentUserId
     const data = Object.fromEntries(formData.entries()) as unknown as ProfileFormData
 
     // Call the service directly instead of making HTTP request

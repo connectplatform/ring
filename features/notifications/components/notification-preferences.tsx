@@ -196,10 +196,10 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h2 className="text-2xl font-bold text-foreground">
             Notification Preferences
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Customize how and when you receive notifications
           </p>
         </div>
@@ -245,7 +245,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
               <Label htmlFor="master-toggle" className="text-base font-medium">
                 Enable Notifications
               </Label>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                 Turn off to stop receiving all notifications
               </p>
             </div>
@@ -277,7 +277,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                 <Bell className="w-5 h-5 text-blue-500" />
                 <div>
                   <Label className="text-base font-medium">In-App</Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     Notifications within the platform
                   </p>
                   <Badge variant="default" className="mt-1">Available</Badge>
@@ -296,7 +296,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                 <Mail className="w-5 h-5 text-green-500" />
                 <div>
                   <Label className="text-base font-medium">Email</Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     Rich HTML email notifications
                   </p>
                   <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
@@ -315,7 +315,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                 <Smartphone className="w-5 h-5 text-orange-500" />
                 <div>
                   <Label className="text-base font-medium">SMS</Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     Critical alerts via text message
                   </p>
                   <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
@@ -334,7 +334,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                 <Volume2 className="w-5 h-5 text-purple-500" />
                 <div>
                   <Label className="text-base font-medium">Push</Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     Browser and mobile push notifications
                   </p>
                   <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
@@ -364,7 +364,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
         <CardContent className="space-y-6">
           {Object.entries(notificationTypeGroups).map(([groupName, types]) => (
             <div key={groupName}>
-              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+              <h4 className="font-medium text-foreground mb-3">
                 {groupName}
               </h4>
               <div className="space-y-3">
@@ -374,7 +374,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
                       <Label className="text-sm font-medium">
                         {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </Label>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {typeLabels[type]}
                       </p>
                     </div>
@@ -407,7 +407,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-base font-medium">Enable Quiet Hours</Label>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                 Notifications will be queued during these hours
               </p>
             </div>

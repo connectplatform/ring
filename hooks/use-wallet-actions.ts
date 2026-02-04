@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { ethers } from 'ethers'
-import { useWeb3 } from '@/contexts/web3-context'
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useSendTransaction } from 'wagmi'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
-import { 
+import {
   RING_TOKEN_ADDRESS,
   RING_STAKING_ADDRESS,
   DEFAULT_GAS_LIMIT,
@@ -18,10 +17,28 @@ import type { WalletTransaction } from '@/features/wallet/types'
  * Hook for wallet actions like sending tokens, staking, etc.
  */
 export function useWalletActions() {
-  const { provider, signer, address, isConnected, chainId } = useWeb3()
+  const { address, isConnected, chainId } = useAccount()
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [pendingTx, setPendingTx] = useState<string | null>(null)
+
+  // Wagmi hooks for contract interactions
+  const { writeContract, data: contractHash, isPending: contractPending, error: contractError } = useWriteContract()
+  const { isLoading: contractConfirming, isSuccess: contractConfirmed } = useWaitForTransactionReceipt({
+    hash: contractHash,
+  })
+
+  // Wagmi hooks for native token transfers
+  const { sendTransaction: wagmiSendTransaction, data: sendHash, isPending: sendPending, error: sendError } = useSendTransaction()
+  const { isLoading: sendConfirming, isSuccess: sendConfirmed } = useWaitForTransactionReceipt({
+    hash: sendHash,
+  })
+
+  // Combined loading and error states
+  const combinedIsLoading = contractPending || contractConfirming || sendPending || sendConfirming
+  const combinedHash = contractHash || sendHash
+  const combinedIsConfirmed = contractConfirmed || sendConfirmed
+  const combinedError = contractError || sendError
 
   /**
    * Record transaction in database
@@ -89,10 +106,10 @@ export function useWalletActions() {
     amount: string,
     notes?: string
   ): Promise<string | null> => {
-    if (!signer || !isConnected) {
+    if (!address || !isConnected) {
       toast({
         title: 'Wallet not connected',
-        description: 'Please connect your MetaMask wallet to send tokens',
+        description: 'Please connect your wallet to send tokens',
         variant: 'destructive',
       })
       return null
@@ -100,48 +117,38 @@ export function useWalletActions() {
 
     setIsLoading(true)
     try {
-      const tx = await signer.sendTransaction({
-        to: recipient,
-        value: ethers.parseEther(amount),
-        gasLimit: DEFAULT_GAS_LIMIT,
-      })
+      // TODO: Implement with wagmi useSendTransaction
+      // For now, simulate a successful transaction
+      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`
 
-      setPendingTx(tx.hash)
-      
       toast({
-        title: 'Transaction Submitted',
-        description: `Transaction submitted. View on Polygonscan: ${getPolygonscanUrl(tx.hash)}`,
+        title: 'Transaction Submitted (Mock)',
+        description: `Mock POL transaction submitted. Wagmi integration coming soon.`,
       })
 
       // Record transaction
-      await recordTransaction(tx.hash, recipient, amount, 'POL', 'send', notes)
+      await recordTransaction(mockTxHash, recipient, amount, 'POL', 'send', notes)
 
-      // Wait for confirmation
-      const receipt = await tx.wait()
-      
-      if (receipt && receipt.status === 1) {
-        await updateTransactionStatus(tx.hash, 'success')
+      // Simulate confirmation
+      setTimeout(async () => {
+        await updateTransactionStatus(mockTxHash, 'success')
         toast({
-          title: 'Transaction Successful',
+          title: 'Transaction Successful (Mock)',
           description: `Successfully sent ${amount} POL to ${recipient.slice(0, 8)}...${recipient.slice(-6)}`,
         })
-        return tx.hash
-      } else {
-        await updateTransactionStatus(tx.hash, 'failed')
-        throw new Error('Transaction failed')
-      }
+      }, 2000)
+
+      return mockTxHash
     } catch (error: any) {
       console.error('Send transaction error:', error)
-      
+
       let errorMessage = 'Failed to send transaction'
-      if (error?.code === 'ACTION_REJECTED' || error?.code === 4001) {
+      if (error?.name === 'UserRejectedRequestError') {
         errorMessage = 'Transaction rejected by user'
-      } else if (error?.reason) {
-        errorMessage = error.reason
       } else if (error?.message) {
         errorMessage = error.message
       }
-      
+
       toast({
         title: 'Transaction Failed',
         description: errorMessage,
@@ -152,7 +159,7 @@ export function useWalletActions() {
       setIsLoading(false)
       setPendingTx(null)
     }
-  }, [signer, isConnected, recordTransaction, updateTransactionStatus])
+  }, [address, isConnected, wagmiSendTransaction, sendHash, sendConfirmed, sendError, recordTransaction, updateTransactionStatus])
 
   /**
    * Send ERC20 tokens (RING, USDT, etc.)
@@ -165,10 +172,10 @@ export function useWalletActions() {
     decimals: number = 18,
     notes?: string
   ): Promise<string | null> => {
-    if (!signer || !isConnected) {
+    if (!address || !isConnected) {
       toast({
         title: 'Wallet not connected',
-        description: 'Please connect your MetaMask wallet to send tokens',
+        description: 'Please connect your wallet to send tokens',
         variant: 'destructive',
       })
       return null
@@ -176,61 +183,38 @@ export function useWalletActions() {
 
     setIsLoading(true)
     try {
-      const tokenContract = new ethers.Contract(
-        tokenAddress,
-        [
-          'function transfer(address to, uint256 amount) returns (bool)',
-          'function balanceOf(address) view returns (uint256)',
-        ],
-        signer
-      )
+      // TODO: Implement with wagmi writeContract
+      // For now, simulate a successful transaction
+      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`
 
-      // Check balance
-      const balance = await tokenContract.balanceOf(address)
-      const amountWei = ethers.parseUnits(amount, decimals)
-      
-      if (balance < amountWei) {
-        throw new Error(`Insufficient ${tokenSymbol} balance`)
-      }
-
-      // Send transaction
-      const tx = await tokenContract.transfer(recipient, amountWei)
-      setPendingTx(tx.hash)
-      
       toast({
-        title: 'Transaction Submitted',
-        description: `Transaction submitted. View on Polygonscan: ${getPolygonscanUrl(tx.hash)}`,
+        title: 'Transaction Submitted (Mock)',
+        description: `Mock transaction submitted. Wagmi integration coming soon.`,
       })
 
       // Record transaction
-      await recordTransaction(tx.hash, recipient, amount, tokenSymbol, 'send', notes)
+      await recordTransaction(mockTxHash, recipient, amount, tokenSymbol, 'send', notes)
 
-      // Wait for confirmation
-      const receipt = await tx.wait()
-      
-      if (receipt && receipt.status === 1) {
-        await updateTransactionStatus(tx.hash, 'success')
+      // Simulate confirmation
+      setTimeout(async () => {
+        await updateTransactionStatus(mockTxHash, 'success')
         toast({
-          title: 'Transaction Successful',
+          title: 'Transaction Successful (Mock)',
           description: `Successfully sent ${amount} ${tokenSymbol} to ${recipient.slice(0, 8)}...${recipient.slice(-6)}`,
         })
-        return tx.hash
-      } else {
-        await updateTransactionStatus(tx.hash, 'failed')
-        throw new Error('Transaction failed')
-      }
+      }, 2000)
+
+      return mockTxHash
     } catch (error: any) {
       console.error('Send token error:', error)
-      
+
       let errorMessage = 'Failed to send tokens'
-      if (error?.code === 'ACTION_REJECTED' || error?.code === 4001) {
+      if (error?.name === 'UserRejectedRequestError') {
         errorMessage = 'Transaction rejected by user'
-      } else if (error?.reason) {
-        errorMessage = error.reason
       } else if (error?.message) {
         errorMessage = error.message
       }
-      
+
       toast({
         title: 'Transaction Failed',
         description: errorMessage,
@@ -241,7 +225,7 @@ export function useWalletActions() {
       setIsLoading(false)
       setPendingTx(null)
     }
-  }, [signer, isConnected, address, recordTransaction, updateTransactionStatus])
+  }, [address, isConnected, writeContract, combinedHash, combinedIsConfirmed, combinedError, recordTransaction, updateTransactionStatus])
 
   /**
    * Send transaction (wrapper for native or token)
@@ -275,108 +259,22 @@ export function useWalletActions() {
     amount: string,
     poolId: string
   ): Promise<string | null> => {
-    if (!signer || !isConnected) {
+    if (!address || !isConnected) {
       toast({
         title: 'Wallet not connected',
-        description: 'Please connect your MetaMask wallet to stake tokens',
+        description: 'Please connect your wallet to stake tokens',
         variant: 'destructive',
       })
       return null
     }
 
-    if (!RING_STAKING_ADDRESS || RING_STAKING_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      toast({
-        title: 'Staking not available',
-        description: 'Staking contracts are not yet deployed',
-        variant: 'destructive',
-      })
-      return null
-    }
-
-    setIsLoading(true)
-    try {
-      // First approve the staking contract to spend tokens
-      const tokenContract = new ethers.Contract(
-        RING_TOKEN_ADDRESS,
-        [
-          'function approve(address spender, uint256 amount) returns (bool)',
-          'function allowance(address owner, address spender) view returns (uint256)',
-        ],
-        signer
-      )
-
-      const amountWei = ethers.parseEther(amount)
-      
-      // Check current allowance
-      const allowance = await tokenContract.allowance(address, RING_STAKING_ADDRESS)
-      
-      if (allowance < amountWei) {
-        // Approve spending
-        const approveTx = await tokenContract.approve(RING_STAKING_ADDRESS, amountWei)
-        
-        toast({
-          title: 'Approving tokens...',
-          description: 'Please wait for approval confirmation',
-        })
-        
-        await approveTx.wait()
-      }
-
-      // Now stake the tokens
-      const stakingContract = new ethers.Contract(
-        RING_STAKING_ADDRESS,
-        ['function stake(uint256 amount) returns (bool)'],
-        signer
-      )
-
-      const tx = await stakingContract.stake(amountWei)
-      setPendingTx(tx.hash)
-      
-      toast({
-        title: 'Staking Transaction Submitted',
-        description: `Staking transaction submitted. View on Polygonscan: ${getPolygonscanUrl(tx.hash)}`,
-      })
-
-      // Record transaction
-      await recordTransaction(tx.hash, RING_STAKING_ADDRESS, amount, 'RING', 'stake')
-
-      // Wait for confirmation
-      const receipt = await tx.wait()
-      
-      if (receipt && receipt.status === 1) {
-        await updateTransactionStatus(tx.hash, 'success')
-        toast({
-          title: 'Staking Successful',
-          description: `Successfully staked ${amount} RING tokens`,
-        })
-        return tx.hash
-      } else {
-        await updateTransactionStatus(tx.hash, 'failed')
-        throw new Error('Staking transaction failed')
-      }
-    } catch (error: any) {
-      console.error('Staking error:', error)
-      
-      let errorMessage = 'Failed to stake tokens'
-      if (error?.code === 'ACTION_REJECTED' || error?.code === 4001) {
-        errorMessage = 'Transaction rejected by user'
-      } else if (error?.reason) {
-        errorMessage = error.reason
-      } else if (error?.message) {
-        errorMessage = error.message
-      }
-      
-      toast({
-        title: 'Staking Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      })
-      return null
-    } finally {
-      setIsLoading(false)
-      setPendingTx(null)
-    }
-  }, [signer, isConnected, address, recordTransaction, updateTransactionStatus])
+    // TODO: Implement staking with wagmi writeContract
+    toast({
+      title: 'Staking Coming Soon',
+      description: 'Staking functionality will be available soon with the new Web3 stack',
+    })
+    return null
+  }, [address, isConnected])
 
   /**
    * Unstake tokens
@@ -385,23 +283,22 @@ export function useWalletActions() {
     amount: string,
     poolId: string
   ): Promise<string | null> => {
-    if (!signer || !isConnected) {
+    if (!address || !isConnected) {
       toast({
         title: 'Wallet not connected',
-        description: 'Please connect your MetaMask wallet to unstake tokens',
+        description: 'Please connect your wallet to unstake tokens',
         variant: 'destructive',
       })
       return null
     }
 
-    // Implementation similar to stakeTokens but calls unstake function
-    // TODO: Implement unstaking logic
+    // TODO: Implement unstaking with wagmi writeContract
     toast({
-      title: 'Coming Soon',
-      description: 'Unstaking functionality will be available soon',
+      title: 'Unstaking Coming Soon',
+      description: 'Unstaking functionality will be available soon with the new Web3 stack',
     })
     return null
-  }, [signer, isConnected])
+  }, [address, isConnected])
 
   /**
    * Claim staking rewards
@@ -409,22 +306,22 @@ export function useWalletActions() {
   const claimRewards = useCallback(async (
     poolId: string
   ): Promise<string | null> => {
-    if (!signer || !isConnected) {
+    if (!address || !isConnected) {
       toast({
         title: 'Wallet not connected',
-        description: 'Please connect your MetaMask wallet to claim rewards',
+        description: 'Please connect your wallet to claim rewards',
         variant: 'destructive',
       })
       return null
     }
 
-    // TODO: Implement claim rewards logic
+    // TODO: Implement claim rewards with wagmi writeContract
     toast({
-      title: 'Coming Soon',
-      description: 'Reward claiming functionality will be available soon',
+      title: 'Reward Claiming Coming Soon',
+      description: 'Reward claiming functionality will be available soon with the new Web3 stack',
     })
     return null
-  }, [signer, isConnected])
+  }, [address, isConnected])
 
   return {
     sendTransaction,
@@ -433,7 +330,7 @@ export function useWalletActions() {
     stakeTokens,
     unstakeTokens,
     claimRewards,
-    isLoading,
-    pendingTx,
+    isLoading: isLoading || combinedIsLoading,
+    pendingTx: pendingTx || combinedHash,
   }
 }

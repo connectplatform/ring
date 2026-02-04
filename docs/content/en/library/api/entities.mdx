@@ -45,9 +45,8 @@ Add member to entity
 
 ## Entity Structure
 
-```typescript
-interface Entity {
-  id: string
+<Code language="typescript" title="interface Entity {">
+{`id: string
   name: string
   description: string
   industry: IndustryType
@@ -64,8 +63,8 @@ interface EntityMember {
   userId: string
   role: 'OWNER' | 'ADMIN' | 'MEMBER'
   joinedAt: Date
-}
-```
+}`}
+</Code>
 
 ## Industry Types
 
@@ -102,9 +101,10 @@ Ring Platform supports **26 industry types**:
 
 ### Create Entity
 
-```typescript
 const response = await fetch('/api/entities', {
-  method: 'POST',
+
+<Code language="typescript" title="TypeScript">
+{`method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -118,26 +118,26 @@ const response = await fetch('/api/entities', {
   })
 })
 
-const entity = await response.json()
-```
+const entity = await response.json()`}
+</Code>
 
 ### List Entities with Filtering
 
-```typescript
-const response = await fetch('/api/entities?industry=TECHNOLOGY_SOFTWARE&verified=true&limit=10')
-const { entities, total, hasMore } = await response.json()
-```
+<Code language="typescript" title="TypeScript">
+{`const response = await fetch('/api/entities?industry=TECHNOLOGY_SOFTWARE&verified=true&limit=10')
+const { entities, total, hasMore } = await response.json()`}
+</Code>
 
 ### Get Entity Details
 
-```typescript
-const response = await fetch(`/api/entities/${entityId}`)
+<Code language="typescript" title="TypeScript">
+{`const response = await fetch(`/api/entities/${entityId}`)
 const entity = await response.json()
 
 if (entity.confidential && !hasConfidentialAccess) {
   // Handle confidential entity access
-}
-```
+}`}
+</Code>
 
 ## Access Control
 

@@ -1,24 +1,17 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
-
 /**
- * @fileoverview Service for handling confidential opportunities in the Firebase database.
- * This module provides functionality to fetch and paginate confidential opportunities
- * with filtering and sorting capabilities.
+ * Get Confidential Opportunities Service
+ * 
+ * React 19 cache() wrapper for confidential opportunity queries
+ * PostgreSQL via DatabaseService abstraction
+ * Role-based access control (CONFIDENTIAL/ADMIN only)
  */
 
-import { Opportunity } from '@/features/opportunities/types';
-import { UserRole } from '@/features/auth/types';
-import { FirestoreDataConverter, DocumentData, Query } from 'firebase-admin/firestore';
-import { opportunityConverter } from '@/lib/converters/opportunity-converter';
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
-import { db } from '@/lib/database/DatabaseService';
+import { cache } from 'react'
+import { Opportunity } from '@/features/opportunities/types'
+import { UserRole } from '@/features/auth/types'
+import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
+import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
+import { db } from '@/lib/database/DatabaseService'
 
 /**
  * Interface defining the parameters required to fetch confidential opportunities
@@ -81,9 +74,9 @@ interface getConfidentialOpportunitiesResult {
  * @returns {Promise<getConfidentialOpportunitiesResult>} Paginated opportunities and metadata
  * @throws {Error} If database operation fails or parameters are invalid
  */
-export async function getConfidentialOpportunities(
+export const getConfidentialOpportunities = cache(async (
   params: getConfidentialOpportunitiesParams
-): Promise<getConfidentialOpportunitiesResult> {
+): Promise<getConfidentialOpportunitiesResult> => {
   try {
     console.log('Services: getconfidential-opportunities - Starting...', params);
     const { limit, startAfter, sort, filter, userRole } = params;
@@ -95,12 +88,12 @@ export async function getConfidentialOpportunities(
 
     // Step 1: Build filters for confidential opportunities
     const filters: Array<{ field: string; operator: string; value: any }> = [
-      { field: 'isConfidential', operator: '==', value: true }
+      { field: 'isConfidential', operator: '=', value: true }
     ];
 
     // Apply additional status filter if provided
     if (filter) {
-      filters.push({ field: 'status', operator: '==', value: filter });
+      filters.push({ field: 'status', operator: '=', value: filter });
     }
 
     // Step 2: Parse sorting criteria
@@ -176,9 +169,9 @@ export async function getConfidentialOpportunities(
     };
 
   } catch (error) {
-    console.error('Services: getconfidential-opportunities - Error:', error);
+    console.error('getConfidentialOpportunities: Error:', error);
     throw error instanceof Error
       ? error
       : new Error('Unknown error occurred while fetching confidential opportunities');
   }
-}
+});

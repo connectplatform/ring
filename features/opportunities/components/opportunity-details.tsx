@@ -5,7 +5,7 @@ import { useSession, SessionProvider } from 'next-auth/react'
 import { SerializedOpportunity, OpportunityVisibility } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 
-import LoginForm from '@/features/auth/components/login-form'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { useTranslations } from 'next-intl'
 import { getOpportunityById } from '@/features/opportunities/services'
 import { useCreditBalance } from '@/hooks/use-credit-balance'
@@ -182,7 +182,13 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
   }
 
   if (!session) {
-    return <LoginForm />
+    return (
+      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+        <div className="max-w-md w-full">
+          <UnifiedLoginInline variant="hero" />
+        </div>
+      </div>
+    )
   }
 
   const userRole = session.user?.role || 'subscriber'

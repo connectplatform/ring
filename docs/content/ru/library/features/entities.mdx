@@ -33,9 +33,10 @@ Each entity is classified into one of 26 industry categories:
 
 ## Implementation
 
-```typescript
 // Create new entity
-const entity = await createEntity({
+
+<Code language="typescript" title="TypeScript">
+{`const entity = await createEntity({
   name: 'Tech Innovators Inc',
   description: 'Leading software development company',
   industry: 'TECHNOLOGY_SOFTWARE',
@@ -47,8 +48,8 @@ await requestVerification(entity.id, {
   documents: ['business-license.pdf', 'tax-certificate.pdf'],
   contactPerson: 'John Doe',
   contactEmail: 'john@techinnovators.com'
-})
-```
+})`}
+</Code>
 
 ## Entity Management
 

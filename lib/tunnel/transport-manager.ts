@@ -21,60 +21,60 @@ import {
   detectProviderCredentials,
   getProviderConnectionOptions,
 } from './config';
-import { createWebSocketTransport } from './transports/websocket-transport';
-import { createSSETransport } from './transports/sse-transport';
-import { createSupabaseTransport } from './transports/supabase-transport';
-import { createPollingTransport } from './transports/polling-transport';
-
 /**
- * Transport factory registry
+ * Transport factory registry - LAZY LOADED for optimal bundle size
+ * Only loads transport implementations when actually needed
  */
-const transportFactories: Record<TunnelProvider, (options?: TunnelConnectionOptions) => TunnelTransport | null> = {
-  [TunnelProvider.WEBSOCKET]: (options) => {
+const transportFactories: Record<TunnelProvider, (options?: TunnelConnectionOptions) => Promise<TunnelTransport | null>> = {
+  [TunnelProvider.WEBSOCKET]: async (options) => {
     try {
+      const { createWebSocketTransport } = await import('./transports/websocket-transport');
       return createWebSocketTransport(options);
     } catch (error) {
       console.warn('WebSocket transport not available:', error);
       return null;
     }
   },
-  [TunnelProvider.SSE]: (options) => {
+  [TunnelProvider.SSE]: async (options) => {
     try {
+      const { createSSETransport } = await import('./transports/sse-transport');
       return createSSETransport(options);
     } catch (error) {
       console.warn('SSE transport not available:', error);
       return null;
     }
   },
-  [TunnelProvider.SUPABASE]: (options) => {
+  [TunnelProvider.SUPABASE]: async (options) => {
     try {
+      const { createSupabaseTransport } = await import('./transports/supabase-transport');
       return createSupabaseTransport(options);
     } catch (error) {
       console.warn('Supabase transport not available:', error);
       return null;
     }
   },
-  [TunnelProvider.LONG_POLLING]: (options) => {
+  [TunnelProvider.LONG_POLLING]: async (options) => {
     try {
+      const { createPollingTransport } = await import('./transports/polling-transport');
       return createPollingTransport(options);
     } catch (error) {
       console.warn('Long-polling transport not available:', error);
       return null;
     }
   },
-  [TunnelProvider.FIREBASE]: () => {
+  [TunnelProvider.FIREBASE]: async () => {
     console.warn('Firebase transport not yet implemented');
     return null;
   },
-  [TunnelProvider.FIREBASE_EDGE]: () => {
+  [TunnelProvider.FIREBASE_EDGE]: async () => {
     console.warn('Firebase Edge transport not yet implemented');
     return null;
   },
-  [TunnelProvider.PUSHER]: () => {
+  [TunnelProvider.PUSHER]: async () => {
     console.warn('Pusher transport not yet implemented');
     return null;
   },
-  [TunnelProvider.ABLY]: () => {
+  [TunnelProvider.ABLY]: async () => {
     console.warn('Ably transport not yet implemented');
     return null;
   },
@@ -97,6 +97,10 @@ export class TunnelTransportManager implements TunnelTransport {
   private maxConnectionAttempts = 3;
   private isConnecting = false;
   private debug = false;
+  // Adaptive health checking
+  private consecutiveFailures = 0;
+  private consecutiveSuccesses = 0;
+  private currentHealthInterval = 30000; // Start with default
 
   constructor(config?: Partial<TunnelConfig>) {
     const baseConfig = getTunnelConfig();
@@ -114,6 +118,11 @@ export class TunnelTransportManager implements TunnelTransport {
     // Start health monitoring if enabled
     if (this.config.healthCheck?.enabled) {
       this.startHealthMonitoring();
+    }
+
+    // Initialize adaptive health interval
+    if (this.config.healthCheck?.adaptive) {
+      this.currentHealthInterval = this.config.healthCheck.interval || 30000;
     }
 
     this.log('Transport Manager initialized', {
@@ -208,7 +217,7 @@ export class TunnelTransportManager implements TunnelTransport {
       await this.cleanupCurrentTransport();
     }
 
-    // Create transport instance
+    // Create transport instance (now async with lazy loading)
     const factory = transportFactories[provider];
     if (!factory) {
       throw new Error(`No factory for provider: ${provider}`);
@@ -219,7 +228,7 @@ export class TunnelTransportManager implements TunnelTransport {
       ...options,
     };
 
-    const transport = factory(providerOptions);
+    const transport = await factory(providerOptions);
     if (!transport) {
       throw new Error(`Failed to create transport for: ${provider}`);
     }
@@ -336,27 +345,74 @@ export class TunnelTransportManager implements TunnelTransport {
       clearInterval(this.healthCheckTimer);
     }
 
-    const interval = this.config.healthCheck?.interval || 30000;
-
-    this.healthCheckTimer = setInterval(async () => {
+    const performHealthCheck = async () => {
       if (!this.currentTransport || !this.currentTransport.isConnected()) {
         return;
       }
 
-      const health = this.currentTransport.getHealth();
-      this.emit('health', health);
+      try {
+        const health = this.currentTransport.getHealth();
+        this.emit('health', health);
 
-      // Check if transport is unhealthy
-      if (health.state === TunnelConnectionState.ERROR || health.errors > (this.config.healthCheck?.failureThreshold || 3)) {
-        this.log('Transport unhealthy, attempting fallback');
-        
-        // Try next provider
-        this.fallbackIndex++;
-        if (this.fallbackIndex < this.fallbackChain.length) {
-          await this.connectWithFallback(this.config.connection);
+        // Adaptive health checking logic
+        if (this.config.healthCheck?.adaptive) {
+          this.adjustHealthCheckInterval(health);
         }
+
+        // Check if transport is unhealthy
+        const failureThreshold = this.config.healthCheck?.failureThreshold || 3;
+        if (health.state === TunnelConnectionState.ERROR || health.errors > failureThreshold) {
+          this.consecutiveFailures++;
+          this.consecutiveSuccesses = 0;
+
+          this.log('Transport unhealthy, attempting fallback');
+
+          // Try next provider
+          this.fallbackIndex++;
+          if (this.fallbackIndex < this.fallbackChain.length) {
+            await this.connectWithFallback(this.config.connection);
+          }
+        } else {
+          // Connection is healthy
+          this.consecutiveSuccesses++;
+          this.consecutiveFailures = 0;
+        }
+      } catch (error) {
+        this.log('Health check failed:', error);
+        this.consecutiveFailures++;
+        this.consecutiveSuccesses = 0;
       }
-    }, interval);
+    };
+
+    // Initial health check
+    performHealthCheck();
+
+    // Set up recurring health checks with adaptive interval
+    this.scheduleNextHealthCheck(performHealthCheck);
+  }
+
+  private adjustHealthCheckInterval(health: TunnelHealth): void {
+    const config = this.config.healthCheck!;
+    const minInterval = config.minInterval || 15000;
+    const maxInterval = config.maxInterval || 120000;
+
+    // Adjust interval based on connection stability
+    if (this.consecutiveFailures >= 2) {
+      // Unstable connection - check more frequently
+      this.currentHealthInterval = Math.max(minInterval, this.currentHealthInterval * 0.8);
+    } else if (this.consecutiveSuccesses >= 5) {
+      // Stable connection - check less frequently
+      this.currentHealthInterval = Math.min(maxInterval, this.currentHealthInterval * 1.2);
+    }
+
+    this.log(`Adaptive health check: ${this.currentHealthInterval}ms (failures: ${this.consecutiveFailures}, successes: ${this.consecutiveSuccesses})`);
+  }
+
+  private scheduleNextHealthCheck(performHealthCheck: () => Promise<void>): void {
+    this.healthCheckTimer = setTimeout(async () => {
+      await performHealthCheck();
+      this.scheduleNextHealthCheck(performHealthCheck);
+    }, this.currentHealthInterval);
   }
 
   private stopHealthMonitoring(): void {
@@ -538,6 +594,34 @@ export class TunnelTransportManager implements TunnelTransport {
    */
   getAvailableProviders(): TunnelProvider[] {
     return Array.from(detectProviderCredentials());
+  }
+
+  // PHASE 1: User-specific publishing methods for server push
+  isUserConnected(userId: string): boolean {
+    // Check if user has an active connection
+    // This is a simplified implementation - in production this would track active connections
+    return this.currentTransport !== null && this.getConnectionState() === TunnelConnectionState.CONNECTED;
+  }
+
+  async publishToUser(userId: string, channel: string, message: TunnelMessage): Promise<void> {
+    if (!this.currentTransport) {
+      throw new Error('No active transport connection');
+    }
+
+    // For server-side publishing, we need to send to specific user
+    // This implementation assumes the transport can handle user-specific routing
+    await this.currentTransport.publish(`${userId}:${channel}`, message.type, message);
+  }
+
+  async broadcast(channel: string, message: TunnelMessage, excludeUserId?: string): Promise<void> {
+    if (!this.currentTransport) {
+      throw new Error('No active transport connection');
+    }
+
+    await this.currentTransport.publish(channel, message.type, {
+      ...message,
+      excludeUserId
+    });
   }
 }
 

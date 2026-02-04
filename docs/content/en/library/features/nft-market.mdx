@@ -1,0 +1,453 @@
+---
+title: NFT Marketplace
+description: White-label NFT marketplace with public profiles, EVM integration, and comprehensive listing management
+---
+
+# NFT Marketplace
+
+Complete NFT marketplace where members can list, search, buy and sell NFTs via Web3 contracts with public user profiles and white-label theming support.
+
+## Overview
+
+The Ring Platform NFT marketplace enables authenticated members to create NFT listings, browse collections, and execute secure blockchain transactions while showcasing their NFT collections through public profiles at `/u/[username]`.
+
+## Key Features
+
+### NFT Trading System
+
+**Listing Lifecycle Management**
+- **Draft Creation**: Server-side draft listings with metadata validation
+- **Wallet Activation**: Client-side transaction signing to activate listings on-chain
+- **Status Tracking**: Comprehensive state management (Draft → Active → Sold/Cancelled)
+
+**Supported Standards**
+- **ERC-721**: Individual unique NFTs
+- **ERC-1155**: Semi-fungible tokens with batch operations
+- **Multi-chain Support**: Polygon and Ethereum networks
+
+### Public Profile Integration
+
+**User Profile Pages** at `/u/[username]`
+// Public profile route structure
+
+<Code language="typescript" title="TypeScript">
+{`/[locale]/u/[username]  // e.g., /en/u/johndoe`}
+</Code>
+
+**Profile Features**
+- **NFT Showcase**: Display user's owned and created NFTs
+- **Collection Grid**: Visual grid layout with NFT thumbnails
+- **Creator Attribution**: Highlight NFTs created by the user
+- **SEO Optimization**: Dynamic metadata for search engines
+- **Server-side Rendering**: Fast loading with username lookup
+
+### Marketplace Browsing
+
+**Collection Management**
+- **Browse Collections**: `/[locale]/nft/collections`
+- **Individual Items**: `/[locale]/nft/items/[chain]/[contract]/[tokenId]`
+- **Advanced Search**: `/[locale]/nft/search` with filtering
+- **Category Navigation**: Filter by collection, creator, price range
+
+### Web3 Integration
+
+**Wallet Connection & Signing**
+// EVM adapter for transaction signing
+
+<Code language="typescript" title="TypeScript">
+{`import { ethers } from 'ethers'
+
+const provider = new ethers.BrowserProvider(window.ethereum)
+const signer = await provider.getSigner()
+
+// Sign marketplace transaction
+const signature = await signer.signMessage(listingData)`}
+</Code>
+
+**Smart Contract Operations**
+- **Approve & List**: Approve NFT transfer and create marketplace listing
+- **Purchase**: Execute buy transaction with marketplace fees
+- **Cancel Listing**: Remove active listing and refund gas costs
+- **Royalty Support**: Optional creator royalty passthrough
+
+## Implementation
+
+### NFT Listing Creation
+
+**Step 1: Create Draft Listing**
+// Server action creates draft listing
+
+<Code language="typescript" title="TypeScript">
+{`'use server'
+
+export async function createNFTListing(formData: FormData) {
+  const session = await auth()
+
+  if (!session?.user.role || session.user.role < UserRole.MEMBER) {
+    throw new Error('MEMBER role required for NFT listings')
+  }
+
+  // Validate NFT ownership and metadata
+  const nftValidation = await validateNFTOwnership({
+    contract: formData.contractAddress,
+    tokenId: formData.tokenId,
+    owner: session.user.walletAddress
+  })
+
+  if (!nftValidation.isValid) {
+    throw new Error('NFT ownership validation failed')
+  }
+
+  // Create draft listing in Firestore
+  const listingId = await createDraftListing({
+    sellerId: session.user.id,
+    contractAddress: formData.contractAddress,
+    tokenId: formData.tokenId,
+    price: formData.price,
+    currency: formData.currency,
+    metadata: {
+      name: formData.name,
+      description: formData.description,
+      image: formData.image,
+      attributes: formData.attributes
+    },
+    status: 'draft'
+  })
+
+  return { listingId }
+}`}
+</Code>
+
+**Step 2: Activate Listing with Wallet**
+// Client-side wallet activation
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+export function ActivateListing({ listingId }: { listingId: string }) {
+  const [isActivating, setIsActivating] = useState(false)
+
+  const handleActivate = async () => {
+    setIsActivating(true)
+
+    try {
+      // Connect wallet
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+
+      // Get listing details
+      const listing = await getListing(listingId)
+
+      // Approve NFT transfer to marketplace contract
+      const nftContract = new ethers.Contract(
+        listing.contractAddress,
+        ERC721_ABI,
+        signer
+      )
+
+      const approveTx = await nftContract.approve(
+        MARKETPLACE_CONTRACT_ADDRESS,
+        listing.tokenId
+      )
+      await approveTx.wait()
+
+      // Create marketplace listing
+      const marketplaceContract = new ethers.Contract(
+        MARKETPLACE_CONTRACT_ADDRESS,
+        MARKETPLACE_ABI,
+        signer
+      )
+
+      const listingTx = await marketplaceContract.createListing(
+        listing.contractAddress,
+        listing.tokenId,
+        ethers.parseEther(listing.price.toString())
+      )
+      await listingTx.wait()
+
+      // Activate listing in backend
+      await activateListing(listingId, listingTx.hash)
+
+    } catch (error) {
+      console.error('Activation failed:', error)
+      setIsActivating(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleActivate}
+      disabled={isActivating}
+      className="activate-button"
+    >
+      {isActivating ? 'Activating...' : 'Activate Listing'}
+    </button>
+  )
+}`}
+</Code>
+
+### NFT Purchase Flow
+
+**Buy Transaction with Fee Handling**
+// Execute NFT purchase
+
+<Code language="typescript" title="TypeScript">
+{`export async function purchaseNFT(listingId: string, buyerAddress: string) {
+  // Get listing details
+  const listing = await getListing(listingId)
+
+  if (listing.status !== 'active') {
+    throw new Error('Listing not available')
+  }
+
+  // Calculate marketplace fee (configurable basis points)
+  const marketplaceFee = (listing.price * MARKETPLACE_FEE_BPS) / 10000
+  const sellerProceeds = listing.price - marketplaceFee
+
+  // Execute marketplace purchase
+  const marketplaceContract = new ethers.Contract(
+    MARKETPLACE_CONTRACT_ADDRESS,
+    MARKETPLACE_ABI,
+    signer
+  )
+
+  const purchaseTx = await marketplaceContract.purchaseNFT(listingId, {
+    value: ethers.parseEther(listing.price.toString())
+  })
+  await purchaseTx.wait()
+
+  // Update listing status
+  await updateListingStatus(listingId, 'sold', {
+    buyerAddress,
+    transactionHash: purchaseTx.hash,
+    marketplaceFee,
+    sellerProceeds
+  })
+
+  // Transfer funds to seller (minus marketplace fee)
+  await transferFunds(sellerAddress, sellerProceeds)
+
+  return { transactionHash: purchaseTx.hash }
+}`}
+</Code>
+
+### Profile NFT Display
+
+**Public Profile Component**
+// components/profile/PublicProfile.tsx
+
+<Code language="typescript" title="TypeScript">
+{`export default function PublicProfile({ username }: { username: string }) {
+  const [profile, setProfile] = useState(null)
+  const [nftListings, setNftListings] = useState([])
+
+  useEffect(() => {
+    // Fetch user profile
+    const fetchProfile = async () => {
+      const userData = await getUserByUsername(username)
+      setProfile(userData)
+    }
+
+    // Fetch user's NFT listings
+    const fetchListings = async () => {
+      const listings = await getUserNFTListings(username)
+      setNftListings(listings)
+    }
+
+    fetchProfile()
+    fetchListings()
+  }, [username])
+
+  if (!profile) return <div>Loading...</div>
+
+  return (
+    <div className="profile-container">
+      <ProfileHeader user={profile} />
+      <NFTListingsGrid listings={nftListings} />
+    </div>
+  )
+}`}
+</Code>
+
+## API Endpoints
+
+### Listing Management
+// GET /api/nft-market/listings - List all active listings
+
+<Code language="typescript" title="TypeScript">
+{`// POST /api/nft-market/listings - Create new draft listing
+// GET /api/nft-market/listings/[id] - Get specific listing
+// PUT /api/nft-market/listings/[id] - Update listing details
+// POST /api/nft-market/listings/activate - Activate listing after on-chain tx
+// DELETE /api/nft-market/listings/[id] - Cancel listing`}
+</Code>
+
+### Collection Browsing
+// GET /api/nft-market/collections - List NFT collections
+
+<Code language="typescript" title="TypeScript">
+{`// GET /api/nft-market/collections/[id]/items - Get collection items
+// GET /api/nft-market/search - Advanced search with filters
+// GET /api/nft-market/items/[chain]/[contract]/[tokenId] - Individual NFT details`}
+</Code>
+
+## Data Models
+
+### NFT Listing Schema
+<Code language="typescript" title="interface NFTListing {">
+{`id: string
+  sellerId: string
+  contractAddress: string
+  tokenId: string
+  tokenStandard: 'ERC-721' | 'ERC-1155'
+  chainId: number
+  price: number
+  currency: string
+  status: 'draft' | 'active' | 'sold' | 'cancelled'
+  metadata: {
+    name: string
+    description: string
+    image: string
+    attributes: Array<{
+      trait_type: string
+      value: string
+    }>
+  }
+  transactionHash?: string
+  buyerAddress?: string
+  createdAt: Date
+  updatedAt: Date
+}`}
+</Code>
+
+### NFT Collection Schema
+<Code language="typescript" title="interface NFTCollection {">
+{`id: string
+  name: string
+  description: string
+  creatorAddress: string
+  contractAddress: string
+  chainId: number
+  totalSupply: number
+  floorPrice?: number
+  volume24h?: number
+  metadata: {
+    image: string
+    banner?: string
+    externalUrl?: string
+  }
+}`}
+</Code>
+
+## Security Considerations
+
+### Role-Based Access Control
+- **Listing Creation**: Requires MEMBER+ role
+- **Public Browsing**: Available to all users
+- **Purchase Transactions**: Requires wallet connection
+
+### Smart Contract Security
+- **Reentrancy Protection**: OpenZeppelin guards
+- **Access Control**: Only authorized marketplace operations
+- **Fee Management**: Configurable marketplace fees
+- **Emergency Pause**: Circuit breaker functionality
+
+### Transaction Validation
+- **NFT Ownership**: Verified before listing creation
+- **Price Validation**: Minimum and maximum price limits
+- **Duplicate Prevention**: Transaction hash validation
+- **Network Validation**: Chain ID verification
+
+## White-label Theming
+
+**Brand Customization**
+// features/nft-market/theme.config.ts
+
+<Code language="typescript" title="TypeScript">
+{`export const nftMarketTheme = {
+  colors: {
+    primary: '#your-brand-color',
+    secondary: '#your-secondary-color',
+    accent: '#your-accent-color'
+  },
+  fonts: {
+    heading: 'your-heading-font',
+    body: 'your-body-font'
+  },
+  logo: {
+    main: '/your-logo.png',
+    icon: '/your-icon.png'
+  },
+  marketplace: {
+    fee: 250, // 2.5% basis points
+    supportedChains: [1, 137], // Ethereum, Polygon
+    defaultCurrency: 'ETH'
+  }
+}`}
+</Code>
+
+## Error Handling
+
+### Common Error Scenarios
+// Handle NFT marketplace errors
+
+<Code language="typescript" title="TypeScript">
+{`export function handleMarketplaceError(error: MarketplaceError) {
+  switch (error.code) {
+    case 'INSUFFICIENT_FUNDS':
+      return 'Insufficient funds for transaction'
+    case 'NFT_NOT_OWNED':
+      return 'You do not own this NFT'
+    case 'LISTING_EXPIRED':
+      return 'Listing has expired'
+    case 'NETWORK_ERROR':
+      return 'Network connection failed'
+    case 'CONTRACT_ERROR':
+      return 'Smart contract execution failed'
+    default:
+      return 'Transaction failed'
+  }
+}`}
+</Code>
+
+### Transaction Status Monitoring
+// Monitor transaction status
+
+<Code language="typescript" title="TypeScript">
+{`export async function monitorTransaction(txHash: string) {
+  const provider = new ethers.JsonRpcProvider(RPC_URL)
+
+  // Wait for confirmation
+  const receipt = await provider.waitForTransaction(txHash)
+
+  if (receipt.status === 1) {
+    // Success - update listing status
+    await updateListingStatus(listingId, 'confirmed')
+  } else {
+    // Failed - handle error
+    await handleTransactionFailure(txHash)
+  }
+}`}
+</Code>
+
+## Integration Checklist
+
+### Pre-Launch Setup
+- [ ] Deploy marketplace smart contracts
+- [ ] Configure supported chains and RPC endpoints
+- [ ] Set up wallet connection providers
+- [ ] Configure marketplace fees and parameters
+- [ ] Test NFT approval and listing flows
+- [ ] Validate public profile routes
+
+### Production Deployment
+- [ ] Enable marketplace on supported chains
+- [ ] Configure monitoring and alerting
+- [ ] Set up transaction watchers
+- [ ] Enable white-label theming
+- [ ] Test end-to-end purchase flows
+- [ ] Monitor gas costs and optimize
+
+---
+
+*This NFT marketplace provides a complete Web3 trading ecosystem with professional white-label theming and comprehensive transaction management.*

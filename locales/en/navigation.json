@@ -26,6 +26,75 @@
   "help": "Help",
   "support": "Support",
   "docs": "Docs",
+  "mainNav": {
+    "home": "Home",
+    "shop": "Shop",
+    "farms": "Farms",
+    "harvest": "Harvest",
+    "learn": "Learn",
+    "wallet": "Wallet"
+  },
+  "sidebar": {
+    "globalImpact": "Global Impact",
+    "trinityUkraine": "Trinity Ukraine",
+    "ringEconomy": "RING Economy",
+    "aiMeetsWeb3": "AI Meets Web3",
+    "platformFeatures": "Platform Features",
+    "getStarted": "Get Started",
+    "documentation": "Documentation",
+    "quickStart": "Quick Start",
+    "deploymentCalculator": "Deployment Calculator",
+    "findRingDeveloper": "Find Ring Developer",
+    "signIn": "Sign In",
+    "accessAccount": "Access your account",
+    "explorePlatform": "Explore Platform",
+    "exploreFarms": "Explore Farms",
+    "verifiedFarms": "Verified organic farms",
+    "freshHarvest": "Fresh Harvest",
+    "seasonalProducts": "Seasonal products",
+    "admin": "ADMIN",
+    "adminDashboard": "Dashboard",
+    "userManagement": "User Management",
+    "analytics": "Analytics",
+    "security": "Security"
+  },
+  "userRole": {
+    "superadmin": "Super Administrator",
+    "admin": "Administrator",
+    "confidential": "VIP Member",
+    "member": "Member",
+    "subscriber": "Subscriber",
+    "visitor": "Visitor",
+    "verified": "Verified {role}"
+  },
+  "menu": {
+    "title": "Ring Platform",
+    "version": "Ring Platform v{version}",
+    "wallet": {
+      "description": "Manage your RING tokens and crypto assets"
+    },
+    "store": {
+      "description": "Browse products and services from verified vendors"
+    },
+    "entities": {
+      "description": "Discover companies and organizations"
+    },
+    "opportunities": {
+      "description": "Find projects and collaboration opportunities"
+    },
+    "docs": {
+      "description": "Learn about Ring Platform features"
+    },
+    "notifications": {
+      "description": "Stay updated with platform activities"
+    },
+    "settings": {
+      "description": "Customize your account preferences"
+    },
+    "support": {
+      "description": "Get help and contact support"
+    }
+  },
   "docs_sidebar": {
     "sidebar": {
       "gettingStarted": "Getting Started",
@@ -34,6 +103,7 @@
       "firstSuccess": "First Success",
       "nextSteps": "Next Steps",
       "features": "Features",
+      "platformFeatures": "Platform Features",
       "authentication": "Authentication",
       "entities": "Entities",
       "opportunities": "Opportunities",
@@ -41,11 +111,10 @@
       "wallet": "Wallet",
       "notifications": "Notifications",
       "messaging": "Messaging",
-      "apiReference": "API Reference",
       "admin": "Admin",
       "architecture": "Architecture",
       "dataModel": "Data Model",
-      "security": "Security",
+      "performance": "Performance",
       "realTime": "Real-time",
       "deployment": "Deployment",
       "docker": "Docker",
@@ -54,7 +123,67 @@
       "examples": "Examples",
       "quickStart": "Quick Start",
       "basicSetup": "Basic Setup",
-      "apiIntegration": "API Integration"
+      "apiIntegration": "API Integration",
+      "troubleshooting": "Troubleshooting",
+      "overview": "Overview",
+      "architectureOverview": "Architecture Overview",
+      "authArchitecture": "Auth Architecture",
+      "security": "Security",
+      "apiReference": "API Reference",
+      "apiOverview": "API Overview",
+      "authApi": "Authentication API",
+      "entitiesApi": "Entities API",
+      "opportunitiesApi": "Opportunities API",
+      "storeApi": "Store API",
+      "walletApi": "Wallet API",
+      "messagingApi": "Messaging API",
+      "notificationsApi": "Notifications API",
+      "adminApi": "Admin API",
+      "cliTool": "CLI Tool",
+      "ringCli": "Ring CLI",
+      "customization": "Customization",
+      "customizationOverview": "Customization Overview",
+      "branding": "Branding",
+      "themes": "Themes",
+      "components": "Components",
+      "localization": "Localization",
+      "deploymentOverview": "Deployment Overview",
+      "monitoring": "Monitoring",
+      "backup": "Backup & Recovery",
+      "development": "Development",
+      "developmentGuide": "Development Guide",
+      "localSetup": "Local Setup",
+      "codeStructure": "Code Structure",
+      "codeStyle": "Code Style",
+      "bestPractices": "Best Practices",
+      "testing": "Testing",
+      "debugging": "Debugging",
+      "devDeployment": "Deployment",
+      "workflow": "Workflow",
+      "contributing": "Contributing",
+      "examplesOverview": "Examples Overview",
+      "apiExamples": "API Examples",
+      "customBranding": "Custom Branding",
+      "whiteLabel": "White Label",
+      "multiTenant": "Multi-tenant",
+      "web3Integration": "Web3 Integration",
+      "appleSignin": "Apple Sign-in",
+      "integrations": "Third-party Integrations",
+      "advancedFeatures": "Advanced Features",
+      "realWorld": "Real-world Use Cases",
+      "whiteLabelOverview": "White Label Overview",
+      "customizationGuide": "Customization Guide",
+      "databaseSelection": "Database Selection",
+      "tokenEconomics": "Token Economics",
+      "multiTenantSetup": "Multi-tenant Setup",
+      "aiCustomization": "AI Customization",
+      "successStories": "Success Stories",
+      "multiVendorStore": "Multi-Vendor Store",
+      "web3Wallet": "Web3 Wallet",
+      "nftMarketplace": "NFT Marketplace",
+      "paymentIntegration": "Payment Integration",
+      "securityCompliance": "Security & Compliance",
+      "tokenStaking": "Token Staking"
     }
   }
 }

@@ -346,7 +346,7 @@ const OpportunityEnrichmentPreview: React.FC<OpportunityEnrichmentPreviewProps> 
             {t('title')}
           </CardTitle>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Check className="w-4 h-4 text-green-600" />
                 {t('stats.accepted')}: {acceptanceStats.accepted}
@@ -356,7 +356,7 @@ const OpportunityEnrichmentPreview: React.FC<OpportunityEnrichmentPreviewProps> 
                 {t('stats.modified')}: {acceptanceStats.modified}
               </span>
               <span className="flex items-center gap-1">
-                <Minus className="w-4 h-4 text-gray-600" />
+                <Minus className="w-4 h-4 text-muted-foreground" />
                 {t('stats.pending')}: {acceptanceStats.pending}
               </span>
             </div>
@@ -390,10 +390,10 @@ const OpportunityEnrichmentPreview: React.FC<OpportunityEnrichmentPreviewProps> 
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <suggestion.icon className="w-5 h-5 text-gray-600" />
+                      <suggestion.icon className="w-5 h-5 text-muted-foreground" />
                       <div>
                         <h4 className="font-medium">{suggestion.label}</h4>
-                        <p className="text-sm text-gray-600">{suggestion.reasoning}</p>
+                        <p className="text-sm text-muted-foreground">{suggestion.reasoning}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -469,22 +469,22 @@ const OpportunityEnrichmentPreview: React.FC<OpportunityEnrichmentPreviewProps> 
               <h4 className="font-medium">{t('advancedInfo')}</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-600">{t('processingTime')}:</span>
+                  <span className="text-muted-foreground">{t('processingTime')}:</span>
                   <br />
                   <span className="font-medium">{autoFillResult.processingTime}ms</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">{t('suggestionsCount')}:</span>
+                  <span className="text-muted-foreground">{t('suggestionsCount')}:</span>
                   <br />
                   <span className="font-medium">{autoFillResult.suggestions.length}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">{t('confidence')}:</span>
+                  <span className="text-muted-foreground">{t('confidence')}:</span>
                   <br />
                   <span className="font-medium">{Math.round(autoFillResult.confidence * 100)}%</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">{t('aiModel')}:</span>
+                  <span className="text-muted-foreground">{t('aiModel')}:</span>
                   <br />
                   <span className="font-medium">GPT-4o</span>
                 </div>

@@ -76,13 +76,13 @@ export function MarkdownRenderer({ htmlContent }: MarkdownRendererProps) {
         /* Pre/code block styling */
         .markdown-content pre {
           background-color: #f6f8fa;
-          border: 1px solid #e1e4e8;
-          border-radius: 0.5rem;
+          border: 1px solid #d1d9e0;
+          border-radius: 0.375rem;
           padding: 1rem;
           margin: 1.5rem 0;
           overflow-x: auto;
         }
-        
+
         .dark .markdown-content pre {
           background-color: #161b22;
           border-color: #30363d;

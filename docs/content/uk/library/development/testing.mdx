@@ -1,0 +1,155 @@
+---
+title: Тестування
+description: Документація тестування для платформи Ring
+last_modified: 2025-10-16
+---
+
+# Посібник з тестування
+
+Комплексна стратегія тестування для платформи Ring з unit тестами, інтеграційними тестами та end-to-end тестуванням.
+
+## 🧪 Стратегія тестування
+
+### Піраміда тестування
+Платформа Ring дотримується підходу піраміди тестування:
+
+1. **Unit тести** (70%) - Індивідуальні функції та компоненти
+2. **Інтеграційні тести** (20%) - Взаємодія компонентів та API endpoints
+3. **End-to-End тести** (10%) - Повні робочі процеси користувачів
+
+## ⚡ Unit тестування
+
+### Конфігурація Jest
+// jest.config.js
+
+<Code language="javascript" title="JavaScript">
+{`module.exports = {
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testMatch: ['**/__tests__/**/*.test.{js,ts,tsx}'],
+  collectCoverageFrom: [
+    'src/**/*.{js,ts,tsx}',
+    '!src/**/*.d.ts'
+  ]
+}`}
+</Code>
+
+### Приклад тестування компонентів
+// __tests__/components/EntityCard.test.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { render, screen } from '@testing-library/react'
+import { EntityCard } from '@/components/EntityCard'
+
+describe('EntityCard', () => {
+  it('відображає інформацію про сутність правильно', () => {
+    const entity = {
+      id: '1',
+      name: 'Тестова Компанія',
+      type: 'technology'
+    }
+
+    render(<EntityCard entity={entity} />)
+
+    expect(screen.getByText('Тестова Компанія')).toBeInTheDocument()
+    expect(screen.getByText('technology')).toBeInTheDocument()
+  })
+})`}
+</Code>
+
+## 🔗 Інтеграційне тестування
+
+### Тестування API маршрутів
+// __tests__/api/entities.test.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { POST } from '@/app/api/entities/route'
+import { NextRequest } from 'next/server'
+
+describe('/api/entities', () => {
+  it('створює сутність успішно', async () => {
+    const request = new NextRequest('http://localhost:3000/api/entities', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Тестова Сутність',
+        type: 'technology'
+      })
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.entity.name).toBe('Тестова Сутність')
+  })
+})`}
+</Code>
+
+## 🎭 End-to-End тестування
+
+### Конфігурація Playwright
+// playwright.config.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { defineConfig } from '@playwright/test'
+
+export default defineConfig({
+  testDir: './e2e',
+  use: {
+    baseURL: 'http://localhost:3000',
+    headless: true,
+    screenshot: 'only-on-failure'
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } }
+  ]
+})`}
+</Code>
+
+### Приклад E2E тесту
+// e2e/authentication.spec.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { test, expect } from '@playwright/test'
+
+test('користувач може увійти через Google', async ({ page }) => {
+  await page.goto('/')
+  await page.click('text=Увійти')
+
+  // Mock Google OAuth response
+  await page.route('**/api/auth/**', route => {
+    route.fulfill({
+      status: 200,
+      body: JSON.stringify({ user: { name: 'Тестовий Користувач' } })
+    })
+  })
+
+  await page.click('text=Увійти через Google')
+  await expect(page.locator('text=Ласкаво просимо, Тестовий Користувач')).toBeVisible()
+})`}
+</Code>
+
+## 📊 Покриття тестами
+
+### Вимоги до покриття
+- **Загалом**: > 80% покриття рядків
+- **Критичні шляхи**: > 95% покриття
+- **Нові функції**: 100% покриття обов'язкове
+
+### Запуск тестів
+Unit тести Режим спостереження під час розробки Звіт про покриття E2E тести
+
+<Code language="bash" title="terminal">
+{`npm run test
+
+npm run test:watch
+
+npm run test:coverage
+
+npm run test:e2e`}
+</Code>
+
+---
+
+*Повна документація тестування незабаром.*
