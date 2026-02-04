@@ -65,7 +65,8 @@ const nextConfig = {
       { protocol: 'https', hostname: 'x0kypqbqtr7wbl1a.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: 'fonts.googleapis.com' },
       { protocol: 'https', hostname: 'fonts.gstatic.com' },
-      { protocol: 'https', hostname: 'example.com' }
+      { protocol: 'https', hostname: 'example.com' },
+      { protocol: 'https', hostname: 'cdn.ring-platform.org' }
     ],
     // Configure image optimization behavior
     dangerouslyAllowSVG: true,
@@ -82,12 +83,18 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   webpack: (config, { isServer }) => {
-    // Suppress Supabase module resolution warnings
+    // Suppress module resolution warnings for optional dependencies
     config.ignoreWarnings = [
       ...(config.ignoreWarnings || []),
       /Module not found: Can't resolve '@supabase\/supabase-js'/,
       /Can't resolve '@supabase\/supabase-js'/,
       /@supabase\/supabase-js/,
+      /Module not found: Can't resolve '@react-native-async-storage\/async-storage'/,
+      /Can't resolve '@react-native-async-storage\/async-storage'/,
+      /@react-native-async-storage\/async-storage/,
+      /Module not found: Can't resolve 'pino-pretty'/,
+      /Can't resolve 'pino-pretty'/,
+      /pino-pretty/,
     ];
 
     // Suppress module resolution warnings for optional dependencies
@@ -97,6 +104,12 @@ const nextConfig = {
         /Module not found: Can't resolve '@supabase\/supabase-js'/,
         /Can't resolve '@supabase\/supabase-js'/,
         /@supabase\/supabase-js/,
+        /Module not found: Can't resolve '@react-native-async-storage\/async-storage'/,
+        /Can't resolve '@react-native-async-storage\/async-storage'/,
+        /@react-native-async-storage\/async-storage/,
+        /Module not found: Can't resolve 'pino-pretty'/,
+        /Can't resolve 'pino-pretty'/,
+        /pino-pretty/,
       ],
     };
 
@@ -143,7 +156,7 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'ring.ck.ua'],
+      allowedOrigins: ['localhost:3000', 'ring.ck.ua', 'ring-platform.org', 'myri.ng'],
       bodySizeLimit: '2mb'
     }
   },
