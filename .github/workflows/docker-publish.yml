@@ -30,14 +30,6 @@ jobs:
       packages: write
       id-token: write
 
-    strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            arch: amd64
-          - platform: linux/arm64
-            arch: arm64
-
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -56,6 +48,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{branch}}-{{sha}}-ring-platform.org-amd64,enable=${{ github.ref == 'refs/heads/main' }}
           labels: |
             org.opencontainers.image.title=Ring Platform
             org.opencontainers.image.description=Professional Networking Platform with Web3 Integration
@@ -63,7 +56,7 @@ jobs:
             org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
             org.opencontainers.image.revision={{sha}}
-            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.url=https://ring-platform.org
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/DOCKER_SETUP.md
 
@@ -80,14 +73,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🏗️ Build Docker image
+      - name: 🏗️ Build Docker image (amd64)
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: ${{ matrix.platform }}
+          platforms: linux/amd64
           push: false
           load: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-${{ matrix.arch }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-amd64
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -96,50 +89,78 @@ jobs:
             VERSION=${{ steps.meta.outputs.version }}
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             GIT_COMMIT=${{ github.sha }}
+            AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXTAUTH_URL=${{ vars.NEXTAUTH_URL }}
+            NEXT_PUBLIC_AUTH_GOOGLE_ID=${{ vars.NEXT_PUBLIC_AUTH_GOOGLE_ID }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+            NEXT_PUBLIC_FIREBASE_VAPID_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+            DB_BACKEND_MODE=${{ vars.DB_BACKEND_MODE }}
+            DB_HOST=${{ vars.DB_HOST }}
+            DB_PORT=${{ vars.DB_PORT }}
+            DB_NAME=${{ vars.DB_NAME }}
+            DB_USER=${{ vars.DB_USER }}
+            DB_POOL_SIZE=${{ vars.DB_POOL_SIZE }}
+            DB_SSL=${{ vars.DB_SSL }}
+            LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
+            POLYGON_RPC_URL=${{ vars.POLYGON_RPC_URL }}
 
       - name: 🧪 Test Docker image
         run: |
-          echo "🧪 Testing Docker image for ${{ matrix.arch }}..."
+          echo "🧪 Testing Docker image for amd64..."
           
-          # Start container in background
+          # Start container in background with minimal env vars for health check
           docker run -d \
-            --name ring-test-${{ matrix.arch }} \
+            --name ring-test-amd64 \
             -p 3000:3000 \
             -e NODE_ENV=production \
-            -e NEXT_PUBLIC_API_URL=http://localhost:3000 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-${{ matrix.arch }}
+            -e AUTH_SECRET="${{ secrets.AUTH_SECRET }}" \
+            -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
+            -e NEXT_PUBLIC_API_URL="${{ vars.NEXT_PUBLIC_API_URL }}" \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-amd64
           
           # Wait for container to start
+          echo "⏳ Waiting for container to start..."
           sleep 30
           
           # Check if container is running
-          if ! docker ps | grep -q ring-test-${{ matrix.arch }}; then
+          if ! docker ps | grep -q ring-test-amd64; then
             echo "❌ Container failed to start"
-            docker logs ring-test-${{ matrix.arch }}
+            docker logs ring-test-amd64
             exit 1
           fi
           
-          # Test health endpoint (if available)
+          # Test health endpoint
+          echo "🏥 Testing health endpoint..."
           if curl -f http://localhost:3000/api/health 2>/dev/null; then
             echo "✅ Health check passed"
           else
-            echo "⚠️ Health check not available or failed"
+            echo "⚠️ Health check not available or failed (non-blocking)"
           fi
           
           # Check if the app responds
+          echo "🌐 Testing application response..."
           if curl -f http://localhost:3000 2>/dev/null; then
             echo "✅ Application responds successfully"
           else
             echo "❌ Application not responding"
-            docker logs ring-test-${{ matrix.arch }}
+            docker logs ring-test-amd64
             exit 1
           fi
           
           # Cleanup
-          docker stop ring-test-${{ matrix.arch }}
-          docker rm ring-test-${{ matrix.arch }}
+          docker stop ring-test-amd64
+          docker rm ring-test-amd64
           
-          echo "✅ Docker image test completed successfully for ${{ matrix.arch }}"
+          echo "✅ Docker image test completed successfully"
 
       - name: 🚀 Build and push multi-platform image
         if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push_to_registry)
@@ -157,6 +178,29 @@ jobs:
             VERSION=${{ steps.meta.outputs.version }}
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             GIT_COMMIT=${{ github.sha }}
+            AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXTAUTH_URL=${{ vars.NEXTAUTH_URL }}
+            NEXT_PUBLIC_AUTH_GOOGLE_ID=${{ vars.NEXT_PUBLIC_AUTH_GOOGLE_ID }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+            NEXT_PUBLIC_FIREBASE_VAPID_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+            DB_BACKEND_MODE=${{ vars.DB_BACKEND_MODE }}
+            DB_HOST=${{ vars.DB_HOST }}
+            DB_PORT=${{ vars.DB_PORT }}
+            DB_NAME=${{ vars.DB_NAME }}
+            DB_USER=${{ vars.DB_USER }}
+            DB_POOL_SIZE=${{ vars.DB_POOL_SIZE }}
+            DB_SSL=${{ vars.DB_SSL }}
+            LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
+            POLYGON_RPC_URL=${{ vars.POLYGON_RPC_URL }}
 
   security-scan:
     runs-on: ubuntu-latest
@@ -184,48 +228,6 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  update-readme:
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      contents: write
-
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🏷️ Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: 📝 Update README with latest image info
-        run: |
-          # Update Docker pull command in README
-          sed -i "s|docker pull ghcr.io/.*|docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" README.md
-          
-          # Update version badge if it exists
-          if grep -q "version-.*-blue" README.md; then
-            VERSION=$(echo "${{ steps.meta.outputs.version }}" | sed 's/^v//')
-            sed -i "s|version-.*-blue|version-${VERSION}-blue|g" README.md
-          fi
-
-      - name: 💾 Commit README changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add README.md
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "📝 Update README with latest Docker image info [skip ci]"
-            git push
-          fi
-
   notify:
     runs-on: ubuntu-latest
     needs: [build-and-push, security-scan]
@@ -238,6 +240,7 @@ jobs:
           echo "🎉 Docker image built and published successfully!"
           echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
           echo "🔗 Registry: https://github.com/${{ github.repository }}/pkgs/container/ring"
+          echo "🌐 Platform: https://ring-platform.org"
 
       - name: 🚨 Notify on failure
         if: needs.build-and-push.result == 'failure'

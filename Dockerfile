@@ -63,7 +63,7 @@
 FROM node:22-alpine AS builder
 
 LABEL maintainer="Ring Platform Team <insight@ring-platform.org>"
-LABEL version="0.9.8"
+LABEL version="1.47"
 LABEL description="Ring Platform - Professional Networking with Web3 Integration"
 
 # Build arguments
@@ -116,8 +116,11 @@ ARG NEXT_PUBLIC_FIREBASE_VAPID_KEY
 # 🗄️ DATABASE CONFIGURATION
 # =============================================================================
 
-# Database Basic Configuration (needed for build-time database access)
-ARG DB_HYBRID_MODE=false
+# Backend Mode Configuration (REQUIRED for Ring Platform v1.45+)
+# Valid values: k8s-postgres-fcm, firebase-full, supabase-fcm
+ARG DB_BACKEND_MODE=k8s-postgres-fcm
+
+# PostgreSQL Configuration (for k8s-postgres-fcm and supabase-fcm modes)
 ARG DB_HOST
 ARG DB_PORT=5432
 ARG DB_NAME=ring_platform
@@ -220,8 +223,10 @@ ENV NEXT_PUBLIC_FIREBASE_VAPID_KEY=${NEXT_PUBLIC_FIREBASE_VAPID_KEY}
 # 🗄️ DATABASE ENVIRONMENT VARIABLES
 # =============================================================================
 
-# Database Basic Configuration Environment Variables (for build-time database access)
-ENV DB_HYBRID_MODE=${DB_HYBRID_MODE}
+# Backend Mode Configuration (REQUIRED for Ring Platform v1.45+)
+ENV DB_BACKEND_MODE=${DB_BACKEND_MODE}
+
+# PostgreSQL Configuration (for k8s-postgres-fcm and supabase-fcm modes)
 ENV DB_HOST=${DB_HOST}
 ENV DB_PORT=${DB_PORT}
 ENV DB_NAME=${DB_NAME}
@@ -307,8 +312,7 @@ COPY . .
 COPY env.local.template .env.local.template
 
 # Build the application
-RUN npm run prebuild && \
-    npm run build
+RUN npm run build
 
 # Runtime Stage
 FROM node:22-alpine AS runtime
@@ -356,7 +360,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
 
 # Install production dependencies with legacy peer deps to handle socket.io
-RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
+# Use --omit=dev (replaces deprecated --only=production) and increase memory
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 
 # Create necessary directories
 RUN mkdir -p /app/log /app/tmp && \
