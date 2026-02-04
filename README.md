@@ -72,9 +72,6 @@ mindmap
       Token Payments
       Staking System
     White-Label
-      ring-greenfood-live
-      ring-wellness-gov-ua
-      ring-vikka-ua
 ```
 
 Ring Platform serves as a professional networking hub where entities (companies, organizations, startups) can showcase their profiles, post opportunities, and connect with qualified professionals. The platform features a unique confidential access system that creates exclusive networking spaces for authorized businesses and professionals.
@@ -254,7 +251,6 @@ flowchart TB
 
 ### White-Label Clone System
 - **One-Command Cloning**: Deploy your own Ring platform instance
-- **Active Clones**: ring-greenfood-live (organic food marketplace), ring-wellness-gov-ua, ring-vikka-ua
 - **Customization**: Theme, branding, modules, and features per clone
 - **Shared Infrastructure**: PostgreSQL database per clone with global user support
 - **Kubernetes Deployments**: Production-ready with SSL, replicas, and health checks
@@ -597,9 +593,9 @@ flowchart TB
 - **E-Commerce**: Multi-vendor marketplace operators
 - **Professional Services**: Consulting, legal, financial services
 - **Healthcare Organizations**: Hospitals, clinics, research institutions
-- **Food & Agriculture**: Organic food marketplaces (ring-greenfood-live)
+- **Food & Agriculture**: Organic food marketplaces
 - **Investment Firms**: VCs, private equity, and investment banks
-- **Government & NGOs**: Public service platforms (ring-wellness-gov-ua)
+- **Government & NGOs**: Public service platforms
 
 ## Development
 
@@ -886,15 +882,6 @@ ring config --set app.name=my-ring-clone
 ring config --set app.url=https://my-ring-clone.com
 ring --prod
 ```
-
-### Active Ring Clones
-
-| Clone | Domain | Purpose |
-|-------|--------|---------|
-| ring-greenfood-live | app.greenfood.live | Organic food marketplace |
-| ring-wellness-gov-ua | wellness.gov.ua | Healthcare platform |
-| ring-vikka-ua | vikka.ua | Media/News portal |
-| ring-platform.org | ring-platform.org | Main portal/template |
 
 ## Documentation
 
