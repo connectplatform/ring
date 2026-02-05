@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.48-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.49-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Next.js-15.5-black?style=flat-square&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -30,7 +30,7 @@
 
 Ring Platform is a comprehensive open-source professional networking solution that connects businesses, professionals, and opportunities through a sophisticated entity-based system with confidential access tiers. Clone, customize, and deploy your own Ring-powered platform.
 
-**Version**: 1.48 | **License**: Open Source | **Origin**: Trinity Ukraine
+**Version**: 1.49 | **License**: Open Source | **Origin**: Trinity Ukraine
 
 ## What's New in 2026
 
@@ -42,8 +42,8 @@ Ring Platform is a comprehensive open-source professional networking solution th
 - **RING Token Economy** - Web3 wallet integration with token payments and staking
 - **React 19.2 + Next.js 15.5** - Latest framework versions with Server Components
 - **Tailwind CSS 4** - Modern utility-first styling
-- **95+ Comprehensive Tests** - Enterprise-grade testing infrastructure
-- **Legion AI Integration** - 136 specialized AI agents for development acceleration
+- **12 Test Suites** - Enterprise-grade testing infrastructure
+- **Legion AI Integration** - 141 specialized AI agents with 22 MCP tools
 
 ## Platform Overview
 
@@ -178,13 +178,13 @@ Ring Platform implements a tiered access model for professional networking:
 
 ### Platform Statistics
 
-- **Version**: 1.48 (production-ready)
-- **API Endpoints**: 44+ documented endpoints
-- **Routes**: 58+ application routes
+- **Version**: 1.49 (production-ready)
+- **API Endpoints**: 118+ documented endpoints
+- **Routes**: 88+ application routes
 - **Build Time**: ~17 seconds (optimized)
 - **Bundle Size**: 260kB (55KB reduction via React 19 optimization)
-- **Test Coverage**: 95+ comprehensive tests
-- **Radix UI Components**: 27+ accessible components
+- **Test Files**: 12 comprehensive test suites
+- **Radix UI Components**: 26 accessible components
 - **Supported Languages**: English, Ukrainian, Russian
 
 ## Key Features
@@ -206,7 +206,7 @@ flowchart TB
     
     subgraph App["Application Layer"]
         NEXT[Next.js 15.5 App]
-        API[API Routes 44+]
+        API[API Routes 118+]
         ACTIONS[Server Actions]
         TUNNEL[Tunnel Protocol]
     end
@@ -423,9 +423,9 @@ sequenceDiagram
 ring-platform.org/
 ├── app/                    # Next.js 15 App Router
 │   ├── (main)/            # Main application routes
-│   ├── api/               # API endpoints (44+ total)
+│   ├── api/               # API endpoints (118+ total)
 │   └── actions/           # React 19 Server Actions
-├── components/            # Reusable UI components (27+ Radix)
+├── components/            # Reusable UI components (26 Radix)
 ├── features/              # Feature-specific modules
 │   ├── auth/              # Authentication services
 │   ├── store/             # E-commerce system
@@ -763,7 +763,7 @@ flowchart LR
     
     subgraph Push["Push Phase"]
         GHCR[ghcr.io Registry]
-        TAG[v1.48-project-amd64]
+        TAG[v1.49-project-amd64]
     end
     
     subgraph Deploy["Deploy Phase"]
@@ -786,7 +786,7 @@ flowchart LR
 ring --prod
 
 # Deploy specific version
-ring --prod --version 1.48
+ring --prod --version 1.49
 
 # Skip certain steps
 ring --prod --skip-build  # Only push and deploy
@@ -911,7 +911,7 @@ We welcome contributions to Ring Platform! Please see our [Contributing Guide](C
 
 ## Legion AI Integration
 
-Ring Platform is developed with Legion AI - a sophisticated AI development system with 136 specialized agents.
+Ring Platform is developed with Legion AI - a sophisticated AI development system with 141 specialized agents and 22 MCP tools.
 
 ### Key Legion Agents for Ring
 
@@ -991,7 +991,7 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <strong>Version 1.48</strong> | <strong>React 19.2</strong> | <strong>Next.js 15.5</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong>
+  <strong>Version 1.49</strong> | <strong>React 19.2</strong> | <strong>Next.js 15.5</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong>
 </p>
 
 <p align="center">

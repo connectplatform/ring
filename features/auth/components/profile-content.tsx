@@ -203,6 +203,7 @@ export default function ProfileContent({
     minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
     maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
     autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
+    preferredLanguage: (user as any)?.experience?.uiCustomizations?.language || 'uk',
     compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
   })
 
@@ -481,6 +482,7 @@ export default function ProfileContent({
       aiMatchingEnabled: (user?.settings as any)?.aiMatching?.enabled || false,
       minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
       maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
+      autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
       preferredLanguage: (user as any)?.experience?.uiCustomizations?.language || locale,
       compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
     })
@@ -2035,6 +2037,7 @@ export default function ProfileContent({
                       minMatchScore: String((user?.settings as any)?.aiMatching?.minMatchScore || 70),
                       maxMatchesPerDay: String((user?.settings as any)?.aiMatching?.maxMatchesPerDay || 10),
                       autoFillSuggestions: (user?.settings as any)?.aiMatching?.autoFillSuggestions || false,
+                      preferredLanguage: (user as any)?.experience?.uiCustomizations?.language || locale,
                       compactView: (user as any)?.experience?.uiCustomizations?.compactView || false
                     })
                   }
