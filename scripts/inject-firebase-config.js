@@ -43,7 +43,7 @@ const envVarNames = {
 function injectFirebaseConfig() {
   try {
     const swPath = path.join(process.cwd(), 'public', 'firebase-messaging-sw.js');
-    
+
     // Check if service worker file exists
     if (!fs.existsSync(swPath)) {
       console.error('❌ Service worker file not found:', swPath);
@@ -52,15 +52,23 @@ function injectFirebaseConfig() {
 
     // Read the service worker file
     let swContent = fs.readFileSync(swPath, 'utf8');
-    
+
+    // Check if we're in hybrid mode (DB_HYBRID_MODE=true)
+    const isHybridMode = process.env.DB_HYBRID_MODE === 'true';
+
     // Check for missing environment variables
     const missingVars = Object.entries(firebaseConfig)
       .filter(([key, value]) => !value)
       .map(([key]) => envVarNames[key]);
 
     if (missingVars.length > 0) {
-      console.warn('⚠️  Missing Firebase environment variables:', missingVars.join(', '));
-      console.warn('⚠️  Service worker will use fallback values');
+      if (isHybridMode) {
+        console.warn('⚠️  Hybrid mode detected - Firebase config will be injected at runtime via Kubernetes secrets');
+        console.warn('⚠️  Service worker will use fallback values for build-time compatibility');
+      } else {
+        console.warn('⚠️  Missing Firebase environment variables:', missingVars.join(', '));
+        console.warn('⚠️  Service worker will use fallback values');
+      }
     }
 
     // Inject Firebase configuration into service worker

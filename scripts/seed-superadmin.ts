@@ -20,8 +20,7 @@ async function main() {
   await db.collection('users').doc(userId).set({
     id: userId,
     email,
-    role: 'admin',
-    isSuperAdmin: true,
+    role: 'SUPERADMIN',
     isVerified: true,
     createdAt: new Date(),
     lastLogin: new Date(),
