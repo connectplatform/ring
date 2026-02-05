@@ -953,12 +953,16 @@ flowchart LR
 - **Ring Web3 & Wallet Specialist** - RING tokens, wallet integration, staking
 - **Multi-Vendor Store Expert** - E-commerce, cart, checkout flows
 
-### 21 MCP Tools
+### 22 MCP Tools
 - `legion-knowledge` - Query AI-CONTEXT knowledge base (2ms)
 - `legion-agent-selector` - Select optimal agent for task (5ms)
-- `legion-codegrep` - Kingdom-wide code search (5ms)
+- `legion-codebase-search` - Kingdom-wide code search (5ms)
 - `legion-context-update` - Sync empire knowledge
-- And 17 more specialized tools...
+- `legion-decision-tree` - Navigate complex decision trees
+- `legion-env-validator` - Validate environment configuration
+- `legion-feature-implementation` - Track feature development
+- `legion-file-git-commit` - Automated Git operations
+- And 14 more specialized tools...
 
 ## Trinity Ukraine
 
@@ -995,5 +999,5 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <em>Built with Legion AI - 136 Agents, 21 MCP Tools, Zero Flaws</em>
+  <em>Built with Legion AI - 141 Agents, 22 MCP Tools, Zero Flaws</em>
 </p>
