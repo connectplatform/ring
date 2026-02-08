@@ -20,9 +20,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.49-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react" alt="React" />
-  <img src="https://img.shields.io/badge/Next.js-15.5-black?style=flat-square&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Next.js-15.5%20%7C%2016-black?style=flat-square&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind-4.1-38B2AC?style=flat-square&logo=tailwindcss" alt="Tailwind" />
+  <img src="https://img.shields.io/badge/Auth.js-v5-purple?style=flat-square" alt="Auth.js" />
   <img src="https://img.shields.io/badge/License-Open_Source-green?style=flat-square" alt="License" />
 </p>
 
@@ -34,16 +35,22 @@ Ring Platform is a comprehensive open-source professional networking solution th
 
 ## What's New in 2026
 
-- **Database Abstraction Layer** - PostgreSQL/Firebase/ConnectPlatform support via unified DatabaseService
-- **Production Kubernetes** - Zero-downtime deployments with SSL, health checks, rolling updates
+- **Next.js 16 Support** - Turbopack default bundler, async params, proxy.ts middleware (ring-ringdom-org live on Next 16)
+- **DAGI AI Agent System** - 3-tier autonomous AI agents with 7-agent multi-agent coordination and provisioning API
+- **Interactive Maps & Visualization** - Feature map, timeline, dataflow, knowledge graph via @xyflow/react
+- **News Module** - Complete digital newspaper with likes, categories, analytics, SEO, newsletter distribution
+- **Email CRM System** - IMAP listener, contact management, newsletter automation
+- **PIN Security System** - Revolutionary Web3 without seed phrases (95% wallet connection vs 40% industry standard)
+- **Auth Route Standardization** - ROUTES.LOGIN(locale) canonical pattern, unified query params (from/callbackUrl/returnTo)
+- **5+ Active Ring Clones** - ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua on Kubernetes
+- **Database Abstraction Layer** - PostgreSQL/Firebase/ConnectPlatform via unified DatabaseService
 - **Multi-Vendor Store** - Complete e-commerce with cart, checkout, and WayForPay payments
-- **White-Label Clone System** - Deploy customized Ring instances (ring-greenfood-live, ring-wellness-gov-ua)
 - **Tunnel Protocol** - Real-time pub/sub replacing Firebase RTDB for K8s deployments
 - **RING Token Economy** - Web3 wallet integration with token payments and staking
-- **React 19.2 + Next.js 15.5** - Latest framework versions with Server Components
+- **React 19.2 + Next.js 15.5/16** - Latest framework versions with Server Components
 - **Tailwind CSS 4** - Modern utility-first styling
 - **12 Test Suites** - Enterprise-grade testing infrastructure
-- **Legion AI Integration** - 141 specialized AI agents with 22 MCP tools
+- **Legion AI Integration** - 141+ specialized AI agents with 22 MCP tools
 
 ## Platform Overview
 
@@ -161,8 +168,8 @@ Ring Platform implements a tiered access model for professional networking:
 
 | Category | Technology |
 |----------|------------|
-| **Frontend** | Next.js 15.5.4, React 19.2, TypeScript 5.9.3 |
-| **Authentication** | Auth.js v5 (NextAuth) with Google, Apple, MetaMask, Credentials |
+| **Frontend** | Next.js 15.5.4 / 16.x, React 19.2, TypeScript 5.9.3 |
+| **Authentication** | Auth.js v5 (NextAuth) with Google GIS, Apple, MetaMask, Magic Links, PIN Security |
 | **Database** | PostgreSQL (production) / Firebase Firestore / ConnectPlatform |
 | **Database Abstraction** | Unified DatabaseService with automatic backend selection |
 | **Styling** | Tailwind CSS 4.1 with custom design system |
@@ -171,6 +178,8 @@ Ring Platform implements a tiered access model for professional networking:
 | **File Storage** | Vercel Blob / Filebase (S3-compatible) |
 | **Payments** | WayForPay integration with PCI-DSS compliance |
 | **Deployment** | Kubernetes / Vercel with edge functions |
+| **AI Agents** | DAGI 3-tier system with 7-agent coordination, Legion AI 141+ agents |
+| **NLP/Search** | BERT-based semantic matching, vector search, opportunity AI matcher |
 | **Testing** | Jest 30 + React Testing Library 16 (95+ tests) |
 | **Internationalization** | next-intl with EN, UK, RU support |
 | **Animations** | Framer Motion 12 |
@@ -205,7 +214,7 @@ flowchart TB
     end
     
     subgraph App["Application Layer"]
-        NEXT[Next.js 15.5 App]
+        NEXT[Next.js 15.5/16 App]
         API[API Routes 118+]
         ACTIONS[Server Actions]
         TUNNEL[Tunnel Protocol]
@@ -353,6 +362,37 @@ flowchart LR
 - **Stable Connections**: Centralized subscription management prevents loops
 - **Connection Reliability**: Heartbeat mechanism with auto-reconnection
 
+### DAGI AI Agent System
+- **3-Tier Architecture**: Provisioning API for autonomous AI agents at `/api/v1/agents/provision`
+- **7-Agent Coordination**: Multi-agent task orchestration with harvest completion tracking
+- **Agent Tiers**: Free (basic), Premium (advanced), Enterprise (custom) agent access
+- **Activation Cards**: Vendor dashboard integration with DAGI agent activation
+- **Knowledge Integration**: Agents access Ring's full knowledge graph for context-aware responses
+
+### News Module - Digital Newspaper
+- **Full CMS**: Article creation, editing, bulk operations, category management
+- **Analytics Dashboard**: Read metrics, engagement tracking, audience segmentation
+- **Social Features**: Likes with React 19 optimistic updates, sharing, comments
+- **Newsletter Distribution**: Email integration for content distribution
+- **SEO Optimization**: Server-rendered articles with structured data (NewsArticle schema)
+- **Multi-Language**: EN/UK/RU article support with locale-aware routing
+- **Admin Panel**: News creation, moderation, analytics, bulk actions
+
+### Interactive Maps & Visualization
+- **Feature Map**: Interactive zoomable visualization of the entire Ring Platform ecosystem
+- **Timeline Map**: Historical development timeline with key milestones
+- **Dataflow Map**: System architecture data flow visualization
+- **Knowledge Graph**: Interconnected concept exploration
+- **Technology**: Built with @xyflow/react (React Flow) for canvas-based interaction
+- **Responsive**: Full-screen widescreen experience with zoom and pan controls
+
+### Email CRM System
+- **IMAP Listener**: Real-time email monitoring and contact extraction
+- **Contact Management**: Automatic categorization (lead, customer, unknown)
+- **Favorite Contacts**: Quick-access contact bookmarking
+- **Contact Search**: Full-text search across all contact fields
+- **Newsletter Integration**: Batch email distribution capabilities
+
 ### Enhanced Authentication System
 
 ```mermaid
@@ -383,10 +423,14 @@ sequenceDiagram
     C-->>U: Authenticated
 ```
 
-- **Auth.js v5**: Latest NextAuth with multi-provider support
-- **Social Login**: Google, Apple ID integration
+- **Auth.js v5**: Latest NextAuth with 5 authentication providers
+- **Social Login**: Google GIS One Tap + OAuth, Apple ID integration
+- **Magic Links**: Passwordless email authentication via Resend
+- **PIN Security**: Revolutionary Web3 without seed phrases (95% wallet connection success vs 40% industry)
 - **Web3 Login**: MetaMask and Ethereum wallet authentication
-- **Type-Safe Roles**: Hierarchical access control with UserRole enum
+- **Type-Safe Roles**: 5-tier hierarchy (VISITOR -> SUBSCRIBER -> MEMBER -> CONFIDENTIAL -> ADMIN)
+- **Split Config**: `auth.config.ts` (edge-compatible) + `auth.ts` (full server with adapter)
+- **ROUTES.LOGIN(locale)**: Canonical login path via `constants/routes.ts`, unified query params
 - **KYC Workflow**: Integrated identity verification status tracking
 - **Session Security**: IP-bound auth cache with hijacking prevention
 
@@ -421,24 +465,32 @@ sequenceDiagram
 
 ```
 ring-platform.org/
-├── app/                    # Next.js 15 App Router
-│   ├── (main)/            # Main application routes
+├── app/                    # Next.js 15/16 App Router
+│   ├── (public)/          # Public routes with locale
+│   ├── (authenticated)/   # Auth-protected routes
+│   ├── (admin)/           # Admin panel routes
 │   ├── api/               # API endpoints (118+ total)
-│   └── actions/           # React 19 Server Actions
+│   └── _actions/          # React 19 Server Actions
 ├── components/            # Reusable UI components (26 Radix)
+├── constants/             # Canonical routes (ROUTES.LOGIN, etc.)
 ├── features/              # Feature-specific modules
-│   ├── auth/              # Authentication services
+│   ├── auth/              # Authentication services & components
 │   ├── store/             # E-commerce system
 │   ├── entities/          # Entity management
-│   └── opportunities/     # Opportunity system
+│   ├── opportunities/     # Opportunity system
+│   └── maps/             # Interactive visualization maps
 ├── services/              # Business logic services
+│   └── email/            # CRM, IMAP, newsletter services
 ├── lib/                   # Utility libraries
 │   ├── database/          # DatabaseService abstraction
 │   ├── payments/          # WayForPay integration
+│   ├── auth/              # Edge JWT, auth helpers
 │   └── tunnel/            # Real-time protocol
 ├── types/                 # TypeScript definitions
 ├── locales/               # i18n translations (en, uk, ru)
+├── docs/                  # MDX documentation (EN/UK/RU)
 ├── cli/                   # Ring CLI tool
+├── data/                  # Seed data (entities, opportunities)
 └── k8s/                   # Kubernetes manifests
 ```
 
@@ -548,23 +600,28 @@ await db.transaction(async (txn) => {
 flowchart TB
     TEMPLATE[ring-platform.org<br/>Template Repository]
     
-    TEMPLATE --> GF[ring-greenfood-live<br/>Organic Food]
-    TEMPLATE --> WG[ring-wellness-gov-ua<br/>Healthcare]
-    TEMPLATE --> VK[ring-vikka-ua<br/>Media/News]
+    TEMPLATE --> RD[ring-ringdom-org<br/>ringdom.org - Digital Empire]
+    TEMPLATE --> GF[ring-greenfood-live<br/>greenfood.live - Organic Food]
+    TEMPLATE --> VK[ring-vikka-ua<br/>vikka.ua - Media/News]
+    TEMPLATE --> ZA[ring-zemna-ai<br/>zemna.ai - AI Platform]
+    TEMPLATE --> CK[ring-ring-ck-ua<br/>ring.ck.ua - Regional Hub]
     
     subgraph Shared["Shared Infrastructure"]
         DB[(PostgreSQL<br/>Per-clone schema)]
-        AUTH[Auth.js<br/>SSO Support]
+        AUTH[Auth.js v5<br/>SSO Support]
         PAY[WayForPay<br/>Payments]
+        K8S[Kubernetes<br/>K3s Cluster]
     end
     
+    RD --> DB
     GF --> DB
-    WG --> DB
     VK --> DB
+    ZA --> DB
+    CK --> DB
     
-    GF --> AUTH
-    WG --> AUTH
-    VK --> AUTH
+    RD --> K8S
+    GF --> K8S
+    VK --> K8S
 ```
 
 ### API Architecture
@@ -911,7 +968,7 @@ We welcome contributions to Ring Platform! Please see our [Contributing Guide](C
 
 ## Legion AI Integration
 
-Ring Platform is developed with Legion AI - a sophisticated AI development system with 141 specialized agents and 22 MCP tools.
+Ring Platform is developed with Legion AI - a sophisticated AI development system with 141+ specialized agents organized in cohort-based hierarchy and 22 MCP tools.
 
 ### Key Legion Agents for Ring
 
@@ -919,26 +976,27 @@ Ring Platform is developed with Legion AI - a sophisticated AI development syste
 flowchart LR
     subgraph Frontend["Frontend Specialists"]
         R19[React 19 Specialist]
-        N15[Next.js 15 Specialist]
-        TW[Tailwind CSS Expert]
+        N16[Next.js 16 Specialist]
+        TW[Tailwind CSS 4 Expert]
     end
     
     subgraph Backend["Backend Specialists"]
         DBA[Ring Backend Admin]
-        PAY[WayForPay Integrator]
+        AUTH[Auth.js Specialist]
         SEC[Security Specialist]
     end
     
     subgraph Web3["Web3 Specialists"]
         W3[Wallet Specialist]
         TOK[Token Economy]
-        NFT[NFT Marketplace]
+        DAGI[DAGI Agent System]
     end
     
-    subgraph Tools["MCP Tools"]
+    subgraph Tools["22 MCP Tools"]
         LK[legion-knowledge]
         AS[legion-agent-selector]
         CG[legion-codegrep]
+        MAP[ringdom-maps-update]
     end
     
     Frontend --> Tools
@@ -946,23 +1004,27 @@ flowchart LR
     Web3 --> Tools
 ```
 
-- **React 19 Specialist** - Server Components, useActionState, useOptimistic patterns
-- **Next.js 15 Specialist** - App Router, edge runtime, async APIs
+- **React 19 Specialist** - Server Components, useActionState, useOptimistic, React Compiler
+- **Next.js 16 Specialist** - Turbopack, async params, proxy.ts, PPR, revalidateTag
+- **Auth.js v5 Specialist** - Split config, auth() unified API, edge compatibility
 - **Ring Backend Administrator** - DatabaseService API, transactions, migrations
-- **WayForPay Integrator** - Payment integration, PCI-DSS compliance
-- **Ring Web3 & Wallet Specialist** - RING tokens, wallet integration, staking
-- **Multi-Vendor Store Expert** - E-commerce, cart, checkout flows
+- **Ring Web3 & Wallet Specialist** - RING tokens, PIN security, wallet integration
+- **Ring Feature Instructor** - Store, Entities, Wallet, Messaging, Opportunities, NFT, Staking
+- **Ring AI Matcher Specialist** - BERT-based semantic matching, opportunity scoring
 
 ### 22 MCP Tools
-- `legion-knowledge` - Query AI-CONTEXT knowledge base (2ms)
-- `legion-agent-selector` - Select optimal agent for task (5ms)
-- `legion-codebase-search` - Kingdom-wide code search (5ms)
-- `legion-context-update` - Sync empire knowledge
-- `legion-decision-tree` - Navigate complex decision trees
-- `legion-env-validator` - Validate environment configuration
-- `legion-feature-implementation` - Track feature development
-- `legion-file-git-commit` - Automated Git operations
-- And 14 more specialized tools...
+- `legion-knowledge` - Query AI-CONTEXT knowledge base with vector search (2ms)
+- `legion-agent-selector` - Cohort-aware agent selection with semantic matching (5ms)
+- `legion-codebase-search` - Kingdom-wide cross-project code search (5ms)
+- `legion-context-update` - Sync and update empire knowledge base
+- `legion-decision-tree` - Navigate complex architectural decision trees
+- `legion-env-validator` - Validate environment configuration per project
+- `legion-feature-implementation` - Track feature development lifecycle
+- `legion-file-git-commit` - Automated Git operations with smart staging
+- `legion-security-audit` - Security scanning and vulnerability detection
+- `legion-semantic-search` - Vector-based semantic code understanding
+- `ringdom-maps-update` - Update interactive visualization maps
+- And 11 more specialized tools...
 
 ## Trinity Ukraine
 
@@ -985,8 +1047,12 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 - **API Reference**: [ring-platform.org/docs/api](https://ring-platform.org/docs/api)
 - **GitHub**: [github.com/connectplatform/ring](https://github.com/connectplatform/ring)
 - **Live Clones**:
+  - [ringdom.org](https://ringdom.org) - Ringdom Digital Empire
   - [app.greenfood.live](https://app.greenfood.live) - Organic Food Marketplace
   - [ring-platform.org](https://ring-platform.org) - Main Portal
+  - [vikka.ua](https://vikka.ua) - Media/News Platform
+  - [zemna.ai](https://zemna.ai) - AI Platform
+  - [ring.ck.ua](https://ring.ck.ua) - Regional Hub
 
 ---
 
@@ -995,9 +1061,9 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <strong>Version 1.49</strong> | <strong>React 19.2</strong> | <strong>Next.js 15.5</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong>
+  <strong>Version 1.49</strong> | <strong>React 19.2</strong> | <strong>Next.js 15.5/16</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
 </p>
 
 <p align="center">
-  <em>Built with Legion AI - 141 Agents, 22 MCP Tools, Zero Flaws</em>
+  <em>Built with Legion AI - 141+ Agents, 22 MCP Tools, Zero Flaws</em>
 </p>
