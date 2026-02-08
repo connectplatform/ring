@@ -47,6 +47,7 @@
         "cli:dev": "node cli/index.js"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.74.0",
         "@auth/firebase-adapter": "^2.11.0",
         "@mdx-js/mdx": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -83,6 +84,8 @@
         "@shikijs/rehype": "^3.13.0",
         "@tanstack/react-query": "^5.90.5",
         "@tinymce/tinymce-react": "^6.3.0",
+        "@types/imap": "^0.8.43",
+        "@types/mailparser": "^3.4.6",
         "@types/pg": "^8.15.5",
         "@vercel/blob": "^2.0.0",
         "@vercel/functions": "^3.1.1",
@@ -102,8 +105,10 @@
         "google-auth-library": "^10.4.0",
         "gray-matter": "^4.0.3",
         "https-browserify": "^1.0.0",
+        "imap": "^0.8.19",
         "jose": "^6.1.0",
         "lucide-react": "^0.545.0",
+        "mailparser": "^3.9.3",
         "mermaid": "^11.12.0",
         "next": "^15.5.4",
         "next-auth": "^5.0.0-beta.29",

@@ -44,7 +44,6 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -288,7 +287,7 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   // Use effect to handle redirect on client-side only
   React.useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(locale))
+      router.push(ROUTES.LOGIN(locale as any))
     }
   }, [status, router, locale])
 

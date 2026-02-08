@@ -27,7 +27,7 @@ export default async function VendorStartPage({
 
   // Require authentication
   if (!session?.user?.id) {
-    redirect(ROUTES.LOGIN(locale))
+    redirect(ROUTES.LOGIN(locale as any))
   }
 
   // Check if already has vendor entity

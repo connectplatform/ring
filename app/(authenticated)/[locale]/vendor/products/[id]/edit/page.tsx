@@ -24,7 +24,7 @@ export default async function EditProductPage({
   const session = await auth()
   
   if (!session?.user?.id) {
-    redirect(ROUTES.LOGIN(params.locale))
+    redirect(ROUTES.LOGIN(params.locale as any))
   }
 
   const vendorEntity = await getVendorEntity(session.user.id)

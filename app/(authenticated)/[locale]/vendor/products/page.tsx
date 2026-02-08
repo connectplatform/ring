@@ -24,7 +24,7 @@ export default async function VendorProductsPage({
   
   // Require authentication
   if (!session?.user?.id) {
-    redirect(ROUTES.LOGIN(params.locale))
+    redirect(ROUTES.LOGIN(params.locale as any))
   }
 
   // Check vendor access
