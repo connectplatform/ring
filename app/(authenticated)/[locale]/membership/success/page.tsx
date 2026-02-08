@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import type { Locale } from '@/i18n-config'
+import { isValidLocale, defaultLocale } from '@/i18n-config'
 
 export const metadata: Metadata = {
   title: 'Payment Successful - Ring Platform',
@@ -23,12 +24,12 @@ export default async function MembershipSuccessPage({
   params,
   searchParams
 }: MembershipSuccessPageProps) {
+  const { locale } = await params
   const session = await auth()
   if (!session?.user) {
-    redirect('/auth/signin')
+    redirect(`/${locale}/login`)
   }
 
-  const { locale } = await params
   const { orderId } = await searchParams
 
   return (

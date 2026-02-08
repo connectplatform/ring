@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { loadTranslations } from '@/i18n-config'
+import { ROUTES } from '@/constants/routes'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import VendorStartWrapper from '@/components/wrappers/vendor-start-wrapper'
 import VendorOnboardingForm from './vendor-onboarding-form'
@@ -26,7 +27,7 @@ export default async function VendorStartPage({
 
   // Require authentication
   if (!session?.user?.id) {
-    redirect(`/${locale}/auth/signin`)
+    redirect(ROUTES.LOGIN(locale))
   }
 
   // Check if already has vendor entity

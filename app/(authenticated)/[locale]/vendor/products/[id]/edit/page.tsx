@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { ROUTES } from '@/constants/routes'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
 import ProductFormWrapper from '@/components/wrappers/product-form-wrapper'
@@ -23,7 +24,7 @@ export default async function EditProductPage({
   const session = await auth()
   
   if (!session?.user?.id) {
-    redirect(`/${params.locale}/auth/signin`)
+    redirect(ROUTES.LOGIN(params.locale))
   }
 
   const vendorEntity = await getVendorEntity(session.user.id)

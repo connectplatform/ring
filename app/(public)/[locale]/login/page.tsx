@@ -40,7 +40,8 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
     const canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://ring-platform.org'}/${locale}/login`;
     const alternates = generateHreflangAlternates('/login');
 
-    const rawFrom = searchParams.from
+    // Support from, callbackUrl, and returnTo for post-login redirect (standardize on 'from' internally)
+    const rawFrom = searchParams.from ?? searchParams.callbackUrl ?? searchParams.returnTo
     from = typeof rawFrom === 'string' ? rawFrom : undefined
 
     console.log('LoginPage: Starting')

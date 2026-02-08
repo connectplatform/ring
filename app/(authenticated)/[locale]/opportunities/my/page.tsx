@@ -7,6 +7,7 @@ import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
+import { ROUTES } from '@/constants/routes'
 
 // Force dynamic rendering for user-specific data
 export const dynamic = 'force-dynamic'
@@ -61,7 +62,7 @@ export default async function MyOpportunitiesPage(props: LocalePageProps<{}>) {
   
   // Redirect to login if not authenticated
   if (!session || !session.user) {
-    redirect(`/${locale}/auth/login?from=${encodeURIComponent(`/${locale}/opportunities/my`)}`);
+    redirect(`${ROUTES.LOGIN(locale)}?from=${encodeURIComponent(`/${locale}/opportunities/my`)}`);
   }
 
   // Get SEO metadata

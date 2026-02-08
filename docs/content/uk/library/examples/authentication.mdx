@@ -64,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   pages: {
-    signIn: '/auth/signin',
+    signIn: '/login',
     signOut: '/auth/signout',
     error: '/auth/error',
   },
@@ -74,7 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
 ### Кастомна сторінка входу
 
-// app/auth/signin/page.tsx
+// app/(public)/[locale]/login/page.tsx
 
 <Code language="typescript" title="TypeScript">
 {`'use client'
@@ -215,7 +215,7 @@ export default async function ProtectedRoute({
   const session = await auth()
 
   if (!session) {
-    redirect('/auth/signin')
+    redirect('/login')
   }
 
   // Role hierarchy check
@@ -293,7 +293,7 @@ export function useAuth(requiredRole?: string) {
     if (status === 'loading') return // Still loading
 
     if (!session) {
-      router.push('/auth/signin')
+      router.push('/login')
       return
     }
 
@@ -375,7 +375,7 @@ export default auth((req) => {
 
   // Protected routes
   if (!session && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/auth/signin', req.url))
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
   // Admin routes

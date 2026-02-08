@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { MembershipUpgradeModal } from '@/components/membership/upgrade-modal'
 import Link from 'next/link'
 import type { Locale } from '@/i18n-config'
+import { ROUTES } from '@/constants/routes'
 import { useTranslations } from 'next-intl'
 
 interface AddEntityButtonProps {
@@ -26,7 +27,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
   if (!isAuthenticated) {
     return (
       <Button asChild className={className}>
-        <Link href={`/${locale}/auth/login?returnTo=${encodeURIComponent(pathname)}`}>
+        <Link href={`${ROUTES.LOGIN(locale)}?returnTo=${encodeURIComponent(pathname)}`}>
           <Plus className="h-4 w-4 mr-2" />
           {t('addMyEntity')}
         </Link>

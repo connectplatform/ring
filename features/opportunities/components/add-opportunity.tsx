@@ -5,6 +5,7 @@ import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { ROUTES } from '@/constants/routes'
 import { useSession } from 'next-auth/react'
 import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 import { Button } from '@/components/ui/button'
@@ -287,7 +288,7 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   // Use effect to handle redirect on client-side only
   React.useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(`/${locale}/auth/login`)
+      router.push(ROUTES.LOGIN(locale))
     }
   }, [status, router, locale])
 

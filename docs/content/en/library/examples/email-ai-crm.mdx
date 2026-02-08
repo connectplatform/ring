@@ -1,0 +1,486 @@
+---
+title: Email AI-CRM Tutorial
+description: Step-by-step guide to setting up AI-powered email management with Ring Platform
+---
+
+# 📧 Email AI-CRM Tutorial
+
+**Build an AI-powered email management system in 30 minutes**
+
+This tutorial walks you through setting up Ring Platform's Email AI-CRM system, from mail server configuration to AI response generation.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- ✅ Ring Platform instance running
+- ✅ PostgreSQL database configured
+- ✅ Anthropic API key ([Get one here](https://console.anthropic.com))
+- ✅ Mail server with IMAP access (or use Ring's mail server)
+
+## Step 1: Database Setup
+
+Run the migration to create the email tables.
+
+<Code language="bash" title="Terminal">
+{`# Navigate to your Ring Platform directory
+cd ring-platform.org
+
+# Run the email CRM migration
+psql -d ring_platform -f data/migrations/001_email_crm_schema.sql
+
+# Verify tables created
+psql -d ring_platform -c "\\dt email_*"`}
+</Code>
+
+Expected output:
+
+<Code language="text" title="Output">
+{`              List of relations
+ Schema |        Name           | Type  
+--------+-----------------------+-------
+ public | email_analytics       | table
+ public | email_api_usage       | table
+ public | email_contacts        | table
+ public | email_drafts          | table
+ public | email_knowledge_base  | table
+ public | email_messages        | table
+ public | email_security_events | table
+ public | email_tasks           | table
+ public | email_threads         | table
+(9 rows)`}
+</Code>
+
+## Step 2: Environment Configuration
+
+Add the required environment variables.
+
+<Code language="bash" title=".env.local">
+{`# ============================================
+# EMAIL AI-CRM CONFIGURATION
+# ============================================
+
+# IMAP Settings (for receiving emails)
+IMAP_HOST=mail.your-domain.com
+IMAP_PORT=993
+IMAP_TLS=true
+IMAP_USER=info@your-domain.com
+IMAP_PASSWORD=your-secure-password
+
+# SMTP Settings (for sending emails)
+SMTP_HOST=mail.your-domain.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=info@your-domain.com
+SMTP_PASSWORD=your-secure-password
+
+# Anthropic API
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# Optional: Slack Notifications
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T00/B00/XXX
+
+# Processing Settings
+EMAIL_POLLING_INTERVAL=30000
+EMAIL_BATCH_SIZE=10
+EMAIL_MAILBOX=INBOX`}
+</Code>
+
+## Step 3: Verify Configuration
+
+Test your email configuration before starting.
+
+<Code language="typescript" title="scripts/verify-email-config.ts">
+{`import { validateEmailConfig, emailConfig } from '@/services/email/imap/config';
+
+async function verifyConfig() {
+  console.log('🔍 Verifying email configuration...\\n');
+  
+  const validation = validateEmailConfig();
+  
+  if (!validation.valid) {
+    console.error('❌ Configuration errors:');
+    validation.errors.forEach(err => console.error(\`  - \${err}\`));
+    process.exit(1);
+  }
+  
+  console.log('✅ Configuration valid!');
+  console.log(\`📧 Email: \${emailConfig.user}\`);
+  console.log(\`📥 IMAP: \${emailConfig.host}:\${emailConfig.port}\`);
+  console.log(\`📤 SMTP: \${emailConfig.smtp.host}:\${emailConfig.smtp.port}\`);
+}
+
+verifyConfig();`}
+</Code>
+
+Run verification:
+
+<Code language="bash" title="Terminal">
+{`npx tsx scripts/verify-email-config.ts`}
+</Code>
+
+## Step 4: Initialize the Email Processor
+
+Create a startup script for the email processor.
+
+<Code language="typescript" title="scripts/start-email-processor.ts">
+{`import { getEmailProcessor } from '@/services/email';
+import { getKnowledgeBaseService } from '@/services/email/knowledge';
+
+async function main() {
+  console.log('🚀 Starting Email AI-CRM System...\\n');
+  
+  // Initialize knowledge base with default content
+  const kb = getKnowledgeBaseService();
+  await kb.initializeDefaultKnowledge();
+  console.log('📚 Knowledge base initialized');
+  
+  // Get the email processor
+  const processor = getEmailProcessor();
+  
+  // Register event handlers
+  processor.on('email:received', (event) => {
+    console.log(\`📧 New email from \${event.from}: \${event.subject}\`);
+  });
+  
+  processor.on('email:security_checked', (result) => {
+    const status = result.passed ? '✅ Passed' : '⚠️ Flagged';
+    console.log(\`🛡️ Security check: \${status} (risk: \${result.riskScore})\`);
+  });
+  
+  processor.on('email:analyzed', (analysis) => {
+    console.log(\`🧠 Intent: \${analysis.intent.intent} (\${Math.round(analysis.intent.confidence * 100)}%)\`);
+    console.log(\`💭 Sentiment: \${analysis.sentiment.sentiment}\`);
+  });
+  
+  processor.on('draft:created', (draft) => {
+    console.log(\`📝 Draft created (confidence: \${Math.round(draft.confidenceScore * 100)}%)\`);
+  });
+  
+  processor.on('draft:auto_sent', ({ draft, messageId }) => {
+    console.log(\`✉️ Auto-sent response: \${messageId}\`);
+  });
+  
+  processor.on('task:created', (task) => {
+    console.log(\`📋 Task created: \${task.title} [\${task.priority}]\`);
+  });
+  
+  processor.on('error', (error) => {
+    console.error('❌ Error:', error.message);
+  });
+  
+  // Start processing
+  await processor.start();
+  console.log('\\n✅ Email processor running. Press Ctrl+C to stop.\\n');
+  
+  // Handle shutdown
+  process.on('SIGINT', async () => {
+    console.log('\\n🛑 Shutting down...');
+    await processor.stop();
+    process.exit(0);
+  });
+}
+
+main().catch(console.error);`}
+</Code>
+
+Run the processor:
+
+<Code language="bash" title="Terminal">
+{`npx tsx scripts/start-email-processor.ts`}
+</Code>
+
+## Step 5: Add Knowledge Base Content
+
+Customize the knowledge base for your business.
+
+<Code language="typescript" title="scripts/seed-knowledge-base.ts">
+{`import { getKnowledgeBaseService } from '@/services/email/knowledge';
+
+async function seedKnowledgeBase() {
+  const kb = getKnowledgeBaseService();
+  
+  // Add custom FAQ
+  await kb.addDocument({
+    title: 'Pricing Information',
+    content: \`
+      Ring Platform Pricing:
+      - Free tier: Up to 100 users
+      - Pro: $49/month for unlimited users
+      - Enterprise: Custom pricing with SLA
+      
+      All plans include:
+      - Full Web3 wallet integration
+      - Multi-vendor marketplace
+      - Real-time messaging
+      - NFT marketplace access
+    \`,
+    contentType: 'faq',
+    category: 'pricing',
+    tags: ['pricing', 'plans', 'subscription']
+  });
+  
+  // Add product documentation
+  await kb.addDocument({
+    title: 'Getting Started Guide',
+    content: \`
+      Quick Start:
+      1. Clone the repository: git clone https://github.com/ring-platform/ring
+      2. Install dependencies: npm install
+      3. Configure environment: cp .env.example .env.local
+      4. Start development: npm run dev
+      
+      Visit http://localhost:3000 to see your Ring Platform instance.
+    \`,
+    contentType: 'documentation',
+    category: 'getting-started',
+    tags: ['setup', 'installation', 'quickstart']
+  });
+  
+  // Add response template
+  await kb.addDocument({
+    title: 'Enterprise Inquiry Response Template',
+    content: \`
+      Thank you for your interest in Ring Platform for enterprise deployment!
+      
+      Our enterprise solution includes:
+      - Dedicated support with guaranteed SLA
+      - Custom deployment options (on-premise or cloud)
+      - Advanced security and compliance features
+      - Priority feature development
+      - Training and onboarding assistance
+      
+      I would love to schedule a call to discuss your specific requirements.
+    \`,
+    contentType: 'response_template',
+    category: 'enterprise',
+    tags: ['enterprise', 'sales', 'template']
+  });
+  
+  console.log('✅ Knowledge base seeded successfully!');
+}
+
+seedKnowledgeBase().catch(console.error);`}
+</Code>
+
+## Step 6: Configure Auto-Send Rules
+
+Customize which emails get auto-responses.
+
+<Code language="typescript" title="lib/email/auto-send-config.ts">
+{`import { getEmailDraftService } from '@/services/email/drafts';
+
+const draftService = getEmailDraftService();
+
+// Configure auto-send behavior
+draftService.configureAutoSend({
+  enabled: true,
+  minConfidence: 0.90,        // Only auto-send with 90%+ confidence
+  
+  // Intents safe for auto-response
+  allowedIntents: [
+    'documentation_help',      // Simple doc questions
+    'getting_started',         // Setup guidance
+    'general_inquiry',         // Basic questions
+    'feedback',                // Thank you notes
+    'feature_request'          // Feature suggestions
+  ],
+  
+  // Safety limits
+  maxDailyAutoSends: 50,       // Cap daily auto-sends
+  excludeNewContacts: true,    // Always review first contact
+  excludeHighPriority: true,   // Never auto-send urgent
+  excludeNegativeSentiment: true // Human review for unhappy customers
+});`}
+</Code>
+
+## Step 7: Set Up Admin Dashboard
+
+The admin pages are already included. Add them to your navigation.
+
+<Code language="typescript" title="config/admin-nav.ts">
+{`export const adminNavigation = [
+  // ... existing items
+  {
+    title: 'Email Management',
+    items: [
+      { title: 'Inbox', href: '/admin/email-inbox', icon: Mail },
+      { title: 'Draft Review', href: '/admin/email-drafts', icon: FileText },
+      { title: 'Contacts', href: '/admin/email-contacts', icon: Users },
+      { title: 'Analytics', href: '/admin/email-analytics', icon: BarChart }
+    ]
+  }
+];`}
+</Code>
+
+## Step 8: Test the System
+
+Send a test email to your configured address.
+
+<Code language="typescript" title="scripts/test-email-flow.ts">
+{`import { getEmailProcessor } from '@/services/email';
+
+async function testFlow() {
+  const processor = getEmailProcessor();
+  
+  // Simulate an email (for testing without real IMAP)
+  const testEmail = {
+    uid: 1,
+    messageId: '<test@example.com>',
+    from: 'customer@example.com',
+    to: 'info@your-domain.com',
+    subject: 'How do I get started with Ring Platform?',
+    date: new Date(),
+    raw: \`
+From: customer@example.com
+To: info@your-domain.com
+Subject: How do I get started with Ring Platform?
+
+Hi there,
+
+I just discovered Ring Platform and I'm excited to try it out!
+Can you point me to the getting started guide?
+
+Thanks,
+John
+    \`.trim()
+  };
+  
+  // Process the test email
+  console.log('📧 Processing test email...');
+  await processor.emit('email:received', testEmail);
+  
+  // Wait for processing
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  
+  console.log('\\n✅ Test complete! Check your database for results.');
+}
+
+testFlow().catch(console.error);`}
+</Code>
+
+## Monitoring & Maintenance
+
+### Daily Health Check
+
+<Code language="bash" title="Terminal">
+{`# Check processing stats
+psql -d ring_platform -c "
+  SELECT 
+    COUNT(*) as total_emails,
+    COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+    COUNT(*) FILTER (WHERE auto_handled = true) as auto_handled
+  FROM email_threads
+  WHERE created_at > NOW() - INTERVAL '24 hours'
+"
+
+# Check API costs
+psql -d ring_platform -c "
+  SELECT 
+    model,
+    COUNT(*) as requests,
+    SUM(cost_usd) as total_cost
+  FROM email_api_usage
+  WHERE created_at > NOW() - INTERVAL '24 hours'
+  GROUP BY model
+"`}
+</Code>
+
+### Run Batch Analytics
+
+<Code language="bash" title="Terminal">
+{`# Run nightly batch job manually
+npx tsx -e "
+  import { getBatchAnalyticsService } from '@/services/email/ai/batch-analytics';
+  const service = getBatchAnalyticsService();
+  await service.runNightlyBatch();
+  console.log('Batch analytics complete');
+"`}
+</Code>
+
+## Troubleshooting
+
+### IMAP Connection Issues
+
+<Code language="typescript" title="Debug IMAP">
+{`// Enable debug logging
+process.env.DEBUG = 'imap';
+
+// Check connection
+import Imap from 'node-imap';
+const imap = new Imap({
+  user: process.env.IMAP_USER,
+  password: process.env.IMAP_PASSWORD,
+  host: process.env.IMAP_HOST,
+  port: parseInt(process.env.IMAP_PORT),
+  tls: true,
+  debug: console.log // Enable debug output
+});
+
+imap.connect();`}
+</Code>
+
+### Security False Positives
+
+<Code language="sql" title="Review Security Events">
+{`-- Find recent security events
+SELECT 
+  se.event_type,
+  se.risk_score,
+  se.technique,
+  em.subject,
+  em.from_email,
+  se.created_at
+FROM email_security_events se
+JOIN email_messages em ON se.message_id = em.id
+WHERE se.created_at > NOW() - INTERVAL '7 days'
+ORDER BY se.created_at DESC
+LIMIT 20;
+
+-- Mark false positives
+UPDATE email_security_events
+SET false_positive = true, reviewed = true
+WHERE id = 'event-uuid-here';`}
+</Code>
+
+### High API Costs
+
+<Code language="sql" title="Cost Analysis">
+{`-- Find expensive operations
+SELECT 
+  operation,
+  model,
+  COUNT(*) as requests,
+  AVG(input_tokens + output_tokens) as avg_tokens,
+  SUM(cost_usd) as total_cost
+FROM email_api_usage
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY operation, model
+ORDER BY total_cost DESC;
+
+-- Check cache effectiveness
+SELECT 
+  DATE(created_at) as date,
+  SUM(cache_read_tokens) as cache_hits,
+  SUM(input_tokens) as total_input,
+  ROUND(SUM(cache_read_tokens)::numeric / NULLIF(SUM(input_tokens), 0) * 100, 2) as hit_rate
+FROM email_api_usage
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY DATE(created_at)
+ORDER BY date DESC;`}
+</Code>
+
+---
+
+## Next Steps
+
+- 📖 [Read the API Reference](/en/library/api/email-ai-crm)
+- 🏗️ [Explore the Architecture](/en/library/architecture/email-ai-crm)
+- 🛡️ [Learn about Security](/en/library/features/email-ai-crm#4-layer-security-architecture)
+- 💬 [Join the Community](https://discord.gg/ringplatform)
+
+---
+
+*You've successfully set up AI-powered email management! Your Ring Platform can now automatically handle customer inquiries with intelligent responses.*
+
+[🔙 Back to Examples](/en/library/examples) | [📧 Email Features](/en/library/features/email-ai-crm)

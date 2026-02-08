@@ -17,12 +17,17 @@ export const metadata: Metadata = {
   description: 'Manage your farm, products, orders, and AI agent',
 }
 
-export default async function VendorDashboardPage() {
+export default async function VendorDashboardPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
   // TODO: Implement proper auth check
   const session = { user: { id: 'mock-user-id' } } // Temporary mock
   
   if (!session?.user?.id) {
-    redirect('/auth/signin')
+    redirect(`/${locale}/login`)
   }
 
   // TODO: Check vendor status via database query

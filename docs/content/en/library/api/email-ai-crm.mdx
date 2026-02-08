@@ -1,0 +1,687 @@
+---
+title: Email AI-CRM API
+description: Complete API reference for Ring Platform's AI-powered email management system
+---
+
+# 📧 Email AI-CRM API Reference
+
+Complete API documentation for the Email AI-CRM system, including services, types, and integration patterns.
+
+## Service Architecture
+
+<Mermaid>
+{`classDiagram
+    class EmailProcessor {
+        +start()
+        +stop()
+        +on(event, handler)
+    }
+    
+    class ImapListener {
+        +start()
+        +stop()
+        +getStatus()
+    }
+    
+    class EmailParser {
+        +parseFromEvent(event)
+        +parseRaw(rawEmail)
+        +cleanEmailBody(body)
+    }
+    
+    class SecurityPipeline {
+        +checkInbound(email)
+        +checkOutput(response)
+        +getSecureSystemPrompt()
+    }
+    
+    class IntentClassifier {
+        +classify(content)
+        +getSuggestedResponseType(intent)
+        +canAutoRespond(classification)
+    }
+    
+    class SentimentAnalyzer {
+        +analyze(email)
+        +quickAnalyze(text)
+        +getPriorityFromSentiment(analysis)
+    }
+    
+    class ResponseGenerator {
+        +generate(context, security)
+        +registerToolHandler(name, handler)
+    }
+    
+    class EmailContactService {
+        +getOrCreateContact(email)
+        +updateContact(id, data)
+        +recordSentiment(id, sentiment)
+        +linkToRingUser(contactId, userId)
+    }
+    
+    class EmailTaskService {
+        +createTask(data)
+        +autoCreateTasks(email)
+        +completeTask(id, notes)
+        +processOverdueTasks()
+    }
+    
+    class EmailDraftService {
+        +createFromGeneration(result)
+        +approveDraft(id, reviewer)
+        +markSent(id, messageId)
+    }
+    
+    EmailProcessor --> ImapListener
+    EmailProcessor --> EmailParser
+    EmailProcessor --> SecurityPipeline
+    EmailProcessor --> IntentClassifier
+    EmailProcessor --> SentimentAnalyzer
+    EmailProcessor --> ResponseGenerator
+    EmailProcessor --> EmailContactService
+    EmailProcessor --> EmailTaskService
+    EmailProcessor --> EmailDraftService`}
+</Mermaid>
+
+## Core Services
+
+### EmailProcessor
+
+Main orchestrator that coordinates all email processing.
+
+<Code language="typescript" title="services/email/email-processor.ts">
+{`import { getEmailProcessor } from '@/services/email';
+
+const processor = getEmailProcessor();
+
+// Start listening for emails
+await processor.start();
+
+// Stop processing
+await processor.stop();
+
+// Event handlers
+processor.on('email:received', (event: EmailReceivedEvent) => void);
+processor.on('email:parsed', (email: ParsedEmail) => void);
+processor.on('email:security_checked', (result: SecurityCheckResult) => void);
+processor.on('email:analyzed', (analysis: EmailAnalysis) => void);
+processor.on('draft:created', (draft: EmailDraft) => void);
+processor.on('draft:auto_sent', (data: { draft, messageId }) => void);
+processor.on('task:created', (task: EmailTask) => void);
+processor.on('error', (error: Error) => void);`}
+</Code>
+
+### ImapListener
+
+Real-time IMAP connection with IDLE support.
+
+<Code language="typescript" title="services/email/imap/imap-listener.ts">
+{`interface ImapListener extends EventEmitter {
+  // Start listening with IMAP IDLE
+  start(): Promise<void>;
+  
+  // Gracefully disconnect
+  stop(): Promise<void>;
+  
+  // Get connection status
+  getStatus(): ImapStatus;
+}
+
+interface ImapStatus {
+  connected: boolean;
+  mailbox: string;
+  messageCount: number;
+  lastSync: Date;
+}
+
+interface EmailReceivedEvent {
+  uid: number;
+  messageId: string;
+  from: string;
+  to: string;
+  subject: string;
+  date: Date;
+  raw: string;
+}`}
+</Code>
+
+### SecurityPipeline
+
+4-layer security orchestration.
+
+<Code language="typescript" title="services/email/security/security-pipeline.ts">
+{`interface SecurityPipeline {
+  // Check inbound email for injection attacks
+  checkInbound(email: {
+    subject: string;
+    body: string;
+    headers: Record<string, string>;
+  }): Promise<SecurityCheckResult>;
+  
+  // Validate AI-generated response
+  checkOutput(response: string): OutputValidation;
+  
+  // Get system prompt with security instructions
+  getSecureSystemPrompt(): string;
+}
+
+interface SecurityCheckResult {
+  passed: boolean;
+  riskScore: number; // 0-1
+  layers: {
+    sanitization: SanitizationResult;
+    classification: InjectionClassification;
+    spotlighting: SpotlightedContent;
+  };
+  blockedReason: string | null;
+  requiresReview: boolean;
+  securityEvents: SecurityEvent[];
+}`}
+</Code>
+
+## AI Services
+
+### IntentClassifier
+
+Classify email intent using Claude Haiku.
+
+<Code language="typescript" title="services/email/ai/intent-classifier.ts">
+{`interface IntentClassifier {
+  // Classify email content
+  classify(content: {
+    subject: string;
+    body: string;
+    from: string;
+    fromName?: string;
+  }): Promise<IntentClassification>;
+  
+  // Get suggested response type for intent
+  getSuggestedResponseType(intent: EmailIntent): ResponseType;
+  
+  // Check if intent qualifies for auto-response
+  canAutoRespond(classification: IntentClassification): boolean;
+}
+
+interface IntentClassification {
+  intent: EmailIntent;
+  confidence: number;
+  secondaryIntent: EmailIntent | null;
+  entities: ExtractedEntity[];
+  suggestedActions: string[];
+  requiresHumanReview: boolean;
+  reasoning: string;
+}
+
+type EmailIntent =
+  | 'pricing_inquiry'
+  | 'technical_support'
+  | 'documentation_help'
+  | 'feature_request'
+  | 'bug_report'
+  | 'demo_request'
+  | 'enterprise_inquiry'
+  | 'partnership'
+  | 'complaint'
+  | 'refund_request'
+  | 'account_issue'
+  | 'general_inquiry'
+  | 'feedback'
+  | 'getting_started'
+  | 'integration_help'
+  | 'other';`}
+</Code>
+
+### SentimentAnalyzer
+
+Analyze emotional tone and urgency.
+
+<Code language="typescript" title="services/email/ai/sentiment-analyzer.ts">
+{`interface SentimentAnalyzer {
+  // Full AI analysis
+  analyze(email: {
+    subject: string;
+    body: string;
+  }): Promise<SentimentAnalysis>;
+  
+  // Quick pattern-based analysis
+  quickAnalyze(text: string): QuickSentiment;
+  
+  // Get priority based on sentiment
+  getPriorityFromSentiment(analysis: SentimentAnalysis): Priority;
+}
+
+interface SentimentAnalysis {
+  sentiment: 'positive' | 'neutral' | 'negative' | 'frustrated';
+  score: number; // -1 to +1
+  confidence: number;
+  urgency: 'low' | 'normal' | 'high' | 'critical';
+  emotionalTone: string[];
+  customerSatisfaction: 'at_risk' | 'neutral' | 'satisfied';
+  suggestedTone: string;
+}`}
+</Code>
+
+### ResponseGenerator
+
+Generate AI responses with tool use.
+
+<Code language="typescript" title="services/email/ai/response-generator.ts">
+{`interface ResponseGenerator {
+  generate(
+    context: EmailContext,
+    securityResult: SecurityCheckResult,
+    options?: ResponseOptions
+  ): Promise<ResponseGenerationResult>;
+  
+  registerToolHandler(
+    name: string,
+    handler: (input: any) => Promise<any>
+  ): void;
+}
+
+interface ResponseOptions {
+  modelTier?: 'fast' | 'standard' | 'premium'; // haiku | sonnet | opus
+  maxTokens?: number;
+  useTools?: boolean;
+  enableCaching?: boolean;
+}
+
+interface ResponseGenerationResult {
+  response: string;
+  confidenceScore: number;
+  modelUsed: string;
+  reasoning: string;
+  toolsUsed: ToolInvocation[];
+  tokenUsage: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
+  latencyMs: number;
+}`}
+</Code>
+
+### CostTracker
+
+Monitor API usage and costs.
+
+<Code language="typescript" title="services/email/ai/cost-tracker.ts">
+{`interface CostTracker {
+  // Calculate cost for request
+  calculateCost(usage: TokenUsage): CostCalculation;
+  
+  // Record usage to database
+  recordUsage(data: ApiUsageRecord): Promise<void>;
+  
+  // Get daily statistics
+  getDailyStats(date: Date): Promise<DailyStats>;
+  
+  // Get monthly summary
+  getMonthlySummary(year: number, month: number): Promise<MonthlySummary>;
+  
+  // Get cache effectiveness metrics
+  getCacheMetrics(): CacheMetrics;
+}
+
+interface CostCalculation {
+  inputCost: number;
+  outputCost: number;
+  cacheReadCost: number;
+  cacheWriteCost: number;
+  totalCost: number;
+  savingsFromCache: number;
+}
+
+// Pricing per model (per 1M tokens)
+const MODEL_PRICING = {
+  'claude-haiku-4-5': { input: 0.25, output: 1.25 },
+  'claude-sonnet-4': { input: 3.00, output: 15.00 },
+  'claude-opus-4': { input: 15.00, output: 75.00 }
+};`}
+</Code>
+
+## CRM Services
+
+### EmailContactService
+
+Manage email contacts and CRM data.
+
+<Code language="typescript" title="services/email/crm/email-contact-service.ts">
+{`interface EmailContactService {
+  // Get existing or create new contact
+  getOrCreateContact(email: string, data?: Partial<EmailContact>): Promise<EmailContact>;
+  
+  // Update contact information
+  updateContact(id: string, data: Partial<EmailContact>): Promise<EmailContact>;
+  
+  // Record sentiment for trend tracking
+  recordSentiment(id: string, sentiment: SentimentEntry): Promise<void>;
+  
+  // Link to Ring Platform user account
+  linkToRingUser(contactId: string, userId: string): Promise<void>;
+  
+  // Search contacts
+  searchContacts(query: ContactSearchQuery): Promise<EmailContact[]>;
+}
+
+interface EmailContact {
+  id: string;
+  email: string;
+  name: string | null;
+  company: string | null;
+  type: 'lead' | 'customer' | 'partner' | 'vendor' | 'spam';
+  tags: string[];
+  metadata: Record<string, any>;
+  ringUserId: string | null;
+  firstContact: Date;
+  lastContact: Date;
+  totalInteractions: number;
+  sentimentHistory: SentimentEntry[];
+}`}
+</Code>
+
+### EmailTaskService
+
+Manage follow-up tasks and escalations.
+
+<Code language="typescript" title="services/email/crm/task-service.ts">
+{`interface EmailTaskService {
+  // Create manual task
+  createTask(data: CreateTaskData): Promise<EmailTask>;
+  
+  // Auto-create tasks based on rules
+  autoCreateTasks(email: ProcessedEmail): Promise<EmailTask[]>;
+  
+  // Complete task
+  completeTask(id: string, notes?: string): Promise<EmailTask>;
+  
+  // Get tasks for thread
+  getThreadTasks(threadId: string): Promise<EmailTask[]>;
+  
+  // Process overdue tasks
+  processOverdueTasks(): Promise<void>;
+  
+  // Add custom auto-creation rule
+  addRule(rule: TaskCreationRule): void;
+}
+
+interface EmailTask {
+  id: string;
+  threadId: string;
+  title: string;
+  description: string | null;
+  taskType: 'follow_up' | 'escalation' | 'action_required' | 'review';
+  dueDate: Date | null;
+  assignedTo: string | null;
+  status: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  autoGenerated: boolean;
+  triggerReason: string | null;
+}`}
+</Code>
+
+### EmailDraftService
+
+Manage AI-generated response drafts.
+
+<Code language="typescript" title="services/email/drafts/draft-service.ts">
+{`interface EmailDraftService {
+  // Create draft from AI generation
+  createFromGeneration(result: ResponseGenerationResult): Promise<EmailDraft>;
+  
+  // Approve draft for sending
+  approveDraft(id: string, reviewerId: string): Promise<EmailDraft>;
+  
+  // Edit draft before approval
+  editDraft(id: string, content: string, notes?: string): Promise<EmailDraft>;
+  
+  // Reject draft
+  rejectDraft(id: string, reason?: string): Promise<EmailDraft>;
+  
+  // Mark as sent
+  markSent(id: string, messageId: string): Promise<EmailDraft>;
+  
+  // Get pending drafts
+  getPendingDrafts(): Promise<EmailDraft[]>;
+}
+
+interface EmailDraft {
+  id: string;
+  messageId: string;
+  threadId: string;
+  draftContent: string;
+  confidenceScore: number;
+  modelUsed: string;
+  toolsUsed: ToolInvocation[];
+  status: 'pending' | 'approved' | 'edited' | 'sent' | 'rejected' | 'auto_sent';
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  sentAt: Date | null;
+}`}
+</Code>
+
+## Batch Processing
+
+### BatchAnalyticsService
+
+Nightly batch jobs with 50% cost discount.
+
+<Code language="typescript" title="services/email/ai/batch-analytics.ts">
+{`interface BatchAnalyticsService {
+  // Run sentiment trend analysis
+  runSentimentTrendAnalysis(contacts: EmailContact[]): Promise<TrendReport>;
+  
+  // Generate daily summary
+  runDailySummary(data: DailySummaryInput): Promise<DailySummary>;
+  
+  // Review response quality
+  runResponseQualityReview(responses: EmailDraft[]): Promise<QualityReport>;
+  
+  // Run all nightly batch jobs
+  runNightlyBatch(): Promise<BatchResult>;
+}
+
+// Schedule nightly batch at 2 AM
+import cron from 'node-cron';
+
+cron.schedule('0 2 * * *', async () => {
+  const analytics = getBatchAnalyticsService();
+  await analytics.runNightlyBatch();
+});`}
+</Code>
+
+## Security Types
+
+### Input Sanitization
+
+<Code language="typescript" title="services/email/security/input-sanitizer.ts">
+{`interface SanitizationResult {
+  sanitizedContent: string;
+  flaggedPatterns: FlaggedPattern[];
+  riskScore: number;
+  wasModified: boolean;
+  removedCharacters: number;
+}
+
+interface FlaggedPattern {
+  pattern: string;
+  technique: string;
+  severity: 'low' | 'medium' | 'high';
+  position: number;
+}`}
+</Code>
+
+### Injection Classification
+
+<Code language="typescript" title="services/email/security/injection-classifier.ts">
+{`interface InjectionClassification {
+  isAttack: boolean;
+  confidence: number;
+  technique: InjectionTechnique | null;
+  reasoning: string;
+  shouldBlock: boolean;
+  requiresReview: boolean;
+}
+
+type InjectionTechnique =
+  | 'direct_injection'
+  | 'indirect_injection'
+  | 'delimiter_attack'
+  | 'role_hijacking'
+  | 'payload_splitting'
+  | 'encoding_evasion'
+  | 'context_manipulation';`}
+</Code>
+
+### Output Validation
+
+<Code language="typescript" title="services/email/security/output-validator.ts">
+{`interface OutputValidation {
+  isValid: boolean;
+  violations: OutputViolation[];
+  sanitizedResponse: string;
+  requiresHumanReview: boolean;
+}
+
+interface OutputViolation {
+  type: ViolationType;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  redactedContent?: string;
+}
+
+type ViolationType =
+  | 'system_prompt_leak'
+  | 'credential_exposure'
+  | 'pii_exposure'
+  | 'exfiltration_attempt'
+  | 'policy_violation'
+  | 'internal_context_leak';`}
+</Code>
+
+## Database Schema
+
+### Complete ER Diagram
+
+<Mermaid>
+{`erDiagram
+    email_contacts {
+        uuid id PK
+        string email UK
+        string name
+        string company
+        string type
+        jsonb tags
+        string ring_user_id FK
+        timestamp first_contact
+        timestamp last_contact
+        int total_interactions
+        jsonb sentiment_history
+    }
+    
+    email_threads {
+        uuid id PK
+        string external_thread_id
+        string subject
+        string status
+        string priority
+        uuid contact_id FK
+        string intent
+        boolean auto_handled
+        timestamp last_message_at
+    }
+    
+    email_messages {
+        uuid id PK
+        uuid thread_id FK
+        string message_id UK
+        string from_email
+        text body_text
+        string sentiment
+        string intent
+        boolean is_inbound
+        jsonb security_flags
+    }
+    
+    email_drafts {
+        uuid id PK
+        uuid message_id FK
+        uuid thread_id FK
+        text draft_content
+        decimal confidence_score
+        string model_used
+        jsonb tools_used
+        string status
+    }
+    
+    email_tasks {
+        uuid id PK
+        uuid thread_id FK
+        string title
+        string task_type
+        timestamp due_date
+        string status
+        boolean auto_generated
+    }
+    
+    email_contacts ||--o{ email_threads : "has"
+    email_threads ||--o{ email_messages : "contains"
+    email_threads ||--o{ email_drafts : "has"
+    email_threads ||--o{ email_tasks : "generates"
+    email_messages ||--o| email_drafts : "responds to"`}
+</Mermaid>
+
+---
+
+## Integration Example
+
+Complete flow from email receipt to response:
+
+<Code language="typescript" title="Integration Example">
+{`import { 
+  getEmailProcessor,
+  getEmailContactService,
+  getEmailTaskService,
+  getEmailDraftService
+} from '@/services/email';
+
+// Initialize services
+const processor = getEmailProcessor();
+const contactService = getEmailContactService();
+const taskService = getEmailTaskService();
+const draftService = getEmailDraftService();
+
+// Handle new emails
+processor.on('email:received', async (event) => {
+  console.log(\`📧 New email from \${event.from}: \${event.subject}\`);
+});
+
+// Handle security events
+processor.on('email:security_checked', async (result) => {
+  if (!result.passed) {
+    console.warn(\`⚠️ Security blocked: \${result.blockedReason}\`);
+    // Log to security events table
+  }
+});
+
+// Handle auto-sent responses
+processor.on('draft:auto_sent', async ({ draft, messageId }) => {
+  console.log(\`✅ Auto-sent response: \${messageId}\`);
+  // Update analytics
+});
+
+// Handle tasks
+processor.on('task:created', async (task) => {
+  console.log(\`📋 Task created: \${task.title}\`);
+  // Send notification to assignee
+});
+
+// Start processing
+await processor.start();
+console.log('📬 Email processor running...');`}
+</Code>
+
+---
+
+[🔙 Back to API Reference](/en/library/api) | [📧 Email Features](/en/library/features/email-ai-crm)

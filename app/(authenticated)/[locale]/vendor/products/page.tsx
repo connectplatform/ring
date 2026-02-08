@@ -1,6 +1,7 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { ROUTES } from '@/constants/routes'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import VendorProductsWrapper from '@/components/wrappers/vendor-products-wrapper'
 import VendorProductsList from './vendor-products-list'
@@ -23,7 +24,7 @@ export default async function VendorProductsPage({
   
   // Require authentication
   if (!session?.user?.id) {
-    redirect(`/${params.locale}/auth/signin`)
+    redirect(ROUTES.LOGIN(params.locale))
   }
 
   // Check vendor access

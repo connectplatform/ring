@@ -87,7 +87,7 @@ export default async function AddOpportunityPage(props: PageProps) {
     if (!session) {
       console.log('AddOpportunityPage: No session, redirecting to login');
       const returnTo = `/${locale}/opportunities/add${type ? `?type=${type}` : ''}`
-      redirect(`/${locale}/auth/login?returnTo=${encodeURIComponent(returnTo)}`)
+      redirect(`${ROUTES.LOGIN(locale)}?returnTo=${encodeURIComponent(returnTo)}`)
     }
 
     // Step 4: Check user role and permissions

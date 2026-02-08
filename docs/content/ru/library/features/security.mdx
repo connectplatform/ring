@@ -42,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     })
   ],
   pages: {
-    signIn: '/auth/signin',
+    signIn: '/login',
     error: '/auth/error',
   },
   callbacks: {
@@ -141,7 +141,7 @@ export async function createEntity(formData: FormData) {
 
   // Проверка аутентификации
   if (!session?.user) {
-    redirect('/auth/signin')
+    redirect('/login')
   }
 
   // Проверка авторизации

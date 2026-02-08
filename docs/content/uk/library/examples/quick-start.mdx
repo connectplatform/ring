@@ -21,7 +21,7 @@ export default async function HomePage() {
   const session = await auth()
   
   if (!session) {
-    redirect('/auth/signin')
+    redirect('/login')
   }
 
   return (
@@ -135,7 +135,7 @@ export function EntityList() {
 
 ### Автентифікація через Magic Link
 
-// app/auth/signin/page.tsx
+// app/(public)/[locale]/login/page.tsx
 
 <Code language="typescript" title="TypeScript">
 {`'use client'

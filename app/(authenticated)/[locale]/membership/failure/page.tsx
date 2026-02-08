@@ -23,12 +23,11 @@ export default async function MembershipFailurePage({
   params,
   searchParams
 }: MembershipFailurePageProps) {
+  const { locale } = await params
   const session = await auth()
   if (!session?.user) {
-    redirect('/auth/signin')
+    redirect(`/${locale}/login`)
   }
-
-  const { locale } = await params
   const { orderId, reason } = await searchParams
 
   // Decode reason if present
