@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://ring-platform.org/ring-logo.svg" alt="Ring Platform Logo" width="120" height="120" />
+  <img src="public/logo.svg" alt="Ring Platform Logo" width="120" height="120" />
 </p>
 
 <h1 align="center">Ring Platform</h1>
