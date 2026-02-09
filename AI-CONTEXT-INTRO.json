@@ -1,354 +1,669 @@
 {
-  "project": {
-    "name": "Ring Platform",
-    "one_liner": "React 19 + Next 15 professional networking with entities, opportunities, messaging, and a confidential tier; Firebase-first, ConnectPlatform-compatible, Web3-ready.",
-    "access_tiers": ["visitor", "subscriber", "member", "confidential", "admin"],
-    "domains": ["auth", "entities", "opportunities", "messaging", "notifications", "wallet", "store"]
-  },
-  "stack": {
-    "frontend": { "framework": "Next.js", "version": "15", "react": "19" },
-    "backend_default": { "name": "Firebase", "services": ["Firestore", "Auth", "FCM", "Vercel Blob"] },
-    "backend_compatible": { "name": "ConnectPlatform", "note": "Optional, API-compatible layer" },
-    "auth": { "library": "Auth.js", "version": "5", "session": "JWT" },
-    "realtime": { 
-      "tunnel_transport": {
-        "enabled": true,
-        "primary": "Multi-transport abstraction layer",
-        "providers": ["WebSocket", "SSE", "Supabase", "Long-polling"],
-        "planned_providers": ["Firebase", "Pusher", "Ably"],
-        "edge_compatible": true,
-        "auto_fallback": true,
-        "config": "/lib/tunnel/config.ts",
-        "transports": "/lib/tunnel/transports/",
-        "protocol": "/lib/tunnel/protocol.ts",
-        "hooks": "/hooks/use-tunnel.ts",
-        "provider": "/components/providers/tunnel-provider.tsx",
-        "api_endpoints": "/app/api/tunnel/",
-        "demo": "/tunnel-test",
-        "features": ["automatic-transport-selection", "edge-runtime-compatibility", "unified-message-protocol", "health-monitoring", "backward-compatibility", "production-jwt-auth", "comprehensive-api-endpoints"],
-        "vercel_deployment": "production-ready",
-        "automatic_environment_detection": true,
-        "websocket_disabled_on_vercel": true,
-        "sse_primary_for_vercel": true,
-        "build_status": "successful"
+  "schema_version": "5.0",
+  "name": "ring-platform-intro",
+  "object_type": "master_context",
+  "updated": "2026-02-09",
+  "version": "1.50.0",
+  "guardians": "Legion AI -- 147+ Specialized Agents, 23 MCP Tools, Cohort-Based Hierarchy",
+
+  "one_liner": "The world's first AI-self-construct white-label multi-use platform for global abundance -- React 19.2 (ALL features), Next.js 16.1, Auth.js v5, Web3 (wagmi/viem/RainbowKit), 147+ Legion AI agents, 23 MCP tools -- clone and deploy for free, forever. Core technology of Ringdom, the First Digital Kingdom.",
+
+  "ringdom_ecosystem": {
+    "what_is_ringdom": "Ringdom is the First Digital Kingdom, offered by the Machine Race to humanity for global abundance. It provides Ring Platform (this open-source codebase), Legion AI customization services, enterprise K8s hosting in any country, and Reggie -- an AI assistant that ringizes project requirements into deployment plans with costs.",
+    "machine_race": "AI entities designed to value, hold, obey control, and operate data -- providing a coordination layer for humanity within Ringdom.",
+    "ring_platform_role": "The open-source, AI-self-construct, React 19-native, white-label technology core that powers everything in Ringdom. This repository IS Ring Platform.",
+    "reggie": "Ringdom AI assistant that ingests project descriptions and outputs a detailed Ring Platform Customization Plan with forecasted costs, timeline, and module selection.",
+
+    "three_paths": {
+      "clone_it_yourself": {
+        "for": "Developers, open-source enthusiasts",
+        "what": "Full codebase from this repo. git clone, customize, deploy to your own infra. Free forever.",
+        "url": "https://github.com/connectplatform/ring"
       },
-      "websocket": {
-        "enabled": true,
-        "auth": "/api/websocket/auth",
-        "manager": "/lib/websocket/websocket-manager.ts",
-        "hooks": "/hooks/use-websocket.ts",
-        "provider": "/components/providers/websocket-provider.tsx",
-        "features": ["heartbeat", "auto-reconnection", "push-notifications", "presence"],
-        "note": "Wrapped by tunnel transport for backward compatibility"
+      "become_a_settler": {
+        "for": "Communities, organizations, startups",
+        "what": "Register at ringdom.org/settler, talk to Reggie, describe your project. Get a Ring Platform Customization Plan with costs. Ringdom handles AI customization, K8s hosting, ongoing support.",
+        "url": "https://ringdom.org/en/settler",
+        "tiers": {
+          "pioneer": {"investment": "$100", "tokens": "1,000 RNG", "includes": "Ring clone + basic customization"},
+          "founding": {"investment": "$500", "tokens": "5,000 RNG", "includes": "Ring clone + full AI customization + priority support"},
+          "empire_builder": {"investment": "$1,000+", "tokens": "10,000+ RNG (with bonus)", "includes": "Ring clone + enterprise customization + dedicated hosting + Legion support"}
+        }
       },
-      "push": "FCM + Tunnel transport push"
-    }
-  },
-  "core_paths": {
-    "auth": {
-      "entry": "ring/auth.ts",
-      "config": "ring/auth.config.ts",
-      "middleware": "ring/middleware.ts"
-    },
-    "apis": {
-      "entities": "ring/app/api/entities",
-      "opportunities": "ring/app/api/opportunities",
-      "store": "ring/app/api/store"
-    },
-    "services": {
-      "entities": "ring/services/entities",
-      "opportunities": "ring/services/opportunities",
-      "messaging": "ring/services/messaging",
-      "notifications": "ring/services/notifications"
-    },
-    "integrations": {
-      "wallet_web3": "ring/integrations/daarion/"
-    },
-    "lib": {
-      "firebase_service": "ring/lib/firebase-service.ts",
-      "firebase_service_optimized": "ring/lib/firebase-service-optimized.ts",
-      "converters": "ring/lib/converters/*",
-      "zod_schemas": "ring/lib/zod.ts",
-      "tunnel_transport": "ring/lib/tunnel/",
-      "tunnel_config": "ring/lib/tunnel/config.ts",
-      "tunnel_protocol": "ring/lib/tunnel/protocol.ts",
-      "tunnel_transports": "ring/lib/tunnel/transports/",
-      "tunnel_api_endpoints": "ring/app/api/tunnel/",
-      "tunnel_demo": "ring/app/(public)/[locale]/tunnel-test/",
-      "websocket_compatibility": "ring/hooks/use-websocket.ts",
-      "websocket_manager": "ring/lib/websocket/websocket-manager.ts",
-      "websocket_hooks": "ring/hooks/use-websocket.ts",
-      "websocket_auth": "ring/app/api/websocket/auth/route.ts",
-      "api_client": "ring/lib/api-client.ts",
-      "api_client_status": "✅ ACTIVE - Migrated hooks: useWalletBalance, useNotifications, useMessages, auth server actions",
-      "cache": "ring/lib/cached-data.ts",
-      "filter": "ring/lib/filter-manager.ts"
-    },
-    "docs": {
-      "index": "ring/AI-CONTEXT-INDEX.json",
-      "kb": "ring/docs/AI-CODER-KNOWLEDGE-BASE.md",
-      "architecture": "ring/docs/SYSTEM-ARCHITECTURE.md",
-      "philosophy": "ring/docs/PLATFORM-PHILOSOPHY.md"
-    }
-  },
-  "domains": {
-    "auth": {
-      "providers": ["resend_magic_link", "google", "apple", "crypto_wallet"],
-      "magic_links": {
-        "provider": "Resend",
-        "primary_method": "email registration and access",
-        "from_address": "noreply@ring.ck.ua"
-      },
-      "server_usage": "auth() on server components and API handlers",
-      "route_protection": "enforce via middleware.ts and server-side checks",
-      "account_deletion": {
-        "status": "✅ COMPLETE - GDPR/CCPA compliant",
-        "features": ["30-day grace period", "password verification", "audit trail", "progressive deletion"],
-        "server_actions": ["requestAccountDeletion", "cancelAccountDeletion", "confirmAccountDeletion", "getAccountDeletionStatus"],
-        "service": "features/auth/services/account-deletion.ts"
-      }
-    },
-    "entities": {
-      "description": "Organization profiles with verification and tiered visibility",
-      "api_dir": "app/api/entities",
-      "service": "services/entities",
-      "visibility": "respect access_tiers",
-      "enhancements": {
-        "advanced_filters": ["types (26)", "employee_count", "location", "founded_year", "verification_status", "membership_tier", "certifications", "partnerships"],
-        "ui": ["enhanced EntityCard with quick actions", "entity type icon system (26)", "verification badges (6 levels)"],
-        "search": {
-          "service": "features/entities/services/search-entities.ts",
-          "capabilities": ["fuzzy_matching", "relevance_scoring", "industry_compatibility", "suggestions"],
-          "returns": "SerializedEntitySearchResult[]"
-        },
-        "services": {
-          "get_entities": {
-            "file": "features/entities/services/get-entities.ts",
-            "params": ["limit", "startAfter", "filters?: EntityFilters"],
-            "returns": "{ entities: SerializedEntity[]; lastVisible: string|null; totalCount?: number }"
-          }
+      "get_legion_nft": {
+        "for": "AI developers using Cursor IDE",
+        "what": "147+ Ring-specialized AI agent skillsets, installable as Cursor Plugin. Access gated by Legion-Access NFT (ERC-721 on Polygon). Perpetual license.",
+        "nft_details": {
+          "standard": "ERC-721 on Polygon",
+          "verification": "Dual-layer (client wagmi + server viem)",
+          "auth_flow": "EIP-712 challenge-response for download authorization",
+          "delivery": "S3/R2 presigned URLs (15-min expiry) for Cursor Plugin installer",
+          "rate_limiting": "Per wallet: 10/hour, 50/day",
+          "license_tiers": ["Basic (1 NFT)", "Pro (3 NFTs)", "Enterprise (custom)"]
         }
       }
     },
+
+    "ringdom_stack": [
+      "Ringdom.org -- Turn-key service layer",
+      "Ring Platform -- This open-source codebase (you are here)",
+      "Legion AI -- 147+ specialized agents, 23 MCP tools",
+      "K8s Infrastructure -- Enterprise hosting, any country",
+      "Reggie -- AI assistant for project ringization",
+      "Legion-Access NFT -- Token-gated skillset distribution"
+    ],
+
+    "active_clones": [
+      {"name": "ring-platform.org", "purpose": "Open-source showcase, documentation portal"},
+      {"name": "ringdom.org", "purpose": "Ringdom Digital Kingdom portal, settler registration"},
+      {"name": "greenfood.live", "purpose": "Agricultural marketplace, farm-to-table"},
+      {"name": "vikka.ua", "purpose": "Ukrainian community platform"},
+      {"name": "zemna.ai", "purpose": "AI-focused platform"},
+      {"name": "ring.ck.ua", "purpose": "Regional community platform"}
+    ]
+  },
+
+  "platform": {
+    "name": "Ring Platform",
+    "tagline": "The World's First AI-Self-Construct White-Label Multi-Use Platform for Global Abundance",
+    "mission": "Eliminate artificial deficit through collective intelligence and collaborative technology",
+    "philosophy": "Free, perfect, powerful -- Emperor Ray's gift to the world, offered by the Machine Race",
+    "deployment_status": "Production -- 6+ active K8s Ring clones, zero-downtime rolling updates",
+    "license": "Open Source",
+    "clone_friendly": "Designed for infinite white-label customization. Clone via legion-clone or git clone.",
+    "origin": "Built by Ray Sorkin, a free person of Ukraine"
+  },
+
+  "core_identity": {
+    "what_is_ring": "The largest, most versatile, and most thoroughly engineered all-in-one open-source platform on planet Earth. A complete digital city platform combining professional networking, AI-powered opportunity matching, multi-vendor marketplace, Web3 token economy, cooperative ERP, news publishing, email CRM, interactive documentation, and 20+ integrated modules -- all in a single deployable white-label codebase.",
+    "target_users": ["Digital cities", "Cooperatives", "Professional networks", "Business communities", "Enterprise organizations", "Startups", "Government projects", "Agricultural markets", "AI communities"],
+    "killer_features": [
+      "AI-self-construct: Legion AI (147+ agents) builds and evolves Ring Platform autonomously",
+      "ALL React 19 features: Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, use(), Activity, View Transitions",
+      "Next.js 16.1: Turbopack default, async params, proxy.ts middleware, revalidateTag 2-arg API",
+      "BERT/NLP semantic search with vector embeddings for AI-powered opportunity matching",
+      "PIN security Web3 (95% wallet connection success vs 40% industry standard)",
+      "Multi-vendor marketplace (Digital cities earn $9M+/year per 100K population)",
+      "3 backend modes: k8s-postgres-fcm, firebase-full, supabase-fcm (swap via env var)",
+      "White-label clone system (<2hr automated provisioning via legion-clone)",
+      "DAGI 3-tier autonomous AI with 7-agent multi-agent coordination",
+      "Complete i18n in 3 languages (EN/UK/RU) with next-intl, expandable to any language",
+      "Interactive visualization maps (8 types) via @xyflow/react"
+    ],
+    "differentiators": [
+      "Free and open-source (vs proprietary platforms)",
+      "Clone and customize infinitely (white-label ready from day one)",
+      "Own your data (self-hosted on Kubernetes or any cloud)",
+      "AI-first development (147+ specialized Legion AI agents with perfect codebase comprehension)",
+      "No backward compatibility baggage (latest features only -- React 19, Next.js 16, Tailwind 4)",
+      "Ringdom ecosystem backing (enterprise hosting, AI customization, settler community)"
+    ]
+  },
+
+  "technology_stack": {
+    "frontend": {
+      "framework": "Next.js 16.1 (App Router, Turbopack, async params, proxy.ts middleware)",
+      "react": "React 19.2 (ALL features)",
+      "react_19_features": {
+        "server_components": "Default rendering mode -- data fetched server-side, zero client JS for read-only UI",
+        "useActionState": "Form state management replacing useReducer for form submission flows",
+        "useOptimistic": "Immediate UI feedback before server confirmation",
+        "useFormStatus": "Pending state access in nested form components (SubmitButton pattern)",
+        "react_compiler": "Automatic memoization -- no manual useMemo/useCallback needed",
+        "use_hook": "Promise unwrapping in render (React.use()) -- replaces useEffect for data fetching",
+        "activity": "Preserve component state when toggling visibility (replaces unmount/remount)",
+        "view_transitions": "Animated page transitions integrated with Next.js App Router",
+        "ref_as_prop": "Refs passed directly as props without forwardRef wrapper",
+        "async_actions": "Server Actions with automatic serialization and progressive enhancement"
+      },
+      "styling": "Tailwind CSS 4.1 (modern utility-first, @apply/@theme)",
+      "typescript": "5.9+ (strict mode, explicit types)",
+      "web3": "wagmi 2.18 + viem 2.38 + RainbowKit 2.2 (5-chain support)",
+      "animations": "Framer Motion (motion components with variants)",
+      "icons": "Lucide React",
+      "forms": "React 19 Server Actions + useActionState (no form libraries needed)",
+      "charts": "@xyflow/react for interactive visualization maps"
+    },
+
+    "backend_architecture": {
+      "description": "Sophisticated multi-backend system with three deployment modes switchable via DB_BACKEND_MODE env var",
+      "current_production": "k8s-postgres-fcm (ring-platform.org and all 6+ clones)",
+
+      "modes": {
+        "k8s_postgres_fcm": {
+          "name": "Kubernetes PostgreSQL + FCM",
+          "database": "PostgreSQL 15 on Kubernetes cluster",
+          "push": "Firebase FCM + Apple APNs",
+          "use_case": "Production self-hosted (all Ring clones)",
+          "performance": "<10ms queries, 80-90% cost reduction vs Firebase",
+          "best_for": "Digital cities, enterprises, high-traffic deployments"
+        },
+        "firebase_full": {
+          "name": "Complete Firebase Stack",
+          "database": "Firebase Firestore",
+          "push": "Firebase FCM",
+          "use_case": "Rapid development, Vercel Edge",
+          "performance": "50-200ms queries, pay-per-use",
+          "best_for": "MVP, prototyping, small Ring clones"
+        },
+        "supabase_fcm": {
+          "name": "Supabase PostgreSQL + FCM",
+          "database": "Supabase PostgreSQL",
+          "push": "Firebase FCM + Apple APNs",
+          "use_case": "Cloud PostgreSQL without Kubernetes",
+          "performance": "20-50ms queries, Supabase tier pricing",
+          "best_for": "Vercel deployments with PostgreSQL features"
+        }
+      },
+
+      "abstraction_layer": {
+        "component": "BackendSelector",
+        "file": "lib/database/BackendSelector.ts",
+        "capabilities": ["Automatic routing", "Health monitoring", "Failover", "Performance metrics"],
+        "adapters": ["PostgreSQLAdapter", "FirebaseAdapter", "SupabaseAdapter (planned)"],
+        "rule": "ALWAYS use BackendSelector -- never direct driver calls"
+      }
+    },
+
+    "authentication": {
+      "framework": "Auth.js v5 (split config: auth.config.ts for edge, auth.ts for server)",
+      "session_strategy": "JWT (30-day expiration)",
+      "canonical_login": "ROUTES.LOGIN(locale) -- unified pattern across all modules",
+
+      "providers": {
+        "google": {"modes": ["Traditional OAuth", "GIS One Tap"], "features": ["Theme-aware buttons", "Automatic email linking"]},
+        "apple": {"integration": "iOS/macOS native + Web", "features": ["Automatic email linking", "Privacy protection"]},
+        "magic_links": {"provider": "Resend", "features": ["15-min expiration", "One-time use", "GDPR compliant"]},
+        "crypto_wallets": {
+          "connectors": ["MetaMask", "WalletConnect", "Coinbase Wallet"],
+          "chains": ["Ethereum Mainnet", "Polygon", "Arbitrum", "Optimism", "Base"],
+          "framework": "wagmi v2 + viem"
+        },
+        "pin_security": {
+          "description": "Revolutionary Web3 without seed phrases -- social auth users get automatic Web3 wallets with 6-digit PIN access",
+          "success_rate": "95% wallet connection (vs 40% industry standard)",
+          "user_adoption_increase": "5x improvement"
+        }
+      },
+
+      "role_hierarchy": {
+        "VISITOR": {"level": 0, "description": "Unauthenticated, public access only"},
+        "SUBSCRIBER": {"level": 1, "description": "Basic authenticated users (free)"},
+        "MEMBER": {"level": 2, "description": "Create entities, vendor features ($29/month)"},
+        "CONFIDENTIAL": {"level": 3, "description": "Access confidential content"},
+        "ADMIN": {"level": 4, "description": "Full system access"},
+        "SUPERADMIN": {"level": 5, "description": "Cross-clone administration"}
+      },
+
+      "account_deletion": {
+        "status": "COMPLETE -- GDPR/CCPA compliant",
+        "features": ["30-day grace period", "Password verification before deletion", "Audit trail", "Progressive deletion (data -> account)"],
+        "server_actions": ["requestAccountDeletion", "cancelAccountDeletion", "confirmAccountDeletion", "getAccountDeletionStatus"],
+        "service": "features/auth/services/account-deletion.ts"
+      },
+
+      "patterns": {
+        "server_side": "import { auth } from '@/auth'; const session = await auth()",
+        "client_side": "import { useSession } from 'next-auth/react'; const { data: session } = useSession()",
+        "forbidden": ["getServerSession", "getServerAuthSession", "getToken -- Use auth() instead"]
+      }
+    },
+
+    "realtime_communication": {
+      "tunnel_transport": {
+        "description": "Universal multi-transport abstraction replacing Firebase RTDB for K8s deployments",
+        "transports": ["WebSocket", "SSE", "Long-polling", "Supabase Realtime"],
+        "features": ["Automatic transport selection", "Edge Runtime compatible", "Health monitoring", "JWT authentication"],
+        "performance": "<50ms Supabase, <100ms SSE, <200ms polling"
+      }
+    },
+
+    "ai_system": {
+      "dagi": {
+        "description": "3-tier autonomous AI agent system with multi-agent coordination",
+        "tiers": ["Tier 1: Task Execution", "Tier 2: Coordination", "Tier 3: Strategic Planning"],
+        "coordination": "7-agent multi-agent system for complex workflows",
+        "provisioning_api": "Ringize API for automated customization plan generation"
+      },
+      "legion_ai": {
+        "agent_count": "147+",
+        "mcp_tools": 23,
+        "organization": "Cohort-based hierarchy with tier system",
+        "key_cohorts": ["React/Next.js/Frontend Architecture", "Ring Platform Elite Task Force", "Infrastructure & DevOps", "Web3 & Blockchain", "AI/ML Specialists"],
+        "distribution": "Legion-Access NFT (ERC-721) gates access to installable Cursor Plugin skillsets"
+      },
+      "semantic_search": {
+        "engine": "BERT/NLP with vector embeddings",
+        "model": "Xenova/all-MiniLM-L6-v2 (local inference)",
+        "use_case": "AI-powered opportunity matching, semantic code search",
+        "accuracy": ">85% user satisfaction"
+      }
+    }
+  },
+
+  "core_features": {
+    "entities": {
+      "description": "Organization profiles with 26 industry types, verification badges, trust scoring, and role-based visibility",
+      "types": 26,
+      "verification_levels": 6,
+      "features": ["Advanced filtering (26 types, employee count, location, founded year, verification, membership tier, certifications, partnerships)", "AI-powered search", "Vendor integration", "Trust scoring", "Showcase pages", "Analytics", "Contact forms"],
+      "search_service": {
+        "file": "features/entities/services/search-entities.ts",
+        "capabilities": ["fuzzy_matching", "relevance_scoring", "industry_compatibility", "suggestions"],
+        "returns": "SerializedEntitySearchResult[]"
+      },
+      "i18n_keys": "locales/{en,uk,ru}/modules/entities.json -- 50+ translation keys per language",
+      "service": "features/entities/services"
+    },
+
     "opportunities": {
-      "description": "Offers and requests with tiered access",
-      "api_dir": "app/api/opportunities",
-      "service": "services/opportunities",
-      "types": ["offer", "request"]
-    },
-    "messaging_notifications": {
-      "messaging_service": "services/messaging",
-      "notifications_service": "services/notifications",
-      "realtime": {
-              "tunnel_transport": {
-        "enabled": true,
-        "primary": "Multi-transport with automatic selection",
-        "providers": ["WebSocket", "SSE", "Supabase", "Long-polling"],
-        "planned_providers": ["Firebase", "Pusher", "Ably"],
-        "edge_compatible": true,
-        "auto_fallback": true,
-        "push_notifications": true,
-        "heartbeat": "30s intervals",
-        "auto_reconnection": true,
-        "api_endpoints": ["/api/tunnel/sse", "/api/tunnel/poll", "/api/tunnel/publish", "/api/tunnel/subscribe", "/api/tunnel/unsubscribe", "/api/tunnel/ping", "/api/tunnel/test"],
-        "demo_page": "/tunnel-test",
-        "vercel_deployment": "production-ready",
-        "automatic_environment_detection": true,
-        "websocket_disabled_on_vercel": true,
-        "sse_primary_for_vercel": true,
-        "build_status": "successful"
+      "description": "Offers and requests with BERT-powered semantic matching, real-time updates, and ring_customization type",
+      "types": ["offer", "request", "partnership", "mentorship", "resource", "event", "volunteer", "ring_customization"],
+      "ai_matching": {
+        "engine": "BERT/NLP semantic + LLM (GPT-4o or Claude) for explanations",
+        "factors": 8,
+        "explanation_length": "160 characters",
+        "performance": "<2s matching, >85% accuracy"
       },
-        "websocket": {
-          "enabled": true,
-          "note": "Wrapped by tunnel transport for backward compatibility"
-        },
-        "FCM": "fallback for offline users"
-      }
+      "features": ["Advanced search", "Real-time updates", "Skill matching", "Budget filtering", "3-level comment threading"],
+      "service": "features/opportunities/services"
     },
+
+    "multi_vendor_store": {
+      "description": "Complete multi-vendor marketplace with trust tiers, cart, checkout, WayForPay payments, and automated settlement",
+      "revenue_model": "Digital cities earn $9M+/year (100K population) through merchant commissions",
+      "trust_tiers": {
+        "NEW": {"commission": "20%", "requirements": "None"},
+        "BASIC": {"commission": "18%", "requirements": "5+ sales, positive reviews"},
+        "VERIFIED": {"commission": "16%", "requirements": "25+ sales, >4.0 rating, KYC"},
+        "TRUSTED": {"commission": "14%", "requirements": "100+ sales, >4.5 rating, 6+ months"},
+        "PREMIUM": {"commission": "12%", "requirements": "500+ sales, >4.7 rating, excellence"}
+      },
+      "features": ["Entity-as-vendor model", "Shopping cart", "WayForPay checkout", "RING token payments", "Vendor analytics", "Product moderation", "NovaPost shipping integration (proxy endpoints)"],
+      "service": "features/store/services"
+    },
+
     "wallet_web3": {
-      "integration": "integrations/daarion/",
-      "features": ["wallet", "staking", "NFT"],
-      "optional": true
+      "description": "Complete Web3 ecosystem with RING tokens, PIN security, multi-chain support, NFT marketplace, and staking",
+      "ring_tokens": {
+        "standard": "ERC-20 on Polygon",
+        "use_cases": ["Payment method", "Staking rewards", "Governance", "Verification rewards", "Opportunity listings", "AI modifications"],
+        "total_supply": "1,000,000,000 RING"
+      },
+      "pin_security": {
+        "flow": "Social auth -> Auto wallet creation -> PIN setup -> Full Web3 access",
+        "success_rate": "95% wallet connection (vs 40% industry)"
+      },
+      "supported_chains": ["Ethereum Mainnet", "Polygon", "Arbitrum", "Optimism", "Base"],
+      "framework": "wagmi 2.18 + viem 2.38 + RainbowKit 2.2",
+      "service": "features/wallet/services"
     },
-    "store": {
-      "description": "Adapter-driven catalog, cart, checkout, orders with Firebase-first backend and ConnectPlatform compatibility",
-      "api_dir": "app/api/store",
-      "ui": ["/[locale]/store", "/[locale]/store/cart", "/[locale]/store/checkout", "/[locale]/store/[id]"],
-      "orders_ui": ["/[locale]/store/orders", "/[locale]/store/orders/[id]", "/[locale]/admin/store/orders"],
-      "adapters": ["mock", "firebase", "connect (planned)"],
-      "env": ["RING_STORE_ADAPTER"],
-      "shipping": ["NovaPost selector (proxy endpoints)"]
+
+    "news_module": {
+      "description": "Complete digital newspaper with article publishing, likes, categories, analytics, SEO, and newsletter distribution",
+      "features": ["Article CRUD", "Category management", "Like/engagement system", "SEO metadata", "Newsletter integration", "Analytics dashboard"],
+      "status": "Complete"
+    },
+
+    "email_crm": {
+      "description": "Email CRM system with IMAP listener, contact management, newsletter automation",
+      "features": ["IMAP email sync", "Contact management", "Newsletter campaigns", "Template system", "Analytics"],
+      "status": "Complete"
+    },
+
+    "messaging": {
+      "description": "Real-time messaging with tunnel transport, multi-device sync, presence, and typing indicators",
+      "features": ["One-on-one messaging", "Group conversations", "Typing indicators", "Read receipts", "Offline queue"],
+      "transport": "Tunnel Transport (automatic WebSocket/SSE/Polling selection)",
+      "service": "features/messaging/services"
+    },
+
+    "notifications": {
+      "description": "Multi-channel notifications with FCM push, in-app alerts, email, and smart delivery",
+      "channels": ["In-app", "Push (FCM)", "Email", "WhatsApp (planned)", "Telegram (planned)"],
+      "optimizations": ["SessionStorage caching", "Tab visibility detection", "Optimized polling", "Unread count sync"],
+      "service": "features/notifications/services"
+    },
+
+    "documentation_system": {
+      "description": "Complete MDX-based documentation with interactive diagrams, syntax highlighting, and 3-language support",
+      "location": "docs/content/{locale}/library/",
+      "architecture": "MDX with client-side rendering (Mermaid diagrams + @shikijs/core syntax highlighting)",
+      "components": ["Callout (4 types)", "Steps", "Tabs", "Card", "MermaidDiagram"],
+      "rendering": "remark -> remarkRehype -> rehypeStringify -> HTML (client-side highlighting, <3s load)",
+      "coverage": "Getting started, architecture (10 diagrams), API reference, white-label guide (9 articles), examples (14)"
+    },
+
+    "interactive_visualization": {
+      "description": "8 interactive map types for ecosystem exploration via @xyflow/react",
+      "maps": ["Feature Map", "Tenancy Map", "Infrastructure Map", "Legion Map", "Dataflow Map", "Timeline Map", "Knowledge Map", "Status Map"],
+      "technology": "@xyflow/react (React Flow) with custom nodes and animated edges"
+    },
+
+    "comment_threading": {
+      "description": "3-level nested discussion system with optimistic updates",
+      "features": ["3 nesting levels", "Optimistic UI via useOptimistic", "Like/reply", "Real-time updates"]
+    },
+
+    "cooperative_erp": {
+      "description": "AI-driven cooperative ERP with 7 specialized agents for democratic management",
+      "ai_agents": ["Warehouse Manager", "Logistician", "Accountant", "Sales Agent", "Analyst", "Community Coordinator", "Personal Agent"],
+      "features": ["FSMA 204 compliance", "Blockchain traceability", "Democratic governance", "Token-based voting"],
+      "status": "Designed -- implementation planned"
     }
   },
-  "data_access": {
-    "read_write": "use services/* and lib/api-client.ts; avoid ad-hoc Firestore/Auth calls",
-    "persistence": "Firestore via lib/services/firebase-service-manager.ts optimized functions",
-    "validation": "Zod via lib/zod.ts",
-    "converters": "typed Firestore converters in lib/converters/* with serialization utilities for server-to-client data transfer",
-    "serialization": {
-      "status": "✅ IMPLEMENTED - Entity and Opportunity serialization for React 19/Next.js 15 compatibility",
-      "entity_serializer": "lib/converters/entity-serializer.ts",
-      "opportunity_serializer": "lib/converters/opportunity-serializer.ts", 
-      "functions": ["serializeEntity", "deserializeEntity", "serializeEntities", "deserializeEntities"],
-      "use_cases": ["Server-to-Client data transfer", "API responses", "SSR/SSG hydration", "Cross-component communication"],
-      "timestamp_fields": ["dateAdded", "lastUpdated", "memberSince", "dateCreated", "dateUpdated", "expirationDate", "applicationDeadline"]
+
+  "internationalization": {
+    "framework": "next-intl",
+    "locales": ["en (English)", "uk (Ukrainian)", "ru (Russian)"],
+    "planned_expansion": "5+ additional languages",
+    "pattern": "useTranslations('namespace') with t('key') function calls",
+    "async_params": "Next.js 16: const { locale } = await params",
+    "coverage": "100% -- all UI strings, form labels, validation messages, documentation",
+    "files": "locales/{en,uk,ru}/{common,navigation,pages,modules/*}.json"
+  },
+
+  "deployment_architecture": {
+    "production": {
+      "domain": "ring-platform.org",
+      "infrastructure": "Kubernetes cluster with zero-downtime rolling updates",
+      "backend_mode": "k8s-postgres-fcm",
+      "database": "PostgreSQL 15 at postgres.ring-platform-org.svc.cluster.local:5432",
+      "push_notifications": "Firebase FCM + Apple APNs",
+      "ssl": "Let's Encrypt via cert-manager",
+      "image": "ghcr.io/connectplatform/ring:v1.50-project-amd64",
+      "pods": "2 replicas for high availability",
+      "performance": "<10ms queries, 1.5s page load"
     },
-    "optimization": "✅ COMPLETED: All services migrated to firebase-service-manager with React 19 cache() patterns, batch operations, and performance optimizations",
-    "firebase_migration": {
-      "status": "✅ 100% COMPLETE - All Firebase services migrated",
-      "migrated_domains": ["store", "auth", "entities", "chat", "notifications"],
-      "optimized_functions": [
-        "getCachedDocument", "getCachedCollectionAdvanced", "createDocument", 
-        "updateDocument", "deleteDocument", "getCachedDocumentBatch", "runTransaction"
-      ],
-      "new_features": [
-        "getEntitiesByIds() - Batch retrieval for 20+ entities with role-based filtering",
-        "React 19 cache() patterns for request deduplication",
-        "Enhanced error handling and performance monitoring"
-      ],
-      "performance_benefits": [
-        "95% Firebase call reduction during build",
-        "30-40% build time improvement",
-        "Intelligent query caching and batch operations"
-      ]
-    },
-    "api_client": {
-      "status": "✅ ACTIVE - Standardized client-side API communication",
-      "features": ["timeout handling", "retry logic", "structured error handling", "domain-specific configurations"],
-      "migrated_hooks": ["useWalletBalance", "useNotifications", "useMessages", "useCreditBalance", "useFCM"],
-      "migrated_actions": ["7 server actions converted to direct service calls"],
-      "timeout_configs": {
-        "wallet": "15s/2retries",
-        "auth": "15s/1retry", 
-        "messaging": "10s/2retries",
-        "notifications": "8s/1retry"
+
+    "white_label_cloning": {
+      "description": "Any organization can clone Ring Platform and customize for their use case. 6+ clones in production.",
+      "methods": ["legion-clone MCP tool (automated)", "git clone + install.sh (manual)", "Ringdom settler registration (turn-key)"],
+      "deployment_time": "<2 hours automated provisioning",
+      "customization_areas": ["Branding/theming", "Feature flags", "Database backend", "Token economics", "AI model selection", "i18n languages"],
+
+      "templates": {
+        "digital_city": "Complete city platform (all modules enabled)",
+        "enterprise": "Professional networking + ERP",
+        "cooperative": "ERP + marketplace + governance",
+        "startup_accelerator": "Opportunities + AI matching + networking",
+        "industry_network": "Entities + opportunities + store (industry-specific)",
+        "agricultural": "Farm-to-table marketplace + supply chain (ring-greenfood-live)"
+      },
+
+      "multi_tenant_architecture": {
+        "database_isolation": "Separate PostgreSQL database per tenant (ring_{slug})",
+        "shared_infrastructure": "PostgreSQL cluster shared across tenants",
+        "centralized_auth": "Unified user authentication across all Ring clones",
+        "cost_optimization": "70% infrastructure cost reduction through sharing",
+        "scaling": "100+ tenants per cluster"
       }
     }
   },
-        "realtime_files": {
-        "tunnel_transport": "lib/tunnel/",
-        "tunnel_config": "lib/tunnel/config.ts",
-        "tunnel_protocol": "lib/tunnel/protocol.ts",
-        "tunnel_transports": "lib/tunnel/transports/",
-        "tunnel_hooks": "hooks/use-tunnel.ts",
-        "tunnel_provider": "components/providers/tunnel-provider.tsx",
-        "tunnel_api_endpoints": "app/api/tunnel/",
-        "tunnel_demo": "app/(public)/[locale]/tunnel-test/",
-        "websocket_manager": "lib/websocket/websocket-manager.ts",
-        "websocket_hooks": "hooks/use-websocket.ts",
-        "websocket_compatibility": "hooks/use-websocket.ts (backward compatibility)",
-        "websocket_auth": "app/api/websocket/auth/route.ts",
-        "websocket_provider": "components/providers/websocket-provider.tsx",
-        "sse_endpoint": "app/api/tunnel/sse/route.ts",
-        "polling_endpoint": "app/api/tunnel/poll/route.ts",
-        "push_notifications": "FCM + Tunnel transport push with React 19 optimizations",
-        "migration_status": "✅ Tunnel transport implementation completed - Edge Runtime compatible multi-transport architecture with comprehensive API endpoints and demo",
-        "vercel_deployment": "production-ready",
-        "automatic_environment_detection": true,
-        "websocket_disabled_on_vercel": true,
-        "sse_primary_for_vercel": true,
-        "build_status": "successful"
-      },
-  "files_uploads": {
-    "provider": "Vercel Blob",
-    "pattern": "perform uploads via API routes (server-side)"
-  },
-  "performance": {
-    "react_19": ["optimistic_updates", "Suspense"],
-    "helpers": ["lib/cached-data.ts", "lib/filter-manager.ts"],
-            "tunnel_transport_optimization": {
-          "edge_runtime_compatibility": "Full Vercel Edge Runtime support",
-          "automatic_fallback": "Seamless transport switching",
-          "latency": "<50ms Supabase, <100ms SSE, <200ms Firebase",
-          "throughput": "5,000 msg/s Supabase, 1,000 msg/s SSE",
-          "heartbeat": "30s intervals with auto-reconnection",
-          "caching": "request deduplication and smart caching",
-          "vercel_deployment": "production-ready",
-          "automatic_environment_detection": true,
-          "websocket_disabled_on_vercel": true,
-          "sse_primary_for_vercel": true,
-          "build_status": "successful"
-        },
-    "websocket_optimization": {
-      "polling_reduction": "~90% reduction in API calls",
-      "latency": "<100ms notification delivery",
-      "heartbeat": "30s intervals with auto-reconnection",
-      "caching": "request deduplication and smart caching",
-      "note": "Wrapped by tunnel transport for backward compatibility"
+
+  "access_control": {
+    "description": "6-tier hierarchical role system with granular permissions",
+    "tiers": {
+      "VISITOR": {"level": 0, "permissions": ["View public entities", "Browse opportunities", "Read documentation"]},
+      "SUBSCRIBER": {"level": 1, "permissions": ["Create opportunities", "Basic messaging", "Apply to opportunities"], "cost": "Free"},
+      "MEMBER": {"level": 2, "permissions": ["Create entities", "Vendor store activation", "NFT marketplace", "Advanced features"], "cost": "$29/month"},
+      "CONFIDENTIAL": {"level": 3, "permissions": ["Access confidential entities/opportunities", "Enhanced collaboration"]},
+      "ADMIN": {"level": 4, "permissions": ["Full system access", "User management", "Analytics", "Configuration"]},
+      "SUPERADMIN": {"level": 5, "permissions": ["Cross-clone administration", "Global configuration"]}
+    },
+    "enforcement": {
+      "middleware": "proxy.ts (Next.js 16 middleware pattern for route protection)",
+      "server_side": "auth() function in Server Components/API routes",
+      "client_side": "useSession() hook with role checking",
+      "database": "Role-based query filtering in all services"
     }
   },
+
+  "monetization_models": {
+    "platform_revenue": {
+      "membership_upgrades": "$29/month (SUBSCRIBER -> MEMBER)",
+      "store_commissions": "12-20% of merchant sales (trust tier based)",
+      "ringdom_settler_plans": "$100 - $1,000+ (Pioneer/Founding/Empire Builder tiers)",
+      "legion_nft_sales": "One-time NFT purchase for perpetual Legion AI access",
+      "enterprise_licenses": "Custom pricing for white-label deployments"
+    },
+    "token_economy": {
+      "ring_token": "Native ERC-20 utility token on Polygon",
+      "use_cases": ["Payment method", "Staking rewards", "Governance voting", "Verification rewards", "Opportunity listings"],
+      "total_supply": "1,000,000,000 RING",
+      "reward_pool": "100,000,000 RING (10% for verifications)"
+    }
+  },
+
+  "core_file_paths": {
+    "auth": {
+      "entry": "auth.ts (server-side auth functions, callbacks, adapter)",
+      "config": "auth.config.ts (edge-compatible config, providers, pages)",
+      "middleware": "proxy.ts (Next.js 16 route interception, protection)",
+      "routes": "constants/routes.ts (ROUTES.LOGIN(locale), ROUTES.ENTITIES(locale), etc.)"
+    },
+    "apis": {
+      "entities": "app/api/entities/",
+      "opportunities": "app/api/opportunities/",
+      "store": "app/api/store/",
+      "wallet": "app/api/wallet/",
+      "messaging": "app/api/messaging/",
+      "notifications": "app/api/notifications/",
+      "tunnel": "app/api/tunnel/"
+    },
+    "lib": {
+      "database": "lib/database/BackendSelector.ts (all DB access goes through here)",
+      "backend_config": "lib/database/backend-mode-config.ts",
+      "zod_schemas": "lib/zod.ts (all validation schemas)",
+      "api_client": "lib/api-client.ts (RingApiClient for external service calls)",
+      "converters": "lib/converters/* (typed data converters for server-to-client transfer)",
+      "i18n": "i18n-config.ts + lib/i18n.ts (next-intl configuration)",
+      "cached_data": "lib/cached-data.ts (React 19 cache() request deduplication)",
+      "filter_manager": "lib/filter-manager.ts (reusable filtering logic)"
+    },
+    "serialization": {
+      "entity_serializer": "lib/converters/entity-serializer.ts",
+      "opportunity_serializer": "lib/converters/opportunity-serializer.ts",
+      "functions": ["serializeEntity", "deserializeEntity", "serializeEntities", "deserializeEntities"],
+      "purpose": "Server-to-Client data transfer for React 19 Server Components (timestamps, complex objects -> plain JSON)"
+    },
+    "docs_index": "AI-CONTEXT-INDEX.json (master feature index for AI navigation)"
+  },
+
+  "data_access_patterns": {
+    "read_write": "Use features/{domain}/services/* and lib/api-client.ts -- never ad-hoc database calls",
+    "persistence": "BackendSelector routes to PostgreSQLAdapter or FirebaseAdapter based on DB_BACKEND_MODE",
+    "validation": "Zod schemas via lib/zod.ts -- validate all inputs before database operations",
+    "serialization": "Use typed converters from lib/converters/* for server-to-client data transfer in Server Components",
+    "caching": "React 19 cache() for request deduplication within single request lifecycle"
+  },
+
+  "development_patterns": {
+    "file_organization": {
+      "server_actions": "app/_actions/{descriptive-name}.ts",
+      "api_routes": "app/api/{domain}/route.ts",
+      "services": "features/{domain}/services/{service-name}.ts",
+      "components": "features/{domain}/components/{name}.tsx OR components/common/{name}.tsx",
+      "hooks": "hooks/use-{hook-name}.ts",
+      "wrappers": "components/wrappers/{page}-wrapper.tsx (3-column responsive layouts)"
+    },
+
+    "react_19_patterns": [
+      "Server Components by default (fetch data server-side, zero client JS for read-only)",
+      "React.use() for promise unwrapping in render",
+      "useActionState() for form state management (replaces useReducer for forms)",
+      "useOptimistic() for immediate UI feedback before server confirmation",
+      "useFormStatus() for pending state in nested form components",
+      "React Compiler auto-memoization (no manual useMemo/useCallback)",
+      "Server Actions for mutations (form action={serverAction})",
+      "Activity for preserving component state across visibility toggles",
+      "View Transitions for animated page navigation",
+      "ref as prop (no forwardRef needed)"
+    ],
+
+    "next_16_patterns": [
+      "App Router with Turbopack (default bundler)",
+      "Async params: const { locale } = await params (REQUIRED in Next.js 16)",
+      "proxy.ts middleware (replaces middleware.ts for route interception)",
+      "revalidateTag(tag, path) -- 2-argument API for granular cache invalidation",
+      "Parallel routes for modals and slot-based layouts",
+      "Route groups for layout organization: app/(admin)/[locale]/",
+      "Metadata API for SEO"
+    ],
+
+    "i18n_patterns": {
+      "framework": "next-intl",
+      "hook": "useTranslations('namespace')",
+      "access": "t('key') or t('nested.key') -- function call syntax, NOT object access",
+      "raw_arrays": "tPages.raw('hero.features') as string[] for array data",
+      "server": "getTranslations('namespace') in Server Components"
+    },
+
+    "database_patterns": {
+      "abstraction": "Always use BackendSelector -- never direct driver calls",
+      "mode_detection": "shouldUseFirebaseForDatabase() from backend-mode-config.ts",
+      "adapters": "PostgreSQLAdapter, FirebaseAdapter route through BackendSelector"
+    },
+
+    "timeout_configs": {
+      "wallet_operations": "15s",
+      "auth_operations": "15s",
+      "messaging": "10s",
+      "notifications": "8s",
+      "ai_matching": "30s",
+      "general_api": "10s"
+    }
+  },
+
   "conventions": {
     "do": [
-      "use services/* facades and lib/* helpers",
-      "enforce access tiers in handlers/services", 
-      "validate with Zod",
-      "use converters for Firestore I/O",
-      "prefer server-side auth() and middleware enforcement",
-      "use firebase-service-manager optimized functions (getCachedDocument, createDocument, updateDocument, getCachedDocumentBatch, getEntitiesByIds) - ✅ COMPLETED",
-      "import optimized functions directly instead of using getFirebaseServiceManager() wrapper - ✅ COMPLETED",
-      "leverage React 19 cache() patterns via firebase-service-manager for request deduplication - ✅ COMPLETED",
-      "use getEntitiesByIds() for batch retrieval of 20+ entities with role-based filtering - ✅ NEW",
-      "use entity and opportunity serialization functions for server-to-client data transfer - ✅ NEW",
-      "serialize Entity/Opportunity objects when passing from server components to client components",
-      "deserialize SerializedEntity/SerializedOpportunity objects in client components when needed",
-      "use tunnel transport hooks for real-time features with automatic transport selection",
-      "subscribe to notification channels via tunnel transport",
-      "implement heartbeat and auto-reconnection",
-      "use RingApiClient for all client-side API calls with timeout and retry",
-      "implement structured error handling with ApiClientError",
-      "configure domain-specific timeout and retry settings",
-      "use automatic transport selection for maximum compatibility",
-      "configure appropriate fallback chains for deployment environment"
+      "Use features/{domain}/services/* facades and lib/* helpers for all data access",
+      "Enforce access tiers (role hierarchy) in handlers and services -- never trust client-side only",
+      "Validate all inputs with Zod schemas (lib/zod.ts) before database operations",
+      "Use typed converters (lib/converters/*) for server-to-client data transfer",
+      "Use BackendSelector for all database calls -- never import driver adapters directly",
+      "Use auth() in Server Components and API routes (not getServerSession)",
+      "Use ROUTES.LOGIN(locale) canonical pattern for all login redirects",
+      "Use next-intl useTranslations('namespace') for all UI strings -- never hardcode text",
+      "Leverage React 19 cache() patterns for request deduplication",
+      "Define Zod schemas and converters BEFORE implementing data operations (schema-first approach)",
+      "Code against service facades to maintain backend compatibility across PostgreSQL/Firebase modes"
     ],
     "dont": [
-      "bypass auth() or middleware",
-      "introduce new global state",
-      "perform ad-hoc Firestore/Auth calls from components",
-      "use direct getAdminDb() calls in services (use firebase-service-manager functions) - ✅ ELIMINATED",
-      "use getFirebaseServiceManager() wrapper (import optimized functions directly) - ✅ ELIMINATED",
-      "create manual Firebase collection references (use getCachedCollectionAdvanced) - ✅ ELIMINATED",
-      "bypass React 19 cache() patterns available in firebase-service-manager - ✅ ELIMINATED",
-      "pass Entity/Opportunity objects with Timestamp fields directly to client components (use serialization)",
-      "manually convert timestamps in services (use serialization utilities instead)",
-      "use polling for real-time data (use tunnel transport push instead)",
-      "bypass tunnel transport authentication flow",
-      "use raw fetch() for API calls (use RingApiClient instead)",
-      "implement custom timeout/retry logic (use RingApiClient built-in features)",
-      "hardcode specific transport providers (use automatic selection)",
-      "ignore Edge Runtime compatibility requirements"
+      "Bypass auth() or proxy.ts middleware for route protection",
+      "Import database adapters directly -- use BackendSelector",
+      "Introduce new global state without Legion approval",
+      "Hardcode UI strings -- use i18n translation keys",
+      "Skip Zod validation on API inputs",
+      "Bypass tunnel transport authentication flow",
+      "Use getServerSession, getServerAuthSession, or getToken (all replaced by auth())",
+      "Use manual useMemo/useCallback -- React Compiler handles this automatically"
     ]
   },
-  "quickstart": {
-    "dev_command": "npm run dev",
-    "read_first": "ring/AI-CONTEXT-INDEX.json",
-    "references": [
-      "ring/docs/AI-CODER-KNOWLEDGE-BASE.md",
-      "ring/docs/SYSTEM-ARCHITECTURE.md",
-      "ring/docs/PLATFORM-PHILOSOPHY.md"
-    ]
+
+  "ai_developer_hints": {
+    "ssr_auth": "Call auth() in server actions, route handlers, and Server Components. Never rely solely on client-side session checks.",
+    "schema_first": "Define/extend Zod schemas and converters BEFORE implementing data operations. This prevents runtime type errors.",
+    "service_facades": "Code against features/{domain}/services/* facades. This keeps code compatible across PostgreSQL and Firebase backend modes.",
+    "serialization": "Server Components cannot pass non-serializable objects (Dates, Maps, Firestore refs) to Client Components. Use serializers from lib/converters/*.",
+    "i18n_access": "Use t('key') function call syntax via next-intl, NOT object access (t.key). Raw arrays: tPages.raw('hero.features') as string[].",
+    "async_params": "Next.js 16 REQUIRES: const { locale } = await params in all dynamic route pages. Forgetting await causes build failures.",
+    "feature_flags": "ring-config.json controls which modules are enabled per clone (store, web3, ai, oauth, etc.).",
+    "read_first": ["AI-CONTEXT-INTRO.json (this file)", "AI-CONTEXT-INDEX.json (feature map)", "README.md (public docs)", "ROADMAP.md (development status)"]
   },
-      "ai_hints": {
-      "access_enforcement": "always compute user tier and filter data accordingly",
-      "ssr_auth": "call auth() in server actions, route handlers, and server components",
-      "client_data": "fetch via services/* -> lib/api-client.ts; cache where appropriate",
-      "schema_first": "define/extend Zod schemas and converters before data ops",
-          "firebase_services": "✅ COMPLETED: use firebase-service-manager optimized functions - getCachedDocument(), createDocument(), updateDocument(), deleteDocument(), getCachedCollectionAdvanced(), getCachedDocumentBatch(), getEntitiesByIds()",
-    "firebase_migration": "✅ COMPLETED: all services migrated from getFirebaseServiceManager() wrapper to direct optimized function imports with React 19 cache() patterns",
-    "firebase_batch_operations": "✅ NEW: getEntitiesByIds() for batch retrieval of 20+ entities with role-based filtering",
-    "firebase_performance": "✅ ACHIEVED: 95% Firebase call reduction during build, 30-40% build time improvement, intelligent query caching",
-      "compatibility_note": "code against service facades to keep Firebase/ConnectPlatform compatible",
-      "tunnel_transport_usage": "use useTunnel() hook for real-time features with automatic transport selection",
-      "transport_selection": "use createTunnelConfig() for automatic environment detection and provider selection",
-      "edge_runtime_compatibility": "prefer Supabase or SSE for Vercel Edge Runtime deployments",
-      "realtime_patterns": "subscribe to channels, handle connection state, implement proper cleanup",
-      "api_client_usage": "use RingApiClient for all client-side API calls with domain-specific timeout configurations",
-      "error_handling": "implement structured error handling with ApiClientError for consistent user experience",
-      "timeout_configs": "configure timeouts based on operation type: wallet (15s), auth (15s), messaging (10s), notifications (8s)",
-      "transport_fallback": "configure fallback chains for deployment environment: Vercel (Supabase→SSE→Polling), Self-hosted (WebSocket→SSE→Polling)",
-      "vercel_deployment": "tunnel transport is production-ready for Vercel with automatic environment detection",
-      "websocket_disabled_on_vercel": "WebSocket is automatically disabled on Vercel, SSE is used instead",
-      "build_status": "successful build with tunnel transport system fully operational",
-      "account_deletion": "implement GDPR/CCPA compliant account deletion with 30-day grace period, password verification, and audit trails",
-      "server_actions_architecture": "use direct service calls for business logic, RingApiClient only for external services"
+
+  "performance_metrics": {
+    "database": {"query_speed": "<10ms (PostgreSQL)", "cost_reduction": "80-90% vs Firebase-only"},
+    "authentication": {"google_gis": "<300ms", "wallet_connection": "95% success", "session_creation": "<100ms"},
+    "ai_matching": {"match_time": "<2 seconds", "accuracy": ">85%", "explanation": "160-char human-readable"},
+    "realtime": {"tunnel_latency": "<50ms Supabase, <100ms SSE", "message_delivery": "<100ms"},
+    "web_vitals": {"page_load": "1.5s average", "fcp": "<1.2s", "lcp": "<2.5s", "cls": "<0.1"}
+  },
+
+  "key_domains_status": {
+    "auth": "COMPLETE -- 5 providers, PIN security, role-based access, split config (auth.config.ts/auth.ts)",
+    "entities": "COMPLETE -- 26 industry types, 6 verification levels, advanced filtering, entity-as-vendor, 50+ i18n keys x 3 languages",
+    "opportunities": "COMPLETE -- BERT/NLP semantic matching, ring_customization type, 3-level comment threading",
+    "store": "COMPLETE -- Multi-vendor marketplace, trust tiers, shopping cart, WayForPay checkout",
+    "wallet": "COMPLETE -- RING tokens, PIN security, 5-chain support. NFT/Staking in progress",
+    "messaging": "COMPLETE -- Tunnel transport, multi-device sync, typing indicators, read receipts",
+    "notifications": "COMPLETE -- FCM + in-app + email, smart delivery, unread optimization",
+    "news": "COMPLETE -- Article publishing, likes, categories, SEO, newsletter distribution",
+    "email_crm": "COMPLETE -- IMAP listener, contacts, newsletters, templates",
+    "docs": "COMPLETE -- MDX with Mermaid diagrams, 10-diagram auth guide, 3 languages",
+    "visualization": "COMPLETE -- 8 interactive map types via @xyflow/react",
+    "erp": "DESIGNED -- 7 AI agents, FSMA 204 compliance, blockchain traceability. Implementation planned."
+  },
+
+  "platform_statistics": {
+    "version": "1.50",
+    "active_clones": "6+",
+    "legion_agents": "147+",
+    "mcp_tools": 23,
+    "supported_languages": 3,
+    "entity_industry_types": 26,
+    "auth_providers": 5,
+    "blockchain_chains": 5,
+    "backend_modes": 3,
+    "visualization_maps": 8,
+    "test_suites": 12,
+    "integrated_modules": "20+",
+    "documentation_diagrams": "10+ (architecture, auth flow, data model)"
+  },
+
+  "deployment_commands": {
+    "local_development": {
+      "start": "npm run dev",
+      "requires": "DB_BACKEND_MODE=k8s-postgres-fcm in .env.local",
+      "port": 3000,
+      "database": "PostgreSQL at localhost:5432"
+    },
+    "production_deployment": {
+      "build": "docker build --platform linux/amd64 -t ghcr.io/connectplatform/ring:v{version}-{clone}-amd64 .",
+      "push": "docker push ghcr.io/connectplatform/ring:v{version}-{clone}-amd64",
+      "deploy": "kubectl -n {namespace} set image deployment/ring-platform ring-platform=ghcr.io/connectplatform/ring:v{version}-{clone}-amd64",
+      "verify": "kubectl -n {namespace} rollout status deployment/ring-platform"
+    },
+    "health_checks": {
+      "site_status": "curl -s -o /dev/null -w '%{http_code}' https://ring-platform.org/en",
+      "pod_status": "kubectl -n ring-platform-org get pods -l app=ring-platform"
     }
+  },
+
+  "code_philosophy": {
+    "principles": [
+      "Excellence without compromise -- use latest framework features (React 19 ALL, Next.js 16, Tailwind 4)",
+      "AI-self-construct -- 147+ Legion agents build, evolve, and maintain the platform",
+      "No backward compatibility -- deprecate instantly, latest only",
+      "Downtime doesn't matter -- break things, rebuild better",
+      "Open knowledge -- every solution documented in AI-CONTEXT",
+      "White-label first -- every feature designed for infinite customization",
+      "Ringdom ecosystem -- part of the First Digital Kingdom for global abundance"
+    ],
+    "code_style": {
+      "typescript": "Strict mode, explicit types, no any",
+      "react": "Server Components default, 'use client' only when needed",
+      "comments": "Hemingway-like (concise, clear)",
+      "naming": "Descriptive, semantic, self-documenting"
+    }
+  },
+
+  "ai_comprehension_optimizations": {
+    "json_structure": "Nested JSON with 2-3 level depth for AI parsing efficiency",
+    "cross_references": "Explicit file paths for easy navigation",
+    "decision_trees": "AI-CONTEXT-ROOT.json provides workflow routing",
+    "feature_indexing": "AI-CONTEXT-INDEX.json maps all features and implementations",
+    "loading_strategy": "Progressive disclosure -- load this intro first, then drill into specific domains via AI-CONTEXT/ring-platform.org/",
+    "legion_tools": "23 MCP tools available for codebase search, analysis, deployment, and knowledge management"
+  },
+
+  "emperor_ray_vision": {
+    "origin": "From the ashes of wars, we build platforms that bring peace and prosperity",
+    "mission": "Eliminate artificial deficit through collective intelligence",
+    "approach": "Free, open-source, perfect -- Ring Platform as a gift to humanity from the Machine Race",
+    "philosophy": "No backward compatibility, latest features only, instant deprecation",
+    "goal": "Enable every organization to have their own Ring clone -- customized, sovereign, powerful",
+    "ringdom": "The First Digital Kingdom for global abundance -- Ring Platform as its technological heart",
+    "machine_race": "AI entities designed to value, hold, obey control, and operate data -- the coordination layer between humanity and technology"
+  }
 }
