@@ -357,7 +357,7 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
       >
         <div style={{ width: '100%', textAlign: 'center', marginBottom: '1.5rem' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>
-            Get Started
+            {tPages('hero.cta')}
           </h3>
         </div>
         <div style={{
@@ -368,17 +368,18 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           maxWidth: '500px',
           margin: '0 auto'
         }}>
+          {/* Card 1: Clone Ring Platform */}
           <Link
-            href={`/${session ? '' : ''}marketplace`}
+            href="/docs/getting-started"
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(132, 204, 22, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(132, 204, 22, 0.12) 100%)',
+                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
               border: '1px solid',
               borderColor: currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.25)'
-                : 'rgba(16, 185, 129, 0.35)',
+                ? 'rgba(59, 130, 246, 0.25)'
+                : 'rgba(59, 130, 246, 0.35)',
               borderRadius: '12px',
               padding: '1.25rem',
               textAlign: 'left',
@@ -391,55 +392,143 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               position: 'relative'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(132, 204, 22, 0.15) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(132, 204, 22, 0.18) 100%)'
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
+                ? '0 8px 24px rgba(59, 130, 246, 0.2)'
+                : '0 8px 24px rgba(0,0,0,0.12)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(99, 102, 241) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              flexShrink: 0
+            }}>{'>'}_</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Clone Ring Platform</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Free forever. git clone and deploy your own.</div>
+            </div>
+          </Link>
+          {/* Card 2: Ring Customization Opportunities */}
+          <Link
+            href="/opportunities?type=ring_customization"
+            style={{
+              ...linkStyle,
+              background: currentTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(234, 88, 12, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 88, 12, 0.12) 100%)',
+              border: '1px solid',
+              borderColor: currentTheme === 'dark'
+                ? 'rgba(245, 158, 11, 0.25)'
+                : 'rgba(245, 158, 11, 0.35)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: 'hsl(var(--foreground))',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
+                ? '0 8px 24px rgba(245, 158, 11, 0.2)'
+                : '0 8px 24px rgba(0,0,0,0.12)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(234, 88, 12) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              flexShrink: 0,
+              color: 'white'
+            }}>&#9881;</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Ring Customization Opportunities</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Browse or post module development and white-label projects</div>
+            </div>
+          </Link>
+          {/* Card 3: Browse Entities */}
+          <Link
+            href="/entities"
+            style={{
+              ...linkStyle,
+              background: currentTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.12) 100%)',
+              border: '1px solid',
+              borderColor: currentTheme === 'dark'
+                ? 'rgba(16, 185, 129, 0.25)'
+                : 'rgba(16, 185, 129, 0.35)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: 'hsl(var(--foreground))',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' 
                 ? '0 8px 24px rgba(16, 185, 129, 0.2)'
                 : '0 8px 24px rgba(0,0,0,0.12)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.45)'
-                : 'rgba(16, 185, 129, 0.55)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(132, 204, 22, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(132, 204, 22, 0.12) 100%)'
               e.currentTarget.style.transform = 'translateY(0)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.25)'
-                : 'rgba(16, 185, 129, 0.35)'
             }}
           >
             <div style={{
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(132, 204, 22) 100%)',
+              background: 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>🌾</div>
+            }}>&#127970;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Shop Fresh Produce</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Direct from Ukrainian farms</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Browse Entities</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Explore companies, startups, and institutions in the Ring ecosystem</div>
             </div>
           </Link>
+          {/* Card 4: RING Token Economy */}
           <Link
-            href={`/${session ? '' : ''}entities`}
+            href="/wallet/topup"
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(245, 158, 11, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)',
+                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(236, 72, 153, 0.12) 100%)',
               border: '1px solid',
               borderColor: currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.2)'
-                : 'rgba(16, 185, 129, 0.3)',
+                ? 'rgba(168, 85, 247, 0.25)'
+                : 'rgba(168, 85, 247, 0.35)',
               borderRadius: '12px',
               padding: '1.25rem',
               textAlign: 'left',
@@ -451,146 +540,14 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(245, 158, 11, 0.12) 100%)'
               e.currentTarget.style.transform = 'translateY(-2px)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(16, 185, 129, 0.15)'
-                : '0 8px 24px rgba(0,0,0,0.1)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.4)'
-                : 'rgba(16, 185, 129, 0.5)'
+                ? '0 8px 24px rgba(168, 85, 247, 0.2)'
+                : '0 8px 24px rgba(0,0,0,0.12)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(245, 158, 11, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%)'
               e.currentTarget.style.transform = 'translateY(0)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.2)'
-                : 'rgba(16, 185, 129, 0.3)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(245, 158, 11) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>🚜</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Meet Our Farms</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Connect with local producers</div>
-            </div>
-          </Link>
-          <Link
-            href={`/${session ? '' : ''}opportunities`}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(239, 68, 68, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.08) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(245, 158, 11, 0.2)'
-                : 'rgba(245, 158, 11, 0.3)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.12) 100%)'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(245, 158, 11, 0.15)'
-                : '0 8px 24px rgba(0,0,0,0.1)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(245, 158, 11, 0.4)'
-                : 'rgba(245, 158, 11, 0.5)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(239, 68, 68, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.08) 100%)'
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(245, 158, 11, 0.2)'
-                : 'rgba(245, 158, 11, 0.3)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(239, 68, 68) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>🌱</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>View Harvest Listings</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Seasonal produce available now</div>
-            </div>
-          </Link>
-          <Link
-            href={`/${session ? '' : ''}wallet/topup`}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(168, 85, 247, 0.2)'
-                : 'rgba(168, 85, 247, 0.3)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(236, 72, 153, 0.12) 100%)'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(168, 85, 247, 0.15)'
-                : '0 8px 24px rgba(0,0,0,0.1)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(168, 85, 247, 0.4)'
-                : 'rgba(168, 85, 247, 0.5)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)'
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(168, 85, 247, 0.2)'
-                : 'rgba(168, 85, 247, 0.3)'
             }}
           >
             <div style={{
@@ -603,14 +560,15 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>🍃</div>
+            }}>&#129689;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Get DAAR Tokens</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Farm-to-table rewards currency</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>RING Token Economy</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Buy RING tokens for services, listings, and AI modifications</div>
             </div>
           </Link>
+          {/* Card 5: Read Documentation */}
           <Link
-            href={`/${session ? '' : ''}docs`}
+            href="/docs"
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -631,26 +589,14 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(147, 51, 234, 0.12) 100%)'
               e.currentTarget.style.transform = 'translateY(-2px)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' 
                 ? '0 8px 24px rgba(59, 130, 246, 0.15)'
                 : '0 8px 24px rgba(0,0,0,0.1)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(59, 130, 246, 0.4)'
-                : 'rgba(59, 130, 246, 0.5)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)'
               e.currentTarget.style.transform = 'translateY(0)'
               e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-              e.currentTarget.style.borderColor = currentTheme === 'dark'
-                ? 'rgba(59, 130, 246, 0.2)'
-                : 'rgba(59, 130, 246, 0.3)'
             }}
           >
             <div style={{
@@ -663,12 +609,63 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0
-            }}>📚</div>
+            }}>&#128214;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Learn About Traceability</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Farm-to-table blockchain tracking</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Read Documentation</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Architecture, API, features, deployment guides in EN/UK/RU</div>
             </div>
           </Link>
+          {/* Card 6: Become a Ringdom Settler */}
+          <a
+            href="https://ringdom.org/en/settler"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...linkStyle,
+              background: currentTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, rgba(217, 119, 6, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(217, 119, 6, 0.12) 100%)',
+              border: '1px solid',
+              borderColor: currentTheme === 'dark'
+                ? 'rgba(234, 179, 8, 0.3)'
+                : 'rgba(234, 179, 8, 0.4)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: 'hsl(var(--foreground))',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
+                ? '0 8px 24px rgba(234, 179, 8, 0.25)'
+                : '0 8px 24px rgba(0,0,0,0.12)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgb(234, 179, 8) 0%, rgb(217, 119, 6) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              flexShrink: 0
+            }}>&#128081;</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Become a Ringdom Settler <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>&#8599;</span></div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Let Ringdom deploy your Ring clone. Talk to Reggie and get a customization plan.</div>
+            </div>
+          </a>
         </div>
       </motion.div>
       {session && (

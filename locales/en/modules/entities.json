@@ -123,7 +123,11 @@
     "semiconductorProduction": "Semiconductor Production",
     "smartMaterials": "Smart Materials",
     "softwareDevelopment": "Software Development",
+    "softwareDevelopmentDesc": "Tech companies, startups, development agencies",
     "technologyCenter": "Technology Center",
+    "technologyCenterDesc": "Research centers, innovation hubs, tech parks",
+    "manufacturingDesc": "Manufacturing companies and factories",
+    "otherDesc": "Consulting, services, and other organizations",
     "virtualReality": "Virtual Reality"
   },
   "verification": {
@@ -131,7 +135,14 @@
     "benefits": "Benefits",
     "verificationProgress": "Verification Progress",
     "complete": "Complete",
-    "target": "Target"
+    "target": "Target",
+    "official": "Use Official Information",
+    "officialDesc": "Only submit information about entities you officially represent",
+    "accurate": "Keep Information Current",
+    "accurateDesc": "Update contact information and details as they change",
+    "completeDesc": "Fill out all fields for better visibility and credibility",
+    "unique": "One Entity Per Submission",
+    "uniqueDesc": "Create separate submissions for different entities"
   },
   "status": {
     "entityName": "Entity Name",
@@ -293,7 +304,64 @@
         "description": "Your entity has been archived and moved to storage. It's no longer active but can be restored if needed."
       }
     }
-  }
+  },
+  "fields": {
+    "name": "Entity Name",
+    "description": "Description",
+    "website": "Website",
+    "logo": "Logo",
+    "tags": "Tags"
+  },
+  "fieldTips": {
+    "name": "Use your official company or organization name",
+    "description": "Describe what your organization does, its mission, and unique value",
+    "website": "Your official website URL for credibility and contact",
+    "logo": "High-quality logo helps users recognize your brand",
+    "tags": "Add relevant keywords for better discoverability"
+  },
+  "fieldGuide": "Field Guide",
+  "fieldGuideDescription": "Tips for filling out each field correctly",
+  "required": "Required",
+  "entityTypes": "Entity Types",
+  "chooseTypeDescription": "Select the category that best describes your organization",
+  "verificationTips": "Verification Tips",
+  "verificationDescription": "Ensure your entity submission meets our standards",
+  "visibilityOptions": "Visibility Options",
+  "visibility": {
+    "public": "Public",
+    "publicDesc": "Visible to all Ring platform users",
+    "members": "Members Only",
+    "membersDesc": "Visible only to verified members"
+  },
+  "help": "Help & Documentation",
+  "entityHelpDescription": "Get help with creating and managing your entity profile.",
+  "creatingEntities": "Creating Entities",
+  "bestPractices": "Best Practices",
+  "verificationGuide": "Verification Guide",
+  "name": "Name",
+  "type": "Type",
+  "selectType": "Select type...",
+  "categories": {
+    "softwareDevelopment": "Software Development",
+    "manufacturing": "Manufacturing",
+    "technologyCenter": "Technology Center",
+    "other": "Other"
+  },
+  "shortDescription": "Short Description",
+  "fullDescription": "Full Description",
+  "website": "Website",
+  "contactEmail": "Contact Email",
+  "logo": "Logo",
+  "addTag": "Add tag...",
+  "add": "Add",
+  "entity": {
+    "visibility": "Visibility"
+  },
+  "selectVisibility": "Select visibility...",
+  "public": "Public",
+  "markAsConfidential": "Mark as Confidential",
+  "saving": "Saving...",
+  "save": "Save Entity",
+  "loading": "Loading...",
+  "redirecting": "Redirecting..."
 }
-
-

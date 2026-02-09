@@ -130,26 +130,53 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
                     className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-emerald-50/50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/30 hover:from-emerald-100 hover:to-green-100 dark:hover:from-emerald-950/50 dark:hover:to-green-950/50 border border-emerald-200/30 dark:border-emerald-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
-                      🚜
+                      &#127970;
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{t('exploreFarms')}</div>
-                      <div className="text-xs text-muted-foreground truncate">{t('verifiedFarms')}</div>
+                      <div className="font-semibold text-sm">{t('exploreEntities')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('browseDirectory')}</div>
                     </div>
                   </Link>
                   <Link
                     href={`/${currentLocale}/opportunities`}
-                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-green-50/50 to-lime-50/50 dark:from-green-950/30 dark:to-lime-950/30 hover:from-green-100 hover:to-lime-100 dark:hover:from-green-950/50 dark:hover:to-lime-950/50 border border-green-200/30 dark:border-green-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-950/50 dark:hover:to-indigo-950/50 border border-blue-200/30 dark:border-blue-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-lime-500 flex items-center justify-center flex-shrink-0 text-base">
-                      🌾
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-base">
+                      &#128188;
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{t('freshHarvest')}</div>
-                      <div className="text-xs text-muted-foreground truncate">{t('seasonalProducts')}</div>
+                      <div className="font-semibold text-sm">{t('findOpportunities')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('jobsAndProjects')}</div>
                     </div>
                   </Link>
                 </div>
+              </div>
+
+              {/* Ringdom Turn-Key Service */}
+              <div className="p-4 bg-gradient-to-br from-amber-50/60 to-yellow-50/60 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/40 dark:border-amber-800/40 rounded-xl">
+                <h4 className="font-semibold text-sm mb-1">Ringdom Turn-Key Service</h4>
+                <p className="text-xs text-muted-foreground mb-3">Let Ringdom handle everything: AI customization, enterprise hosting, and ongoing support.</p>
+                <a
+                  href="https://ringdom.org/en/settler"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline"
+                >
+                  Become a Settler <span className="text-[10px]">&#8599;</span>
+                </a>
+              </div>
+
+              {/* Legion AI Skillsets */}
+              <div className="p-4 bg-gradient-to-br from-violet-50/60 to-purple-50/60 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200/40 dark:border-violet-800/40 rounded-xl">
+                <h4 className="font-semibold text-sm mb-1">Legion AI Skillsets</h4>
+                <p className="text-xs text-muted-foreground mb-1">147+ specialized Ring AI agents. Install as Cursor Plugin.</p>
+                <p className="text-[10px] text-muted-foreground/70 mb-3">Requires Legion-Access NFT</p>
+                <Link
+                  href={`/${currentLocale}/docs/legion-nft-access`}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline"
+                >
+                  Learn More
+                </Link>
               </div>
             </div>
           </RightSidebar>
@@ -216,26 +243,53 @@ export default function HomeWrapper({ userAgent, token, params, searchParams, us
                     className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-emerald-50/50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/30 hover:from-emerald-100 hover:to-green-100 dark:hover:from-emerald-950/50 dark:hover:to-green-950/50 border border-emerald-200/30 dark:border-emerald-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
-                      🚜
+                      &#127970;
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{t('exploreFarms')}</div>
-                      <div className="text-xs text-muted-foreground truncate">{t('verifiedFarms')}</div>
+                      <div className="font-semibold text-sm">{t('exploreEntities')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('browseDirectory')}</div>
                     </div>
                   </Link>
                   <Link
                     href={`/${currentLocale}/opportunities`}
-                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-green-50/50 to-lime-50/50 dark:from-green-950/30 dark:to-lime-950/30 hover:from-green-100 hover:to-lime-100 dark:hover:from-green-950/50 dark:hover:to-lime-950/50 border border-green-200/30 dark:border-green-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                    className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-950/50 dark:hover:to-indigo-950/50 border border-blue-200/30 dark:border-blue-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-lime-500 flex items-center justify-center flex-shrink-0 text-base">
-                      🌾
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-base">
+                      &#128188;
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{t('freshHarvest')}</div>
-                      <div className="text-xs text-muted-foreground truncate">{t('seasonalProducts')}</div>
+                      <div className="font-semibold text-sm">{t('findOpportunities')}</div>
+                      <div className="text-xs text-muted-foreground truncate">{t('jobsAndProjects')}</div>
                     </div>
                   </Link>
                 </div>
+              </div>
+
+              {/* Ringdom Turn-Key Service */}
+              <div className="p-4 bg-gradient-to-br from-amber-50/60 to-yellow-50/60 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/40 dark:border-amber-800/40 rounded-xl">
+                <h4 className="font-semibold text-sm mb-1">Ringdom Turn-Key Service</h4>
+                <p className="text-xs text-muted-foreground mb-3">AI customization, enterprise hosting, and ongoing support.</p>
+                <a
+                  href="https://ringdom.org/en/settler"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline"
+                >
+                  Become a Settler <span className="text-[10px]">&#8599;</span>
+                </a>
+              </div>
+
+              {/* Legion AI Skillsets */}
+              <div className="p-4 bg-gradient-to-br from-violet-50/60 to-purple-50/60 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200/40 dark:border-violet-800/40 rounded-xl">
+                <h4 className="font-semibold text-sm mb-1">Legion AI Skillsets</h4>
+                <p className="text-xs text-muted-foreground mb-1">147+ specialized Ring AI agents.</p>
+                <p className="text-[10px] text-muted-foreground/70 mb-3">Requires Legion-Access NFT</p>
+                <Link
+                  href={`/${currentLocale}/docs/legion-nft-access`}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:underline"
+                >
+                  Learn More
+                </Link>
               </div>
             </div>
           </FloatingSidebarToggle>

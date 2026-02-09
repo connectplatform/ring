@@ -122,16 +122,27 @@
     "robotics": "Robotics",
     "semiconductorProduction": "Semiconductor Production",
     "smartMaterials": "Smart Materials",
-    "softwareDevelopment": "Software Development",
-    "technologyCenter": "Technology Center",
-    "virtualReality": "Virtual Reality"
+    "softwareDevelopment": "Разработка программного обеспечения",
+    "softwareDevelopmentDesc": "Технологические компании, стартапы, агентства разработки",
+    "technologyCenter": "Технологический центр",
+    "technologyCenterDesc": "Исследовательские центры, инновационные хабы, технопарки",
+    "manufacturingDesc": "Производственные компании и заводы",
+    "otherDesc": "Консалтинг, услуги и другие организации",
+    "virtualReality": "Виртуальная реальность"
   },
   "verification": {
-    "requirements": "Requirements",
-    "benefits": "Benefits",
-    "verificationProgress": "Verification Progress",
-    "complete": "Complete",
-    "target": "Target"
+    "requirements": "Требования",
+    "benefits": "Преимущества",
+    "verificationProgress": "Прогресс верификации",
+    "complete": "Завершено",
+    "target": "Цель",
+    "official": "Используйте официальную информацию",
+    "officialDesc": "Подавайте только информацию об организациях, которые вы официально представляете",
+    "accurate": "Актуальная информация",
+    "accurateDesc": "Обновляйте контактную информацию и детали при их изменении",
+    "completeDesc": "Заполните все поля для лучшей видимости и доверия",
+    "unique": "Одна организация на заявку",
+    "uniqueDesc": "Создавайте отдельные заявки для разных организаций"
   },
   "status": {
     "entityName": "Entity Name",
@@ -293,7 +304,64 @@
         "description": "Your entity has been archived and moved to storage. It's no longer active but can be restored if needed."
       }
     }
-  }
+  },
+  "fields": {
+    "name": "Название организации",
+    "description": "Описание",
+    "website": "Веб-сайт",
+    "logo": "Логотип",
+    "tags": "Теги"
+  },
+  "fieldTips": {
+    "name": "Используйте официальное название вашей компании или организации",
+    "description": "Опишите деятельность вашей организации, её миссию и уникальную ценность",
+    "website": "Официальный URL вашего веб-сайта для доверия и контакта",
+    "logo": "Качественный логотип помогает пользователям узнать ваш бренд",
+    "tags": "Добавьте подходящие ключевые слова для лучшей видимости"
+  },
+  "fieldGuide": "Справочник по полям",
+  "fieldGuideDescription": "Советы по правильному заполнению каждого поля",
+  "required": "Обязательное",
+  "entityTypes": "Типы организаций",
+  "chooseTypeDescription": "Выберите категорию, которая лучше всего описывает вашу организацию",
+  "verificationTips": "Советы по верификации",
+  "verificationDescription": "Убедитесь, что ваша заявка соответствует нашим стандартам",
+  "visibilityOptions": "Параметры видимости",
+  "visibility": {
+    "public": "Публичная",
+    "publicDesc": "Видима для всех пользователей платформы Ring",
+    "members": "Только для участников",
+    "membersDesc": "Видима только для верифицированных участников"
+  },
+  "help": "Помощь и документация",
+  "entityHelpDescription": "Получите помощь по созданию и управлению профилем организации.",
+  "creatingEntities": "Создание организаций",
+  "bestPractices": "Лучшие практики",
+  "verificationGuide": "Руководство по верификации",
+  "name": "Название",
+  "type": "Тип",
+  "selectType": "Выберите тип...",
+  "categories": {
+    "softwareDevelopment": "Разработка ПО",
+    "manufacturing": "Производство",
+    "technologyCenter": "Технологический центр",
+    "other": "Другое"
+  },
+  "shortDescription": "Краткое описание",
+  "fullDescription": "Полное описание",
+  "website": "Веб-сайт",
+  "contactEmail": "Контактная электронная почта",
+  "logo": "Логотип",
+  "addTag": "Добавить тег...",
+  "add": "Добавить",
+  "entity": {
+    "visibility": "Видимость"
+  },
+  "selectVisibility": "Выберите видимость...",
+  "public": "Публичная",
+  "markAsConfidential": "Отметить как конфиденциальную",
+  "saving": "Сохранение...",
+  "save": "Сохранить организацию",
+  "loading": "Загрузка...",
+  "redirecting": "Перенаправление..."
 }
-
-
