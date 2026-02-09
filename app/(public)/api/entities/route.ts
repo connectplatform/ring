@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth'; // Fixed import to use auth
-import { cache } from 'react';
-import { getCachedEntitiesForRole } from '@/lib/cached-data';
+import { getEntitiesForRole } from '@/features/entities/services/get-entities';
 import { UserRole } from '@/features/auth/types';
 
 /**
@@ -13,6 +12,8 @@ import { UserRole } from '@/features/auth/types';
  * @returns A response containing the entities or an error message
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/entities - Starting GET request');
   try {
     // Authenticate the session
@@ -39,8 +40,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch entities via cached accessor (role-aware tag key)
     const roleKey = userRole
-    const cached = getCachedEntitiesForRole(roleKey)
-    const { entities, lastVisible } = await cached(limit, startAfter)
+    const { entities, lastVisible, totalCount } = await getEntitiesForRole({
+      userRole: roleKey,
+      limit,
+      startAfter
+    })
     console.log('API: /api/entities - entities retrieved:', { count: entities.length });
 
     return NextResponse.json(
@@ -74,11 +78,5 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Use React 19 cache() for automatic request deduplication and intelligent caching
+ * Prevent caching for this route
  */
-const getEntities = cache(async (params: any) => {
-  return await getCachedEntitiesForRole(params)
-})
-
-export const dynamic = 'auto'
-export const revalidate = 180 // 3 minutes for entity data

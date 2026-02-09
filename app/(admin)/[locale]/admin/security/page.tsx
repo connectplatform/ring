@@ -7,35 +7,9 @@ import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Shield,
-  AlertTriangle,
-  Lock,
-  Unlock,
-  Eye,
-  KeyRound,
-  Globe,
-  User,
-  Server,
-  Database,
-  Wifi,
-  Activity,
-  CheckCircle,
-  XCircle,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Filter,
-  Search,
-  Download,
-  RefreshCw,
-  AlertCircle,
-  UserCheck,
-  FileText,
-  Settings
-} from 'lucide-react';
+import { connection } from 'next/server';
+import { Shield, AlertTriangle, Lock, Unlock, Eye, KeyRound, Globe, User, Server, Database, Wifi, Activity, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown, Filter, Search, Download, RefreshCw, AlertCircle, UserCheck, FileText, Settings } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
 
 // Types for security system
 interface SecurityEvent {
@@ -90,6 +64,8 @@ export default async function SecurityPage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -310,7 +286,7 @@ export default async function SecurityPage({
       case 'down':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       default:
-        return <Activity className="h-4 w-4 text-muted-foreground" />;
+        return <Activity className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -319,7 +295,7 @@ export default async function SecurityPage({
       case 'login':
         return <User className="h-4 w-4 text-green-600" />;
       case 'logout':
-        return <User className="h-4 w-4 text-muted-foreground" />;
+        return <User className="h-4 w-4 text-gray-600" />;
       case 'failed_login':
         return <XCircle className="h-4 w-4 text-red-600" />;
       case 'permission_change':
@@ -329,7 +305,7 @@ export default async function SecurityPage({
       case 'security_violation':
         return <AlertTriangle className="h-4 w-4 text-red-600" />;
       default:
-        return <Shield className="h-4 w-4 text-muted-foreground" />;
+        return <Shield className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -343,18 +319,21 @@ export default async function SecurityPage({
   };
 
   return (
-    <>
+    <AdminWrapper
+      locale={validLocale}
+      pageContext="security"
+    >
       <title>Security Dashboard | Ring Platform Admin</title>
       <meta name="description" content="Advanced security monitoring and audit dashboard for Ring Platform administrators" />
 
-      <AdminWrapper locale={validLocale} pageContext="security">
+      <div className="mb-8">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">
-                Security Dashboard
-              </h1>
-              <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Security Dashboard
+          </h1>
+              <p className="text-gray-600 dark:text-gray-400">
                 Advanced security monitoring, authentication tracking, and permission auditing
               </p>
             </div>
@@ -385,7 +364,7 @@ export default async function SecurityPage({
                   <div className="flex flex-col items-end">
                     {getTrendIcon(metric.trend)}
                     <div className={`text-xs mt-1 ${
-                        metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-muted-foreground'
+                      metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-gray-600'
                     }`}>
                       {metric.change > 0 ? '+' : ''}{metric.change}%
                     </div>
@@ -457,7 +436,7 @@ export default async function SecurityPage({
                               </span>
                             </div>
                             
-                                <p className="text-sm text-foreground mb-2">
+                            <p className="text-sm text-gray-900 dark:text-gray-100 mb-2">
                               {event.details}
                             </p>
                             
@@ -763,7 +742,7 @@ export default async function SecurityPage({
             </Card>
           </TabsContent>
         </Tabs>
-      </AdminWrapper>
-    </>
+      </div>
+    </AdminWrapper>
   );
 } 

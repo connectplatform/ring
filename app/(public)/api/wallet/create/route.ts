@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from "@/auth";
 import { createWallet } from "@/features/wallet/services/create-wallet";
 import { Wallet } from '@/features/auth/types';
@@ -38,6 +38,8 @@ import { Wallet } from '@/features/auth/types';
  * }
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/wallet/create - Starting POST request');
 
   try {
@@ -83,4 +85,3 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';

@@ -94,7 +94,7 @@ export function MyNewsClient({
     } finally {
       setLoading(false)
     }
-  }, [userId, filterStatus])
+  }, [filterStatus, locale])
 
   // Load articles and stats
   useEffect(() => {

@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, createTunnelToken } from '@/lib/auth/edge-jwt';
 
 // Edge Runtime configuration
-export const runtime = 'edge';
 
 /**
  * POST handler to generate tunnel authentication token

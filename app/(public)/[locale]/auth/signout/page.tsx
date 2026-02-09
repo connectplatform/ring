@@ -4,7 +4,7 @@ import AuthStatusPage from '@/components/auth/auth-status-page'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
 
-export const dynamic = 'force-dynamic'
+
 
 export default async function SignOutStatusPage({ 
   params 

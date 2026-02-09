@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connection } from 'next/server';
 import { priceOracleService } from '@/services/blockchain/price-oracle-service';
 import { logger } from '@/lib/logger';
 
@@ -7,6 +8,8 @@ import { logger } from '@/lib/logger';
  * Get current RING to USD exchange rate
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: external fetch() requires dynamic opt-out
+
   try {
     // Get price data from oracle service
     const priceData = await priceOracleService.getRingUsdPrice();

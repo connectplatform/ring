@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { connection } from 'next/server'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsArticle, NewsCategory } from '@/features/news/types'
 
@@ -45,6 +46,8 @@ ${rssItems}
 }
 
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering (uses request.url)
+
   try {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category') as NewsCategory | null

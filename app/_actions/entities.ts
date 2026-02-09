@@ -18,6 +18,7 @@ export async function createEntity(
   prevState: EntityFormState | null,
   formData: FormData
 ): Promise<EntityFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -153,6 +154,7 @@ export async function updateEntity(
   prevState: EntityFormState | null,
   formData: FormData
 ): Promise<EntityFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -266,6 +268,7 @@ export async function deleteEntity(
   prevState: EntityFormState | null,
   formData: FormData
 ): Promise<EntityFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {

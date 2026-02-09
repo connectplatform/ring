@@ -14,8 +14,6 @@ import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 
 // Allow caching for opportunity details with moderate revalidation for content updates
-export const dynamic = "auto"
-export const revalidate = 120 // 2 minutes for opportunity detail data
 
 // Define the type for the route params
 type OpportunityParams = { id: string };

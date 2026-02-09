@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, connection} from "next/server";
 import { auth } from '@/auth';
 import { updateProfile } from "@/features/auth/services/update-profile";
 import { getUserProfile } from "@/features/auth/services/get-user-profile";
@@ -42,6 +42,8 @@ import { hasOwnProperty, validateRequiredFields, filterObjectProperties } from '
  * @returns A NextResponse object with the user profile data or error
  */
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/profile - Starting GET request with ES2022 validation');
 
   // ES2022 Logical Assignment for request context
@@ -136,6 +138,8 @@ export async function GET(req: NextRequest) {
  * @returns A NextResponse object with the result of the operation
  */
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/profile - Starting POST request with ES2022 validation');
 
   // ES2022 Logical Assignment for request context
@@ -318,7 +322,6 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Allow caching for user profile data with moderate revalidation for profile updates
+ * Prevent caching for this route
+ * This is important in Next.js 15 as the default caching behavior has changed
  */
-export const dynamic = 'auto'
-export const revalidate = 120 // 2 minutes for profile data

@@ -44,6 +44,7 @@ export async function signInWithCredentials(
   prevState: AuthFormState | null,
   formData: FormData
 ): Promise<AuthFormState> {
+
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const redirectTo = formData.get('redirectTo') as string || ROUTES.HOME(defaultLocale)
@@ -107,6 +108,7 @@ export async function signInWithProvider(
   prevState: AuthFormState | null,
   formData: FormData
 ): Promise<AuthFormState> {
+
   const provider = formData.get('provider') as string
   const redirectTo = formData.get('redirectTo') as string || ROUTES.HOME(defaultLocale)
 
@@ -143,6 +145,7 @@ export async function signInWithGoogle(
   prevState: GoogleSignInState | null,
   formData: FormData
 ): Promise<GoogleSignInState> {
+
   const redirectUrl = formData.get('redirectUrl') as string
   const localeParam = formData.get('locale') as string || defaultLocale
   
@@ -170,6 +173,7 @@ export async function registerUser(
   prevState: AuthFormState | null,
   formData: FormData
 ): Promise<AuthFormState> {
+
   const name = formData.get('name') as string
   const email = formData.get('email') as string
   const password = formData.get('password') as string
@@ -260,6 +264,7 @@ export async function completeUserProfile(
   prevState: UserProfileFormState | null,
   formData: FormData
 ): Promise<UserProfileFormState> {
+
   const userId = formData.get('userId') as string
   const name = formData.get('name') as string
   const email = formData.get('email') as string
@@ -342,6 +347,7 @@ export async function linkGoogleAccount(
   prevState: UserProfileFormState | null,
   formData: FormData
 ): Promise<UserProfileFormState> {
+
   const userId = formData.get('userId') as string
 
   if (!userId?.trim()) {
@@ -369,6 +375,7 @@ export async function requestPasswordReset(
   prevState: AuthFormState | null,
   formData: FormData
 ): Promise<AuthFormState> {
+
   const email = formData.get('email') as string
 
   // Validation
@@ -427,6 +434,7 @@ export async function requestAccountDeletion(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -514,6 +522,7 @@ export async function cancelAccountDeletion(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -570,6 +579,7 @@ export async function confirmAccountDeletion(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -639,6 +649,7 @@ export async function getAccountDeletionStatus(
   prevState: AccountDeletionState | null,
   formData: FormData
 ): Promise<AccountDeletionState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {

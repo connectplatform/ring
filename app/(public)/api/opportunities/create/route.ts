@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { revalidatePath } from 'next/cache'
 
-export const dynamic = 'force-dynamic'
 
 // Marks a draft listing as active after on-chain tx confirmation
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json().catch(() => null)

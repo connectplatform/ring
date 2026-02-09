@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { ConversationService } from '@/features/chat/services/conversation-service'
 import { CreateConversationRequest, ConversationFilters, PaginationOptions } from '@/features/chat/types'
@@ -7,6 +7,8 @@ import { hasOwnProperty, validateRequiredFields, filterObjectProperties } from '
 const conversationService = new ConversationService()
 
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // ES2022 Logical Assignment for request context
   const requestContext = {
     timestamp: Date.now(),
@@ -119,6 +121,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // ES2022 Logical Assignment for request context
   const requestContext = {
     timestamp: Date.now(),

@@ -10,7 +10,6 @@ import { sseHelpers } from '../sse/route';
 import { pollHelpers } from '../poll/route';
 
 // Edge Runtime configuration
-export const runtime = 'edge';
 
 /**
  * POST handler to publish messages

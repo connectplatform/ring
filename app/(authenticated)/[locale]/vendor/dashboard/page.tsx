@@ -7,10 +7,13 @@
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
+import { auth } from '@/auth'
+import { ROUTES } from '@/constants/routes'
 import VendorDashboardWrapper from '@/components/wrappers/vendor-dashboard-wrapper'
 import { DAGIActivationCard } from '@/components/vendor/dagi-activation-card'
 import { DashboardStats } from '@/components/vendor/dashboard-stats'
 import { RecentOrders } from '@/components/vendor/recent-orders'
+import { connection } from 'next/server'
 
 export const metadata: Metadata = {
   title: 'Vendor Dashboard | GreenFood.live',
@@ -22,12 +25,13 @@ export default async function VendorDashboardPage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
-  // TODO: Implement proper auth check
-  const session = { user: { id: 'mock-user-id' } } // Temporary mock
+  const session = await auth()
   
   if (!session?.user?.id) {
-    redirect(`/${locale}/login`)
+    redirect(ROUTES.LOGIN(locale as any))
   }
 
   // TODO: Check vendor status via database query
@@ -35,7 +39,7 @@ export default async function VendorDashboardPage({
   // if (!isVendor) redirect('/vendor/start')
 
   return (
-    <VendorDashboardWrapper locale="en">
+    <VendorDashboardWrapper locale={locale}>
       <div className="container mx-auto px-6 max-w-6xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Vendor Dashboard</h1>

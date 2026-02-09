@@ -1,483 +1,235 @@
-'use client'
-
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { headers } from 'next/headers'
+import * as fs from 'fs'
+import * as path from 'path'
+import matter from 'gray-matter'
+import { connection } from 'next/server'
 
 interface DocsNavigationTreeProps {
   locale: string
 }
 
-export default function DocsNavigationTree({ locale }: DocsNavigationTreeProps) {
-  const pathname = usePathname()
-  const t = useTranslations('navigation.docs_sidebar.sidebar')
+interface SectionMeta {
+  title: string
+  pages: string[]
+}
 
-  const navSections = [
-    {
-      title: t('gettingStarted'),
-      items: [
-        {
-          href: `/${locale}/docs/getting-started/index`,
-          label: t('overview')
-        },
-        {
-          href: `/${locale}/docs/getting-started/installation`,
-          label: t('installation')
-        },
-        {
-          href: `/${locale}/docs/getting-started/prerequisites`,
-          label: t('prerequisites')
-        },
-        {
-          href: `/${locale}/docs/getting-started/first-success`,
-          label: t('firstSuccess')
-        },
-        {
-          href: `/${locale}/docs/getting-started/next-steps`,
-          label: t('nextSteps')
-        },
-        {
-          href: `/${locale}/docs/getting-started/troubleshooting`,
-          label: t('troubleshooting')
-        },
-      ]
-    },
-    {
-      title: t('architecture'),
-      items: [
-        {
-          href: `/${locale}/docs/architecture/index`,
-          label: t('architectureOverview')
-        },
-        {
-          href: `/${locale}/docs/architecture/authentication`,
-          label: t('authArchitecture')
-        },
-        {
-          href: `/${locale}/docs/architecture/data-model`,
-          label: t('dataModel')
-        },
-        {
-          href: `/${locale}/docs/architecture/real-time`,
-          label: t('realTime')
-        },
-        {
-          href: `/${locale}/docs/architecture/security`,
-          label: t('security')
-        },
-      ]
-    },
-    {
-      title: t('features'),
-      items: [
-        {
-          href: `/${locale}/docs/features/index`,
-          label: t('platformFeatures')
-        },
-        {
-          href: `/${locale}/docs/features/authentication`,
-          label: t('authentication')
-        },
-        {
-          href: `/${locale}/docs/features/entities`,
-          label: t('entities')
-        },
-        {
-          href: `/${locale}/docs/features/opportunities`,
-          label: t('opportunities')
-        },
-        {
-          href: `/${locale}/docs/features/store`,
-          label: t('multiVendorStore')
-        },
-        {
-          href: `/${locale}/docs/features/wallet`,
-          label: t('web3Wallet')
-        },
-        {
-          href: `/${locale}/docs/features/messaging`,
-          label: t('messaging')
-        },
-        {
-          href: `/${locale}/docs/features/notifications`,
-          label: t('notifications')
-        },
-        {
-          href: `/${locale}/docs/features/nft-market`,
-          label: t('nftMarketplace')
-        },
-        {
-          href: `/${locale}/docs/features/payments`,
-          label: t('paymentIntegration')
-        },
-        {
-          href: `/${locale}/docs/features/security`,
-          label: t('securityCompliance')
-        },
-        {
-          href: `/${locale}/docs/features/staking`,
-          label: t('tokenStaking')
-        },
-        {
-          href: `/${locale}/docs/features/performance`,
-          label: t('performance')
-        },
-      ]
-    },
-    {
-      title: t('apiReference'),
-      items: [
-        {
-          href: `/${locale}/docs/api/index`,
-          label: t('apiOverview')
-        },
-        {
-          href: `/${locale}/docs/api/authentication`,
-          label: t('authApi')
-        },
-        {
-          href: `/${locale}/docs/api/entities`,
-          label: t('entitiesApi')
-        },
-        {
-          href: `/${locale}/docs/api/opportunities`,
-          label: t('opportunitiesApi')
-        },
-        {
-          href: `/${locale}/docs/api/store`,
-          label: t('storeApi')
-        },
-        {
-          href: `/${locale}/docs/api/wallet`,
-          label: t('walletApi')
-        },
-        {
-          href: `/${locale}/docs/api/messaging`,
-          label: t('messagingApi')
-        },
-        {
-          href: `/${locale}/docs/api/notifications`,
-          label: t('notificationsApi')
-        },
-        {
-          href: `/${locale}/docs/api/admin`,
-          label: t('adminApi')
-        },
-      ]
-    },
-    {
-      title: t('cliTool'),
-      items: [
-        {
-          href: `/${locale}/docs/cli/index`,
-          label: t('ringCli')
-        },
-      ]
-    },
-    {
-      title: t('customization'),
-      items: [
-        {
-          href: `/${locale}/docs/customization/index`,
-          label: t('customizationOverview')
-        },
-        {
-          href: `/${locale}/docs/customization/branding`,
-          label: t('branding')
-        },
-        {
-          href: `/${locale}/docs/customization/themes`,
-          label: t('themes')
-        },
-        {
-          href: `/${locale}/docs/customization/components`,
-          label: t('components')
-        },
-        {
-          href: `/${locale}/docs/customization/features`,
-          label: t('features')
-        },
-        {
-          href: `/${locale}/docs/customization/localization`,
-          label: t('localization')
-        },
-      ]
-    },
-    {
-      title: t('deployment'),
-      items: [
-        {
-          href: `/${locale}/docs/deployment/index`,
-          label: t('deploymentOverview')
-        },
-        {
-          href: `/${locale}/docs/deployment/docker`,
-          label: t('docker')
-        },
-        {
-          href: `/${locale}/docs/deployment/vercel`,
-          label: t('vercel')
-        },
-        {
-          href: `/${locale}/docs/deployment/environment`,
-          label: t('environment')
-        },
-        {
-          href: `/${locale}/docs/deployment/monitoring`,
-          label: t('monitoring')
-        },
-        {
-          href: `/${locale}/docs/deployment/performance`,
-          label: t('performance')
-        },
-        {
-          href: `/${locale}/docs/deployment/backup`,
-          label: t('backup')
-        },
-      ]
-    },
-    {
-      title: t('development'),
-      items: [
-        {
-          href: `/${locale}/docs/development/index`,
-          label: t('developmentGuide')
-        },
-        {
-          href: `/${locale}/docs/development/local-setup`,
-          label: t('localSetup')
-        },
-        {
-          href: `/${locale}/docs/development/code-structure`,
-          label: t('codeStructure')
-        },
-        {
-          href: `/${locale}/docs/development/code-style`,
-          label: t('codeStyle')
-        },
-        {
-          href: `/${locale}/docs/development/best-practices`,
-          label: t('bestPractices')
-        },
-        {
-          href: `/${locale}/docs/development/testing`,
-          label: t('testing')
-        },
-        {
-          href: `/${locale}/docs/development/debugging`,
-          label: t('debugging')
-        },
-        {
-          href: `/${locale}/docs/development/performance`,
-          label: t('performance')
-        },
-        {
-          href: `/${locale}/docs/development/deployment`,
-          label: t('devDeployment')
-        },
-        {
-          href: `/${locale}/docs/development/workflow`,
-          label: t('workflow')
-        },
-        {
-          href: `/${locale}/docs/development/contributing`,
-          label: t('contributing')
-        },
-      ]
-    },
-    {
-      title: t('examples'),
-      items: [
-        {
-          href: `/${locale}/docs/examples/index`,
-          label: t('examplesOverview')
-        },
-        {
-          href: `/${locale}/docs/examples/quick-start`,
-          label: t('quickStart')
-        },
-        {
-          href: `/${locale}/docs/examples/basic-setup`,
-          label: t('basicSetup')
-        },
-        {
-          href: `/${locale}/docs/examples/authentication`,
-          label: t('authentication')
-        },
-        {
-          href: `/${locale}/docs/examples/api-integration`,
-          label: t('apiIntegration')
-        },
-        {
-          href: `/${locale}/docs/examples/api-examples`,
-          label: t('apiExamples')
-        },
-        {
-          href: `/${locale}/docs/examples/custom-branding`,
-          label: t('customBranding')
-        },
-        {
-          href: `/${locale}/docs/examples/white-label`,
-          label: t('whiteLabel')
-        },
-        {
-          href: `/${locale}/docs/examples/multi-tenant`,
-          label: t('multiTenant')
-        },
-        {
-          href: `/${locale}/docs/examples/web3-integration`,
-          label: t('web3Integration')
-        },
-        {
-          href: `/${locale}/docs/examples/apple-signin-integration`,
-          label: t('appleSignin')
-        },
-        {
-          href: `/${locale}/docs/examples/integrations`,
-          label: t('integrations')
-        },
-        {
-          href: `/${locale}/docs/examples/advanced-features`,
-          label: t('advancedFeatures')
-        },
-        {
-          href: `/${locale}/docs/examples/real-world`,
-          label: t('realWorld')
-        },
-      ]
-    },
-    {
-      title: t('whiteLabel'),
-      items: [
-        {
-          href: `/${locale}/docs/white-label/index`,
-          label: t('whiteLabelOverview')
-        },
-        {
-          href: `/${locale}/docs/white-label/quick-start`,
-          label: t('quickStart')
-        },
-        {
-          href: `/${locale}/docs/white-label/customization-guide`,
-          label: t('customizationGuide')
-        },
-        {
-          href: `/${locale}/docs/white-label/database-selection`,
-          label: t('databaseSelection')
-        },
-        {
-          href: `/${locale}/docs/white-label/payment-integration`,
-          label: t('paymentIntegration')
-        },
-        {
-          href: `/${locale}/docs/white-label/token-economics`,
-          label: t('tokenEconomics')
-        },
-        {
-          href: `/${locale}/docs/white-label/multi-tenant`,
-          label: t('multiTenantSetup')
-        },
-        {
-          href: `/${locale}/docs/white-label/ai-customization`,
-          label: t('aiCustomization')
-        },
-        {
-          href: `/${locale}/docs/white-label/success-stories`,
-          label: t('successStories')
-        },
-      ]
+interface NavigationSection {
+  title: string
+  items: {
+    href: string
+    label: string
+    exists: boolean
+  }[]
+}
+
+export default async function DocsNavigationTree({ locale }: DocsNavigationTreeProps) {
+  await connection() // Next.js 16: opt out of prerendering
+
+  const headersList = await headers()
+  const pathname = headersList.get('x-pathname') || ''
+
+  const loadNavigation = (): NavigationSection[] => {
+    try {
+      const docsRoot = path.join(process.cwd(), 'docs', 'content', locale, 'library')
+      const articles: { href: string; label: string; exists: boolean }[] = []
+
+      // Find all MDX files recursively
+      const findMdxFiles = (dir: string, basePath: string = '') => {
+        const items = fs.readdirSync(dir)
+
+        for (const item of items) {
+          const fullPath = path.join(dir, item)
+          const stat = fs.statSync(fullPath)
+
+          if (stat.isDirectory()) {
+            // Skip node_modules and other unwanted directories
+            if (item.startsWith('.') || item === 'node_modules') continue
+
+            const relativePath = basePath ? `${basePath}/${item}` : item
+            findMdxFiles(fullPath, relativePath)
+          } else if (item.endsWith('.mdx')) {
+            // Calculate the href based on the file path - using simplified /docs/[section] URLs
+            let href: string
+            if (basePath === '') {
+              // Root level file (like index.mdx) - this shouldn't happen in our structure
+              href = item === 'index.mdx'
+                ? `/${locale}/docs`
+                : `/${locale}/docs/${item.replace('.mdx', '')}`
+            } else {
+              // Section file - /docs/[section] for index.mdx, /docs/[section]/[page] for others
+              href = item === 'index.mdx'
+                ? `/${locale}/docs/${basePath}`
+                : `/${locale}/docs/${basePath}/${item.replace('.mdx', '')}`
+            }
+
+            // Get title from frontmatter or generate from filename
+            const title = item === 'index.mdx' && basePath
+              ? getSectionTitle(basePath, locale)
+              : getPageTitleFromFile(fullPath, basePath, item.replace('.mdx', ''), locale)
+
+            articles.push({
+              href,
+              label: title,
+              exists: true
+            })
+          }
+        }
+      }
+
+      findMdxFiles(docsRoot)
+
+      // Sort articles alphabetically by label
+      articles.sort((a, b) => a.label.localeCompare(b.label))
+
+      // Return as a single section
+      return [{
+        title: '📚 GreenFood.live Documentation',
+        items: articles
+      }]
+
+    } catch (error) {
+      console.error('Failed to load unified navigation:', error)
+      return [{
+        title: 'Documentation',
+        items: [{
+          href: `/${locale}/docs/library`,
+          label: 'Library',
+          exists: true
+        }]
+      }]
     }
-  ]
+  }
+
+  // Helper function to get section title from meta.json
+  const getSectionTitle = (sectionSlug: string, locale: string): string => {
+    try {
+      const metaPath = path.join(process.cwd(), 'docs', 'content', locale, 'library', sectionSlug, 'meta.json')
+      if (fs.existsSync(metaPath)) {
+        const metaContent = fs.readFileSync(metaPath, 'utf8')
+        const meta = JSON.parse(metaContent)
+        if (meta.title) {
+          return meta.title
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to read section title from ${sectionSlug}:`, error)
+    }
+
+    // Fallback: convert slug to title case
+    return sectionSlug.split('-').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+
+  // Helper function to get page title from file
+  const getPageTitleFromFile = (filePath: string, sectionSlug: string, pageSlug: string, locale: string): string => {
+    // Try to read the frontmatter from the MDX file to get title
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8')
+        const { data } = matter(content)
+        if (data.title) {
+          return data.title
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to read title from ${filePath}:`, error)
+    }
+
+    // Fallback: convert slug to title case
+    return pageSlug === 'index'
+      ? 'Overview'
+      : pageSlug.split('-').map(word =>
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')
+  }
+
+  const navSections = loadNavigation()
 
   const isActive = (href: string) => {
     return pathname === href || pathname.startsWith(href + '/')
   }
 
   return (
-    <div className="space-y-6">
-      {navSections.map((section, sectionIndex) => (
-        <div key={section.title} className="space-y-2">
-          {/* Section Header */}
-          <div className="flex items-center gap-2">
-            <div className={`w-1 h-4 rounded-full ${
-              sectionIndex === 0 ? 'bg-blue-500 dark:bg-blue-400' :
-              sectionIndex === 1 ? 'bg-purple-500 dark:bg-purple-400' :
-              sectionIndex === 2 ? 'bg-green-500 dark:bg-green-400' :
-              sectionIndex === 3 ? 'bg-orange-500 dark:bg-orange-400' :
-              sectionIndex === 4 ? 'bg-red-500 dark:bg-red-400' :
-              sectionIndex === 5 ? 'bg-indigo-500 dark:bg-indigo-400' :
-              sectionIndex === 6 ? 'bg-yellow-500 dark:bg-yellow-400' :
-              sectionIndex === 7 ? 'bg-pink-500 dark:bg-pink-400' :
-              sectionIndex === 8 ? 'bg-teal-500 dark:bg-teal-400' :
-              'bg-gray-500 dark:bg-gray-400'
-            }`} />
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-              {section.title}
-            </h3>
-          </div>
-
-          {/* Section Items */}
-          <div className="ml-3 space-y-1">
-            {section.items.map((item, itemIndex) => (
-              <div key={item.href} className="flex items-center gap-2">
-                <div className="w-1 h-3 rounded-full bg-muted-foreground/30" />
-                <Link
-                  href={item.href}
-                  className={`text-sm hover:text-primary transition-colors block py-1 px-2 rounded-md hover:bg-muted/50 ${
-                    isActive(item.href) ? 'text-primary font-medium bg-primary/5' : 'text-muted-foreground'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              </div>
-            ))}
-          </div>
+    <div className="space-y-4">
+      {/* Unified Documentation Section */}
+      <div className="space-y-3">
+        {/* Single Header */}
+        <div className="flex items-center gap-2 pb-2 border-b border-border">
+          <div className="w-1 h-4 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+            📚 Documentation
+          </h3>
         </div>
-      ))}
+
+        {/* All Articles in Single List */}
+        <div className="space-y-1">
+          {navSections[0]?.items.map((item, index) => (
+            <div key={item.href} className="flex items-center gap-2">
+              <div className={`w-1 h-3 rounded-full ${
+                isActive(item.href)
+                  ? 'bg-emerald-500 dark:bg-emerald-400'
+                  : 'bg-muted-foreground/30'
+              }`} />
+              <Link
+                href={item.href}
+                className={`text-sm hover:text-primary transition-colors block py-1 px-2 rounded-md hover:bg-muted/50 flex-1 ${
+                  isActive(item.href)
+                    ? 'text-primary font-medium bg-primary/5'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {item.label}
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Quick Links */}
-      <div className="pt-6 border-t border-border space-y-3">
+      <div className="pt-4 border-t border-border space-y-3">
         <div className="flex items-center gap-2">
-          <div className="w-1 h-4 rounded-full bg-cyan-500 dark:bg-cyan-400" />
+          <div className="w-1 h-4 rounded-full bg-emerald-600 dark:bg-emerald-500" />
           <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-            Quick Links
+            🌾 Quick Access
           </h4>
         </div>
-        <div className="ml-3 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 rounded-full bg-muted-foreground/30" />
             <Link
-              href={`/${locale}/docs/api`}
+              href={`/${locale}/docs`}
               className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted/50"
             >
-              API Reference
+              📖 Welcome to GreenFood.live
             </Link>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 rounded-full bg-muted-foreground/30" />
             <Link
-              href={`/${locale}/docs/examples`}
+              href={`/${locale}/docs/for-farmers`}
               className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted/50"
             >
-              Code Examples
+              👨‍🌾 Complete Farmer Guide
             </Link>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 rounded-full bg-muted-foreground/30" />
             <Link
-              href={`/${locale}/docs/changelog`}
+              href={`/${locale}/docs/for-buyers`}
               className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted/50"
             >
-              Changelog
+              🛒 Complete Buyer Guide
             </Link>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1 h-3 rounded-full bg-muted-foreground/30" />
             <Link
-              href={`/${locale}/docs/support`}
+              href={`/${locale}/docs/token-economy`}
               className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted/50"
             >
-              Support
+              💰 DAAR/DAARION Token System
             </Link>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { createEntity } from '@/features/entities/services/create-entity';
 import { Entity } from '@/features/entities/types';
@@ -22,6 +22,8 @@ import { isFeatureEnabledOnServer } from '@/whitelabel/features'
  * @returns {Promise<NextResponse>} Response object containing the created entity or an error message.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { logger } = await import('@/lib/logger')
   logger.info('api.entities.create.start')
 
@@ -89,11 +91,4 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route.
- */
-export const config = {
-  runtime: 'nodejs',
-};

@@ -5,6 +5,7 @@
  * Supports PostgreSQL and Firebase with automatic failover and load balancing
  */
 
+import { monotime } from './timer'
 import {
   IDatabaseService,
   DatabaseResult,
@@ -167,9 +168,9 @@ export class BackendSelector implements IDatabaseService {
   private async performHealthChecks(): Promise<void> {
     for (const [backendName, backend] of this.backends) {
       try {
-        const startTime = Date.now();
+        const startMs = monotime();
         const healthResult = await backend.healthCheck();
-        const responseTime = Date.now() - startTime;
+        const responseTime = monotime() - startMs;
 
         const healthStatus = this.healthStatus.get(backendName)!;
 
@@ -197,8 +198,8 @@ export class BackendSelector implements IDatabaseService {
   }
 
   private getBackendForCollection(collection: string): IDatabaseService {
-    // Check cache first
-    const now = Date.now();
+    // Check cache first (monotonic clock - safe during Next.js prerendering)
+    const now = monotime();
     const cachedTimestamp = this.cacheTimestamps.get(collection);
     const cachedBackend = this.routeCache.get(collection);
 
@@ -289,13 +290,28 @@ export class BackendSelector implements IDatabaseService {
       if (shouldLog()) {
         console.log(`BackendSelector: Connecting to backend '${name}'...`);
       }
+      const startMs = monotime();
       const result = await backend.connect();
+      const connectionTime = monotime() - startMs;
       if (shouldLog()) {
         console.log(`BackendSelector: Backend '${name}' connection result:`, {
           success: result.success,
           error: result.error?.message
         });
       }
+
+      // CRITICAL: Update healthStatus after successful connection
+      // Without this, getHealthyBackend() cannot find any healthy backends
+      if (result.success) {
+        const healthStatus = this.healthStatus.get(name);
+        if (healthStatus) {
+          healthStatus.healthy = true;
+          healthStatus.responseTime = connectionTime;
+          healthStatus.consecutiveFailures = 0;
+          healthStatus.lastChecked = new Date();
+        }
+      }
+
       results.push(result);
     }
 

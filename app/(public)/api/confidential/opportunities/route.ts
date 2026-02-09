@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getConfidentialOpportunities } from '@/features/opportunities/services/get-confidential-opportunities';
 import { UserRole } from '@/features/auth/types';
@@ -37,9 +37,11 @@ import { UserRole } from '@/features/auth/types';
  * Security:
  * - Requires authenticated session
  * - Requires CONFIDENTIAL or ADMIN role
- * - No caching allowed (force-dynamic route)
+ * - Dynamic rendering (no caching)
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/confidential/opportunities - Starting GET request');
 
   try {
@@ -130,7 +132,5 @@ export async function GET(request: NextRequest) {
 
 /**
  * Route Configuration
- * force-dynamic: Prevents caching of this route at the Next.js level
  * This ensures that each request always fetches fresh data
  */
-export const dynamic = 'force-dynamic';

@@ -9,9 +9,8 @@ import { verifyAuth } from '@/lib/auth/edge-jwt';
 import { createTunnelMessage, TunnelMessageType, MessageConverter } from '@/lib/tunnel/protocol';
 import { TunnelProvider } from '@/lib/tunnel/types';
 
+
 // Edge Runtime configuration
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
 
 // Message queue for SSE (in production, use Redis/Supabase/Firebase)
 const messageQueues = new Map<string, any[]>();

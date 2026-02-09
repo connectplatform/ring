@@ -6,10 +6,9 @@ import { auth } from "@/auth"
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
+import { connection } from 'next/server'
 
-// Allow caching for better performance - about page content doesn't change constantly
-export const dynamic = "auto"
-export const revalidate = 600 // 10 minutes for static content
+// Force dynamic rendering for this page
 
 type AboutParams = {}
 
@@ -21,6 +20,8 @@ type AboutParams = {}
  * @returns JSX.Element - The rendered about page.
  */
 export default async function AboutPage(props: LocalePageProps<AboutParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // Resolve params and searchParams
   const params = await props.params;
   const searchParams = await props.searchParams;
@@ -122,57 +123,12 @@ export default async function AboutPage(props: LocalePageProps<AboutParams>) {
       }>
         {/* Step 6c: Render the main content wrapper */}
         <AboutWrapper locale={locale}>
-          <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-500 to-green-500 bg-clip-text text-transparent mb-6">
-              About Ring Platform
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Ring Platform is building the future of decentralized collaboration, connecting communities worldwide through AI-powered matching and transparent governance.
+          {/* About page content rendered within the wrapper */}
+          <div className="p-6">
+            <h1 className="text-3xl font-bold mb-4">About GreenFood.live</h1>
+            <p className="text-muted-foreground">
+              Welcome to GreenFood.live - your trusted source for sustainable, organic produce.
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 mb-16">
-            <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
-              <h3 className="text-2xl font-bold mb-4 text-card-foreground">Our Mission</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                To democratize access to opportunities and knowledge through decentralized technology, empowering individuals and communities to collaborate, learn, and grow together.
-              </p>
-            </div>
-            <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
-              <h3 className="text-2xl font-bold mb-4 text-card-foreground">Our Vision</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                A world where geographic and economic barriers no longer limit human potential, where AI serves humanity, and where collective intelligence solves our greatest challenges.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-2xl p-8 shadow-lg mb-16 border border-border">
-            <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              What We Build
-            </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🌐</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-card-foreground">Open Source Platform</h3>
-                <p className="text-muted-foreground">Free, customizable marketplace and community platform for everyone.</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-green-500 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🤖</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-card-foreground">AI-Powered Matching</h3>
-                <p className="text-muted-foreground">Intelligent algorithms connecting people with the right opportunities.</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">⛓️</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-card-foreground">Web3 Integration</h3>
-                <p className="text-muted-foreground">Blockchain-based trust, tokens, and transparent governance.</p>
-              </div>
-            </div>
           </div>
         </AboutWrapper>
       </Suspense>

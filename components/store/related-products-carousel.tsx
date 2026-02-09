@@ -16,6 +16,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, ShoppingCart, Star, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -186,11 +187,13 @@ export default function RelatedProductsCarousel({
                 )}>
                   {/* Product Image */}
                   <Link href={product.url} className="block relative aspect-square bg-muted overflow-hidden">
-                    <img
+                    <Image
                       src={product.image}
                       alt={product.name}
+                      fill
+                      sizes="256px"
                       className={cn(
-                        "w-full h-full object-cover transition-transform duration-500",
+                        "object-cover transition-transform duration-500",
                         isHovered && "scale-110"
                       )}
                     />

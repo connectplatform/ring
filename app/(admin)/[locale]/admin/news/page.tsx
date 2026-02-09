@@ -7,10 +7,8 @@ import { NewsArticle } from '@/features/news/types';
 import { AdminNewsManager } from '@/features/news/components/admin-news-manager';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 import NewsWrapper from '@/components/wrappers/news-wrapper';
+import { connection } from 'next/server'
 
-// Allow caching for admin news management with short revalidation for content management data
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for news management data
 
 /**
  * Get news articles for admin
@@ -52,6 +50,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -62,11 +62,14 @@ export async function generateMetadata({
   };
 }
 
-export default async function AdminNewsPage({ 
-  params 
+export default async function AdminNewsPage({
+  params
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
+  const startTime = Date.now();
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -84,7 +87,11 @@ export default async function AdminNewsPage({
   const articles = await getNewsArticles();
 
   return (
-    <NewsWrapper pageContext="articles" stats={{ totalArticles: articles.length, publishedArticles: 0, draftArticles: 0, recentViews: 0 }}>
+    <NewsWrapper
+      pageContext="articles"
+      stats={{ totalArticles: articles.length, publishedArticles: 0, draftArticles: 0, recentViews: 0 }}
+      translations={t}
+    >
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">
         {t.modules.admin.newsManagement}
@@ -101,4 +108,9 @@ export default async function AdminNewsPage({
       />
     </NewsWrapper>
   );
-} 
+
+  // Performance monitoring
+  const endTime = Date.now();
+  const duration = endTime - startTime;
+  console.log(`AdminNewsPage render time: ${duration}ms`);
+}

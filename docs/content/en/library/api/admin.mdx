@@ -582,10 +582,10 @@ Get audit logs for admin actions.
 
 ### Admin Dashboard Component
 
-// components/admin/AdminDashboard.tsx
+{/* components/admin/AdminDashboard.tsx */}
 
-<Code language="typescript" title="TypeScript">
-{`import { useState, useEffect } from 'react'
+```typescript
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface AdminStats {
@@ -686,15 +686,15 @@ export function AdminDashboard() {
       <AuditLogs />
     </div>
   )
-}`}
-</Code>
+}
+```
 
 ### User Management Component
 
-// components/admin/UserManagement.tsx
+{/* components/admin/UserManagement.tsx */}
 
-<Code language="typescript" title="TypeScript">
-{`import { useState } from 'react'
+```typescript
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -827,16 +827,14 @@ export function UserManagement() {
       </div>
     </div>
   )
-}`}
-</Code>
+}
+```
 
 ## 🚨 Error Handling
 
 ### Common Admin Error Responses
 
-// Insufficient Permissions
-
-<Code language="json" title="configuration">
+<Code language="json" title="Error Response Examples">
 {`{
   "error": "InsufficientPermissionsError",
   "message": "Admin role required for this operation",
@@ -900,9 +898,9 @@ export function UserManagement() {
 
 ### Admin Activity Dashboard
 
-// Track admin actions for monitoring
+{/* Track admin actions for monitoring */}
 
-<Code language="typescript" title="TypeScript">
+<Code language="typescript" title="Admin Action Tracking">
 {`const trackAdminAction = (action: string, details: any) => {
   // Send to analytics
   analytics.track('admin_action', {
@@ -926,9 +924,9 @@ export function UserManagement() {
 
 ### Performance Metrics
 
-// Monitor admin API performance
+{/* Monitor admin API performance */}
 
-<Code language="typescript" title="TypeScript">
+<Code language="typescript" title="Admin API Performance Monitoring">
 {`const measureAdminApiCall = async (endpoint: string, operation: () => Promise<any>) => {
   const startTime = Date.now()
   try {

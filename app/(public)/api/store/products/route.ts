@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, connection} from 'next/server'
 import { getStoreAdapter } from '@/features/store/config'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { getVendorByUserId } from '@/features/store/services/get-vendor-by-user'
 
 export async function POST(request: Request) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Check authentication
     const session = await auth()
@@ -71,6 +73,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const url = new URL(request.url)
     

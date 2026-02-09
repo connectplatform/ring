@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, connection} from 'next/server'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 
 export async function GET() {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -42,6 +44,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {

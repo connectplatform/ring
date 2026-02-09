@@ -3,16 +3,15 @@ import { headers } from 'next/headers'
 import { auth } from "@/auth"
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
-import OpportunitiesPageWrapper from '../../../../components/wrappers/opportunities-wrapper'
+import OpportunitiesPageWrapper from '@/components/wrappers/opportunities-page-wrapper'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import OpportunitiesSearchClient from '@/components/opportunities/opportunities-search-client'
+import { connection } from 'next/server'
 
-// Allow caching for better performance - opportunities listings can be cached with periodic refresh
-export const dynamic = "auto"
-export const revalidate = 300 // 5 minutes for opportunities content
+// Force dynamic rendering for this page to ensure fresh data on every request
 
 // Define the type for the route params
 type OpportunitiesParams = {};
@@ -118,6 +117,8 @@ async function getOpportunities(
  * @returns Promise<JSX.Element> - The rendered page content.
  */
 export default async function OpportunitiesPage(props: LocalePageProps<OpportunitiesParams>): Promise<JSX.Element> {
+  await connection() // Next.js 16: opt out of prerendering
+
   if (!isFeatureEnabledOnServer('opportunities')) {
     return (<></>) as any
   }
@@ -274,9 +275,9 @@ async function OpportunitiesContent({ searchParams, limit, session, locale }: {
   console.log('OpportunitiesContent: Rendering', { hasError: !!error, opportunityCount: opportunities.length, lastVisible });
 
   return (
-    <OpportunitiesPageWrapper locale={locale as Locale} searchParams={Object.fromEntries(searchParams)}>
+    <OpportunitiesPageWrapper locale={locale} searchParams={Object.fromEntries(searchParams)}>
       <OpportunitiesWrapper
-        locale={locale as Locale}
+        locale={locale}
         searchParams={Object.fromEntries(searchParams)}
         initialOpportunities={opportunities}
         initialError={error}

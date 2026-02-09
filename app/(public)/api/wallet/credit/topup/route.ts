@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditTopUpRequestSchema } from '@/lib/zod/credit-schemas';
@@ -17,6 +17,8 @@ import { logger } from '@/lib/logger';
  * }
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

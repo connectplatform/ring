@@ -7,10 +7,8 @@ import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
 import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import WalletTopUpClient from './topup-client'
+import { connection } from 'next/server'
 
-// Allow caching for wallet topup page with short revalidation for payment method updates
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for payment method data
 
 // Define the type for the wallet topup route params
 type WalletTopUpParams = {};
@@ -31,6 +29,8 @@ type WalletTopUpParams = {};
  * @returns The rendered WalletTopUpPage component
  */
 export default async function WalletTopUpPage(props: LocalePageProps<WalletTopUpParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('WalletTopUpPage: Starting');
 
   // Resolve params and searchParams
@@ -69,18 +69,18 @@ export default async function WalletTopUpPage(props: LocalePageProps<WalletTopUp
     console.log('WalletTopUpPage: Rendering wallet top-up client');
 
     return (
-      <WalletWrapper locale={locale}>
-        <>
-          {/* React 19 Native Document Metadata - Authenticated Page */}
-          <title>{title}</title>
-          <meta name="description" content={description} />
-          <link rel="canonical" href={canonicalUrl} />
+      <>
+        {/* React 19 Native Document Metadata - Authenticated Page */}
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonicalUrl} />
 
-          {/* Authenticated page security meta tags */}
-          <meta name="robots" content="noindex, nofollow" />
-          <meta name="googlebot" content="noindex, nofollow" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Authenticated page security meta tags */}
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="googlebot" content="noindex, nofollow" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+        <WalletWrapper locale={locale}>
           <Suspense fallback={
             <div className="animate-pulse space-y-6 p-6">
               <div className="h-8 bg-muted rounded w-1/4"></div>
@@ -93,8 +93,8 @@ export default async function WalletTopUpPage(props: LocalePageProps<WalletTopUp
               searchParams={searchParams}
             />
           </Suspense>
-        </>
-      </WalletWrapper>
+        </WalletWrapper>
+      </>
     )
 
   } catch (e) {

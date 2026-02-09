@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
 import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
@@ -11,6 +11,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/notifications/[id]/read - Starting POST request');
 
   try {
@@ -90,11 +92,4 @@ export async function POST(
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route
- */
-export const config = {
-  runtime: 'nodejs',
-}; 

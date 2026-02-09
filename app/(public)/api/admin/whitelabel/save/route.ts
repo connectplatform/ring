@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/user-role'
 
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const session = await auth()
   if (!session?.user || session.user.role !== UserRole.SUPERADMIN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,6 +36,5 @@ export async function POST(request: NextRequest) {
   return NextResponse.redirect(new URL('/en/admin/settings', request.url))
 }
 
-export const dynamic = 'force-dynamic'
 
 

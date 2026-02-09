@@ -9,7 +9,6 @@ import { Toaster } from '@/components/ui/toaster'
 import '@/styles/globals.css'
 import { Inter } from 'next/font/google'
 import { AppProvider } from '@/contexts/app-context'
-import { auth } from '@/auth'
 import InstanceConfigProvider from '@/components/providers/instance-config-provider'
 import { StoreProvider } from '@/features/store/context'
 import { CurrencyProvider } from '@/features/store/currency-context'
@@ -54,10 +53,8 @@ export default async function RootLayout({
   // React 19 Resource Preloading - Critical Performance Optimization
   setupResourcePreloading()
   
-  // Get server session to pass to SessionProvider
-  const session = await auth().catch(() => null)
-  
-  console.log('🟠 Root Layout: Session from server:', session ? { id: session.user?.id, email: session.user?.email, name: session.user?.name } : 'null')
+  // Next.js 16 + cacheComponents: SessionProvider fetches session client-side
+  // Removing server-side auth() call enables static shell streaming for all routes
 
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
@@ -167,7 +164,7 @@ export default async function RootLayout({
         `}} />
       </head>
       <body className="font-inter antialiased">
-      <SessionProvider session={session}>
+      <SessionProvider>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
           <Web3Provider>
           <WebVitalsProvider>

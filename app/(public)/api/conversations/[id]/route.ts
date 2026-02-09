@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { ConversationService } from '@/features/chat/services/conversation-service'
 
@@ -8,6 +8,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -61,6 +63,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -157,6 +161,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {

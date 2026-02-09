@@ -14,6 +14,7 @@ import { logger } from '@/lib/logger'
  * Gets user store preferences (shipping, payment, etc.)
  */
 export async function getUserStorePreferences(): Promise<StoreUserPreferences | null> {
+
   try {
     // Check authentication
     const session = await auth()
@@ -41,7 +42,8 @@ export async function getUserStorePreferences(): Promise<StoreUserPreferences | 
  */
 export async function updateShippingPreference(
   method: StoreUserPreferences['preferredShippingMethod']
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+ success: boolean; error?: string }> {
   try {
     // Check authentication
     const session = await auth()
@@ -74,7 +76,8 @@ export async function updateShippingPreference(
  */
 export async function updatePaymentPreference(
   method: StoreUserPreferences['preferredPaymentMethod']
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+ success: boolean; error?: string }> {
   try {
     // Check authentication
     const session = await auth()
@@ -107,7 +110,8 @@ export async function updatePaymentPreference(
  */
 export async function updateLastUsedAddress(
   addressId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+ success: boolean; error?: string }> {
   try {
     // Check authentication
     const session = await auth()
@@ -140,7 +144,8 @@ export async function updateLastUsedAddress(
  */
 export async function updateUserStorePreferences(
   preferences: Partial<StoreUserPreferences>
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+ success: boolean; error?: string }> {
   try {
     // Check authentication
     const session = await auth()

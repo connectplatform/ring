@@ -9,7 +9,6 @@ import { detectEnvironment, detectProviderCredentials } from '@/lib/tunnel/confi
 import { TunnelProvider } from '@/lib/tunnel/types';
 
 // Edge Runtime configuration
-export const runtime = 'edge';
 
 /**
  * GET handler to test tunnel transport configuration

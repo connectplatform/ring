@@ -17,6 +17,7 @@ import { ProfileAuthError, ProfileValidationError, ProfileUpdateError, logRingEr
  * @returns Promise<ProfileUpdateState> - The result of the profile update operation
  */
 export async function updateProfile(prevState: ProfileUpdateState, formData: FormData): Promise<ProfileUpdateState> {
+
   try {
     // Check authentication first
     const session = await auth()

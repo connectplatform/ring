@@ -7,10 +7,8 @@ import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
 import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import ContactList from '@/features/wallet/components/contact-list'
+import { connection } from 'next/server'
 
-// Allow caching for user contacts with moderate revalidation for relationship updates
-export const dynamic = "auto"
-export const revalidate = 180 // 3 minutes for contacts data
 
 // Define the type for the contacts route params
 type ContactsParams = {};
@@ -31,6 +29,8 @@ type ContactsParams = {};
  * @returns The rendered ContactsPage component
  */
 export default async function ContactsPage(props: LocalePageProps<ContactsParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('ContactsPage: Starting');
 
   // Resolve params and searchParams
@@ -83,18 +83,18 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
     console.log('ContactsPage: Rendering contacts list');
 
     return (
-      <WalletWrapper locale={locale}>
-        <>
-          {/* React 19 Native Document Metadata - Authenticated Page */}
-          <title>{title}</title>
-          <meta name="description" content={description} />
-          <link rel="canonical" href={canonicalUrl} />
+      <>
+        {/* React 19 Native Document Metadata - Authenticated Page */}
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonicalUrl} />
 
-          {/* Authenticated page security meta tags */}
-          <meta name="robots" content="noindex, nofollow" />
-          <meta name="googlebot" content="noindex, nofollow" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* Authenticated page security meta tags */}
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="googlebot" content="noindex, nofollow" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+        <WalletWrapper locale={locale}>
           <Suspense fallback={
             <div className="animate-pulse space-y-6 p-6">
               <div className="h-8 bg-muted rounded w-1/4"></div>
@@ -104,8 +104,8 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
           }>
             <ContactList locale={locale} />
           </Suspense>
-        </>
-      </WalletWrapper>
+        </WalletWrapper>
+      </>
     )
 
   } catch (e) {

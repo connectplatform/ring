@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import {
   Users,
   FileText,
@@ -17,17 +18,16 @@ import {
   Lock
 } from 'lucide-react';
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
-import AdminWrapper from '@/components/wrappers/admin-wrapper'
+import { connection } from 'next/server'
 
-// Allow caching for admin dashboard with short revalidation for monitoring data
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for admin dashboard data
 
 export default async function AdminDashboardPage({ 
   params 
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   if (!isFeatureEnabledOnServer('admin')) {
     return null
   }
@@ -159,14 +159,15 @@ export default async function AdminDashboardPage({
       />
 
       <AdminWrapper locale={validLocale} pageContext="dashboard">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            {(t as any).admin?.dashboard || 'Admin Dashboard'}
-          </h1>
-          <p className="text-muted-foreground">
-            {(t as any).admin?.dashboardDescription || 'Administrative dashboard for Ring Platform management and monitoring.'}
-          </p>
-        </div>
+        <div className="container mx-auto px-0 py-0">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              {(t as any).admin?.dashboard || 'Admin Dashboard'}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {(t as any).admin?.dashboardDescription || 'Administrative dashboard for Ring Platform management and monitoring.'}
+            </p>
+          </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -235,7 +236,7 @@ export default async function AdminDashboardPage({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                     {section.stats}
                   </p>
                   <Link href={section.href}>
@@ -280,6 +281,7 @@ export default async function AdminDashboardPage({
             </div>
           </CardContent>
         </Card>
+        </div>
       </AdminWrapper>
     </>
   );

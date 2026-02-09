@@ -32,6 +32,7 @@ export async function initiateMembershipPayment(
   prevState: MembershipPaymentFormState | null,
   formData: FormData
 ): Promise<MembershipPaymentFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -162,6 +163,7 @@ export async function handlePaymentSuccess(
   prevState: MembershipPaymentFormState | null,
   formData: FormData
 ): Promise<MembershipPaymentFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -231,6 +233,7 @@ export async function handlePaymentFailure(
   prevState: MembershipPaymentFormState | null,
   formData: FormData
 ): Promise<MembershipPaymentFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {

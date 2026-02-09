@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { connection } from 'next/server'
 import { getWalletBalance } from '@/features/wallet/services/get-wallet-balance'
 
 /**
@@ -21,6 +22,8 @@ import { getWalletBalance } from '@/features/wallet/services/get-wallet-balance'
  * - 500 Internal Server Error: For any other errors
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering (service uses auth/headers)
+
   console.log('API: /api/wallet/balance - Starting GET request');
 
   try {
@@ -45,5 +48,3 @@ export async function GET(request: NextRequest) {
 /**
  * Allow caching for wallet balance with short revalidation for near real-time data
  */
-export const dynamic = 'auto'
-export const revalidate = 30 // 30 seconds for balance data

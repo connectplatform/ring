@@ -5,6 +5,7 @@
  * Uses change data capture and conflict resolution strategies
  */
 
+import { monotime } from '../timer'
 import { EventEmitter } from 'events';
 import {
   IDatabaseService,
@@ -212,7 +213,7 @@ export class BackendSyncService extends EventEmitter {
    * Perform the actual synchronization
    */
   private async performSync(event: SyncEvent): Promise<void> {
-    const startTime = Date.now();
+    const startTime = monotime();
 
     // Get target backends (exclude source)
     const targetBackends = this.syncConfig.backends.filter(
@@ -229,7 +230,7 @@ export class BackendSyncService extends EventEmitter {
       }
     }
 
-    const syncTime = Date.now() - startTime;
+    const syncTime = monotime() - startTime;
     this.updateAverageSyncTime(syncTime);
     this.metrics.lastSyncTimestamp = new Date();
   }
@@ -455,7 +456,7 @@ export class BackendSyncService extends EventEmitter {
 
   // Utility methods
   private generateEventId(): string {
-    return `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `sync_${monotime()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   private calculateChecksum(data: any): string {

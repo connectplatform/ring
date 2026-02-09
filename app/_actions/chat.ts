@@ -13,6 +13,7 @@ export async function sendMessage(
   prevState: MessageFormState | null,
   formData: FormData
 ): Promise<MessageFormState> {
+
   const chatId = formData.get('chatId') as string
   const entityId = formData.get('entityId') as string
   const entityName = formData.get('entityName') as string

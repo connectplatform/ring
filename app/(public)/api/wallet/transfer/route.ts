@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { createWalletClient, createPublicClient, http, formatEther, parseEther, isAddress } from 'viem'
 import { polygon } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -21,6 +21,8 @@ import { decryptPrivateKey } from '@/lib/crypto'
  * @returns Transaction hash on success, error message on failure
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const startTime = Date.now()
   console.log('🚀 API: /api/wallet/transfer - Starting native token transfer')
 

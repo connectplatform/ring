@@ -17,6 +17,7 @@ export async function saveArticle(
   prevState: ArticleFormState | null,
   formData: FormData
 ): Promise<ArticleFormState> {
+
   try {
     // Get current user session - Admin only action
     const session = await auth()
@@ -154,6 +155,7 @@ export async function publishArticle(
   prevState: ArticleFormState | null,
   formData: FormData
 ): Promise<ArticleFormState> {
+
   // Set status to published and save
   formData.set('status', 'published')
   return saveArticle(prevState, formData)
@@ -162,7 +164,8 @@ export async function publishArticle(
 export async function deleteArticle(
   articleId: string,
   locale: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+ success: boolean; error?: string }> {
   try {
     // Get current user session
     const session = await auth()
@@ -203,7 +206,8 @@ export async function deleteArticle(
 export async function getMyArticlesAction(
   locale: string,
   filters?: { status?: NewsStatus }
-): Promise<{ success: boolean; data?: NewsArticle[]; error?: string }> {
+): Promise<{
+ success: boolean; data?: NewsArticle[]; error?: string }> {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -235,7 +239,8 @@ export async function getMyArticlesAction(
 
 export async function getUserArticleStatsAction(
   locale: string
-): Promise<{ success: boolean; stats?: any; error?: string }> {
+): Promise<{
+ success: boolean; stats?: any; error?: string }> {
   try {
     const session = await auth()
     if (!session?.user?.id) {

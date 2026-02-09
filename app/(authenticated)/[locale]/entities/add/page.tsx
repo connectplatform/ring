@@ -7,9 +7,9 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { resolvePageProps, LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { connection } from 'next/server'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = 'force-dynamic'
 
 // Define the type for the route params (if any)
 type AddEntityParams = { id?: string };
@@ -27,6 +27,8 @@ type AddEntityParams = { id?: string };
  * @returns JSX.Element - The rendered page content.
  */
 export default async function AddEntityPage(props: LocalePageProps<AddEntityParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('AddEntityPage: Starting');
 
   // Resolve params and searchParams using our utility function
@@ -152,13 +154,30 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
       />
 
       <EntityFormWrapper locale={locale}>
-        <Suspense fallback={
-          <div className="flex justify-center items-center h-screen">
-            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+        {/* Content Header - Entity Creation Style */}
+        <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-sm">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">{(translations as any)?.modules?.entities?.addMyEntity || 'Create Entity'}</h1>
+                <p className="text-muted-foreground">
+                  {(translations as any)?.modules?.entities?.addMyEntityDescription || 'Add your organization or company to the Ring platform'}
+                </p>
+              </div>
+            </div>
           </div>
-        }>
-          <AddEntityForm locale={locale} translations={translations} />
-        </Suspense>
+        </div>
+
+        {/* Main Content - Entity Form */}
+        <div className="flex-1 container mx-auto px-6 py-8 max-w-4xl">
+          <Suspense fallback={
+            <div className="flex justify-center items-center h-screen">
+              <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+            </div>
+          }>
+            <AddEntityForm locale={locale} translations={translations} />
+          </Suspense>
+        </div>
       </EntityFormWrapper>
     </>
   )

@@ -20,8 +20,6 @@ interface ProvidersProps {
  * GoogleSignInButtonGIS component which uses window.google.accounts.id directly
  */
 export function SessionProvider({ children, session }: ProvidersProps) {
-  console.log('🔶 SessionProvider rendered - Auth.js v5 only (no GoogleOAuthProvider wrapper)')
-
   return (
     <NextAuthSessionProvider session={session}>
       {children}

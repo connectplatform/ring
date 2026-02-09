@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth'; // Auth.js session handler
 import { deleteOpportunity } from '@/features/opportunities/services/delete-opportunity';
 import { RouteHandlerProps } from '@/types/next-page';
@@ -22,6 +22,8 @@ export async function DELETE(
   req: NextRequest,
   context: RouteHandlerProps<{ id: string }>
 ): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/opportunities/delete/[id] - Starting DELETE request');
 
   try {
@@ -83,11 +85,4 @@ export async function DELETE(
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route.
- */
-export const config = {
-  runtime: 'nodejs',
-};

@@ -1,12 +1,15 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
-import { loadTranslations } from '@/i18n-config'
 import { ROUTES } from '@/constants/routes'
+import { loadTranslations } from '@/i18n-config'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import VendorStartWrapper from '@/components/wrappers/vendor-start-wrapper'
 import VendorOnboardingForm from './vendor-onboarding-form'
+import { connection } from 'next/server'
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
   const t = await loadTranslations(locale as 'en' | 'uk' | 'ru')
 
@@ -21,6 +24,8 @@ export default async function VendorStartPage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
   const session = await auth()
   const t = await loadTranslations(locale as 'en' | 'uk' | 'ru')

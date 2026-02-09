@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditBalanceResponseSchema } from '@/lib/zod/credit-schemas';
@@ -14,6 +14,8 @@ const CACHE_TTL = 30 * 1000; // 30 seconds for balance data
  * Get current user's credit balance and subscription status
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -132,6 +134,8 @@ export async function GET(request: NextRequest) {
  * Update user's credit balance (admin only)
  */
 export async function PUT(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 
 // Lazy load heavy dependencies only when needed
 const getAuth = async () => (await import('@/auth')).auth
@@ -38,6 +38,8 @@ export interface WebVitalsData {
  * @returns Response with success status
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // Quick return in development to avoid heavy imports
   if (process.env.NODE_ENV === 'development') {
     return NextResponse.json({ success: true, message: 'Dev mode - metrics not stored' })
@@ -173,6 +175,8 @@ export async function POST(request: NextRequest) {
  * @returns Analytics data and insights
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // Quick return in development to avoid heavy imports
   if (process.env.NODE_ENV === 'development') {
     return NextResponse.json({ success: true, data: { aggregates: {}, totalSessions: 0 } })

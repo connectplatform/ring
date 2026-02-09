@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { subscriptionService } from '@/services/membership/subscription-service';
 import { logger } from '@/lib/logger';
@@ -8,6 +8,8 @@ import { logger } from '@/lib/logger';
  * Cancel user's active RING token membership subscription
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -154,6 +156,8 @@ export async function POST(request: NextRequest) {
  * Get cancellation information and preview
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

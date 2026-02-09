@@ -7,6 +7,7 @@ import { UserRole } from '@/features/auth/types'
 import MembershipContent from '@/features/auth/components/membership-content'
 import type { AuthUser } from '@/features/auth/types'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
+import { connection } from 'next/server'
 
 interface MembershipPageProps {
   params: Promise<{ locale: string }>
@@ -14,6 +15,8 @@ interface MembershipPageProps {
 }
 
 export default async function MembershipPage(props: MembershipPageProps) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // Resolve params
   const params = await props.params
   const searchParams = await props.searchParams

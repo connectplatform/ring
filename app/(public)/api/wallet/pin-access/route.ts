@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { createPinAccessToken } from '@/features/wallet/services/ensure-wallet'
 
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Authenticate the user
     const session = await auth()

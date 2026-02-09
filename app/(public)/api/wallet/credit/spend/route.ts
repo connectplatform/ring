@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditSpendRequestSchema } from '@/lib/zod/credit-schemas';
@@ -19,6 +19,8 @@ import { UserCreditBalanceSchema } from '@/lib/zod/credit-schemas';
  * }
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -162,6 +164,8 @@ export async function POST(request: NextRequest) {
  * Get spending summary and limits
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

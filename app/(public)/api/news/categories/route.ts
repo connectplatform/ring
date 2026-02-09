@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { 
   getCachedNewsCategoriesCollection,
   getCachedDocument,
@@ -13,6 +13,8 @@ import { NewsCategoryInfo, NewsCategory } from '@/features/news/types';
  * Fetch all news categories
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const snapshot = await getCachedNewsCategoriesCollection({
       orderBy: { field: 'name', direction: 'asc' }
@@ -39,6 +41,8 @@ export async function GET(request: NextRequest) {
  * Create a new news category (admin only)
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     

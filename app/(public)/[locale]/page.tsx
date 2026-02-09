@@ -10,14 +10,14 @@ import { getSEOMetadata } from '@/lib/seo-metadata'
 
 // React 19 Resource Preloading APIs
 import { preload, preinit } from 'react-dom'
+import { connection } from 'next/server'
 
-// Allow caching for better performance - homepage content doesn't change constantly
-export const dynamic = "auto"
-export const revalidate = 300 // 5 minutes for public content
 
 type HomePageParams = {}
 
 export default async function HomePage({ params, searchParams }: LocalePageProps<HomePageParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const resolvedParams = await params
     const resolvedSearchParams = await searchParams

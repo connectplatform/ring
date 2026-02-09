@@ -2,35 +2,12 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth'
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import {
-  Activity,
-  Users,
-  Eye,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  Globe,
-  Smartphone,
-  Monitor,
-  Zap,
-  AlertTriangle,
-  CheckCircle,
-  BarChart3,
-  PieChart,
-  LineChart,
-  Server,
-  Database,
-  Cpu,
-  HardDrive
-} from 'lucide-react';
-import AdminWrapper from '@/components/wrappers/admin-wrapper';
-
-// Allow caching for admin analytics with short revalidation for monitoring data
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for admin analytics data
+import { connection } from 'next/server';
+import { Activity, Users, Eye, TrendingUp, TrendingDown, Clock, Globe, Smartphone, Monitor, Zap, AlertTriangle, CheckCircle, BarChart3, PieChart, LineChart, Server, Database, Cpu, HardDrive } from 'lucide-react';
 
 // Types for analytics data
 interface WebVitalsMetric {
@@ -64,6 +41,8 @@ export default async function AdminAnalyticsPage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -161,7 +140,7 @@ export default async function AdminAnalyticsPage({
       case 'down':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       default:
-        return <Activity className="h-4 w-4 text-muted-foreground" />;
+        return <Activity className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -197,14 +176,15 @@ export default async function AdminAnalyticsPage({
       <meta name="description" content="Comprehensive analytics dashboard for Ring Platform administrators" />
 
       <AdminWrapper locale={validLocale} pageContext="analytics">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Analytics Dashboard
-          </h1>
-          <p className="text-muted-foreground">
-            Comprehensive platform performance monitoring and user engagement analytics
-          </p>
-        </div>
+        <div className="container mx-auto px-0 py-0">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Analytics Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Comprehensive platform performance monitoring and user engagement analytics
+            </p>
+          </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
@@ -433,7 +413,7 @@ export default async function AdminAnalyticsPage({
                         {getTrendIcon(metric.trend)}
                       </div>
                       <p className={`text-xs mt-2 flex items-center ${
-                        metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-muted-foreground'
+                        metric.change > 0 ? 'text-green-600' : metric.change < 0 ? 'text-red-600' : 'text-gray-600'
                       }`}>
                         {metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}% from last period
                       </p>
@@ -611,6 +591,7 @@ export default async function AdminAnalyticsPage({
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </AdminWrapper>
     </>
   );

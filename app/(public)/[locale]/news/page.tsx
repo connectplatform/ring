@@ -80,8 +80,6 @@ const categoryInfo: Record<NewsCategory, { name: string; description: string; co
 type NewsParams = {};
 
 // Allow caching for better performance - news listings can be cached with periodic refresh
-export const dynamic = "auto"
-export const revalidate = 300 // 5 minutes for news content
 
 /**
  * Get initial news articles

@@ -142,4 +142,3 @@ export async function DELETE(
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';

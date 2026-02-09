@@ -18,6 +18,7 @@ export async function updateUserSettings(
   prevState: UserFormState | null,
   formData: FormData
 ): Promise<UserFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -83,6 +84,7 @@ export async function updateUserProfile(
   prevState: UserFormState | null,
   formData: FormData
 ): Promise<UserFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -290,7 +292,8 @@ export async function updateUserProfile(
  * Cleanup expired username reservations (should be called periodically via cron)
  * Releases usernames that were reserved but never confirmed within 5 minutes
  */
-export async function cleanupExpiredUsernameReservations(): Promise<{ cleaned: number }> {
+export async function cleanupExpiredUsernameReservations(): Promise<{
+ cleaned: number }> {
   try {
     await initializeDatabase()
     const db = getDatabaseService()
@@ -333,6 +336,7 @@ export async function registerUser(
   prevState: UserFormState | null,
   formData: FormData
 ): Promise<UserFormState> {
+
   // Extract form data
   const name = formData.get('name') as string
   const email = formData.get('email') as string

@@ -4,13 +4,12 @@
  * Used by error boundaries and global error handlers
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { getDatabaseService } from '@/lib/database'
 
 const db = getDatabaseService()
 
-export const runtime = 'nodejs' // Use Node.js runtime for database operations
 
 interface ErrorLogPayload {
   message: string
@@ -28,6 +27,8 @@ interface ErrorLogPayload {
  * Log client-side error to database
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Get session (optional - errors can be logged for anonymous users)
     const session = await auth().catch(() => null)
@@ -97,6 +98,8 @@ export async function POST(request: NextRequest) {
  * Retrieve error logs (admin only)
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Require authentication
     const session = await auth()

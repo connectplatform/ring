@@ -7,116 +7,96 @@ import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
 import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import WalletPageClient from './wallet-client'
+import { connection } from 'next/server'
 
-// Allow caching for wallet data with short revalidation for near real-time balance updates
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for wallet balance data
 
 // Define the type for the wallet route params
 type WalletParams = {};
 
 /**
- * WalletPage component
- * Renders the wallet management page with RING token balance, transactions, and top-up functionality
+ * WalletPage - Next.js 16 Streaming Pattern
  * 
- * User steps:
- * 1. User navigates to the wallet page (e.g., /en/wallet or /uk/wallet)
- * 2. The page extracts the locale from URL params
- * 3. The page checks for user authentication
- * 4. If not authenticated, user is redirected to localized login
- * 5. If authenticated, the wallet client component is rendered with user data
- * 6. User can view balance, transaction history, and manage RING tokens
- * 
- * @param props - The LocalePageProps with params and searchParams as Promises
- * @returns The rendered WalletPage component
+ * Static shell (metadata + skeleton) renders immediately.
+ * Dynamic content (auth, headers, data) streams inside Suspense.
+ * This enables instant page shell delivery while auth/data loads.
  */
 export default async function WalletPage(props: LocalePageProps<WalletParams>) {
-  console.log('WalletPage: Starting');
-
-  // Resolve params and searchParams
   const params = await props.params;
-  const searchParams = await props.searchParams;
-
-  // Extract and validate locale
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('WalletPage: Using locale', locale);
 
-  // Basic metadata for authenticated page
-  const translations = await loadTranslations(locale);
-  const title = `${(translations as any).modules?.wallet?.title || 'Wallet'} | Ring Platform`;
-  const description = (translations as any).modules?.wallet?.description || 'Manage your RING tokens, view transaction history, and top up your balance.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/wallet`;
+  return (
+    <>
+      {/* Static metadata - renders immediately */}
+      <title>Wallet | Ring Platform</title>
+      <meta name="description" content="Manage your RING tokens, view transaction history, and top up your balance." />
+      <meta name="robots" content="noindex, nofollow" />
+      <meta name="googlebot" content="noindex, nofollow" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+      <WalletWrapper locale={locale}>
+        <Suspense fallback={
+          <div className="animate-pulse space-y-6 p-6">
+            <div className="h-8 bg-muted rounded w-1/4"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-64 bg-muted rounded"></div>
+          </div>
+        }>
+          <WalletContent locale={locale} searchParams={props.searchParams} />
+        </Suspense>
+      </WalletWrapper>
+    </>
+  )
+}
+
+/**
+ * WalletContent - Dynamic async component (streams inside Suspense)
+ * 
+ * All dynamic data access (connection, auth, headers) happens here,
+ * inside the Suspense boundary, so the page shell is never blocked.
+ */
+async function WalletContent({ 
+  locale, 
+  searchParams: searchParamsPromise 
+}: { 
+  locale: Locale
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  await connection() // Next.js 16: opt out of prerendering
+
+  const searchParams = await searchParamsPromise;
 
   const headersList = await headers()
+  console.log('WalletPage: Request details', { locale, userAgent: headersList.get('user-agent') });
 
-  console.log('WalletPage: Request details', {
-    params,
-    searchParams,
-    locale,
-    userAgent: headersList.get('user-agent'),
-  });
+  const session = await auth()
 
-    console.log('WalletPage: Authenticating session');
-    const session = await auth()
-    console.log('WalletPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+  if (!session) {
+    redirect(ROUTES.LOGIN(locale))
+  }
 
-    if (!session) {
-      console.log('WalletPage: No session, redirecting to localized login');
-      redirect(ROUTES.LOGIN(locale))
-    }
-
-  // Check if user document exists (with caching - migration now handled at auth level)
-    try {
-      const { userMigrationService } = await import('@/features/auth/services/user-migration');
+  // Ensure user document exists
+  try {
+    const { userMigrationService } = await import('@/features/auth/services/user-migration');
     const userExists = await userMigrationService.userDocumentExists(session.user.id);
     if (!userExists) {
-      console.warn('WalletPage: User document missing, initializing');
       await userMigrationService.ensureUserDocument(session.user as any);
-      console.log('WalletPage: User document created successfully');
     }
-    } catch (migrationError) {
+  } catch (migrationError) {
     console.error('WalletPage: Failed to check/create user document:', migrationError);
-      // Continue anyway - wallet client will handle missing document gracefully
-    }
+  }
 
-    console.log('WalletPage: Rendering wallet client');
-
-
-    return (
-      <>
-        {/* React 19 Native Document Metadata - Authenticated Page */}
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <link rel="canonical" href={canonicalUrl} />
-
-        {/* Authenticated page security meta tags */}
-        <meta name="robots" content="noindex, nofollow" />
-        <meta name="googlebot" content="noindex, nofollow" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-        <WalletWrapper locale={locale}>
-                <Suspense fallback={
-                  <div className="animate-pulse space-y-6 p-6">
-                    <div className="h-8 bg-muted rounded w-1/4"></div>
-                    <div className="h-32 bg-muted rounded"></div>
-                    <div className="h-64 bg-muted rounded"></div>
-                  </div>
-                }>
-                  <WalletPageClient
-                    locale={locale}
-                    searchParams={searchParams}
-                  />
-                </Suspense>
-        </WalletWrapper>
-      </>
-    )
+  return (
+    <WalletPageClient
+      locale={locale}
+      searchParams={searchParams}
+    />
+  )
 }
 
 /* 
- * React 19 Native Features Used:
- * - Document metadata: <title>, <meta>, <link> tags automatically hoisted to <head>
- * - Automatic meta tag deduplication and precedence handling
+ * Next.js 16 + React 19 Streaming Pattern:
+ * - Page shell (metadata + skeleton) delivered instantly via static render
+ * - Dynamic content (auth + data) streams in via Suspense boundary
+ * - connection() inside Suspense ensures dynamic data only accessed in streaming context
  * - Security meta tags for authenticated wallet pages (noindex, nofollow)
- * - Suspense for progressive loading of wallet data
- * - Preserved all authentication and locale logic
  */

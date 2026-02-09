@@ -60,4 +60,3 @@ export async function OPTIONS(request: NextRequest) {
  * Prevent caching for this route
  * This is important for wallet operations which should always be fresh
  */
-export const dynamic = 'force-dynamic'

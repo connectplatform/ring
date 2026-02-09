@@ -16,12 +16,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { connection } from 'next/server'
 import { cleanupExpiredUsernameReservations } from '@/app/_actions/users'
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs' // Cron jobs need Node.js runtime
 
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering (uses request.headers)
+
   try {
     // Verify cron authorization (Vercel Cron secret or custom auth)
     const authHeader = request.headers.get('authorization')

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 import { getUserNotifications, getNotificationStats } from '@/features/notifications/services/notification-service';
@@ -11,11 +11,14 @@ import {
 } from '@/features/notifications/types';
 import { apiRateLimiter } from '@/lib/security/rate-limiter';
 
+
 /**
  * GET handler for /api/notifications
  * Fetches a list of notifications for the authenticated user
  */
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/notifications - Starting GET request');
 
   try {
@@ -63,7 +66,7 @@ export async function GET(req: NextRequest) {
       const userExists = await userMigrationService.userDocumentExists(userId);
       if (!userExists) {
         console.warn('API: /api/notifications - User document missing, initializing', { userId });
-      await userMigrationService.ensureUserDocument(session.user as any);
+        await userMigrationService.ensureUserDocument(session.user as any);
         console.log('API: /api/notifications - User document created successfully', { userId });
       }
     } catch (migrationError) {
@@ -179,6 +182,8 @@ export async function GET(req: NextRequest) {
  * Creates a new notification (admin only for system notifications)
  */
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/notifications - Starting POST request');
 
   try {
@@ -285,11 +290,4 @@ export async function POST(req: NextRequest) {
  * Prevent caching for this route
  * This is important in Next.js 15 as the default caching behavior has changed
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route
- */
-export const config = {
-  runtime: 'nodejs',
-}; 

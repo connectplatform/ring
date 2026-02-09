@@ -7,29 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  AlertTriangle, 
-  Shield, 
-  Eye, 
-  EyeOff, 
-  Flag, 
-  Check, 
-  X, 
-  Clock,
-  User,
-  MessageSquare,
-  FileText,
-  Image,
-  ChevronRight,
-  Filter,
-  Search,
-  MoreHorizontal,
-  Ban,
-  UserCheck,
-  Archive
-} from 'lucide-react';
+import { connection } from 'next/server';
+import { AlertTriangle, Shield, Eye, EyeOff, Flag, Check, X, Clock, User, MessageSquare, FileText, Image, ChevronRight, Filter, Search, MoreHorizontal, Ban, UserCheck, Archive } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
 
 // Types for moderation system
 interface ModerationItem {
@@ -81,6 +61,8 @@ export default async function ModerationPage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -257,17 +239,17 @@ export default async function ModerationPage({
   };
 
   return (
-    <AdminWrapper locale={validLocale} pageContext="moderation" translations={t}>
-      <>
-        <title>Content Moderation | Ring Platform Admin</title>
-        <meta name="description" content="Content moderation dashboard for Ring Platform administrators" />
-        
-        <div className="container mx-auto px-0 py-0">
+    <>
+      <title>Content Moderation | Ring Platform Admin</title>
+      <meta name="description" content="Content moderation dashboard for Ring Platform administrators" />
+      
+      <AdminWrapper locale={validLocale} pageContext="moderation">
+      <div className="container mx-auto px-0 py-0">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Content Moderation
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-600 dark:text-gray-400">
             Advanced content moderation system with automated filtering and manual review
           </p>
         </div>
@@ -400,7 +382,7 @@ export default async function ModerationPage({
                               </div>
                               
                               <div className="mb-3">
-                                <p className="text-sm text-foreground mb-2">
+                                <p className="text-sm text-gray-900 dark:text-gray-100 mb-2">
                                   <strong>Content:</strong> {item.content.substring(0, 150)}
                                   {item.content.length > 150 && '...'}
                                 </p>
@@ -649,8 +631,8 @@ export default async function ModerationPage({
             </div>
           </TabsContent>
         </Tabs>
-        </div>
-      </>
-    </AdminWrapper>
+      </div>
+      </AdminWrapper>
+    </>
   );
 } 

@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {

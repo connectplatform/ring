@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/edge-jwt';
 
 // Edge Runtime configuration
-export const runtime = 'edge';
 
 /**
  * POST handler for ping/pong

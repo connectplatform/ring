@@ -4,7 +4,7 @@
  * Server-side only - no client bundle issues
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getCurrentWalletService } from '@/features/wallet/services';
 import { z } from 'zod';
@@ -22,6 +22,8 @@ const ContactUpdateSchema = ContactSchema.partial();
  * GET /api/wallet/contacts - Get all contacts for authenticated user
  */
 export async function GET() {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -45,6 +47,8 @@ export async function GET() {
  * POST /api/wallet/contacts - Add new contact
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

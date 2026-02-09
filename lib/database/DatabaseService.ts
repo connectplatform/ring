@@ -5,6 +5,7 @@
  * Provides high-level abstraction over backend selector with configuration management
  */
 
+import { monotime } from './timer'
 import {
   IDatabaseService,
   DatabaseResult,
@@ -36,12 +37,12 @@ class EntityCache {
   private readonly TTL = 30000; // 30 seconds
 
   set(key: string, data: any) {
-    this.cache.set(key, { data, timestamp: Date.now() });
+    this.cache.set(key, { data, timestamp: monotime() });
   }
 
   get(key: string) {
     const entry = this.cache.get(key);
-    if (entry && (Date.now() - entry.timestamp) < this.TTL) {
+    if (entry && (monotime() - entry.timestamp) < this.TTL) {
       return entry.data;
     }
     this.cache.delete(key);
@@ -607,7 +608,7 @@ export function createDatabaseService(config?: Partial<DatabaseConfig>): Databas
           port: parseInt(process.env.DB_PORT || '5432'),
           database: process.env.DB_NAME || 'ring_platform',
           username: process.env.DB_USER || 'ring_user',
-          password: process.env.DB_PASSWORD || 'ring_password_2024'
+          password: process.env.DB_PASSWORD || 'ring_dev_password'
         },
         options: {
           poolSize: parseInt(process.env.DB_POOL_SIZE || '20'),
@@ -646,7 +647,7 @@ export function createHybridDatabaseService(): DatabaseService {
           port: parseInt(process.env.DB_PORT || '5432'),
           database: process.env.DB_NAME || 'ring_platform',
           username: process.env.DB_USER || 'ring_user',
-          password: process.env.DB_PASSWORD || 'ring_password_2024'
+          password: process.env.DB_PASSWORD || 'ring_dev_password'
         },
         options: {
           poolSize: 20,

@@ -4,6 +4,7 @@
  * Implements IDatabaseService for PostgreSQL with Firebase-compatible operations
  */
 
+import { monotime } from '../timer'
 import { Pool, PoolClient, QueryResult } from 'pg';
 import {
   IDatabaseService,
@@ -26,16 +27,58 @@ export class PostgreSQLAdapter implements IDatabaseService {
   private static connectionTested = false;
 
   // Field mapping for hybrid schema (top-level columns vs JSONB data)
-  // Based on actual database schema - only id, data, created_at, updated_at columns exist
+  // Tables with a JSONB 'data' column: list only their real top-level columns here.
+  // Tables with fully-normalized schemas (no 'data' column): list ALL columns so
+  // the query builder uses direct column references instead of data->>'field'.
   private fieldMappings: Record<string, Set<string>> = {
+    // --- JSONB-based tables (id + data + timestamps) ---
     users: new Set([
       'id', 'created_at', 'updated_at'
-      // All other fields like username, email, role, etc. are in the JSONB 'data' column
     ]),
     entities: new Set([
       'id', 'created_at', 'updated_at'
-      // All other fields are in the JSONB 'data' column
-    ])
+    ]),
+    // --- Fully-normalized tables (no 'data' column) ---
+    // Note: include both snake_case (DB columns) and camelCase (app code) so
+    // getFieldReference() recognises either form as a real column.
+    fcm_tokens: new Set([
+      'id', 'user_id', 'userId', 'token', 'device_info', 'deviceInfo',
+      'platform', 'browser', 'user_agent', 'userAgent',
+      'is_active', 'isActive', 'last_seen', 'lastSeen',
+      'created_at', 'createdAt', 'updated_at', 'updatedAt'
+    ]),
+    comment_likes: new Set([
+      'id', 'comment_id', 'commentId', 'user_id', 'userId',
+      'user_name', 'userName', 'user_avatar', 'userAvatar',
+      'created_at', 'createdAt', 'updated_at', 'updatedAt'
+    ]),
+    news_likes: new Set([
+      'id', 'news_id', 'newsId', 'user_id', 'userId', 'created_at', 'createdAt'
+    ]),
+    vendor_applications: new Set([
+      'id', 'entity_id', 'entityId', 'user_id', 'userId',
+      'business_name', 'businessName', 'business_description', 'businessDescription',
+      'contact_email', 'contactEmail', 'contact_phone', 'contactPhone',
+      'website', 'business_type', 'businessType', 'tax_id', 'taxId',
+      'documents', 'status',
+      'submitted_at', 'submittedAt', 'reviewed_at', 'reviewedAt',
+      'reviewed_by', 'reviewedBy', 'review_notes', 'reviewNotes',
+      'rejection_reason', 'rejectionReason',
+      'created_at', 'createdAt', 'updated_at', 'updatedAt'
+    ]),
+    vendor_profiles: new Set([
+      'id', 'entity_id', 'entityId', 'user_id', 'userId',
+      'onboarding_status', 'onboardingStatus',
+      'onboarding_started_at', 'onboardingStartedAt',
+      'onboarding_completed_at', 'onboardingCompletedAt',
+      'trust_level', 'trustLevel', 'trust_score', 'trustScore',
+      'performance_metrics', 'performanceMetrics',
+      'compliance_status', 'complianceStatus',
+      'suspension_history', 'suspensionHistory',
+      'tier_progression_history', 'tierProgressionHistory',
+      'notes', 'created_at', 'createdAt', 'updated_at', 'updatedAt',
+      'last_active_at', 'lastActiveAt'
+    ]),
   };
 
   constructor(config: DatabaseBackendConfig) {
@@ -44,14 +87,14 @@ export class PostgreSQLAdapter implements IDatabaseService {
 
   async connect(): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       
       const poolConfig = {
         host: this.config.connection.host || 'localhost',
         port: this.config.connection.port || 5432,
         database: this.config.connection.database || 'ring_platform',
         user: this.config.connection.username || 'ring_user',
-        password: this.config.connection.password || 'ring_password_2024',
+        password: this.config.connection.password || 'ring_dev_password',
         max: this.config.options.poolSize || 20,
         idleTimeoutMillis: this.config.options.timeout || 30000,
         connectionTimeoutMillis: this.config.options.timeout || 2000,
@@ -80,7 +123,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
         success: true,
         metadata: {
           operation: 'connect',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'postgresql',
           timestamp: new Date()
         }
@@ -108,7 +151,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
 
   async disconnect(): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (this.pool) {
         await this.pool.end();
@@ -119,7 +162,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
         success: true,
         metadata: {
           operation: 'disconnect',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'postgresql',
           timestamp: new Date()
         }
@@ -130,7 +173,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
         error: error instanceof Error ? error : new Error(String(error)),
         metadata: {
           operation: 'disconnect',
-          duration: Date.now() - Date.now(),
+          duration: monotime() - monotime(),
           backend: 'postgresql',
           timestamp: new Date()
         }
@@ -164,7 +207,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     options: { id?: string; merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -220,7 +263,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           },
           metadata: {
             operation: 'create',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -247,7 +290,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     id: string
   ): Promise<DatabaseResult<DatabaseDocument<T> | null>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -270,7 +313,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
             data: null,
             metadata: {
               operation: 'read',
-              duration: Date.now() - startTime,
+              duration: monotime() - startTime,
               backend: 'postgresql',
               timestamp: new Date()
             }
@@ -293,7 +336,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           },
           metadata: {
             operation: 'read',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -322,7 +365,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     options: { merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -387,7 +430,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           },
           metadata: {
             operation: 'update',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -414,7 +457,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     id: string
   ): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -435,7 +478,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           success: true,
           metadata: {
             operation: 'delete',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -461,7 +504,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -491,7 +534,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           data: documents,
           metadata: {
             operation: 'query',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -518,7 +561,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     filters: DatabaseFilter[] = []
   ): Promise<DatabaseResult<number>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -538,7 +581,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           data: count,
           metadata: {
             operation: 'count',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -565,7 +608,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -619,7 +662,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           data: documents,
           metadata: {
             operation: 'readAll',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -648,7 +691,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     options: { limit?: number; orderBy?: DatabaseOrderBy } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -698,7 +741,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           data: documents,
           metadata: {
             operation: 'findByField',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -725,7 +768,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     id: string
   ): Promise<DatabaseResult<boolean>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -748,7 +791,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           data: exists,
           metadata: {
             operation: 'exists',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -827,7 +870,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
     operation: (transaction: IDatabaseTransaction) => Promise<T>
   ): Promise<DatabaseResult<T>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       if (!this.pool) {
         throw new Error('Database not connected');
@@ -846,7 +889,7 @@ export class PostgreSQLAdapter implements IDatabaseService {
           data: result,
           metadata: {
             operation: 'transaction',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'postgresql',
             timestamp: new Date()
           }
@@ -936,7 +979,8 @@ export class PostgreSQLAdapter implements IDatabaseService {
 
   private getFieldReference(collection: string, field: string): string {
     if (this.isTopLevelField(collection, field)) {
-      return field;
+      // Convert camelCase to snake_case for actual SQL column reference
+      return field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     } else {
       return `data->>'${field}'`;
     }

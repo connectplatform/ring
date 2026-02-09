@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth'; // Auth.js session handler
 import { updateOpportunity } from '@/features/opportunities/services/update-opportunity';
 import { Opportunity } from '@/features/opportunities/types';
@@ -26,6 +26,8 @@ export async function PATCH(
   req: NextRequest,
   context: RouteHandlerProps<{ id: string }>
 ): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   logger.info('api.opportunities.update.start')
 
   try {
@@ -101,11 +103,4 @@ export async function PATCH(
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route.
- */
-export const config = {
-  runtime: 'nodejs',
-};

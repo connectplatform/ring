@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { searchOpportunities, SearchOpportunitiesParams } from '@/features/opportunities/services'
 
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Get authenticated user
     const session = await auth()
@@ -42,6 +44,8 @@ export async function POST(request: NextRequest) {
 
 // Handle GET requests (for simple text search)
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Get authenticated user
     const session = await auth()

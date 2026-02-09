@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getNotificationService, isNotificationServiceAvailable } from '@/features/notifications/services/notification-service-loader';
 import { UserRole } from '@/features/auth/types';
@@ -9,6 +9,8 @@ import { DetailedNotificationPreferences } from '@/features/notifications/types'
  * Fetches notification preferences for the authenticated user
  */
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/notifications/preferences - Starting GET request');
 
   try {
@@ -81,6 +83,8 @@ export async function GET(req: NextRequest) {
  * Updates notification preferences for the authenticated user
  */
 export async function PUT(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/notifications/preferences - Starting PUT request');
 
   try {
@@ -146,11 +150,4 @@ export async function PUT(req: NextRequest) {
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route
- */
-export const config = {
-  runtime: 'nodejs',
-}; 

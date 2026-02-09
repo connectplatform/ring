@@ -6,8 +6,6 @@ import { UserSettings } from '@/features/auth/types'
 /**
  * Allow caching for user settings with moderate revalidation for settings data
  */
-export const dynamic = 'auto'
-export const revalidate = 180 // 3 minutes for settings data
 
 /**
  * API route handler for getting user settings.

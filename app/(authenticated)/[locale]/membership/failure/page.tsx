@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import type { Locale } from '@/i18n-config'
+import { ROUTES } from '@/constants/routes'
+import { connection } from 'next/server'
 
 export const metadata: Metadata = {
   title: 'Payment Failed - Ring Platform',
@@ -23,11 +25,15 @@ export default async function MembershipFailurePage({
   params,
   searchParams
 }: MembershipFailurePageProps) {
-  const { locale } = await params
+  await connection() // Next.js 16: opt out of prerendering
+
   const session = await auth()
   if (!session?.user) {
-    redirect(`/${locale}/login`)
+    const { locale: loc } = await params
+    redirect(ROUTES.LOGIN(loc as any))
   }
+
+  const { locale } = await params
   const { orderId, reason } = await searchParams
 
   // Decode reason if present

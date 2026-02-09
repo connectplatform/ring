@@ -8,9 +8,9 @@ import type { Entity } from "@/types"
 import ConfidentialEntitiesWrapper from "@/components/wrappers/confidential-entities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { connection } from 'next/server'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = "force-dynamic"
 
 type ConfidentialEntitiesParams = {}
 
@@ -77,6 +77,8 @@ async function getConfidentialEntities(
  * @returns The rendered confidential entities page.
  */
 export default async function ConfidentialEntitiesPage(props: LocalePageProps<ConfidentialEntitiesParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log("ConfidentialEntitiesPage: Starting")
 
   // Resolve params and searchParams

@@ -14,6 +14,7 @@ export async function submitContactForm(
   prevState: ContactFormState | null,
   formData: FormData
 ): Promise<ContactFormState> {
+
   // Optional: Get session to track logged-in users
   const session = await auth()
   

@@ -7,8 +7,8 @@ import { NewsArticle } from '@/features/news/types';
 import { ArticleEditor } from '@/features/news/components/article-editor';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 import NewsWrapper from '@/components/wrappers/news-wrapper';
+import { connection } from 'next/server'
 
-export const dynamic = 'force-dynamic';
 
 /**
  * Get article by ID - Server Component async/await (React 19)
@@ -44,6 +44,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string; id: string }>
 }): Promise<Metadata> {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale, id } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -61,6 +63,8 @@ export default async function EditArticlePage({
 }: {
   params: Promise<{ locale: string; id: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale, id } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -81,7 +85,7 @@ export default async function EditArticlePage({
   }
 
   return (
-    <NewsWrapper pageContext="edit" translations={t}>
+    <NewsWrapper pageContext="edit">
       <div className="container mx-auto px-0 py-0">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">

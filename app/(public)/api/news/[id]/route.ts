@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { 
   getCachedDocument,
   getCachedNewsBySlug,
@@ -18,6 +18,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const { id } = params;
 
@@ -80,6 +82,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     
@@ -184,6 +188,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     

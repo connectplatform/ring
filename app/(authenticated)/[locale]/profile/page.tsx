@@ -12,10 +12,9 @@ import { updateProfile } from '@/app/_actions/profile'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
+import { connection } from 'next/server'
 
-// Allow caching for user profiles with shorter revalidation for freshness
-export const dynamic = "auto"
-export const revalidate = 120 // 2 minutes for user profile data
+// Force dynamic rendering for this page to ensure fresh data on every request
 
 // Define the type for profile route params
 type ProfileParams = {};
@@ -37,6 +36,8 @@ type ProfileParams = {};
  * @returns The rendered profile page
  */
 export default async function ProfilePage(props: LocalePageProps<ProfileParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('ProfilePage: Starting');
 
   let initialUser: AuthUser | null = null

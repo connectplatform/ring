@@ -46,6 +46,7 @@ export async function createUserAddress(
   prevState: AddressFormState | null,
   formData: FormData
 ): Promise<AddressFormState> {
+
   try {
     // Check authentication
     const session = await auth()
@@ -114,6 +115,7 @@ export async function updateUserAddress(
   prevState: AddressFormState | null,
   formData: FormData
 ): Promise<AddressFormState> {
+
   try {
     // Check authentication
     const session = await auth()
@@ -184,6 +186,7 @@ export async function deleteUserAddress(
   prevState: AddressFormState | null,
   formData: FormData
 ): Promise<AddressFormState> {
+
   try {
     // Check authentication
     const session = await auth()
@@ -237,6 +240,7 @@ export async function setDefaultUserAddress(
   prevState: AddressFormState | null,
   formData: FormData
 ): Promise<AddressFormState> {
+
   try {
     // Check authentication
     const session = await auth()
@@ -287,6 +291,7 @@ export async function setDefaultUserAddress(
  * Gets all addresses for the authenticated user (non-action helper)
  */
 export async function getUserAddresses(): Promise<UserAddress[]> {
+
   try {
     const session = await auth()
     if (!session?.user?.id) {

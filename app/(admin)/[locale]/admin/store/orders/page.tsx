@@ -5,10 +5,11 @@ import { UserRole } from '@/features/auth/types'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { ROUTES } from '@/constants/routes'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
-import AdminWrapper from '@/components/wrappers/admin-wrapper'
 import dynamicImport from 'next/dynamic'
 import { logger } from '@/lib/logger'
 import { type AdminOrdersSearchParams } from '@/features/store/types'
+import AdminWrapper from '@/components/wrappers/admin-wrapper'
+import { connection } from 'next/server'
 
 const AdminOrdersClient = dynamicImport(() => import('./admin-orders-client'), {
   loading: () => (
@@ -19,7 +20,6 @@ const AdminOrdersClient = dynamicImport(() => import('./admin-orders-client'), {
 })
 
 // Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = 'force-dynamic'
 
 /**
  * Fetches all orders for admin with optional filtering
@@ -49,6 +49,8 @@ export default async function AdminOrdersPage({
   params: Promise<{ locale: string }>;
   searchParams: Promise<AdminOrdersSearchParams>;
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   logger.info('AdminOrdersPage: Starting');
 
   // Resolve params and searchParams

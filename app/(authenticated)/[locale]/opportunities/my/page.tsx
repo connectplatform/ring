@@ -7,10 +7,9 @@ import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
-import { ROUTES } from '@/constants/routes'
+import { connection } from 'next/server'
 
 // Force dynamic rendering for user-specific data
-export const dynamic = 'force-dynamic'
 
 /**
  * My Opportunities Page
@@ -49,6 +48,8 @@ async function getMyOpportunities(
 }
 
 export default async function MyOpportunitiesPage(props: LocalePageProps<{}>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('MyOpportunitiesPage: Starting');
 
   // Resolve params and searchParams
@@ -62,7 +63,7 @@ export default async function MyOpportunitiesPage(props: LocalePageProps<{}>) {
   
   // Redirect to login if not authenticated
   if (!session || !session.user) {
-    redirect(`${ROUTES.LOGIN(locale)}?from=${encodeURIComponent(`/${locale}/opportunities/my`)}`);
+    redirect(`/${locale}/auth/login?from=${encodeURIComponent(`/${locale}/opportunities/my`)}`);
   }
 
   // Get SEO metadata

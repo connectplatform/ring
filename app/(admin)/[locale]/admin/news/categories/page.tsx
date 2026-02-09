@@ -5,6 +5,7 @@ import { CategoriesManager } from '@/features/news/components/categories-manager
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsCategoryInfo } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
+import { connection } from 'next/server'
 
 /**
  * Get news categories - Server Component async/await (React 19)
@@ -37,6 +38,8 @@ export default async function AdminNewsCategoriesPage({
 }: { 
   params: Promise<{ locale: string }> 
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
   const validLocale = isValidLocale(locale) ? locale : defaultLocale
   const t = await loadTranslations(validLocale)

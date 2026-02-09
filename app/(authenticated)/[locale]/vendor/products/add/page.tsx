@@ -1,13 +1,16 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
 import { ROUTES } from '@/constants/routes'
+import { getTranslations } from 'next-intl/server'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { loadTranslations, isValidLocale, defaultLocale, generateHreflangAlternates } from '@/i18n-config'
 import ProductFormWrapper from '@/components/wrappers/product-form-wrapper'
 import ProductForm from '../product-form'
+import { connection } from 'next/server'
 
 export async function generateMetadata({ params }: { params: { locale: string } }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const t = await getTranslations({ locale: params.locale, namespace: 'vendor.products' })
   
   return {
@@ -21,6 +24,8 @@ export default async function AddProductPage({
 }: {
   params: { locale: string }
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   const translations = await loadTranslations(locale);
   const alternates = generateHreflangAlternates('/vendor/products/add');
@@ -28,7 +33,7 @@ export default async function AddProductPage({
   const session = await auth()
 
   if (!session?.user?.id) {
-    redirect(ROUTES.LOGIN(locale))
+    redirect(ROUTES.LOGIN(locale as any))
   }
 
   const vendorEntity = await getVendorEntity(session.user.id)

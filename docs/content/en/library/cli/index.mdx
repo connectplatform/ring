@@ -364,8 +364,8 @@ ssh k8s-control-01 'kubectl rollout undo deployment/ring-platform -n ring-platfo
 
 #### GitHub Actions Example
 
-<Code language="yaml" title="name: Deploy to Production">
-{`on:
+```yaml
+on:
   push:
     tags:
       - 'v*'
@@ -390,13 +390,14 @@ jobs:
           ring config --set auth.secret=${{ secrets.AUTH_SECRET }}
       
       - name: Deploy
-        run: ring prod --version ${GITHUB_REF#refs/tags/v}`}
-</Code>
+        run: ring prod --version ${GITHUB_REF#refs/tags/v}
+```
 
 #### Jenkins Pipeline
 
-<Code language="groovy" title="pipeline {">
-{`agent any
+```groovy
+pipeline {
+    agent any
     stages {
         stage('Deploy') {
             steps {
@@ -411,8 +412,8 @@ jobs:
             }
         }
     }
-}`}
-</Code>
+}
+```
 
 ## 🐛 Troubleshooting
 

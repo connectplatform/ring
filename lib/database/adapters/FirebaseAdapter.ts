@@ -4,6 +4,7 @@
  * Implements IDatabaseService for Firebase Firestore with PostgreSQL-compatible operations
  */
 
+import { monotime } from '../timer'
 import {
   Firestore,
   DocumentData,
@@ -55,7 +56,7 @@ export class FirebaseAdapter implements IDatabaseService {
 
   async connect(): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       // Firebase connection is handled by the Firebase Admin SDK
       // The actual connection happens when operations are performed
@@ -65,7 +66,7 @@ export class FirebaseAdapter implements IDatabaseService {
         success: true,
         metadata: {
           operation: 'connect',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -86,7 +87,7 @@ export class FirebaseAdapter implements IDatabaseService {
 
   async disconnect(): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
 
       // Firebase doesn't have explicit disconnect
       this.firestore = null;
@@ -95,7 +96,7 @@ export class FirebaseAdapter implements IDatabaseService {
         success: true,
         metadata: {
           operation: 'disconnect',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -148,7 +149,7 @@ export class FirebaseAdapter implements IDatabaseService {
     options: { id?: string; merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const now = new Date();
@@ -180,7 +181,7 @@ export class FirebaseAdapter implements IDatabaseService {
         },
         metadata: {
           operation: 'create',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -204,7 +205,7 @@ export class FirebaseAdapter implements IDatabaseService {
     id: string
   ): Promise<DatabaseResult<DatabaseDocument<T> | null>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const docRef = firestore.collection(collection).doc(id);
@@ -216,7 +217,7 @@ export class FirebaseAdapter implements IDatabaseService {
           data: null,
           metadata: {
             operation: 'read',
-            duration: Date.now() - startTime,
+            duration: monotime() - startTime,
             backend: 'firebase',
             timestamp: new Date()
           }
@@ -238,7 +239,7 @@ export class FirebaseAdapter implements IDatabaseService {
         },
         metadata: {
           operation: 'read',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -262,7 +263,7 @@ export class FirebaseAdapter implements IDatabaseService {
     options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       let query: Query = firestore.collection(collection);
@@ -305,7 +306,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: documents,
         metadata: {
           operation: 'readAll',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -331,7 +332,7 @@ export class FirebaseAdapter implements IDatabaseService {
     options: { limit?: number; orderBy?: DatabaseOrderBy } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       let query: Query = firestore.collection(collection).where(field, '==', value);
@@ -367,7 +368,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: documents,
         metadata: {
           operation: 'findByField',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -391,7 +392,7 @@ export class FirebaseAdapter implements IDatabaseService {
     id: string
   ): Promise<DatabaseResult<boolean>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const docRef = firestore.collection(collection).doc(id);
@@ -402,7 +403,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: docSnap.exists,
         metadata: {
           operation: 'exists',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -429,7 +430,7 @@ export class FirebaseAdapter implements IDatabaseService {
     options: { merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const now = new Date();
@@ -459,7 +460,7 @@ export class FirebaseAdapter implements IDatabaseService {
         },
         metadata: {
           operation: 'update',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -483,7 +484,7 @@ export class FirebaseAdapter implements IDatabaseService {
     id: string
   ): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const docRef = firestore.collection(collection).doc(id);
@@ -493,7 +494,7 @@ export class FirebaseAdapter implements IDatabaseService {
         success: true,
         metadata: {
           operation: 'delete',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -516,7 +517,7 @@ export class FirebaseAdapter implements IDatabaseService {
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       let query: Query = firestore.collection(querySpec.collection);
@@ -559,7 +560,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: documents,
         metadata: {
           operation: 'query',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -583,7 +584,7 @@ export class FirebaseAdapter implements IDatabaseService {
     filters: DatabaseFilter[] = []
   ): Promise<DatabaseResult<number>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       let query: Query = firestore.collection(collection);
@@ -601,7 +602,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: count,
         metadata: {
           operation: 'count',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -625,7 +626,7 @@ export class FirebaseAdapter implements IDatabaseService {
     documents: Array<{ id?: string; data: T }>
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const batch = firestore.batch();
@@ -667,7 +668,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: results,
         metadata: {
           operation: 'batchCreate',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -691,7 +692,7 @@ export class FirebaseAdapter implements IDatabaseService {
     updates: Array<{ id: string; data: Partial<T> }>
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const batch = firestore.batch();
@@ -726,7 +727,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: results,
         metadata: {
           operation: 'batchUpdate',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -750,7 +751,7 @@ export class FirebaseAdapter implements IDatabaseService {
     ids: string[]
   ): Promise<DatabaseResult<void>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const batch = firestore.batch();
@@ -766,7 +767,7 @@ export class FirebaseAdapter implements IDatabaseService {
         success: true,
         metadata: {
           operation: 'batchDelete',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }
@@ -789,7 +790,7 @@ export class FirebaseAdapter implements IDatabaseService {
     operation: (transaction: IDatabaseTransaction) => Promise<T>
   ): Promise<DatabaseResult<T>> {
     try {
-      const startTime = Date.now();
+      const startTime = monotime();
       const firestore = await this.getFirestore();
 
       const result = await firestore.runTransaction(async (transaction) => {
@@ -802,7 +803,7 @@ export class FirebaseAdapter implements IDatabaseService {
         data: result,
         metadata: {
           operation: 'transaction',
-          duration: Date.now() - startTime,
+          duration: monotime() - startTime,
           backend: 'firebase',
           timestamp: new Date()
         }

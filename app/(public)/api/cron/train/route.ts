@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AITrainingPipeline } from '@/lib/ai/training-pipeline'
 
-export const dynamic = 'force-dynamic'
 
 export async function POST(_req: NextRequest) {
   try {

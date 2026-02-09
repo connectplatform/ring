@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { z } from 'zod'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const session = await auth()
   if (!session?.user || (session.user as any).role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

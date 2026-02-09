@@ -15,6 +15,7 @@
  */
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Star, ThumbsUp, CheckCircle, Camera, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -190,9 +191,11 @@ export default function ProductReviews({
                   {/* Author Avatar */}
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary">
                     {review.authorAvatar ? (
-                      <img
+                      <Image
                         src={review.authorAvatar}
                         alt={review.author}
+                        width={48}
+                        height={48}
                         className="w-full h-full rounded-full object-cover"
                       />
                     ) : (
@@ -256,9 +259,11 @@ export default function ProductReviews({
                       onClick={() => setSelectedImage(image.url)}
                       className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors group"
                     >
-                      <img
+                      <Image
                         src={image.thumbnail || image.url}
                         alt={`Review image ${idx + 1}`}
+                        width={80}
+                        height={80}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
@@ -329,12 +334,15 @@ export default function ProductReviews({
             <span className="sr-only">Close</span>
             ×
           </button>
-          <img
-            src={selectedImage}
-            alt="Review image"
-            className="max-w-full max-h-full object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={selectedImage}
+              alt="Review image"
+              fill
+              sizes="100vw"
+              className="object-contain"
+            />
+          </div>
         </div>
       )}
     </div>

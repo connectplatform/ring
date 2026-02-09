@@ -33,13 +33,13 @@ export const getCachedOpportunitiesForRole = (roleKey: UserRole) =>
   )
 
 export function invalidateEntitiesCache(roleKeys: string[] = []) {
-  revalidateTag('entities-list')
-  for (const role of roleKeys) revalidateTag(`entities-role-${role}`)
+  revalidateTag('entities-list', 'max')
+  for (const role of roleKeys) revalidateTag(`entities-role-${role}`, 'max')
 }
 
 export function invalidateOpportunitiesCache(roleKeys: string[] = []) {
-  revalidateTag('opportunities-list')
-  for (const role of roleKeys) revalidateTag(`opportunities-role-${role}`)
+  revalidateTag('opportunities-list', 'max')
+  for (const role of roleKeys) revalidateTag(`opportunities-role-${role}`, 'max')
 }
 
 

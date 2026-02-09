@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { getListings, createListingDraft } from '@/features/nft-market/services/listing-service'
 
-// Allow caching for NFT marketplace listings with moderate revalidation for marketplace data
-export const dynamic = 'auto'
-export const revalidate = 120 // 2 minutes for marketplace data
 
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { searchParams } = new URL(req.url)
   const username = searchParams.get('username') || undefined
   const status = searchParams.get('status') || 'active'
@@ -26,6 +25,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

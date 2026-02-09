@@ -12,8 +12,6 @@ import DocsWrapper from '@/components/wrappers/docs-wrapper'
 import { isValidLocale, defaultLocale, type Locale } from '@/i18n-config'
 
 // Route segment configuration for docs hub page
-export const dynamic = 'auto'
-export const revalidate = 3600 // Revalidate every hour
 import {
   FileText,
   Search,

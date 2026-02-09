@@ -1,12 +1,15 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
 import { ROUTES } from '@/constants/routes'
+import { getTranslations } from 'next-intl/server'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import VendorProductsWrapper from '@/components/wrappers/vendor-products-wrapper'
 import VendorProductsList from './vendor-products-list'
+import { connection } from 'next/server'
 
 export async function generateMetadata({ params }: { params: { locale: string } }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const t = await getTranslations({ locale: params.locale, namespace: 'vendor.products' })
   
   return {
@@ -20,6 +23,8 @@ export default async function VendorProductsPage({
 }: {
   params: { locale: string }
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const session = await auth()
   
   // Require authentication

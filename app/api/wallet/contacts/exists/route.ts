@@ -3,7 +3,7 @@
  * Checks if a wallet address already exists in user's contacts
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getCurrentWalletService } from '@/features/wallet/services';
 import { z } from 'zod';
@@ -16,6 +16,8 @@ const ExistsCheckSchema = z.object({
  * POST /api/wallet/contacts/exists - Check if contact exists
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

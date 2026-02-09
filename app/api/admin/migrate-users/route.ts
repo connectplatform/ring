@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { cert, initializeApp } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { NextRequest, NextResponse, connection} from 'next/server'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Check authentication and admin role
     const session = await auth()
@@ -14,33 +14,6 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting user migration from Firebase to PostgreSQL')
 
-    // Initialize Firebase Admin (reuse existing initialization if available)
-    let firestore
-    try {
-      // Try to get existing app
-      const admin = await import('firebase-admin')
-      firestore = admin.firestore()
-    } catch {
-      // Initialize new app
-      const serviceAccount = {
-        type: 'service_account',
-        project_id: process.env.AUTH_FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-        private_key: (process.env.AUTH_FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, '\n'),
-        client_email: process.env.AUTH_FIREBASE_CLIENT_EMAIL,
-        client_id: process.env.FIREBASE_CLIENT_ID,
-        auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-        token_uri: 'https://oauth2.googleapis.com/token',
-        auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-        client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
-      }
-
-      const app = initializeApp({
-        credential: cert(serviceAccount as any)
-      })
-      firestore = getFirestore(app)
-    }
-
     // Initialize database
     const initResult = await initializeDatabase()
     if (!initResult.success) {
@@ -49,9 +22,13 @@ export async function POST(request: NextRequest) {
 
     const dbService = getDatabaseService()
 
-    // Get all users from Firebase
-    const snapshot = await firestore.collection('users').get()
-    const totalUsers = snapshot.size
+    // Get all users from database
+    const result = await dbService.query({ collection: 'users' })
+    if (!result.success) {
+      throw result.error || new Error('Failed to fetch users')
+    }
+    const snapshot = result.data
+    const totalUsers = snapshot.length
 
     console.log(`Found ${totalUsers} users in Firebase`)
 
@@ -59,9 +36,9 @@ export async function POST(request: NextRequest) {
     let errors = 0
     const results = []
 
-    for (const doc of snapshot.docs) {
+    for (const doc of snapshot) {
       const userId = doc.id
-      const userData = doc.data()
+      const userData = doc as any
 
       try {
         // Make automart@gmail.com a superadmin
@@ -78,7 +55,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Save to database
-        await dbService.create('users', userDoc)
+        const createResult = await dbService.create('users', userDoc)
+        if (!createResult.success) {
+          throw createResult.error || new Error('Failed to create user')
+        }
 
         console.log(`✅ Migrated user: ${userData.email || userId}`)
         results.push({ id: userId, email: userData.email, status: 'migrated' })

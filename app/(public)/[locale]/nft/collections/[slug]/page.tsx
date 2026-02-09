@@ -5,8 +5,6 @@ import StoreWrapper from '@/components/wrappers/store-wrapper'
 type CollectionParams = { slug: string }
 
 // Allow caching for individual NFT collections with moderate revalidation for marketplace data
-export const dynamic = "auto"
-export const revalidate = 180 // 3 minutes for NFT marketplace data
 
 export default async function CollectionPage(props: LocalePageProps<CollectionParams>) {
   const params = await props.params

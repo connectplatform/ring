@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { getStorePaymentStatus } from '@/lib/payments/wayforpay-store-service'
@@ -16,6 +16,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { orderId: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     logger.info('Store Payment Status: Checking payment status', {
       orderId: params.orderId

@@ -9,8 +9,8 @@ import { UserRole } from '@/features/auth/types'
 import { PageProps } from '@/types/next-page'
 import { resolvePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { connection } from 'next/server'
 
-export const dynamic = 'force-dynamic'
 
 // Role hierarchy for access control
 const ROLE_HIERARCHY = {
@@ -37,6 +37,8 @@ const ROLE_HIERARCHY = {
  * 6. If user lacks permission, they're redirected to upgrade page
  */
 export default async function AddOpportunityPage(props: PageProps) {
+  await connection() // Next.js 16: opt out of prerendering
+
   let error: string | null = null
   
   console.log('AddOpportunityPage: Starting');
@@ -87,7 +89,7 @@ export default async function AddOpportunityPage(props: PageProps) {
     if (!session) {
       console.log('AddOpportunityPage: No session, redirecting to login');
       const returnTo = `/${locale}/opportunities/add${type ? `?type=${type}` : ''}`
-      redirect(`${ROUTES.LOGIN(locale)}?returnTo=${encodeURIComponent(returnTo)}`)
+      redirect(`/${locale}/auth/login?returnTo=${encodeURIComponent(returnTo)}`)
     }
 
     // Step 4: Check user role and permissions
@@ -128,7 +130,7 @@ export default async function AddOpportunityPage(props: PageProps) {
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
-
+      
       {/* Hreflang alternates */}
       {Object.entries(alternates).map(([lang, url]) => (
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
@@ -139,9 +141,9 @@ export default async function AddOpportunityPage(props: PageProps) {
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
-      <meta property="og:locale" content="en_US" />
-      <meta property="og:alternate_locale" content="uk_UA" />
-      
+      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
+      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary" />
       <meta name="twitter:title" content={title} />
@@ -198,21 +200,35 @@ export default async function AddOpportunityPage(props: PageProps) {
         }}
       />
 
-      <OpportunityFormWrapper
-        locale={locale}
-        opportunityType={type}
-      >
-        <Suspense fallback={
-          <div className="flex justify-center items-center h-screen">
-            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      <OpportunityFormWrapper locale={locale} opportunityType={type}>
+        {/* Content Header - Opportunity Creation Style */}
+        <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-sm">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">{(translations as any)?.modules?.opportunities?.createOpportunity || 'Create Opportunity'}</h1>
+                <p className="text-muted-foreground">
+                  {(translations as any)?.opportunitiesDescription || 'Post a new opportunity on the Ring platform'}
+                </p>
+              </div>
+            </div>
           </div>
-        }>
-          {error ? (
-            <div className="text-center text-red-600 p-4">{error}</div>
-          ) : (
-            <AddOpportunityForm opportunityType={type} locale={locale} />
-          )}
-        </Suspense>
+        </div>
+
+        {/* Main Content - Opportunity Form */}
+        <div className="flex-1 container mx-auto px-6 py-8 max-w-6xl">
+          <Suspense fallback={
+            <div className="flex justify-center items-center h-screen">
+              <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+            </div>
+          }>
+            {error ? (
+              <div className="text-center text-red-600 p-4">{error}</div>
+            ) : (
+              <AddOpportunityForm opportunityType={type} locale={locale} />
+            )}
+          </Suspense>
+        </div>
       </OpportunityFormWrapper>
     </>
   )

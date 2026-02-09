@@ -6,14 +6,16 @@ import { ArticleEditor } from '@/features/news/components/article-editor';
 import { LocalePageProps } from '@/utils/page-props';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 import NewsWrapper from '@/components/wrappers/news-wrapper';
+import { connection } from 'next/server'
 
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ 
   params 
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -30,6 +32,8 @@ export default async function CreateArticlePage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -44,7 +48,7 @@ export default async function CreateArticlePage({
   // TODO: Implement proper role checking
   
   return (
-    <NewsWrapper pageContext="create">
+    <NewsWrapper pageContext="create" translations={t}>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">
           {t.modules.admin.createArticle}

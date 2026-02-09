@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connection } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering (uses request.url + auth)
+
   try {
     // Get username from query parameters
     const { searchParams } = new URL(request.url);
@@ -69,4 +72,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export const dynamic = 'force-dynamic';

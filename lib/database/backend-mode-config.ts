@@ -74,7 +74,7 @@ function getK8sPostgresFCMConfig(): BackendModeConfig {
           port: parseInt(process.env.DB_PORT || '5432'),
           database: process.env.DB_NAME || 'ring_platform',
           username: process.env.DB_USER || 'ring_user',
-          password: process.env.DB_PASSWORD || 'ring_password_2024'
+          password: process.env.DB_PASSWORD || 'ring_dev_password'
         },
         options: {
           poolSize: parseInt(process.env.DB_POOL_SIZE || '20'),

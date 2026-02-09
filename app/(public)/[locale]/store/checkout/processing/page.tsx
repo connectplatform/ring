@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react'
+import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import type { Locale } from '@/i18n-config'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
@@ -11,6 +12,7 @@ export default async function CheckoutProcessingPage({
   params: Promise<{ locale: Locale }>
   searchParams: Promise<{ orderId?: string; status?: string }>
 }) {
+  await connection() // Next.js 16: searchParams is per-request dynamic data
   const { locale } = await params
   const { orderId, status } = await searchParams
   

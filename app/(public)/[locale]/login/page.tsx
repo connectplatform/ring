@@ -3,7 +3,6 @@ import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { LocalePageProps } from '@/utils/page-props'
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 
-export const dynamic = 'force-dynamic'
 
 /**
  * Define the specific type for login page params
@@ -22,100 +21,65 @@ type LoginParams = {};
  * @returns The rendered login page or a redirect
  */
 export default async function LoginPage(props: LocalePageProps<LoginParams>) {
-  let from: string | undefined
+  // Next.js 16: Resolve params/searchParams OUTSIDE try/catch.
+  // During prerendering these Promises reject with HANGING_PROMISE_REJECTION
+  // when the prerender completes — React handles this automatically,
+  // but a try/catch would swallow the signal and produce noisy error logs.
+  const params = await props.params
+  const searchParams = await props.searchParams
 
-  try {
-    // Resolve params and searchParams
-    const params = await props.params;
-    const searchParams = await props.searchParams;
+  // Extract and validate locale
+  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
 
-    // Extract and validate locale
-    const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-    console.log('LoginPage: Using locale', locale);
+  // React 19 metadata preparation
+  const t = await loadTranslations(locale)
+  const title = (t as any).metadata?.login || 'Login | Ring App'
+  const description = (t as any).metaDescription?.login || 'Log in to access tech opportunities in Cherkasy region'
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://ring-platform.org'}/${locale}/login`
+  const alternates = generateHreflangAlternates('/login')
 
-    // React 19 metadata preparation
-    const t = await loadTranslations(locale);
-    const title = (t as any).metadata?.login || 'Login | Ring App';
-    const description = (t as any).metaDescription?.login || 'Log in to access tech opportunities in Cherkasy region';
-    const canonicalUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://ring-platform.org'}/${locale}/login`;
-    const alternates = generateHreflangAlternates('/login');
+  // Support from, callbackUrl, and returnTo for post-login redirect (standardize on 'from' internally)
+  const rawFrom = searchParams.from ?? searchParams.callbackUrl ?? searchParams.returnTo
+  const from = typeof rawFrom === 'string' ? rawFrom : undefined
 
-    // Support from, callbackUrl, and returnTo for post-login redirect (standardize on 'from' internally)
-    const rawFrom = searchParams.from ?? searchParams.callbackUrl ?? searchParams.returnTo
-    from = typeof rawFrom === 'string' ? rawFrom : undefined
+  // Render the login form
+  return (
+    <>
+      {/* React 19 Native Document Metadata */}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <link rel="canonical" href={canonicalUrl} />
+      
+      {/* OpenGraph metadata */}
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:type" content="website" />
+      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
+      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
+      
+      {/* Twitter Card metadata */}
+      <meta name="twitter:card" content="summary" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      
+      {/* Hreflang alternates */}
+      {Object.entries(alternates).map(([lang, url]) => (
+        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
+      ))}
 
-    console.log('LoginPage: Starting')
-    console.log('Params:', params)
-    console.log('Search Params:', searchParams)
-
-    console.log('LoginPage: Rendering login form')
-
-    // Step 4: Render the login form for non-authenticated users
-    return (
-      <>
-        {/* React 19 Native Document Metadata */}
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <link rel="canonical" href={canonicalUrl} />
-        
-        {/* OpenGraph metadata */}
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-        <meta property="og:url" content={canonicalUrl} />
-        <meta property="og:type" content="website" />
-        <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-        <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-        
-        {/* Twitter Card metadata */}
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content={title} />
-        <meta name="twitter:description" content={description} />
-        
-        {/* Hreflang alternates */}
-        {Object.entries(alternates).map(([lang, url]) => (
-          <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-        ))}
-
-        {/* Login container with sidebar offset for desktop centering */}
-        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 md:ml-[280px]">
-          <div className="max-w-md w-full space-y-8">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-2">{t.pages.login.title}</h1>
-              <p className="text-muted-foreground">{t.pages.login.subtitle}</p>
-            </div>
-            <UnifiedLoginInline from={from} variant="hero" />
+      {/* Login container with sidebar offset for desktop centering */}
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 md:ml-[280px]">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold mb-2">{t.pages.login.title}</h1>
+            <p className="text-muted-foreground">{t.pages.login.subtitle}</p>
           </div>
+          <UnifiedLoginInline from={from} variant="hero" />
         </div>
-      </>
-    );
-  } catch (error: any) {
-    // Don't log NEXT_REDIRECT errors as they are expected behavior
-    if (error.message?.includes('NEXT_REDIRECT')) {
-      // Re-throw redirect errors to let Next.js handle them
-      throw error
-    }
-    
-    console.error("LoginPage: Error checking authentication or resolving request data:", error)
-    
-    // Fallback return with minimal metadata
-    return (
-      <>
-        <title>Login | Ring App</title>
-        <meta name="description" content="Log in to access tech opportunities in Cherkasy region" />
-        
-        {/* Login container with sidebar offset for desktop centering (fallback) */}
-        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 md:ml-[280px]">
-          <div className="max-w-md w-full space-y-8">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-2">Welcome back</h1>
-              <p className="text-muted-foreground">Sign in to continue to Ring</p>
-            </div>
-            <UnifiedLoginInline from={from} variant="hero" />
-          </div>
-        </div>
-      </>
-    );
-  }
+      </div>
+    </>
+  )
 }
 
 /* 

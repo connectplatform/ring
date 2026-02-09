@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Maximize2, X, ZoomIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +66,14 @@ export default function ProductImageGallery({
     return () => clearInterval(interval)
   }, [autoPlay, autoPlayInterval, displayImages.length])
 
+  const handlePrevious = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length)
+  }, [displayImages.length])
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % displayImages.length)
+  }, [displayImages.length])
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,15 +90,7 @@ export default function ProductImageGallery({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isLightboxOpen])
-
-  const handlePrevious = () => {
-    setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length)
-  }
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % displayImages.length)
-  }
+  }, [isLightboxOpen, handlePrevious, handleNext])
 
   // Touch handlers for swipe
   const minSwipeDistance = 50
@@ -130,11 +131,13 @@ export default function ProductImageGallery({
           onClick={() => setIsLightboxOpen(true)}
         >
           {/* Main Image */}
-          <img
+          <Image
             src={currentImage.url}
             alt={currentImage.alt}
+            fill
+            sizes="(max-width: 448px) 100vw, 448px"
             className={cn(
-              "absolute inset-0 w-full h-full object-contain transition-transform duration-500",
+              "object-contain transition-transform duration-500",
               isZoomed && "scale-110"
             )}
             onMouseEnter={() => setIsZoomed(true)}
@@ -222,9 +225,11 @@ export default function ProductImageGallery({
                     : "border-transparent hover:border-primary/50 hover:scale-105"
                 )}
               >
-                <img
+                <Image
                   src={image.thumbnail || image.url}
                   alt={`${productName} - Image ${idx + 1}`}
+                  width={64}
+                  height={64}
                   className="w-full h-full object-cover"
                 />
               </button>
@@ -255,11 +260,15 @@ export default function ProductImageGallery({
 
           {/* Main Lightbox Image */}
           <div className="absolute inset-0 flex items-center justify-center p-4">
-            <img
-              src={currentImage.url}
-              alt={currentImage.alt}
-              className="max-w-full max-h-full object-contain"
-            />
+            <div className="relative w-full h-full">
+              <Image
+                src={currentImage.url}
+                alt={currentImage.alt}
+                fill
+                sizes="100vw"
+                className="object-contain"
+              />
+            </div>
           </div>
 
           {/* Navigation Arrows */}
@@ -296,9 +305,11 @@ export default function ProductImageGallery({
                       : "border-white/30 hover:border-white/70 hover:scale-105 hover:z-10"
                   )}
                 >
-                  <img
+                  <Image
                     src={image.thumbnail || image.url}
                     alt={`Thumbnail ${idx + 1}`}
+                    width={64}
+                    height={64}
                     className="w-full h-full object-cover transition-transform duration-300 ease-out"
                   />
                   {idx === currentIndex && (

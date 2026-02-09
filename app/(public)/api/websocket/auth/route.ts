@@ -3,12 +3,14 @@
  * Generates a short-lived token for WebSocket authentication
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { SignJWT } from 'jose'
 import { authRateLimiter } from '@/lib/security/rate-limiter'
 
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // SECURITY: Apply rate limiting to prevent brute force attacks
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -139,6 +141,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // Refresh WebSocket token
   return GET(req)
 }

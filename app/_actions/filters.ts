@@ -14,6 +14,7 @@ export async function applyFilters(
   prevState: FilterFormState | null,
   formData: FormData
 ): Promise<FilterFormState> {
+
   try {
     // Optional: Get session for personalized filters
     const session = await auth()

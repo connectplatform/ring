@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { NewsFilters, NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
@@ -9,6 +9,8 @@ import { revalidatePath } from 'next/cache';
  * Fetch news articles with optional filtering
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const { searchParams } = new URL(request.url);
     
@@ -121,6 +123,8 @@ export async function GET(request: NextRequest) {
  * Create a new news article (admin only)
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     

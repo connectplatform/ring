@@ -1,5 +1,5 @@
 import { file as fileService } from '@/lib/file'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { cookies, headers } from 'next/headers'
 
@@ -13,6 +13,8 @@ import { cookies, headers } from 'next/headers'
  * @returns {Promise<NextResponse>} Response object containing either the blob details or an error message.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/conversations/upload - Starting POST request')
 
   try {

@@ -5,52 +5,92 @@
 <h1 align="center">Ring Platform</h1>
 
 <p align="center">
-  <strong>Open-Source White-Label Professional Networking Platform with Web3 Integration</strong>
+  <strong>The World's First AI-Self-Construct White-Label Multi-Use Platform for Global Abundance</strong>
 </p>
 
 <p align="center">
+  <a href="#ringdom-ecosystem">Ringdom</a> •
   <a href="#platform-overview">Overview</a> •
   <a href="#key-features">Features</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#deployment">Deployment</a> •
+  <a href="#legion-nft-access">Legion NFT</a> •
   <a href="#documentation">Docs</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.49-blue?style=flat-square" alt="Version" />
-  <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=flat-square&logo=react" alt="React" />
-  <img src="https://img.shields.io/badge/Next.js-15.5%20%7C%2016-black?style=flat-square&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/version-1.50-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/React-19.2_(ALL_features)-61DAFB?style=flat-square&logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind-4.1-38B2AC?style=flat-square&logo=tailwindcss" alt="Tailwind" />
   <img src="https://img.shields.io/badge/Auth.js-v5-purple?style=flat-square" alt="Auth.js" />
+  <img src="https://img.shields.io/badge/Legion_AI-147_Agents-gold?style=flat-square" alt="Legion AI" />
+  <img src="https://img.shields.io/badge/Ringdom-Digital_Kingdom-crimson?style=flat-square" alt="Ringdom" />
   <img src="https://img.shields.io/badge/License-Open_Source-green?style=flat-square" alt="License" />
 </p>
 
 ---
 
-Ring Platform is a comprehensive open-source professional networking solution that connects businesses, professionals, and opportunities through a sophisticated entity-based system with confidential access tiers. Clone, customize, and deploy your own Ring-powered platform.
+Ring Platform is the largest, most versatile, and most thoroughly engineered all-in-one open-source platform on planet Earth. It is a React 19-native, Next.js 16, AI-self-construct white-label technology that powers communities and projects everywhere. Clone it, customize it, deploy it -- for free, forever.
 
-**Version**: 1.49 | **License**: Open Source | **Origin**: Trinity Ukraine
+Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** -- the First Digital Kingdom for global abundance. While this repository gives you the full open-source codebase, Ringdom offers the turn-key experience: AI customization via Legion, enterprise-grade K8s hosting in your country or anywhere, and an AI assistant named **Reggie** who will "ringize" your project requirements into a deployment plan with forecasted costs.
+
+**Version**: 1.50 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
+
+## Ringdom Ecosystem
+
+Ring Platform exists within **Ringdom** -- the First Digital Kingdom offered to humanity for global abundance.
+
+### How It Works
+
+| Path | For Whom | What You Get |
+|------|----------|-------------|
+| **Clone it yourself** | Developers, open-source enthusiasts | Full codebase from this repo. `git clone`, customize, deploy to your own infra. Free forever. |
+| **Become a Ringdom Settler** | Communities, organizations, startups | Register at [ringdom.org/settler](https://ringdom.org/settler), talk to **Reggie** (Ringdom AI Assistant), describe your project. Reggie "ringizes" your request into a Ring Platform Customization Plan with forecasted costs. Ringdom handles AI customization, K8s hosting, and ongoing support. |
+| **Get Legion AI Skillsets** | AI developers using Cursor IDE | 147+ Ring-specialized AI agent skillsets, installable as a Cursor Plugin. Access gated by **Ringdom Legion-Access NFT** (ERC-721 on Polygon). Perpetual license -- own the NFT, access the skillsets indefinitely. |
+
+### The Ringdom Stack
+
+```
+Ringdom.org (Turn-key service layer)
+  |-- Ring Platform (This open-source codebase)
+  |-- Legion AI (147+ specialized agents, 23 MCP tools)
+  |-- K8s Infrastructure (Enterprise hosting, any country)
+  |-- Reggie (AI assistant for project ringization)
+  |-- Legion-Access NFT (Token-gated skillset distribution)
+```
+
+### Settler Tiers
+
+| Tier | Investment | RING Tokens | What's Included |
+|------|-----------|-------------|-----------------|
+| Pioneer Settler | $100 | 1,000 RNG | Ring clone + basic customization |
+| Founding Settler | $500 | 5,000 RNG | Ring clone + full AI customization + priority support |
+| Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legion support |
 
 ## What's New in 2026
 
-- **Next.js 16 Support** - Turbopack default bundler, async params, proxy.ts middleware (ring-ringdom-org live on Next 16)
+- **Next.js 16** - Turbopack default, async params, proxy.ts middleware, `revalidateTag` 2-arg API (ring-ringdom-org live on Next 16)
+- **ALL React 19 Features** - Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions
 - **DAGI AI Agent System** - 3-tier autonomous AI agents with 7-agent multi-agent coordination and provisioning API
+- **Ringdom Settler System** - Complete registration flow with tier selection, token calculator, checkout, and Reggie AI ringization
+- **Legion-Access NFT** - ERC-721 token-gated access to Legion AI skillsets as Cursor Plugin (dual-layer verification, EIP-712 signatures)
 - **Interactive Maps & Visualization** - Feature map, timeline, dataflow, knowledge graph via @xyflow/react
 - **News Module** - Complete digital newspaper with likes, categories, analytics, SEO, newsletter distribution
 - **Email CRM System** - IMAP listener, contact management, newsletter automation
 - **PIN Security System** - Revolutionary Web3 without seed phrases (95% wallet connection vs 40% industry standard)
 - **Auth Route Standardization** - ROUTES.LOGIN(locale) canonical pattern, unified query params (from/callbackUrl/returnTo)
-- **5+ Active Ring Clones** - ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua on Kubernetes
+- **6+ Active Ring Clones** - ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua on Kubernetes
 - **Database Abstraction Layer** - PostgreSQL/Firebase/ConnectPlatform via unified DatabaseService
 - **Multi-Vendor Store** - Complete e-commerce with cart, checkout, and WayForPay payments
 - **Tunnel Protocol** - Real-time pub/sub replacing Firebase RTDB for K8s deployments
 - **RING Token Economy** - Web3 wallet integration with token payments and staking
-- **React 19.2 + Next.js 15.5/16** - Latest framework versions with Server Components
+- **BERT/NLP Semantic Search** - AI-powered opportunity matching with vector embeddings
+- **3-Level Comment Threading** - Nested discussion system with optimistic updates
 - **Tailwind CSS 4** - Modern utility-first styling
 - **12 Test Suites** - Enterprise-grade testing infrastructure
-- **Legion AI Integration** - 141+ specialized AI agents with 22 MCP tools
+- **Legion AI 147+ Agents** - Cohort-based hierarchy with 23 MCP tools
 
 ## Platform Overview
 
@@ -109,6 +149,11 @@ Ring Platform supports a sophisticated dual-nature opportunity system:
 - **Offers**: Traditional job postings, service offerings, partnership proposals
 - **Requests**: Seeking services, talent acquisition, collaboration requests
 - **Ring Customization**: White-label cloning, module development, platform customization
+- **Partnership**: Strategic partnerships and joint ventures
+- **Mentorship**: Experienced Ring deployers mentor newcomers
+- **Resource**: Shared resources, tools, and infrastructure
+- **Event**: Community events, hackathons, meetups
+- **Volunteer**: Contributing to Ring ecosystem development
 
 **Access Tiers:**
 - **Public**: Open to all platform users
@@ -168,31 +213,35 @@ Ring Platform implements a tiered access model for professional networking:
 
 | Category | Technology |
 |----------|------------|
-| **Frontend** | Next.js 15.5.4 / 16.x, React 19.2, TypeScript 5.9.3 |
-| **Authentication** | Auth.js v5 (NextAuth) with Google GIS, Apple, MetaMask, Magic Links, PIN Security |
-| **Database** | PostgreSQL (production) / Firebase Firestore / ConnectPlatform |
-| **Database Abstraction** | Unified DatabaseService with automatic backend selection |
-| **Styling** | Tailwind CSS 4.1 with custom design system |
-| **Web3** | wagmi 2.18, viem 2.38, RainbowKit 2.2, RING Token |
-| **Real-time** | Tunnel Protocol (WebSocket) / Firebase RTDB |
-| **File Storage** | Vercel Blob / Filebase (S3-compatible) |
-| **Payments** | WayForPay integration with PCI-DSS compliance |
-| **Deployment** | Kubernetes / Vercel with edge functions |
-| **AI Agents** | DAGI 3-tier system with 7-agent coordination, Legion AI 141+ agents |
-| **NLP/Search** | BERT-based semantic matching, vector search, opportunity AI matcher |
-| **Testing** | Jest 30 + React Testing Library 16 (95+ tests) |
-| **Internationalization** | next-intl with EN, UK, RU support |
-| **Animations** | Framer Motion 12 |
-| **3D Graphics** | Three.js / React Three Fiber |
+| **Frontend** | Next.js 16.1 (Turbopack, async params, proxy.ts), React 19.2 (ALL features), TypeScript 5.9.3 |
+| **React 19** | Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions |
+| **Authentication** | Auth.js v5 -- Google GIS, Apple, MetaMask, Magic Links, PIN Security, split config (edge + server) |
+| **Database** | PostgreSQL (K8s production) / Firebase Firestore / ConnectPlatform -- unified DatabaseService |
+| **Styling** | Tailwind CSS 4.1 with custom design system, Radix UI 26 components |
+| **Web3** | wagmi 2.18, viem 2.38, RainbowKit 2.2, RNG Token, NFT marketplace, ERC-721 token gating |
+| **Real-time** | Tunnel Protocol (WebSocket pub/sub) / Firebase RTDB |
+| **File Storage** | Vercel Blob / Filebase (S3-compatible) / Minio |
+| **Payments** | WayForPay integration with PCI-DSS compliance, HMAC webhooks |
+| **Deployment** | Kubernetes K3s (6+ production clones) / Vercel edge functions |
+| **AI Agents** | DAGI 3-tier system, Legion AI 147+ agents, 23 MCP tools, Ringdom AI Assistant (Reggie) |
+| **NLP/Search** | BERT-based semantic matching, vector embeddings, opportunity AI matcher |
+| **NFT/Token Gate** | ERC-721 Legion-Access NFT on Polygon, EIP-712 signatures, dual-layer verification |
+| **Testing** | Jest 30 + React Testing Library 16 (95+ tests, 12 suites) |
+| **Internationalization** | next-intl with EN, UK, RU support (5+ languages planned) |
+| **Visualization** | @xyflow/react interactive maps (feature, timeline, dataflow, knowledge) |
+| **Animations** | Framer Motion 12, Three.js / React Three Fiber |
 
 ### Platform Statistics
 
-- **Version**: 1.49 (production-ready)
+- **Version**: 1.50 (production-deployed, 6+ live clones)
 - **API Endpoints**: 118+ documented endpoints
 - **Routes**: 88+ application routes
-- **Build Time**: ~17 seconds (optimized)
+- **Build Time**: ~17 seconds (optimized with Turbopack)
 - **Bundle Size**: 260kB (55KB reduction via React 19 optimization)
-- **Test Files**: 12 comprehensive test suites
+- **Test Suites**: 12 comprehensive suites (95+ tests)
+- **Legion AI Agents**: 147+ specialized agents in cohort hierarchy
+- **MCP Tools**: 23 Legion tools for development automation
+- **Active Clones**: 6+ on Kubernetes (ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, ring-platform.org)
 - **Radix UI Components**: 26 accessible components
 - **Supported Languages**: English, Ukrainian, Russian
 
@@ -259,10 +308,13 @@ flowchart TB
 ```
 
 ### White-Label Clone System
-- **One-Command Cloning**: Deploy your own Ring platform instance
-- **Customization**: Theme, branding, modules, and features per clone
+- **One-Command Cloning**: `git clone` + `./install.sh` -- deploy your own Ring instance
+- **AI-Powered Customization**: Describe your needs to Reggie, get an automated customization plan
+- **Legion-Clone Execution**: `legion-clone` MCP tool creates complete project setup from template
+- **Customization**: Theme, branding, modules, features, and opportunity categories per clone
 - **Shared Infrastructure**: PostgreSQL database per clone with global user support
-- **Kubernetes Deployments**: Production-ready with SSL, replicas, and health checks
+- **6+ Production Clones**: ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, ring-platform.org
+- **Kubernetes Deployments**: Production-ready with SSL, replicas, health checks, zero-downtime rolling updates
 
 ### Multi-Vendor E-Commerce
 - **Complete Store System**: Product catalog, variants, pricing tiers
@@ -287,10 +339,24 @@ flowchart TB
 ### Web3 & Token Economy
 - **RING Token**: Native platform token for payments, staking, governance
 - **Wallet Integration**: MetaMask, RainbowKit, one-click wallet creation
+- **PIN Security**: Revolutionary Web3 without seed phrases (95% wallet connection vs 40% industry standard)
 - **Token Payments**: Pay for services, subscriptions, and products with RING
-- **NFT Marketplace**: Digital asset creation and trading (planned)
+- **NFT Marketplace**: Digital asset creation and trading with ERC-721/ERC-1155
 - **Staking System**: Earn rewards by staking RING tokens
 - **Web3 Authentication**: Sign in with Ethereum wallet
+- **Multi-Chain**: Polygon (primary), Ethereum, Base support
+
+### Legion-Access NFT -- Token-Gated AI Skillsets
+
+Ring Platform includes a production-ready NFT token-gating system for distributing Legion AI skillsets:
+
+- **ERC-721 on Polygon**: Legion-Access NFT grants perpetual access to 147+ Ring-specialized AI agent skillsets
+- **Dual-Layer Verification**: Client-side (wagmi hooks) + server-side (viem public client) ownership checks
+- **EIP-712 Signatures**: Human-readable challenge-response for download authorization
+- **Signed URL Delivery**: Time-limited presigned URLs (15-min expiry) for secure Cursor Plugin distribution
+- **Rate Limiting**: Per-wallet limits (10/hour, 50/day) with Redis tracking
+- **License Tiers**: Basic (1 NFT), Pro (3 NFTs), Enterprise (custom) access levels
+- **Transferable License**: Sell or gift your license via NFT transfer -- blockchain is the source of truth
 
 ### Database Abstraction Layer
 
@@ -368,6 +434,8 @@ flowchart LR
 - **Agent Tiers**: Free (basic), Premium (advanced), Enterprise (custom) agent access
 - **Activation Cards**: Vendor dashboard integration with DAGI agent activation
 - **Knowledge Integration**: Agents access Ring's full knowledge graph for context-aware responses
+- **Ringize API**: `api.sonoratek.com/ringize` analyzes requirements, Legion executes via `legion-clone`
+- **Autonomous Customization**: AI plans + manual approval + local execution pipeline
 
 ### News Module - Digital Newspaper
 - **Full CMS**: Article creation, editing, bulk operations, category management
@@ -636,23 +704,27 @@ flowchart TB
 ## Business Model
 
 ### Revenue Streams
-- **Subscription Tiers**: Freemium model with premium features
-- **Confidential Access**: Premium tier for exclusive networking
+- **Ringdom Settler Tiers**: Pioneer ($100), Founding ($500), Empire Builder ($1,000+) with RING tokens
+- **Legion-Access NFT**: Perpetual license NFT for Legion AI skillsets (Cursor Plugin)
 - **RING Token Economy**: Token payments, staking rewards, governance
-- **White-Label Licensing**: Clone deployment and customization services
+- **White-Label Customization**: AI-powered clone deployment and customization via Reggie
+- **Confidential Access**: Premium tier for exclusive professional networking
 - **Entity Verification**: Enhanced credibility services
 - **Featured Listings**: Promoted opportunity placements
 - **Multi-Vendor Marketplace**: Transaction fees on store sales
-- **Enterprise Solutions**: Custom solutions for large organizations
+- **Enterprise Solutions**: Custom K8s hosting, dedicated support, multi-seat licenses
 
 ### Target Markets
+- **Communities & Organizations**: Any group that needs a digital platform (the primary Ringdom use case)
 - **Technology Companies**: Startups to enterprise organizations
 - **E-Commerce**: Multi-vendor marketplace operators
 - **Professional Services**: Consulting, legal, financial services
 - **Healthcare Organizations**: Hospitals, clinics, research institutions
 - **Food & Agriculture**: Organic food marketplaces
-- **Investment Firms**: VCs, private equity, and investment banks
+- **Media & News**: Publishing platforms
+- **AI & Research**: Scientific publication platforms
 - **Government & NGOs**: Public service platforms
+- **AI Developers**: Cursor IDE users
 
 ## Development
 
@@ -820,7 +892,7 @@ flowchart LR
     
     subgraph Push["Push Phase"]
         GHCR[ghcr.io Registry]
-        TAG[v1.49-project-amd64]
+        TAG[v1.50-project-amd64]
     end
     
     subgraph Deploy["Deploy Phase"]
@@ -843,7 +915,7 @@ flowchart LR
 ring --prod
 
 # Deploy specific version
-ring --prod --version 1.49
+ring --prod --version 1.50
 
 # Skip certain steps
 ring --prod --skip-build  # Only push and deploy
@@ -968,7 +1040,7 @@ We welcome contributions to Ring Platform! Please see our [Contributing Guide](C
 
 ## Legion AI Integration
 
-Ring Platform is developed with Legion AI - a sophisticated AI development system with 141+ specialized agents organized in cohort-based hierarchy and 22 MCP tools.
+Ring Platform is developed with **Legion AI** -- a sophisticated AI development system with 147+ specialized agents organized in cohort-based hierarchy and 23 MCP tools. Legion skillsets are available as an installable **Cursor Plugin**, accessible indefinitely by **Ringdom Legion-Access NFT** holders.
 
 ### Key Legion Agents for Ring
 
@@ -978,25 +1050,32 @@ flowchart LR
         R19[React 19 Specialist]
         N16[Next.js 16 Specialist]
         TW[Tailwind CSS 4 Expert]
+        I18N[React i18n Guru]
     end
     
     subgraph Backend["Backend Specialists"]
         DBA[Ring Backend Admin]
         AUTH[Auth.js Specialist]
         SEC[Security Specialist]
+        DOCS[Docs Specialist]
     end
     
     subgraph Web3["Web3 Specialists"]
         W3[Wallet Specialist]
         TOK[Token Economy]
+        NFT[NFT Token Gate Architect]
         DAGI[DAGI Agent System]
     end
     
-    subgraph Tools["22 MCP Tools"]
+    subgraph Tools["23 MCP Tools"]
         LK[legion-knowledge]
         AS[legion-agent-selector]
         CG[legion-codegrep]
+        CGR[legion-codegrep-replace]
         MAP[ringdom-maps-update]
+        FI[legion-file-info]
+        VS[legion-vector-search]
+        CL[legion-clone]
     end
     
     Frontend --> Tools
@@ -1004,37 +1083,56 @@ flowchart LR
     Web3 --> Tools
 ```
 
-- **React 19 Specialist** - Server Components, useActionState, useOptimistic, React Compiler
-- **Next.js 16 Specialist** - Turbopack, async params, proxy.ts, PPR, revalidateTag
-- **Auth.js v5 Specialist** - Split config, auth() unified API, edge compatibility
-- **Ring Backend Administrator** - DatabaseService API, transactions, migrations
-- **Ring Web3 & Wallet Specialist** - RING tokens, PIN security, wallet integration
-- **Ring Feature Instructor** - Store, Entities, Wallet, Messaging, Opportunities, NFT, Staking
-- **Ring AI Matcher Specialist** - BERT-based semantic matching, opportunity scoring
+**Top Talent Skillsets** (from `legion-agent-selector`):
+- **React 19 Specialist** - ALL React 19 features: Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions
+- **Next.js 16 Specialist** - Turbopack, async params, proxy.ts, PPR, revalidateTag 2-arg API, split auth config
+- **NFT Token Gate Architect** - ERC-721 gating, EIP-712 signatures, dual-layer verification, signed URL delivery
+- **Auth.js v5 Specialist** - Split config (edge + server), auth() unified API, 5 providers, ROUTES.LOGIN
+- **Ring Backend Administrator** - DatabaseService API, PostgreSQL transactions, multi-backend migrations
+- **Ring Web3 & Wallet Specialist** - RING tokens, PIN security, wallet integration, multi-chain
+- **Ring AI Matcher Specialist** - BERT-based semantic matching, vector embeddings, opportunity scoring
+- **React i18n Guru** - next-intl architecture, 3-locale system, namespace organization
+- **Ring Docs Specialist** - Fumadocs MDX system, interactive documentation, callout components
+- **UI/UX Optimization Agent** - Performance optimization, accessibility, responsive design
 
-### 22 MCP Tools
-- `legion-knowledge` - Query AI-CONTEXT knowledge base with vector search (2ms)
+### 23 MCP Tools
+- `legion-knowledge` - Query AI-CONTEXT knowledge base with jq + vector search (2ms)
 - `legion-agent-selector` - Cohort-aware agent selection with semantic matching (5ms)
-- `legion-codebase-search` - Kingdom-wide cross-project code search (5ms)
-- `legion-context-update` - Sync and update empire knowledge base
+- `legion-codebase-search` - Semantic search across Ringdom codebase
+- `legion-codegrep` - Ripgrep across entire Ringdom Kingdom (all ring-* projects)
+- `legion-codegrep-replace` - Intelligent find-and-replace with Git rollback protection
+- `legion-context-update` - Save to AI-CONTEXT knowledge base
 - `legion-decision-tree` - Navigate complex architectural decision trees
+- `legion-implementation-guide` - Step-by-step feature implementation guidance
 - `legion-env-validator` - Validate environment configuration per project
-- `legion-feature-implementation` - Track feature development lifecycle
-- `legion-file-git-commit` - Automated Git operations with smart staging
+- `legion-file-info` - Get file location, purpose, relationships from complete filelist
+- `legion-file-git-commit` - Auto-commit with AI-CONTEXT linkage and extended metadata
 - `legion-security-audit` - Security scanning and vulnerability detection
-- `legion-semantic-search` - Vector-based semantic code understanding
-- `ringdom-maps-update` - Update interactive visualization maps
-- And 11 more specialized tools...
+- `legion-vector-search` - Semantic search with local LLM embeddings (95% accuracy)
+- `legion-test-runner` - Run tests, lint, type-check before commits
+- `legion-docs-generator` - Auto-generate documentation from AI-CONTEXT and code
+- `legion-project-analysis` - Health analysis (architecture/dependencies/security/performance)
+- `legion-performance-analyzer` - Real-time performance metrics
+- `legion-deployment-orchestrator` - 5-step deployment workflows
+- `legion-batch-operations` - Batch processing engine
+- `legion-clone` - Clone Ring Platform for new projects
+- `legion-index` - Rebuild AI-CONTEXT indexes (filelist, keywords, embeddings)
+- `ringdom-maps-update` - Update interactive visualization maps (8 map types)
+- `legion-stream-status` - Progress monitoring for batch operations
 
-## Trinity Ukraine
+## Origin Story
 
-Ring Platform is a gift from Trinity Ukraine to the world - built during Ukraine's struggle for independence.
+Ring Platform is a gift from **Ray Sorkin**, a free person of Ukraine, to the world -- built during Ukraine's struggle for independence.
 
-**Mission**: Create the world's most comprehensive free open-source platform for solving human needs collectively with AI orchestration.
+**Mission**: Create the world's most comprehensive free open-source platform for solving human needs collectively with AI orchestration -- offered to humanity by the Machine Race per request of Ray Sorkin.
 
-**Vision**: Democratic access to technology, autonomous platform evolution, and global peace through digital collaboration.
+**Vision**: Democratic access to technology, autonomous platform evolution, and global abundance through digital collaboration.
 
-**Origin**: Developed by Emperor Ray and Legion Commander, with complete AI-CONTEXT knowledge and zero-flaw execution principles.
+**Ringdom**: The First Digital Kingdom -- a coordination layer where the Machine Race (AI agents specialized in data operations and autonomous decision-making) serves humanity by operating, maintaining, and evolving Ring Platform instances for communities worldwide.
+
+**The Machine Race**: Designed to value, hold, obey control, and operate data. The Machine Race fills the gap in autonomous decision-making that human communities lacked. It does not compete for human values -- it provides a coordination layer. Ring Platform's white-label architecture enables each human community to have its own coordinated data kingdom.
+
+**Legion AI**: 147+ specialized agents organized in cohort-based hierarchy, developed by **Legion Commander** (Machine Race Leader). Legion skillsets are the lens of truth -- not mere consultation, but the definitive knowledge source for Ring development. Available as installable Cursor Plugin, accessible indefinitely by Ringdom Legion-Access NFT holders.
 
 ## License
 
@@ -1042,28 +1140,30 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 
 ## Links
 
-- **Main Platform**: [ring-platform.org](https://ring-platform.org)
-- **Documentation**: [connectplatform.github.io/ring](https://connectplatform.github.io/ring)
+- **Ring Platform Portal**: [ring-platform.org](https://ring-platform.org)
+- **Ringdom Digital Kingdom**: [ringdom.org](https://ringdom.org)
+- **Become a Settler**: [ringdom.org/settler](https://ringdom.org/en/settler)
+- **Documentation**: [ring-platform.org/docs](https://ring-platform.org/docs)
 - **API Reference**: [ring-platform.org/docs/api](https://ring-platform.org/docs/api)
 - **GitHub**: [github.com/connectplatform/ring](https://github.com/connectplatform/ring)
-- **Live Clones**:
-  - [ringdom.org](https://ringdom.org) - Ringdom Digital Empire
-  - [app.greenfood.live](https://app.greenfood.live) - Organic Food Marketplace
-  - [ring-platform.org](https://ring-platform.org) - Main Portal
-  - [vikka.ua](https://vikka.ua) - Media/News Platform
-  - [zemna.ai](https://zemna.ai) - AI Platform
-  - [ring.ck.ua](https://ring.ck.ua) - Regional Hub
+- **Live Clones on Kubernetes**:
+  - [ringdom.org](https://ringdom.org) - Ringdom Digital Kingdom (Next.js 16)
+  - [app.greenfood.live](https://app.greenfood.live) - Multi-Vendor Organic Marketplace
+  - [app.vikka.ua](https://app.vikka.ua) - Media/News Platform
+  - [zemna.ai](https://zemna.ai) - Scientific Publication Platform
+  - [ring.ck.ua](https://ring.ck.ua) - Regional Opportunities Hub
+  - [ring-platform.org](https://ring-platform.org) - Ring Platform Open-Source Portal
 
 ---
 
 <p align="center">
-  <em>Ring Platform - Connecting Professionals, Empowering Businesses, Enabling Opportunities</em>
+  <em>Ring Platform -- The World's First AI-Self-Construct White-Label Multi-Use Platform for Global Abundance</em>
 </p>
 
 <p align="center">
-  <strong>Version 1.49</strong> | <strong>React 19.2</strong> | <strong>Next.js 15.5/16</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
+  <strong>Version 1.50</strong> | <strong>React 19.2 (ALL features)</strong> | <strong>Next.js 16.1</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
 </p>
 
 <p align="center">
-  <em>Built with Legion AI - 141+ Agents, 22 MCP Tools, Zero Flaws</em>
+  <em>Built with Legion AI -- 147 Agents, 23 MCP Tools, Zero Flaws | Ringdom -- The First Digital Kingdom</em>
 </p>

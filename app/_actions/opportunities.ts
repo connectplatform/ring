@@ -27,6 +27,7 @@ export async function createOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData
 ): Promise<OpportunityFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -240,6 +241,7 @@ export async function updateOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData
 ): Promise<OpportunityFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {
@@ -473,6 +475,7 @@ export async function deleteOpportunity(
   prevState: OpportunityFormState | null,
   formData: FormData
 ): Promise<OpportunityFormState> {
+
   const session = await auth()
   
   if (!session?.user?.id) {

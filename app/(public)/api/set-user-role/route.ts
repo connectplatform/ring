@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { setUserRole } from '@/features/auth/services/user-management';
 
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // CRITICAL: Authenticate the user first
     const session = await auth();

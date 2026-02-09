@@ -70,7 +70,7 @@ export default function ProductVariantSelector({
   // Notify parent of changes
   useEffect(() => {
     onVariantChange(selectedVariants, finalPrice)
-  }, [selectedVariants, finalPrice])
+  }, [selectedVariants, finalPrice, onVariantChange])
 
   const handleVariantSelect = (variantName: string, optionValue: string) => {
     setSelectedVariants(prev => ({

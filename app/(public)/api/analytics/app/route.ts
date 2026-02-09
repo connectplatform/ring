@@ -13,6 +13,5 @@ export async function POST() {
 }
 
 // Use edge runtime for faster cold starts and lower compilation overhead
-export const runtime = 'edge'
 
 

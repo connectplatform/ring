@@ -10,6 +10,7 @@ export type UpdateSettingsResponse = {
 }
 
 export async function updateSettings(state: UpdateSettingsResponse | null, formData: FormData): Promise<UpdateSettingsResponse> {
+
   // Check authentication first
   const session = await auth()
   

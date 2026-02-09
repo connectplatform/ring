@@ -186,7 +186,7 @@ export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUp
       setLoading(false)
       inFlightRef.current = false
     }
-  }, [onCountsUpdate, onPriceRangeUpdate]) // FIXED: Removed debouncedFilters - using ref instead
+  }, [onPriceRangeUpdate]) // FIXED: Removed debouncedFilters and unnecessary onCountsUpdate dep
 
   // Reload products when debounced filters change
   // FIXED: Added duplicate prevention using lastQueryStringRef

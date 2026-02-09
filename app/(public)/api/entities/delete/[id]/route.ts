@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
   import { NextRequest, NextResponse } from 'next/server';
   import { auth } from '@/auth'; // Auth.js session handler
   import { deleteEntity } from '@/features/entities/services/delete-entity';
@@ -22,6 +23,8 @@
     req: NextRequest,
     context: RouteHandlerProps<{ id: string }>
   ): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
     console.log('API: /api/entities/delete/[id] - Starting DELETE request');
 
     try {
@@ -75,11 +78,5 @@
   /**
    * Prevent caching for this route
    */
-  export const dynamic = 'force-dynamic';
 
-  /**
-   * Configuration for the API route.
-   */
-  export const config = {
-    runtime: 'nodejs',
-  };
+  

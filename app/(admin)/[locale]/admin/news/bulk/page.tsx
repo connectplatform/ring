@@ -5,6 +5,7 @@ import { BulkOperationsManager } from '@/features/news/components/bulk-operation
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsArticle } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
+import { connection } from 'next/server'
 
 /**
  * Get news articles for bulk operations - Server Component async/await (React 19)
@@ -38,6 +39,8 @@ export default async function AdminNewsBulkPage({
 }: { 
   params: Promise<{ locale: string }> 
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
   const validLocale = isValidLocale(locale) ? locale : defaultLocale
   const t = await loadTranslations(validLocale)

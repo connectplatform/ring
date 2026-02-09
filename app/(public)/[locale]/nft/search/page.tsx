@@ -5,8 +5,6 @@ import StoreWrapper from '@/components/wrappers/store-wrapper'
 type SearchParams = {}
 
 // Allow caching for NFT search with moderate revalidation for marketplace data
-export const dynamic = "auto"
-export const revalidate = 180 // 3 minutes for NFT marketplace data
 
 export default async function SearchPage(props: LocalePageProps<SearchParams>) {
   const params = await props.params

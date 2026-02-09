@@ -3,7 +3,7 @@
  * Handles operations for specific wallet contacts
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getCurrentWalletService } from '@/features/wallet/services';
 import { z } from 'zod';
@@ -26,6 +26,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { contactId: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

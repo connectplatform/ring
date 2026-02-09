@@ -17,8 +17,10 @@ import { NewsLikeButton } from '@/features/interactions/components/like-button';
 import { AuthorBioCard } from '@/features/news/components/author-bio-card';
 import { SocialShare } from '@/features/news/components/social-share';
 import { TableOfContents } from '@/features/news/components/table-of-contents';
+import { NewsArticleHeader } from '@/features/news/components/news-article-header';
 import { calculateReadingTimeWithImages } from '@/features/news/utils/reading-time';
 import { auth } from '@/auth';
+import { connection } from 'next/server'
 
 interface NewsArticlePageParams {
   locale: string;
@@ -89,6 +91,8 @@ export async function generateMetadata({
 }: {
   params: Promise<NewsArticlePageParams>
 }): Promise<Metadata> {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale, slug } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
 
@@ -146,6 +150,8 @@ export async function generateMetadata({
 }
 
 export default async function NewsArticlePage(props: LocalePageProps<NewsArticlePageParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   // Resolve params and searchParams
   const params = await props.params;
   const searchParams = await props.searchParams;
@@ -262,110 +268,64 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
         }}
       >
         <div className="container mx-auto px-0 py-0">
-        {/* Back Button */}
-        <div className="mb-6">
-          <Link href={`/${locale}/news`}>
-            <Button variant="ghost" className="pl-0">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {(translations as any).news?.backToNews || 'Back to News'}
-            </Button>
-          </Link>
-        </div>
+        {/* 🎨 MAGNIFICENT ARTICLE HEADER - DaVinci Class */}
+        <NewsArticleHeader
+          article={{
+            title: article.title,
+            excerpt: article.excerpt,
+            category: article.category,
+            featuredImage: article.featuredImage,
+            authorName: article.authorName,
+            publishedAt: publishedDate,
+            views: article.views,
+            likes: likeCount,
+            tags: article.tags,
+            featured: article.featured
+          }}
+          locale={locale}
+          readingTime={readingTime}
+          translations={{
+            byAuthor: (translations as any).news?.byAuthor,
+            featured: (translations as any).news?.featured,
+            backToNews: (translations as any).news?.backToNews
+          }}
+          userHasLiked={userHasLiked}
+          likeCount={likeCount}
+          showReadingProgress={true}
+        />
 
         {/* Article Layout with Table of Contents */}
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto mt-8">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
             {/* Main Article Content */}
             <article className="min-w-0">
-              <header className="mb-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <Badge
-                    variant="secondary"
-                    className={categoryColors[article.category] || categoryColors.other}
-                  >
-                    {article.category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Badge>
-
-                  {article.featured && (
-                    <Badge variant="secondary" className="bg-yellow-500 text-white">
-                      {(translations as any).news?.featured || 'Featured'}
-                    </Badge>
-                  )}
-                </div>
-
-                <h1 className="text-4xl font-bold mb-4 leading-tight">
-                  {article.title}
-                </h1>
-
-                <p className="text-xl text-muted-foreground mb-6">
-                  {article.excerpt}
-                </p>
-
-                <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    <span>{(translations as any).news?.byAuthor || 'By'} {article.authorName}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{format(publishedDate, 'MMMM d, yyyy')}</span>
-                    <span className="ml-1">
-                      ({formatDistanceToNow(publishedDate, { addSuffix: true })})
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>{readingTime.text}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Eye className="h-4 w-4" />
-                    <span>{article.views || 0}</span>
-                  </div>
-
+              {/* Interactive Actions Bar */}
+              <div className="flex items-center gap-4 mb-8 pb-4 border-b border-border/30">
                   {/* Interactive Like Button */}
                   <NewsLikeButton
                     targetId={article.id || ''}
                     initialLikeCount={likeCount}
                     initialIsLiked={userHasLiked}
-                    variant="ghost"
+                  variant="outline"
                     size="sm"
-                    className="text-muted-foreground hover:text-red-500"
+                  className="hover:text-red-500 hover:border-red-500/50"
                   />
 
-                  <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <MessageCircle className="h-4 w-4" />
-                    <span>{article.comments || 0}</span>
+                  <span>{article.comments || 0} comments</span>
                   </div>
 
                   {/* Social Share Component */}
+                <div className="ml-auto">
                   <SocialShare
                     title={article.title}
                     url={canonicalUrl}
                     description={article.excerpt}
                     hashtags={article.tags}
-                  />
-                </div>
-              </header>
-
-              {/* Featured Image */}
-              {article.featuredImage && (
-                <div className="mb-8">
-                  <div className="relative h-96 w-full overflow-hidden rounded-lg">
-                    <Image
-                      src={article.featuredImage}
-                      alt={article.title}
-                      fill
-                      className="object-cover"
-                      priority
                     />
                   </div>
                 </div>
-              )}
 
               {/* Article Content with Professional Typography */}
               <div className="article-content prose prose-lg prose-slate max-w-none mb-8 font-serif leading-relaxed">

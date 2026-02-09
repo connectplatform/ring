@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { cache } from 'react';
-import { getCachedOpportunitiesForRole } from '@/lib/cached-data';
+import { NextRequest, NextResponse, connection} from 'next/server';
+import { auth } from '@/auth'; 
+import { getOpportunitiesForRole } from '@/features/opportunities/services/get-opportunities';
 import { UserRole } from '@/features/auth/types';
 
 /**
@@ -9,6 +8,8 @@ import { UserRole } from '@/features/auth/types';
  * Fetches a list of opportunities based on user role and pagination parameters
  */
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/opportunities - Starting GET request');
 
   try {
@@ -39,10 +40,12 @@ export async function GET(req: NextRequest) {
 
     // Step 5: Fetch opportunities via cached accessor (role-aware tag key)
     console.log('API: /api/opportunities - Fetching opportunities (cached)');
-    console.log('API: /api/opportunities - Calling getCachedOpportunitiesForRole with role:', userRole);
-    const cached = getCachedOpportunitiesForRole(userRole)
-    console.log('API: /api/opportunities - Cached function created, calling with params:', { limit, startAfter });
-    const { opportunities, lastVisible } = await cached(limit, startAfter);
+    console.log('API: /api/opportunities - Calling getOpportunitiesForRole with role:', userRole);
+    const { opportunities, lastVisible } = await getOpportunitiesForRole({
+      userRole,
+      limit,
+      startAfter
+    });
 
     // Step 6: Log the result
     console.log('API: /api/opportunities - opportunities retrieved:', {
@@ -110,14 +113,8 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Use React 19 cache() for automatic request deduplication and intelligent caching
+ * Prevent caching for this route
  */
-const getOpportunities = cache(async (params: any) => {
-  return await getCachedOpportunitiesForRole(params)
-})
-
-export const dynamic = 'auto'
-export const revalidate = 180 // 3 minutes for opportunities data
 
 /**
  * Note: If you need to add POST, PUT, or DELETE methods in the future,

@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 // Allow caching for individual NFT listings with moderate revalidation for marketplace data
-export const dynamic = 'auto'
-export const revalidate = 120 // 2 minutes for marketplace data
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const id = params.id

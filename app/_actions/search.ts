@@ -26,6 +26,7 @@ export async function searchEntities(
   prevState: SearchFormState | null,
   formData: FormData
 ): Promise<SearchFormState> {
+
   // Optional: Get session for personalized search results
   const session = await auth()
   const userRole = (session?.user as any)?.role

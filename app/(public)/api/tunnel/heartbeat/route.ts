@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Edge Runtime configuration
-export const runtime = 'edge';
 
 /**
  * POST handler for heartbeat/ping

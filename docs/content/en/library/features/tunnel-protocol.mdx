@@ -57,10 +57,10 @@ const unsubscribe = subscribeToTunnel(channel, (message) => {
 
 | Transport | Latency | Throughput | Use Case |
 |-----------|---------|------------|----------|
-| **WebSocket** | <50ms | 10K msg/s | Self-hosted, K8s clusters |
-| **SSE** | <100ms | 1K msg/s | Vercel Edge Runtime |
-| **Supabase Realtime** | <50ms | 5K msg/s | Supabase deployments |
-| **Firebase Realtime** | <200ms | 1K msg/s | Firebase-full mode |
+| **WebSocket** | `<50ms` | 10K msg/s | Self-hosted, K8s clusters |
+| **SSE** | `<100ms` | 1K msg/s | Vercel Edge Runtime |
+| **Supabase Realtime** | `<50ms` | 5K msg/s | Supabase deployments |
+| **Firebase Realtime** | `<200ms` | 1K msg/s | Firebase-full mode |
 | **Long-Polling** | 500ms-2s | 100 msg/s | Ultimate fallback |
 
 ---

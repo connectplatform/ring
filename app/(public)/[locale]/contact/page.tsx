@@ -11,10 +11,8 @@ import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
+import { connection } from 'next/server'
 
-// Allow caching for better performance - contact page content doesn't change constantly
-export const dynamic = "auto"
-export const revalidate = 600 // 10 minutes for static content
 
 type ContactPageParams = {}
 
@@ -32,6 +30,8 @@ type ContactPageParams = {}
  * @returns JSX.Element - The rendered page content.
  */
 export default async function ContactPage(props: LocalePageProps<ContactPageParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('ContactPage: Starting');
 
   // Resolve params and searchParams
@@ -91,10 +91,9 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
   console.log('ContactPage: Rendering');
 
   return (
-    <AboutWrapper locale={locale}>
-      <>
-        {/* React 19 Native Document Metadata with Localized SEO */}
-        <title>{seoData?.title || 'Contact Ring Platform - Get in Touch'}</title>
+    <>
+      {/* React 19 Native Document Metadata with Localized SEO */}
+      <title>{seoData?.title || 'Contact Ring Platform - Get in Touch'}</title>
       <meta name="description" content={seoData?.description || 'Get in touch with the Ring Platform team. Contact us for support, partnerships, or general inquiries'} />
       {seoData?.keywords && (
         <meta name="keywords" content={seoData.keywords.join(', ')} />
@@ -128,6 +127,7 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
       ))}
 
+      <AboutWrapper locale={locale}>
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <Typography variant="h1" className="text-4xl font-bold mb-12 text-center text-primary">
           {(translations as any).contact?.title || 'Contact Us'}
@@ -219,9 +219,9 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
             </div>
           </CardContent>
         </Card>
-        </div>
-      </>
-    </AboutWrapper>
+      </div>
+      </AboutWrapper>
+    </>
   )
 }
 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
@@ -24,6 +24,8 @@ const createPaymentSchema = z.object({
  * Initiates a WayForPay payment session for a store order
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     logger.info('Store WayForPay Payment: Starting payment initiation')
 
@@ -218,6 +220,8 @@ export async function POST(request: NextRequest) {
  * Health check endpoint
  */
 export async function GET() {
+  await connection() // Next.js 16: opt out of prerendering
+
   return NextResponse.json({
     service: 'WayForPay Store Payment',
     status: 'active',

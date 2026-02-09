@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 
@@ -120,8 +120,8 @@ export function RingAISynapseFlow({
   const timeoutRefs = useRef<NodeJS.Timeout[]>([])
   const matchCounter = useRef(0) // Counter for unique match IDs
   
-  // Opportunity type icons and colors
-  const opportunityTypes = [
+  // Opportunity type icons and colors (memoized to prevent useEffect re-runs)
+  const opportunityTypes = useMemo(() => [
     { icon: '❓', color: '#3b82f6', label: 'Question' },
     { icon: '💰', color: '#10b981', label: 'Money' },
     { icon: '📦', color: '#f59e0b', label: 'Product' },
@@ -130,7 +130,7 @@ export function RingAISynapseFlow({
     { icon: '🤝', color: '#ec4899', label: 'Partnership' },
     { icon: '🎯', color: '#ef4444', label: 'Goal' },
     { icon: '💡', color: '#eab308', label: 'Idea' },
-  ]
+  ], [])
   
   // Fix hydration: only start animations after mount
   useEffect(() => {
@@ -217,7 +217,7 @@ export function RingAISynapseFlow({
       clearInterval(interval)
       intervalRefs.current = intervalRefs.current.filter(i => i !== interval)
     }
-  }, [isPlaying, mounted, isVisible, users])
+  }, [isPlaying, mounted, isVisible, users, opportunityTypes])
 
   // Animate request progress
   useEffect(() => {
@@ -320,7 +320,7 @@ export function RingAISynapseFlow({
       clearInterval(interval)
       intervalRefs.current = intervalRefs.current.filter(i => i !== interval)
     }
-  }, [isPlaying, mounted])
+  }, [isPlaying, mounted, isVisible])
 
   // Animate match notifications (2x speed)
   useEffect(() => {

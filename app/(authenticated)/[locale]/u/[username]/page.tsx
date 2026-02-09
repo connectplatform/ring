@@ -9,8 +9,6 @@ import CreateListingForm from './create-listing-form'
 type PublicProfileParams = { username: string }
 
 // Allow caching for user profiles with shorter revalidation for freshness
-export const dynamic = "auto"
-export const revalidate = 120 // 2 minutes for user profile data
 
 export default async function PublicProfilePage(props: LocalePageProps<PublicProfileParams>) {
   const params = await props.params

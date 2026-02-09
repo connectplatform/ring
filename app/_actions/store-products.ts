@@ -28,6 +28,7 @@ export async function getStoreProducts(
     afterId?: string
   }
 ): Promise<StoreProductsResult> {
+
   try {
     // Public store browsing - no authentication required
     // Authentication is only needed for vendor-specific operations like adding products

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { getDatabaseService, initializeDatabase } from '@/lib/database'
 import { CommentFormData, CommentFilters } from '@/features/comments/types'
@@ -8,6 +8,8 @@ import { CommentFormData, CommentFilters } from '@/features/comments/types'
  * Fetch comments with optional filtering
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const { searchParams } = new URL(request.url)
     
@@ -122,6 +124,8 @@ export async function GET(request: NextRequest) {
  * Create a new comment
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     

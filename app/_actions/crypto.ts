@@ -17,6 +17,7 @@ export async function completeCryptoOnboarding(
   prevState: CryptoOnboardingFormState | null,
   formData: FormData
 ): Promise<CryptoOnboardingFormState> {
+
   // Get current user session
   const session = await auth()
   if (!session?.user?.id) {

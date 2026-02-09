@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getDatabaseService, initializeDatabase } from '@/lib/database';
 import { UserRole } from '@/features/auth/types';
@@ -7,6 +7,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const { id } = await params;
     const session = await auth();

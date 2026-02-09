@@ -101,10 +101,9 @@ Ring Platform supports **26 industry types**:
 
 ### Create Entity
 
+```typescript
 const response = await fetch('/api/entities', {
-
-<Code language="typescript" title="TypeScript">
-{`method: 'POST',
+  method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -118,8 +117,8 @@ const response = await fetch('/api/entities', {
   })
 })
 
-const entity = await response.json()`}
-</Code>
+const entity = await response.json()
+```
 
 ### List Entities with Filtering
 
@@ -130,14 +129,14 @@ const { entities, total, hasMore } = await response.json()`}
 
 ### Get Entity Details
 
-<Code language="typescript" title="TypeScript">
-{`const response = await fetch(`/api/entities/${entityId}`)
+```typescript
+const response = await fetch(`/api/entities/${entityId}`)
 const entity = await response.json()
 
 if (entity.confidential && !hasConfidentialAccess) {
   // Handle confidential entity access
-}`}
-</Code>
+}
+```
 
 ## Access Control
 

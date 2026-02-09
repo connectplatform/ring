@@ -23,7 +23,8 @@ let createClient: any = null;
 const loadSupabase = () => {
   if (!createClient) {
     try {
-      const supabaseModule = require('@supabase/supabase-js');
+      // eslint-disable-next-line no-eval
+      const supabaseModule = eval("require('@supabase/supabase-js')");
       createClient = supabaseModule.createClient;
     } catch (error) {
       // Supabase not installed

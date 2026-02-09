@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { connection } from 'next/server'
 import { listWallets } from '@/features/wallet/services/list-wallets'
 
 /**
@@ -16,6 +17,7 @@ import { listWallets } from '@/features/wallet/services/list-wallets'
  * @returns {Promise<NextResponse>} A promise that resolves to a NextResponse object
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  await connection() // Next.js 16: auth()/headers() requires dynamic opt-out
   console.log('API: /api/wallet/list - Starting GET request')
 
   try {
@@ -49,4 +51,3 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * Prevent caching for this route
  * This is important for wallet operations which should always return fresh data
  */
-export const dynamic = 'force-dynamic'

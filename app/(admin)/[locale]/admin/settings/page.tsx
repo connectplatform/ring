@@ -11,10 +11,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { connection } from 'next/server'
 
-export const dynamic = 'force-dynamic'
 
 export default async function PlatformSettingsPage({ params }: { params: Promise<{ locale: string }> }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
   const validLocale = isValidLocale(locale) ? locale : defaultLocale
   const t = await loadTranslations(validLocale)
@@ -24,9 +26,9 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
   if (session.user.role !== UserRole.SUPERADMIN) redirect(`/${validLocale}/unauthorized`)
 
   return (
-    <AdminWrapper locale={validLocale} pageContext="settings" translations={t}>
-      <div className="container mx-auto px-0 py-0">
-        <Card>
+    <AdminWrapper locale={validLocale} pageContext="settings">
+    <div className="container mx-auto px-0 py-0">
+      <Card>
         <CardHeader>
           <CardTitle>{t.modules.admin.settings.title}</CardTitle>
         </CardHeader>
@@ -116,8 +118,8 @@ export default async function PlatformSettingsPage({ params }: { params: Promise
             <Button formAction="/api/admin/whitelabel/save" formMethod="post">{t.modules.admin.settings.save}</Button>
           </div>
         </CardContent>
-        </Card>
-      </div>
+      </Card>
+    </div>
     </AdminWrapper>
   )
 }

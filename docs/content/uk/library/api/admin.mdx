@@ -63,9 +63,10 @@ import { Steps, Step } from '@/components/docs/steps'
 
 #### Приклад запиту
 
-<Code language="bash" title="curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&status=active&sortBy=createdAt&sortOrder=desc" \">
-{`-H "Authorization: Bearer admin-session-token"`}
-</Code>
+```bash
+curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&status=active&sortBy=createdAt&sortOrder=desc" \
+  -H "Authorization: Bearer admin-session-token"
+```
 
 #### Відповідь
 
@@ -584,8 +585,8 @@ import { Steps, Step } from '@/components/docs/steps'
 
 // components/admin/AdminDashboard.tsx
 
-<Code language="typescript" title="TypeScript">
-{`import { useState, useEffect } from 'react'
+```typescript
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface AdminStats {
@@ -686,8 +687,8 @@ export function AdminDashboard() {
       <AuditLogs />
     </div>
   )
-}`}
-</Code>
+}
+```
 
 ## 🚨 Обробка помилок
 

@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getConfidentialEntities } from '@/features/entities/services/get-confidential-entities';
 import { UserRole } from '@/features/auth/types';
 
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/confidential/entities - Starting GET request');
 
   try {
@@ -100,4 +102,3 @@ export async function GET(request: NextRequest) {
 }
 
 // Prevent caching for this route
-export const dynamic = 'force-dynamic';

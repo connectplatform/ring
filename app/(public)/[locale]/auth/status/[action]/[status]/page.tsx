@@ -1,4 +1,5 @@
 import React from 'react'
+import { connection } from 'next/server'
 import type { Locale } from '@/i18n-config'
 import AuthStatusPage from '@/components/auth/auth-status-page'
 import { getSEOMetadata } from '@/lib/seo-metadata'
@@ -35,6 +36,7 @@ export default async function AuthStatusDynamicPage({
   params: Promise<{ locale: Locale; action: string; status: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  await connection() // Next.js 16: searchParams is per-request dynamic data
   const { locale, action, status } = await params
   const resolvedSearchParams = await searchParams
   
@@ -119,17 +121,5 @@ export default async function AuthStatusDynamicPage({
   )
 }
 
-// Generate static params for all valid auth action/status combinations
-export async function generateStaticParams() {
-  const params = []
-  
-  for (const locale of ['en', 'uk'] as const) {
-    for (const action of VALID_ACTIONS) {
-      for (const status of VALID_STATUSES[action]) {
-        params.push({ locale, action, status })
-      }
-    }
-  }
-  
-  return params
-}
+// Note: No generateStaticParams() - auth status pages are per-request dynamic
+// (they read searchParams for email, token, requestId, returnTo)

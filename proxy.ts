@@ -6,7 +6,7 @@ import { UserRole } from '@/features/auth/user-role'
 import createMiddleware from 'next-intl/middleware'
 import { routing, type Locale } from './i18n-routing'
 
-// Inline route constants - middleware only needs login/home paths
+// Inline route constants - proxy only needs login/home paths
 // Full route definitions stay in constants/routes.ts for app code
 const LOGIN_PATH = '/login'
 const HOME_PATH = '/'
@@ -49,7 +49,8 @@ function cleanExpiredCache() {
 }
 
 /**
- * Combined Auth.js v5 + next-intl Middleware with route protection
+ * Combined Auth.js v5 + next-intl Proxy with route protection
+ * Next.js 16: proxy.ts replaces middleware.ts — Node.js runtime by default
  * 
  * @param {NextRequest} req - The incoming request object
  * @returns {NextResponse} The response object, either allowing the request or redirecting
@@ -59,7 +60,7 @@ export default auth(async (req) => {
     const { pathname } = req.nextUrl
     const method = req.method
 
-    // Skip middleware for API routes, static files, and Next.js internals
+    // Skip proxy for API routes, static files, and Next.js internals
     if (
       pathname.startsWith('/api') ||
       pathname.startsWith('/_next') ||
@@ -71,7 +72,7 @@ export default auth(async (req) => {
 
     // NOTE: Removed POST→GET redirect for /login page
     // Auth.js v5 with GIS uses client-side signIn() calls, not form POST
-    // The redirect was causing 80+ unnecessary middleware executions per auth attempt
+    // The redirect was causing 80+ unnecessary proxy executions per auth attempt
 
     // First, handle i18n routing with next-intl and capture its response if it redirects
     const i18nResponse = intlMiddleware(req)
@@ -130,7 +131,7 @@ export default auth(async (req) => {
           isCachedAuth = true
           
           if (process.env.NODE_ENV === 'development') {
-            console.log(`Middleware: Using cached auth - User: ${userId}, Role: ${userRole}`);
+            console.log(`Proxy: Using cached auth - User: ${userId}, Role: ${userRole}`);
           }
         } else {
           // SECURITY: IP mismatch - potential session hijacking attempt
@@ -166,16 +167,16 @@ export default auth(async (req) => {
       
       // Debug session state in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Middleware: Auth check - Session: ${!!session?.user}, Cookie: ${hasSessionCookie}, Final IsLoggedIn: ${isLoggedIn}`);
+        console.log(`Proxy: Auth check - Session: ${!!session?.user}, Cookie: ${hasSessionCookie}, Final IsLoggedIn: ${isLoggedIn}`);
         if (session) {
-          console.log(`Middleware: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
+          console.log(`Proxy: Session found - User ID: ${session.user?.id}, Email: ${session.user?.email}`);
         }
       }
     }
 
     // Only log middleware checks in development to reduce noise
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Middleware: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
+      console.log(`Proxy: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
     }
 
     // Check if this is a language switch by looking for the referer header
@@ -204,7 +205,7 @@ export default auth(async (req) => {
     // If trying to access protected route without auth, redirect to localized login
     // Skip redirect if this is just a language switch (user is already on the page)
     if (protectedRoutes.includes(pathnameWithoutLocale) && !isLoggedIn && !isLanguageSwitch) {
-      console.log(`Middleware: Redirecting to login, from: ${pathname} (no session found)`);
+      console.log(`Proxy: Redirecting to login, from: ${pathname} (no session found)`);
       const url = new URL(`/${locale}${LOGIN_PATH}`, req.nextUrl.origin);
       url.searchParams.set('from', pathname);
       return NextResponse.redirect(url);
@@ -212,7 +213,7 @@ export default auth(async (req) => {
 
     // If trying to access confidential route without proper role, redirect to localized home
     if (confidentialRoutes.includes(pathnameWithoutLocale) && (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN)) {
-      console.log(`Middleware: Unauthorized access to confidential route, redirecting to home`);
+      console.log(`Proxy: Unauthorized access to confidential route, redirecting to home`);
       return NextResponse.redirect(new URL(`/${locale}`, req.nextUrl.origin));
     }
 
@@ -227,16 +228,16 @@ export default auth(async (req) => {
         req.nextUrl.searchParams.has('session_state')
       
       if (!hasOAuthCallbackParams) {
-        console.log(`Middleware: Redirecting authenticated user to profile, from: ${pathname}`);
+        console.log(`Proxy: Redirecting authenticated user to profile, from: ${pathname}`);
         // Preserve locale when redirecting to profile
         return NextResponse.redirect(new URL(`/${locale}/profile`, req.nextUrl.origin));
       } else {
         const paramsList = Array.from(req.nextUrl.searchParams.keys()).join(', ')
-        console.log(`Middleware: OAuth callback detected (${paramsList}), allowing login page access for OAuth completion`);
+        console.log(`Proxy: OAuth callback detected (${paramsList}), allowing login page access for OAuth completion`);
       }
     }
 
-    console.log(`Middleware: Proceeding with request to: ${pathname}`);
+    console.log(`Proxy: Proceeding with request to: ${pathname}`);
     
     // OPTIMIZATION: Pass auth info to API routes via headers to prevent duplicate auth checks
     const response = NextResponse.next()
@@ -247,7 +248,7 @@ export default auth(async (req) => {
 
     if (shouldBypassTunnel) {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Middleware: Bypassing tunnel initialization for auth route: ${pathname} - tunnel will connect after user status confirmed`);
+        console.log(`Proxy: Bypassing tunnel initialization for auth route: ${pathname} - tunnel will connect after user status confirmed`);
       }
       // Set flag to indicate tunnel should be established client-side after auth
       response.headers.set('x-tunnel-bypass', 'true');
@@ -261,21 +262,21 @@ export default auth(async (req) => {
       response.headers.set('x-auth-timestamp', Date.now().toString())
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Middleware: Set auth headers - User: ${userId}, Role: ${userRole}, Cached: ${isCachedAuth}`);
+        console.log(`Proxy: Set auth headers - User: ${userId}, Role: ${userRole}, Cached: ${isCachedAuth}`);
       }
     }
 
     return response;
   } catch (error) {
-    console.error('Middleware error:', error);
+    console.error('Proxy error:', error);
     // In case of any error, allow the request to proceed
     return NextResponse.next();
   }
 })
 
 /**
- * Auth.js v5 Middleware Matcher Configuration
- * Ensures middleware runs on all routes except API routes, static files, and Next.js internals
+ * Auth.js v5 Proxy Matcher Configuration
+ * Ensures proxy runs on all routes except API routes, static files, and Next.js internals
  */
 export const config = {
   matcher: [

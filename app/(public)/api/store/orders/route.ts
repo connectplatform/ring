@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { orderCreateSchema } from '@/lib/zod'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -20,6 +22,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     if (!session?.user?.id) {

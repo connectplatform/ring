@@ -1,131 +1,66 @@
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { Suspense } from "react"
-import { cookies } from "next/headers"
 import { auth } from "@/auth"
 import type { SerializedEntity } from "@/features/entities/types"
 import EntitiesWrapper from "@/components/wrappers/entities-wrapper"
-import { LocalePageProps } from "@/utils/page-props"
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { isValidLocale, defaultLocale, generateHreflangAlternates } from '@/i18n-config'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import EntitiesFiltersPanel from '@/components/entities/entities-filters-panel'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 
-// 🚀 Firebase Optimization Imports
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { prefetchPublicEntities, prefetchFeaturedEntities, prefetchPageData } from '@/lib/build-cache/prefetch-manager'
-import { getCachedEntities } from '@/lib/build-cache/static-data-cache'
+// 🚀 Ring-Native: DatabaseService + React 19
+import { getEntitiesForRole } from '@/features/entities/services/get-entities'
+import { connection } from 'next/server'
 
-// Allow caching for better performance - entities data doesn't change constantly
-export const dynamic = "auto"
-
-type EntitiesParams = {}
-
-// Metadata will be rendered inline using React 19 native approach
-
+// Allow caching for better performance - entities don't change constantly
+  
 /**
- * 🚀 OPTIMIZED: Fetches entities with intelligent build-time caching
+ * 🚀 RING-NATIVE: Fetches entities with DatabaseService + React 19 cache()
+ * READ operation - cached for performance
  *
  * @param session - The authenticated user session.
  * @param searchParams - The query parameters for fetching entities.
- * @returns Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalPages: number; totalEntities: number }>
+ * @returns Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount: number }>
  */
 async function getEntities(
   session: any,
-  searchParams: URLSearchParams,
-): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalPages: number; totalEntities: number }> {
-  const phase = getCurrentPhase();
-  
-  // 🔥 BUILD-TIME OPTIMIZATION: Use cached/mock data during static generation
-  if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-    console.log(`[Entities Optimization] Using ${phase.strategy} data for build-time generation`);
-    
-    const limit = Number.parseInt(searchParams.get('limit') || '20', 10);
-    const page = Number.parseInt(searchParams.get('page') || '1', 10);
-    
-    try {
-      // Use prefetched data during build
-      let entities: any[] = [];
-      
-      if (limit <= 20 && page === 1) {
-        // First page with standard limit - use prefetched data
-        entities = await prefetchPublicEntities();
-      } else {
-        // Other pages - use cached data
-        entities = await getCachedEntities({ 
-          limit: Math.min(limit, 50), // Cap at 50 for build time
-          isPublic: true 
-        });
-      }
-      
-      // Simulate pagination for build time
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedEntities = entities.slice(startIndex, endIndex);
-      
-      return {
-        entities: paginatedEntities,
-        lastVisible: paginatedEntities.length > 0 ? `build-cursor-${endIndex}` : null,
-        totalPages: Math.ceil(entities.length / limit),
-        totalEntities: entities.length
-      };
-      
-    } catch (error) {
-      console.warn('[Entities Optimization] Cache fallback failed, using empty data for build:', error);
-      return {
-        entities: [],
-        lastVisible: null,
-        totalPages: 1,
-        totalEntities: 0
-      };
-    }
-  }
-  
-  // 🔥 RUNTIME OPTIMIZATION: Use live data with authentication
+  searchParams: URLSearchParams
+): Promise<any> {
   // Validate session first
   if (!session || !session.user) {
     console.log("getEntities: No valid session provided");
     throw new Error("UNAUTHORIZED");
   }
 
-  console.log("getEntities: Starting live fetch", { 
-    sessionUserId: session.user.id, 
-    role: session.user.role,
-    phase: phase.description
+  console.log("getEntities: Starting Ring-native fetch", {
+    sessionUserId: session.user.id,
+    role: session.user.role
   });
 
-  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/entities`)
-  url.search = searchParams.toString()
+  // Extract parameters
+  const limit = Number.parseInt(searchParams.get('limit') || '20', 10);
+  const startAfter = searchParams.get('startAfter') || undefined;
 
-  try {
-    const cookieStore = await cookies();
-    const res = await fetch(url, {
-      cache: shouldUseCache() ? "default" : "no-store", // 🚀 Allow caching in production
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        Cookie: cookieStore.toString(),
-      },
-      next: {
-        revalidate: shouldUseCache() ? 300 : 0, // 🚀 5min revalidation when caching enabled
-      },
-    })
+  // Use DatabaseService directly via service layer
+  const { entities, lastVisible, totalCount } = await getEntitiesForRole({
+    userRole: session.user.role as any,
+    limit,
+    startAfter
+  });
 
-    if (!res.ok) {
-      if (res.status === 401) throw new Error("UNAUTHORIZED")
-      if (res.status === 403) throw new Error("PERMISSION_DENIED")
-      throw new Error("FETCH_FAILED")
-    }
+  console.log("getEntities: Success", {
+    entitiesCount: entities.length,
+    hasMore: !!lastVisible,
+    totalCount
+  });
 
-    const data = await res.json()
-    
-    console.log(`[Entities Optimization] Live data fetched successfully: ${data.entities?.length || 0} entities`);
-    return data
-    
-  } catch (error) {
-    console.error("getEntities: Error during fetch:", error)
-    throw error
-  }
+  return {
+    entities,
+    lastVisible,
+    totalCount
+  };
 }
 
 /**
@@ -139,7 +74,9 @@ async function getEntities(
  *
  * @param props - The page properties including params and searchParams as Promises.
  */
-export default async function EntitiesPage(props: LocalePageProps<EntitiesParams>) {
+export default async function EntitiesPage(props: any) {
+  await connection() // Next.js 16: opt out of prerendering
+
   if (!isFeatureEnabledOnServer('entities')) {
     return null
   }
@@ -153,12 +90,12 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('EntitiesPage: Using locale', locale);
 
-  // Get localized SEO data using the enhanced helper
+  // Get localized SEO data using the enhanced helper for GreenFood agricultural entities
   const seoData = await getSEOMetadata(locale, 'entities', {
     count: '20' // Default count, will be updated with actual data later
   })
-  
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}/${locale}/entities`;
+
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://greenfood.ck.ua"}/${locale}/entities`;
   const alternates = generateHreflangAlternates('/entities');
 
   // Parse and set default values for query parameters
@@ -180,33 +117,22 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   // Authenticate user (optional for intro gating)
   const session = await auth()
 
-  // 🚀 PREFETCH OPTIMIZATION: Load page-specific data during build
-  const phase = getCurrentPhase();
-  if (phase.isBuildTime) {
-    console.log('[Entities Page] Prefetching entities data for build optimization');
-    
-    // Trigger prefetch for this page type during build
-    await prefetchPageData('entities');
-  }
-
   // Initialize variables for entities and error handling
   let entities: SerializedEntity[] = []
   let lastVisible: string | null = null
-  let totalPages = 0
-  let totalEntities = 0
+  let totalCount = 0
   let error: string | null = null
 
   // Only fetch entities if user is authenticated
   if (session && session.user) {
     try {
-      // 🚀 OPTIMIZED: Fetch entities with intelligent caching
+      // 🚀 RING-NATIVE: Fetch entities with DatabaseService + cache()
       const data = await getEntities(session, apiSearchParams)
       entities = data.entities
       lastVisible = data.lastVisible
-      totalPages = data.totalPages
-      totalEntities = data.totalEntities
+      totalCount = data.totalCount
       
-      console.log(`[Entities Page] Loaded ${entities.length} entities using ${phase.strategy} strategy`);
+      console.log(`[Entities Page] Loaded ${entities.length} entities`);
       
     } catch (e) {
       console.error("EntitiesPage: Error fetching entities:", e)
@@ -225,62 +151,117 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
   } else {
     // For unauthenticated users, don't set an error - let the component handle the intro display
     console.log('EntitiesPage: No session found, will show intro');
-    
-    // 🚀 BUILD-TIME: Provide sample data for static generation even without auth
-    if (phase.isBuildTime && shouldUseMockData()) {
-      console.log('[Entities Page] Using mock data for unauthenticated build-time generation');
-      try {
-        const mockData = await getCachedEntities({ limit: 10, isPublic: true });
-        entities = mockData.slice(0, 5); // Show fewer entities for intro
-        totalEntities = 5;
-        totalPages = 1;
-      } catch (mockError) {
-        console.warn('[Entities Page] Mock data fallback failed:', mockError);
-      }
-    }
   }
 
-  // Update SEO data with actual entity count if available  
-  const finalSeoData = totalEntities > 0 ? await getSEOMetadata(locale, 'entities.list', {
-    count: totalEntities.toString()
+  // Update SEO data with actual entity count if available
+  const finalSeoData = totalCount > 0 ? await getSEOMetadata(locale, 'entities.list', {
+    count: totalCount.toString()
   }) : seoData
 
   return (
     <>
-      {/* React 19 Native Document Metadata with Localized SEO */}
-      <title>{finalSeoData?.title || 'Professional Entities - Ring Platform'}</title>
-      <meta name="description" content={finalSeoData?.description || 'Discover and connect with professional entities, organizations, and businesses on Ring platform.'} />
+      {/* React 19 Native Document Metadata with GreenFood Agricultural Focus */}
+      <title>{finalSeoData?.title || 'Agricultural Entities - GreenFood Platform'}</title>
+      <meta name="description" content={finalSeoData?.description || 'Discover farms, cooperatives, and food producers in sustainable agriculture. Connect with agricultural entities focused on food quality and environmental sustainability.'} />
       {finalSeoData?.keywords && (
         <meta name="keywords" content={finalSeoData.keywords.join(', ')} />
       )}
       <link rel="canonical" href={finalSeoData?.canonical || canonicalUrl} />
-      
+
       {/* OpenGraph metadata */}
-      <meta property="og:title" content={finalSeoData?.ogTitle || finalSeoData?.title || 'Professional Entities - Ring Platform'} />
-      <meta property="og:description" content={finalSeoData?.ogDescription || finalSeoData?.description || 'Discover and connect with professional entities'} />
+      <meta property="og:title" content={finalSeoData?.ogTitle || finalSeoData?.title || 'Agricultural Entities - GreenFood Platform'} />
+      <meta property="og:description" content={finalSeoData?.ogDescription || finalSeoData?.description || 'Discover farms, cooperatives, and food producers in sustainable agriculture'} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
       <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
       <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-      <meta property="og:site_name" content="Ring Platform" />
+      <meta property="og:site_name" content="GreenFood Platform" />
       <meta property="og:image" content={finalSeoData?.ogImage || "/images/og-default.jpg"} />
       
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:site" content="@RingPlatform" />
-      <meta name="twitter:title" content={finalSeoData?.twitterTitle || finalSeoData?.title || 'Professional Entities'} />
-      <meta name="twitter:description" content={finalSeoData?.twitterDescription || finalSeoData?.description || 'Discover professional entities on Ring Platform'} />
+      <meta name="twitter:site" content="@GreenFoodPlatform" />
+      <meta name="twitter:title" content={finalSeoData?.twitterTitle || finalSeoData?.title || 'Agricultural Entities'} />
+      <meta name="twitter:description" content={finalSeoData?.twitterDescription || finalSeoData?.description || 'Discover farms, cooperatives, and food producers in sustainable agriculture'} />
       <meta name="twitter:image" content={finalSeoData?.twitterImage || "/images/og-default.jpg"} />
-      
+
       {/* Additional SEO metadata */}
       <meta name="robots" content="index, follow" />
-      <meta name="author" content="Ring Platform" />
+      <meta name="author" content="GreenFood Platform" />
+      <meta name="keywords" content="agricultural entities, farms, cooperatives, food producers, sustainable agriculture, organic farming, GreenFood platform, agricultural directory" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      
+
       {/* Hreflang alternates */}
       {Object.entries(alternates).map(([lang, url]) => (
         <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
       ))}
+
+      {/* GreenFood Agricultural Entities Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Agricultural Entities - GreenFood Platform",
+            "description": "Directory of agricultural companies, farms, cooperatives, and food producers focused on sustainable agriculture and food quality",
+            "url": canonicalUrl,
+            "mainEntity": {
+              "@type": "WebPageElement",
+              "name": "Agricultural Entities Directory",
+              "description": "Browse and connect with agricultural entities committed to sustainable farming practices"
+            },
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Home",
+                  "item": process.env.NEXT_PUBLIC_API_URL || "https://greenfood.ck.ua"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": "Agricultural Entities",
+                  "item": canonicalUrl
+                }
+              ]
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "agricultural_professionals"
+            },
+            "about": [
+              {
+                "@type": "Thing",
+                "name": "Sustainable Agriculture",
+                "description": "Modern farming practices focused on environmental sustainability and food quality"
+              },
+              {
+                "@type": "Thing",
+                "name": "Agricultural Cooperatives",
+                "description": "Collaborative farming organizations and producer cooperatives"
+              },
+              {
+                "@type": "Thing",
+                "name": "Food Production",
+                "description": "Companies involved in food processing and agricultural product manufacturing"
+              },
+              {
+                "@type": "Thing",
+                "name": "Organic Farming",
+                "description": "Chemical-free agricultural practices and organic food production"
+              }
+            ],
+            "publisher": {
+              "@type": "Organization",
+              "name": "GreenFood Platform",
+              "url": process.env.NEXT_PUBLIC_API_URL || "https://greenfood.ck.ua"
+            }
+          })
+        }}
+      />
 
       <div className="min-h-screen bg-background">
         {/* Desktop Layout - Three columns, hidden on iPad and mobile */}
@@ -304,8 +285,8 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
                 initialError={error}
                 page={page}
                 lastVisible={lastVisible}
-                totalPages={totalPages}
-                totalEntities={totalEntities}
+                totalPages={Math.ceil(totalCount / limit)}
+                totalEntities={totalCount}
                 initialLimit={limit}
                 initialSort={sort}
                 initialFilter={filter}
@@ -320,7 +301,7 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
                 initialFilters={{
                   search: filter
                 }}
-                resultCount={totalEntities}
+                resultCount={totalCount}
               />
             </RightSidebar>
           </div>
@@ -347,8 +328,8 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
                 initialError={error}
                 page={page}
                 lastVisible={lastVisible}
-                totalPages={totalPages}
-                totalEntities={totalEntities}
+                totalPages={Math.ceil(totalCount / limit)}
+                totalEntities={totalCount}
                 initialLimit={limit}
                 initialSort={sort}
                 initialFilter={filter}
@@ -363,7 +344,7 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
                   initialFilters={{
                     search: filter
                   }}
-                  resultCount={totalEntities}
+                  resultCount={totalCount}
                 />
               </div>
             </FloatingSidebarToggle>
@@ -384,8 +365,8 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
               initialError={error}
               page={page}
               lastVisible={lastVisible}
-              totalPages={totalPages}
-              totalEntities={totalEntities}
+              totalPages={Math.ceil(totalCount / limit)}
+              totalEntities={totalCount}
               initialLimit={limit}
               initialSort={sort}
               initialFilter={filter}
@@ -400,7 +381,7 @@ export default async function EntitiesPage(props: LocalePageProps<EntitiesParams
                 initialFilters={{
                   search: filter
                 }}
-                resultCount={totalEntities}
+                resultCount={totalCount}
               />
             </div>
           </FloatingSidebarToggle>

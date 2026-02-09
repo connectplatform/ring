@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth'; // Auth.js session handler
 import { updateEntity } from  '@/features/entities/services/update-entity';
 import { Entity } from '@/features/entities/types';
@@ -26,6 +26,8 @@ export async function PATCH(
   req: NextRequest,
   context: RouteHandlerProps<{ id: string }>
 ): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/entities/update/[id] - Starting PATCH request');
   logger.info('api.entities.update.start')
 
@@ -92,11 +94,4 @@ export async function PATCH(
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route.
- */
-export const config = {
-  runtime: 'nodejs',
-};

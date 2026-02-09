@@ -1,5 +1,5 @@
-import { file, fileService } from '@/lib/file'
-import { NextRequest, NextResponse } from 'next/server'
+import { file as fileService } from '@/lib/file'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { cookies, headers } from 'next/headers'
@@ -18,6 +18,8 @@ import { existsSync } from 'fs'
  * @returns {Promise<NextResponse>} Response object containing either the blob details or an error message.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/profile/upload - Starting POST request')
 
   try {
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       uploadResult = await uploadToLocal(file, fileName)
     } else {
       // Upload using our file abstraction layer (default)
-      const result = await fileService.upload(fileName, file, {
+      const result = await fileService().upload(fileName, file, {
         access: 'public',
       })
 
@@ -173,8 +175,3 @@ async function uploadToLocal(file: File, fileName: string) {
   }
 }
 
-export const dynamic = 'force-dynamic'
-
-export const config = {
-  runtime: 'nodejs',
-}

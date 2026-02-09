@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { subscriptionService } from '@/services/membership/subscription-service';
@@ -23,6 +23,8 @@ type RingPaymentRequest = z.infer<typeof RingPaymentRequestSchema>;
  * Process RING token payment for membership fees
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -247,6 +249,8 @@ export async function POST(request: NextRequest) {
  * Get payment information and pricing
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

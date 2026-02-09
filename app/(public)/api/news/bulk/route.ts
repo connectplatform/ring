@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { 
   getCachedDocument,
@@ -25,6 +25,8 @@ interface BulkOperationRequest {
  * Perform bulk operations on multiple news articles
  */
 export async function POST(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth()
     
@@ -177,6 +179,8 @@ export async function POST(request: NextRequest) {
  * Check the status of a bulk operation (for future implementation with job queues)
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { searchParams } = new URL(request.url)
   const jobId = searchParams.get('jobId')
 

@@ -12,6 +12,8 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Next.js 16: Enable 'use cache' directive for explicit caching control
+  cacheComponents: true,
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -82,62 +84,28 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  webpack: (config, { isServer }) => {
-    // Suppress module resolution warnings for optional dependencies
-    config.ignoreWarnings = [
-      ...(config.ignoreWarnings || []),
-      /Module not found: Can't resolve '@supabase\/supabase-js'/,
-      /Can't resolve '@supabase\/supabase-js'/,
-      /@supabase\/supabase-js/,
-      /Module not found: Can't resolve '@react-native-async-storage\/async-storage'/,
-      /Can't resolve '@react-native-async-storage\/async-storage'/,
-      /@react-native-async-storage\/async-storage/,
-      /Module not found: Can't resolve 'pino-pretty'/,
-      /Can't resolve 'pino-pretty'/,
-      /pino-pretty/,
-    ];
-
-    // Suppress module resolution warnings for optional dependencies
-    config.stats = {
-      ...config.stats,
-      warningsFilter: [
-        /Module not found: Can't resolve '@supabase\/supabase-js'/,
-        /Can't resolve '@supabase\/supabase-js'/,
-        /@supabase\/supabase-js/,
-        /Module not found: Can't resolve '@react-native-async-storage\/async-storage'/,
-        /Can't resolve '@react-native-async-storage\/async-storage'/,
-        /@react-native-async-storage\/async-storage/,
-        /Module not found: Can't resolve 'pino-pretty'/,
-        /Can't resolve 'pino-pretty'/,
-        /pino-pretty/,
-      ],
-    };
-
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        http2: false,
-        child_process: false,
-        // Keep only essentials for web3 libs when dynamically imported
-        crypto: require.resolve('crypto-browserify'),
-        stream: require.resolve('stream-browserify'),
-        util: require.resolve('util/'),
-        process: require.resolve('process/browser'),
-        events: require.resolve('events/'),
-      }
-    }
-    config.resolve.alias = {
-      ...config.resolve.alias,
+  // Next.js 16: Turbopack config (replaces webpack resolve.alias & resolve.fallback)
+  turbopack: {
+    resolveAlias: {
+      // Client-side polyfills for Web3 libs (replaces webpack resolve.fallback)
+      'crypto': { browser: 'crypto-browserify' },
+      'stream': { browser: 'stream-browserify' },
+      'util': { browser: 'util/' },
+      'process': { browser: 'process/browser' },
+      'events': { browser: 'events/' },
+      // Disable server-only modules on client (replaces resolve.fallback: false)
+      'fs': { browser: './lib/shims/empty.ts' },
+      'net': { browser: './lib/shims/empty.ts' },
+      'tls': { browser: './lib/shims/empty.ts' },
+      'http2': { browser: './lib/shims/empty.ts' },
+      'child_process': { browser: './lib/shims/empty.ts' },
+      // Node module protocol aliases
       'node:events': 'events',
       'node:stream': 'stream-browserify',
       'node:util': 'util',
       // Provide a stub for bert-js to allow builds without native dep
-      'bert-js': path.resolve(__dirname, 'lib/shims/bert-js.js')
-    };
-    return config
+      'bert-js': path.resolve(__dirname, 'lib/shims/bert-js.js'),
+    },
   },
   transpilePackages: [
     'firebase', 
@@ -147,13 +115,19 @@ const nextConfig = {
     '@auth/core',
     '@auth/firebase-adapter'
   ],
-  serverRuntimeConfig: {
-    PROJECT_ROOT: process.cwd()
-  },
+  // Note: serverRuntimeConfig removed in Next.js 16 - use process.env instead
   output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, './'),
   outputFileTracingIncludes: {
     '**/*': ['./lib/**/*', './server.js']
   },
+  // Packages that must NOT be bundled by Turbopack on the server —
+  // they rely on native Node.js HTTP/TLS for external API calls
+  serverExternalPackages: [
+    'google-auth-library',
+    'gaxios',
+    'gtoken',
+  ],
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'ring.ck.ua', 'ring-platform.org', 'myri.ng'],
@@ -167,9 +141,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+  // Note: eslint config removed from next.config in Next.js 16 - use eslint CLI directly
 }
 
 export default withBundleAnalyzer(nextConfig);

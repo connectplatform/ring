@@ -8,7 +8,6 @@ import { verifyAuth } from '@/lib/auth/edge-jwt';
 import { subscriptionHelpers } from '../subscribe/route';
 
 // Edge Runtime configuration
-export const runtime = 'edge';
 
 /**
  * POST handler to unsubscribe from channels

@@ -1,16 +1,15 @@
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
 import SettingsWrapper from '@/components/wrappers/settings-wrapper'
+import SettingsContent from '@/features/auth/components/settings-content'
+import { updateSettings } from '@/app/_actions/settings'
 import { auth } from '@/auth'
 import { UserSettings } from '@/features/auth/types'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, generateHreflangAlternates, type Locale, defaultLocale } from '@/i18n-config'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-// Allow caching for user settings with short revalidation for settings updates
-export const dynamic = "auto"
-export const revalidate = 120 // 2 minutes for user settings
+import { connection } from 'next/server'
 
 // Define the type for the settings route params
 type SettingsParams = {};
@@ -32,6 +31,8 @@ type SettingsParams = {};
  * @returns The rendered SettingsPage component
  */
 export default async function SettingsPage(props: LocalePageProps<SettingsParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('SettingsPage: Starting');
 
   // Resolve params and searchParams
@@ -50,7 +51,6 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
 
   let initialSettings: UserSettings | null = null
   let error: string | null = null
-  let userStats: any = undefined
 
   const headersList = await headers()
 
@@ -71,20 +71,13 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
       redirect(ROUTES.LOGIN(locale))
     }
 
-    // Calculate user stats for the wrapper
-    userStats = session?.user ? {
-      accountAge: '2024', // Could be enhanced with actual account creation data
-      lastLogin: 'Today', // Could be enhanced with actual last login data
-      profileCompleteness: 85 // Could be calculated based on profile fields
-    } : undefined;
-
     // Check if user document exists (with caching - migration now handled at auth level)
     try {
       const { userMigrationService } = await import('@/features/auth/services/user-migration');
       const userExists = await userMigrationService.userDocumentExists(session.user.id);
       if (!userExists) {
         console.warn('SettingsPage: User document missing, initializing');
-      await userMigrationService.ensureUserDocument(session.user as any);
+        await userMigrationService.ensureUserDocument(session.user as any);
         console.log('SettingsPage: User document created successfully');
       }
     } catch (migrationError) {
@@ -111,48 +104,20 @@ export default async function SettingsPage(props: LocalePageProps<SettingsParams
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
-
+      
       {/* Authenticated page security meta tags */}
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-      <SettingsWrapper
-        locale={locale}
-        userStats={userStats}
-      >
-        {/* Settings page content would go here - currently handled by the wrapper's children */}
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">{(translations as any).settings?.title || 'Settings'}</h1>
-            <p className="text-muted-foreground mt-2">
-              {(translations as any).settings?.description || 'Manage your account settings and preferences.'}
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
-              <p className="text-destructive">{error}</p>
-            </div>
-          )}
-
-          {/* Settings content will be implemented here */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>
-                  Manage your account preferences and security settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Settings interface will be implemented here.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+      <SettingsWrapper locale={locale}>
+        <SettingsContent
+          initialSettings={initialSettings}
+          initialError={error}
+          searchParams={searchParams as { [key: string]: string | string[] | undefined }}
+          updateSettingsAction={updateSettings}
+          locale={locale}
+        />
       </SettingsWrapper>
     </>
   )

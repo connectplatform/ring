@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from "@/auth"
 import { 
   getWalletHistory, 
@@ -25,6 +25,8 @@ const etagCache = new Map<string, { etag: string, expiresAt: number }>()
  * @returns A NextResponse object with the transaction history or an error message
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/wallet/history - Starting GET request');
 
   try {
@@ -115,4 +117,3 @@ function transactionsHashSeed(address: string, filter: TransactionFilter): strin
  * Prevent caching for this route
  * This is important for wallet operations which should always be fresh
  */
-export const dynamic = 'force-dynamic'

@@ -7,10 +7,8 @@ import { AuthUser } from '@/features/auth/types';
 import { AdminUserManager } from '@/features/auth/components/admin-user-manager';
 import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
+import { connection } from 'next/server'
 
-// Allow caching for admin users list with short revalidation for user management data
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for user management data
 
 async function getUsers(): Promise<AuthUser[]> {
   try {
@@ -20,19 +18,18 @@ async function getUsers(): Promise<AuthUser[]> {
       console.error('Database initialization failed:', initResult.error);
       return []; // Graceful degradation - return empty array instead of throwing
     }
-
     const db = getDatabaseService();
-
+    
     const result = await db.query({
       collection: 'users',
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
       pagination: { limit: 100 }
     });
-
+    
     if (!result.success) {
       throw result.error || new Error('Failed to fetch users');
     }
-
+    
     return result.data as unknown as AuthUser[];
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -45,6 +42,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>
 }): Promise<Metadata> {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -60,6 +59,8 @@ export default async function AdminUsersPage({
 }: {
   params: Promise<{ locale: string }>
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params;
   const validLocale = isValidLocale(locale) ? locale : defaultLocale;
   const t = await loadTranslations(validLocale);
@@ -80,20 +81,22 @@ export default async function AdminUsersPage({
 
   return (
     <AdminWrapper locale={validLocale} pageContext="users">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          {t.modules.admin.userManagement}
-        </h1>
-        <p className="text-muted-foreground">
-          {t.modules.admin.userManagementDescription}
-        </p>
-      </div>
+      <div className="container mx-auto px-0 py-0">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            {t.modules.admin.userManagement}
+          </h1>
+          <p className="text-muted-foreground">
+            {t.modules.admin.userManagementDescription}
+          </p>
+        </div>
 
-      <AdminUserManager
-        initialUsers={users}
-        locale={validLocale}
-        translations={t}
-      />
+        <AdminUserManager
+          initialUsers={users}
+          locale={validLocale}
+          translations={t}
+        />
+      </div>
     </AdminWrapper>
   );
-} 
+}

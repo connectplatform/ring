@@ -3,8 +3,8 @@ import { LocalePageProps } from "@/utils/page-props";
 import { isValidLocale, defaultLocale } from '@/i18n-config';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 
+
 // Force dynamic rendering for real-time metrics
-export const dynamic = "force-dynamic";
 
 type PerformanceParams = {};
 

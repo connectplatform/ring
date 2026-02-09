@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { getMessaging } from 'firebase-admin/messaging'
 import { getAdminDb } from '@/lib/firebase-admin.server'
@@ -6,6 +6,8 @@ import { getAdminDb } from '@/lib/firebase-admin.server'
 const db = getAdminDb()
 
 export async function POST(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Check authentication
     const session = await auth()
@@ -129,6 +131,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Check authentication
     const session = await auth()

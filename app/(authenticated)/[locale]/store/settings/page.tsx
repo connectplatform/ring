@@ -5,12 +5,10 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
-import SettingsWrapper from '@/components/wrappers/settings-wrapper'
+import StoreWrapper from '@/components/wrappers/store-wrapper'
 import StoreSettingsClient from './store-settings-client'
+import { connection } from 'next/server'
 
-// Allow caching for store settings with short revalidation for configuration updates
-export const dynamic = "auto"
-export const revalidate = 60 // 1 minute for store configuration data
 
 // Define the type for the store settings route params
 type StoreSettingsParams = {};
@@ -31,6 +29,8 @@ type StoreSettingsParams = {};
  * @returns The rendered StoreSettingsPage component
  */
 export default async function StoreSettingsPage(props: LocalePageProps<StoreSettingsParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('StoreSettingsPage: Starting');
 
   // Resolve params and searchParams
@@ -69,18 +69,18 @@ export default async function StoreSettingsPage(props: LocalePageProps<StoreSett
     console.log('StoreSettingsPage: Rendering store settings client');
 
     return (
-      <SettingsWrapper locale={locale}>
-        <>
-          {/* React 19 Native Document Metadata - Authenticated Page */}
-          <title>{title}</title>
-          <meta name="description" content={description} />
-          <link rel="canonical" href={canonicalUrl} />
-          
-          {/* Authenticated page security meta tags */}
-          <meta name="robots" content="noindex, nofollow" />
-          <meta name="googlebot" content="noindex, nofollow" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <>
+        {/* React 19 Native Document Metadata - Authenticated Page */}
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonicalUrl} />
+        
+        {/* Authenticated page security meta tags */}
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="googlebot" content="noindex, nofollow" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+        <StoreWrapper locale={locale}>
           <Suspense fallback={
             <div className="container mx-auto px-0 py-0">
               <div className="animate-pulse space-y-6">
@@ -97,8 +97,8 @@ export default async function StoreSettingsPage(props: LocalePageProps<StoreSett
               searchParams={searchParams}
             />
           </Suspense>
-        </>
-      </SettingsWrapper>
+        </StoreWrapper>
+      </>
     )
 
   } catch (e) {

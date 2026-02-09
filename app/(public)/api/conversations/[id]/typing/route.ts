@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { TypingService } from '@/features/chat/services/typing-service'
 import { z } from 'zod'
@@ -19,6 +19,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Authenticate user
     const session = await auth()
@@ -80,6 +82,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     // Authenticate user
     const session = await auth()

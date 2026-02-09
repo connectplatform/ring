@@ -15,6 +15,7 @@ export async function addListingDraft(
   prev: AddListingDraftState | null,
   formData: FormData
 ): Promise<AddListingDraftState> {
+
   const session = await auth()
   if (!session?.user?.id) return { error: 'Unauthorized' }
 

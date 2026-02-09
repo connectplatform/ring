@@ -8,9 +8,9 @@ import type { Opportunity } from "@/types"
 import ConfidentialOpportunitiesWrapper from "@/components/wrappers/confidential-opportunities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { connection } from 'next/server'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
-export const dynamic = "force-dynamic"
 
 // Define the type for the route params (empty object since this is not a dynamic route)
 type OpportunitiesParams = Record<string, never>;
@@ -78,6 +78,8 @@ async function getConfidentialOpportunities(
  * @returns The rendered confidential opportunities page.
  */
 export default async function ConfidentialOpportunitiesPage(props: LocalePageProps<OpportunitiesParams>) {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log("ConfidentialOpportunitiesPage: Starting")
 
   // Resolve params and searchParams

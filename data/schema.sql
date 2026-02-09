@@ -494,6 +494,35 @@ END
 $$;
 
 -- ============================================================================
+-- FCM PUSH NOTIFICATION TOKENS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS fcm_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(255),
+    token VARCHAR(255) NOT NULL UNIQUE,
+    device_info JSONB NOT NULL,
+    platform VARCHAR(50),
+    browser VARCHAR(100),
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT true,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user_id ON fcm_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_token ON fcm_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_is_active ON fcm_tokens(is_active);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_last_seen ON fcm_tokens(last_seen DESC);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_platform ON fcm_tokens(platform);
+
+-- Auto-update updated_at on row changes
+CREATE OR REPLACE TRIGGER update_fcm_tokens_updated_at
+    BEFORE UPDATE ON fcm_tokens
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
 -- SCHEMA VERSION TRACKING
 -- ============================================================================
 

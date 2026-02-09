@@ -11,8 +11,6 @@ import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlterna
 import BackBar from '@/components/common/back-bar'
 
 // Allow caching for entity details with moderate revalidation for content updates
-export const dynamic = "auto"
-export const revalidate = 120 // 2 minutes for entity detail data
 
 // Define the type for the route params
 type EntityParams = { id: string };

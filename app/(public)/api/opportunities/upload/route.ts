@@ -1,5 +1,5 @@
 import { file as fileService } from '@/lib/file'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth' // Auth.js session handler
 import { UserRole } from '@/features/auth/types'
 import { cookies, headers } from 'next/headers'
@@ -7,8 +7,8 @@ import { cookies, headers } from 'next/headers'
 /**
  * Handles POST requests for uploading files related to opportunities.
  * 
- * This route allows authenticated users to upload files for opportunities, which are then stored using our file abstraction layer
- * (supports both Vercel Blob and RingBase backends). The route expects a file to be sent as part of a FormData object.
+ * This route allows authenticated users to upload files for opportunities, which are then stored using Vercel Blob storage.
+ * The route expects a file to be sent as part of a FormData object.
  * 
  * User steps:
  * 1. Authenticate with the application.
@@ -21,6 +21,8 @@ import { cookies, headers } from 'next/headers'
  * @returns {Promise<NextResponse>} Response object containing either the blob details or an error message.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  await connection() // Next.js 16: opt out of prerendering
+
   console.log('API: /api/opportunities/upload - Starting POST request')
 
   try {
@@ -175,11 +177,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 /**
  * Prevent caching for this route
  */
-export const dynamic = 'force-dynamic';
 
-/**
- * Configuration for the API route.
- */
-export const config = {
-  runtime: 'nodejs',
-};

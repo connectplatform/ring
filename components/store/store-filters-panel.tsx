@@ -188,7 +188,7 @@ export default function StoreFiltersPanel({
     if (displayCurrency !== filters.currency) {
       updateFilters({ currency: displayCurrency })
     }
-  }, [displayCurrency]) // ✅ Removed updateFilters from deps, it's stable now
+  }, [displayCurrency, filters.currency, updateFilters])
 
   // Cleanup timeout on unmount
   useEffect(() => {

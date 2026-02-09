@@ -5,6 +5,7 @@ import { NewsAnalyticsDashboard } from '@/features/news/components/news-analytic
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
+import { connection } from 'next/server'
 
 /**
  * Get news analytics - Server Component async/await (React 19)
@@ -103,6 +104,8 @@ export default async function AdminNewsAnalyticsPage({
 }: { 
   params: Promise<{ locale: string }> 
 }) {
+  await connection() // Next.js 16: opt out of prerendering
+
   const { locale } = await params
   const validLocale = isValidLocale(locale) ? locale : defaultLocale
   const t = await loadTranslations(validLocale)

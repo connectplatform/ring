@@ -154,8 +154,8 @@ Ring CLI зберігає конфігурацію в `~/.ring-platform/config.j
 
 Приклад для GitHub Actions:
 
-<Code language="yaml" title="name: Розгортання в продакшн">
-{`on:
+```yaml
+on:
   push:
     tags:
       - 'v*'
@@ -168,8 +168,8 @@ jobs:
       - name: Встановлення Ring CLI
         run: npm link
       - name: Розгортання
-        run: ring prod --version ${GITHUB_REF#refs/tags/v}`}
-</Code>
+        run: ring prod --version ${GITHUB_REF#refs/tags/v}
+```
 
 ## 🐛 Усунення несправностей
 

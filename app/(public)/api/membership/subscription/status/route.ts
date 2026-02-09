@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { subscriptionService } from '@/services/membership/subscription-service';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
@@ -10,6 +10,8 @@ import { logger } from '@/lib/logger';
  * Get current user's subscription status and membership information
  */
 export async function GET(request: NextRequest) {
+  await connection() // Next.js 16: opt out of prerendering
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

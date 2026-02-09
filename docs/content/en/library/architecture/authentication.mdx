@@ -496,8 +496,8 @@ export const wagmiConfig = createConfig({
 
 // features/auth/services/upgrade-user-role.ts
 
-<Code language="typescript" title="TypeScript">
-{`export async function upgradeUserRole(
+```typescript
+export async function upgradeUserRole(
   userId: string,
   newRole: UserRole,
   paymentReference?: string
@@ -527,8 +527,8 @@ export const wagmiConfig = createConfig({
     title: `Upgraded to ${newRole}`,
     message: `Your account has been upgraded. New features unlocked!`
   })
-}`}
-</Code>
+}
+```
 
 ---
 
@@ -745,11 +745,11 @@ export default function UserProfile() {
 
 | Metric | Value | Industry Standard |
 |--------|-------|------------------|
-| **Google OAuth Login** | <500ms | 2-3s |
-| **GIS One Tap Login** | <300ms | N/A |
-| **Magic Link Send** | <200ms | 500ms-1s |
+| **Google OAuth Login** | `<500ms` | 2-3s |
+| **GIS One Tap Login** | `<300ms` | N/A |
+| **Magic Link Send** | `<200ms` | 500ms-1s |
 | **Wallet Connection Success** | 95% | 40% |
-| **Session Creation** | <100ms | 200-500ms |
+| **Session Creation** | `<100ms` | 200-500ms |
 | **PIN Setup Completion** | 87% | N/A |
 | **Email Linking Success** | 100% | Manual process |
 
