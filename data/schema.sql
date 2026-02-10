@@ -1,11 +1,22 @@
 -- ============================================================================
 -- PostgreSQL Schema for Ring Platform
 -- ============================================================================
--- Version: 3.0.0
--- Database: ring_platform
--- Purpose: Unified comprehensive schema for Ring Platform multi-vendor marketplace
--- Includes: Core tables, marketplace tables, reference data, store module
+-- Version: 4.0.0
+-- Date: 2026-02-10
+-- Database: ring_platform (or project-specific: ring_zemna_ai, ring_greenfood_live, etc.)
+-- Purpose: SINGLE SOURCE OF TRUTH for all Ring Platform database schemas
+-- Includes: Core, social, marketplace, store, content, FCM, reference data
 -- Compatible with Ring Platform base architecture and all Ring clones
+-- Replaces: scripts/postgres-schema.sql (deprecated)
+-- ============================================================================
+-- Changes from v3.0.0:
+--   - Added 10 core tables: entities, opportunities, messages, conversations,
+--     notifications, wallet_transactions, nft_listings, comments, likes, reviews
+--   - Added usernames table (username reservation system)
+--   - Fixed payments table: column-based -> JSONB model (matches PostgreSQLAdapter)
+--   - Added LISTEN/NOTIFY real-time infrastructure
+--   - Expanded trigger coverage to ALL tables
+--   - Full-text search on opportunities
 -- ============================================================================
 
 -- Enable required extensions
@@ -16,9 +27,9 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";
 -- REFERENCE DATA TABLES (Seed data for all Ring clones)
 -- ============================================================================
 
--- Currencies table (ISO 4217)
+-- Currencies table (ISO 4217 + crypto tokens)
 CREATE TABLE IF NOT EXISTS currencies (
-    code VARCHAR(3) PRIMARY KEY,
+    code VARCHAR(10) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     symbol VARCHAR(10) NOT NULL,
     decimal_places INTEGER DEFAULT 2,
@@ -58,9 +69,10 @@ COMMENT ON COLUMN countries.timezone IS 'Primary IANA timezone (e.g., Europe/Kyi
 COMMENT ON COLUMN countries.phone_code IS 'International dialing code (e.g., +380)';
 
 -- ============================================================================
--- USERS TABLE
+-- CORE TABLES
 -- ============================================================================
 
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY,
     data JSONB NOT NULL,
@@ -73,10 +85,212 @@ CREATE INDEX IF NOT EXISTS idx_users_role ON users ((data->>'role'));
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_users_data_gin ON users USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE users IS 'User accounts with profile data, preferences, and settings';
 COMMENT ON COLUMN users.id IS 'User ID (Firebase UID or UUID)';
 COMMENT ON COLUMN users.data IS 'User data: email, role, displayName, avatar, preferences, credit_balance, etc.';
+
+-- Usernames table (Username reservation system with expiration)
+-- Reference: docs/content/en/library/features/username-reservation.mdx
+CREATE TABLE IF NOT EXISTS usernames (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_usernames_user_id ON usernames ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_usernames_confirmed ON usernames ((data->>'confirmed'));
+CREATE INDEX IF NOT EXISTS idx_usernames_expires_at ON usernames ((data->>'expiresAt'));
+CREATE INDEX IF NOT EXISTS idx_usernames_data_gin ON usernames USING GIN (data);
+
+COMMENT ON TABLE usernames IS 'Username reservations with 5-minute expiration and confirmation tracking';
+COMMENT ON COLUMN usernames.id IS 'Lowercase username key (unique identifier)';
+COMMENT ON COLUMN usernames.data IS 'Reservation: userId, username (original case), reservedAt, expiresAt, confirmed, confirmedAt';
+
+-- Entities table (Organizations, profiles, etc.)
+CREATE TABLE IF NOT EXISTS entities (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_entities_user_id ON entities ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_entities_type ON entities ((data->>'type'));
+CREATE INDEX IF NOT EXISTS idx_entities_status ON entities ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_entities_verified ON entities ((data->>'verified'));
+CREATE INDEX IF NOT EXISTS idx_entities_created_at ON entities (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_entities_data_gin ON entities USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_entities_name ON entities ((data->>'name'));
+
+COMMENT ON TABLE entities IS 'Organizations, profiles, and other entity types';
+COMMENT ON COLUMN entities.id IS 'Entity identifier';
+COMMENT ON COLUMN entities.data IS 'Entity data: name, type, userId, status, verified, description, etc.';
+
+-- Opportunities table (Jobs, projects, bounties)
+CREATE TABLE IF NOT EXISTS opportunities (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_opportunities_user_id ON opportunities ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_opportunities_org_id ON opportunities ((data->>'organizationId'));
+CREATE INDEX IF NOT EXISTS idx_opportunities_type ON opportunities ((data->>'type'));
+CREATE INDEX IF NOT EXISTS idx_opportunities_category ON opportunities ((data->>'category'));
+CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_opportunities_priority ON opportunities ((data->>'priority'));
+CREATE INDEX IF NOT EXISTS idx_opportunities_created_at ON opportunities (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_opportunities_data_gin ON opportunities USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_opportunities_title ON opportunities ((data->>'title'));
+
+-- Full-text search for opportunities
+CREATE INDEX IF NOT EXISTS idx_opportunities_search ON opportunities 
+USING GIN (to_tsvector('english', 
+    COALESCE(data->>'title', '') || ' ' || 
+    COALESCE(data->>'briefDescription', '') || ' ' || 
+    COALESCE(data->>'tags', '')
+));
+
+COMMENT ON TABLE opportunities IS 'Jobs, projects, bounties, and other opportunities';
+COMMENT ON COLUMN opportunities.id IS 'Opportunity identifier';
+COMMENT ON COLUMN opportunities.data IS 'Opportunity: title, description, type, category, status, budget, location, etc.';
+
+-- ============================================================================
+-- MESSAGING TABLES
+-- ============================================================================
+
+-- Messages table
+CREATE TABLE IF NOT EXISTS messages (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages ((data->>'conversationId'));
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages ((data->>'senderId'));
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_data_gin ON messages USING GIN (data);
+
+COMMENT ON TABLE messages IS 'Chat messages within conversations';
+
+-- Conversations table
+CREATE TABLE IF NOT EXISTS conversations (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_participants ON conversations USING GIN ((data->'participants'));
+CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations (updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_data_gin ON conversations USING GIN (data);
+
+COMMENT ON TABLE conversations IS 'Chat conversations between users';
+
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications ((data->>'read'));
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications ((data->>'type'));
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_data_gin ON notifications USING GIN (data);
+
+COMMENT ON TABLE notifications IS 'User notifications (system, social, transactional)';
+
+-- ============================================================================
+-- SOCIAL TABLES
+-- ============================================================================
+
+-- Comments table
+CREATE TABLE IF NOT EXISTS comments (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_entity_id ON comments ((data->>'entityId'));
+CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_data_gin ON comments USING GIN (data);
+
+COMMENT ON TABLE comments IS 'User comments on entities, news, products, etc.';
+
+-- Likes table
+CREATE TABLE IF NOT EXISTS likes (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_likes_entity_id ON likes ((data->>'entityId'));
+CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_likes_created_at ON likes (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_likes_data_gin ON likes USING GIN (data);
+
+COMMENT ON TABLE likes IS 'User likes/reactions on content';
+
+-- Reviews table
+CREATE TABLE IF NOT EXISTS reviews (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_entity_id ON reviews ((data->>'entityId'));
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews (((data->'rating')::numeric));
+CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reviews_data_gin ON reviews USING GIN (data);
+
+COMMENT ON TABLE reviews IS 'User reviews with ratings for vendors, products, etc.';
+
+-- ============================================================================
+-- WEB3 / WALLET TABLES
+-- ============================================================================
+
+-- Wallet Transactions table
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_user_id ON wallet_transactions ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_wallet_id ON wallet_transactions ((data->>'walletId'));
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_type ON wallet_transactions ((data->>'type'));
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_status ON wallet_transactions ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_created_at ON wallet_transactions (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_data_gin ON wallet_transactions USING GIN (data);
+
+COMMENT ON TABLE wallet_transactions IS 'Blockchain wallet transactions (deposits, withdrawals, transfers)';
+
+-- NFT Listings table
+CREATE TABLE IF NOT EXISTS nft_listings (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nft_listings_user_id ON nft_listings ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_nft_listings_status ON nft_listings ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_nft_listings_created_at ON nft_listings (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nft_listings_data_gin ON nft_listings USING GIN (data);
+
+COMMENT ON TABLE nft_listings IS 'NFT marketplace listings';
 
 -- ============================================================================
 -- MARKETPLACE TABLES (Multi-vendor marketplace module)
@@ -105,10 +319,7 @@ USING GIN (to_tsvector('english',
     COALESCE(data->>'tags', '')
 ));
 
--- Table documentation
 COMMENT ON TABLE products IS 'Marketplace products from verified vendors';
-COMMENT ON COLUMN products.id IS 'Product identifier (unique across marketplace)';
-COMMENT ON COLUMN products.data IS 'Product details: name, description, price, vendor, certification, etc.';
 
 -- Vendors (Marketplace sellers)
 CREATE TABLE IF NOT EXISTS vendors (
@@ -124,13 +335,9 @@ CREATE INDEX IF NOT EXISTS idx_vendors_certified ON vendors ((data->>'certified'
 CREATE INDEX IF NOT EXISTS idx_vendors_created_at ON vendors (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vendors_data_gin ON vendors USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE vendors IS 'Marketplace vendors and sellers';
-COMMENT ON COLUMN vendors.id IS 'Vendor identifier (unique across platform)';
-COMMENT ON COLUMN vendors.data IS 'Vendor details: name, location, certifications, products, contact info, etc.';
 
 -- Vendor Profiles (Extended vendor management)
--- Note: Using JSONB document model for flexibility
 CREATE TABLE IF NOT EXISTS vendor_profiles (
     id VARCHAR(255) PRIMARY KEY,
     data JSONB NOT NULL,
@@ -145,10 +352,7 @@ CREATE INDEX IF NOT EXISTS idx_vendor_profiles_trust_level ON vendor_profiles ((
 CREATE INDEX IF NOT EXISTS idx_vendor_profiles_created_at ON vendor_profiles (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vendor_profiles_data_gin ON vendor_profiles USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE vendor_profiles IS 'Extended vendor profiles with trust scores and compliance tracking';
-COMMENT ON COLUMN vendor_profiles.id IS 'Vendor profile identifier (links to vendor or entity)';
-COMMENT ON COLUMN vendor_profiles.data IS 'Vendor profile: trust level, compliance status, performance metrics, onboarding status, etc.';
 
 -- Orders (Customer purchases from marketplace)
 CREATE TABLE IF NOT EXISTS orders (
@@ -164,10 +368,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders ((data->>'status'));
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_data_gin ON orders USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE orders IS 'Customer purchase orders from marketplace';
-COMMENT ON COLUMN orders.id IS 'Order identifier (unique order number)';
-COMMENT ON COLUMN orders.data IS 'Order details: user, vendor, products, total, status, delivery address, etc.';
 
 -- Certifications (Quality certifications, badges)
 CREATE TABLE IF NOT EXISTS certifications (
@@ -184,10 +385,7 @@ CREATE INDEX IF NOT EXISTS idx_certifications_status ON certifications ((data->>
 CREATE INDEX IF NOT EXISTS idx_certifications_created_at ON certifications (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_certifications_data_gin ON certifications USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE certifications IS 'Quality certifications and badges for vendors/products';
-COMMENT ON COLUMN certifications.id IS 'Certification identifier';
-COMMENT ON COLUMN certifications.data IS 'Certification details: type, vendor, product, issuer, expiry date, status, etc.';
 
 -- Delivery Zones (Regional availability)
 CREATE TABLE IF NOT EXISTS delivery_zones (
@@ -201,10 +399,7 @@ CREATE INDEX IF NOT EXISTS idx_delivery_zones_region ON delivery_zones ((data->>
 CREATE INDEX IF NOT EXISTS idx_delivery_zones_active ON delivery_zones ((data->>'active'));
 CREATE INDEX IF NOT EXISTS idx_delivery_zones_data_gin ON delivery_zones USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE delivery_zones IS 'Regional delivery availability';
-COMMENT ON COLUMN delivery_zones.id IS 'Zone identifier';
-COMMENT ON COLUMN delivery_zones.data IS 'Zone details: region, delivery time, fee, coverage area, active status, etc.';
 
 -- ============================================================================
 -- STORE TABLES (Ring Platform Store Module)
@@ -236,6 +431,7 @@ USING GIN (to_tsvector('english',
 COMMENT ON TABLE store_products IS 'Ring Portal Store products (hosting, hardware, courses)';
 
 -- Store Settings (Performance cache for computed values)
+-- NOTE: Uses 'value' column (not 'data') - special-case table
 CREATE TABLE IF NOT EXISTS store_settings (
     id VARCHAR(255) PRIMARY KEY,
     value JSONB NOT NULL,
@@ -252,33 +448,24 @@ COMMENT ON COLUMN store_settings.updated_at IS 'Last cache update timestamp (for
 
 -- Payments (WayForPay membership upgrades and transactions)
 -- Reference: Agent #124 (WayForPay Integrator)
+-- NOTE: Uses standard JSONB model (id, data, created_at, updated_at)
+-- Data fields: orderId, userId, targetRole, amount, currency, status, paymentUrl, failureReason
 CREATE TABLE IF NOT EXISTS payments (
-    "orderId" VARCHAR(255) PRIMARY KEY,
-    "userId" VARCHAR(255) NOT NULL,
-    "targetRole" VARCHAR(50) NOT NULL,
-    amount DECIMAL(10, 2) NOT NULL,
-    currency VARCHAR(3) NOT NULL DEFAULT 'UAH',
-    status VARCHAR(50) NOT NULL DEFAULT 'initiated',
-    "paymentUrl" TEXT,
-    "failureReason" TEXT,
-    "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments("userId");
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
-CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments("createdAt" DESC);
-CREATE INDEX IF NOT EXISTS idx_payments_user_status ON payments("userId", status);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_data_gin ON payments USING GIN (data);
 
 COMMENT ON TABLE payments IS 'WayForPay membership upgrade payment tracking';
-COMMENT ON COLUMN payments."orderId" IS 'Unique order reference from WayForPay (format: ring_{userId}_{timestamp})';
-COMMENT ON COLUMN payments."userId" IS 'Ring Platform user ID';
-COMMENT ON COLUMN payments."targetRole" IS 'Target membership role (MEMBER, CONFIDENTIAL)';
-COMMENT ON COLUMN payments.amount IS 'Payment amount (299 for MEMBER, 999 for CONFIDENTIAL)';
-COMMENT ON COLUMN payments.currency IS 'Currency code (UAH for Ukraine)';
-COMMENT ON COLUMN payments.status IS 'Payment lifecycle: initiated → completed/failed/cancelled';
-COMMENT ON COLUMN payments."paymentUrl" IS 'WayForPay hosted payment page URL';
-COMMENT ON COLUMN payments."failureReason" IS 'Reason for payment failure (if status=failed)';
+COMMENT ON COLUMN payments.id IS 'Payment identifier (orderId from WayForPay: ring_{userId}_{timestamp})';
+COMMENT ON COLUMN payments.data IS 'Payment: orderId, userId, targetRole, amount, currency, status, paymentUrl, failureReason';
 
 -- Store Orders (Customer purchases from Ring Portal Store)
 CREATE TABLE IF NOT EXISTS store_orders (
@@ -294,13 +481,10 @@ CREATE INDEX IF NOT EXISTS idx_store_orders_status ON store_orders ((data->>'sta
 CREATE INDEX IF NOT EXISTS idx_store_orders_created_at ON store_orders (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_store_orders_data_gin ON store_orders USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE store_orders IS 'Customer orders from Ring Portal Store (hosting, hardware, courses)';
-COMMENT ON COLUMN store_orders.id IS 'Order identifier';
-COMMENT ON COLUMN store_orders.data IS 'Order details: user, products, total, payment status, etc.';
 
 -- ============================================================================
--- NEWS TABLES (Ring Platform Content Management)
+-- NEWS / CONTENT TABLES
 -- ============================================================================
 
 -- News table
@@ -320,16 +504,54 @@ CREATE INDEX IF NOT EXISTS idx_news_translation_group ON news ((data->>'translat
 CREATE INDEX IF NOT EXISTS idx_news_created_at ON news (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_data_gin ON news USING GIN (data);
 
--- Table documentation
 COMMENT ON TABLE news IS 'Ring Platform news and content articles';
-COMMENT ON COLUMN news.id IS 'News article identifier';
-COMMENT ON COLUMN news.data IS 'Article details: title, content, author, category, locale, translationGroupId, etc.';
+
+-- ============================================================================
+-- FCM PUSH NOTIFICATION TOKENS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS fcm_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(255),
+    token VARCHAR(255) NOT NULL UNIQUE,
+    device_info JSONB NOT NULL,
+    platform VARCHAR(50),
+    browser VARCHAR(100),
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT true,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user_id ON fcm_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_token ON fcm_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_is_active ON fcm_tokens(is_active);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_last_seen ON fcm_tokens(last_seen DESC);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_platform ON fcm_tokens(platform);
+
+COMMENT ON TABLE fcm_tokens IS 'Firebase Cloud Messaging push notification tokens per device';
+
+-- ============================================================================
+-- SCHEMA VERSION TRACKING
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS schema_versions (
+    version VARCHAR(50) PRIMARY KEY,
+    description TEXT NOT NULL,
+    applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    applied_by TEXT DEFAULT CURRENT_USER
+);
+
+INSERT INTO schema_versions (version, description) 
+VALUES ('4.0.0', 'Unified schema: merged core tables from scripts/postgres-schema.sql, fixed payments to JSONB, added usernames, added LISTEN/NOTIFY')
+ON CONFLICT (version) DO NOTHING;
 
 -- ============================================================================
 -- FUNCTIONS AND TRIGGERS
 -- ============================================================================
 
--- Function to update updated_at timestamp
+-- Function to update updated_at timestamp (standard JSONB tables)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -338,7 +560,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Function to update store_settings timestamp
+-- Function to update store_settings timestamp (special-case table)
 CREATE OR REPLACE FUNCTION update_store_settings_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -347,17 +569,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create triggers for all tables with updated_at column
+-- Create updated_at triggers for ALL standard tables
 DO $$
 DECLARE
-    table_name TEXT;
+    tbl TEXT;
 BEGIN
-    FOR table_name IN 
+    FOR tbl IN 
         SELECT tablename FROM pg_tables 
         WHERE schemaname = 'public' 
-        AND tablename IN ('users', 'products', 'vendors', 'vendor_profiles', 'orders', 
-                         'certifications', 'delivery_zones', 'store_products', 'news',
-                         'currencies', 'countries')
+        AND tablename IN (
+            -- Core
+            'users', 'usernames', 'entities', 'opportunities',
+            -- Messaging
+            'messages', 'conversations', 'notifications',
+            -- Social
+            'comments', 'likes', 'reviews',
+            -- Web3
+            'wallet_transactions', 'nft_listings',
+            -- Marketplace
+            'products', 'vendors', 'vendor_profiles', 'orders',
+            'certifications', 'delivery_zones',
+            -- Store
+            'store_products', 'store_orders', 'payments',
+            -- Content
+            'news',
+            -- Reference
+            'currencies', 'countries'
+        )
     LOOP
         EXECUTE format('
             DROP TRIGGER IF EXISTS update_%I_updated_at ON %I;
@@ -365,17 +603,65 @@ BEGIN
             BEFORE UPDATE ON %I
             FOR EACH ROW
             EXECUTE FUNCTION update_updated_at_column();
-        ', table_name, table_name, table_name, table_name);
+        ', tbl, tbl, tbl, tbl);
     END LOOP;
 END;
 $$;
 
--- Trigger for store_settings timestamp
+-- FCM tokens trigger (separate because table uses uuid-ossp)
+CREATE OR REPLACE TRIGGER update_fcm_tokens_updated_at
+    BEFORE UPDATE ON fcm_tokens
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Store settings trigger (uses its own timestamp function)
 DROP TRIGGER IF EXISTS update_store_settings_timestamp_trigger ON store_settings;
 CREATE TRIGGER update_store_settings_timestamp_trigger
     BEFORE UPDATE ON store_settings
     FOR EACH ROW
     EXECUTE FUNCTION update_store_settings_timestamp();
+
+-- ============================================================================
+-- REAL-TIME NOTIFICATIONS (LISTEN/NOTIFY)
+-- ============================================================================
+
+-- Function to broadcast table changes via pg_notify
+CREATE OR REPLACE FUNCTION notify_change()
+RETURNS TRIGGER AS $$
+DECLARE
+    payload JSON;
+BEGIN
+    payload = json_build_object(
+        'table', TG_TABLE_NAME,
+        'action', TG_OP,
+        'id', NEW.id,
+        'data', NEW.data
+    );
+    
+    PERFORM pg_notify('table_changes', payload::text);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create NOTIFY triggers for real-time update tables
+DO $$
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOR tbl IN 
+        SELECT tablename FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename IN ('opportunities', 'messages', 'notifications', 'conversations', 'payments')
+    LOOP
+        EXECUTE format('
+            DROP TRIGGER IF EXISTS notify_%I_change ON %I;
+            CREATE TRIGGER notify_%I_change
+            AFTER INSERT OR UPDATE ON %I
+            FOR EACH ROW
+            EXECUTE FUNCTION notify_change();
+        ', tbl, tbl, tbl, tbl);
+    END LOOP;
+END;
+$$;
 
 -- ============================================================================
 -- INITIAL DATA SEEDING
@@ -494,55 +780,23 @@ END
 $$;
 
 -- ============================================================================
--- FCM PUSH NOTIFICATION TOKENS
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS fcm_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id VARCHAR(255),
-    token VARCHAR(255) NOT NULL UNIQUE,
-    device_info JSONB NOT NULL,
-    platform VARCHAR(50),
-    browser VARCHAR(100),
-    user_agent TEXT,
-    is_active BOOLEAN DEFAULT true,
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user_id ON fcm_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_token ON fcm_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_is_active ON fcm_tokens(is_active);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_last_seen ON fcm_tokens(last_seen DESC);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_platform ON fcm_tokens(platform);
-
--- Auto-update updated_at on row changes
-CREATE OR REPLACE TRIGGER update_fcm_tokens_updated_at
-    BEFORE UPDATE ON fcm_tokens
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- SCHEMA VERSION TRACKING
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS schema_versions (
-    version VARCHAR(50) PRIMARY KEY,
-    description TEXT NOT NULL,
-    applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    applied_by TEXT DEFAULT CURRENT_USER
-);
-
-INSERT INTO schema_versions (version, description) 
-VALUES ('3.0.0', 'Ring Platform unified schema with reference data tables (currencies, countries)')
-ON CONFLICT (version) DO NOTHING;
-
--- ============================================================================
 -- SUMMARY
+-- ============================================================================
+-- Tables (28 total):
+--   Reference: currencies, countries
+--   Core: users, usernames, entities, opportunities
+--   Messaging: messages, conversations, notifications
+--   Social: comments, likes, reviews
+--   Web3: wallet_transactions, nft_listings
+--   Marketplace: products, vendors, vendor_profiles, orders, certifications, delivery_zones
+--   Store: store_products, store_settings, payments, store_orders
+--   Content: news
+--   FCM: fcm_tokens
+--   Meta: schema_versions
 -- ============================================================================
 
 SELECT 
-    'Ring Platform Schema v3.0.0 - Installation Complete' as message,
+    'Ring Platform Schema v4.0.0 - Installation Complete' as message,
     COUNT(*) as total_tables
 FROM pg_tables
 WHERE schemaname = 'public';
