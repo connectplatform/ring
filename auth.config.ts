@@ -56,7 +56,7 @@ export default {
     },
     jwt({ token, user }) {
       if (user) {
-        token.role = user.role || UserRole.SUBSCRIBER
+        token.role = token.role || user.role || UserRole.SUBSCRIBER
         token.isVerified = (user as any).isVerified || false
       }
       return token

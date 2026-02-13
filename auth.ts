@@ -51,10 +51,10 @@ const authLog = (...args: any[]) => {
  */
 
 // Get cached auth adapter (singleton pattern for performance)
-const authAdapter = await getAuthAdapter()
+const authAdapter = getAuthAdapter()
 
 // Import backend mode utilities for conditional logic
-const { shouldUseFirebaseForDatabase } = require('./lib/database/backend-mode-config')
+import { shouldUseFirebaseForDatabase } from './lib/database/backend-mode-config'
 const useFirebase = shouldUseFirebaseForDatabase()
 const usePostgreSQL = !useFirebase
 
@@ -305,7 +305,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
       if (user) {
         token.userId = user.id
-        token.role = (user as any).role ?? UserRole.SUBSCRIBER
+        token.role = token.role || (user as any).role || UserRole.SUBSCRIBER
         token.isVerified = (user as any).isVerified ?? false
         token.username = (user as any).username
         token.phoneNumber = (user as any).phoneNumber
