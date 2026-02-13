@@ -18,7 +18,7 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { RingPaymentModal } from './ring-payment-modal'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { initiateMembershipPayment } from '@/app/_actions/membership-payment'
@@ -31,7 +31,7 @@ interface PaymentModalProps {
 
 export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const t = useTranslations('modules.membership')
-  const { balance } = useCreditBalance()
+  const { balance } = useCreditBalanceContext()
   const [showRingPayment, setShowRingPayment] = useState(false)
   const [selectedTab, setSelectedTab] = useState('ring')
   const [formState, formAction] = useActionState(initiateMembershipPayment, null)

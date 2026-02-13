@@ -34,7 +34,7 @@ import {
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { ROUTES } from '@/constants/routes'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
@@ -180,8 +180,8 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   const [isDragging, setIsDragging] = useState(false)
   const dragStartPos = useRef({ x: 0, y: 0 })
   
-  // Real-time data
-  const { balance: ringBalance } = useCreditBalance()
+  // Real-time data from shared context
+  const { balance: ringBalance } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useUnreadCount()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])

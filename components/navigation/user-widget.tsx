@@ -38,7 +38,7 @@ import {
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ROUTES } from '@/constants/routes'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useOptionalStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
@@ -547,8 +547,8 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
   const { data: session } = useSession()
   const [mounted, setMounted] = useState(false)
 
-  // Real-time data hooks
-  const { balance: ringBalance, isLoading: balanceLoading } = useCreditBalance()
+  // Real-time data from shared context
+  const { balance: ringBalance, isLoading: balanceLoading } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useUnreadCount()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])

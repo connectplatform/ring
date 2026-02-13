@@ -1,6 +1,7 @@
 import React from 'react'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { SessionProvider } from '@/features/auth/components/session-provider'
+import { CreditBalanceProvider } from '@/components/providers/credit-balance-provider'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { WebVitalsProvider } from '@/components/providers/web-vitals-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
@@ -165,6 +166,7 @@ export default async function RootLayout({
       </head>
       <body className="font-inter antialiased">
       <SessionProvider>
+        <CreditBalanceProvider>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
           <Web3Provider>
           <WebVitalsProvider>
@@ -194,6 +196,7 @@ export default async function RootLayout({
           </WebVitalsProvider>
         </Web3Provider>
         </GoogleOAuthProvider>
+        </CreditBalanceProvider>
       </SessionProvider>
       </body>
     </html>

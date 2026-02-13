@@ -48,7 +48,7 @@ import packageInfo from '@/package.json'
 import { MiniCart } from '@/features/store/components/mini-cart'
 import { FavoritesMenu } from '@/features/store/components/favorites-menu'
 import { NotificationCenter } from '@/features/notifications/components/notification-center'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { toast } from '@/hooks/use-toast'
 import { Separator } from '@/components/ui/separator'
 import { useCurrency } from '@/features/store/currency-context'
@@ -100,7 +100,7 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
     isLoading: balanceLoading,
     error: balanceError,
     refresh: refetchBalance
-  } = useCreditBalance()
+  } = useCreditBalanceContext()
 
   // Fix hydration mismatch by only rendering auth UI after mount
   useEffect(() => {

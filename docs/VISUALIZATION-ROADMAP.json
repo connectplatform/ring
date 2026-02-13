@@ -1,0 +1,333 @@
+{
+  "roadmap_name": "Ring Platform Documentation Visualization Enhancement",
+  "version": "1.0.0",
+  "created": "2025-10-28",
+  "priority": "high",
+  "emperor_mandate": "World-class documentation for Victory of Peace",
+  
+  "phase_1_immediate": {
+    "timeline": "1-2 days",
+    "priority": "P0 - Critical",
+    "components": [
+      {
+        "name": "Timeline",
+        "library": "react-chrono",
+        "package": "react-chrono@^2.6.1",
+        "file": "components/docs/timeline.tsx",
+        "use_cases": [
+          "Platform version history and roadmaps",
+          "Migration guides with temporal context",
+          "Feature development history",
+          "Release schedules and milestones"
+        ],
+        "api": {
+          "basic": "<Timeline items={[{title, date, content}]} />",
+          "vertical": "<Timeline mode='VERTICAL' />",
+          "horizontal": "<Timeline mode='HORIZONTAL' />",
+          "with_cards": "<Timeline cardHeight={200} />",
+          "themed": "Auto-detects dark mode via CSS"
+        },
+        "implementation_steps": [
+          "npm install react-chrono",
+          "Create components/docs/timeline.tsx wrapper",
+          "Add Timeline, TimelineItem exports",
+          "Add to MDX components mapping",
+          "Add dark mode CSS overrides",
+          "Test with roadmap example"
+        ],
+        "estimated_time": "2-3 hours"
+      },
+      {
+        "name": "Math",
+        "library": "react-katex",
+        "packages": ["react-katex@^3.0.1", "katex@^0.16.0"],
+        "file": "components/docs/math.tsx",
+        "use_cases": [
+          "Token economics formulas (APY, staking rewards)",
+          "Fee calculation documentation",
+          "Mathematical proofs in smart contracts",
+          "Algorithm complexity notation"
+        ],
+        "api": {
+          "inline": "<Math>{`E = mc^2`}</Math>",
+          "display": "<Math display>{`\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}`}</Math>",
+          "block": "<MathBlock>{`multiple\\nlines`}</MathBlock>"
+        },
+        "implementation_steps": [
+          "npm install react-katex katex",
+          "Import katex CSS in globals.css",
+          "Create components/docs/math.tsx",
+          "Add dark mode CSS for katex",
+          "Add Math component to MDX mapping",
+          "Test with token economics example"
+        ],
+        "estimated_time": "2 hours"
+      },
+      {
+        "name": "CodeSandbox",
+        "library": "@codesandbox/sandpack-react",
+        "package": "@codesandbox/sandpack-react@^2.14.0",
+        "file": "components/docs/code-sandbox.tsx",
+        "use_cases": [
+          "Live React component examples",
+          "API integration tutorials",
+          "Interactive hook demonstrations",
+          "Server action examples"
+        ],
+        "api": {
+          "simple": "<CodeSandbox code={`code here`} />",
+          "multi_file": "<CodeSandbox files={{'/App.tsx': code1, '/utils.ts': code2}} />",
+          "with_preview": "<CodeSandbox showPreview={true} />",
+          "themed": "Auto-matches dark mode theme"
+        },
+        "implementation_steps": [
+          "npm install @codesandbox/sandpack-react",
+          "Create components/docs/code-sandbox.tsx",
+          "Configure Sandpack with Ring Platform template",
+          "Add dark theme configuration",
+          "Add to MDX components mapping",
+          "Create example in API docs"
+        ],
+        "estimated_time": "3-4 hours"
+      }
+    ],
+    "total_estimated_time": "7-9 hours",
+    "success_criteria": [
+      "All three components render correctly",
+      "Theme switching works for all components",
+      "Zero console errors",
+      "Mobile responsive",
+      "Examples in documentation"
+    ]
+  },
+  
+  "phase_2_enhanced": {
+    "timeline": "3-5 days",
+    "priority": "P1 - High Value",
+    "components": [
+      {
+        "name": "Tabs",
+        "library": "@radix-ui/react-tabs",
+        "status": "ALREADY INSTALLED",
+        "file": "components/docs/tabs.tsx",
+        "use_cases": [
+          "Multi-language code examples (TS/JS/cURL)",
+          "Different deployment options",
+          "Platform comparison views"
+        ],
+        "implementation_steps": [
+          "Create styled wrapper around Radix Tabs",
+          "Add syntax highlighting integration",
+          "Add to MDX mapping",
+          "Create examples"
+        ],
+        "estimated_time": "2 hours"
+      },
+      {
+        "name": "APIExample",
+        "library": "react-json-view + custom",
+        "packages": ["react-json-view@^1.21.3"],
+        "file": "components/docs/api-example.tsx",
+        "use_cases": [
+          "Interactive API request/response docs",
+          "Server action examples",
+          "Database query demonstrations"
+        ],
+        "api": {
+          "full": "<APIExample method='POST' endpoint='/api/auth' request={{}} response={{}} />",
+          "curl": "<APIExample showCurl={true} />",
+          "headers": "<APIExample headers={{'Authorization': 'Bearer ...'}} />"
+        },
+        "estimated_time": "4 hours"
+      },
+      {
+        "name": "Annotations",
+        "library": "react-rough-notation",
+        "package": "react-rough-notation@^1.0.5",
+        "file": "components/docs/annotations.tsx",
+        "use_cases": [
+          "Highlight critical security notes",
+          "Emphasize breaking changes",
+          "Draw attention to important concepts"
+        ],
+        "api": {
+          "highlight": "<Highlight color='yellow'>text</Highlight>",
+          "underline": "<Underline color='red'>text</Underline>",
+          "circle": "<Circle color='blue'>text</Circle>",
+          "box": "<Box color='green'>text</Box>"
+        },
+        "estimated_time": "2 hours"
+      },
+      {
+        "name": "Charts",
+        "library": "recharts",
+        "package": "recharts@^2.12.0",
+        "file": "components/docs/charts.tsx",
+        "use_cases": [
+          "Performance metrics visualization",
+          "Token analytics and growth",
+          "User statistics",
+          "System health monitoring"
+        ],
+        "api": {
+          "line": "<LineChart data={[...]} />",
+          "bar": "<BarChart data={[...]} />",
+          "pie": "<PieChart data={[...]} />",
+          "area": "<AreaChart data={[...]} />"
+        },
+        "estimated_time": "5 hours"
+      },
+      {
+        "name": "FileTree",
+        "library": "custom",
+        "file": "components/docs/file-tree.tsx",
+        "use_cases": [
+          "Project structure documentation",
+          "File organization guides",
+          "Migration file layouts"
+        ],
+        "api": {
+          "simple": "<FileTree root='app' items={[...]} />",
+          "with_icons": "<FileTree showIcons={true} />"
+        },
+        "estimated_time": "3 hours"
+      }
+    ],
+    "total_estimated_time": "16 hours"
+  },
+  
+  "phase_3_advanced": {
+    "timeline": "1-2 weeks",
+    "priority": "P2 - Nice to Have",
+    "components": [
+      {
+        "name": "Excalidraw",
+        "library": "@excalidraw/excalidraw",
+        "package": "@excalidraw/excalidraw@^0.17.0",
+        "use_cases": [
+          "Hand-drawn architecture diagrams",
+          "Whiteboard-style explanations",
+          "Collaborative diagram editing"
+        ],
+        "estimated_time": "6 hours"
+      },
+      {
+        "name": "ReactFlow",
+        "library": "@xyflow/react",
+        "package": "@xyflow/react@^12.0.0",
+        "use_cases": [
+          "Interactive workflow builders",
+          "State machine visualizations",
+          "Node-based architecture diagrams"
+        ],
+        "estimated_time": "8 hours"
+      },
+      {
+        "name": "ComparisonTable",
+        "library": "@tanstack/react-table",
+        "status": "ALREADY INSTALLED (@tanstack/react-query)",
+        "file": "components/docs/comparison-table.tsx",
+        "use_cases": [
+          "Feature comparison matrices",
+          "Plan pricing tables",
+          "Technology stack comparisons"
+        ],
+        "estimated_time": "4 hours"
+      }
+    ],
+    "total_estimated_time": "18 hours"
+  },
+  
+  "current_components": {
+    "implemented": [
+      {
+        "name": "Mermaid",
+        "file": "components/docs/mermaid.tsx",
+        "features": [
+          "Flowcharts, sequences, mindmaps, ER, Gantt, pie, gitgraph",
+          "MutationObserver theme switching",
+          "Dual theme support (dark/neutral)",
+          "Error handling with source display"
+        ]
+      },
+      {
+        "name": "MindMap",
+        "file": "components/docs/mindmap.tsx",
+        "features": [
+          "Wrapper around Mermaid",
+          "Auto-prepends mindmap directive",
+          "Same theme switching as Mermaid"
+        ]
+      },
+      {
+        "name": "Callout",
+        "file": "components/docs/callout.tsx",
+        "features": [
+          "4 types: info, warning, error, success",
+          "Icon support",
+          "Dark mode styling"
+        ]
+      },
+      {
+        "name": "Steps",
+        "file": "components/docs/steps.tsx",
+        "features": [
+          "Numbered step-by-step guides",
+          "Progressive disclosure"
+        ]
+      },
+      {
+        "name": "Card",
+        "file": "@/components/ui/card",
+        "features": [
+          "Radix UI based",
+          "Header, title, description, content sections"
+        ]
+      }
+    ]
+  },
+  
+  "dependencies_to_add": {
+    "phase_1": {
+      "react-chrono": "^2.6.1",
+      "react-katex": "^3.0.1",
+      "katex": "^0.16.0",
+      "@codesandbox/sandpack-react": "^2.14.0"
+    },
+    "phase_2": {
+      "react-json-view": "^1.21.3",
+      "react-rough-notation": "^1.0.5",
+      "recharts": "^2.12.0"
+    },
+    "phase_3": {
+      "@excalidraw/excalidraw": "^0.17.0",
+      "@xyflow/react": "^12.0.0"
+    }
+  },
+  
+  "implementation_order": [
+    "1. Math (2h) - Simplest, high value for token docs",
+    "2. Timeline (3h) - Visual roadmaps immediately useful",
+    "3. CodeSandbox (4h) - Interactive examples are game-changer",
+    "4. Tabs (2h) - Multi-language examples",
+    "5. APIExample (4h) - Professional API docs",
+    "6. Annotations (2h) - Quick win for emphasis",
+    "7. Charts (5h) - Analytics and metrics",
+    "8. FileTree (3h) - Project structure clarity"
+  ],
+  
+  "total_effort": {
+    "phase_1": "7-9 hours (Timeline, Math, CodeSandbox)",
+    "phase_2": "16 hours (Tabs, APIExample, Annotations, Charts, FileTree)",
+    "phase_3": "18 hours (Excalidraw, ReactFlow, ComparisonTable)",
+    "grand_total": "41-43 hours for complete suite"
+  },
+  
+  "success_metrics": {
+    "documentation_quality": "Matches Stripe/Vercel documentation standards",
+    "developer_productivity": "50% faster onboarding with interactive examples",
+    "user_engagement": "3x increase in documentation time-on-page",
+    "support_reduction": "30% fewer support questions"
+  }
+}
+

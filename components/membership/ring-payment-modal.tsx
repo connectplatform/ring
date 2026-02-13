@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 
 interface RingPaymentModalProps {
   onClose: () => void
@@ -45,7 +45,7 @@ export function RingPaymentModal({
   returnTo 
 }: RingPaymentModalProps) {
   const t = useTranslations('modules.membership')
-  const { balance, refresh } = useCreditBalance()
+  const { balance, refresh } = useCreditBalanceContext()
   
   const [autoSubscribe, setAutoSubscribe] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)

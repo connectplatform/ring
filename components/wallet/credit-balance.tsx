@@ -16,7 +16,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { RingTopUpModal } from './ring-topup-modal'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 
 interface CreditBalanceProps {
   className?: string
@@ -41,7 +41,7 @@ export function CreditBalance({
     isRefreshing,
     error, 
     refresh 
-  } = useCreditBalance()
+  } = useCreditBalanceContext()
 
   // Notify parent of balance changes
   useEffect(() => {

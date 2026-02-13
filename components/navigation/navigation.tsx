@@ -36,7 +36,7 @@ import { Badge } from "@/components/ui/badge"
 import { MiniCart } from '@/features/store/components/mini-cart'
 import { FavoritesMenu } from '@/features/store/components/favorites-menu'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n-config'
 import MobileUserWidget from './mobile-user-widget'
@@ -91,13 +91,13 @@ export default function Navigation() {
   const [mounted, setMounted] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Wallet balance hook for authenticated users
+  // Wallet balance context - shared across all components
   const { 
     balance: ringBalance, 
     isLoading: balanceLoading, 
     error: balanceError,
     refresh: refetchBalance
-  } = useCreditBalance()
+  } = useCreditBalanceContext()
 
   // Fix hydration mismatch by only rendering auth UI after mount
   useEffect(() => {
