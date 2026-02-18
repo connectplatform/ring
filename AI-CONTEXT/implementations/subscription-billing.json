@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "object_type": "implementation",
+  "name": "Business Subscription Billing System",
+  "category": "payment_subscriptions",
+  "created": "2026-02-17",
+  "status": "designed",
+  "phase": "phase_4_pending",
+
+  "overview": {
+    "description": "Stripe-based subscription billing system for businesses with one-time listing fees and recurring monthly subscriptions",
+    "use_case": "Business places pay to be visible on platform: $19.99 one-time listing + $10/month subscription",
+    "innovation": "Extends Ring Platform's user membership model to BUSINESS subscriptions - reusable for any B2B Ring clone"
+  },
+
+  "subscription_model": {
+    "listing_fee": {
+      "amount": "$19.99 USD",
+      "type": "one_time",
+      "purpose": "Initial place registration and verification",
+      "stripe_product": "prod_listing_fee",
+      "stripe_price": "price_listing_fee_19_99"
+    },
+    "monthly_subscription": {
+      "amount": "$10 USD/month",
+      "type": "recurring",
+      "purpose": "Active place visibility on map and search results",
+      "stripe_product": "prod_monthly_subscription",
+      "stripe_price": "price_monthly_10",
+      "billing_interval": "month"
+    },
+    "grace_period": {
+      "duration": "3-7 days",
+      "behavior": "Place remains visible but shows 'Subscription Expiring Soon' badge",
+      "countdown_ui": "Days remaining displayed in place dashboard"
+    },
+    "suspension": {
+      "trigger": "Payment failure after grace period",
+      "effect": "Place hidden from map and search (visibleOnMap = false)",
+      "restoration": "Automatic on successful payment"
+    }
+  },
+
+  "stripe_integration": {
+    "webhook_events": [
+      "invoice.payment_succeeded - Activate/renew subscription",
+      "invoice.payment_failed - Start grace period countdown",
+      "customer.subscription.deleted - Suspend place visibility",
+      "customer.subscription.updated - Update subscription status"
+    ],
+    "payment_methods": [
+      "card (Stripe Elements)",
+      "apple_pay (Payment Request API)",
+      "google_pay (Payment Request API)"
+    ],
+    "webhook_signature_validation": "stripe.webhooks.constructEvent(payload, signature, STRIPE_WEBHOOK_SECRET)"
+  },
+
+  "database_schema": {
+    "table": "subscriptions",
+    "fields": {
+      "id": "VARCHAR(255) PRIMARY KEY",
+      "place_id": "VARCHAR(255) REFERENCES places(id)",
+      "stripe_customer_id": "VARCHAR(255)",
+      "stripe_subscription_id": "VARCHAR(255)",
+      "data": "JSONB NOT NULL (status, plan_type, pricing, grace_period, payment_history)"
+    }
+  },
+
+  "propagation_value": {
+    "to_ring_platform_org": "HIGH",
+    "reasons": [
+      "Ring Platform currently has USER membership (RING token $12/month)",
+      "This pattern enables BUSINESS/ENTITY subscriptions (SaaS model)",
+      "Any B2B Ring clone needs business billing (vendor subscriptions, entity tiers)",
+      "Extends Ring's payment architecture beyond user memberships",
+      "Reusable for: vendor subscriptions, premium entity listings, sponsored opportunities"
+    ],
+    "propagation_targets": [
+      "Database schema: subscriptions table → ring-platform.org/data/schema.sql",
+      "Stripe integration patterns → ring-platform.org/lib/payments/stripe-service.ts",
+      "Subscription UI components → ring-platform.org/features/subscriptions/",
+      "Server actions: subscribe, cancel, updatePayment → ring-platform.org/app/_actions/subscriptions.ts"
+    ],
+    "new_feature_for_ring": "BUSINESS_SUBSCRIPTIONS module - extends beyond current USER_MEMBERSHIPS"
+  },
+
+  "server_actions": {
+    "initiateSubscription": "Start Stripe subscription with listing fee",
+    "cancelSubscription": "Cancel and handle grace period",
+    "updatePaymentMethod": "Update card/Apple Pay/Google Pay",
+    "checkSubscriptionStatus": "Get current status + days remaining"
+  },
+
+  "ui_components": {
+    "subscription_dashboard": "Place dashboard showing status, renewal date, payment method",
+    "payment_method_manager": "Update card, add Apple Pay/Google Pay",
+    "subscription_status_badge": "Visual indicator (Active, Grace Period, Suspended)",
+    "grace_period_countdown": "Days remaining with call-to-action"
+  },
+
+  "keywords": [
+    "subscription-billing",
+    "stripe-integration",
+    "business-subscriptions",
+    "recurring-payments",
+    "grace-period",
+    "visibility-control",
+    "payment-methods"
+  ]
+}

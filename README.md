@@ -527,6 +527,135 @@ sequenceDiagram
 - **Audit Logging**: Comprehensive activity tracking
 - **HMAC Webhooks**: Secure payment callback validation
 
+## Optional Features (Reverse Propagated from Ring Clones)
+
+Ring Platform's white-label clones innovate new patterns that flow back to enhance the main platform. These optional features can be enabled in any Ring clone:
+
+### 🗺️ PostGIS Geolocation Service
+
+**Source**: ring-pet-friendly (2026-02-17)  
+**Files**: `lib/geolocation/geolocation-service.ts`, `types/geolocation.ts`  
+**Database**: PostgreSQL with PostGIS extension (auto-added in schema.sql lines 13-23)
+
+**Use Cases**:
+- 📍 Store delivery radius validation (Store module already has `delivery_location` field!)
+- 🏢 Entity office/branch location listings
+- 📅 Event venue discovery and mapping
+- 🏠 Real estate property listings
+- 🍽️ Restaurant/cafe finder applications
+- 🐾 Pet-friendly place directories
+
+**Features**:
+- Nearby search with customizable radius (ST_DWithin spatial queries)
+- Distance calculation with earth-surface accuracy
+- Bounding box queries for map viewport rendering
+- Google Maps geocoding integration (address ↔ coordinates)
+- Generic filter system: `filters?: Record<string, any>` for any domain
+- Performance: <100ms p95 latency with GIST spatial indexes
+
+**How to Enable**:
+```bash
+# 1. Set environment variable
+DB_ENABLE_POSTGIS=true
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-api-key
+
+# 2. PostGIS extensions are automatically added (see schema.sql lines 13-23)
+
+# 3. Add GEOGRAPHY column to your table
+ALTER TABLE your_table ADD COLUMN location GEOGRAPHY(POINT, 4326);
+ALTER TABLE your_table ADD COLUMN latitude NUMERIC(10, 7);
+ALTER TABLE your_table ADD COLUMN longitude NUMERIC(10, 7);
+
+# 4. Create spatial index
+CREATE INDEX idx_your_table_location_gist ON your_table USING GIST(location);
+
+# 5. Use the service
+import { getGeolocationService } from '@/lib/geolocation/geolocation-service';
+
+const geoService = getGeolocationService();
+const nearby = await geoService.findNearbyLocations('your_table', {
+  location: { latitude: 50.4501, longitude: 30.5234 },
+  radius_meters: 5000,
+  filters: { is_active: true, category: 'restaurant' },
+  limit: 50
+});
+```
+
+### 🗺️ Full-Width Map Layout Wrapper
+
+**Source**: ring-pet-friendly (2026-02-17)  
+**File**: `components/wrappers/map-page-wrapper.tsx`
+
+**Pattern**: Alternative to 3-column layout -- full-width viewport optimized for map UX
+
+**Features**:
+- Full-screen map interface (no sidebars)
+- Fixed top navigation bar with branding
+- Mobile-responsive with floating controls
+- Dynamic branding via `useInstanceConfig()`
+- Customizable nav actions
+
+**Usage**:
+```tsx
+import { MapPageWrapper } from '@/components/wrappers/map-page-wrapper';
+
+export default function MapPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  return (
+    <MapPageWrapper locale={locale}>
+      <YourMapComponent />
+    </MapPageWrapper>
+  );
+}
+```
+
+### 💳 Business Subscription Billing
+
+**Source**: ring-pet-friendly (2026-02-17)  
+**Files**: `types/subscription.ts`, `data/schema.sql` (commented-out table)
+
+**Pattern**: Extends Ring's USER membership model to BUSINESS/ENTITY subscriptions
+
+**Use Cases**:
+- 🏪 Vendor subscription tiers (premium marketplace listings)
+- 🏢 Entity promoted visibility (sponsored organizations)
+- 💼 Opportunity featured listings (pay-to-promote jobs/projects)
+- 🏗️ Any B2B Ring clone with recurring business revenue
+
+**Features**:
+- One-time fees (listing fees, setup fees, activation fees)
+- Recurring billing (monthly, yearly plans)
+- Stripe integration (Card, Apple Pay, Google Pay)
+- Grace period system (3-7 days configurable)
+- Automated visibility control (hide entities when subscription inactive)
+- Webhook-driven status updates
+
+**How to Enable**:
+```bash
+# 1. Uncomment subscriptions table in data/schema.sql (lines 567-650)
+
+# 2. Customize foreign key reference
+# Change: place_id -> entity_id, vendor_id, or your entity type
+
+# 3. Add Stripe environment variables
+STRIPE_SECRET_KEY=sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# 4. Create subscription service
+# See ring-pet-friendly/features/subscriptions/ for reference implementation
+
+# 5. Implement webhook handler
+# app/api/webhooks/stripe/route.ts
+```
+
+**Subscription Status Flow**:
+```
+pending → active → [payment fails] → grace_period (3-7 days) → past_due → suspended
+```
+
+---
+
 ## Architecture
 
 ### Application Structure
