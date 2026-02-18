@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "object_type": "implementation",
+  "name": "Full-Width Map Interface Pattern",
+  "category": "ui_layout",
+  "created": "2026-02-17",
+  "status": "implemented",
+  "phase": "phase_4_ui",
+
+  "overview": {
+    "description": "Full-width map layout pattern for Ring Platform - alternative to 3-column layout for map-centric UX",
+    "use_case": "Interactive maps, geolocation discovery interfaces, location pickers",
+    "innovation": "NEW wrapper pattern for Ring Platform - complements 3-column layout for map-focused pages"
+  },
+
+  "layout_pattern": {
+    "name": "Full-Width Map Layout",
+    "structure": "Fixed top navigation bar + full-height map container (NO sidebars)",
+    "responsive": true,
+    "files": [
+      "components/wrappers/map-page-wrapper.tsx",
+      "app/(public)/[locale]/map/page.tsx"
+    ]
+  },
+
+  "key_components": {
+    "map_page_wrapper": {
+      "file": "components/wrappers/map-page-wrapper.tsx",
+      "pattern": "Fixed top bar (57px) + full-height map container",
+      "features": [
+        "Top navigation bar with logo, auth buttons",
+        "Full-width map (no sidebars)",
+        "Floating search/filter controls (absolute positioned)",
+        "Selected place preview card (bottom center)"
+      ]
+    },
+    "pet_friendly_map": {
+      "file": "features/map/components/pet-friendly-map.tsx",
+      "features": [
+        "Google Maps JavaScript API integration",
+        "Navigator geolocation API ('Near Me' button)",
+        "Radius slider (500m - 50km)",
+        "Place type filters (Select dropdown)",
+        "Search input with debouncing",
+        "Place markers with custom icons",
+        "Place preview on marker click"
+      ]
+    }
+  },
+
+  "propagation_value": {
+    "to_ring_platform_org": "MEDIUM-HIGH",
+    "reasons": [
+      "Useful for any Ring clone with store locations, office locations, event venues",
+      "Entity listings map view (show all entities on map)",
+      "Opportunity locations map (job locations, volunteer sites)",
+      "Real estate Ring clones would need this pattern",
+      "Restaurant/cafe finder Ring clones"
+    ],
+    "propagation_targets": [
+      "components/wrappers/map-page-wrapper.tsx → ring-platform.org/components/wrappers/",
+      "features/map/components/ → ring-platform.org/features/map/"
+    ]
+  },
+
+  "google_maps_integration": {
+    "api": "Google Maps JavaScript API",
+    "key": "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
+    "features_used": [
+      "Maps rendering",
+      "Geocoding API (address → coordinates)",
+      "Reverse Geocoding (coordinates → address)",
+      "Places API (autocomplete for address input)"
+    ],
+    "performance": "Client-side map rendering with lazy loading"
+  },
+
+  "ux_patterns": {
+    "floating_controls": "Absolute positioned controls (top-left) over map",
+    "preview_card": "Bottom-center card with selected place details",
+    "near_me_flow": "User clicks → Request location → Center map → Search places",
+    "radius_adjustment": "Slider updates → Auto-refresh search",
+    "type_filter": "Dropdown changes → Auto-refresh with new filter"
+  },
+
+  "keywords": [
+    "map-interface",
+    "full-width-layout",
+    "google-maps",
+    "geolocation",
+    "floating-controls",
+    "interactive-map",
+    "location-discovery"
+  ]
+}
