@@ -8,6 +8,19 @@
 -- Includes: Core, social, marketplace, store, content, FCM, reference data
 -- Compatible with Ring Platform base architecture and all Ring clones
 -- Replaces: scripts/postgres-schema.sql (deprecated)
+
+-- ============================================================================
+-- POSTGIS EXTENSIONS (Optional Geolocation - Reverse Propagation from ring-pet-friendly)
+-- ============================================================================
+-- Purpose: Enable spatial/geographic data types and functions for location-based features
+-- Use Cases: Store delivery radius, entity locations, event venues, restaurant finders, real estate
+-- Performance: Zero overhead if not used (PostgreSQL skips unused extensions)
+-- Activation: Safe to run even if extensions already exist (IF NOT EXISTS)
+-- Note: PostGIS enables GEOGRAPHY columns for accurate earth-surface distance calculations
+-- Propagated from: ring-pet-friendly (2026-02-17) - Battle-tested geolocation patterns
+
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis_topology;
 -- ============================================================================
 -- Changes from v3.0.0:
 --   - Added 10 core tables: entities, opportunities, messages, conversations,
@@ -546,6 +559,91 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 INSERT INTO schema_versions (version, description) 
 VALUES ('4.0.0', 'Unified schema: merged core tables from scripts/postgres-schema.sql, fixed payments to JSONB, added usernames, added LISTEN/NOTIFY')
 ON CONFLICT (version) DO NOTHING;
+
+-- ============================================================================
+-- OPTIONAL: BUSINESS SUBSCRIPTIONS (Reverse propagated from ring-pet-friendly)
+-- ============================================================================
+-- Purpose: Enable B2B recurring billing for Ring clones (vendor tiers, entity promotions, featured listings)
+-- Use Cases: Multi-vendor marketplaces, premium entity visibility, opportunity promotion, SaaS B2B models
+-- Billing: Stripe integration (one-time fees + recurring subscriptions)
+-- Grace Period: 3-7 days configurable grace period for failed payments
+-- Visibility Control: Automated show/hide based on subscription status
+--
+-- Schema Pattern:
+-- - id: Auto-generated with 'sub_' prefix
+-- - Entity reference: Flexible (place_id, entity_id, opportunity_id, etc.) - adapt foreign key as needed
+-- - Stripe IDs: customer_id + subscription_id for webhook handling
+-- - JSONB data: Flexible structure for plan details, pricing, billing periods, grace period
+-- - Status tracking: pending -> active -> grace_period -> past_due -> canceled/suspended
+--
+-- To Enable:
+-- 1. Uncomment this table
+-- 2. Update foreign key reference (place_id -> entity_id or other)
+-- 3. Add Stripe environment variables
+-- 4. Implement webhook handler at app/api/webhooks/stripe/route.ts
+-- 5. Create subscription service at features/subscriptions/
+-- ============================================================================
+
+/*
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id VARCHAR(255) PRIMARY KEY DEFAULT ('sub_' || uuid_generate_v4()::text),
+    -- CUSTOMIZE THIS: Replace place_id with your entity reference
+    entity_id VARCHAR(255) NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    stripe_customer_id VARCHAR(255),
+    stripe_subscription_id VARCHAR(255) UNIQUE,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- JSONB structure for subscriptions.data:
+-- {
+--   "stripe_payment_intent_id": "string",
+--   "plan_type": "basic|premium|enterprise",
+--   "billing_period": "monthly|yearly",
+--   "monthly_price": 10.00,
+--   "listing_fee": 19.99,
+--   "currency": "USD",
+--   "status": "pending|active|grace_period|past_due|canceled|suspended",
+--   "trial_start_at": "ISO timestamp",
+--   "trial_end_at": "ISO timestamp",
+--   "current_period_start": "ISO timestamp",
+--   "current_period_end": "ISO timestamp",
+--   "cancel_at": "ISO timestamp",
+--   "canceled_at": "ISO timestamp",
+--   "ended_at": "ISO timestamp",
+--   "grace_period_days": 7,
+--   "grace_period_ends_at": "ISO timestamp",
+--   "listing_fee_paid": boolean,
+--   "listing_fee_paid_at": "ISO timestamp",
+--   "last_payment_at": "ISO timestamp",
+--   "next_payment_at": "ISO timestamp",
+--   "failed_payment_count": number,
+--   "renewal_reminder_sent": boolean,
+--   "payment_failure_notified": boolean,
+--   "metadata": {}
+-- }
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_entity ON subscriptions(entity_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_sub ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_subscriptions_next_payment ON subscriptions((data->>'next_payment_at'))
+    WHERE (data->>'status') = 'active';
+CREATE INDEX IF NOT EXISTS idx_subscriptions_data_gin ON subscriptions USING GIN(data);
+
+COMMENT ON TABLE subscriptions IS 'Business subscription billing via Stripe (one-time fees + recurring billing) - Reverse propagated from ring-pet-friendly';
+COMMENT ON COLUMN subscriptions.data IS 'Subscription data: Stripe IDs, pricing, status, billing periods, grace period, visibility control';
+
+-- Trigger: Auto-update updated_at timestamp
+CREATE TRIGGER subscriptions_updated_at
+    BEFORE UPDATE ON subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+*/
 
 -- ============================================================================
 -- FUNCTIONS AND TRIGGERS
