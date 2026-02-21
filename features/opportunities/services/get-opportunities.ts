@@ -1,9 +1,8 @@
 /**
  * Get Opportunities Service
  * 
- * React 19 cache() wrapper for opportunity queries
- * PostgreSQL via DatabaseService abstraction
- * Build-time optimization with static data cache
+ * Ring-native: DatabaseService + React 19 cache()
+ * READ operation - cached for performance
  */
 
 import { cache } from 'react'
@@ -12,8 +11,6 @@ import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
 import { db } from '@/lib/database/DatabaseService'
 
 
@@ -58,7 +55,6 @@ export const getOpportunitiesForRole = cache(async (
     hasDeadline?: boolean;
   }
 ): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
-  const phase = getCurrentPhase();
   const {
     userRole,
     limit = 20,
@@ -77,7 +73,7 @@ export const getOpportunitiesForRole = cache(async (
   try {
     console.log('Services: getOpportunitiesForRole - Starting...', { userRole, limit, startAfter });
 
-    // Validate role before proceeding to ensure only authenticated users with valid roles can access opportunities
+    // Validate role
     const validRoles: UserRole[] = [
       UserRole.VISITOR,
       UserRole.SUBSCRIBER,
@@ -93,21 +89,6 @@ export const getOpportunitiesForRole = cache(async (
         role: userRole,
         operation: 'role_validation'
       });
-    }
-
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data ONLY during actual build phase
-    // Skip optimization in development and runtime to ensure real data is always returned
-    if (phase.isBuildTime && process.env.NODE_ENV === 'production' && (shouldUseMockData() || shouldUseCache())) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-opportunities (build-time only)`);
-      
-      try {
-        const opportunities = await getCachedOpportunities({ limit: 30, status: 'active' });
-        const result = opportunities.slice(0, Math.min(limit, 10));
-        return { opportunities: result, lastVisible: null };
-      } catch (cacheError) {
-        logger.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
     }
 
     // Step 2: Build optimized query configuration based on user role
