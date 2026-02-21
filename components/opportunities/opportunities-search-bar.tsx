@@ -45,11 +45,11 @@ export function OpportunitiesSearchBar({
       const url = new URL(pathname, window.location.origin)
       url.searchParams.delete('q')
       router.push(url.toString())
-      setHasSearched(false)
+      startTransition(() => setHasSearched(false))
       return
     }
 
-    setHasSearched(true)
+    startTransition(() => setHasSearched(true))
 
     // Update URL with search parameter
     const url = new URL(pathname, window.location.origin)
@@ -58,7 +58,7 @@ export function OpportunitiesSearchBar({
 
     // Save to recent searches
     const updated = [searchQuery, ...recentSearches.filter(s => s !== searchQuery)].slice(0, 5)
-    setRecentSearches(updated)
+    startTransition(() => setRecentSearches(updated))
     localStorage.setItem('opportunities-recent-searches', JSON.stringify(updated))
   }, [recentSearches, router, pathname])
 
@@ -68,8 +68,10 @@ export function OpportunitiesSearchBar({
   }
 
   const handleClear = () => {
-    setQuery('')
-    setHasSearched(false)
+    startTransition(() => {
+      setQuery('')
+      setHasSearched(false)
+    })
     // Clear search parameter from URL
     const url = new URL(pathname, window.location.origin)
     url.searchParams.delete('q')
@@ -77,7 +79,7 @@ export function OpportunitiesSearchBar({
   }
 
   const handleRecentSearchSelect = (searchTerm: string) => {
-    setQuery(searchTerm)
+    startTransition(() => setQuery(searchTerm))
     handleSearch(searchTerm)
   }
 
