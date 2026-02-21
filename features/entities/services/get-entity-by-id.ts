@@ -1,18 +1,13 @@
 /**
  * Entity Retrieval Service
  * 
- * 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
- * - Centralized service manager with React 19 cache() for request deduplication
- * - Build-time phase detection and intelligent caching strategies
- * - Auth.js v5 authentication with role-based access control
- * - Serialization support for client components
- * - Unified entity retrieval functions
+ * Ring-native implementation using DatabaseService
+ * READ operations - React 19 cache() for performance
+ * Auth.js v5 authentication with role-based access control
  */
 
 import { Entity, SerializedEntity } from '@/features/entities/types'
 import { cache } from 'react'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedEntities } from '@/lib/build-cache/static-data-cache'
 import { db } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
@@ -73,59 +68,27 @@ export class EntityAccessDeniedError extends Error {
  */
 export const getEntityById = cache(async (id: string): Promise<Entity | null> => {
   try {
-    const phase = getCurrentPhase()
-    
-    // Step 1: Handle authentication with build-time graceful fallback
+    // Step 1: Authenticate user
     const session = await auth()
     
-    // During build time, allow unauthenticated access for public entities only
-    if (phase.isBuildTime && !session) {
-      console.log('[Build Optimization] Build-time access - using cached data')
-      
-      try {
-        const cachedEntities = await getCachedEntities()
-        const cachedEntity = cachedEntities.find(e => e.id === id)
-        
-        // Only return public entities during build
-        if (cachedEntity && !cachedEntity.isConfidential) {
-          return cachedEntity as Entity
-        }
-        return null
-      } catch (cacheError) {
-        console.warn('[Build Optimization] Cache miss during build')
-        return null
-      }
-    }
-
-    // Runtime authentication required
-    if (!phase.isBuildTime && (!session || !session.user)) {
+    // Authentication required for entity access
+    if (!session || !session.user) {
       throw new EntityAccessDeniedError('Authentication required')
     }
 
     const userRole = (session?.user?.role as UserRole) || UserRole.VISITOR
 
-    // Step 2: Fetch entity using appropriate strategy
-    let entity: Entity | null = null
-    
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      // Build-time: Use cached data
-      const cachedEntities = await getCachedEntities()
-      entity = cachedEntities.find(e => e.id === id) as Entity || null
-    } else {
-      // Runtime: Use db.command() abstraction
-      const result = await db().execute('findById', {
-        collection: 'entities',
-        id: id
-      });
+    // Step 2: Fetch entity using DatabaseService
+    const result = await db().execute('findById', {
+      collection: 'entities',
+      id: id
+    });
 
-      if (result.success && result.data) {
-        entity = result.data.data as Entity;
-      }
-    }
-
-    if (!entity) {
+    if (!result.success || !result.data) {
       return null
     }
+
+    const entity = result.data.data as Entity
 
     // Step 3: Apply Platform Philosophy access control
     // Confidential entities: CONFIDENTIAL or ADMIN only
