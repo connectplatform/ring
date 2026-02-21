@@ -1,5 +1,6 @@
 import type { StoreAdapter, StoreProduct, CartItem, CheckoutInfo } from './types'
 import { VendorProductIntegrationService } from './services/vendor-product-integration'
+import { generateProductEmbedding } from '@/lib/vector-search'
 
 export class RingStoreService {
   private adapter: StoreAdapter
@@ -20,6 +21,14 @@ export class RingStoreService {
       const basicProducts = await this.list()
       return basicProducts.map(product => ({
         ...product,
+        category: product.category,
+        tags: product.tags,
+        embedding: generateProductEmbedding({
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          tags: product.tags
+        }),
         qualityBadges: [],
         trustScore: 50,
         aiRecommended: false,
