@@ -155,7 +155,13 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     // Balance fetching is now handled by wagmi hooks in components
     // Use useBalance and useReadContract hooks directly
     console.warn('getBalance function is deprecated - use wagmi hooks directly')
-    return wagmiBalance ? wagmiBalance.formatted : '0'
+    if (wagmiBalance) {
+      const value = wagmiBalance.value
+      const decimals = wagmiBalance.decimals
+      const formatted = (Number(value) / Math.pow(10, decimals)).toString()
+      return formatted
+    }
+    return '0'
   }, [wagmiBalance])
 
   // Generic connect function
