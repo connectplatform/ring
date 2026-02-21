@@ -1,17 +1,14 @@
 /**
  * Get Opportunity By ID Service
  * 
- * React 19 cache() wrapper for opportunity retrieval
- * PostgreSQL via DatabaseService abstraction
- * Build-time optimization with static data cache
+ * Ring-native: DatabaseService + React 19 cache()
+ * READ operation cached for performance
  */
 
 import { cache } from 'react'
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
 import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 /**
@@ -47,62 +44,28 @@ export class OpportunityAccessDeniedError extends Error {
  */
 export const getOpportunityById = cache(async (id: string): Promise<Opportunity | null> => {
   try {
-    const phase = getCurrentPhase()
-    
-    // Step 1: Handle authentication with build-time graceful fallback
+    // Step 1: Authenticate user
     const session = await auth()
     
-    // During build time, allow unauthenticated access for public opportunities only
-    if (phase.isBuildTime && !session) {
-      console.log('[Build Optimization] Build-time access - using cached data')
-      
-      try {
-        const cachedOpportunities = await getCachedOpportunities()
-        const cachedOpportunity = cachedOpportunities.find(o => o.id === id)
-        
-        // Only return public opportunities during build
-        if (cachedOpportunity && !cachedOpportunity.isConfidential) {
-          return cachedOpportunity as Opportunity
-        }
-        return null
-      } catch (cacheError) {
-        console.warn('[Build Optimization] Cache miss during build')
-        return null
-      }
-    }
-
-    // Runtime authentication required
-    if (!phase.isBuildTime && (!session || !session.user)) {
+    if (!session || !session.user) {
       throw new OpportunityAccessDeniedError('Authentication required')
     }
 
     const userRole = (session?.user?.role as UserRole) || UserRole.VISITOR
 
-    // Step 2: Fetch opportunity using appropriate strategy
-    let opportunity: Opportunity | null = null
-    
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      // Build-time: Use cached data
-      const cachedOpportunities = await getCachedOpportunities()
-      opportunity = cachedOpportunities.find(o => o.id === id) as Opportunity || null
-    } else {
-      // Runtime: Use DatabaseService abstraction
+    // Step 2: Fetch opportunity using DatabaseService
       await initializeDatabase()
       const db = getDatabaseService()
       const result = await db.findById('opportunities', id)
 
-      if (result.success && result.data) {
-        const doc = result.data as any
-        opportunity = doc.data || doc as Opportunity
-      }
-    }
-
-    if (!opportunity) {
+    if (!result.success || !result.data) {
       return null
     }
 
-    // Step 3: Apply Platform Philosophy access control
-    // Confidential opportunities: CONFIDENTIAL or ADMIN only
+    const doc = result.data as any
+    const opportunity = doc.data || doc as Opportunity
+
+    // Step 3: Apply access control - Confidential: CONFIDENTIAL or ADMIN only
     if (opportunity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
       throw new OpportunityAccessDeniedError('Confidential opportunity access requires CONFIDENTIAL or ADMIN role')
     }
