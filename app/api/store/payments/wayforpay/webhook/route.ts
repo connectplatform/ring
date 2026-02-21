@@ -8,6 +8,7 @@ import {
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { StorePaymentsService } from '@/features/store/services/payments-service'
 import { VendorSettlementService } from '@/features/store/services/vendor-settlement'
+import { ERPStockService } from '@/features/store/services/erp-stock-service'
 import type { StorePayment, StoreOrder } from '@/features/store/types'
 
 /**
@@ -100,10 +101,42 @@ export async function POST(request: NextRequest) {
           orderReference: payload.orderReference
         })
 
-        // Step 4: Process vendor settlements for approved payments
-        try {
-          const order = await StoreOrdersService.getOrderWithPaymentDetails(orderId) as StoreOrder | null
+        // Step 4: Get order details and deduct stock from AI-ERP inventory
+        const order = await StoreOrdersService.getOrderWithPaymentDetails(orderId) as StoreOrder | null
+        
+        if (order?.items && order.items.length > 0) {
+          try {
+            // AI-ERP Warehouse Manager: Deduct stock for all order items
+            const stockResult = await ERPStockService.deductStockForOrder(
+              orderId,
+              order.items,
+              order.userId
+            )
+            
+            logger.info('Store WayForPay Webhook: AI-ERP stock deduction completed', {
+              orderId,
+              deductedProducts: stockResult.deductedProducts.length,
+              failedProducts: stockResult.failedProducts.length,
+              success: stockResult.success
+            })
+            
+            if (!stockResult.success) {
+              logger.warn('Store WayForPay Webhook: Some products failed stock deduction', {
+                orderId,
+                failedProducts: stockResult.failedProducts
+              })
+            }
+          } catch (stockError) {
+            // Log but don't fail the webhook - stock can be reconciled later
+            logger.error('Store WayForPay Webhook: Failed to deduct stock', {
+              orderId,
+              error: stockError
+            })
+          }
+        }
 
+        // Step 5: Process vendor settlements for approved payments
+        try {
           if (order?.vendorSettlements && order.vendorSettlements.length > 0) {
             await VendorSettlementService.processSettlements(orderId, {
               paymentMethod: 'wayforpay',
@@ -125,7 +158,7 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Step 5: Send order confirmation email (async, don't wait)
+        // Step 6: Send order confirmation email (async, don't wait)
         sendOrderConfirmationEmail(orderId, payload).catch(error => {
           logger.warn('Store WayForPay Webhook: Failed to send confirmation email', {
             orderId,
