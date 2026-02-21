@@ -38,17 +38,17 @@ interface EntitiesWrapperProps {
 }
 
 /**
- * EntitiesWrapper component
- * Wraps the EntitiesContent component and handles client-side state
+ * GreenFood Agricultural EntitiesWrapper component
+ * Wraps the EntitiesContent component and handles client-side state for agricultural entities
  *
  * User steps:
- * 1. User visits the entities page
- * 2. Component initializes with server-side props
- * 3. Component updates state based on URL search params
- * 4. User can interact with the entities list (view, sort, filter, paginate)
+ * 1. User visits the GreenFood agricultural entities page
+ * 2. Component initializes with server-side props for agricultural entities
+ * 3. Component updates state based on URL search params with farming focus
+ * 4. User can interact with agricultural entities list (view farms, cooperatives, food producers, sort, filter, paginate)
  *
- * @param {EntitiesWrapperProps} props - The props for the EntitiesWrapper component
- * @returns {JSX.Element} The rendered EntitiesWrapper component
+ * @param {EntitiesWrapperProps} props - The props for the GreenFood EntitiesWrapper component
+ * @returns {JSX.Element} The rendered GreenFood agricultural EntitiesWrapper component
  */
 export default function EntitiesWrapper({
   initialEntities,
@@ -98,10 +98,10 @@ export default function EntitiesWrapper({
   // Show loading state until mounted to prevent hydration mismatches
   if (!mounted) {
     return (
-      <EntitySuspenseBoundary 
-        level="page" 
+      <EntitySuspenseBoundary
+        level="page"
         showProgress={true}
-        description="Preparing entities directory for display"
+        description="Preparing GreenFood agricultural entities directory for sustainable farming discovery"
         retryEnabled={false}
       >
         <div />
@@ -111,19 +111,32 @@ export default function EntitiesWrapper({
 
   return (
     <div>
-      {/* Main Navigation Bar for Entities */}
-      <div className="bg-background border-b border-border mb-6">
-        <div className="container mx-auto px-4 py-4">
+      {/* Main Navigation Bar for GreenFood Agricultural Entities */}
+      <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border-b border-emerald-200 dark:border-emerald-800 mb-6">
+        <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-2xl font-bold text-foreground">
-              {t('title', { defaultValue: 'Entities' })}
-            </h1>
-            
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
+                <Building2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-emerald-800 dark:text-emerald-200">
+                  {t('title', { defaultValue: 'Agricultural Entities' })}
+                </h1>
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
+                  {t('subtitle', { defaultValue: 'Discover farms, cooperatives, and food producers in sustainable agriculture' })}
+                </p>
+              </div>
+            </div>
+
             <div className="flex flex-wrap gap-3">
               {session?.user && (
                 <>
-                  {/* Add Entity Button */}
-                  <AddEntityButton locale={locale as any} className="flex items-center gap-2" />
+                  {/* Add Agricultural Entity Button */}
+                  <AddEntityButton
+                    locale={locale as any}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                  />
                 </>
               )}
             </div>
@@ -131,10 +144,10 @@ export default function EntitiesWrapper({
         </div>
       </div>
 
-      <EntitySuspenseBoundary 
-        level="page" 
+      <EntitySuspenseBoundary
+        level="page"
         showProgress={true}
-        description="Loading entities directory with advanced filtering and sorting"
+        description="Loading GreenFood agricultural entities directory with sustainable farming focus"
         retryEnabled={true}
         onRetry={() => window.location.reload()}
       >
