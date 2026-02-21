@@ -45,7 +45,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       modAdmin,
       modSettings,
       modMembership,
-      modNft
+      modNft,
+      vendor
     ] = await Promise.all([
       import(`@/locales/${targetLocale}/common.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/pages.json`).then(m => m.default).catch(() => ({})),
@@ -75,7 +76,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
       import(`@/locales/${targetLocale}/modules/admin.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/settings.json`).then(m => m.default).catch(() => ({})),
       import(`@/locales/${targetLocale}/modules/membership.json`).then(m => m.default).catch(() => ({})),
-      import(`@/locales/${targetLocale}/modules/nft.json`).then(m => m.default).catch(() => ({}))
+      import(`@/locales/${targetLocale}/modules/nft.json`).then(m => m.default).catch(() => ({})),
+      import(`@/locales/${targetLocale}/vendor.json`).then(m => m.default).catch(() => ({}))
     ])
 
     return {
@@ -109,7 +111,8 @@ export async function buildMessages(locale: string): Promise<JsonRecord> {
         settings: modSettings,
         membership: modMembership,
         nft: modNft
-      }
+      },
+      vendor
     }
   }
 
