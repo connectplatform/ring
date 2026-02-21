@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { AuthUser, UserRole } from '@/features/auth/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +55,7 @@ interface UserStats {
 }
 
 export function AdminUserManager({ initialUsers, locale, translations }: AdminUserManagerProps) {
-  // React 19 useTransition for non-blocking filter updates
+  // React 19 useTransition for non-blocking UI updates
   const [isPending, startTransition] = useTransition();
 
   const [users, setUsers] = useState<AuthUser[]>(initialUsers);
@@ -70,23 +70,23 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
   const [success, setSuccess] = useState<string | null>(null);
 
   // Search and filter change handlers - wrapped in useTransition for non-blocking updates
-  const handleSearchChange = useCallback((value: string) => {
+  const handleSearchChange = (value: string) => {
     startTransition(() => {
       setSearchTerm(value);
     });
-  }, [startTransition]);
+  };
 
-  const handleRoleFilterChange = useCallback((value: UserRole | 'all') => {
+  const handleRoleFilterChange = (value: UserRole | 'all') => {
     startTransition(() => {
       setRoleFilter(value);
     });
-  }, [startTransition]);
+  };
 
-  const handleVerificationFilterChange = useCallback((value: 'all' | 'verified' | 'unverified') => {
+  const handleVerificationFilterChange = (value: 'all' | 'verified' | 'unverified') => {
     startTransition(() => {
       setVerificationFilter(value);
     });
-  }, [startTransition]);
+  };
 
   // Calculate user statistics
   const userStats: UserStats = React.useMemo(() => {
@@ -358,7 +358,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
 
                 <div className="w-full sm:w-48">
                   <Label htmlFor="role-filter">Filter by Role</Label>
-                  <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
+                  <Select value={roleFilter} onValueChange={(value) => handleRoleFilterChange(value as UserRole | 'all')}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Roles" />
                     </SelectTrigger>
@@ -373,7 +373,7 @@ export function AdminUserManager({ initialUsers, locale, translations }: AdminUs
 
                 <div className="w-full sm:w-48">
                   <Label htmlFor="verification-filter">Filter by Verification</Label>
-                  <Select value={verificationFilter} onValueChange={handleVerificationFilterChange}>
+                  <Select value={verificationFilter} onValueChange={(value) => handleVerificationFilterChange(value as 'all' | 'verified' | 'unverified')}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Users" />
                     </SelectTrigger>
