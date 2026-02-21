@@ -14,120 +14,140 @@ export function DocsSidebar({ locale }: DocsSidebarProps) {
 
   const navSections = [
     {
-      title: t('docs.sidebar.gettingStarted'),
+      title: '🌾 ' + t('docs_sidebar.sidebar.gettingStarted'),
       items: [
         {
-          href: `/${locale}/docs/getting-started/installation`,
-          label: t('docs.sidebar.installation')
+          href: `/${locale}/docs/`,
+          label: t('docs_sidebar.sidebar.overview')
         },
         {
-          href: `/${locale}/docs/getting-started/prerequisites`,
-          label: t('docs.sidebar.prerequisites')
+          href: `/${locale}/docs/for-farmers`,
+          label: 'For Farmers'
         },
         {
-          href: `/${locale}/docs/getting-started/first-success`,
-          label: t('docs.sidebar.firstSuccess')
-        },
-        {
-          href: `/${locale}/docs/getting-started/next-steps`,
-          label: t('docs.sidebar.nextSteps')
+          href: `/${locale}/docs/for-buyers`,
+          label: 'For Buyers'
         },
       ]
     },
     {
-      title: t('docs.sidebar.features'),
+      title: '💰 ' + t('docs_sidebar.sidebar.tokenEconomics'),
       items: [
         {
-          href: `/${locale}/docs/features/authentication`,
-          label: t('docs.sidebar.authentication')
+          href: `/${locale}/docs/token-economy`,
+          label: 'DAAR/DAARION System'
         },
         {
-          href: `/${locale}/docs/features/entities`,
-          label: t('docs.sidebar.entities')
+          href: `/${locale}/docs/token-economy/daarsales`,
+          label: 'Buy DAAR Tokens'
         },
         {
-          href: `/${locale}/docs/features/opportunities`,
-          label: t('docs.sidebar.opportunities')
+          href: `/${locale}/docs/token-economy/daarionsales`,
+          label: 'Buy DAARION Tokens'
         },
         {
-          href: `/${locale}/docs/features/messaging`,
-          label: t('docs.sidebar.messaging')
+          href: `/${locale}/docs/token-economy/staking`,
+          label: 'Staking & Rewards'
         },
       ]
     },
     {
-      title: t('docs.sidebar.apiReference'),
+      title: '🌱 Agricultural Features',
       items: [
         {
-          href: `/${locale}/docs/api/authentication`,
-          label: t('docs.sidebar.authentication')
+          href: `/${locale}/docs/agricultural-features`,
+          label: 'Complete Feature Set'
         },
         {
-          href: `/${locale}/docs/api/admin`,
-          label: t('docs.sidebar.admin')
+          href: `/${locale}/docs/agricultural-features/product-schema`,
+          label: 'Product Schema (80+ fields)'
         },
         {
-          href: `/${locale}/docs/api/entities`,
-          label: t('docs.sidebar.entities')
+          href: `/${locale}/docs/agricultural-features/entity-types`,
+          label: 'Entity Types (262 fields)'
         },
         {
-          href: `/${locale}/docs/api/opportunities`,
-          label: t('docs.sidebar.opportunities')
+          href: `/${locale}/docs/agricultural-features/certifications`,
+          label: 'Certifications & Compliance'
+        },
+        {
+          href: `/${locale}/docs/agricultural-features/sustainability`,
+          label: 'Sustainability Metrics'
         },
       ]
     },
     {
-      title: t('docs.sidebar.architecture'),
+      title: '🔗 Blockchain Traceability',
       items: [
         {
-          href: `/${locale}/docs/architecture/data-model`,
-          label: t('docs.sidebar.dataModel')
+          href: `/${locale}/docs/traceability`,
+          label: 'FSMA 204 Compliance'
         },
         {
-          href: `/${locale}/docs/architecture/security`,
-          label: t('docs.sidebar.security')
+          href: `/${locale}/docs/traceability/fsma-204`,
+          label: 'FDA Requirements Guide'
         },
         {
-          href: `/${locale}/docs/architecture/real-time`,
-          label: t('docs.sidebar.realTime')
+          href: `/${locale}/docs/traceability/blockchain`,
+          label: 'Blockchain Verification'
+        },
+        {
+          href: `/${locale}/docs/traceability/smart-contracts`,
+          label: 'Smart Contract Documentation'
+        },
+        {
+          href: `/${locale}/docs/traceability/cold-chain`,
+          label: 'Cold Chain Monitoring'
         },
       ]
     },
     {
-      title: t('docs.sidebar.deployment'),
+      title: '🤖 AI Operations',
       items: [
         {
-          href: `/${locale}/docs/deployment/docker`,
-          label: t('docs.sidebar.docker')
+          href: `/${locale}/docs/dagi-agents`,
+          label: 'DAGI Agent Overview'
         },
         {
-          href: `/${locale}/docs/deployment/vercel`,
-          label: t('docs.sidebar.vercel')
+          href: `/${locale}/docs/dagi-agents/tier-1`,
+          label: 'Junior Agent (Tier 1)'
         },
         {
-          href: `/${locale}/docs/deployment/environment`,
-          label: t('docs.sidebar.environment')
+          href: `/${locale}/docs/dagi-agents/tier-2`,
+          label: 'Medium Agent (Tier 2)'
+        },
+        {
+          href: `/${locale}/docs/dagi-agents/tier-3`,
+          label: 'Senior Agent (Tier 3)'
         },
       ]
     },
     {
-      title: t('docs.sidebar.examples'),
+      title: '🏛️ Cooperative Governance',
       items: [
         {
-          href: `/${locale}/docs/examples/quick-start`,
-          label: t('docs.sidebar.quickStart')
+          href: `/${locale}/docs/cooperative-governance`,
+          label: 'Democratic Management'
         },
         {
-          href: `/${locale}/docs/examples/basic-setup`,
-          label: t('docs.sidebar.basicSetup')
+          href: `/${locale}/docs/cooperative-governance/voting-systems`,
+          label: 'Voting Systems'
         },
         {
-          href: `/${locale}/docs/examples/authentication`,
-          label: t('docs.sidebar.authentication')
+          href: `/${locale}/docs/cooperative-governance/proposals`,
+          label: 'Creating Proposals'
         },
         {
-          href: `/${locale}/docs/examples/api-integration`,
-          label: t('docs.sidebar.apiIntegration')
+          href: `/${locale}/docs/cooperative-governance/patronage-refunds`,
+          label: 'Patronage Refunds'
+        },
+        {
+          href: `/${locale}/docs/cooperative-governance/microdao`,
+          label: 'microDAO Integration'
+        },
+        {
+          href: `/${locale}/docs/cooperative-governance/treasury`,
+          label: 'Treasury Management'
         },
       ]
     }
@@ -138,11 +158,14 @@ export function DocsSidebar({ locale }: DocsSidebarProps) {
       <aside className="w-64 bg-card border-r border-border min-h-screen sticky top-0 overflow-y-auto hidden lg:block">
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">⏺️</span>
-            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Documentation
+            <span className="text-2xl">🌾</span>
+            <span className="font-bold text-xl bg-gradient-to-r from-green-600 to-amber-600 bg-clip-text text-transparent">
+              GreenFood.live
             </span>
           </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            {t('sidebar.verifiedFarms')}
+          </p>
         </div>
 
         <nav className="p-4">
