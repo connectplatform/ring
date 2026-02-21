@@ -1,5 +1,6 @@
 import React from 'react'
 import type { Locale } from '@/i18n-config'
+import CheckoutWrapper from '@/components/wrappers/checkout-wrapper'
 import CheckoutClient from './checkout-client'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
@@ -51,8 +52,10 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
       {/* Standard SEO metadata */}
       <meta name="robots" content="index, follow" />
       <meta name="author" content="Ring Platform" />
-      
-      <CheckoutClient key={locale} locale={locale} />
+
+      <CheckoutWrapper locale={validLocale}>
+        <CheckoutClient key={locale} locale={locale} />
+      </CheckoutWrapper>
     </>
   )
 }
