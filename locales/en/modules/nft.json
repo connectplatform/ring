@@ -142,6 +142,26 @@
     "transactionFailed": "Transaction failed. Please try again.",
     "walletRequired": "Please connect your wallet to continue",
     "insufficientFunds": "Insufficient funds for this transaction"
-  }
+  },
+  "title": "NFT Marketplace",
+  "createListing": "Create NFT Listing",
+  "createListingDescription": "List your NFT for sale on the marketplace",
+  "progressSteps": {
+    "nftDetails": "NFT Details",
+    "pricing": "Pricing",
+    "list": "List"
+  },
+  "contractAddress": "NFT Contract Address",
+  "tokenId": "Token ID",
+  "standard": "Standard",
+  "chainId": "Chain ID",
+  "priceAmount": "Price Amount",
+  "currency": "Currency",
+  "native": "NATIVE",
+  "daar": "DAAR",
+  "daarion": "DAARION",
+  "creatingListing": "Creating Listing...",
+  "createNftListing": "Create NFT Listing",
+  "listingCreated": "Listing created and activated.",
+  "failedToCreateListing": "Failed to create listing"
 }
-

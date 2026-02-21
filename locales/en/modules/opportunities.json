@@ -242,89 +242,89 @@
   "request": "Technology Request",
   "offer": "Technology Offer",
   "mentorship": "Developer CV",
-    "matchQuality": {
-      "factors": {
-        "skillMatch": "Skills",
-        "experienceMatch": "Experience",
-        "industryMatch": "Industry",
-        "locationMatch": "Location",
-        "budgetMatch": "Budget",
-        "availabilityMatch": "Availability",
-        "careerMatch": "Career Fit",
-        "cultureMatch": "Culture Fit"
-      },
-      "detailedBreakdown": "Match Analysis",
-      "explanation": "AI Explanation",
-      "factorsBreakdown": "Factor Breakdown",
-      "scoringNote": "Scoring based on AI analysis of user profile and opportunity requirements",
-      "matchScore": "Match Score",
-      "levels": {
-        "excellent": "Excellent",
-        "good": "Good",
-        "fair": "Fair",
-        "poor": "Poor"
-      },
-      "clickForDetails": "Click for detailed breakdown",
-      "confidence": {
-        "high": "High confidence",
-        "medium": "Medium confidence",
-        "low": "Low confidence"
-      }
+  "matchQuality": {
+    "factors": {
+      "skillMatch": "Skills",
+      "experienceMatch": "Experience",
+      "industryMatch": "Industry",
+      "locationMatch": "Location",
+      "budgetMatch": "Budget",
+      "availabilityMatch": "Availability",
+      "careerMatch": "Career Fit",
+      "cultureMatch": "Culture Fit"
     },
-    "enrichment": {
-      "title": "AI Opportunity Enrichment",
-      "stats": {
-        "accepted": "Accepted",
-        "modified": "Modified",
-        "pending": "Pending"
-      },
-      "confidence": "Confidence",
-      "description": "AI has analyzed your opportunity and suggests the following improvements. Review and accept the changes you want to apply.",
-      "fields": {
-        "suggestedTags": "Suggested Tags",
-        "estimatedBudget": "Budget Estimate",
-        "requiredSkills": "Required Skills",
-        "industryCategory": "Industry Category",
-        "locationPreference": "Location Preference",
-        "experienceLevel": "Experience Level",
-        "urgency": "Urgency Level",
-        "estimatedDuration": "Estimated Duration",
-        "companySize": "Company Size",
-        "workType": "Work Type"
-      },
-      "noValue": "Not specified",
-      "selectValue": "Select value",
-      "enterValue": "Enter value",
-      "options": {
-        "remote": "Remote",
-        "hybrid": "Hybrid",
-        "onsite": "On-site",
-        "junior": "Junior",
-        "mid": "Mid-level",
-        "senior": "Senior",
-        "lead": "Lead",
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High",
-        "startup": "Startup",
-        "scaleup": "Scale-up",
-        "enterprise": "Enterprise",
-        "fullTime": "Full-time",
-        "partTime": "Part-time",
-        "contract": "Contract",
-        "freelance": "Freelance"
-      },
+    "detailedBreakdown": "Match Analysis",
+    "explanation": "AI Explanation",
+    "factorsBreakdown": "Factor Breakdown",
+    "scoringNote": "Scoring based on AI analysis of user profile and opportunity requirements",
+    "matchScore": "Match Score",
+    "levels": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "fair": "Fair",
+      "poor": "Poor"
+    },
+    "clickForDetails": "Click for detailed breakdown",
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    }
+  },
+  "enrichment": {
+    "title": "AI Opportunity Enrichment",
+    "stats": {
+      "accepted": "Accepted",
       "modified": "Modified",
-      "reject": "Reject All",
-      "acceptSelected": "Accept Selected",
-      "advancedInfo": "Advanced Information",
-      "processingTime": "Processing Time",
-      "suggestionsCount": "Suggestions",
-      "aiModel": "AI Model",
-      "hideAdvanced": "Hide Advanced",
-      "showAdvanced": "Show Advanced"
+      "pending": "Pending"
     },
-    "status": {
+    "confidence": "Confidence",
+    "description": "AI has analyzed your opportunity and suggests the following improvements. Review and accept the changes you want to apply.",
+    "fields": {
+      "suggestedTags": "Suggested Tags",
+      "estimatedBudget": "Budget Estimate",
+      "requiredSkills": "Required Skills",
+      "industryCategory": "Industry Category",
+      "locationPreference": "Location Preference",
+      "experienceLevel": "Experience Level",
+      "urgency": "Urgency Level",
+      "estimatedDuration": "Estimated Duration",
+      "companySize": "Company Size",
+      "workType": "Work Type"
+    },
+    "noValue": "Not specified",
+    "selectValue": "Select value",
+    "enterValue": "Enter value",
+    "options": {
+      "remote": "Remote",
+      "hybrid": "Hybrid",
+      "onsite": "On-site",
+      "junior": "Junior",
+      "mid": "Mid-level",
+      "senior": "Senior",
+      "lead": "Lead",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "startup": "Startup",
+      "scaleup": "Scale-up",
+      "enterprise": "Enterprise",
+      "fullTime": "Full-time",
+      "partTime": "Part-time",
+      "contract": "Contract",
+      "freelance": "Freelance"
+    },
+    "modified": "Modified",
+    "reject": "Reject All",
+    "acceptSelected": "Accept Selected",
+    "advancedInfo": "Advanced Information",
+    "processingTime": "Processing Time",
+    "suggestionsCount": "Suggestions",
+    "aiModel": "AI Model",
+    "hideAdvanced": "Hide Advanced",
+    "showAdvanced": "Show Advanced"
+  },
+  "status": {
     "opportunityTitle": "Opportunity Title",
     "applicationId": "Application ID",
     "submissionId": "Submission ID",
@@ -453,7 +453,20 @@
         "description": "Your opportunity has been unpublished and is no longer visible to other users. You can republish it anytime from your dashboard."
       }
     }
+  },
+  "progressSteps": {
+    "account": "Account",
+    "opportunityDetails": "Opportunity Details",
+    "publish": "Publish"
+  },
+  "creationTips": {
+    "requestType": "Request",
+    "requestTypeDescription": "Find services, advice, or collaboration from the Ring community. Available to all subscribers.",
+    "offerType": "Offer",
+    "offerTypeDescription": "Post official opportunities from your organization. Requires Member status or higher.",
+    "cvType": "Developer CV",
+    "cvTypeDescription": "Share your developer profile and skills to connect with opportunities on the platform.",
+    "confidentialOpportunities": "Confidential Opportunities",
+    "confidentialOpportunitiesDescription": "Private opportunities only visible to Confidential members. Requires special access."
   }
 }
-
-

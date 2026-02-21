@@ -347,9 +347,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json* ./
 
-
-
-
 # Copy lib directory for auth and utilities
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 

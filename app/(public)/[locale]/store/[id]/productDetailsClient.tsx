@@ -142,14 +142,14 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
     
     // Add to cart with selected variants, final price, and preorder flag
     const cartItem = {
-      product,
+      ...product,
       quantity,
       selectedVariants: Object.keys(selectedVariants).length > 0 ? selectedVariants : undefined,
       finalPrice: finalPrice > 0 ? finalPrice : undefined,
       isPreorder: (product.stock === 0 || product.stock === undefined) && product.allowPreorder
     }
     
-    await Promise.resolve(addToCart(cartItem))
+    await Promise.resolve(addToCart(cartItem as any))
     
     success({
       title: t('product.addedToCart', { name: product.name }),
@@ -252,7 +252,7 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
         {/* Main Product Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Left: Image Gallery */}
-          <div className="flex justify-center lg:justify-start">
+          <div>
             <ProductImageGallery
               images={productImages}
               productName={product.name}
@@ -271,7 +271,7 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
               </div>
             </div>
 
-                {/* Variant Selector */}
+            {/* Variant Selector */}
             {variants.length > 0 && (
               <ProductVariantSelector
                 variants={variants}

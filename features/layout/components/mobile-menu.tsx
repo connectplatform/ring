@@ -5,10 +5,10 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  Moon, Sun, X, LogIn, User, Settings, Store, 
-  Wallet, Shield, Crown, Heart, ChevronRight,
-  Globe, Wheat, Tractor, Leaf, ShoppingBasket,
-  Sprout, TreeDeciduous
+  Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
+  Building2, Wallet, Shield, Crown, Heart, Bell, MessageCircle,
+  Home, Info, Phone, FileText, HelpCircle, ChevronRight,
+  Sparkles, Zap, Globe
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
@@ -64,10 +64,27 @@ const getUserRole = (user: Session['user'] | null): UserRole => {
 }
 
 /**
- * GreenFood.live MobileMenu - Agricultural Theme
+ * Check if user can access a link based on role
+ */
+const canAccessLink = (link: NavigationLink, userRole: UserRole): boolean => {
+  if (!link.requiredRole) return true
+  
+  const roleHierarchy = {
+    [UserRole.VISITOR]: 0,
+    [UserRole.SUBSCRIBER]: 1,
+    [UserRole.MEMBER]: 2,
+    [UserRole.CONFIDENTIAL]: 3,
+    [UserRole.ADMIN]: 4
+  }
+  
+  return roleHierarchy[userRole] >= roleHierarchy[link.requiredRole]
+}
+
+/**
+ * MobileMenu component for responsive navigation
  * 
- * Modern sliding menu with farm-to-table aesthetics, role-based navigation,
- * and integrated authentication options. Tailored for the agricultural marketplace.
+ * Modern sliding menu with Tailwind 4 gradients, role-based navigation,
+ * and integrated authentication options.
  */
 const MobileMenu: React.FC<MobileMenuProps> = ({
   navigationLinks,
@@ -87,10 +104,11 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   
   const userRole = getUserRole(user)
   
-  // Use navigation links passed from parent component with agricultural mapping
+  // Use navigation links passed from parent component
   const allNavigationLinks = React.useMemo((): NavigationLink[] => {
-    // Main navigation items with agricultural gradients
+    // Main navigation items (from desktop nav)  
     const mainLinks: NavigationLink[] = navigationLinks.map(link => {
+      // Extract icon component from React element
       let iconComponent: React.ComponentType<{ className?: string }>
       
       if (typeof link.icon === 'function') {
@@ -98,72 +116,59 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
       } else if (React.isValidElement(link.icon) && typeof link.icon.type === 'function') {
         iconComponent = link.icon.type as React.ComponentType<{ className?: string }>
       } else {
-        iconComponent = Wheat // Default to agricultural icon
+        // Fallback to Home icon
+        iconComponent = Home
       }
-      
-      // Apply agricultural gradients based on link content
-      let gradient = 'from-emerald-500 to-green-600'
-      if (link.href.includes('store')) gradient = 'from-amber-500 to-orange-500'
-      if (link.href.includes('entities') || link.href.includes('farm')) gradient = 'from-green-600 to-emerald-600'
-      if (link.href.includes('opportunities') || link.href.includes('harvest')) gradient = 'from-lime-500 to-green-500'
-      if (link.href.includes('docs')) gradient = 'from-teal-500 to-cyan-500'
-      if (link.href.includes('wallet')) gradient = 'from-emerald-600 to-teal-600'
       
       return {
         href: link.href,
         label: link.label,
         icon: iconComponent,
-        gradient
+        gradient: 'from-blue-500 to-green-600'
       }
     })
 
-    // Additional agricultural user links for authenticated users
+    // Additional user links for authenticated users
     const userLinks: NavigationLink[] = user ? [
       {
         href: ROUTES.PROFILE(locale as 'en' | 'uk'),
         label: t('profile'),
         icon: User,
-        gradient: 'from-green-600 to-emerald-700'
+        gradient: 'from-indigo-500 to-blue-600'
       },
       {
         href: ROUTES.SETTINGS(locale as 'en' | 'uk'),
         label: t('settings'),
         icon: Settings,
-        gradient: 'from-slate-500 to-gray-600'
+        gradient: 'from-gray-500 to-slate-600'
       },
       {
         href: `/${locale}/store/settings`,
-        label: locale === 'uk' ? 'Налаштування магазину' : 'Store Settings',
+        label: 'Store Settings',
         icon: Store,
-        gradient: 'from-amber-500 to-orange-600'
-      },
-      {
-        href: `/${locale}/vendor/dashboard`,
-        label: locale === 'uk' ? 'Панель фермера' : 'Farmer Dashboard',
-        icon: Tractor,
-        gradient: 'from-green-500 to-lime-600'
+        gradient: 'from-pink-500 to-rose-600'
       },
       {
         href: ROUTES.MEMBERSHIP(locale as 'en' | 'uk'),
-        label: locale === 'uk' ? 'DAAR Членство' : 'DAAR Membership',
+        label: 'Membership',
         icon: Heart,
-        gradient: 'from-emerald-500 to-green-600'
+        gradient: 'from-red-500 to-pink-600'
       }
     ] : []
 
-    // Confidential links for cooperative leaders and admins
+    // Confidential links for high-tier users
     const confidentialLinks: NavigationLink[] = (userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN) ? [
       {
         href: ROUTES.CONFIDENTIAL_ENTITIES(locale as 'en' | 'uk'),
-        label: locale === 'uk' ? 'Кооперативні ферми' : 'Cooperative Farms',
+        label: 'Confidential Entities',
         icon: Shield,
         requiredRole: UserRole.CONFIDENTIAL,
-        badge: 'COOP',
-        gradient: 'from-emerald-600 to-green-700'
+        badge: 'VIP',
+        gradient: 'from-purple-500 to-indigo-600'
       },
       {
         href: ROUTES.CONFIDENTIAL_OPPORTUNITIES(locale as 'en' | 'uk'),
-        label: locale === 'uk' ? 'Ексклюзивний врожай' : 'Exclusive Harvest',
+        label: 'Confidential Opportunities',
         icon: Crown,
         requiredRole: UserRole.CONFIDENTIAL,
         badge: 'VIP',
@@ -231,26 +236,24 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
       exit="exit"
       className="fixed inset-y-0 left-0 z-50 w-80 bg-gradient-to-br from-background via-background/95 to-background/90 backdrop-blur-xl border-r border-border/50 shadow-2xl"
     >
-      {/* Agricultural gradient overlay - greens and earth tones */}
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-green-500/5 to-lime-500/5 pointer-events-none" />
+      {/* Modern gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
       
       <div className="relative h-full flex flex-col p-6">
-        {/* Header with GreenFood.live branding */}
+        {/* Header with logo and close button */}
         <motion.div 
           variants={itemVariants}
           className="flex justify-between items-center mb-8"
         >
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
-              <Sprout className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                GreenFood
+              <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Ring
               </h2>
-              <p className="text-xs text-muted-foreground">
-                {locale === 'uk' ? 'Від ферми до столу' : 'Farm to Table'}
-              </p>
+              <p className="text-xs text-muted-foreground">Professional Network</p>
             </div>
           </div>
           <Button 
@@ -263,30 +266,25 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
           </Button>
         </motion.div>
 
-        {/* User info section with agricultural theme */}
+        {/* User info section */}
         {user && (
           <motion.div 
             variants={itemVariants}
-            className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20"
+            className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20"
           >
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <User className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate">{user.name || user.email}</p>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-muted-foreground capitalize">
-                    {userRole === UserRole.MEMBER ? (locale === 'uk' ? 'Фермер' : 'Farmer') : 
-                     userRole === UserRole.CONFIDENTIAL ? (locale === 'uk' ? 'Кооператив' : 'Cooperative') :
-                     userRole === UserRole.ADMIN ? (locale === 'uk' ? 'Адмін' : 'Admin') : 
-                     (locale === 'uk' ? 'Покупець' : 'Buyer')}
-                  </span>
+                  <span className="text-xs text-muted-foreground capitalize">{userRole}</span>
                   {userRole === UserRole.CONFIDENTIAL && (
-                    <TreeDeciduous className="w-3 h-3 text-emerald-500" />
+                    <Crown className="w-3 h-3 text-yellow-500" />
                   )}
                   {userRole === UserRole.ADMIN && (
-                    <Shield className="w-3 h-3 text-green-600" />
+                    <Shield className="w-3 h-3 text-red-500" />
                   )}
                 </div>
               </div>
@@ -307,18 +305,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   custom={index}
                 >
                   <Link href={link.href} onClick={onClose}>
-                    <div className={`group relative p-3 rounded-xl transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r ${link.gradient || 'from-emerald-500 to-green-600'} hover:shadow-lg cursor-pointer`}>
+                    <div className={`group relative p-3 rounded-xl transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r ${link.gradient || 'from-blue-500 to-green-600'} hover:shadow-lg cursor-pointer`}>
                       <div className="absolute inset-0 bg-white/90 dark:bg-black/90 rounded-xl group-hover:bg-white/80 dark:group-hover:bg-black/80 transition-colors" />
                       <div className="relative flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-lg bg-gradient-to-br ${link.gradient || 'from-emerald-500 to-green-600'} text-white`}>
+                          <div className={`p-2 rounded-lg bg-gradient-to-br ${link.gradient || 'from-blue-500 to-green-600'} text-white`}>
                             <IconComponent className="w-4 h-4" />
                           </div>
                           <span className="font-medium text-sm">{link.label}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           {link.badge && (
-                            <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-emerald-400 to-green-500 text-white rounded-full">
+                            <span className="px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full">
                               {link.badge}
                             </span>
                           )}
@@ -346,7 +344,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             <Switch
               checked={theme === 'dark'}
               onCheckedChange={toggleTheme}
-              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-emerald-500 data-[state=checked]:to-green-600"
+              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-blue-500 data-[state=checked]:to-purple-600"
             />
           </div>
 
@@ -366,7 +364,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
           {/* Authentication section */}
           {loading ? (
             <div className="flex items-center justify-center p-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
             </div>
           ) : user ? (
             <Button 
@@ -381,7 +379,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             <div className="space-y-3">
               <Button
                 variant="ghost"
-                className="w-full justify-center text-emerald-600 hover:bg-emerald-500/10"
+                className="w-full justify-center text-blue-600 hover:bg-blue-500/10"
                 onClick={() => setShowAuthOptions(!showAuthOptions)}
               >
                 <LogIn className="w-4 h-4 mr-2" />
@@ -429,15 +427,15 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                       {tAuth('signIn.providers.apple')}
                     </Button>
 
-                    {/* DAAR Wallet (Web3) */}
+                    {/* MetaMask */}
                     <Button
                       variant="outline"
-                      className="w-full justify-start bg-gradient-to-r from-emerald-500/10 to-green-500/10 border-emerald-500/20 hover:from-emerald-500/20 hover:to-green-500/20"
+                      className="w-full justify-start bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/20 hover:from-orange-500/20 hover:to-amber-500/20"
                       onClick={() => handleAuthAction('crypto-wallet')}
                       disabled={isSigningIn}
                     >
-                      <Leaf className="w-4 h-4 mr-3 text-emerald-600" />
-                      {locale === 'uk' ? 'DAAR Гаманець' : 'DAAR Wallet'}
+                      <FaEthereum className="w-4 h-4 mr-3" />
+                      {tAuth('signIn.providers.metamask')}
                     </Button>
                   </motion.div>
                 )}
@@ -451,3 +449,4 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 }
 
 export default MobileMenu
+

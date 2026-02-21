@@ -142,6 +142,26 @@
     "transactionFailed": "Транзакція не вдалася. Спробуйте ще раз.",
     "walletRequired": "Підключіть гаманець для продовження",
     "insufficientFunds": "Недостатньо коштів для цієї транзакції"
-  }
+  },
+  "title": "NFT Ринок",
+  "createListing": "Створити NFT Лістинг",
+  "createListingDescription": "Розмістити ваш NFT на продаж на ринку",
+  "progressSteps": {
+    "nftDetails": "Деталі NFT",
+    "pricing": "Ціноутворення",
+    "list": "Опублікувати"
+  },
+  "contractAddress": "Адреса Контракту NFT",
+  "tokenId": "ID Токена",
+  "standard": "Стандарт",
+  "chainId": "ID Мережі",
+  "priceAmount": "Сума Ціни",
+  "currency": "Валюта",
+  "native": "NATIVE",
+  "daar": "DAAR",
+  "daarion": "DAARION",
+  "creatingListing": "Створення лістингу...",
+  "createNftListing": "Створити NFT Лістинг",
+  "listingCreated": "Лістинг створено та активовано.",
+  "failedToCreateListing": "Не вдалося створити лістинг"
 }
-

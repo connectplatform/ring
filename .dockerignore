@@ -17,11 +17,8 @@ build/
 dist/
 
 # Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*
+!.env.local.template
 
 # Logs
 *.log
@@ -161,3 +158,5 @@ yarn.lock
 *.njsproj
 *.sln
 *.sw?
+.cursor/*
+AI-CONTEXT/*

@@ -1,0 +1,22 @@
+{
+  "sidebar": {
+    "title": "Documentation",
+    "navigation": {
+      "title": "Documentation"
+    },
+    "quickAccess": {
+      "title": "Quick Access"
+    }
+  },
+  "comingSoon": {
+    "title": "Documentation Coming Soon",
+    "description": "The GreenFood.live documentation is being prepared. Please check back soon!"
+  },
+  "mobile": {
+    "message": "Please view this page on a desktop device for the full documentation experience."
+  }
+}
+
+
+
+

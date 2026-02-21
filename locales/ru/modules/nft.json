@@ -142,6 +142,26 @@
     "transactionFailed": "Транзакция не удалась. Попробуйте еще раз.",
     "walletRequired": "Подключите кошелек для продолжения",
     "insufficientFunds": "Недостаточно средств для этой транзакции"
-  }
+  },
+  "title": "NFT Маркетплейс",
+  "createListing": "Создать NFT Листинг",
+  "createListingDescription": "Выставить ваш NFT на продажу на маркетплейсе",
+  "progressSteps": {
+    "nftDetails": "Детали NFT",
+    "pricing": "Ценообразование",
+    "list": "Опубликовать"
+  },
+  "contractAddress": "Адрес Контракта NFT",
+  "tokenId": "ID Токена",
+  "standard": "Стандарт",
+  "chainId": "ID Сети",
+  "priceAmount": "Сумма Цены",
+  "currency": "Валюта",
+  "native": "NATIVE",
+  "daar": "DAAR",
+  "daarion": "DAARION",
+  "creatingListing": "Создание листинга...",
+  "createNftListing": "Создать NFT Листинг",
+  "listingCreated": "Листинг создан и активирован.",
+  "failedToCreateListing": "Не удалось создать листинг"
 }
-
