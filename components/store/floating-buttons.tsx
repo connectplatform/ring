@@ -7,7 +7,7 @@
  * - Mobile/iPad: All three buttons grouped (bottom-24 right-6, above nav menu)
  * - Desktop: Split into two groups:
  *   • Sort: Bottom-right of feed (fixed bottom-6 right-[352px])
- *   • Cart + Checkout: Top-right of sidebar (fixed top-6 right-6)
+ *   • Cart + Checkout:
  */
 
 import Link from 'next/link'
