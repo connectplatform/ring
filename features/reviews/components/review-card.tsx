@@ -53,7 +53,7 @@ function SimpleAvatar({ src, alt, fallback }: { src?: string; alt: string; fallb
           className="w-full h-full object-cover"
         />
       ) : (
-              <span className="text-sm font-medium text-muted-foreground">
+        <span className="text-sm font-medium text-gray-600">
           {fallback}
         </span>
       )}
@@ -171,7 +171,7 @@ export function ReviewCard({
       <CardContent className="pt-0">
         <div className="space-y-4">
           {/* Review Content */}
-          <p className="text-muted-foreground leading-relaxed">
+          <p className="text-gray-700 leading-relaxed">
             {review.content}
           </p>
 
