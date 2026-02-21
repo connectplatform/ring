@@ -1,10 +1,7 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use db.command() abstraction layer
-// - Advanced search capabilities with multiple filter types
-// - Role-based access control and confidentiality filtering
-// - React 19 cache() for request deduplication
-// - Performance optimization with intelligent query building
-// - Support for location-based search, budget filtering, date ranges
-// - Full-text search across title, description, tags, and skills
+// 🚀 RING-NATIVE: DatabaseService + React 19 cache()
+// Advanced search with role-based access control
+// READ operation - cached for performance
+// Full-text search, location/budget filtering, pagination
 
 import { cache } from 'react'
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
@@ -13,8 +10,6 @@ import { auth } from '@/auth'
 import { db } from '@/lib/database/DatabaseService'
 import { logger } from '@/lib/logger'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
 
 /**
  * Search parameters interface for comprehensive opportunity search
@@ -101,7 +96,6 @@ export const searchOpportunities = cache(async (
   params: SearchOpportunitiesParams
 ): Promise<SearchOpportunitiesResult> => {
   const startTime = Date.now()
-  const phase = getCurrentPhase()
 
   try {
     logger.info('Services: searchOpportunities - Starting advanced search', { params })
@@ -110,15 +104,10 @@ export const searchOpportunities = cache(async (
     let userRole: UserRole = UserRole.VISITOR
     let userId: string | undefined
 
-    if (!phase.isBuildTime) {
-      const session = await auth()
-      if (!session?.user) {
-        // During build time, allow anonymous access for public opportunities
-        userRole = UserRole.VISITOR
-      } else {
-        userRole = session.user.role as UserRole
-        userId = session.user.id
-      }
+    const session = await auth()
+    if (session?.user) {
+      userRole = session.user.role as UserRole
+      userId = session.user.id
     }
 
     // Override with provided user context if specified
@@ -380,21 +369,10 @@ export const searchOpportunities = cache(async (
     } catch (queryError) {
       logger.warn('Services: searchOpportunities - Query failed, falling back to basic search', queryError)
 
-      // Fallback to cached data if available
-      if (shouldUseCache() || shouldUseMockData()) {
-        try {
-          const cachedOpportunities = await getCachedOpportunities()
-          opportunities = cachedOpportunities.slice(0, params.limit || 20) as SerializedOpportunity[]
-          totalCount = opportunities.length
-          lastVisible = null
-          filtersApplied.push('cached_fallback')
-        } catch (cacheError) {
-          logger.error('Services: searchOpportunities - Cache fallback also failed', cacheError)
-          opportunities = []
-          totalCount = 0
-          lastVisible = null
-        }
-      }
+      // No cached fallback - return empty
+      opportunities = []
+      totalCount = 0
+      lastVisible = null
     }
 
     const searchTime = Date.now() - startTime
