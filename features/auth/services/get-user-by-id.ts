@@ -18,15 +18,7 @@ import {
   UIExperiencePreferences,
   ExternalIntegrations
 } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
-
 import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedUser, getCachedUsers } from '@/lib/build-cache/static-data-cache';
-import {
-  getCachedDocument,
-  getCachedCollectionAdvanced
-} from '@/lib/services/firebase-service-manager';
 import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
