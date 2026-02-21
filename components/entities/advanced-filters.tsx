@@ -145,32 +145,11 @@ const EntityAdvancedFilters = ({
   // Get translated type name
   const getTypeTranslation = (type: EntityType) => {
     const typeMap: { [key in EntityType]: string } = {
-      '3dPrinting': t('types.3dPrinting'),
-      'aiMachineLearning': t('types.aiMachineLearning'),
-      'biotechnology': t('types.biotechnology'),
-      'blockchainDevelopment': t('types.blockchainDevelopment'),
-      'cleanEnergy': t('types.cleanEnergy'),
-      'cloudComputing': t('types.cloudComputing'),
-      'cncMachining': t('types.cncMachining'),
-      'compositeManufacturing': t('types.compositeManufacturing'),
-      'cybersecurity': t('types.cybersecurity'),
-      'droneTechnology': t('types.droneTechnology'),
-      'electronicManufacturing': t('types.electronicManufacturing'),
-      'industrialDesign': t('types.industrialDesign'),
-      'iotDevelopment': t('types.iotDevelopment'),
-      'laserCutting': t('types.laserCutting'),
-      'manufacturing': t('types.manufacturing'),
-      'metalFabrication': t('types.metalFabrication'),
-      'other': t('types.other'),
-      'plasticInjectionMolding': t('types.plasticInjectionMolding'),
-      'precisionEngineering': t('types.precisionEngineering'),
-      'quantumComputing': t('types.quantumComputing'),
-      'robotics': t('types.robotics'),
-      'semiconductorProduction': t('types.semiconductorProduction'),
-      'smartMaterials': t('types.smartMaterials'),
-      'softwareDevelopment': t('types.softwareDevelopment'),
-      'technologyCenter': t('types.technologyCenter'),
-      'virtualReality': t('types.virtualReality')
+      'farm': t('types.farm', { defaultValue: 'Farm' }),
+      'food_producer': t('types.food_producer', { defaultValue: 'Food Producer' }),
+      'farmers_market': t('types.farmers_market', { defaultValue: 'Farmers Market' }),
+      'artisan_producer': t('types.artisan_producer', { defaultValue: 'Artisan Producer' }),
+      'cooperative': t('types.cooperative', { defaultValue: 'Cooperative' })
     }
     return typeMap[type] || type
   }
