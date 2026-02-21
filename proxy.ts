@@ -143,10 +143,10 @@ export default auth(async (req) => {
 
     // Only call auth() if not cached - reduces auth overhead by ~70%
     if (!isCachedAuth) {
-      // Get auth info from Auth.js v5 (middleware version) - ONLY when not cached
+      // Get auth info from Auth.js v5 (proxy version) - ONLY when not cached
       const session = req.auth
       
-      // Check for session cookies as fallback since middleware auth might be inconsistent
+      // Check for session cookies as fallback since proxy auth might be inconsistent
       const hasSessionCookie = !!sessionToken
       
       // Consider user logged in if either session exists OR session cookie is present
@@ -174,7 +174,7 @@ export default auth(async (req) => {
       }
     }
 
-    // Only log middleware checks in development to reduce noise
+    // Only log proxy checks in development to reduce noise
     if (process.env.NODE_ENV === 'development') {
       console.log(`Proxy: Path: ${pathname}, Locale: ${locale}, IsLoggedIn: ${isLoggedIn}, UserRole: ${userRole}`);
     }
