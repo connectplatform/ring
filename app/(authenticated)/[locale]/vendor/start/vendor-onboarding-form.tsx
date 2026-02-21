@@ -97,21 +97,21 @@ export default function VendorOnboardingForm({ locale, translations }: VendorOnb
           <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-semibold text-sm">
             ✓
           </div>
-          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Account</span>
+          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{tStartPage.progressSteps?.account || 'Account'}</span>
         </div>
         <div className="w-12 h-px bg-border"></div>
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
             2
           </div>
-          <span className="text-sm font-medium text-foreground">Store Setup</span>
+          <span className="text-sm font-medium text-foreground">{tStartPage.progressSteps?.storeSetup || 'Store Setup'}</span>
         </div>
         <div className="w-12 h-px bg-border"></div>
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-semibold text-sm">
             3
           </div>
-          <span className="text-sm font-medium text-muted-foreground">Launch</span>
+          <span className="text-sm font-medium text-muted-foreground">{tStartPage.progressSteps?.launch || 'Launch'}</span>
         </div>
       </motion.div>
 
@@ -303,15 +303,15 @@ export default function VendorOnboardingForm({ locale, translations }: VendorOnb
                 <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <span>🌾</span>
-                    <span>50+ Farms</span>
+                    <span>{tStartPage.trustIndicators?.farms || '50+ Farms'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span>⚡</span>
-                    <span>Instant Activation</span>
+                    <span>{tStartPage.trustIndicators?.activation || 'Instant Activation'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span>🛡️</span>
-                    <span>Secure Platform</span>
+                    <span>{tStartPage.trustIndicators?.security || 'Secure Platform'}</span>
                   </div>
                 </div>
               </div>
