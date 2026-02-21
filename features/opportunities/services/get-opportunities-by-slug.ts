@@ -1,17 +1,14 @@
 /**
  * Get Opportunities By Slug Service
  * 
- * React 19 cache() wrapper for slug-based queries
- * PostgreSQL via DatabaseService abstraction
- * Build-time optimization with static data cache
+ * Ring-native: DatabaseService + React 19 cache()
+ * READ operation cached for performance
  */
 
 import { cache } from 'react'
 import { Opportunity } from '@/features/opportunities/types'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
 import { db } from '@/lib/database/DatabaseService'
 
 /**
@@ -40,14 +37,12 @@ import { db } from '@/lib/database/DatabaseService'
  */
 export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opportunity[]> => {
   try {
-    const phase = getCurrentPhase()
     console.log('Services: getOpportunitiesBySlug - Starting with slugs:', slugs)
 
     // Step 1: Authenticate and get user session
     const session = await auth();
     if (!session || !session.user) {
       throw new Error('Unauthorized access');
-
     }
 
     const userRole = session.user.role as UserRole;
@@ -66,55 +61,16 @@ export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opp
 
     console.log(`Services: getOpportunitiesBySlug - User authenticated with role ${userRole}`);
 
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      console.log(`[Service Optimization] Using ${phase.strategy} data for get-opportunities-by-slug`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        const opportunities = await getCachedOpportunities({ limit: 30, status: 'active' });
-        const result = opportunities.slice(0, 10); return result;
-      } catch (cacheError) {
-        console.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
+    // Step 2: Execute query using DatabaseService (tags filter in-memory due to array-contains-any)
+    const result = await db().execute('query', {
+      querySpec: {
+        collection: 'opportunities',
+        orderBy: [{ field: 'dateCreated', direction: 'desc' }],
+        pagination: { limit: 200 } // Fetch more for filtering
       }
-    }
+    })
 
-    // Step 2: Build optimized query configuration based on user role and slugs
-    const queryConfig: any = {
-      orderBy: [{ field: 'dateCreated', direction: 'desc' }]
-    };
-
-    // Build where clauses array
-    const whereClause = [];
-    
-    // Add slug filtering if provided
-    if (slugs.length > 0) {
-      whereClause.push({ field: 'tags', operator: 'array-contains-any', value: slugs });
-    }
-
-    // Apply role-based visibility filtering for non-admin users
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      // For now, we'll use a simpler approach since getCachedCollectionAdvanced may not support complex OR queries
-      // We'll filter by visibility after the query
-    }
-
-    if (whereClause.length > 0) {
-      queryConfig.where = whereClause;
-    }
-
-    // Step 3: Execute query using DatabaseService
-    const querySpec = {
-      collection: 'opportunities',
-      filters: queryConfig.where || [],
-      orderBy: queryConfig.orderBy || [{ field: 'dateCreated', direction: 'desc' }]
-    }
-
-    const result = await db().execute('query', { querySpec })
-
-    // Step 4: Map results and apply role-based filtering
+    // Step 3: Map results and apply slug + role-based filtering
     let opportunities: Opportunity[] = []
     if (result.success && result.data) {
       const items = Array.isArray(result.data) ? result.data : (result.data as any).data || []
@@ -125,6 +81,13 @@ export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opp
           id: item.id
         } as Opportunity
       })
+      
+      // Filter by slugs (array-contains-any equivalent)
+      if (slugs.length > 0) {
+        opportunities = opportunities.filter(opp => 
+          opp.tags && opp.tags.some(tag => slugs.includes(tag))
+        )
+      }
     }
 
     // Apply role-based visibility filtering for non-admin users
