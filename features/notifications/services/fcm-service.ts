@@ -1,22 +1,12 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+// 🚀 RING-NATIVE: DatabaseService for token storage + Firebase Admin for push delivery
+// Token storage: DatabaseService (follows backend mode config)
+// Push delivery: Firebase Admin SDK (FCM infrastructure)
+// React 19: NO cache on token operations (real-time device registration)
 
 import { getMessaging } from 'firebase-admin/messaging'
 import { auth } from '@/auth'
-import { Timestamp, FieldValue } from 'firebase-admin/firestore'
-
-import { 
-  getCachedDocument, 
-  getCachedCollectionAdvanced, 
-  createDocument, 
-  updateDocument,
-  deleteDocument,
-  runTransaction
-} from '@/lib/services/firebase-service-manager';
-import { getAdminDb } from '@/lib/firebase-admin.server';
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { revalidatePath } from 'next/cache'
 
 export interface FCMToken {
   id?: string
@@ -59,18 +49,10 @@ export class FCMService {
     return this.messaging
   }
 
-  // Get database instance via optimized service manager when needed
-  private getDb() {
-    try {
-      return getAdminDb();
-    } catch (error) {
-      console.warn('Firebase database not available:', error.message);
-      throw error;
-    }
-  }
-
-  private get tokensCollection() {
-    return this.getDb().collection('fcm_tokens');
+  // Database service for token storage (Ring-native!)
+  private async getDb() {
+    await initializeDatabase()
+    return getDatabaseService()
   }
 
   /**
@@ -82,33 +64,38 @@ export class FCMService {
     deviceInfo: FCMToken['deviceInfo']
   ): Promise<void> {
     try {
+      const db = await this.getDb()
+      
       // Check if token already exists
-      const existingToken = await this.tokensCollection
-        .where('token', '==', token)
-        .limit(1)
-        .get()
+      const existingResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [{ field: 'token', operator: '==', value: token }],
+        pagination: { limit: 1 }
+      })
 
-      if (!existingToken.empty) {
+      const now = new Date()
+
+      if (existingResult.success && existingResult.data.length > 0) {
         // Update existing token
-        const doc = existingToken.docs[0]
-        await doc.ref.update({
+        const tokenId = existingResult.data[0].id
+        await db.update('fcm_tokens', tokenId, {
           userId,
           deviceInfo,
           isActive: true,
-          updatedAt: Timestamp.now()
+          updatedAt: now
         })
       } else {
-        // Create new token
-        await this.tokensCollection.add({
+        // Create new token (MUTATION - NO CACHE!)
+        await db.create('fcm_tokens', {
           userId,
           token,
           deviceInfo: {
             ...deviceInfo,
-            lastSeen: Timestamp.fromDate(deviceInfo.lastSeen)
+            lastSeen: deviceInfo.lastSeen
           },
           isActive: true,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
+          createdAt: now,
+          updatedAt: now
         })
       }
 
@@ -124,18 +111,23 @@ export class FCMService {
    */
   async sendToUser(userId: string, notification: FCMNotification): Promise<void> {
     try {
-      // Get all active tokens for the user
-      const tokensSnapshot = await this.tokensCollection
-        .where('userId', '==', userId)
-        .where('isActive', '==', true)
-        .get()
+      const db = await this.getDb()
+      
+      // Get all active tokens for the user (READ - can cache)
+      const tokensResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [
+          { field: 'userId', operator: '==', value: userId },
+          { field: 'isActive', operator: '==', value: true }
+        ]
+      })
 
-      if (tokensSnapshot.empty) {
+      if (!tokensResult.success || tokensResult.data.length === 0) {
         console.log(`No active FCM tokens found for user ${userId}`)
         return
       }
 
-      const tokens = tokensSnapshot.docs.map(doc => doc.data().token)
+      const tokens = tokensResult.data.map((doc: any) => doc.token)
       await this.sendToTokens(tokens, notification)
 
     } catch (error) {
@@ -195,18 +187,23 @@ export class FCMService {
    */
   async sendToUsers(userIds: string[], notification: FCMNotification): Promise<void> {
     try {
-      // Get all active tokens for the users
-      const tokensSnapshot = await this.tokensCollection
-        .where('userId', 'in', userIds)
-        .where('isActive', '==', true)
-        .get()
+      const db = await this.getDb()
+      
+      // Get all active tokens for the users (batched query for multiple users)
+      const tokensResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [
+          { field: 'userId', operator: 'in', value: userIds },
+          { field: 'isActive', operator: '==', value: true }
+        ]
+      })
 
-      if (tokensSnapshot.empty) {
+      if (!tokensResult.success || tokensResult.data.length === 0) {
         console.log('No active FCM tokens found for specified users')
         return
       }
 
-      const tokens = tokensSnapshot.docs.map(doc => doc.data().token)
+      const tokens = tokensResult.data.map((doc: any) => doc.token)
       await this.sendToTokens(tokens, notification)
 
     } catch (error) {
@@ -220,16 +217,19 @@ export class FCMService {
    */
   async sendToAllUsers(notification: FCMNotification): Promise<void> {
     try {
-      const tokensSnapshot = await this.tokensCollection
-        .where('isActive', '==', true)
-        .get()
+      const db = await this.getDb()
+      
+      const tokensResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [{ field: 'isActive', operator: '==', value: true }]
+      })
 
-      if (tokensSnapshot.empty) {
+      if (!tokensResult.success || tokensResult.data.length === 0) {
         console.log('No active FCM tokens found')
         return
       }
 
-      const tokens = tokensSnapshot.docs.map(doc => doc.data().token)
+      const tokens = tokensResult.data.map((doc: any) => doc.token)
       
       // Send in batches of 500 (FCM limit)
       const batchSize = 500
@@ -249,15 +249,19 @@ export class FCMService {
    */
   async removeToken(token: string): Promise<void> {
     try {
-      const tokenSnapshot = await this.tokensCollection
-        .where('token', '==', token)
-        .limit(1)
-        .get()
+      const db = await this.getDb()
+      
+      const tokenResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [{ field: 'token', operator: '==', value: token }],
+        pagination: { limit: 1 }
+      })
 
-      if (!tokenSnapshot.empty) {
-        await tokenSnapshot.docs[0].ref.update({
+      if (tokenResult.success && tokenResult.data.length > 0) {
+        const tokenId = tokenResult.data[0].id
+        await db.update('fcm_tokens', tokenId, {
           isActive: false,
-          updatedAt: Timestamp.now()
+          updatedAt: new Date()
         })
       }
 
@@ -273,20 +277,28 @@ export class FCMService {
    */
   async cleanupInactiveTokens(daysInactive: number = 30): Promise<void> {
     try {
+      const db = await this.getDb()
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - daysInactive)
 
-      const inactiveTokens = await this.tokensCollection
-        .where('deviceInfo.lastSeen', '<', Timestamp.fromDate(cutoffDate))
-        .get()
-
-      const batch = this.getDb().batch()
-      inactiveTokens.docs.forEach(doc => {
-        batch.update(doc.ref, { isActive: false })
+      const inactiveResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [{ field: 'deviceInfo.lastSeen', operator: '<', value: cutoffDate }]
       })
 
-      await batch.commit()
-      console.log(`Cleaned up ${inactiveTokens.size} inactive FCM tokens`)
+      if (!inactiveResult.success || inactiveResult.data.length === 0) {
+        console.log('No inactive tokens to cleanup')
+        return
+      }
+
+      // Update each inactive token (batch operation)
+      let cleanedCount = 0
+      for (const doc of inactiveResult.data) {
+        const updateResult = await db.update('fcm_tokens', doc.id, { isActive: false })
+        if (updateResult.success) cleanedCount++
+      }
+
+      console.log(`Cleaned up ${cleanedCount} inactive FCM tokens`)
 
     } catch (error) {
       console.error('Error cleaning up inactive tokens:', error)
@@ -315,22 +327,22 @@ export class FCMService {
       }
     })
 
-    // Remove failed tokens
+    // Remove failed tokens (batch update)
     if (failedTokens.length > 0) {
-      const batch = this.getDb().batch()
+      const db = await this.getDb()
       
       for (const token of failedTokens) {
-        const tokenDoc = await this.tokensCollection
-          .where('token', '==', token)
-          .limit(1)
-          .get()
+        const tokenResult = await db.query({
+          collection: 'fcm_tokens',
+          filters: [{ field: 'token', operator: '==', value: token }],
+          pagination: { limit: 1 }
+        })
         
-        if (!tokenDoc.empty) {
-          batch.update(tokenDoc.docs[0].ref, { isActive: false })
+        if (tokenResult.success && tokenResult.data.length > 0) {
+          await db.update('fcm_tokens', tokenResult.data[0].id, { isActive: false })
         }
       }
 
-      await batch.commit()
       console.log(`Removed ${failedTokens.length} invalid FCM tokens`)
     }
   }
@@ -340,12 +352,17 @@ export class FCMService {
    */
   async getUserTokensCount(userId: string): Promise<number> {
     try {
-      const tokensSnapshot = await this.tokensCollection
-        .where('userId', '==', userId)
-        .where('isActive', '==', true)
-        .get()
+      const db = await this.getDb()
+      
+      const tokensResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [
+          { field: 'userId', operator: '==', value: userId },
+          { field: 'isActive', operator: '==', value: true }
+        ]
+      })
 
-      return tokensSnapshot.size
+      return tokensResult.success ? tokensResult.data.length : 0
     } catch (error) {
       console.error('Error getting user tokens count:', error)
       return 0
@@ -357,15 +374,19 @@ export class FCMService {
    */
   async updateTokenLastSeen(token: string): Promise<void> {
     try {
-      const tokenDoc = await this.tokensCollection
-        .where('token', '==', token)
-        .limit(1)
-        .get()
+      const db = await this.getDb()
+      
+      const tokenResult = await db.query({
+        collection: 'fcm_tokens',
+        filters: [{ field: 'token', operator: '==', value: token }],
+        pagination: { limit: 1 }
+      })
 
-      if (!tokenDoc.empty) {
-        await tokenDoc.docs[0].ref.update({
-          'deviceInfo.lastSeen': Timestamp.now(),
-          updatedAt: Timestamp.now()
+      if (tokenResult.success && tokenResult.data.length > 0) {
+        const tokenId = tokenResult.data[0].id
+        await db.update('fcm_tokens', tokenId, {
+          'deviceInfo.lastSeen': new Date(),
+          updatedAt: new Date()
         })
       }
     } catch (error) {
