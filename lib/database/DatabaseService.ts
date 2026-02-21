@@ -6,6 +6,7 @@
  */
 
 import { monotime } from './timer'
+import { isBuildTime } from '@/lib/build-cache/phase-detector'
 import {
   IDatabaseService,
   DatabaseResult,
@@ -194,7 +195,7 @@ export class DatabaseService {
     options: { id?: string; merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'create', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     const result = await this.selector.create(collection, data, options);
@@ -215,7 +216,7 @@ export class DatabaseService {
     id: string
   ): Promise<DatabaseResult<DatabaseDocument<T> | null>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'read', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     // Use cache for entities to prevent read-after-write consistency issues
@@ -238,7 +239,7 @@ export class DatabaseService {
     options: { limit?: number; offset?: number; orderBy?: DatabaseOrderBy } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'readAll', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     const query: DatabaseQuery = {
@@ -263,7 +264,7 @@ export class DatabaseService {
     options: { limit?: number; orderBy?: DatabaseOrderBy } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'findByField', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     const query: DatabaseQuery = {
@@ -290,7 +291,7 @@ export class DatabaseService {
     id: string
   ): Promise<DatabaseResult<boolean>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'exists', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     try {
@@ -330,7 +331,7 @@ export class DatabaseService {
     options: { merge?: boolean } = {}
   ): Promise<DatabaseResult<DatabaseDocument<T>>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'update', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     const result = await this.selector.update(collection, id, data, options);
@@ -351,7 +352,7 @@ export class DatabaseService {
     id: string
   ): Promise<DatabaseResult<void>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'delete', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
 
     const result = await this.selector.delete(collection, id);
@@ -375,7 +376,7 @@ export class DatabaseService {
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'query', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.query(querySpec);
   }
@@ -388,7 +389,7 @@ export class DatabaseService {
     filters: DatabaseFilter[] = []
   ): Promise<DatabaseResult<number>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'count', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.count(collection, filters);
   }
@@ -460,7 +461,7 @@ export class DatabaseService {
     documents: Array<{ id?: string; data: T }>
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'batchCreate', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.batchCreate(collection, documents);
   }
@@ -473,7 +474,7 @@ export class DatabaseService {
     updates: Array<{ id: string; data: Partial<T> }>
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'batchUpdate', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.batchUpdate(collection, updates);
   }
@@ -486,7 +487,7 @@ export class DatabaseService {
     ids: string[]
   ): Promise<DatabaseResult<void>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'batchDelete', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.batchDelete(collection, ids);
   }
@@ -502,7 +503,7 @@ export class DatabaseService {
     operation: (transaction: IDatabaseTransaction) => Promise<T>
   ): Promise<DatabaseResult<T>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'transaction', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.runTransaction(operation);
   }
@@ -520,7 +521,7 @@ export class DatabaseService {
     callback: (documents: DatabaseDocument<T>[]) => void
   ): Promise<DatabaseResult<{ unsubscribe: () => void }>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'subscribe', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.subscribe(collection, filters, callback);
   }
@@ -537,7 +538,7 @@ export class DatabaseService {
     schema?: any
   ): Promise<DatabaseResult<void>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'createCollection', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.createCollection(collection, schema);
   }
@@ -555,7 +556,7 @@ export class DatabaseService {
     transform?: (doc: DatabaseDocument) => DatabaseDocument
   ): Promise<DatabaseResult<{ migrated: number; errors: Error[] }>> {
     if (!this.connected) {
-      throw new Error('Database service not initialized');
+      return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'migrateData', duration: 0, backend: 'unconnected', timestamp: new Date() } };
     }
     return await this.selector.migrateData(fromCollection, toCollection, transform);
   }
@@ -1025,6 +1026,19 @@ export async function initializeDbCommand(): Promise<DatabaseResult<void>> {
  * Initialize global database service
  */
 export async function initializeDatabase(): Promise<DatabaseResult<void>> {
+  if (isBuildTime()) {
+    return {
+      success: true,
+      data: undefined,
+      metadata: {
+        operation: 'initialize',
+        duration: 0,
+        backend: 'build-skip',
+        timestamp: new Date()
+      }
+    };
+  }
+
   const service = getDatabaseService();
 
   // Skip initialization if already done
