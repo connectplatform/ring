@@ -1,5 +1,6 @@
 import React from 'react'
 import type { Locale } from '@/i18n-config'
+import CartWrapper from '@/components/wrappers/cart-wrapper'
 import CartClient from './cartClient'
 import { getSEOMetadata } from '@/lib/seo-metadata'
 import { isValidLocale, defaultLocale } from '@/i18n-config'
@@ -51,8 +52,10 @@ export default async function CartPage({ params }: { params: Promise<{ locale: L
       {/* Standard SEO metadata */}
       <meta name="robots" content="index, follow" />
       <meta name="author" content="Ring Platform" />
-      
-      <CartClient key={locale} locale={locale} />
+
+      <CartWrapper locale={validLocale}>
+        <CartClient key={locale} locale={locale} />
+      </CartWrapper>
     </>
   )
 }
