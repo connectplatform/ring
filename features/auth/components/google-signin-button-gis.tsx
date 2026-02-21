@@ -96,7 +96,6 @@ export default function GoogleSignInButtonGIS({
     }
   }
 
-
   // GIS Specialist recommended: Use GoogleLogin component for proper theming
   const currentTheme = theme === 'system' ? resolvedTheme : theme
   const gisTheme = currentTheme === 'dark' ? 'filled_black' : 'outline'
