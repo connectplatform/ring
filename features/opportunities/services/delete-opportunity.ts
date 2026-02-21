@@ -2,10 +2,9 @@
  * Delete Opportunity Service
  * 
  * Server-side mutation (NO cache() - mutations must always execute)
- * PostgreSQL via DatabaseService abstraction
+ * DatabaseService for persistence + Tunnel for real-time updates
  */
 
-import { getAdminRtdbRef, setAdminRtdbData } from '@/lib/firebase-admin.server'
 import { db } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
@@ -13,6 +12,8 @@ import { Opportunity } from '@/features/opportunities/types'
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { publishToTunnel } from '@/lib/tunnel/publisher'
+import { revalidatePath } from 'next/cache'
 
 /**
  * Deletes an opportunity by its ID from the Firestore collection and removes any associated data from Realtime Database.
@@ -167,18 +168,20 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
       );
     }
 
-    // Step 6: Remove any associated data from Realtime Database
+    // Step 6: Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
     try {
-      await setAdminRtdbData(`opportunities/${id}`, null);
-      logger.info(`Services: deleteOpportunity - Associated data for opportunity ${id} removed from Realtime Database`);
+      await publishToTunnel('opportunities', 'opportunity:deleted', { id });
+      logger.info(`Services: deleteOpportunity - Real-time deletion notification sent for opportunity ${id}`);
     } catch (error) {
-      logger.warn('Services: deleteOpportunity - Failed to remove RTDB data, continuing...', error);
+      logger.warn('Services: deleteOpportunity - Failed to send real-time update, continuing...', error);
       // Don't throw here as the main deletion succeeded
     }
 
-    // Step 7: Perform cache invalidation
+    // Step 7: Perform cache invalidation and revalidation (React 19 pattern)
     try {
       invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin']);
+      revalidatePath('/[locale]/opportunities');
+      revalidatePath(`/[locale]/opportunities/${id}`);
     } catch (error) {
       logger.warn('Services: deleteOpportunity - Failed to invalidate cache, continuing...', error);
       // Don't throw here as the main deletion succeeded
