@@ -132,12 +132,12 @@ export default async function PerformancePage(props: LocalePageProps<Performance
   const metrics = getPerformanceMetrics();
 
   return (
-    <AdminWrapper locale={locale} pageContext="performance">
-      <>
-        <title>🚀 Firebase Performance Dashboard | Ring Admin</title>
-        <meta name="description" content="Real-time monitoring of Firebase optimization performance and build improvements" />
-        
-        <div className="min-h-screen bg-gray-50 py-8">
+    <>
+      <title>🚀 Firebase Performance Dashboard | Ring Admin</title>
+      <meta name="description" content="Real-time monitoring of Firebase optimization performance and build improvements" />
+      
+      <AdminWrapper locale={locale} pageContext="performance">
+      <div className="py-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
@@ -324,8 +324,8 @@ export default async function PerformancePage(props: LocalePageProps<Performance
             </p>
           </div>
         </div>
-        </div>
-      </>
-    </AdminWrapper>
+      </div>
+      </AdminWrapper>
+    </>
   );
 }
