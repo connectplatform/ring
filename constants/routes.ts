@@ -92,12 +92,6 @@ export const ROUTES = {
   DOCS: (locale: Locale = defaultLocale) => `/${locale}/docs`,
   MARKETPLACE: (locale: Locale = defaultLocale) => `/${locale}/marketplace`,
   MESSAGES: (locale: Locale = defaultLocale) => `/${locale}/messages`,
-  VENDOR_PRODUCTS: (locale: Locale = defaultLocale) => `/${locale}/vendor/products`,
-  VENDOR_PRODUCTS_ADD: (locale: Locale = defaultLocale) => `/${locale}/vendor/products/add`,
-  VENDOR_PRODUCTS_EDIT: (locale: Locale = defaultLocale, id: string) => `/${locale}/vendor/products/${id}/edit`,
-  VENDOR_START: (locale: Locale = defaultLocale) => `/${locale}/vendor/start`,
-  VENDOR_DASHBOARD: (locale: Locale = defaultLocale) => `/${locale}/vendor/dashboard`,
-  VENDOR_STOREFRONT: (locale: Locale = defaultLocale, vendorId: string) => `/${locale}/store/vendors/${vendorId}`,
   // Admin routes
   ADMIN: (locale: Locale = defaultLocale) => `/${locale}/admin`,
   ADMIN_USERS: (locale: Locale = defaultLocale) => `/${locale}/admin/users`,
@@ -107,7 +101,18 @@ export const ROUTES = {
   ADMIN_SETTINGS: (locale: Locale = defaultLocale) => `/${locale}/admin/settings`,
   ADMIN_MATCHER: (locale: Locale = defaultLocale) => `/${locale}/admin/matcher`,
   ADMIN_PERFORMANCE: (locale: Locale = defaultLocale) => `/${locale}/admin/performance`,
-  ADMIN_STORE_ORDERS: (locale: Locale = defaultLocale) => `/${locale}/admin/store/orders`
+  ADMIN_STORE_ORDERS: (locale: Locale = defaultLocale) => `/${locale}/admin/store/orders`,
+
+  // Vendor Routes - Multi-Vendor Marketplace
+  VENDOR_START: (locale: Locale = defaultLocale) => `/${locale}/vendor/start`,
+  VENDOR_DASHBOARD: (locale: Locale = defaultLocale) => `/${locale}/vendor/dashboard`,
+  VENDOR_PRODUCTS: (locale: Locale = defaultLocale) => `/${locale}/vendor/products`,
+  VENDOR_PRODUCTS_ADD: (locale: Locale = defaultLocale) => `/${locale}/vendor/products/add`,
+  VENDOR_PRODUCTS_EDIT: (locale: Locale = defaultLocale, id: string) => `/${locale}/vendor/products/${id}/edit`,
+  VENDOR_ORDERS: (locale: Locale = defaultLocale) => `/${locale}/vendor/orders`,
+  VENDOR_EARNINGS: (locale: Locale = defaultLocale) => `/${locale}/vendor/earnings`,
+  VENDOR_SETTINGS: (locale: Locale = defaultLocale) => `/${locale}/vendor/settings`,
+  VENDOR_STOREFRONT: (locale: Locale = defaultLocale, vendorId: string) => `/${locale}/store/vendors/${vendorId}`
 }
 
 // Legacy routes for backward compatibility (these will redirect to localized versions)
