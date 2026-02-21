@@ -115,29 +115,30 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Desktop Layout - Account for fixed 280px sidebar, then content + right sidebar */}
-      <div className="hidden lg:block" key={`desktop-${currentLocale}`}>
-        {/* Fixed Left Sidebar - Navigation (280px, overlays on left) */}
-        <DesktopSidebar key={`sidebar-${currentLocale}`} />
+      {/* Desktop Layout - Flex-based 3-column layout like Cart/Checkout wrappers */}
+      <div className="hidden lg:flex gap-6 min-h-screen" key={`desktop-${currentLocale}`}>
+        {/* Left Sidebar - Navigation (280px fixed width) */}
+        <div className="w-[280px] flex-shrink-0">
+          <DesktopSidebar key={`sidebar-${currentLocale}`} />
+        </div>
 
-        {/* Main grid: Feed + Right Sidebar (offset by 280px for fixed sidebar) */}
-        <div className="grid grid-cols-[1fr_320px] gap-0 min-h-screen">
-          {/* Main Content - Store Products - Full width feed */}
-          <div className="pl-6 pr-6">
-            <div className="relative">
-              {childrenWithProps}
-              {/* FloatingButtons handles all button positioning for desktop */}
-              <FloatingButtons 
-                key={`floating-${currentLocale}`} 
-                locale={locale}
-                currentSort={filters.sortBy}
-                onSortChange={handleSortChange}
-              />
-            </div>
+        {/* Main Content Area - Store Products */}
+        <div className="flex-1 min-w-0 py-8">
+          <div className="relative">
+            {childrenWithProps}
+            {/* FloatingButtons handles all button positioning for desktop */}
+            <FloatingButtons 
+              key={`floating-${currentLocale}`} 
+              locale={locale}
+              currentSort={filters.sortBy}
+              onSortChange={handleSortChange}
+            />
           </div>
+        </div>
 
-          {/* Right Sidebar - Store Controls & Filters */}
-          <RightSidebar key={`right-sidebar-${currentLocale}`}>
+        {/* Right Sidebar - Store Controls & Filters (320px) */}
+        <div className="w-[320px] flex-shrink-0 py-8 pr-6">
+          <div className="sticky top-8">
             <StoreFiltersPanel
               locale={locale}
               totalRecords={totalRecords}
@@ -151,17 +152,19 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
             <div className="mt-6">
               <VendorCTACard />
             </div>
-          </RightSidebar>
+          </div>
         </div>
       </div>
 
-      {/* iPad Layout - Fixed sidebar + full-width feed, hidden on mobile and desktop */}
-      <div className="hidden md:block lg:hidden min-h-screen" key={`ipad-${currentLocale}`}>
-        {/* Left Sidebar - Navigation (Fixed, overlays) */}
-        <DesktopSidebar key={`sidebar-ipad-${currentLocale}`} />
+      {/* iPad Layout - Flex-based with sidebar + content, hidden on mobile and desktop */}
+      <div className="hidden md:flex lg:hidden gap-6 min-h-screen" key={`ipad-${currentLocale}`}>
+        {/* Left Sidebar - Navigation (280px) */}
+        <div className="w-[280px] flex-shrink-0">
+          <DesktopSidebar key={`sidebar-ipad-${currentLocale}`} />
+        </div>
 
         {/* Main Content - Store Products */}
-        <div className="pl-6">
+        <div className="flex-1 min-w-0 py-8 px-4">
           <div className="relative">
             {childrenWithProps}
           </div>
