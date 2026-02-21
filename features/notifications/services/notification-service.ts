@@ -188,7 +188,7 @@ export async function createNotification(
 
 /**
  * Get user notifications with pagination
- * 
+ *
  * @param userId - The user ID
  * @param options - Query options
  * @returns Promise<NotificationListResponse>
