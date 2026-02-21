@@ -12,9 +12,24 @@ import type { CartItem, CheckoutInfo } from '@/features/store/types';
 // WayForPay API Configuration
 const WAYFORPAY_API_URL = 'https://api.wayforpay.com/api';
 const WAYFORPAY_CHECKOUT_URL = 'https://secure.wayforpay.com/pay';
-const WAYFORPAY_MERCHANT_ACCOUNT = process.env.WAYFORPAY_STORE_MERCHANT_ACCOUNT || process.env.WAYFORPAY_MERCHANT_ACCOUNT;
-const WAYFORPAY_SECRET_KEY = process.env.WAYFORPAY_STORE_SECRET_KEY || process.env.WAYFORPAY_SECRET_KEY;
-const WAYFORPAY_DOMAIN = process.env.WAYFORPAY_STORE_DOMAIN || process.env.WAYFORPAY_DOMAIN;
+
+// GreenFood.live WayForPay Merchant Configuration
+// Priority: Store-specific > General > Default GreenFood credentials
+const WAYFORPAY_MERCHANT_ACCOUNT = process.env.WAYFORPAY_STORE_MERCHANT_ACCOUNT 
+  || process.env.WAYFORPAY_MERCHANT_ACCOUNT 
+  || 'greenfood_live1';
+
+const WAYFORPAY_SECRET_KEY = process.env.WAYFORPAY_STORE_SECRET_KEY 
+  || process.env.WAYFORPAY_SECRET_KEY 
+  || '49292617352e675713f2bb7e4cf0197bcb903b7d';
+
+const WAYFORPAY_DOMAIN = process.env.WAYFORPAY_STORE_DOMAIN 
+  || process.env.WAYFORPAY_DOMAIN 
+  || 'greenfood.live';
+
+// GreenFood merchant password (for API operations requiring password)
+const WAYFORPAY_MERCHANT_PASSWORD = process.env.WAYFORPAY_MERCHANT_PASSWORD 
+  || '5d28f775b036834737b538320d519b5c';
 
 // Store payment configuration
 export const STORE_PAYMENT_CONFIG = {
