@@ -100,22 +100,13 @@ export class PostgreSQLAdapter implements IDatabaseService {
         connectionTimeoutMillis: this.config.options.timeout || 2000,
       };
 
-      console.log('PostgreSQLAdapter: Attempting connection with config:', {
-        host: poolConfig.host,
-        port: poolConfig.port,
-        database: poolConfig.database,
-        user: poolConfig.user
-      });
-
       this.pool = new Pool(poolConfig);
 
       // Test connection (only once across all instances to reduce noise)
       if (!PostgreSQLAdapter.connectionTested) {
-        console.log('PostgreSQLAdapter: Testing connection...');
         const client = await this.pool.connect();
         await client.query('SELECT 1');
         client.release();
-        console.log('PostgreSQLAdapter: Connection successful!');
         PostgreSQLAdapter.connectionTested = true;
       }
 
@@ -129,12 +120,14 @@ export class PostgreSQLAdapter implements IDatabaseService {
         }
       };
     } catch (error) {
-      console.error('PostgreSQLAdapter: Connection failed:', error);
-      console.error('PostgreSQLAdapter: Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        code: (error as any).code,
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      const code = (error as any).code;
+      if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
+        const host = this.config.connection.host || 'localhost';
+        const port = this.config.connection.port || 5432;
+        console.warn(`PostgreSQLAdapter: Connection unavailable (${host}:${port}) — ${code}`);
+      } else {
+        console.error('PostgreSQLAdapter: Connection failed:', error instanceof Error ? error.message : String(error));
+      }
       
       return {
         success: false,
