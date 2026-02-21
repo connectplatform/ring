@@ -92,4 +92,4 @@ export default function LoginModal({ isOpen, closeAction, successAction }: Login
       )}
     </AnimatePresence>
   )
-} 
+}
