@@ -22,31 +22,10 @@ import {
 } from '@/components/ui/collapsible'
 import {
   Building2,
-  Cpu,
-  Dna,
-  Blocks,
   Leaf,
-  Cloud,
-  Cog,
-  Layers,
-  Shield,
-  Plane,
-  Zap,
   Palette,
-  Wifi,
-  Scissors,
   Factory,
-  Wrench,
-  Package,
-  Gauge,
-  Atom,
-  Bot,
-  Microchip,
-  Sparkles,
-  Code,
-  MapPin,
   Users,
-  Calendar as CalendarIcon,
   Filter,
   X,
   ChevronDown,
@@ -78,25 +57,13 @@ interface EntitiesFiltersPanelProps {
   onFiltersApplied?: (filters: EntityFilterState) => void
 }
 
-// Entity types with icons and colors for visual distinction
+// Agricultural entity types for GreenFood platform
 const entityTypes = [
-  { id: '3dPrinting' as EntityType, icon: Layers, color: 'bg-purple-500', label: '3D Printing' },
-  { id: 'aiMachineLearning' as EntityType, icon: Bot, color: 'bg-blue-500', label: 'AI & Machine Learning' },
-  { id: 'biotechnology' as EntityType, icon: Dna, color: 'bg-green-500', label: 'Biotechnology' },
-  { id: 'blockchainDevelopment' as EntityType, icon: Blocks, color: 'bg-orange-500', label: 'Blockchain Development' },
-  { id: 'cleanEnergy' as EntityType, icon: Leaf, color: 'bg-emerald-500', label: 'Clean Energy' },
-  { id: 'cloudComputing' as EntityType, icon: Cloud, color: 'bg-sky-500', label: 'Cloud Computing' },
-  { id: 'cncMachining' as EntityType, icon: Cog, color: 'bg-gray-500', label: 'CNC Machining' },
-  { id: 'compositeManufacturing' as EntityType, icon: Layers, color: 'bg-indigo-500', label: 'Composite Manufacturing' },
-  { id: 'cybersecurity' as EntityType, icon: Shield, color: 'bg-red-500', label: 'Cybersecurity' },
-  { id: 'droneTechnology' as EntityType, icon: Plane, color: 'bg-teal-500', label: 'Drone Technology' },
-  { id: 'electronicManufacturing' as EntityType, icon: Zap, color: 'bg-yellow-500', label: 'Electronic Manufacturing' },
-  { id: 'industrialDesign' as EntityType, icon: Palette, color: 'bg-pink-500', label: 'Industrial Design' },
-  { id: 'iotDevelopment' as EntityType, icon: Wifi, color: 'bg-cyan-500', label: 'IoT Development' },
-  { id: 'laserCutting' as EntityType, icon: Scissors, color: 'bg-rose-500', label: 'Laser Cutting' },
-  { id: 'manufacturing' as EntityType, icon: Factory, color: 'bg-amber-500', label: 'Manufacturing' },
-  { id: 'metalFabrication' as EntityType, icon: Wrench, color: 'bg-slate-500', label: 'Metal Fabrication' },
-  { id: 'other' as EntityType, icon: Package, color: 'bg-neutral-500', label: 'Other' },
+  { id: 'farm' as EntityType, icon: Leaf, color: 'bg-emerald-500', label: 'Farm' },
+  { id: 'food_producer' as EntityType, icon: Factory, color: 'bg-blue-500', label: 'Food Producer' },
+  { id: 'farmers_market' as EntityType, icon: Building2, color: 'bg-orange-500', label: 'Farmers Market' },
+  { id: 'artisan_producer' as EntityType, icon: Palette, color: 'bg-purple-500', label: 'Artisan Producer' },
+  { id: 'cooperative' as EntityType, icon: Users, color: 'bg-green-500', label: 'Cooperative' },
 ]
 
 export default function EntitiesFiltersPanel({
@@ -140,7 +107,7 @@ export default function EntitiesFiltersPanel({
 
   const updateFilters = useCallback((updates: Partial<EntityFilterState>) => {
     startTransition(() => {
-    setFilters(prev => ({ ...prev, ...updates }))
+      setFilters(prev => ({ ...prev, ...updates }))
     })
   }, [startTransition])
 
@@ -193,12 +160,14 @@ export default function EntitiesFiltersPanel({
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="space-y-2">
-        <Label htmlFor="search" className="text-sm font-medium">Search Entities</Label>
+        <Label htmlFor="search" className="text-sm font-medium">
+          {t('filters.search.label', { defaultValue: 'Search Entities' })}
+        </Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             id="search"
-            placeholder="Search by name, description..."
+            placeholder={t('filters.search.placeholder', { defaultValue: 'Search by name, description...' })}
             value={filters.search}
             onChange={(e) => updateFilters({ search: e.target.value })}
             className="pl-9"
@@ -210,7 +179,9 @@ export default function EntitiesFiltersPanel({
       {hasActiveFilters() && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Active Filters</Label>
+            <Label className="text-sm font-medium">
+              {t('filters.active.title', { defaultValue: 'Active Filters' })}
+            </Label>
             <Button
               variant="ghost"
               size="sm"
@@ -218,7 +189,7 @@ export default function EntitiesFiltersPanel({
               className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <X className="h-3 w-3 mr-1" />
-              Clear all
+              {t('filters.active.clearAll', { defaultValue: 'Clear all' })}
             </Button>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -277,7 +248,9 @@ export default function EntitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Entity Types</span>
+              <span className="text-sm font-medium">
+                {t('filters.sections.types', { defaultValue: 'Entity Types' })}
+              </span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('types') && "transform rotate-180"
@@ -320,7 +293,9 @@ export default function EntitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Location</span>
+              <span className="text-sm font-medium">
+                {t('filters.sections.location', { defaultValue: 'Location' })}
+              </span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('location') && "transform rotate-180"
@@ -329,7 +304,7 @@ export default function EntitiesFiltersPanel({
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 px-3">
             <Input
-              placeholder="Enter city or country"
+              placeholder={t('filters.location.placeholder', { defaultValue: 'Enter city or country' })}
               value={filters.location}
               onChange={(e) => updateFilters({ location: e.target.value })}
             />
@@ -345,7 +320,9 @@ export default function EntitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Company Size</span>
+              <span className="text-sm font-medium">
+                {t('filters.sections.companySize', { defaultValue: 'Company Size' })}
+              </span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('employees') && "transform rotate-180"
@@ -355,7 +332,9 @@ export default function EntitiesFiltersPanel({
           <CollapsibleContent className="space-y-3 px-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs text-muted-foreground">Min</Label>
+                <Label className="text-xs text-muted-foreground">
+                  {t('filters.companySize.min', { defaultValue: 'Min' })}
+                </Label>
                 <Input
                   type="number"
                   placeholder="0"
@@ -364,7 +343,9 @@ export default function EntitiesFiltersPanel({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Max</Label>
+                <Label className="text-xs text-muted-foreground">
+                  {t('filters.companySize.max', { defaultValue: 'Max' })}
+                </Label>
                 <Input
                   type="number"
                   placeholder="∞"
@@ -385,7 +366,9 @@ export default function EntitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Founded Year</span>
+              <span className="text-sm font-medium">
+                {t('filters.sections.foundedYear', { defaultValue: 'Founded Year' })}
+              </span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('founded') && "transform rotate-180"
@@ -395,7 +378,9 @@ export default function EntitiesFiltersPanel({
           <CollapsibleContent className="space-y-3 px-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs text-muted-foreground">From</Label>
+                <Label className="text-xs text-muted-foreground">
+                  {t('filters.foundedYear.from', { defaultValue: 'From' })}
+                </Label>
                 <Input
                   type="number"
                   placeholder="1900"
@@ -404,7 +389,9 @@ export default function EntitiesFiltersPanel({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">To</Label>
+                <Label className="text-xs text-muted-foreground">
+                  {t('filters.foundedYear.to', { defaultValue: 'To' })}
+                </Label>
                 <Input
                   type="number"
                   placeholder={new Date().getFullYear().toString()}
@@ -425,7 +412,9 @@ export default function EntitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Verification</span>
+              <span className="text-sm font-medium">
+                {t('filters.sections.verification', { defaultValue: 'Verification' })}
+              </span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('verification') && "transform rotate-180"
@@ -438,13 +427,21 @@ export default function EntitiesFiltersPanel({
               onValueChange={(value) => updateFilters({ verificationStatus: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Any status" />
+                <SelectValue placeholder={t('filters.verification.anyStatus', { defaultValue: 'Any status' })} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any status</SelectItem>
-                <SelectItem value="verified">Verified</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="unverified">Unverified</SelectItem>
+                <SelectItem value="">
+                  {t('filters.verification.anyStatus', { defaultValue: 'Any status' })}
+                </SelectItem>
+                <SelectItem value="verified">
+                  {t('filters.verification.verified', { defaultValue: 'Verified' })}
+                </SelectItem>
+                <SelectItem value="pending">
+                  {t('filters.verification.pending', { defaultValue: 'Pending' })}
+                </SelectItem>
+                <SelectItem value="unverified">
+                  {t('filters.verification.unverified', { defaultValue: 'Unverified' })}
+                </SelectItem>
               </SelectContent>
             </Select>
           </CollapsibleContent>
@@ -454,7 +451,7 @@ export default function EntitiesFiltersPanel({
       {/* Apply Filters Button */}
       <Button className="w-full" onClick={handleApplyFilters}>
         <Filter className="w-4 h-4 mr-2" />
-        Apply Filters
+        {t('filters.apply', { defaultValue: 'Apply Filters' })}
         {resultCount !== undefined && (
           <Badge variant="secondary" className="ml-2">
             {resultCount}
