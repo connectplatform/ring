@@ -1,7 +1,5 @@
-// 🚀 Entity Retrieval Service
+// 🚀 Entity Retrieval Service - Ring-native with React 19 cache()
 import { Entity } from '@/features/entities/types'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedEntities } from '@/lib/build-cache/static-data-cache'
 import { initializeDatabase, getDatabaseService } from '@/lib/database'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
@@ -34,15 +32,13 @@ import { cache } from 'react'
  */
 export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]> => {
   try {
-  const phase = getCurrentPhase();
-logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
+    logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
 
     // Step 1: Authenticate and get user session
     const session = await auth();
     if (!session || !session.user) {
       logger.error('Services: getEntitiesBySlug - Unauthorized access attempt');
       throw new Error('Unauthorized access');
-
     }
 
     const userRole = session.user.role as UserRole;
@@ -61,48 +57,7 @@ logger.info('Services: getEntitiesBySlug - Starting with slugs:', { slugs });
 
     logger.info(`Services: getEntitiesBySlug - User authenticated with role ${userRole}`);
 
-    
-    // 🚀 BUILD-TIME OPTIMIZATION: Use cached data during static generation
-    if (shouldUseMockData() || (shouldUseCache() && phase.isBuildTime)) {
-      logger.info(`[Service Optimization] Using ${phase.strategy} data for get-entities-by-slug`);
-      
-      try {
-        // Return cached data based on operation type
-        
-        if ('get-entities-by-slug'.includes('confidential')) {
-          return [];  // No cached confidential data
-        }
-        const entities = await getCachedEntities({ limit: 50, isPublic: true });
-        const result = entities.slice(0, 10); return result;
-      } catch (cacheError) {
-        logger.warn('[Service Optimization] Cache fallback failed, using live data:', cacheError);
-        // Continue to live data below
-      }
-    }
-
-    // Step 2: Build optimized query configuration based on user role and slugs
-    const queryConfig: any = {
-      orderBy: [{ field: 'dateAdded', direction: 'desc' }]
-    };
-
-    // Build where clauses array
-    const whereClause = [];
-    
-    // Add slug filtering if provided
-    if (slugs.length > 0) {
-      whereClause.push({ field: 'tags', operator: 'array-contains-any', value: slugs });
-    }
-
-    // Apply role-based visibility filtering for non-admin users
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      // For now, we'll use post-query filtering since getCachedCollectionAdvanced may not support complex OR queries
-    }
-
-    if (whereClause.length > 0) {
-      queryConfig.where = whereClause;
-    }
-
-    logger.info('Services: getEntitiesBySlug - Executing optimized query')
+    logger.info('Services: getEntitiesBySlug - Executing query with DatabaseService')
 
     // Step 3: Initialize database and execute query
     await initializeDatabase()
