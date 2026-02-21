@@ -6,34 +6,13 @@ import {
   PaymentProcessor 
 } from '@/constants/store';
 
-// Entity Industry sectors 
+// Agricultural Entity Types for GreenFood Platform
 export type EntityType =
-  | '3dPrinting'
-  | 'aiMachineLearning'
-  | 'biotechnology'
-  | 'blockchainDevelopment'
-  | 'cleanEnergy'
-  | 'cloudComputing'
-  | 'cncMachining'
-  | 'compositeManufacturing'
-  | 'cybersecurity'
-  | 'droneTechnology'
-  | 'electronicManufacturing'
-  | 'industrialDesign'
-  | 'iotDevelopment'
-  | 'laserCutting'
-  | 'manufacturing'
-  | 'metalFabrication'
-  | 'other'
-  | 'plasticInjectionMolding'
-  | 'precisionEngineering'
-  | 'quantumComputing'
-  | 'robotics'
-  | 'semiconductorProduction'
-  | 'smartMaterials'
-  | 'softwareDevelopment'
-  | 'technologyCenter'
-  | 'virtualReality';
+  | 'farm'              // Agricultural farm with crops/livestock
+  | 'food_producer'     // Food processing and manufacturing companies
+  | 'farmers_market'    // Local farmers markets and co-ops
+  | 'artisan_producer'  // Artisanal food producers (cheese, wine, etc.)
+  | 'cooperative';      // Agricultural cooperatives and associations
 
 // Store Verification Status
 export interface StoreVerification {
