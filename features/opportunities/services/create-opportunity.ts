@@ -1,8 +1,9 @@
 /**
  * Create Opportunity Service
  * 
- * Server-side mutation (NO cache() - mutations must always execute)
- * PostgreSQL via DatabaseService abstraction
+ * Ring-native implementation using DatabaseService
+ * MUTATION - NO CACHE! (opportunity creation affects matching/discovery)
+ * Uses React 19 revalidatePath() for UI freshness
  */
 import { Opportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
@@ -17,9 +18,8 @@ import { OpportunityAutoFillService } from './auto-fill-service'
 import { OpportunityMatchingService } from './matching-service'
 import { logger } from '@/lib/logger';
 
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getCachedDocument as getCachedStaticDocument, getCachedCollection, getCachedOpportunities } from '@/lib/build-cache/static-data-cache';
 import { db } from '@/lib/database/DatabaseService';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Type definition for the data required to create a new opportunity.
