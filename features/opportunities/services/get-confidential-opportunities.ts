@@ -1,16 +1,14 @@
 /**
  * Get Confidential Opportunities Service
  * 
- * React 19 cache() wrapper for confidential opportunity queries
- * PostgreSQL via DatabaseService abstraction
+ * Ring-native: DatabaseService + React 19 cache()
  * Role-based access control (CONFIDENTIAL/ADMIN only)
+ * READ operation - cached for performance
  */
 
 import { cache } from 'react'
 import { Opportunity } from '@/features/opportunities/types'
 import { UserRole } from '@/features/auth/types'
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector'
-import { getCachedOpportunities } from '@/lib/build-cache/static-data-cache'
 import { db } from '@/lib/database/DatabaseService'
 
 /**
