@@ -27,8 +27,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
@@ -47,19 +46,21 @@ import {
   Shield,
   BookOpen,
   CreditCard,
-  Gift,
   Percent,
   CheckCircle,
   ArrowLeft,
-  AlertCircle,
-  Info
+  Info,
+  Package,
 } from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
 
 interface CartWrapperProps {
   children: React.ReactNode
   locale: string
   pageContext?: 'cart' | 'checkout' | 'orders' | 'wishlist'
+  cartItems?: any[]
+  totalPrice?: number
+  totalItems?: number
+  formatPrice?: (price: number) => string
 }
 
 export default function CartWrapper({
@@ -85,6 +86,7 @@ export default function CartWrapper({
   // Get selected currency and formatting functions
   const selectedCurrency = currencyContext?.currency || 'UAH'
   const formatPrice = currencyContext?.formatPrice || ((price: number) => `${price.toFixed(2)} ₴`)
+
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
   const [promoCode, setPromoCode] = useState('')
@@ -93,6 +95,45 @@ export default function CartWrapper({
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Store navigation sections (like admin sections)
+  const storeSections = [
+    {
+      id: 'store',
+      label: tStore('store', { defaultValue: 'Store' }),
+      icon: ShoppingCart,
+      href: `/${locale}/store`,
+      active: pageContext === 'cart'
+    },
+    {
+      id: 'cart',
+      label: tStore('cart.title', { defaultValue: 'Cart' }),
+      icon: ShoppingCart,
+      href: `/${locale}/store/cart`,
+      active: pageContext === 'cart'
+    },
+    {
+      id: 'wishlist',
+      label: tStore('wishlist', { defaultValue: 'Wishlist' }),
+      icon: Bookmark,
+      href: `/${locale}/store/wishlist`,
+      active: pageContext === 'wishlist'
+    },
+    {
+      id: 'orders',
+      label: tStore('orders', { defaultValue: 'Orders' }),
+      icon: Package,
+      href: `/${locale}/store/orders`,
+      active: pageContext === 'orders'
+    },
+    {
+      id: 'checkout',
+      label: tStore('checkout', { defaultValue: 'Checkout' }),
+      icon: CreditCard,
+      href: `/${locale}/store/checkout`,
+      active: pageContext === 'checkout'
+    }
+  ]
 
   // Mock cart summary (will be dynamic later)
   const cartSummary = {
@@ -104,39 +145,59 @@ export default function CartWrapper({
     items: 3
   }
 
+  // Cart statistics
+  const cartStats = {
+    items: { total: cartSummary.items, unique: 3, saved: 2 },
+    value: { subtotal: cartSummary.subtotal, savings: 15.50, potential: 25.00 },
+    shipping: { freeThreshold: 50, remaining: 50 - cartSummary.subtotal }
+  }
+
   // Mock saved for later items (will be dynamic later)
   const savedItems = [
     { id: '1', name: 'Organic Tomatoes', price: 12.99, image: '/placeholder.jpg' },
     { id: '2', name: 'Fresh Herbs Bundle', price: 8.50, image: '/placeholder.jpg' },
   ]
 
-  // Shipping info
-  const shippingInfo = [
-    { type: 'standard', name: 'Standard Shipping', cost: t('free', { defaultValue: 'Free' }), time: '3-5 business days' },
-    { type: 'express', name: 'Express Shipping', cost: formatPrice(9.99), time: '1-2 business days' },
-    { type: 'pickup', name: 'Local Pickup', cost: t('free', { defaultValue: 'Free' }), time: 'Same day' },
+  // Recommended products
+  const recommendedProducts = [
+    { id: 'rec1', name: 'Premium Olive Oil', price: 24.99, image: '/placeholder.jpg', reason: 'Often bought together' },
+    { id: 'rec2', name: 'Artisan Bread', price: 8.50, image: '/placeholder.jpg', reason: 'Customers also bought' },
+    { id: 'rec3', name: 'Seasonal Fruits Box', price: 32.99, image: '/placeholder.jpg', reason: 'Trending now' }
   ]
 
-  // Checkout tips
+  // Shipping info
+  const shippingInfo = [
+    { type: 'standard', name: 'Standard Shipping', cost: t('free', { defaultValue: 'Free' }), time: '3-5 business days', recommended: true },
+    { type: 'express', name: 'Express Shipping', cost: formatPrice(9.99), time: '1-2 business days', recommended: false },
+    { type: 'pickup', name: 'Local Pickup', cost: t('free', { defaultValue: 'Free' }), time: 'Same day', recommended: false },
+  ]
+
+  // Checkout tips - enhanced with more categories
   const checkoutTips = [
     {
       id: 'secure',
-      title: t('secureCheckout', { defaultValue: 'Secure Checkout' }),
-      description: t('sslEncrypted', { defaultValue: 'All payments are SSL encrypted and secure' }),
+      title: tStore('secureCheckout', { defaultValue: 'Secure Checkout' }),
+      description: tStore('sslEncrypted', { defaultValue: 'All payments are SSL encrypted and secure' }),
       icon: Shield
     },
     {
       id: 'returns',
-      title: t('easyReturns', { defaultValue: 'Easy Returns' }),
+      title: tStore('easyReturns', { defaultValue: 'Easy Returns' }),
       description: t('returnPolicy', { defaultValue: '30-day return policy on all items' }),
       icon: CheckCircle
     },
     {
       id: 'support',
-      title: t('customerSupport', { defaultValue: '24/7 Support' }),
+      title: tStore('customerSupport', { defaultValue: '24/7 Support' }),
       description: t('helpAvailable', { defaultValue: 'Our team is here to help anytime' }),
       icon: Info
     },
+    {
+      id: 'fast',
+      title: tStore('fastDelivery', { defaultValue: 'Fast Delivery' }),
+      description: t('expressShipping', { defaultValue: 'Express shipping available for urgent orders' }),
+      icon: Truck
+    }
   ]
 
   const handleApplyPromo = () => {
@@ -167,6 +228,9 @@ export default function CartWrapper({
             <ShoppingCart className="h-4 w-4" />
             {t('orderSummary', { defaultValue: 'Order Summary' })}
           </CardTitle>
+          <CardDescription>
+            {t('orderSummaryDescription', { defaultValue: 'Review your order summary before proceeding to checkout.' })}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between text-sm">
@@ -348,50 +412,54 @@ export default function CartWrapper({
 
   return (
     <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      {/* Simple Navigation Header */}
-      <div className="bg-background border-b border-border mb-6">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+      {/* Main Content Layout */}
+      <div className="flex gap-6 min-h-screen">
+        {/* Left Sidebar - Main Navigation (Desktop only) */}
+        <div className="hidden md:block w-[280px] flex-shrink-0">
+          <DesktopSidebar />
+        </div>
+
+        {/* Center Content Area */}
+        <div className="flex-1 min-w-0 py-8 px-4 md:px-6 lg:px-8 lg:pb-8 pb-24">
+          {/* Cart Header with Back Link */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
               <Link
                 href={`/${locale}/store`}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                {tCommon('back', { defaultValue: 'Back to Store' })}
+                {t('back', { defaultValue: 'Back to Store' })}
               </Link>
             </div>
-
             <h1 className="text-2xl font-bold text-foreground">
-              {t('title', { defaultValue: 'Shopping Cart' })}
+              {t('title', { defaultValue: 'Cart' })}
             </h1>
-
-            <div className="w-24"></div> {/* Spacer for centering */}
           </div>
-        </div>
-      </div>
-
-      {/* Main Content Layout */}
-      <div className="flex gap-6 min-h-screen">
-        {/* Center Content Area - Full width without left sidebar */}
-        <div className="flex-1 py-8 px-4 lg:px-0 lg:pr-6 lg:pb-8 pb-24">
-          {children}
-        </div>
-
-        {/* Right Sidebar - Cart Summary & Actions (Desktop only, 1024px+) */}
-        {cartItems.length > 0 && (
-          <div className="hidden lg:block w-[480px] flex-shrink-0 py-8 pr-6">
-            <div className="sticky top-8">
-              <RightSidebarContent
-                cartItems={cartItems}
-                totalPrice={cartTotal}
-                totalItems={totalItems}
-                formatPrice={formatPrice}
-                locale={locale}
-              />
+          
+          {/* Cart Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+            {/* Main Cart Content */}
+            <div>
+              {children}
             </div>
+            
+            {/* Right Sidebar Content - Cart Summary & Actions (Desktop only) */}
+            {cartItems.length > 0 && (
+              <div className="hidden lg:block">
+                <div className="sticky top-8">
+                  <RightSidebarContent
+                    cartItems={cartItems}
+                    totalPrice={cartTotal}
+                    totalItems={totalItems}
+                    formatPrice={formatPrice}
+                    locale={locale}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
