@@ -1,5 +1,4 @@
-import { getAdminDb } from '@/lib/firebase-admin.server'
-import { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 
 export interface EventRecord<T = any> {
   id?: string
@@ -8,7 +7,7 @@ export interface EventRecord<T = any> {
   userId?: string
   reversible?: boolean
   timeMs: number
-  ts: Timestamp | FieldValue
+  ts: Date
   meta?: Record<string, unknown>
 }
 
@@ -21,42 +20,66 @@ export interface EventQuery {
 }
 
 export async function appendEvent<T>(event: Omit<EventRecord<T>, 'id' | 'timeMs' | 'ts'>): Promise<string> {
-  const db = await getAdminDb()
+  await initializeDatabase()
+  const db = getDatabaseService()
+  const eventId = `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const toWrite: EventRecord<T> = {
     ...event,
     timeMs: Date.now(),
-    ts: FieldValue.serverTimestamp(),
+    ts: new Date(),
   }
-  const ref = await db.collection('events').add(toWrite as any)
-  return ref.id
+  const result = await db.create('events', toWrite, { id: eventId })
+  if (!result.success) {
+    throw new Error('Failed to create event')
+  }
+  return eventId
 }
 
 export async function appendEventsBatch<T>(events: Array<Omit<EventRecord<T>, 'id' | 'timeMs' | 'ts'>>): Promise<string[]> {
   if (!events.length) return []
-  const db = await getAdminDb()
-  const writer = db.bulkWriter()
+  await initializeDatabase()
+  const db = getDatabaseService()
   const ids: string[] = []
+
+  // Create events sequentially (DatabaseService doesn't have batch operations yet)
   for (const e of events) {
-    const ref = db.collection('events').doc()
-    const toWrite: EventRecord<T> = { ...e, timeMs: Date.now(), ts: FieldValue.serverTimestamp() }
-    writer.create(ref, toWrite as any)
-    ids.push(ref.id)
+    const eventId = `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const toWrite: EventRecord<T> = { ...e, timeMs: Date.now(), ts: new Date() }
+    const result = await db.create('events', toWrite, { id: eventId })
+    if (result.success) {
+      ids.push(eventId)
+    }
   }
-  await writer.close()
   return ids
 }
 
 export async function getEvents(query: EventQuery = {}): Promise<EventRecord[]> {
-  const db = await getAdminDb()
-  let q: FirebaseFirestore.Query = db.collection('events')
-  if (query.sinceMs != null) q = q.where('timeMs', '>=', query.sinceMs)
-  if (query.untilMs != null) q = q.where('timeMs', '<=', query.untilMs)
-  if (query.userId) q = q.where('userId', '==', query.userId)
-  if (query.typeIn && query.typeIn.length) q = q.where('type', 'in', query.typeIn)
-  q = q.orderBy('timeMs', 'asc')
-  if (query.limit) q = q.limit(query.limit)
-  const snap = await q.get()
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
+  await initializeDatabase()
+  const db = getDatabaseService()
+  const result = await db.query({ collection: 'events' })
+
+  if (!result.success || !result.data) {
+    return []
+  }
+
+  // Apply filters manually since DatabaseService query API is simpler
+  let events = result.data.filter((event: any) => {
+    if (query.sinceMs != null && event.timeMs < query.sinceMs) return false
+    if (query.untilMs != null && event.timeMs > query.untilMs) return false
+    if (query.userId && event.userId !== query.userId) return false
+    if (query.typeIn && query.typeIn.length && !query.typeIn.includes(event.type)) return false
+    return true
+  })
+
+  // Sort by timeMs ascending
+  events.sort((a: any, b: any) => a.timeMs - b.timeMs)
+
+  // Apply limit
+  if (query.limit) {
+    events = events.slice(0, query.limit)
+  }
+
+  return events.map((event: any) => ({ id: event.id, ...event }))
 }
 
 export async function getEventsSince(sinceMs: number, type?: string): Promise<EventRecord[]> {
