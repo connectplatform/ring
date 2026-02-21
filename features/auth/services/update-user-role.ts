@@ -1,14 +1,13 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+/**
+ * Update User Role Service
+ * 
+ * Updates user role in PostgreSQL database
+ * Auth.js handles session management and role claims
+ */
 
-import { getAdminAuth } from '@/lib/firebase-admin.server';
-import { updateDocument } from '@/lib/services/firebase-service-manager';
-import { UserRole } from '@/features/auth/types';
-import { FirebaseError } from 'firebase/app';
-import { auth } from '@/auth'; // Auth.js v5 session handler
+import { UserRole } from '@/features/auth/types'
+import { auth } from '@/auth'
+import { initializeDatabase, getDatabaseService } from '@/lib/database'
 
 /**
  * Update a user's role in Firestore and Firebase Auth, with authentication and admin-only access.
@@ -38,28 +37,29 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
       throw new Error('Unauthorized access: Admin privileges required');
     }
 
-    console.log(`Services: updateUserRole - Admin authenticated with ID ${session.user.id}`);
+    console.log(`updateUserRole: Admin authenticated with ID ${session.user.id}`)
 
-    // Step 2: Update role in Firestore using optimized updateDocument
-    await updateDocument('users', userId, {
+    // Step 2: Initialize database
+    await initializeDatabase()
+    const db = getDatabaseService()
+
+    // Step 3: Update role in PostgreSQL
+    const updateResult = await db.update('users', userId, {
       role: newRole,
-      updatedAt: new Date(),
-    });
+      updatedAt: new Date()
+    })
 
-    // Step 3: Update custom claims in Firebase Auth
-    const adminAuth = getAdminAuth();
-    await adminAuth.setCustomUserClaims(userId, { role: newRole });
+    if (!updateResult.success) {
+      console.error('updateUserRole: Failed to update role:', updateResult.error)
+      return false
+    }
 
-    console.log(`Services: updateUserRole - Role updated successfully for user ${userId} to ${newRole}`);
-    return true; // Indicate successful update
+    console.log(`updateUserRole: Role updated successfully for user ${userId} to ${newRole}`)
+    return true
 
   } catch (error) {
-    if (error instanceof FirebaseError) {
-      console.error('Services: updateUserRole - Firebase error:', error.code, error.message);
-    } else {
-      console.error('Services: updateUserRole - Error updating user role:', error);
-    }
-    return false; // Indicate failure
+    console.error('updateUserRole: Error:', error)
+    return false
   }
 }
 
