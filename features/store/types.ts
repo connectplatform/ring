@@ -78,6 +78,7 @@ export interface ProductVariant {
 export type VendorTier = 'NEW' | 'BASIC' | 'VERIFIED' | 'TRUSTED' | 'PREMIUM'
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
+
 export interface StoreProduct {
   id: string
   name: string
@@ -85,8 +86,6 @@ export interface StoreProduct {
   price: string
   currency: StoreCurrency
   inStock: boolean
-  category?: string
-  tags?: string[]
 
   // P0 Critical Fields (Phase 2: Multi-vendor marketplace - 2025-11-04)
   sku?: string // Stock Keeping Unit (inventory tracking, barcode scanning)
@@ -125,19 +124,10 @@ export interface StoreProduct {
 
   relatedProductIds?: string[]
 
-  // Multi-vendor fields
-  productListedAt?: string[] // Array of storeIDs where listed (default: ['1'])
-  productOwner?: string // userID of product owner
-  ownerEntityId?: string // Entity ID owning the product
-  storeId?: string // Primary store for inventory context
-  listingType?: ProductListingType
-  inventorySync?: InventorySync
-  pricingStrategy?: PricingStrategy
-  commissionStructure?: CommissionStructure
-  fulfillmentOptions?: FulfillmentOptions
-  productCompliance?: ProductCompliance
   // AI-powered features (vector search for similar products)
   embedding?: number[] // 128D vector embedding for semantic similarity
+  category?: string // Product category for better matching
+  tags?: string[] // Tags for enhanced search and recommendations
 
   // ERP Extension: Vendor and quality data
   vendorProfile?: any // ExtendedVendorProfile - vendor information
@@ -151,6 +141,17 @@ export interface StoreProduct {
     fairTrade?: boolean
   }
 
+  // Multi-vendor fields
+  productListedAt?: string[] // Array of storeIDs where listed (default: ['1'])
+  productOwner?: string // userID of product owner
+  ownerEntityId?: string // Entity ID owning the product
+  storeId?: string // Primary store for inventory context
+  listingType?: ProductListingType
+  inventorySync?: InventorySync
+  pricingStrategy?: PricingStrategy
+  commissionStructure?: CommissionStructure
+  fulfillmentOptions?: FulfillmentOptions
+  productCompliance?: ProductCompliance
   status?: ProductStatus
 }
 
