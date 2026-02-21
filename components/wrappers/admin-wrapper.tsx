@@ -337,7 +337,7 @@ export default function AdminWrapper({
             className="w-full p-0 h-auto"
             onClick={() => router.push(`/${locale}/admin/activity`)}
           >
-            {t['viewAllActivity'] || 'View All Activity'} →
+{t['viewAllActivity'] || 'View All Activity'} →
           </Button>
         </CardContent>
       </Card>
@@ -419,7 +419,7 @@ export default function AdminWrapper({
         </div>
 
         {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+        <div className="flex-1 py-8 px-4 md:px-4 md:pr-6 lg:pb-8 pb-24">
           {children}
         </div>
 
