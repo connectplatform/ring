@@ -345,17 +345,13 @@ export default function CheckoutWrapper({
           <DesktopSidebar />
         </div>
 
-        {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+        {/* Center Content Area - Full width of middle column */}
+        <div className="flex-1 min-w-0 py-8 px-4 md:px-6 lg:px-8 lg:pb-8 pb-24">
           {children}
         </div>
 
-        {/* Right Sidebar - Checkout Info & Support (Desktop only, 1024px+) */}
-        <div className="hidden lg:block w-[320px] flex-shrink-0 py-8 pr-6">
-          <div className="sticky top-8">
-            <RightSidebarContent />
-          </div>
-        </div>
+        {/* Right Sidebar - Disabled for checkout as PrebillingPage has own sidebar */}
+        {/* The PrebillingPage component handles order summary with real cart data */}
       </div>
 
       {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
