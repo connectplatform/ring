@@ -48,7 +48,7 @@ import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { toggleProductActive, deleteVendorProduct, duplicateVendorProduct } from '@/app/_actions/vendor-actions'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface VendorProductCardProps {
   product: {

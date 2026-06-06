@@ -98,7 +98,22 @@
       "priority_listing": "Пріоритетна видимість проєкту",
       "developer_pool": "Доступ до мережі Ring-розробників"
     }
+  },
+  "contact": {
+    "copyToClipboard": "Копіювати",
+    "copied": "Скопійовано",
+    "whatsapp": "(WhatsApp)",
+    "lisbonPortugal": "(Лісабон, Португалія)"
+  },
+  "metadata": {
+    "unauthorized": "Доступ заборонено | Ring Platform"
+  },
+  "metaDescription": {
+    "unauthorized": "Доступ заборонено — у вас немає дозволу переглядати цю сторінку."
+  },
+  "unauthorized": {
+    "title": "Несанкціонований доступ",
+    "message": "У вас немає дозволу переглядати цю сторінку.",
+    "returnHome": "На головну"
   }
 }
-
-

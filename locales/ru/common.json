@@ -98,7 +98,22 @@
       "priority_listing": "Приоритетная видимость проекта",
       "developer_pool": "Доступ к сети Ring-разработчиков"
     }
+  },
+  "contact": {
+    "copyToClipboard": "Копировать",
+    "copied": "Скопировано",
+    "whatsapp": "(WhatsApp)",
+    "lisbonPortugal": "(Лиссабон, Португалия)"
+  },
+  "metadata": {
+    "unauthorized": "Доступ запрещён | Ring Platform"
+  },
+  "metaDescription": {
+    "unauthorized": "Доступ запрещён — у вас нет прав для просмотра этой страницы."
+  },
+  "unauthorized": {
+    "title": "Несанкционированный доступ",
+    "message": "У вас нет прав для просмотра этой страницы.",
+    "returnHome": "На главную"
   }
 }
-
-

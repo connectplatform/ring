@@ -42,7 +42,6 @@ import {
 interface AdminUserManagerProps {
   initialUsers: AuthUser[];
   locale: string;
-  translations: any;
 }
 
 interface UserStats {
@@ -54,7 +53,7 @@ interface UserStats {
   unverifiedUsers: number;
 }
 
-export function AdminUserManager({ initialUsers, locale, translations }: AdminUserManagerProps) {
+export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps) {
   // React 19 useTransition for non-blocking UI updates
   const [isPending, startTransition] = useTransition();
 

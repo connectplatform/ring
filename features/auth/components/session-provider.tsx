@@ -13,11 +13,9 @@ interface ProvidersProps {
  *
  * Features:
  * - Auth.js v5 session management
- * - Compatible with Google Identity Services (GIS) direct API usage
  * - React 19 compatible
  *
- * Note: Removed GoogleOAuthProvider wrapper to avoid conflicts with
- * GoogleSignInButtonGIS component which uses window.google.accounts.id directly
+ * Google sign-in on the login UI uses `signIn('google')` (full-page OAuth), not a nested GIS provider.
  */
 export function SessionProvider({ children, session }: ProvidersProps) {
   return (

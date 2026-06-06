@@ -42,7 +42,6 @@ interface ArticleEditorProps {
   mode: 'create' | 'edit';
   article?: NewsArticle;
   locale: string;
-  translations: any;
 }
 
 interface FormData {
@@ -135,7 +134,7 @@ function SubmitButton({
   )
 }
 
-export function ArticleEditor({ mode, article, locale, translations }: ArticleEditorProps) {
+export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const [formData, setFormData] = useState<FormData>(

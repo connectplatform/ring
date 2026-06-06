@@ -6,7 +6,7 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import NotificationStatusPage from '../../components/notifications/NotificationStatusPage'
-import type { Locale } from '../../i18n-config'
+import type { Locale } from '@/i18n/shared'
 import  {  describe,  it,  expect,  jest  }  from  '@jest/globals'
 import '@testing-library/jest-dom'
 

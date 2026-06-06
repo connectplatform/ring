@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "metadata": {
+      "title": "Confidential entities | Ring Platform"
+    },
+    "metaDescription": {
+      "description": "Restricted directory of organization profiles for Ring Platform Confidential members. Authenticated access only; not indexed by search engines."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Confidential entities — Ring Platform",
+      "mainEntityDescription": "Directory of sensitive organization records for trusted operators and partners on Ring Platform."
+    }
+  },
+  "opportunities": {
+    "metadata": {
+      "title": "Confidential opportunities | Ring Platform"
+    },
+    "metaDescription": {
+      "description": "Restricted work-opportunity listings for Ring Platform Confidential members. Session-gated workflows aligned with the professional network and marketplace."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Confidential opportunities — Ring Platform",
+      "mainEntityDescription": "Private opportunity pipeline for vetted roles, partnerships, and requests visible only to Confidential-tier members."
+    }
+  }
+}

@@ -9,7 +9,14 @@
  */
 
 import type { Adapter, AdapterUser, AdapterAccount, AdapterSession, VerificationToken } from "next-auth/adapters"
-import { getDatabaseService } from "@/lib/database/DatabaseService"
+import { cookies } from "next/headers"
+import { getDatabaseService, initializeDatabase } from "@/lib/database/DatabaseService"
+import {
+  DEFAULT_USER_ROLE,
+  OAUTH_INTENT_COOKIE_NAME,
+  resolveOAuthIntentRole,
+  normalizeUserRole,
+} from "@/features/auth/role-intent"
 
 /**
  * Create a PostgreSQL adapter that uses Ring Platform's database abstraction
@@ -19,45 +26,50 @@ import { getDatabaseService } from "@/lib/database/DatabaseService"
 export function PostgreSQLAdapter(): Adapter {
   // Get database service and ensure it's initialized
   const db = getDatabaseService()
-  
-  // Auto-initialize database service on first use
-  let initPromise: Promise<void> | null = null
+
+  /**
+   * Same entry point as {@link auth.ts} JWT callback and ring-zemna-ai adapters:
+   * `initializeDatabase()` sets the global connected flag and respects build-skip semantics.
+   */
   const ensureInitialized = async () => {
-    if (!initPromise) {
-      initPromise = db.initialize().then(result => {
-        if (result.success) {
-          console.log('PostgreSQLAdapter: Database initialized successfully')
-        } else {
-          console.error('PostgreSQLAdapter: Database initialization failed:', result.error)
-          throw new Error('Database initialization failed')
-        }
-      })
+    const result = await initializeDatabase()
+    if (result.success) {
+      return
     }
-    return initPromise
+    const detail = result.error?.message ?? String(result.error ?? 'unknown error')
+    console.error('PostgreSQLAdapter: Database initialization failed:', result.error)
+    throw new Error(`Database initialization failed: ${detail}`)
+  }
+
+  const readRequestedRole = async (user: AdapterUser) => {
+    const explicitRole = normalizeUserRole((user as AdapterUser & { role?: string }).role)
+    if (explicitRole) return explicitRole
+
+    const cookieStore = await cookies()
+    return resolveOAuthIntentRole(cookieStore.get(OAUTH_INTENT_COOKIE_NAME)?.value)
   }
 
   return {
     async createUser(user) {
       console.log('PostgreSQLAdapter: Creating user via database abstraction:', user.email)
       
+      await ensureInitialized()
       try {
-        // Ensure database is initialized before operations
-        await ensureInitialized()
-        
+        const requestedRole = await readRequestedRole(user)
         const now = new Date()
         const userData = {
         email: user.email,
         emailVerified: user.emailVerified || null,
         name: user.name,
         image: user.image,
-        role: 'SUBSCRIBER',
+        role: requestedRole ?? DEFAULT_USER_ROLE,
         isVerified: !!user.emailVerified,
         createdAt: now,
         lastLogin: now,
         bio: '',
         wallets: [],
-        canPostConfidentialOpportunities: false,
-        canViewConfidentialOpportunities: false,
+        canPostConfidentialOpportunities: requestedRole === 'ADMIN' || requestedRole === 'CONFIDENTIAL',
+        canViewConfidentialOpportunities: requestedRole === 'ADMIN' || requestedRole === 'CONFIDENTIAL',
         postedOpportunities: [],
         savedOpportunities: [],
         notificationPreferences: {
@@ -98,8 +110,8 @@ export function PostgreSQLAdapter(): Adapter {
     async getUser(id) {
       console.log('PostgreSQLAdapter: Getting user by id:', id)
       
+      await ensureInitialized()
       try {
-        await ensureInitialized()
         const result = await db.read('users', id)
 
         if (!result.success || !result.data) {
@@ -124,8 +136,8 @@ export function PostgreSQLAdapter(): Adapter {
     async getUserByEmail(email) {
       console.log('PostgreSQLAdapter: Getting user by email:', email)
       
+      await ensureInitialized()
       try {
-        await ensureInitialized()
         const result = await db.query({
           collection: 'users',
           filters: [{ field: 'email', operator: '==', value: email }],
@@ -154,7 +166,8 @@ export function PostgreSQLAdapter(): Adapter {
     async getUserByAccount({ providerAccountId, provider }) {
       console.log('PostgreSQLAdapter: Getting user by account:', { provider, providerAccountId })
       
-      // Query accounts collection to find the account
+      await ensureInitialized()
+
       const accountResult = await db.query({
         collection: 'accounts',
         filters: [
@@ -164,7 +177,12 @@ export function PostgreSQLAdapter(): Adapter {
         pagination: { limit: 1 },
       })
 
-      if (!accountResult.success || !accountResult.data || accountResult.data.length === 0) {
+      if (!accountResult.success) {
+        console.error('PostgreSQLAdapter: Account query failed:', accountResult.error?.message)
+        return null
+      }
+
+      if (!accountResult.data || accountResult.data.length === 0) {
         console.log('PostgreSQLAdapter: Account not found')
         return null
       }
@@ -193,6 +211,7 @@ export function PostgreSQLAdapter(): Adapter {
     async updateUser(user) {
       console.log('PostgreSQLAdapter: Updating user:', user.id)
       
+      await ensureInitialized()
       const updateData: any = {}
       if (user.email !== undefined) updateData.email = user.email
       if (user.emailVerified !== undefined) updateData.emailVerified = user.emailVerified
@@ -219,6 +238,7 @@ export function PostgreSQLAdapter(): Adapter {
     async deleteUser(userId) {
       console.log('PostgreSQLAdapter: Deleting user:', userId)
       
+      await ensureInitialized()
       const result = await db.delete('users', userId)
 
       if (!result.success) {
@@ -232,6 +252,7 @@ export function PostgreSQLAdapter(): Adapter {
     async linkAccount(account) {
       console.log('PostgreSQLAdapter: Linking account:', { provider: account.provider, userId: account.userId })
       
+      await ensureInitialized()
       const accountData = {
         userId: account.userId,
         type: account.type,
@@ -260,6 +281,8 @@ export function PostgreSQLAdapter(): Adapter {
     async unlinkAccount({ providerAccountId, provider }) {
       console.log('PostgreSQLAdapter: Unlinking account:', { provider, providerAccountId })
       
+      await ensureInitialized()
+
       // Find the account first
       const accountResult = await db.query({
         collection: 'accounts',
@@ -270,7 +293,12 @@ export function PostgreSQLAdapter(): Adapter {
         pagination: { limit: 1 },
       })
 
-      if (!accountResult.success || !accountResult.data || accountResult.data.length === 0) {
+      if (!accountResult.success) {
+        console.error('PostgreSQLAdapter: unlinkAccount query failed:', accountResult.error?.message)
+        return
+      }
+
+      if (!accountResult.data || accountResult.data.length === 0) {
         console.log('PostgreSQLAdapter: Account not found for unlinking')
         return
       }
@@ -283,6 +311,7 @@ export function PostgreSQLAdapter(): Adapter {
     async createSession({ sessionToken, userId, expires }) {
       console.log('PostgreSQLAdapter: Creating session for user:', userId)
       
+      await ensureInitialized()
       const sessionData = {
         sessionToken,
         userId,
@@ -302,13 +331,20 @@ export function PostgreSQLAdapter(): Adapter {
     async getSessionAndUser(sessionToken) {
       console.log('PostgreSQLAdapter: Getting session and user by token')
       
+      await ensureInitialized()
+
       const sessionResult = await db.query({
         collection: 'sessions',
         filters: [{ field: 'sessionToken', operator: '==', value: sessionToken }],
         pagination: { limit: 1 },
       })
 
-      if (!sessionResult.success || !sessionResult.data || sessionResult.data.length === 0) {
+      if (!sessionResult.success) {
+        console.error('PostgreSQLAdapter: getSessionAndUser session query failed:', sessionResult.error?.message)
+        return null
+      }
+
+      if (!sessionResult.data || sessionResult.data.length === 0) {
         console.log('PostgreSQLAdapter: Session not found')
         return null
       }
@@ -344,13 +380,19 @@ export function PostgreSQLAdapter(): Adapter {
     async updateSession({ sessionToken, ...session }) {
       console.log('PostgreSQLAdapter: Updating session')
       
+      await ensureInitialized()
+
       const sessionResult = await db.query({
         collection: 'sessions',
         filters: [{ field: 'sessionToken', operator: '==', value: sessionToken }],
         pagination: { limit: 1 },
       })
 
-      if (!sessionResult.success || !sessionResult.data || sessionResult.data.length === 0) {
+      if (!sessionResult.success) {
+        return null
+      }
+
+      if (!sessionResult.data || sessionResult.data.length === 0) {
         return null
       }
 
@@ -367,13 +409,19 @@ export function PostgreSQLAdapter(): Adapter {
     async deleteSession(sessionToken) {
       console.log('PostgreSQLAdapter: Deleting session')
       
+      await ensureInitialized()
+
       const sessionResult = await db.query({
         collection: 'sessions',
         filters: [{ field: 'sessionToken', operator: '==', value: sessionToken }],
         pagination: { limit: 1 },
       })
 
-      if (!sessionResult.success || !sessionResult.data || sessionResult.data.length === 0) {
+      if (!sessionResult.success) {
+        return
+      }
+
+      if (!sessionResult.data || sessionResult.data.length === 0) {
         return
       }
 
@@ -384,6 +432,7 @@ export function PostgreSQLAdapter(): Adapter {
     async createVerificationToken({ identifier, expires, token }) {
       console.log('PostgreSQLAdapter: Creating verification token')
       
+      await ensureInitialized()
       const tokenData = {
         identifier,
         token,
@@ -403,6 +452,8 @@ export function PostgreSQLAdapter(): Adapter {
     async useVerificationToken({ identifier, token }) {
       console.log('PostgreSQLAdapter: Using verification token')
       
+      await ensureInitialized()
+
       const tokenResult = await db.query({
         collection: 'verification_tokens',
         filters: [
@@ -412,7 +463,12 @@ export function PostgreSQLAdapter(): Adapter {
         pagination: { limit: 1 },
       })
 
-      if (!tokenResult.success || !tokenResult.data || tokenResult.data.length === 0) {
+      if (!tokenResult.success) {
+        console.error('PostgreSQLAdapter: useVerificationToken query failed:', tokenResult.error?.message)
+        return null
+      }
+
+      if (!tokenResult.data || tokenResult.data.length === 0) {
         return null
       }
 

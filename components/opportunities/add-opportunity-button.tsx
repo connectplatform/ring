@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
 import Link from 'next/link'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { useTranslations } from 'next-intl'
 

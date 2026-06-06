@@ -37,7 +37,7 @@ const DEFAULT_TIMING_CONFIG: TunnelTimingConfig = {
   progressiveMobileDelay: 500,     // Reduced mobile delay (was 1000ms) - BETTER UX
   authRoutesDelay: 50,             // Ultra-fast auth connection (was 100ms)
   priorityRoutes: ['/profile', '/wallet', '/notifications', '/dashboard'],
-  deferredRoutes: ['/docs', '/about', '/contact', '/blog']
+  deferredRoutes: ['/docs', '/about', '/contact', '/blog', '/login', '/auth/status']
 };
 
 /**

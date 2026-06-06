@@ -35,7 +35,61 @@
     "reset": "Скинути",
     "save": "Зберегти налаштування"
   },
-  "matcher": "Збіги",
+  "matcher": {
+    "title": "Аналітика AI Matcher",
+    "subtitle": "Моніторте та оптимізуйте вашу систему AI-підбору можливостей",
+    "refresh": "Оновити",
+    "export": "Експорт",
+    "metrics": {
+      "totalMatches": "Загальна кількість збігів",
+      "totalMatchesDesc": "Загальна кількість збігів користувач-можливість",
+      "averageScore": "Середній бал збігу",
+      "averageScoreDesc": "Середній бал якості збігів",
+      "engagementRate": "Рівень залучення",
+      "engagementRateDesc": "Взаємодія користувачів зі сповіщеннями про збіги",
+      "costSavings": "Економія коштів",
+      "costSavingsDesc": "Місячна економія від оптимізації"
+    },
+    "tabs": {
+      "performance": "Продуктивність",
+      "quality": "Якість",
+      "usage": "Використання",
+      "trends": "Тенденції"
+    },
+    "performance": {
+      "autoFillAccuracy": "Точність авто-заповнення",
+      "autoFillDesc": "Відсоток полів, правильно заповнених AI",
+      "processingTime": "Час обробки",
+      "processingDesc": "Середній час обробки можливості",
+      "llmUsage": "Використання LLM та вартість",
+      "totalTokens": "Загальна кількість токенів",
+      "totalRequests": "Загальна кількість запитів",
+      "avgResponseTime": "Сер. час відповіді",
+      "costPerMatch": "Вартість за збіг"
+    },
+    "quality": {
+      "matchDistribution": "Розподіл якості збігів",
+      "levels": {
+        "excellent": "Відмінний",
+        "good": "Добрий",
+        "fair": "Задовільний",
+        "poor": "Поганий"
+      },
+      "userEngagement": "Залучення користувачів",
+      "clickRate": "Рівень кліків",
+      "acceptanceRate": "Рівень прийняття",
+      "feedbackRate": "Рівень відгуків"
+    },
+    "usage": {
+      "dailyMatches": "Денний обсяг збігів",
+      "weeklyAccuracy": "Тижневий тренд точності"
+    },
+    "trends": {
+      "matchTrends": "Тренди збігів з часом",
+      "chartPlaceholder": "Тут буде відображатися інтерактивний графік",
+      "chartDesc": "Показує обсяг та якість збігів"
+    }
+  },
   "dashboard": "Панель керування",
   "users": "Користувачі",
   "news": "Новини",
@@ -74,5 +128,47 @@
   "gettingStarted": "Початок роботи",
   "apiReference": "API довідник",
   "troubleshooting": "Вирішення проблем",
-  "createArticle": "Створити статтю"
+  "description": "Централізована панель безпеки та контролю доступу",
+  "refresh": "Оновити",
+  "events": "Події",
+  "permissions": "Дозволи",
+  "rules": "Правила",
+  "monitoring": "Моніторинг",
+  "reports": "Звіти",
+  "recentEvents": "Останні події",
+  "filter": "Фільтр",
+  "search": "Пошук",
+  "investigate": "Дослідити",
+  "resolve": "Вирішити",
+  "userPermissionAudit": "Аудит дозволів користувачів",
+  "risk": "Ризик",
+  "viewDetails": "Детальніше",
+  "modifyPermissions": "Змінити дозволи",
+  "securityRulesPolicies": "Правила та політики безпеки",
+  "addNewRule": "Додати нове правило",
+  "disable": "Вимкнути",
+  "triggers": "Тригери",
+  "lastTriggered": "Останнє спрацювання",
+  "configure": "Налаштувати",
+  "liveSecurityFeed": "Живий канал безпеки",
+  "userLoggedIn": "Увійшов користувач",
+  "failedLoginAttempt": "Невдала спроба входу",
+  "permissionGranted": "Дозвіл надано",
+  "dataExport": "Експортувати дані",
+  "securityRuleTriggered": "Спрацювання правила безпеки",
+  "geographicDistribution": "Географічний розподіл",
+  "ukraine": "Україна",
+  "unitedStates": "США",
+  "poland": "Польща",
+  "germany": "Німеччина",
+  "sessions": "Сесії",
+  "securityReportsCompliance": "Звіти та відповідність безпеці",
+  "compliant": "Відповідний",
+  "certified": "Сертифіковано",
+  "typeII": "Тип II",
+  "availableReports": "Доступні звіти",
+  "download": "Завантажити",
+  "enable": "Увімкнути"
 }
+
+

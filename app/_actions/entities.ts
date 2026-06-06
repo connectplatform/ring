@@ -3,9 +3,10 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { UserRole } from '@/features/auth/types'
-import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
+import { updateEntity as updateEntityService } from '@/features/entities/services/update-entity'
+import { executeUnifiedUpload } from '@/lib/uploads/server/upload-core'
 
 export interface EntityFormState {
   success?: boolean
@@ -16,7 +17,8 @@ export interface EntityFormState {
 
 export async function createEntity(
   prevState: EntityFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<EntityFormState> {
 
   const session = await auth()
@@ -73,31 +75,6 @@ export async function createEntity(
   }
 
   try {
-    let logoUrl = ''
-    
-    // Handle file upload
-    if (logoFile && logoFile.size > 0) {
-      const uploadFormData = new FormData()
-      uploadFormData.append('file', logoFile)
-      
-      // Use API client with optimized timeout for file uploads
-      const uploadResponse: ApiResponse<{ url: string }> = await apiClient.post(`${process.env.NEXTAUTH_URL}/api/upload`, uploadFormData, {
-        timeout: 30000, // 30 second timeout for file uploads
-        retries: 2, // Retry twice for file uploads
-        headers: {
-          // Don't set Content-Type for FormData, let the browser set it
-        }
-      })
-      
-      if (uploadResponse.success && uploadResponse.data) {
-        logoUrl = uploadResponse.data.url
-      } else {
-        return {
-          error: uploadResponse.error || 'Failed to upload logo. Please try again.'
-        }
-      }
-    }
-
     // Parse tags
     const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(Boolean) : []
 
@@ -111,7 +88,7 @@ export async function createEntity(
       location: entityLocation.trim(),
       website: website?.trim() || '',
       contactEmail: contactEmail?.trim() || '',
-      logo: logoUrl,
+      logo: '',
       tags: tags || [],
       isConfidential,
       addedBy: session.user.id,
@@ -125,11 +102,34 @@ export async function createEntity(
     
     // Create the entity using the service
     const newEntity = await createEntityService(entityData)
+
+    if (logoFile && logoFile.size > 0) {
+      const uploadResult = await executeUnifiedUpload({
+        file: logoFile,
+        meta: {
+          purpose: 'entity:logo',
+          scope: {
+            entityId: newEntity.id,
+          },
+          fileName: logoFile.name,
+        },
+      })
+
+      if (uploadResult.success === false) {
+        return {
+          error: uploadResult.error || 'Failed to upload logo. Please try again.',
+        }
+      }
+
+      await updateEntityService(newEntity.id, {
+        logo: uploadResult.url,
+      })
+    }
     
     console.log('Entity created successfully:', { id: newEntity.id, name: newEntity.name })
 
     // Success - redirect to entities page
-    redirect(ROUTES.ENTITIES(defaultLocale))
+    redirect(ROUTES.ENTITIES(locale))
     
   } catch (error) {
     console.error('Error creating entity:', error)
@@ -152,7 +152,8 @@ const ROLE_HIERARCHY = {
 
 export async function updateEntity(
   prevState: EntityFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<EntityFormState> {
 
   const session = await auth()
@@ -254,7 +255,7 @@ export async function updateEntity(
     console.log('Entity updated successfully:', { id: entityId, name: updateData.name })
 
     // Redirect to entity status page
-    redirect(ROUTES.ENTITY_STATUS('update', 'success', defaultLocale) + `?id=${entityId}`)
+    redirect(ROUTES.ENTITY_STATUS('update', 'success', locale) + `?id=${entityId}`)
     
   } catch (error) {
     console.error('Error updating entity:', error)
@@ -266,7 +267,8 @@ export async function updateEntity(
 
 export async function deleteEntity(
   prevState: EntityFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<EntityFormState> {
 
   const session = await auth()
@@ -315,7 +317,7 @@ export async function deleteEntity(
     console.log('Entity deleted successfully:', { id: entityId })
 
     // Redirect to delete success status page
-    redirect(ROUTES.ENTITY_STATUS('delete', 'success', defaultLocale) + `?id=${entityId}`)
+    redirect(ROUTES.ENTITY_STATUS('delete', 'success', locale) + `?id=${entityId}`)
     
   } catch (error) {
     console.error('Error deleting entity:', error)

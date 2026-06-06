@@ -1,0 +1,190 @@
+{
+  "title": "Підписка для Бізнесу",
+  "manageSubscription": "Керувати Підпискою",
+  "upgradeSubscription": "Покращити",
+  "cancelSubscription": "Скасувати Підписку",
+  "renewSubscription": "Поновити Підписку",
+  "noSubscription": "Немає активної підписки",
+  
+  "plans": {
+    "title": "Плани Підписки",
+    "basic": "Базовий План",
+    "premium": "Преміум План",
+    "enterprise": "Корпоративний План",
+    "selectPlan": "Обрати План",
+    "currentPlan": "Поточний План",
+    "recommendedPlan": "Рекомендовано",
+    "mostPopular": "Найпопулярніший"
+  },
+  
+  "pricing": {
+    "listingFee": "Одноразова Плата за Розміщення",
+    "monthlySubscription": "Місячна Підписка",
+    "perMonth": "/місяць",
+    "perYear": "/рік",
+    "billingPeriod": "Період Оплати",
+    "monthly": "Щомісяця",
+    "yearly": "Щороку (Економія 20%)",
+    "savePercent": "Економія {{percent}}%",
+    "total": "Всього",
+    "subtotal": "Проміжний Підсумок",
+    "tax": "Податок",
+    "discount": "Знижка"
+  },
+  
+  "features": {
+    "title": "Функції",
+    "mapVisibility": "Видимість на Карті",
+    "unlimitedPhotos": "Необмежена Кількість Фото",
+    "prioritySupport": "Пріоритетна Підтримка",
+    "analyticsAccess": "Доступ до Аналітики",
+    "vendorAccount": "Обліковий Запис Продавця",
+    "featuredListing": "Рекомендоване Розміщення",
+    "customBranding": "Власний Брендинг",
+    "apiAccess": "Доступ до API",
+    "includedFeatures": "Включені Функції",
+    "additionalFeatures": "Додаткові Функції"
+  },
+  
+  "status": {
+    "active": "Активна",
+    "inactive": "Неактивна",
+    "gracePeriod": "Пільговий Період",
+    "pastDue": "Прострочена",
+    "canceled": "Скасована",
+    "suspended": "Призупинена",
+    "trial": "Пробний Період",
+    "pending": "Очікує Оплати"
+  },
+  
+  "billing": {
+    "title": "Платіжна Інформація",
+    "paymentMethod": "Спосіб Оплати",
+    "addPaymentMethod": "Додати Спосіб Оплати",
+    "updatePaymentMethod": "Оновити Спосіб Оплати",
+    "billingHistory": "Історія Платежів",
+    "invoices": "Рахунки",
+    "nextBillingDate": "Наступна Дата Оплати",
+    "lastPayment": "Останній Платіж",
+    "cardEnding": "Картка закінчується на {{last4}}",
+    "expires": "Діє до {{date}}",
+    "downloadInvoice": "Завантажити Рахунок"
+  },
+  
+  "payment": {
+    "title": "Оплата",
+    "cardNumber": "Номер Картки",
+    "expiryDate": "Термін Дії",
+    "cvv": "CVV",
+    "cardholderName": "Ім'я Власника Картки",
+    "billingAddress": "Адреса для Виставлення Рахунку",
+    "payNow": "Оплатити Зараз",
+    "payWithCard": "Оплатити Карткою",
+    "payWithApplePay": "Оплатити через Apple Pay",
+    "payWithGooglePay": "Оплатити через Google Pay",
+    "securePayment": "Безпечна Оплата",
+    "poweredByStripe": "На основі Stripe"
+  },
+  
+  "visibility": {
+    "title": "Видимість на Карті",
+    "enabled": "Ваше місце видиме на карті",
+    "disabled": "Ваше місце приховане з карти",
+    "requiresSubscription": "Активна підписка потрібна для видимості на карті",
+    "gracePeriodWarning": "Ваш платіж не пройшов. У вас є {{days}} днів для оновлення оплати, перш ніж ваше місце буде приховане.",
+    "suspendedWarning": "Ваше місце зараз приховане. Поновіть підписку для відновлення видимості."
+  },
+  
+  "actions": {
+    "subscribe": "Підписатися Зараз",
+    "updatePlan": "Оновити План",
+    "cancelPlan": "Скасувати План",
+    "reactivate": "Реактивувати Підписку",
+    "pauseSubscription": "Призупинити Підписку",
+    "resumeSubscription": "Відновити Підписку",
+    "confirmCancellation": "Ви впевнені, що хочете скасувати підписку? Ваше місце буде приховане з карти.",
+    "confirmUpgrade": "Покращити до {{plan}} за {{price}}/місяць?",
+    "confirmDowngrade": "Знизити до {{plan}}? Деякі функції будуть вимкнені."
+  },
+  
+  "grace_period": {
+    "title": "Платіж не Пройшов - Пільговий Період",
+    "description": "Ваш платіж не пройшов, але у вас є {{days}} днів пільгового періоду для оновлення способу оплати.",
+    "daysRemaining": "Залишилось {{days}} днів",
+    "updatePayment": "Оновити Спосіб Оплати",
+    "contactSupport": "Зв'язатися з Підтримкою"
+  },
+  
+  "cancellation": {
+    "title": "Скасувати Підписку",
+    "confirmTitle": "Ви впевнені?",
+    "confirmMessage": "Вашу підписку буде скасовано і ваше місце буде приховане з карти. Ви можете реактивувати в будь-який час.",
+    "reasonTitle": "Допоможіть нам покращитися (опціонально)",
+    "reasonPlaceholder": "Чому ви скасовуєте?",
+    "reasons": {
+      "tooExpensive": "Занадто дорого",
+      "notEnoughCustomers": "Недостатньо клієнтів",
+      "technicalIssues": "Технічні проблеми",
+      "seasonalBusiness": "Сезонний бізнес",
+      "movingLocation": "Переїзд в інше місце",
+      "other": "Інша причина"
+    },
+    "keepSubscription": "Залишити Підписку",
+    "confirmCancel": "Так, Скасувати Підписку"
+  },
+  
+  "renewal": {
+    "title": "Поновити Підписку",
+    "automaticRenewal": "Автоматичне Поновлення",
+    "enabled": "Увімкнено",
+    "disabled": "Вимкнено",
+    "nextRenewalDate": "Наступне поновлення {{date}}",
+    "renewNow": "Поновити Зараз",
+    "enableAutoRenewal": "Увімкнути Автопоновлення",
+    "disableAutoRenewal": "Вимкнути Автопоновлення"
+  },
+  
+  "validation": {
+    "cardNumberInvalid": "Невірний номер картки",
+    "expiryDateInvalid": "Невірний термін дії",
+    "cvvInvalid": "Невірний CVV",
+    "cardholderNameRequired": "Ім'я власника картки обов'язкове",
+    "paymentMethodRequired": "Спосіб оплати обов'язковий"
+  },
+  
+  "success": {
+    "subscribed": "Підписку успішно активовано!",
+    "updated": "Підписку успішно оновлено!",
+    "canceled": "Підписку скасовано",
+    "renewed": "Підписку успішно поновлено!",
+    "paymentUpdated": "Спосіб оплати успішно оновлено!",
+    "paymentReceived": "Платіж отримано. Дякуємо!"
+  },
+  
+  "errors": {
+    "paymentFailed": "Платіж не пройшов. Будь ласка, перевірте спосіб оплати та спробуйте ще раз.",
+    "cardDeclined": "Вашу картку відхилено. Будь ласка, використайте інший спосіб оплати.",
+    "insufficientFunds": "Недостатньо коштів. Будь ласка, використайте інший спосіб оплати.",
+    "subscriptionFailed": "Не вдалося активувати підписку. Спробуйте ще раз.",
+    "updateFailed": "Не вдалося оновити підписку. Спробуйте ще раз.",
+    "cancelFailed": "Не вдалося скасувати підписку. Зв'яжіться з підтримкою.",
+    "networkError": "Помилка мережі. Перевірте з'єднання та спробуйте ще раз."
+  },
+  
+  "notifications": {
+    "paymentSuccess": "Платіж успішний! Вашу підписку активовано.",
+    "paymentFailed": "Платіж не пройшов. Оновіть спосіб оплати.",
+    "subscriptionExpiring": "Ваша підписка закінчується через {{days}} днів.",
+    "gracePeriodStarted": "Платіж не пройшов. У вас є {{days}} днів для оновлення оплати.",
+    "subscriptionCanceled": "Вашу підписку скасовано.",
+    "subscriptionReactivated": "Вашу підписку реактивовано!"
+  },
+  
+  "help": {
+    "title": "Потрібна Допомога?",
+    "contactSupport": "Зв'язатися з Підтримкою",
+    "viewFaq": "Переглянути FAQ",
+    "billingQuestions": "Питання щодо Оплати",
+    "technicalSupport": "Технічна Підтримка"
+  }
+}

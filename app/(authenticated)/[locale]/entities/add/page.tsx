@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { cookies, headers } from 'next/headers'
 import AddEntityForm from '@/features/entities/components/add-entity'
@@ -6,13 +7,36 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { resolvePageProps, LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { connection } from 'next/server'
+import { logger } from '@/lib/logger'
 
 // Force dynamic rendering for this page to ensure fresh data on every request
 
 // Define the type for the route params (if any)
-type AddEntityParams = { id?: string };
+type AddEntityParams = { id?: string }
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : (routing.defaultLocale as Locale)
+  setRequestLocale(locale)
+  const t = await getTranslations('modules.entities')
+  const base = (process.env.NEXT_PUBLIC_API_URL || 'https://ring.platform').replace(/\/$/, '')
+  return {
+    title: t('addEntity.title'),
+    description: t('addEntity.description'),
+    robots: { index: false, follow: false },
+    alternates: { canonical: `${base}${ROUTES.ADD_ENTITY(locale)}` },
+  }
+}
 
 /**
  * Renders the Add Entity page.
@@ -29,88 +53,50 @@ type AddEntityParams = { id?: string };
 export default async function AddEntityPage(props: LocalePageProps<AddEntityParams>) {
   await connection() // Next.js 16: opt out of prerendering
 
-  console.log('AddEntityPage: Starting');
+  logger.info('AddEntityPage: Starting');
 
-  // Resolve params and searchParams using our utility function
   const { params, searchParams } = await resolvePageProps<AddEntityParams>(props);
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
 
-  // i18n: Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-
-  // i18n: Load translations for this locale
-  const translations = await loadTranslations(locale);
-
-  // i18n: Generate hreflang alternates for SEO
-  const alternates = generateHreflangAlternates('/entities/add');
-
-  console.log('Params:', params);
-  console.log('Search Params:', searchParams);
-
-  // Get cookies and headers
-  const cookieStore = await cookies()
-  const headersList = await headers()
-  const token = cookieStore.get("token");
-  const userAgent = headersList.get('user-agent')
-
-  console.log('AddEntityPage: Request details', {
+  const headersList = await headers();
+  logger.info('AddEntityPage: Request details', {
     params,
     searchParams,
-    userAgent,
-    hasToken: !!token
+    locale: validLocale,
+    userAgent: headersList.get('user-agent'),
   });
 
-  // Authenticate user session
-  console.log('AddEntityPage: Authenticating session');
-  const session = await auth();
-  console.log('AddEntityPage: Session authenticated', { 
-    sessionExists: !!session, 
-    userId: session?.user?.id, 
-    role: session?.user?.role,
-  });
+  try {
+    logger.info('AddEntityPage: Authenticating session');
+    const session = await auth();
+    logger.info('AddEntityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
 
-  // Check user authentication
-  if (!session) {
-    console.log('AddEntityPage: Unauthorized access, redirecting to login');
-    redirect(`${ROUTES.LOGIN}?callbackUrl=${ROUTES.ADD_ENTITY}`)
-  }
+    if (!session) {
+      logger.info('AddEntityPage: Unauthorized access, redirecting to login');
+      redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADD_ENTITY(validLocale))}`);
+    }
 
-  console.log('AddEntityPage: Rendering Add Entity form');
+    try {
+      const { userMigrationService } = await import('@/features/auth/services/user-migration');
+      const userExists = await userMigrationService.userDocumentExists(session.user.id);
+      if (!userExists) {
+        logger.warn('AddEntityPage: User document missing, initializing');
+        await userMigrationService.ensureUserDocument(session.user as any);
+        logger.info('AddEntityPage: User document created successfully');
+      }
+    } catch (migrationError) {
+      logger.error('AddEntityPage: Failed to check/create user document:', migrationError);
+    }
 
-  // i18n: Use translated title/description if available, fallback to English
-  const title = (translations as any)?.metadata?.addEntity || 'Add Entity - Ring App';
-  const description = (translations as any)?.metaDescription?.addEntity || 'Add a new entity to the Ring App directory. Contribute to the growing ecosystem of technology companies and organizations.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/entities/add`;
+    const t = await getTranslations('modules.entities')
+    const title = t('addEntity.title')
+    const description = t('addEntity.description')
+    const canonicalUrl = `${(process.env.NEXT_PUBLIC_API_URL || 'https://ring.platform').replace(/\/$/, '')}${ROUTES.ADD_ENTITY(validLocale)}`
 
-  // Render the page content
-  return (
+    logger.info('AddEntityPage: Rendering Add Entity form')
+
+    return (
     <>
-      {/* React 19 Native Document Metadata - Form Page */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-
-      {/* Hreflang alternates for i18n SEO */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
-
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-
-      {/* Form page specific meta tags */}
-      <meta name="robots" content="noindex, nofollow" />
-      <meta name="googlebot" content="noindex, nofollow" />
-
       {/* Form-specific structured data */}
       <script
         type="application/ld+json"
@@ -123,8 +109,8 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
             "url": canonicalUrl,
             "mainEntity": {
               "@type": "WebPageElement",
-              "name": (translations as any)?.formTitle?.addEntity || "Entity Submission Form",
-              "description": (translations as any)?.formDescription?.addEntity || "Form for adding new entities to the Ring platform directory"
+              "name": t('addEntity.formTitle') || "Entity Submission Form",
+              "description": t('addEntity.formDescription') || "Form for adding new entities to the Zemna AI directory"
             },
             "breadcrumb": {
               "@type": "BreadcrumbList",
@@ -132,19 +118,19 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
                 {
                   "@type": "ListItem",
                   "position": 1,
-                  "name": (translations as any)?.breadcrumb?.home || "Home",
-                  "item": process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"
+                  "name": t('breadcrumb.home') || "Home",
+                  "item": `https://zemna.ai${ROUTES.HOME(validLocale)}`
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
-                  "name": (translations as any)?.breadcrumb?.entities || "Entities",
-                  "item": `${process.env.NEXT_PUBLIC_API_URL || "https://ring.ck.ua"}${locale}/entities`
+                  "name": t('breadcrumb.entities') || "Entities",
+                  "item": `${process.env.NEXT_PUBLIC_API_URL || "https://zemna.ai"}${ROUTES.ENTITIES(validLocale)}`
                 },
                 {
                   "@type": "ListItem",
                   "position": 3,
-                  "name": (translations as any)?.breadcrumb?.addEntity || "Add Entity",
+                  "name": t('breadcrumb.addEntity') || "Add Entity",
                   "item": canonicalUrl
                 }
               ]
@@ -153,15 +139,15 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
         }}
       />
 
-      <EntityFormWrapper locale={locale}>
+      <EntityFormWrapper locale={validLocale}>
         {/* Content Header - Entity Creation Style */}
         <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-sm">
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">{(translations as any)?.modules?.entities?.addMyEntity || 'Create Entity'}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{t('addMyEntity') || 'Create Entity'}</h1>
                 <p className="text-muted-foreground">
-                  {(translations as any)?.modules?.entities?.addMyEntityDescription || 'Add your organization or company to the Ring platform'}
+                  {t('addMyEntityDescription') || 'Add your organization or company to the Zemna AI'}
                 </p>
               </div>
             </div>
@@ -175,12 +161,24 @@ export default async function AddEntityPage(props: LocalePageProps<AddEntityPara
               <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
             </div>
           }>
-            <AddEntityForm locale={locale} translations={translations} />
+            <AddEntityForm locale={validLocale} />
           </Suspense>
         </div>
       </EntityFormWrapper>
     </>
-  )
+  );
+  } catch (e) {
+    logger.error('AddEntityPage: Error:', e);
+    return (
+      <div className="container mx-auto px-0 py-0">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Add Entity Error</h1>
+            <p className="text-muted-foreground mb-4">Failed to load add entity page. Please try again later.</p>
+            <a href={ROUTES.HOME(validLocale)} className="text-primary hover:underline">Return to Home</a>
+          </div>
+        </div>
+    )
+  }
 }
 
 /* 

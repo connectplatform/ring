@@ -21,7 +21,7 @@ import {
 import { useCreditBalance } from '@/hooks/use-credit-balance'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface WalletSectionProps {
   locale: Locale
@@ -42,7 +42,7 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
 
   // Get wallet balance data
   const {
-    balance: ringBalance,
+    balance: tokenBalance,
     subscription,
     limits,
     isLoading,
@@ -85,8 +85,8 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
   }
 
   // Check if balance is low
-  const hasLowBalance = parseFloat(ringBalance?.amount || '0') < 1
-  const displayBalance = formatBalance(ringBalance?.amount)
+  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
+  const displayBalance = formatBalance(tokenBalance?.amount)
   const walletAddress = session?.user?.wallets?.[0]?.address
 
   if (isLoading) {
@@ -139,7 +139,7 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 {displayBalance} <span className="text-xl text-muted-foreground">RING</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                ≈ ${ringBalance?.usd_equivalent || '0.00'} USD
+                ≈ ${tokenBalance?.usd_equivalent || '0.00'} USD
               </div>
             </div>
 

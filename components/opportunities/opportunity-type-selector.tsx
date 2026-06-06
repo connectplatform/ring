@@ -1,7 +1,7 @@
 // React 19 + Next.js 15: Server component wrapper
 // Delegates to client component for interactivity
 import { OpportunityTypeSelectorClient } from './opportunity-type-selector-client'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface OpportunityTypeSelectorProps {
   onClose: () => void

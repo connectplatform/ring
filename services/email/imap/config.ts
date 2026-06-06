@@ -1,8 +1,7 @@
 /**
- * Email Configuration for info@ringdom.org
+ * Email Configuration for Ring Platform
  * =========================================
  * Configuration loaded from environment variables
- * Secrets stored in: .cursor/.secrets/legion/ring-ringdom-org-secrets.json
  */
 
 export interface EmailConfig {
@@ -40,21 +39,21 @@ export interface EmailConfig {
 // Environment-based configuration with secure defaults
 export const emailConfig: EmailConfig = {
   // IMAP settings (IMAPS)
-  host: process.env.IMAP_HOST || 'mail.ringdom.org',
+  host: process.env.IMAP_HOST || 'mail.ring-platform.org',
   port: parseInt(process.env.IMAP_PORT || '993', 10),
   tls: process.env.IMAP_TLS !== 'false',
   tlsRejectUnauthorized: process.env.IMAP_TLS_REJECT_UNAUTHORIZED !== 'false',
-  user: process.env.IMAP_USER || 'info@ringdom.org',
-  password: process.env.IMAP_PASSWORD || '', // Must be set via env
+  user: process.env.IMAP_USER || 'admin@ring-platform.org',
+  password: process.env.IMAP_PASSWORD || '',
   
   // SMTP settings for outgoing mail
   smtp: {
-    host: process.env.SMTP_HOST || 'mail.ringdom.org',
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    host: process.env.SMTP_HOST || 'mail.ring-platform.org',
+    port: parseInt(process.env.SMTP_PORT || '465', 10),
     secure: process.env.SMTP_SECURE === 'true', // false for STARTTLS
     auth: {
-      user: process.env.SMTP_USER || 'info@ringdom.org',
-      pass: process.env.SMTP_PASSWORD || '', // Must be set via env
+      user: process.env.SMTP_USER || 'admin@ring-platform.org',
+      pass: process.env.SMTP_PASSWORD || '',
     },
   },
   
@@ -95,33 +94,5 @@ export function validateEmailConfig(): { valid: boolean; errors: string[] } {
     errors,
   };
 }
-
-// Export environment variable template for .env.local
-export const envTemplate = `
-# Email Configuration for ring-ringdom-org
-# Copy to .env.local and fill in values
-
-# IMAP Settings (for receiving emails)
-IMAP_HOST=mail.ringdom.org
-IMAP_PORT=993
-IMAP_TLS=true
-IMAP_TLS_REJECT_UNAUTHORIZED=false
-IMAP_USER=info@ringdom.org
-IMAP_PASSWORD=yrVPmVRniU3XKQKmj7Dz
-
-# SMTP Settings (for sending emails)
-SMTP_HOST=mail.ringdom.org
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=info@ringdom.org
-SMTP_PASSWORD=yrVPmVRniU3XKQKmj7Dz
-
-# Processing Settings
-EMAIL_POLLING_INTERVAL=30000
-EMAIL_BATCH_SIZE=10
-EMAIL_MAILBOX=INBOX
-EMAIL_PROCESSED_FOLDER=Processed
-EMAIL_SPAM_FOLDER=Spam
-`;
 
 export default emailConfig;

@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, use } from 'react'
+'use client'
+
+import { useState, useEffect, useCallback, useMemo, use, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useTunnel } from '@/hooks/use-tunnel'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
+import { normalizeMessagePayload } from '@/features/chat/lib/normalize-message'
+import type { TunnelMessage } from '@/lib/tunnel/types'
 import { 
   Conversation, 
   Message, 
@@ -133,13 +138,21 @@ export function useConversations(filters?: ConversationFilters, pagination?: Pag
   }
 }
 
-export function useConversation(conversationId: string) {
+export function useConversation(
+  conversationId: string,
+  options?: { enabled?: boolean }
+) {
   const { data: session } = useSession()
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const enabled = options?.enabled !== false
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
     if (!session?.user?.id || !conversationId) return
 
     const fetchConversation = async () => {
@@ -177,7 +190,7 @@ export function useConversation(conversationId: string) {
     }
 
     fetchConversation()
-  }, [session?.user?.id, conversationId])
+  }, [session?.user?.id, conversationId, enabled])
 
   const markAsRead = useCallback(async () => {
     if (!conversationId) return
@@ -219,6 +232,7 @@ export function useConversation(conversationId: string) {
 
 export function useMessages(conversationId: string, pagination?: PaginationOptions) {
   const { data: session } = useSession()
+  const { subscribe, isConnected } = useTunnel()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -280,6 +294,45 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
     fetchMessages(true)
   }, [fetchMessages])
 
+  useEffect(() => {
+    if (!session?.user?.id || !conversationId) return
+    const channel = `conversation:${conversationId}`
+
+    const onTunnelMessage = (msg: TunnelMessage) => {
+      const event = msg.event
+      if (event === 'message:new' && msg.payload) {
+        const incoming = normalizeMessagePayload(msg.payload, conversationId)
+        if (!incoming) return
+        setMessages((prev) => {
+          if (prev.some((p) => p.id === incoming.id)) return prev
+          return [...prev, incoming]
+        })
+        return
+      }
+      if (event === 'message:deleted' && msg.payload && typeof msg.payload === 'object') {
+        const id = (msg.payload as { id?: string }).id
+        if (!id) return
+        setMessages((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, content: '[Message deleted]' } : m))
+        )
+        return
+      }
+      if (event === 'message:update' && msg.payload) {
+        const incoming = normalizeMessagePayload(msg.payload, conversationId)
+        if (!incoming) return
+        setMessages((prev) => {
+          const idx = prev.findIndex((p) => p.id === incoming.id)
+          if (idx === -1) return [...prev, incoming]
+          const next = [...prev]
+          next[idx] = { ...next[idx], ...incoming }
+          return next
+        })
+      }
+    }
+
+    return subscribe(channel, onTunnelMessage)
+  }, [session?.user?.id, conversationId, subscribe, isConnected])
+
   const sendMessage = useCallback(async (content: string, options?: Partial<SendMessageRequest>): Promise<Message | null> => {
     if (!session?.user?.id || !conversationId) return null
 
@@ -302,8 +355,10 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
       )
 
       if (response.success && response.data) {
-        // Add the new message to the end of the list
-        setMessages(prev => [...prev, response.data.data])
+        setMessages((prev) => {
+          if (prev.some((p) => p.id === response.data!.data.id)) return prev
+          return [...prev, response.data!.data]
+        })
         return response.data.data
       } else {
         throw new Error(response.error || 'Failed to send message')
@@ -348,21 +403,69 @@ export function useTyping(conversationId: string) {
   const { data: session } = useSession()
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([])
   const [isTyping, setIsTyping] = useState(false)
+  const lastTrueSentRef = useRef(0)
 
-  // Mock implementation for typing indicators
-  // In a real implementation, this would connect to WebSocket or Firebase Realtime Database
-  const updateTypingStatus = useCallback(async (typing: boolean) => {
-    if (!session?.user?.id || !conversationId) return
+  const postTyping = useCallback(
+    async (typing: boolean) => {
+      if (!session?.user?.id || !conversationId) return
+      setIsTyping(typing)
+      try {
+        await apiClient.post(
+          `${API_BASE}/conversations/${conversationId}/typing`,
+          { isTyping: typing },
+          { timeout: 6000, retries: 0 }
+        )
+      } catch {
+        // Non-fatal — typing is best-effort
+      }
+    },
+    [session?.user?.id, conversationId]
+  )
 
-    setIsTyping(typing)
-    
-    // Here you would make an API call to update typing status
-    // For now, we'll just simulate the behavior
-    console.log(`User ${session.user.id} is ${typing ? 'typing' : 'not typing'} in conversation ${conversationId}`)
-  }, [session?.user?.id, conversationId])
+  const startTyping = useCallback(() => {
+    const now = Date.now()
+    if (now - lastTrueSentRef.current < 1500) return
+    lastTrueSentRef.current = now
+    postTyping(true)
+  }, [postTyping])
 
-  const startTyping = useCallback(() => updateTypingStatus(true), [updateTypingStatus])
-  const stopTyping = useCallback(() => updateTypingStatus(false), [updateTypingStatus])
+  const stopTyping = useCallback(() => {
+    postTyping(false)
+  }, [postTyping])
+
+  useEffect(() => {
+    if (!conversationId || !session?.user?.id) {
+      setTypingUsers([])
+      return
+    }
+    const cid = conversationId
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const res: ApiResponse<{
+          data: { typingUsers: TypingIndicator[] }
+        }> = await apiClient.get(`${API_BASE}/conversations/${cid}/typing`, {
+          timeout: 6000,
+          retries: 0
+        })
+        if (cancelled || !res.success || !res.data?.data) return
+        setTypingUsers(res.data.data.typingUsers || [])
+      } catch {
+        /* ignore */
+      }
+    }
+    poll()
+    const id = setInterval(poll, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      void apiClient.post(
+        `${API_BASE}/conversations/${cid}/typing`,
+        { isTyping: false },
+        { timeout: 3000, retries: 0 }
+      )
+    }
+  }, [conversationId, session?.user?.id])
 
   return {
     typingUsers,
@@ -370,6 +473,30 @@ export function useTyping(conversationId: string) {
     startTyping,
     stopTyping
   }
+}
+
+/** POST /api/conversations/[id]/read — call when a thread is focused / read. */
+export function useMarkConversationRead(conversationId: string | null) {
+  const { data: session } = useSession()
+  const lastMarkRef = useRef(0)
+
+  const markAsRead = useCallback(async () => {
+    if (!session?.user?.id || !conversationId) return
+    const now = Date.now()
+    if (now - lastMarkRef.current < 4000) return
+    lastMarkRef.current = now
+    try {
+      await apiClient.post(
+        `${API_BASE}/conversations/${conversationId}/read`,
+        {},
+        { timeout: 8000, retries: 0 }
+      )
+    } catch {
+      // best-effort
+    }
+  }, [session?.user?.id, conversationId])
+
+  return { markAsRead }
 }
 
 /**

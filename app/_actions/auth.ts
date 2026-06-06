@@ -1,10 +1,15 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
-import { defaultLocale, isValidLocale, type Locale } from '@/i18n-config'
-import { signIn } from '@/auth'
-import { auth } from '@/auth'
+import { routing, type Locale } from '@/i18n/routing'
+import { signIn, auth } from '@/auth'
+import {
+  getOAuthIntentCookieOptions,
+  OAUTH_INTENT_COOKIE_NAME,
+  resolveOAuthIntentRole,
+} from '@/features/auth/role-intent'
 
 export interface AuthFormState {
   success?: boolean
@@ -40,6 +45,21 @@ import { logger } from '@/lib/logger'
 
 // Auth.js v5 native server action for credentials sign-in
 
+async function setOAuthIntentCookie(rawRole: FormDataEntryValue | null) {
+  const cookieStore = await cookies()
+  const role = resolveOAuthIntentRole(rawRole)
+  cookieStore.set(OAUTH_INTENT_COOKIE_NAME, role, getOAuthIntentCookieOptions())
+  return role
+}
+
+async function clearOAuthIntentCookie() {
+  const cookieStore = await cookies()
+  cookieStore.set(OAUTH_INTENT_COOKIE_NAME, '', {
+    ...getOAuthIntentCookieOptions(),
+    maxAge: 0,
+  })
+}
+
 export async function signInWithCredentials(
   prevState: AuthFormState | null,
   formData: FormData
@@ -47,7 +67,7 @@ export async function signInWithCredentials(
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  const redirectTo = formData.get('redirectTo') as string || ROUTES.HOME(defaultLocale)
+  const redirectTo = formData.get('redirectTo') as string || ROUTES.HOME(routing.defaultLocale)
 
   // Validation
   const fieldErrors: Record<string, string> = {}
@@ -110,7 +130,7 @@ export async function signInWithProvider(
 ): Promise<AuthFormState> {
 
   const provider = formData.get('provider') as string
-  const redirectTo = formData.get('redirectTo') as string || ROUTES.HOME(defaultLocale)
+  const redirectTo = formData.get('redirectTo') as string || ROUTES.HOME(routing.defaultLocale)
 
   if (!provider || !['google', 'apple', 'metamask'].includes(provider)) {
     return {
@@ -118,27 +138,17 @@ export async function signInWithProvider(
     }
   }
 
-  try {
-    // Handle MetaMask differently since it's not a standard OAuth provider
-    if (provider === 'metamask') {
-      // For MetaMask, we'll need to handle client-side wallet connection
-      // For now, redirect to a MetaMask connection page
-      redirect(`/auth/metamask?callbackUrl=${encodeURIComponent(redirectTo)}`)
-    } else {
-      // Redirect to standard OAuth provider sign-in
-      redirect(`/api/auth/signin/${provider}?callbackUrl=${encodeURIComponent(redirectTo)}`)
-    }
-    
-  } catch (error: any) {
-    if (error.message?.includes('NEXT_REDIRECT')) {
-      // Re-throw redirect errors
-      throw error
-    }
-    
-    return {
-      error: 'Failed to sign in with provider. Please try again.'
-    }
+  if (provider === 'metamask') {
+    redirect(`/auth/metamask?callbackUrl=${encodeURIComponent(redirectTo)}`)
   }
+
+  try {
+    await setOAuthIntentCookie(formData.get('intent') ?? formData.get('role'))
+  } catch {
+    return { error: 'Failed to sign in with provider. Please try again.' }
+  }
+
+  redirect(`/api/auth/signin/${provider}?callbackUrl=${encodeURIComponent(redirectTo)}`)
 }
 
 export async function signInWithGoogle(
@@ -147,26 +157,19 @@ export async function signInWithGoogle(
 ): Promise<GoogleSignInState> {
 
   const redirectUrl = formData.get('redirectUrl') as string
-  const localeParam = formData.get('locale') as string || defaultLocale
+  const localeParam = formData.get('locale') as string || routing.defaultLocale
   
   // Auth.js v5 & React 19: Validate locale type safety
-  const locale: Locale = isValidLocale(localeParam) ? localeParam : defaultLocale
+  const locale: Locale = routing.locales.includes(localeParam as Locale) ? (localeParam as Locale) : routing.defaultLocale
   const callbackUrl = redirectUrl || ROUTES.PROFILE(locale)
 
   try {
-    // Redirect to Google OAuth sign-in
-    redirect(`/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`)
-    
-  } catch (error: any) {
-    if (error.message?.includes('NEXT_REDIRECT')) {
-      // Re-throw redirect errors
-      throw error
-    }
-    
-    return {
-      error: 'Failed to sign in with Google. Please try again.'
-    }
+    await setOAuthIntentCookie(formData.get('intent') ?? formData.get('role'))
+  } catch {
+    return { error: 'Failed to sign in with Google. Please try again.' }
   }
+
+  redirect(`/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`)
 }
 
 export async function registerUser(
@@ -272,17 +275,7 @@ export async function completeUserProfile(
 
   // Handle Google account linking
   if (action === 'link-google') {
-    try {
-      // Redirect to Google OAuth linking
-      redirect(`/api/auth/signin/google?callbackUrl=${encodeURIComponent('/profile')}`)
-    } catch (error: any) {
-      if (error.message?.includes('NEXT_REDIRECT')) {
-        throw error
-      }
-      return {
-        error: 'Failed to link Google account. Please try again.'
-      }
-    }
+    redirect(`/api/auth/signin/google?callbackUrl=${encodeURIComponent('/profile')}`)
   }
 
   // Validation for profile completion
@@ -357,19 +350,13 @@ export async function linkGoogleAccount(
   }
 
   try {
-    // Redirect to Google OAuth linking with user context
-    redirect(`/api/auth/signin/google?callbackUrl=${encodeURIComponent('/profile')}&linkAccount=${userId}`)
-    
-  } catch (error: any) {
-    if (error.message?.includes('NEXT_REDIRECT')) {
-      throw error
-    }
-    
-    return {
-      error: 'Failed to link Google account. Please try again.'
-    }
+    await clearOAuthIntentCookie()
+  } catch {
+    return { error: 'Failed to link Google account. Please try again.' }
   }
-} 
+
+  redirect(`/api/auth/signin/google?callbackUrl=${encodeURIComponent('/profile')}&linkAccount=${userId}`)
+}
 
 export async function requestPasswordReset(
   prevState: AuthFormState | null,
@@ -610,7 +597,7 @@ export async function confirmAccountDeletion(
 
     if (result.success) {
       // Log out user immediately after successful deletion
-      redirect(ROUTES.AUTH_STATUS('delete', 'success', defaultLocale))
+      redirect(ROUTES.AUTH_STATUS('delete', 'success', routing.defaultLocale))
     } else {
       if (result.error === 'NO_DELETION_PENDING') {
         return {

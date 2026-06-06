@@ -1,5 +1,9 @@
-import React from 'react';
-import { Metadata } from 'next';
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
+import React from 'react'
 import Link from 'next/link';
 import { NewsList } from '@/features/news/components/news-list';
 import { FeaturedCarousel } from '@/features/news/components/featured-carousel';
@@ -7,8 +11,8 @@ import NewsPageWrapper from '@/components/wrappers/news-page-wrapper';
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types';
 import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config';
-import { getSEOMetadata } from '@/lib/seo-metadata';
+import { isValidLocale, defaultLocale } from '@/i18n/shared'
+import { loadTranslations } from '@/i18n/load-translations'
 import { Rss } from 'lucide-react';
 
 const categoryInfo: Record<NewsCategory, { name: string; description: string; color: string; icon: string; articleCount: number }> = {
@@ -74,6 +78,20 @@ const categoryInfo: Record<NewsCategory, { name: string; description: string; co
     color: 'bg-gray-500',
     icon: '📝',
     articleCount: 0
+  },
+  security: {
+    name: 'Security',
+    description: 'Security updates and advisories',
+    color: 'bg-red-500',
+    icon: '🔒',
+    articleCount: 0
+  },
+  blogs: {
+    name: 'Blogs',
+    description: 'Member blog posts and community writing',
+    color: 'bg-slate-500',
+    icon: '✍️',
+    articleCount: 0
   }
 }
 
@@ -138,7 +156,28 @@ async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   }
 }
 
-// Metadata will be handled inline using React 19 native approach
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'news.list',
+    variables: { 
+      count: '12' // Default article count
+    },
+    pathname: '/news',
+    siteName: 'Ring Platform',
+    twitterSite: '@RingPlatform',
+  })
+}
 
 export default async function NewsPage(props: LocalePageProps<NewsParams>) {
   // Resolve params and searchParams
@@ -148,16 +187,6 @@ export default async function NewsPage(props: LocalePageProps<NewsParams>) {
   // Extract and validate locale
   const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
   console.log('NewsPage: Using locale', locale);
-
-  // Get SEO metadata for the news page
-  const seoData = await getSEOMetadata(
-    locale, 
-    'news.list', 
-    { 
-      count: '12' // Default article count
-    }
-  );
-
   // Load translations for the current locale
   const translations = await loadTranslations(locale);
 
@@ -167,46 +196,7 @@ export default async function NewsPage(props: LocalePageProps<NewsParams>) {
   ]);
 
   return (
-    <>
-      {/* React 19 Native Metadata */}
-      <title>{seoData?.title || 'Ring Platform News & Updates'}</title>
-      <meta name="description" content={seoData?.description || 'Stay updated with the latest news, announcements, and developments from Ring Platform and the decentralized ecosystem.'} />
-      {seoData?.keywords && (
-        <meta name="keywords" content={seoData.keywords.join(', ')} />
-      )}
-      {seoData?.canonical && (
-        <link rel="canonical" href={seoData.canonical} />
-      )}
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || 'Ring Platform News & Updates'} />
-      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || 'Stay updated with the latest news, announcements, and developments from Ring Platform and the decentralized ecosystem.'} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:site_name" content="Ring Platform" />
-      {seoData?.ogImage && (
-        <meta property="og:image" content={seoData.ogImage} />
-      )}
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:site" content="@RingPlatform" />
-      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || 'Ring Platform News & Updates'} />
-      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || 'Stay updated with the latest news, announcements, and developments from Ring Platform and the decentralized ecosystem.'} />
-      {seoData?.twitterImage && (
-        <meta name="twitter:image" content={seoData.twitterImage} />
-      )}
-      
-      {/* Hreflang alternates */}
-      <link rel="alternate" hrefLang="en" href="/en/news" />
-      <link rel="alternate" hrefLang="uk" href="/uk/news" />
-      
-      {/* Standard SEO metadata */}
-      <meta name="robots" content="index, follow" />
-      <meta name="author" content="Ring Platform" />
-
-      {/* Perfect 3-Column Responsive Layout Wrapper */}
-      <NewsPageWrapper 
+    <NewsPageWrapper 
         locale={locale}
         categoryInfo={categoryInfo}
         translations={translations}
@@ -250,6 +240,5 @@ export default async function NewsPage(props: LocalePageProps<NewsParams>) {
           </div>
         </div>
       </NewsPageWrapper>
-    </>
   );
 } 

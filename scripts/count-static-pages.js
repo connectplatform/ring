@@ -58,7 +58,10 @@ const STATUS_PAGE_CONFIGS = {
   }
 };
 
-const SUPPORTED_LOCALES = ['en', 'uk'];
+const SUPPORTED_LOCALES = (process.env.NEXT_PUBLIC_SUPPORTED_LOCALES || 'en,uk,ru')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 function countStatusPages() {
   let total = 0;

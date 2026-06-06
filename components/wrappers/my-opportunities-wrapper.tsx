@@ -4,7 +4,9 @@ import React, { useState, useEffect, useTransition, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
+import type { OpportunitySubmenuCounts } from '@/features/opportunities/types'
 import { SerializedOpportunity } from '@/features/opportunities/types'
+import type { Locale } from '@/i18n/shared'
 import { deleteOpportunity, type OpportunityFormState } from '@/app/_actions/opportunities'
 import Link from 'next/link'
 import { Plus, Briefcase, Send, Filter as FilterIcon, Search, Pencil, Trash2 } from 'lucide-react'
@@ -21,10 +23,7 @@ interface MyOpportunitiesWrapperProps {
   initialError: string | null
   lastVisible: string | null
   initialLimit: number
-  counts: {
-    created: number
-    applied: number
-  }
+  counts: OpportunitySubmenuCounts
 }
 
 /**
@@ -43,7 +42,7 @@ export default function MyOpportunitiesWrapper({
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
-  const locale = session?.user?.settings?.language || 'en'
+  const userLocale = (session?.user?.settings?.language || 'en') as Locale
 
   // React 19 useTransition for non-blocking filter updates
   const [isPending, startTransition] = useTransition()
@@ -103,7 +102,7 @@ export default function MyOpportunitiesWrapper({
     const formData = new FormData()
     formData.append('opportunityId', opportunity.id)
 
-    const result = await deleteOpportunity(null, formData)
+    const result = await deleteOpportunity(null, formData, userLocale)
 
     if (result.success && result.redirectUrl) {
       // Reload page to reflect changes
@@ -149,13 +148,13 @@ export default function MyOpportunitiesWrapper({
           
           {/* Action Buttons */}
           <div className="flex gap-3">
-            <Link href={`/${locale}/opportunities/add`}>
+            <Link href={`/${userLocale}/opportunities/add`}>
               <Button className="flex items-center gap-2">
                 <Plus size={20} />
                 {t('createNew', { defaultValue: 'Create New' })}
               </Button>
             </Link>
-            <Link href={`/${locale}/opportunities`}>
+            <Link href={`/${userLocale}/opportunities`}>
               <Button variant="outline" className="flex items-center gap-2">
                 <Briefcase size={20} />
                 {t('viewAll', { defaultValue: 'View All' })}
@@ -173,7 +172,7 @@ export default function MyOpportunitiesWrapper({
                   {t('createdOpportunities', { defaultValue: 'Created' })}
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {counts.created}
+                  {counts.posted}
                 </p>
               </div>
               <Briefcase className="text-blue-500" size={32} />
@@ -201,7 +200,7 @@ export default function MyOpportunitiesWrapper({
                   {t('totalOpportunities', { defaultValue: 'Total' })}
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {counts.created + counts.applied}
+                  {counts.posted + counts.applied}
                 </p>
               </div>
               <FilterPanel />
@@ -278,17 +277,17 @@ export default function MyOpportunitiesWrapper({
         <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="all" className="flex items-center gap-2">
             {t('all', { defaultValue: 'All' })}
-            {counts.created + counts.applied > 0 && (
+            {counts.posted + counts.applied > 0 && (
               <Badge variant="secondary" className="ml-1">
-                {counts.created + counts.applied}
+                {counts.posted + counts.applied}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="created" className="flex items-center gap-2">
             {t('created', { defaultValue: 'Created' })}
-            {counts.created > 0 && (
+            {counts.posted > 0 && (
               <Badge variant="secondary" className="ml-1">
-                {counts.created}
+                {counts.posted}
               </Badge>
             )}
           </TabsTrigger>
@@ -318,7 +317,7 @@ export default function MyOpportunitiesWrapper({
                     : 'Try adjusting your search or filters'}
                 </p>
                 {initialOpportunities.length === 0 && (
-                  <Link href={`/${locale}/opportunities/add`}>
+                  <Link href={`/${userLocale}/opportunities/add`}>
                     <Button>
                       <Plus className="mr-2" size={20} />
                       Create Opportunity
@@ -374,7 +373,7 @@ export default function MyOpportunitiesWrapper({
                           variant="outline"
                           asChild
                         >
-                          <Link href={`/${locale}/opportunities/${opportunity.id}/edit`}>
+                          <Link href={`/${userLocale}/opportunities/${opportunity.id}/edit`}>
                             <Pencil className="h-4 w-4 mr-1" />
                             Edit
                           </Link>

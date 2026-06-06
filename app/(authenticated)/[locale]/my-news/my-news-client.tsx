@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useLocale, useTranslations } from 'next-intl'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 import {
   Plus,
   Edit,
@@ -24,12 +27,12 @@ import {
 import { formatDistanceToNow, format } from 'date-fns'
 import Link from 'next/link'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { NewsPromotionPanel } from '@/features/news/components/news-promotion-panel'
 
 interface MyNewsClientProps {
   userId: string
   userName: string
-  locale: string
-  translations: any
+  locale?: Locale
 }
 
 interface ArticleStats {
@@ -54,10 +57,19 @@ interface ArticleStats {
 export function MyNewsClient({
   userId,
   userName,
-  locale,
-  translations
+  locale: localeProp
 }: MyNewsClientProps) {
   const router = useRouter()
+  const localeFromHook = useLocale() as Locale
+  const locale = localeProp ?? localeFromHook
+  const t = useTranslations('news')
+  const tr = (key: string, fallback: string) => {
+    try {
+      return t(key as any)
+    } catch {
+      return fallback
+    }
+  }
 
   // React 19 useTransition for non-blocking filter updates
   const [isPending, startTransition] = useTransition()
@@ -137,8 +149,11 @@ export function MyNewsClient({
   }
 
   const getStatusLabel = (status: NewsStatus) => {
-    const labels = translations?.news?.status || {}
-    return labels[status] || status.charAt(0).toUpperCase() + status.slice(1)
+    try {
+      return t(`status.${status}` as any)
+    } catch {
+      return status.charAt(0).toUpperCase() + status.slice(1)
+    }
   }
 
   if (loading && !articles.length) {
@@ -221,11 +236,11 @@ export function MyNewsClient({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
           <Button
-            onClick={() => router.push(`/${locale}/admin/news/create`)}
+            onClick={() => router.push(ROUTES.ADMIN_NEWS_CREATE(locale))}
             className="bg-primary hover:bg-primary/90"
           >
             <Plus className="h-4 w-4 mr-2" />
-            {translations?.news?.createArticle || 'Create Article'}
+            {tr('createArticle', 'Create Article')}
           </Button>
         </div>
 
@@ -235,7 +250,7 @@ export function MyNewsClient({
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{translations?.news?.allStatuses || 'All Statuses'}</SelectItem>
+              <SelectItem value="all">{tr('allStatuses', 'All Statuses')}</SelectItem>
               <SelectItem value="published">{getStatusLabel('published')}</SelectItem>
               <SelectItem value="draft">{getStatusLabel('draft')}</SelectItem>
               <SelectItem value="archived">{getStatusLabel('archived')}</SelectItem>
@@ -251,17 +266,17 @@ export function MyNewsClient({
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                {translations?.news?.noArticles || 'No articles yet'}
+                {tr('noArticles', 'No articles yet')}
               </h3>
               <p className="text-muted-foreground text-center mb-4">
-                {translations?.news?.noArticlesDescription || 'Start writing your first article to share your knowledge with the community.'}
+                {tr('noArticlesDescription', 'Start writing your first article to share your knowledge with the community.')}
               </p>
               <Button
-                onClick={() => router.push(`/${locale}/admin/news/create`)}
+                onClick={() => router.push(ROUTES.ADMIN_NEWS_CREATE(locale))}
                 className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {translations?.news?.createFirstArticle || 'Create Your First Article'}
+                {tr('createFirstArticle', 'Create Your First Article')}
               </Button>
             </CardContent>
           </Card>
@@ -323,6 +338,8 @@ export function MyNewsClient({
                         {article.category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </Badge>
                     </div>
+
+                    <NewsPromotionPanel article={article} />
                   </div>
 
                   <div className="flex items-center gap-2 lg:flex-shrink-0">
@@ -333,7 +350,7 @@ export function MyNewsClient({
                     >
                       <Link href={`/${locale}/news/${article.slug}`}>
                         <Eye className="h-4 w-4 mr-2" />
-                        {translations?.common?.view || 'View'}
+                        {tr('view', 'View')}
                       </Link>
                     </Button>
 
@@ -342,9 +359,9 @@ export function MyNewsClient({
                       size="sm"
                       asChild
                     >
-                      <Link href={`/${locale}/admin/news/edit/${article.id}`}>
+                      <Link href={ROUTES.ADMIN_NEWS_EDIT(article.id, locale)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        {translations?.common?.edit || 'Edit'}
+                        {tr('edit', 'Edit')}
                       </Link>
                     </Button>
 
@@ -373,7 +390,7 @@ export function MyNewsClient({
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              {translations?.news?.mostViewedArticle || 'Most Viewed Article'}
+              {tr('mostViewedArticle', 'Most Viewed Article')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -394,7 +411,7 @@ export function MyNewsClient({
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/${locale}/news/${stats.mostViewedArticle.slug}`}>
                   <Eye className="h-4 w-4 mr-2" />
-                  {translations?.common?.view || 'View'}
+                  {tr('view', 'View')}
                 </Link>
               </Button>
             </div>

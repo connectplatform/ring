@@ -23,7 +23,7 @@ import { ArrowLeft, MessageSquare, Sparkles, Package, Truck, Shield, Heart } fro
 import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
@@ -38,7 +38,7 @@ import RelatedProductsCarousel from '@/components/store/related-products-carouse
 
 export default function ProductDetailsClient({ locale, id }: { locale: Locale; id: string }) {
   const router = useRouter()
-  const { products, addToCart } = useStore()
+  const { products, addToCart, updateQuantity } = useStore()
   const currencyContext = useOptionalCurrency()
   const [chatOpen, setChatOpen] = useState(false)
   const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])
@@ -139,23 +139,17 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
 
   const handleAddToCart = useCallback(async (quantity: number) => {
     if (!product) return
-    
-    // Add to cart with selected variants, final price, and preorder flag
-    const cartItem = {
-      ...product,
-      quantity,
-      selectedVariants: Object.keys(selectedVariants).length > 0 ? selectedVariants : undefined,
-      finalPrice: finalPrice > 0 ? finalPrice : undefined,
-      isPreorder: (product.stock === 0 || product.stock === undefined) && product.allowPreorder
+
+    await Promise.resolve(addToCart(product))
+    if (quantity > 1) {
+      updateQuantity(product.id, quantity)
     }
-    
-    await Promise.resolve(addToCart(cartItem as any))
-    
+
     success({
       title: t('product.addedToCart', { name: product.name }),
       description: `Quantity: ${quantity}`
     })
-  }, [product, selectedVariants, finalPrice, addToCart, success, t])
+  }, [product, addToCart, updateQuantity, success, t])
 
   const handleVariantChange = useCallback((variants: Record<string, string>, price: string | number) => {
     setSelectedVariants(variants)
@@ -252,7 +246,7 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
         {/* Main Product Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Left: Image Gallery */}
-          <div>
+          <div className="flex justify-center lg:justify-start">
             <ProductImageGallery
               images={productImages}
               productName={product.name}
@@ -271,7 +265,7 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
               </div>
             </div>
 
-            {/* Variant Selector */}
+                {/* Variant Selector */}
             {variants.length > 0 && (
               <ProductVariantSelector
                 variants={variants}

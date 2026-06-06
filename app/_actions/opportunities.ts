@@ -13,7 +13,7 @@ const ROLE_HIERARCHY = {
   [UserRole.ADMIN]: 4,
 } as const
 import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 export interface OpportunityFormState {
   success?: boolean
@@ -25,7 +25,8 @@ export interface OpportunityFormState {
 
 export async function createOpportunity(
   prevState: OpportunityFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<OpportunityFormState> {
 
   const session = await auth()
@@ -227,7 +228,7 @@ export async function createOpportunity(
     return {
       success: true,
       message: 'Opportunity created successfully!',
-      redirectUrl: `/${defaultLocale}/opportunities/status/create/success?id=${newOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
+      redirectUrl: `/${locale}/opportunities/status/create/success?id=${newOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
     }
   } catch (error) {
     console.error('Error creating opportunity:', error)
@@ -239,7 +240,8 @@ export async function createOpportunity(
 
 export async function updateOpportunity(
   prevState: OpportunityFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<OpportunityFormState> {
 
   const session = await auth()
@@ -460,7 +462,7 @@ export async function updateOpportunity(
     return {
       success: true,
       message: 'Opportunity updated successfully!',
-      redirectUrl: `/${defaultLocale}/opportunities/status/update/success?id=${updatedOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
+      redirectUrl: `/${locale}/opportunities/status/update/success?id=${updatedOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
     }
     
   } catch (error) {
@@ -473,7 +475,8 @@ export async function updateOpportunity(
 
 export async function deleteOpportunity(
   prevState: OpportunityFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<OpportunityFormState> {
 
   const session = await auth()
@@ -533,7 +536,7 @@ export async function deleteOpportunity(
     return {
       success: true,
       message: 'Opportunity deleted successfully!',
-      redirectUrl: `/${defaultLocale}/opportunities/status/delete/success?id=${opportunityId}&opportunityTitle=${encodeURIComponent(existingOpportunity.title)}`
+      redirectUrl: `/${locale}/opportunities/status/delete/success?id=${opportunityId}&opportunityTitle=${encodeURIComponent(existingOpportunity.title)}`
     }
     
   } catch (error) {

@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
-import { auth } from '@/auth'
 import { headers } from 'next/headers'
+import { connection } from 'next/server'
+import { auth } from '@/auth'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import { Entity, SerializedEntity } from '@/features/entities/types'
 import { Attachment } from '@/features/opportunities/types'
@@ -10,8 +11,13 @@ import OpportunitiesWrapper from '@/components/wrappers/opportunities-wrapper'
 import { ROUTES } from '@/constants/routes'
 import BackBar from '@/components/common/back-bar'
 
+import type { Metadata } from 'next'
 import { LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { logger } from '@/lib/logger'
 
 // Allow caching for opportunity details with moderate revalidation for content updates
 
@@ -46,6 +52,7 @@ async function getOpportunityData(
       try {
         entity = await getSerializedEntityById(opportunity.organizationId)
       } catch (entityError) {
+        logger.error('getOpportunityData: Error fetching entity data:', entityError)
         // Continue without entity - this is not a critical error
         // The entity might be confidential or deleted
       }
@@ -53,12 +60,60 @@ async function getOpportunityData(
     
     return { opportunity, entity }
   } catch (error) {
+    logger.error('getOpportunityData: Error fetching opportunity data:', error)
     // Re-throw structured errors as-is
     if (error instanceof Error && (error.name === 'OpportunityNotFoundError' || error.name === 'OpportunityAccessDeniedError')) {
       throw error
     }
     // Wrap unknown errors
+    logger.error('getOpportunityData: Error fetching opportunity data:', error)
     throw new Error('Opportunity retrieval failed')
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam, id } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  const t = await getTranslations('modules.opportunities')
+
+  try {
+    const { opportunity } = await getOpportunityData(id)
+    if (!opportunity) {
+      return {}
+    }
+    const description =
+      opportunity.briefDescription || opportunity.fullDescription || t('opportunityDetails.description')
+    return buildLocalizedMetadata({
+      locale,
+      path: 'opportunities.detail',
+      pathname: `/opportunities/${id}`,
+      variables: { title: opportunity.title, description },
+      fallback: {
+        title: `${opportunity.title} | Ring Platform`,
+        description,
+      },
+      siteName: RING_PLATFORM_SEO.siteName,
+      twitterSite: RING_PLATFORM_SEO.twitterSite,
+    })
+  } catch {
+    return buildLocalizedMetadata({
+      locale,
+      path: 'opportunities.detail',
+      pathname: `/opportunities/${id}`,
+      fallback: {
+        title: t('opportunityDetails.title'),
+        description: t('opportunityDetails.description'),
+      },
+      siteName: RING_PLATFORM_SEO.siteName,
+      twitterSite: RING_PLATFORM_SEO.twitterSite,
+    })
   }
 }
 
@@ -76,100 +131,88 @@ async function getOpportunityData(
  * @returns Promise<React.ReactNode> - A promise that resolves to the rendered page content.
  */
 export default async function OpportunityPage(props: LocalePageProps<OpportunityParams>): Promise<React.ReactNode> {
+  await connection() // Next.js 16: opt out of prerendering
+
+  logger.info('OpportunityPage: Starting')
+
   // Resolve params and searchParams
   const params = await props.params
   const searchParams = await props.searchParams
 
   // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
-
-  // Load translations for React 19 metadata
-  const translations = loadTranslations(locale)
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale)
+  logger.info('OpportunityPage: Using locale', { locale: validLocale })
 
   const { id } = params
+  logger.info('OpportunityPage: Opportunity ID', { id })
 
-  // Authentication is now handled by the unified service
-  // No need for manual session checks here
-
-  let opportunity: SerializedOpportunity | null = null
-  let entity: SerializedEntity | null = null
-  let error: string | null = null
-
-  // Prepare fallback metadata
-  let title = (translations as any).metadata?.opportunityDetails || 'Opportunity Details | Ring App';
-  let description = (translations as any).metaDescription?.opportunityDetails || 'View opportunity details in the Ring App ecosystem.';
-  let canonicalUrl = `https://ring.ck.ua/${locale}/opportunities/${id}`;
-  const alternates = generateHreflangAlternates(`/opportunities/${id}`);
+  const headersList = await headers()
+  logger.info('OpportunityPage: Request details', {
+    params,
+    searchParams,
+    locale: validLocale,
+    id,
+    userAgent: headersList.get('user-agent'),
+  })
 
   try {
-    const data = await getOpportunityData(id)
-    opportunity = data.opportunity
-    entity = data.entity
+    logger.info('OpportunityPage: Authenticating session')
+    const session = await auth()
+    logger.info('OpportunityPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id })
 
-    // Generate opportunity-specific metadata
-    if (opportunity) {
-      title = `${opportunity.title} | Ring App`
-      description = opportunity.briefDescription || opportunity.fullDescription
+    if (!session) {
+      logger.info('OpportunityPage: No session, redirecting to localized login')
+      redirect(ROUTES.LOGIN(validLocale))
     }
 
-  } catch (e) {
-    if (e instanceof Error) {
-      if (e.name === 'OpportunityAccessDeniedError') {
-        if (e.message.includes('Authentication required')) {
-          redirect(ROUTES.LOGIN(locale))
+    // Check if user document exists (with caching - migration now handled at auth level)
+    try {
+      const { userMigrationService } = await import('@/features/auth/services/user-migration')
+      const userExists = await userMigrationService.userDocumentExists(session.user.id)
+      if (!userExists) {
+        logger.warn('OpportunityPage: User document missing, initializing')
+        await userMigrationService.ensureUserDocument(session.user as any)
+        logger.info('OpportunityPage: User document created successfully')
+      }
+    } catch (migrationError) {
+      logger.error('OpportunityPage: Failed to check/create user document:', migrationError)
+      // Continue anyway - opportunity page will handle missing document gracefully
+    }
+
+    let opportunity: SerializedOpportunity | null = null
+    let entity: SerializedEntity | null = null
+    let error: string | null = null
+
+    try {
+      const data = await getOpportunityData(id)
+      opportunity = data.opportunity
+      entity = data.entity
+
+      logger.info('OpportunityPage: Opportunity data fetched', { hasOpportunity: !!opportunity, hasEntity: !!entity })
+    } catch (e) {
+      logger.error('OpportunityPage: Error fetching opportunity data:', e)
+      if (e instanceof Error) {
+        if (e.name === 'OpportunityAccessDeniedError') {
+          if (e.message.includes('Authentication required')) {
+            redirect(ROUTES.LOGIN(validLocale))
+          } else {
+            redirect(ROUTES.UNAUTHORIZED(validLocale))
+          }
+        } else if (e.name === 'OpportunityNotFoundError') {
+          return notFound()
         } else {
-          redirect(ROUTES.UNAUTHORIZED(locale))
+          error = "An unexpected error occurred. Please try again later."
         }
-      } else if (e.name === 'OpportunityNotFoundError') {
-        return notFound()
       } else {
         error = "An unexpected error occurred. Please try again later."
       }
-    } else {
-      error = "An unexpected error occurred. Please try again later."
     }
-  }
 
-  // Ready to render
+    logger.info('OpportunityPage: Rendering page')
+    const baseUrl = getSeoSiteBaseUrl()
 
-  return (
+    return (
     <>
-      {/* React 19 Native Document Metadata - Opportunity-Specific */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="article" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-      
-      {/* Opportunity-specific OpenGraph data */}
-      {entity?.logo && <meta property="og:image" content={entity.logo} />}
-      {opportunity?.type && <meta property="article:section" content={opportunity.type} />}
-      {opportunity?.tags && opportunity.tags.map((tag, index) => (
-        <meta key={index} property="article:tag" content={tag} />
-      ))}
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      {entity?.logo && <meta name="twitter:image" content={entity.logo} />}
-      
-      {/* SEO optimization for opportunity pages */}
-      <meta name="robots" content="index, follow" />
-      <meta name="googlebot" content="index, follow" />
-      
-      {/* Hreflang alternates */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
-
-      {/* Opportunity-specific structured data */}
       {opportunity && entity && (
         <script
           type="application/ld+json"
@@ -189,9 +232,9 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
                 "@type": "Place",
                 "address": entity.location
               },
-              "url": `${process.env.NEXT_PUBLIC_API_URL}/${locale}/opportunities/${opportunity.id}`,
+              "url": `${process.env.NEXT_PUBLIC_API_URL}${ROUTES.OPPORTUNITY(opportunity.id, validLocale)}`,
               ...(opportunity.type && { "employmentType": opportunity.type }),
-              "inLanguage": locale,
+              "inLanguage": validLocale,
               "datePosted": opportunity.dateCreated
             })
           }}
@@ -200,9 +243,9 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
 
       {/* Back Navigation Bar */}
       <BackBar
-        href={`/${locale}/opportunities`}
+        href={ROUTES.OPPORTUNITIES(validLocale)}
         title={opportunity?.title || 'Opportunity Details'}
-        locale={locale}
+        locale={validLocale}
       />
 
       <Suspense fallback={
@@ -211,7 +254,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
         </div>
       }>
         <OpportunitiesWrapper
-          locale={locale}
+          locale={validLocale}
           searchParams={{}}
           initialOpportunity={opportunity ? {
             ...opportunity,
@@ -227,6 +270,32 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
       </Suspense>
     </>
   )
+
+  } catch (e) {
+    logger.error('OpportunityPage: Error:', e)
+
+    return (
+      <>
+        <title>Opportunity Error | Zemna AI</title>
+        <meta name="robots" content="noindex, nofollow" />
+
+        <div className="container mx-auto px-0 py-0">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Opportunity Error</h1>
+            <p className="text-muted-foreground mb-4">
+              Failed to load opportunity. Please try again later.
+            </p>
+            <a
+              href={ROUTES.HOME(validLocale)}
+              className="text-primary hover:underline"
+            >
+              Return to Home
+            </a>
+          </div>
+        </div>
+      </>
+    )
+  }
 }
 
 /* 

@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import { useOptionalStore } from '@/features/store/context'
 import { useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import FloatingSortButton from '@/components/common/floating-sort-button'
 
 interface FloatingButtonsProps {

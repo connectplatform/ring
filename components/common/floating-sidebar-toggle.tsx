@@ -1,13 +1,19 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, replaceLocalePath } from '@/i18n/routing'
 import { useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { ChevronLeft, ChevronRight, Languages, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
+import {
+  localeDisplayLabel,
+  localeNativeTitle,
+  nextLocaleInRoutingOrder,
+  persistRingLocalePreference,
+} from '@/lib/locale-pref'
+import type { Locale } from '@/i18n/shared'
 
 interface FloatingSidebarToggleProps {
   children: React.ReactNode
@@ -86,51 +92,26 @@ export default function FloatingSidebarToggle({
     }
   }, [isOpen, setIsOpen])
 
-  // Smart 2-mode language toggle
-  const getSmartLanguageToggle = useCallback(() => {
-    const storedLocale = typeof window !== 'undefined' 
-      ? (localStorage.getItem('ring-locale') as Locale || locale)
-      : locale
+  const getNextCyclingLocale = useCallback(
+    () => nextLocaleInRoutingOrder(locale),
+    [locale],
+  )
 
-    let primaryLang: Locale = storedLocale
-    let secondaryLang: Locale = 'en'
-
-    if (primaryLang === 'en') {
-      secondaryLang = 'uk'
-    } else {
-      secondaryLang = 'en'
-    }
-
-    const currentLang = locale
-    const nextLang = currentLang === primaryLang ? secondaryLang : primaryLang
-
-    return { currentLang, nextLang, primaryLang, secondaryLang }
-  }, [locale])
-
-  const switchLocale = useCallback((newLocale: Locale) => {
-    localStorage.setItem('ring-locale', newLocale)
-    document.cookie = `ring-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-
-    const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/'
-    const newPath = `/${newLocale}${pathWithoutLocale}`
-    router.replace(newPath, { scroll: false })
-  }, [pathname, router])
+  const switchLocale = useCallback(
+    (newLocale: Locale) => {
+      persistRingLocalePreference(newLocale)
+      replaceLocalePath(router, pathname, newLocale)
+    },
+    [pathname, router],
+  )
 
   const toggleTheme = useCallback(() => {
     const currentTheme = theme === 'system' ? resolvedTheme : theme
     setTheme(currentTheme === 'dark' ? 'light' : 'dark')
   }, [setTheme, theme, resolvedTheme])
 
-  const getLanguageName = useCallback((locale: string) => {
-    switch (locale) {
-      case 'en': return 'EN'
-      case 'uk': return 'UK'
-      case 'ru': return 'RU'
-      default: return locale.toUpperCase()
-    }
-  }, [])
-
   const currentTheme = theme === 'system' ? resolvedTheme : theme
+  const nextLocale = getNextCyclingLocale()
 
   return (
     <>
@@ -181,20 +162,14 @@ export default function FloatingSidebarToggle({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  const { nextLang } = getSmartLanguageToggle()
-                  switchLocale(nextLang)
-                }}
+                onClick={() => switchLocale(nextLocale)}
                 className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                title={`Switch to ${(() => {
-                  const { nextLang } = getSmartLanguageToggle()
-                  return nextLang === 'en' ? 'English' : nextLang === 'uk' ? 'Українська' : 'Русский'
-                })()}`}
+                title={`Switch to ${localeNativeTitle(nextLocale)}`}
               >
                 <Languages className="h-3 w-3 mr-1" />
-                {getLanguageName(locale)}
+                {localeDisplayLabel(locale)}
                 <span className="mx-1">↔</span>
-                {getLanguageName(getSmartLanguageToggle().nextLang)}
+                {localeDisplayLabel(nextLocale)}
               </Button>
 
               {/* Theme Toggle - with skeleton placeholder during mount */}
@@ -238,20 +213,14 @@ export default function FloatingSidebarToggle({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  const { nextLang } = getSmartLanguageToggle()
-                  switchLocale(nextLang)
-                }}
+                onClick={() => switchLocale(nextLocale)}
                 className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                title={`Switch to ${(() => {
-                  const { nextLang } = getSmartLanguageToggle()
-                  return nextLang === 'en' ? 'English' : nextLang === 'uk' ? 'Українська' : 'Русский'
-                })()}`}
+                title={`Switch to ${localeNativeTitle(nextLocale)}`}
               >
                 <Languages className="h-3 w-3 mr-1" />
-                {getLanguageName(locale)}
+                {localeDisplayLabel(locale)}
                 <span className="mx-1">↔</span>
-                {getLanguageName(getSmartLanguageToggle().nextLang)}
+                {localeDisplayLabel(nextLocale)}
               </Button>
 
               {/* Theme Toggle - with skeleton placeholder during mount */}

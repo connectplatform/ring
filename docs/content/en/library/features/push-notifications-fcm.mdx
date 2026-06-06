@@ -1,0 +1,208 @@
+---
+title: Push Notifications with FCM (Ring-Powered)
+description: Implement web and cross-platform push notifications using Firebase Cloud Messaging with Ring's Server Action token flow, shared DB layer, and lifecycle management.
+last_modified: 2026-02-27
+---
+
+# Push Notifications with FCM (Ring-Powered)
+
+Ring Platform stores FCM tokens in your primary database (PostgreSQL or Firestore by backend mode), one row per user per device. React apps register tokens via a Server Action; non-React clients use a rate-limited API. Both paths call the same server-only DB layer so behavior and security stay consistent everywhere. **How modes differ (Postgres-primary vs full Firebase, `DB_HYBRID_MODE`):** [Backend modes and databases](../architecture/backend-modes-and-databases).
+
+## Overview: Ring-Powered FCM Logic
+
+"Ring-powered" FCM means a single, backend-agnostic design:
+
+- **Token store as source of truth** — The `fcm_tokens` table (or collection) holds all registration tokens. Stored payload lives in a JSONB `data` column where applicable (PostgreSQL). No secondary cache; the database is the registry.
+- **One row per device per user** — A composite unique constraint on `(user_id, device_fingerprint)` ensures one record per device. The token value is not unique, so FCM token rotation updates the same row instead of creating duplicates.
+- **React app → Server Action** — The primary path for browser and React Native web is the `upsertFcmToken` Server Action. The server derives `user_id` from `auth()` only; the client never sends it.
+- **Non-React clients → API route** — Mobile apps or external services call `POST /api/notifications/fcm/register` with the same payload. This endpoint is rate-limited per user (for example, 10 requests per minute).
+- **Lifecycle in data** — Each row carries `status` (`active` | `stale` | `invalid`) and `invalidatedAt`. Reactive cleanup runs when FCM returns errors for a token; scheduled jobs mark stale tokens and optionally hard-delete after a retention window.
+- **Backend mode** — The token store is backend-agnostic. BackendSelector routes by `DB_BACKEND_MODE` to PostgreSQL (e.g. `k8s-postgres-fcm`, `supabase-fcm`) or Firestore (`firebase-full`). One code path; no branching in the Server Action or API route.
+
+<Mermaid title="Ring-powered FCM registration and delivery">{`
+flowchart LR
+  subgraph client["Client"]
+    React["React app\n(useFCMToken)"]
+    NonReact["Non-React\n(mobile, API)"]
+  end
+  subgraph server["Server"]
+    SA["Server Action\nupsertFcmToken"]
+    API["POST .../fcm/register\n(rate-limited)"]
+    DBLayer["upsertFcmTokenForUser\n(server-only)"]
+    Selector["BackendSelector"]
+  end
+  subgraph storage["Storage"]
+    PG[(PostgreSQL\nfcm_tokens)]
+    FS[(Firestore\nfcm_tokens)]
+  end
+  React -->|primary| SA
+  NonReact --> API
+  SA --> DBLayer
+  API --> DBLayer
+  DBLayer --> Selector
+  Selector -->|k8s / supabase| PG
+  Selector -->|firebase-full| FS
+`}</Mermaid>
+
+## Prerequisites
+
+- **Authentication** — A signed-in user (Auth.js session). Token registration is always tied to the authenticated user; the server never trusts a client-supplied user id.
+- **Web push (browser)** — HTTPS (or localhost for development), browser support for Web Push, a registered service worker, and the Firebase client SDK. The service worker file is typically served at `/firebase-messaging-sw.js`.
+- **API clients** — Valid session (cookie or Bearer) and the same request body contract as below (token, deviceFingerprint, deviceInfo).
+
+## React App: Server Action Path
+
+Use the Server Action as the primary way to register and refresh FCM tokens from any React or Next.js client. This path is not rate-limited like the API route and keeps user id server-derived only.
+
+<Callout type="info" title="Primary path">
+React apps should use the Server Action as the primary path. The API route is for non-React clients and is rate-limited.
+</Callout>
+
+<Steps>
+
+<Step>
+
+**Obtain a stable device fingerprint**
+
+Generate or load a stable value (for example, `crypto.randomUUID()` stored in `localStorage`) and reuse it on every load and on token refresh. The server uses `(user_id, device_fingerprint)` to upsert one row per device.
+
+</Step>
+
+<Step>
+
+**Request permission and get the FCM token**
+
+In a `'use client'` component (for example inside a notification provider), call `Notification.requestPermission()`. When granted, call `getToken(messaging, { vapidKey })` from the Firebase Messaging SDK. Do not call `getToken()` in Server Components; they have no browser context.
+
+</Step>
+
+<Step>
+
+**Call the Server Action to register the token**
+
+Invoke `upsertFcmToken({ token, deviceFingerprint, deviceInfo, platform: 'web' })`. Do not pass `userId`; the server derives it from `auth()`.
+
+</Step>
+
+<Step>
+
+**Handle token refresh**
+
+When the Firebase SDK emits a new token (for example via `onTokenRefresh`), call the same Server Action again with the new token and the same `deviceFingerprint`. The shared DB layer updates the existing row for that user and device.
+
+</Step>
+
+</Steps>
+
+Example: registering and refreshing the token from a client component.
+
+<Code language="typescript" title="Example: register FCM token from a client component">{`'use client';
+
+import { useEffect, useRef } from 'react';
+import { getToken, getMessaging, onMessage } from 'firebase/messaging';
+import { upsertFcmToken } from '@/app/_actions/fcm';
+
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+
+export function useFCMToken(deviceFingerprint: string) {
+  const lastTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !VAPID_KEY || !deviceFingerprint) return;
+
+    const messaging = getMessaging();
+    Notification.requestPermission().then((permission) => {
+      if (permission !== 'granted') return;
+      getToken(messaging, { vapidKey: VAPID_KEY })
+        .then((token) => {
+          if (token && token !== lastTokenRef.current) {
+            lastTokenRef.current = token;
+            upsertFcmToken({
+              token,
+              deviceFingerprint,
+              deviceInfo: {
+                platform: navigator.platform,
+                userAgent: navigator.userAgent,
+              },
+              platform: 'web',
+            });
+          }
+        })
+        .catch(console.error);
+    });
+  }, [deviceFingerprint]);
+}`}</Code>
+
+## Non-React Clients: API Route
+
+Mobile apps or other non-React clients register tokens by calling the same contract over HTTP.
+
+**Endpoint:** `POST /api/notifications/fcm/register`
+
+**Request body:**
+
+- `token` (string, required) — FCM registration token from the client SDK.
+- `deviceFingerprint` (string, required) — Stable device identifier (e.g. UUID in local storage). Maximum 128 characters; alphanumeric, hyphens, and underscores only.
+- `deviceInfo` (object, optional) — Arbitrary device metadata (e.g. platform, userAgent).
+
+**Authentication:** Required (session cookie or Bearer token). The server uses the authenticated user id; do not send `userId` in the body.
+
+**Responses:**
+
+- `200` — `{ "success": true }`
+- `400` — Validation error (e.g. missing or invalid `deviceFingerprint`)
+- `401` — Not authenticated
+- `429` — Rate limit exceeded (see `Retry-After` header)
+- `500` — Server error
+
+<Callout type="warning" title="Rate limit">
+This endpoint is rate-limited per user (e.g. 10 requests per minute). Use the Server Action from React apps to avoid consuming the API rate limit.
+</Callout>
+
+Example with cURL (replace session cookie or use Bearer token as required by your auth setup):
+
+<Code language="bash" title="Example: register token via API">{`curl -X POST https://your-app.com/api/notifications/fcm/register \\
+  -H "Content-Type: application/json" \\
+  -H "Cookie: your-session-cookie" \\
+  -d '{
+    "token": "FCM_REGISTRATION_TOKEN",
+    "deviceFingerprint": "uuid-from-device",
+    "deviceInfo": { "platform": "ios", "appVersion": "1.0.0" }
+  }'`}</Code>
+
+## Environment Variables
+
+Split configuration so that only public, safe values are exposed to the client.
+
+<Callout type="info" title="Security">
+VAPID private key and Firebase service account credentials must never be exposed to the client. Keep them server-only.
+</Callout>
+
+| Purpose | Variables | Where |
+|--------|-----------|--------|
+| Client (browser / app) | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Client-safe; used by Firebase client SDK and service worker |
+| Server (token store, FCM send) | `FIREBASE_SERVICE_ACCOUNT_*` or equivalent service account JSON path; `DB_BACKEND_MODE` (e.g. `k8s-postgres-fcm`, `firebase-full`, `supabase-fcm`) | Server-only; used by BackendSelector and Firebase Admin SDK |
+
+## Unregister and Logout
+
+On logout or when the user disables push:
+
+- **Browser / React** — Call `deleteToken(messaging)` from the Firebase client SDK, then unregister on the server. Send `DELETE /api/notifications/fcm/register` with body `{ "deviceFingerprint": "same-uuid-as-register" }`. Idempotent; safe to call even if the row is already removed or invalidated.
+- **Non-React** — Same `DELETE` request with the same `deviceFingerprint` used at registration.
+
+The server marks the row as `status: 'invalid'` and sets `invalidatedAt`; delivery to that token is stopped.
+
+## Troubleshooting
+
+| Issue | Cause | What to do |
+|-------|--------|------------|
+| Permission denied or token not received | User denied notification permission or permission not yet requested | Request permission before calling `getToken()`; handle `permission === 'denied'` in the UI |
+| 429 on register | Rate limit exceeded | Use the Server Action from React apps; for API clients, respect `Retry-After` and reduce register frequency |
+| Invalid deviceFingerprint | Validation failure | Use a string of length 1–128 with only letters, numbers, hyphens, and underscores |
+| 401 on register | Not authenticated | Ensure a valid session (cookie or Bearer) is sent; do not send `userId` in the body |
+
+## See Also
+
+- [Notifications](/library/features/notifications) — Overview of notification types, channels, and preferences
+- Schema and migration for `fcm_tokens` (e.g. `data/schema.sql`, `data/migrations/fcm_jsonb_schema.sql`) in your Ring clone
+- FCM specialist truth lens (`AI-LEGIOX/legiox-truth-lens/fcm-specialist.json`) for token lifecycle, reactive cleanup, and send path details

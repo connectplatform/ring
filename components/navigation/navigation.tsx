@@ -38,7 +38,7 @@ import { FavoritesMenu } from '@/features/store/components/favorites-menu'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { toast } from '@/hooks/use-toast'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import MobileUserWidget from './mobile-user-widget'
 
 // React 19 Resource Preloading APIs
@@ -93,7 +93,7 @@ export default function Navigation() {
 
   // Wallet balance context - shared across all components
   const { 
-    balance: ringBalance, 
+    balance: tokenBalance, 
     isLoading: balanceLoading, 
     error: balanceError,
     refresh: refetchBalance
@@ -260,8 +260,8 @@ export default function Navigation() {
     if (!session?.user || !mounted) return null
 
     const walletAddress = session.user.wallets?.[0]?.address
-    const displayBalance = formatBalance(ringBalance?.amount)
-    const hasLowBalance = parseFloat(ringBalance?.amount || '0') < 1
+    const displayBalance = formatBalance(tokenBalance?.amount)
+    const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
 
     return (
       <div className="flex items-center gap-3">

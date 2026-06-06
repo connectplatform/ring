@@ -13,7 +13,7 @@ export interface StoreUserPreferences {
   id?: string
   userId: string
   preferredShippingMethod?: 'nova-post' | 'express' | 'standard' | 'pickup'
-  preferredPaymentMethod?: 'wayforpay' | 'crypto' | 'stripe' | 'ring'
+  preferredPaymentMethod?: 'wayforpay' | 'crypto' | 'stripe' | 'credit' | 'token' | 'ring'
   lastUsedAddressId?: string
   defaultBillingAddressId?: string
   savePaymentMethods?: boolean

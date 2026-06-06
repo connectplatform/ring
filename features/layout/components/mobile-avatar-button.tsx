@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { Avatar } from '@/components/ui/avatar'
 import { useLocale } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { eventBus } from '@/lib/event-bus.client'
 
 interface MobileAvatarButtonProps {

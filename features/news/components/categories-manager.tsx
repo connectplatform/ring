@@ -49,7 +49,6 @@ import { formatDistanceToNow } from 'date-fns'
 interface CategoriesManagerProps {
   initialCategories: NewsCategoryInfo[]
   locale: string
-  translations: any
 }
 
 interface CategoryFormState {
@@ -310,7 +309,6 @@ function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
 export function CategoriesManager({ 
   initialCategories, 
   locale, 
-  translations 
 }: CategoriesManagerProps) {
   const [categories, setCategories] = useState<NewsCategoryInfo[]>(initialCategories)
   const [selectedCategory, setSelectedCategory] = useState<NewsCategoryInfo | null>(null)

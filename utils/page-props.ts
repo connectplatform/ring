@@ -1,5 +1,3 @@
-import type { Locale } from '@/i18n-config'
-
 /**
  * Type definitions for Next.js App Router page props with locale support
  * Supports both modern locale-based routing and legacy routing patterns

@@ -1,0 +1,190 @@
+{
+  "title": "Business Subscription",
+  "manageSubscription": "Manage Subscription",
+  "upgradeSubscription": "Upgrade",
+  "cancelSubscription": "Cancel Subscription",
+  "renewSubscription": "Renew Subscription",
+  "noSubscription": "No active subscription",
+  
+  "plans": {
+    "title": "Subscription Plans",
+    "basic": "Basic Plan",
+    "premium": "Premium Plan",
+    "enterprise": "Enterprise Plan",
+    "selectPlan": "Select Plan",
+    "currentPlan": "Current Plan",
+    "recommendedPlan": "Recommended",
+    "mostPopular": "Most Popular"
+  },
+  
+  "pricing": {
+    "listingFee": "One-time Listing Fee",
+    "monthlySubscription": "Monthly Subscription",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "billingPeriod": "Billing Period",
+    "monthly": "Monthly",
+    "yearly": "Yearly (Save 20%)",
+    "savePercent": "Save {{percent}}%",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount"
+  },
+  
+  "features": {
+    "title": "Features",
+    "mapVisibility": "Visibility on Map",
+    "unlimitedPhotos": "Unlimited Photos",
+    "prioritySupport": "Priority Support",
+    "analyticsAccess": "Analytics Access",
+    "vendorAccount": "Vendor Account",
+    "featuredListing": "Featured Listing",
+    "customBranding": "Custom Branding",
+    "apiAccess": "API Access",
+    "includedFeatures": "Included Features",
+    "additionalFeatures": "Additional Features"
+  },
+  
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "gracePeriod": "Grace Period",
+    "pastDue": "Past Due",
+    "canceled": "Canceled",
+    "suspended": "Suspended",
+    "trial": "Trial Period",
+    "pending": "Pending Payment"
+  },
+  
+  "billing": {
+    "title": "Billing Information",
+    "paymentMethod": "Payment Method",
+    "addPaymentMethod": "Add Payment Method",
+    "updatePaymentMethod": "Update Payment Method",
+    "billingHistory": "Billing History",
+    "invoices": "Invoices",
+    "nextBillingDate": "Next Billing Date",
+    "lastPayment": "Last Payment",
+    "cardEnding": "Card ending in {{last4}}",
+    "expires": "Expires {{date}}",
+    "downloadInvoice": "Download Invoice"
+  },
+  
+  "payment": {
+    "title": "Payment",
+    "cardNumber": "Card Number",
+    "expiryDate": "Expiry Date",
+    "cvv": "CVV",
+    "cardholderName": "Cardholder Name",
+    "billingAddress": "Billing Address",
+    "payNow": "Pay Now",
+    "payWithCard": "Pay with Card",
+    "payWithApplePay": "Pay with Apple Pay",
+    "payWithGooglePay": "Pay with Google Pay",
+    "securePayment": "Secure Payment",
+    "poweredByStripe": "Powered by Stripe"
+  },
+  
+  "visibility": {
+    "title": "Map Visibility",
+    "enabled": "Your place is visible on the map",
+    "disabled": "Your place is hidden from the map",
+    "requiresSubscription": "Active subscription required for map visibility",
+    "gracePeriodWarning": "Your subscription payment failed. You have {{days}} days to update payment before your place becomes hidden.",
+    "suspendedWarning": "Your place is currently hidden. Renew subscription to restore visibility."
+  },
+  
+  "actions": {
+    "subscribe": "Subscribe Now",
+    "updatePlan": "Update Plan",
+    "cancelPlan": "Cancel Plan",
+    "reactivate": "Reactivate Subscription",
+    "pauseSubscription": "Pause Subscription",
+    "resumeSubscription": "Resume Subscription",
+    "confirmCancellation": "Are you sure you want to cancel your subscription? Your place will be hidden from the map.",
+    "confirmUpgrade": "Upgrade to {{plan}} for {{price}}/month?",
+    "confirmDowngrade": "Downgrade to {{plan}}? Some features will be disabled."
+  },
+  
+  "grace_period": {
+    "title": "Payment Failed - Grace Period",
+    "description": "Your payment failed, but you have {{days}} days grace period to update your payment method.",
+    "daysRemaining": "{{days}} days remaining",
+    "updatePayment": "Update Payment Method",
+    "contactSupport": "Contact Support"
+  },
+  
+  "cancellation": {
+    "title": "Cancel Subscription",
+    "confirmTitle": "Are you sure?",
+    "confirmMessage": "Your subscription will be canceled and your place will be hidden from the map. You can reactivate anytime.",
+    "reasonTitle": "Help us improve (optional)",
+    "reasonPlaceholder": "Why are you canceling?",
+    "reasons": {
+      "tooExpensive": "Too expensive",
+      "notEnoughCustomers": "Not enough customers",
+      "technicalIssues": "Technical issues",
+      "seasonalBusiness": "Seasonal business",
+      "movingLocation": "Moving to different location",
+      "other": "Other reason"
+    },
+    "keepSubscription": "Keep Subscription",
+    "confirmCancel": "Yes, Cancel Subscription"
+  },
+  
+  "renewal": {
+    "title": "Renew Subscription",
+    "automaticRenewal": "Automatic Renewal",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "nextRenewalDate": "Next renewal on {{date}}",
+    "renewNow": "Renew Now",
+    "enableAutoRenewal": "Enable Auto-Renewal",
+    "disableAutoRenewal": "Disable Auto-Renewal"
+  },
+  
+  "validation": {
+    "cardNumberInvalid": "Invalid card number",
+    "expiryDateInvalid": "Invalid expiry date",
+    "cvvInvalid": "Invalid CVV",
+    "cardholderNameRequired": "Cardholder name is required",
+    "paymentMethodRequired": "Payment method is required"
+  },
+  
+  "success": {
+    "subscribed": "Subscription activated successfully!",
+    "updated": "Subscription updated successfully!",
+    "canceled": "Subscription canceled",
+    "renewed": "Subscription renewed successfully!",
+    "paymentUpdated": "Payment method updated successfully!",
+    "paymentReceived": "Payment received. Thank you!"
+  },
+  
+  "errors": {
+    "paymentFailed": "Payment failed. Please check your payment method and try again.",
+    "cardDeclined": "Your card was declined. Please use a different payment method.",
+    "insufficientFunds": "Insufficient funds. Please use a different payment method.",
+    "subscriptionFailed": "Failed to activate subscription. Please try again.",
+    "updateFailed": "Failed to update subscription. Please try again.",
+    "cancelFailed": "Failed to cancel subscription. Please contact support.",
+    "networkError": "Network error. Please check your connection and try again."
+  },
+  
+  "notifications": {
+    "paymentSuccess": "Payment successful! Your subscription is now active.",
+    "paymentFailed": "Payment failed. Please update your payment method.",
+    "subscriptionExpiring": "Your subscription expires in {{days}} days.",
+    "gracePeriodStarted": "Payment failed. You have {{days}} days to update payment.",
+    "subscriptionCanceled": "Your subscription has been canceled.",
+    "subscriptionReactivated": "Your subscription has been reactivated!"
+  },
+  
+  "help": {
+    "title": "Need Help?",
+    "contactSupport": "Contact Support",
+    "viewFaq": "View FAQ",
+    "billingQuestions": "Billing Questions",
+    "technicalSupport": "Technical Support"
+  }
+}

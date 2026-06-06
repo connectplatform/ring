@@ -19,6 +19,33 @@
     }
   };
 
+  function subscribeMediaQueryChange(mediaQuery, onChange) {
+    if (!mediaQuery) return function() {};
+
+    const legacyHandler = function() {
+      onChange(mediaQuery.matches);
+    };
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      const handler = function(event) {
+        onChange(event.matches);
+      };
+      mediaQuery.addEventListener('change', handler);
+      return function() {
+        mediaQuery.removeEventListener('change', handler);
+      };
+    }
+
+    if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(legacyHandler);
+      return function() {
+        mediaQuery.removeListener(legacyHandler);
+      };
+    }
+
+    return function() {};
+  }
+
   // Theme persistence utilities
   const ThemePersistence = {
     /**
@@ -109,10 +136,10 @@
       const storedTheme = this.getStoredTheme();
       this.applyTheme(storedTheme);
       
-      // Listen for system theme changes
+      // Listen for system theme changes (WebKit legacy addListener fallback)
       if (window.matchMedia) {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', (e) => {
+        subscribeMediaQueryChange(mediaQuery, () => {
           const currentTheme = this.getStoredTheme();
           if (currentTheme === THEME_CONFIG.THEMES.SYSTEM) {
             this.applyTheme(THEME_CONFIG.THEMES.SYSTEM);

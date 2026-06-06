@@ -19,9 +19,16 @@ import {
 } from "@/features/auth/types"
 import { ensureWallet } from "@/features/wallet/services/ensure-wallet"
 import { userMigrationService } from "@/features/auth/services/user-migration"
+import { shouldSkipDatabaseConnect } from "@/lib/build-cache/phase-detector"
+import {
+  getGoogleIdTokenAudiences,
+  getGoogleOAuthClientId,
+} from "@/lib/auth/google-oauth-client"
+
+const googleOAuthClientId = getGoogleOAuthClientId()
 
 // Initialize Google Auth client for ID token verification (server-side only)
-const googleAuthClient = new OAuth2Client(process.env.AUTH_GOOGLE_ID)
+const googleAuthClient = new OAuth2Client(googleOAuthClientId)
 
 // Logging utility - only logs when explicitly requested and not during build
 const shouldLogAuth = () => {
@@ -62,11 +69,16 @@ const usePostgreSQL = !useFirebase
 const hasAdapter = !!authAdapter
 const hasResendKey = process.env.AUTH_RESEND_KEY;
 
-if (!hasAdapter && hasResendKey) {
-  console.warn("AUTH_RESEND_KEY is set but Firebase adapter is not available. Magic link authentication will be disabled.");
+// During `next build`, getAuthAdapter() intentionally returns null (no DB) — do not warn.
+if (!hasAdapter && hasResendKey && !shouldSkipDatabaseConnect()) {
+  console.warn(
+    "AUTH_RESEND_KEY is set but no Auth.js database adapter is available. Magic link authentication will be disabled.",
+  )
 }
-if (hasAdapter && !hasResendKey) {
-  console.info("AUTH_RESEND_KEY not set. Magic link authentication will be disabled. Set AUTH_RESEND_KEY to enable email authentication.");
+if (hasAdapter && !hasResendKey && !shouldSkipDatabaseConnect()) {
+  console.info(
+    "AUTH_RESEND_KEY not set. Magic link authentication will be disabled. Set AUTH_RESEND_KEY to enable email authentication.",
+  )
 }
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
@@ -409,7 +421,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             
             const ticket = await googleAuthClient.verifyIdToken({
               idToken: credential,
-              audience: process.env.AUTH_GOOGLE_ID,
+              audience: getGoogleIdTokenAudiences(),
             })
 
             const payload = ticket.getPayload()

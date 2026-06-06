@@ -32,7 +32,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
-import { Locale } from '@/i18n-config'
+import { defaultLocale, type Locale } from '@/i18n/shared'
 
 // React 19 Resource Preloading APIs
 import { preload } from 'react-dom'
@@ -41,14 +41,14 @@ interface EntityCardProps {
   entity: Entity | SerializedEntity
   showQuickActions?: boolean
   compact?: boolean
-  locale?: string
+  locale?: Locale
 }
 
 const EntityCard: React.FC<EntityCardProps> = memo(({ 
   entity, 
   showQuickActions = true, 
   compact = false,
-  locale = 'en'
+  locale = defaultLocale
 }) => {
   const t = useTranslations('modules.entities')
   const tCommon = useTranslations('common')
@@ -122,7 +122,7 @@ const EntityCard: React.FC<EntityCardProps> = memo(({
     return `Member for ${Math.floor(diffDays / 365)} years`
   }
 
-  const entityUrl = ROUTES.ENTITY(entity.id, locale as Locale)
+  const entityUrl = ROUTES.ENTITY(entity.id, locale)
 
   return (
     <Card className={cn(

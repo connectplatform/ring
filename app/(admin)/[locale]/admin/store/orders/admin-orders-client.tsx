@@ -3,6 +3,8 @@
 import React, { useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { updateOrderStatus, refreshOrders } from '@/app/_actions/admin-orders'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 
 interface Order {
   id: string;
@@ -16,7 +18,7 @@ interface Order {
 interface AdminOrdersClientProps {
   initialOrders: Order[];
   currentStatusFilter?: string;
-  locale: string;
+  locale: Locale;
 }
 
 export default function AdminOrdersClient({ 
@@ -39,7 +41,7 @@ export default function AdminOrdersClient({
     }
     
     startTransition(() => {
-      router.push(`/${locale}/admin/store/orders?${params.toString()}`);
+      router.push(`${ROUTES.ADMIN_STORE_ORDERS(locale)}?${params.toString()}`);
     });
   };
 

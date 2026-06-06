@@ -1,16 +1,61 @@
+# Dependencies & build output
 node_modules/*
 .next/*
-.firebase/
 out/
 tsconfig.tsbuildinfo
+
+# Environment files & credentials (never commit real values)
+.env
+.env.*
+!.env.local.template
+!.env.portal.template
+!docker.env.template
 .env.local
-.vercel
 .env*.local
-svc.json
-.DS_Store
 *.env.production
+svc.json
+.firebaserc
+
+# Hosting / platform local state
+.firebase/
+.vercel
+.svc/*
+
+# Logs & runtime
 log/*.json
-docs/2025-*
-*.md
-.gitignore
+*.log
+
+# OS
+.DS_Store
+
+# Kingdom-internal context (not for public OSS)
 AI-CONTEXT/*
+AI-CONTEXT-INTRO.json
+.reggie-session.json
+propagation/
+
+# Empire infrastructure — not shared with community
+k8s/
+cli/
+
+# Internal ops scripts (community uses install.sh, scripts/setup-dev.sh, scripts/setup-env.js, scripts/run-migration.sh)
+scripts/file-registry-schema.sql
+scripts/svc.json
+scripts/setup-github-secrets.sh
+scripts/setup-vercel-env.sh
+scripts/import-firebase-service-account.sh
+scripts/add-products-production.js
+scripts/apply-news-migrations-dev.sh
+scripts/apply-news-migrations-ringdom-prod.sh
+scripts/sync-news-kingdom-to-clones.sh
+scripts/sync-payment-conductor-to-clones.sh
+scripts/repair-payment-conductor-sync.sh
+scripts/patch-telegram-webhook-news-callbacks.sh
+scripts/migrate-i18n-kingdom.mjs
+scripts/migrate-seo-generate-metadata.mjs
+scripts/migrate-seo-pages.mjs
+scripts/port-missing-generate-metadata.mjs
+scripts/verify-public-seo-metadata.mjs
+
+# Legacy internal doc snapshots
+docs/2025-*

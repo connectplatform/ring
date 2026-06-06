@@ -28,7 +28,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

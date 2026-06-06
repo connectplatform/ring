@@ -3,9 +3,17 @@
 import React, { useEffect, useRef } from 'react'
 
 export interface MermaidProps {
-  children: string
+  children: React.ReactNode
   title?: string
   type?: 'diagram' | 'mindmap' // Support both diagram types
+}
+
+function diagramSource(children: React.ReactNode): string {
+  if (typeof children === 'string') return children
+  if (children == null) return ''
+  return React.Children.toArray(children)
+    .map((c) => (typeof c === 'string' || typeof c === 'number' ? String(c) : ''))
+    .join('')
 }
 
 export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
@@ -109,7 +117,8 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
         })
 
         const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`
-        const { svg } = await mermaid.render(id, children.trim())
+        const src = diagramSource(children).trim()
+        const { svg } = await mermaid.render(id, src)
         setSvg(svg)
         setError('')
       } catch (error: any) {
@@ -121,7 +130,7 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
     }
 
     renderDiagram()
-  }, [children, isClient, currentTheme])
+  }, [children, isClient, currentTheme, type])
 
   if (error) {
     return (

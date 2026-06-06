@@ -1,13 +1,21 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth'
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import { ROUTES } from '@/constants/routes'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations } from 'next-intl/server'
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { connection } from 'next/server';
 import { Activity, Users, Eye, TrendingUp, TrendingDown, Clock, Globe, Smartphone, Monitor, Zap, AlertTriangle, CheckCircle, BarChart3, PieChart, LineChart, Server, Database, Cpu, HardDrive } from 'lucide-react';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 
 // Types for analytics data
 interface WebVitalsMetric {
@@ -36,6 +44,25 @@ interface SystemHealthMetric {
   description: string;
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'admin.analytics',
+    pathname: '/admin/analytics',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false, noarchive: true, nosnippet: true, noimageindex: true },
+  })
+}
 export default async function AdminAnalyticsPage({ 
   params 
 }: {
@@ -44,18 +71,29 @@ export default async function AdminAnalyticsPage({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale);
+  const tt = await getTranslations('modules.admin');
+  const adminLabels = buildModulesAdminLabels(tt);
+  const t = (key: string) => {
+    try {
+      return tt(key);
+    } catch {
+      return undefined;
+    }
+  };
+  const tr = (key: string, fallback: string) => {
+    return t(key) || fallback;
+  };
   
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/analytics`);
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADMIN_ANALYTICS(validLocale))}`);
   }
 
-  if (session.user.role !== 'admin') {
-    redirect(`/${validLocale}/unauthorized`);
+  if (!isPlatformAdmin(session.user.role)) {
+    redirect(ROUTES.UNAUTHORIZED(validLocale));
   }
 
   // Mock data - In production, this would come from your analytics service
@@ -172,27 +210,27 @@ export default async function AdminAnalyticsPage({
 
   return (
     <>
-      <title>Analytics Dashboard | Ring Platform Admin</title>
-      <meta name="description" content="Comprehensive analytics dashboard for Ring Platform administrators" />
+      <title>Analytics Dashboard | Zemna AI Admin</title>
+      <meta name="description" content="Comprehensive analytics dashboard for Zemna AI administrators" />
 
-      <AdminWrapper locale={validLocale} pageContext="analytics">
+      <AdminWrapper locale={validLocale} pageContext="analytics" labels={adminLabels}>
         <div className="container mx-auto px-0 py-0">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Analytics Dashboard
+              {tr('matcher.title', 'Analytics Dashboard')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Comprehensive platform performance monitoring and user engagement analytics
+              {tr('matcher.subtitle', 'Comprehensive platform performance monitoring and user engagement analytics')}
             </p>
           </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="webvitals">Web Vitals</TabsTrigger>
-            <TabsTrigger value="users">User Analytics</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="system">System Health</TabsTrigger>
+            <TabsTrigger value="overview">{tr('matcher.tabs.performance', 'Overview')}</TabsTrigger>
+            <TabsTrigger value="webvitals">{tr('matcher.tabs.quality', 'Web Vitals')}</TabsTrigger>
+            <TabsTrigger value="users">{tr('matcher.tabs.usage', 'User Analytics')}</TabsTrigger>
+            <TabsTrigger value="performance">{tr('matcher.tabs.trends', 'Performance')}</TabsTrigger>
+            <TabsTrigger value="system">{tr('systemStats', 'System Health')}</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -201,14 +239,14 @@ export default async function AdminAnalyticsPage({
               {/* Quick Stats */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <CardTitle className="text-sm font-medium">{tr('totalUsers', 'Total Users')}</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">1,247</div>
                   <p className="text-xs text-green-600 flex items-center">
                     <TrendingUp className="h-3 w-3 mr-1" />
-                    +14.5% from last month
+                    {tr('recentActivity', '+14.5% from last month')}
                   </p>
                 </CardContent>
               </Card>

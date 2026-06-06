@@ -23,18 +23,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { apiClient } from '@/lib/api-client'
 import OpportunityCard from '@/features/opportunities/components/opportunity-list'
 import { formatDateValue } from '@/lib/utils'
+import type { Locale } from '@/i18n/shared'
 
 interface EntityDetailsProps {
   initialEntity: SerializedEntity | null
   initialError: string | null
   chatComponent: React.ReactNode
+  locale: Locale
 }
 
 /**
  * Enhanced Entity Showcase Page
  * A comprehensive business profile with opportunities, products, analytics, and engagement features
  */
-export default function EntityDetails({ initialEntity, initialError, chatComponent }: EntityDetailsProps) {
+export default function EntityDetails({ initialEntity, initialError, chatComponent, locale }: EntityDetailsProps) {
   const t = useTranslations('modules.entities')
   const [entity] = useState<SerializedEntity | null>(initialEntity)
   const [error] = useState<string | null>(initialError)

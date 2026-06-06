@@ -45,13 +45,11 @@ import Link from 'next/link';
 interface AdminNewsManagerProps {
   initialArticles: NewsArticle[];
   locale: string;
-  translations: any;
 }
 
 export function AdminNewsManager({ 
   initialArticles, 
   locale, 
-  translations 
 }: AdminNewsManagerProps) {
   const [articles, setArticles] = useState<NewsArticle[]>(initialArticles);
   const [filteredArticles, setFilteredArticles] = useState<NewsArticle[]>(initialArticles);

@@ -12,6 +12,10 @@ export class VercelAdapter implements IFileService {
         uploadOptions.contentType = options.contentType;
       }
 
+      if (options.addRandomSuffix !== undefined) {
+        uploadOptions.addRandomSuffix = options.addRandomSuffix;
+      }
+
       if (options.metadata) {
         uploadOptions.metadata = options.metadata;
       }
@@ -24,7 +28,11 @@ export class VercelAdapter implements IFileService {
         uploadOptions.cacheControlMaxAge = options.cacheControlMaxAge;
       }
 
-      const blob = await put(filename, file, uploadOptions);
+      const payload = file instanceof Buffer
+        ? new Blob([new Uint8Array(file)], { type: options.contentType || 'application/octet-stream' })
+        : file;
+
+      const blob = await put(filename, payload, uploadOptions);
 
       return {
         success: true,
@@ -32,7 +40,7 @@ export class VercelAdapter implements IFileService {
         downloadUrl: blob.downloadUrl,
         filename,
         size: file instanceof File ? file.size : file.length,
-        contentType: blob.contentType || (file instanceof File ? file.type : 'application/octet-stream'),
+        contentType: blob.contentType || (file instanceof File ? file.type : options.contentType || 'application/octet-stream'),
         uploadedAt: new Date().toISOString(),
       };
     } catch (error) {

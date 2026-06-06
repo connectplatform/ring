@@ -1,8 +1,9 @@
 'use client'
 
-import React, { createContext, use, useEffect, useState } from 'react'
+import React, { createContext, use, useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useFCM, useFCMMessages } from '@/hooks/useFCM'
+import { getBrowserNotificationPermission } from '@/lib/browser/notification-api'
 import { toast } from '@/hooks/use-toast'
 
 interface FCMContextType {
@@ -33,7 +34,29 @@ interface FCMProviderProps {
   children: React.ReactNode
 }
 
+const FCM_DISCONNECTED_CONTEXT: FCMContextType = {
+  isEnabled: false,
+  isSupported: false,
+  isLoading: false,
+  error: null,
+  enableNotifications: async () => false,
+  disableNotifications: async () => {},
+  tokenCount: 0,
+}
+
 export function FCMProvider({ children }: FCMProviderProps) {
+  return (
+    <Suspense
+      fallback={
+        <FCMContext.Provider value={FCM_DISCONNECTED_CONTEXT}>{children}</FCMContext.Provider>
+      }
+    >
+      <FCMProviderRuntime>{children}</FCMProviderRuntime>
+    </Suspense>
+  )
+}
+
+function FCMProviderRuntime({ children }: FCMProviderProps) {
   const { data: session, status } = useSession()
   const {
     token,
@@ -205,21 +228,37 @@ export function FCMProvider({ children }: FCMProviderProps) {
   )
 }
 
+const FCM_PROMPT_STORAGE_KEY = 'fcm-prompt-dismissed'
+
+function getFCMPromptAlreadySeen(): boolean {
+  if (typeof window === 'undefined') return false
+  return sessionStorage.getItem(FCM_PROMPT_STORAGE_KEY) === 'true'
+}
+
 // Notification permission prompt component
 export function FCMPermissionPrompt() {
   const { isSupported, isEnabled, isLoading, enableNotifications } = useFCMContext()
   const [showPrompt, setShowPrompt] = useState(false)
 
   useEffect(() => {
+    // Don't show if user already dismissed or enabled in this session
+    if (getFCMPromptAlreadySeen()) return
+    // Don't show if browser permission already granted (e.g. after remount before token is in state)
+    if (getBrowserNotificationPermission() === 'granted') return
     // Show prompt after 3 seconds if notifications are supported but not enabled
     const timer = setTimeout(() => {
-      if (isSupported && !isEnabled && !isLoading) {
+      if (isSupported && !isEnabled && !isLoading && !getFCMPromptAlreadySeen()) {
         setShowPrompt(true)
       }
     }, 3000)
 
     return () => clearTimeout(timer)
   }, [isSupported, isEnabled, isLoading])
+
+  // Never show if user already dismissed or enabled this session
+  if (typeof window !== 'undefined' && getFCMPromptAlreadySeen()) {
+    return null
+  }
 
   if (!showPrompt || isEnabled || !isSupported) {
     return null
@@ -229,18 +268,14 @@ export function FCMPermissionPrompt() {
     const success = await enableNotifications()
     if (success) {
       setShowPrompt(false)
+      // Persist so we don't show again after remount/navigation
+      sessionStorage.setItem(FCM_PROMPT_STORAGE_KEY, 'true')
     }
   }
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    // Don't show again for this session
-    sessionStorage.setItem('fcm-prompt-dismissed', 'true')
-  }
-
-  // Check if user has already dismissed the prompt
-  if (typeof window !== 'undefined' && sessionStorage.getItem('fcm-prompt-dismissed')) {
-    return null
+    sessionStorage.setItem(FCM_PROMPT_STORAGE_KEY, 'true')
   }
 
   return (

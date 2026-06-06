@@ -117,7 +117,8 @@ export function PrebillingPage({
           setShippingMethod(prefs.preferredShippingMethod)
         }
         if (prefs.preferredPaymentMethod) {
-          setPaymentMethod(prefs.preferredPaymentMethod)
+          const m = prefs.preferredPaymentMethod as string
+          setPaymentMethod(m === 'ring' ? 'credit' : (m as PaymentMethod))
         }
         setSavePaymentMethod(prefs.savePaymentMethods ?? false)
       }

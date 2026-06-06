@@ -1,5 +1,6 @@
+# syntax=docker/dockerfile:1
 # Ring Platform - Production Docker Image
-# Multi-stage build for Next.js 15 + React 19 professional networking platform
+# Multi-stage build for Next.js 16 + React 19 professional networking platform
 #
 # 📋 REQUIRED ENVIRONMENT VARIABLES FOR PRODUCTION:
 #
@@ -59,8 +60,34 @@
 #   --from-literal=WALLET_ENCRYPTION_KEY="your-32-char-hex-key" \
 #   --from-literal=AUTH_DEBUG="false"
 
+# -----------------------------------------------------------------------------
+# Dependencies (separate stage: real node_modules in an image layer + /root/.npm
+# BuildKit cache for faster reinstalls when lockfile unchanged). Native deps need
+# the same build toolchain as the compile stage.
+# -----------------------------------------------------------------------------
+FROM node:25-alpine AS deps
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    git
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm config set fetch-retries 10 && \
+    npm config set fetch-retry-mintimeout 15000 && \
+    npm config set fetch-retry-maxtimeout 180000 && \
+    npm config set maxsockets 5 && \
+    npm ci --include=dev --legacy-peer-deps
+
 # Build Stage
-FROM node:22-alpine AS builder
+# Why Docker builds are often slower than local `npm run build`:
+# - Cold start: no persistent node_modules or .next cache; each build reinstalls unless cache mounts help.
+# - Layer invalidation: any change after `COPY . .` invalidates later layers.
+# - Network/IO: registry pulls + container FS (often slower than host SSD, especially on Docker Desktop).
+# - This Dockerfile uses a `deps` stage + `/root/.npm` cache and `.next/cache` mount to mitigate.
+FROM node:25-alpine AS builder
 
 LABEL maintainer="Ring Platform Team <insight@ring-platform.org>"
 LABEL version="1.47"
@@ -97,6 +124,9 @@ ARG AUTH_SECRET
 # Google OAuth Client-side
 ARG NEXT_PUBLIC_AUTH_GOOGLE_ID
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+# WalletConnect / Reown (client bundle; public project id)
+ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 
 # =============================================================================
 # 🔥 FIREBASE CONFIGURATION
@@ -178,6 +208,8 @@ ENV NEXT_TELEMETRY_DISABLED=${NEXT_TELEMETRY_DISABLED}
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXTAUTH_URL=${NEXTAUTH_URL}
+# Node forbids `--no-webstorage` in NODE_OPTIONS (process exits). Deprecation noise only here.
+ENV NODE_OPTIONS="--no-deprecation"
 
 # =============================================================================
 # 🔐 AUTHENTICATION ENVIRONMENT VARIABLES (CRITICAL)
@@ -204,6 +236,7 @@ ENV AUTH_SECRET=${AUTH_SECRET}
 # Google OAuth Client-side
 ENV NEXT_PUBLIC_AUTH_GOOGLE_ID=${NEXT_PUBLIC_AUTH_GOOGLE_ID}
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+ENV NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
 
 # =============================================================================
 # 🔥 FIREBASE ENVIRONMENT VARIABLES
@@ -278,54 +311,43 @@ ENV LLM_PROVIDER=${LLM_PROVIDER}
 ENV POLYGON_RPC_URL=${POLYGON_RPC_URL}
 # ENV WALLET_ENCRYPTION_KEY=${WALLET_ENCRYPTION_KEY}  # Runtime injection via K8s secrets
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-
-# Install system dependencies and pnpm for better performance
+# Install system dependencies required for native npm modules (align with ring-connect-software / ring-zemna-ai)
 RUN apk add --no-cache \
     libc6-compat \
     python3 \
     make \
     g++ \
-    git \
-    && corepack enable \
-    && corepack prepare pnpm@latest --activate
+    git
 
 # Create app directory
 WORKDIR /app
 
-# Copy package files first for better Docker layer caching
-COPY package*.json ./
-COPY pnpm-lock.yaml* ./
+COPY package.json package-lock.json ./
+COPY --from=deps /app/node_modules ./node_modules
 
-# Install dependencies
-RUN if [ -f pnpm-lock.yaml ]; then \
-        pnpm install --frozen-lockfile --production=false; \
-    else \
-        npm ci --include=dev --legacy-peer-deps; \
-    fi
-
-# Copy source code
+# Copy source code (.dockerignore excludes host node_modules)
 COPY . .
 
 # Copy environment template and create build-time env
 COPY env.local.template .env.local.template
 
-# Build the application
-RUN npm run build
+# Build the application (reuse .next/cache across builds when BuildKit cache mount is enabled)
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # Runtime Stage
-FROM node:22-alpine AS runtime
+FROM node:25-alpine AS runtime
 
-LABEL maintainer="Ring Platform Team <team@ring.platform>"
-LABEL version="0.9.8"
-LABEL description="Ring Platform Runtime - Professional Networking Platform"
+LABEL maintainer="Ring Platform Team <team@ring-platform.org>"
+LABEL version="1.47"
+LABEL description="Ring Platform Runtime - AI-powered Platform with Web3 Integration"
 
 # Runtime environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV NODE_OPTIONS="--no-deprecation"
 
 # Install runtime dependencies
 RUN apk add --no-cache \
@@ -339,26 +361,22 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # Copy built application from builder stage
+# Standalone output already includes traced node_modules — no second npm install (avoids double install and Docker npm ci failures)
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy package files for dependency installation
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json* ./
-
 # Copy lib directory for auth and utilities
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+
+# next-intl request config + routing (required at runtime; same pattern as ring-connect-software / ring-zemna-ai)
+COPY --from=builder --chown=nextjs:nodejs /app/i18n ./i18n
 
 # Copy docs directory for MDX documentation
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
 
 # Copy environment template
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
-
-# Install production dependencies with legacy peer deps to handle socket.io
-# Use --omit=dev (replaces deprecated --only=production) and increase memory
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 
 # Create necessary directories
 RUN mkdir -p /app/log /app/tmp && \

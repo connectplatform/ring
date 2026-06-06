@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { 
   CheckCircle, 
   XCircle, 

@@ -1,7 +1,9 @@
 {
   "title": "Архітектура",
+  "description": "Компоновка системи, Auth.js, сховище даних, DB_BACKEND_MODE, realtime та безпека.",
   "pages": [
     "index",
+    "backend-modes-and-databases",
     "data-model",
     "authentication",
     "real-time",

@@ -1,28 +1,29 @@
-import React from 'react';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
+import { ROUTES } from '@/constants/routes';
 import { ArticleEditor } from '@/features/news/components/article-editor';
-import { LocalePageProps } from '@/utils/page-props';
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import type { Locale } from '@/i18n/shared';
 import NewsWrapper from '@/components/wrappers/news-wrapper';
 import { connection } from 'next/server'
+import { routing } from '@/i18n/routing';
+import { getTranslations } from 'next-intl/server';
 
 
 export async function generateMetadata({ 
   params 
 }: {
-  params: Promise<{ locale: string }>
+  params: Promise<{ locale: Locale }>
 }): Promise<Metadata> {
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale = routing.locales.includes(locale as Locale) ? locale : routing.defaultLocale;
+  const t = await getTranslations('modules.admin');
 
   return {
-    title: `${t.modules.admin.createArticle} | Ring Platform`,
-    description: 'Create a new news article',
+    title: `${t('createArticle')} | Ring Platform`,
+    description: t('newsManagementDescription'),
     robots: 'noindex, nofollow',
   };
 }
@@ -30,38 +31,37 @@ export async function generateMetadata({
 export default async function CreateArticlePage({ 
   params 
 }: {
-  params: Promise<{ locale: string }>
+  params: Promise<{ locale: Locale }>
 }) {
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale = routing.locales.includes(locale as Locale) ? locale : routing.defaultLocale;
+  const t = await getTranslations('modules.admin');
   
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/news/create`);
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADMIN_NEWS_CREATE(validLocale))}`);
   }
 
   // TODO: Implement proper role checking
   
   return (
-    <NewsWrapper pageContext="create" translations={t}>
+    <NewsWrapper pageContext="create">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          {t.modules.admin.createArticle}
+          {t('createArticle')}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Create a new article for the Ring Platform news section
+          {t('newsManagementDescription')}
         </p>
       </div>
 
       <ArticleEditor
         mode="create"
         locale={validLocale}
-        translations={t}
       />
     </NewsWrapper>
   );

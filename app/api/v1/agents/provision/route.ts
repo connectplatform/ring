@@ -7,7 +7,7 @@
  * Auth: API key from approved IPs only
  * 
  * @see /features/ai-agents/services/dagi-provisioning.ts (client-side)
- * @see /.cursor/legion/dagi-general-expert.json (agent specs)
+ * @see /AI-LEGIOX/legiox-truth-lens/dagi-general-expert.nodus.json (agent specs)
  */
 
 import { NextRequest, NextResponse } from 'next/server'

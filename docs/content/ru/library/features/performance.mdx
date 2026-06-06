@@ -173,9 +173,9 @@ export function CreateEntityForm() {
 <Code language="typescript" title="TypeScript">
 {`// lib/database/index.ts - Унифицированная абстракция базы данных
 class DatabaseService {
-  // Операции с включенным React 19 cache()
+  // Операции с включенным React 19 cache() (иллюстрация — продакшен: lib/database/DatabaseService.ts + BackendSelector)
   read = cache(async (collection: string, id: string) => {
-    // Автоматически маршрутизирует в PostgreSQL или Firebase на основе DB_HYBRID_MODE
+    // Продакшен: DB_BACKEND_MODE → initializeDatabase() регистрирует PostgreSQLAdapter и/или FirebaseAdapter
     const backend = this.getBackendForCollection(collection)
     return backend.read(collection, id)
   })
@@ -202,14 +202,15 @@ class DatabaseService {
   }
 
   private getBackendForCollection(collection: string) {
-    // Маршрутизация на основе окружения и статуса миграции коллекции
-    const hybridMode = process.env.DB_HYBRID_MODE === 'false'
+    // DB_HYBRID_MODE — устаревший переключатель отдельных фич (store, notifications); не смешивать с DB_BACKEND_MODE.
+    // Ниже псевдокод; реальная маршрутизация: lib/database/BackendSelector.ts
+    const postgresOnly = process.env.DB_HYBRID_MODE === 'false'
 
-    if (hybridMode) {
+    if (postgresOnly) {
       return this.postgresBackend // PostgreSQL основной
     }
 
-    // Гибридный режим: маршрутизация на основе статуса миграции
+    // Иллюстративное разделение при поэтапной миграции
     const migratedCollections = ['users', 'entities', 'notifications', 'comments']
     return migratedCollections.includes(collection)
       ? this.postgresBackend

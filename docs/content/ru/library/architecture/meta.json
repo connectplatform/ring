@@ -1,7 +1,9 @@
 {
   "title": "Архитектура",
+  "description": "Структура системы, Auth.js, хранилища данных, DB_BACKEND_MODE, realtime и безопасность.",
   "pages": [
     "index",
+    "backend-modes-and-databases",
     "data-model",
     "authentication",
     "real-time",

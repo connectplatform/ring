@@ -1,6 +1,9 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { buildMessages } from '@/lib/i18n'
+import { buildMessages, getMessageSection } from '@/lib/i18n'
+import { supportedLocales } from '@/i18n/shared'
+
+import { Callout } from '@/components/docs/callout'
 import { Steps, Step } from '@/components/docs/steps'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
 
@@ -10,8 +13,8 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
-  const messages = await buildMessages(locale);
-  const t = messages['aiWeb3'] || {};
+  const messages = await buildMessages(locale, 'public');
+  const t = getMessageSection(messages, 'ai-web3');
 
   return {
     title: t.title || 'AI Meets Web3 - Ring Platform',
@@ -21,19 +24,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function AIWeb3Page({ params }: Props) {
-  const { locale: localeParam } = await params;
-  const locale = localeParam as 'en' | 'uk' | 'ru';
+  const { locale } = await params;
 
-  if (!['en', 'uk', 'ru'].includes(localeParam)) {
+  if (!(supportedLocales as readonly string[]).includes(locale)) {
     notFound()
   }
 
-  const messages = await buildMessages(locale);
-  const t = messages['aiWeb3'] || {};
+  const messages = await buildMessages(locale, 'public');
+  const t = getMessageSection(messages, 'ai-web3');
 
   return (
     <AboutWrapper locale={locale}>
-      {/* Hero Section */}
+        {/* Main Content */}
+        <div className="py-0">
+        
+        {/* Hero Section */}
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-100 to-purple-100 dark:from-cyan-900/30 dark:to-purple-900/30 rounded-full px-4 py-2 mb-6">
               <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500"></div>
@@ -52,7 +57,7 @@ export default async function AIWeb3Page({ params }: Props) {
           </div>
 
           {/* Core Concept */}
-      <div className="grid md:grid-cols-2 gap-8 mb-16">
+          <div className="grid md:grid-cols-2 gap-12 mb-16">
             <div className="bg-card rounded-2xl p-8 shadow-lg border border-border">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mb-6">
                 <span className="text-3xl">🤖</span>
@@ -79,7 +84,7 @@ export default async function AIWeb3Page({ params }: Props) {
           </div>
 
           {/* The Fusion */}
-      <div className="bg-card rounded-2xl p-8 shadow-lg mb-16 border border-border">
+          <div className="bg-card rounded-2xl p-8 md:p-12 shadow-lg mb-16 border border-border">
             <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
               {t.fusion?.title || 'The Perfect Fusion'}
             </h2>
@@ -97,217 +102,243 @@ export default async function AIWeb3Page({ params }: Props) {
             <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
-              <span className="text-xl">🔐</span>
+                  <span className="text-white text-lg">🧠</span>
                 </div>
-            <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-              {t.fusion?.trust?.title || 'Trustless AI'}
+                <h3 className="text-lg font-semibold mb-3 text-card-foreground">
+                  {t.fusion?.intelligence?.title || 'Collective Intelligence'}
                 </h3>
-            <p className="text-sm text-muted-foreground">
-              {t.fusion?.trust?.description || 'AI decisions recorded on blockchain for complete transparency and auditability'}
+                <p className="text-muted-foreground text-sm">
+                  {t.fusion?.intelligence?.description || 'AI algorithms amplify human intelligence by connecting the right people at the right time'}
                 </p>
               </div>
 
               <div className="text-center">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-4">
-              <span className="text-xl">💰</span>
-            </div>
-                <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-              {t.fusion?.incentives?.title || 'Token Incentives'}
+                  <span className="text-white text-lg">🔒</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-3 text-card-foreground">
+                  {t.fusion?.trust?.title || 'Decentralized Trust'}
                 </h3>
-                <p className="text-sm text-muted-foreground">
-              {t.fusion?.incentives?.description || 'AI-driven token distribution rewards meaningful contributions automatically'}
-            </p>
-          </div>
+                <p className="text-muted-foreground text-sm">
+                  {t.fusion?.trust?.description || 'Blockchain ensures transparency and prevents manipulation of collaborative processes'}
+                </p>
+              </div>
 
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-4">
-              <span className="text-xl">🌐</span>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-white text-lg">⚡</span>
+                </div>
+                <h3 className="text-lg font-semibold mb-3 text-card-foreground">
+                  {t.fusion?.automation?.title || 'Smart Automation'}
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {t.fusion?.automation?.description || 'Intelligent systems handle complex matching and coordination tasks autonomously'}
+                </p>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-              {t.fusion?.decentralized?.title || 'Decentralized Intelligence'}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {t.fusion?.decentralized?.description || 'AI models trained on community data, owned and governed by the community'}
-            </p>
           </div>
-        </div>
-      </div>
 
-      {/* Use Cases */}
-      <div className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-          {t.useCases?.title || 'Real-World Applications'}
+          {/* Ring's AI-Web3 Features */}
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
+              {t.features?.title || 'Ring\'s AI-Web3 Features'}
             </h2>
 
-        <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-card rounded-xl p-6 shadow-lg border">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center mb-4">
                   <span className="text-white text-xl">🎯</span>
                 </div>
                 <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.useCases?.matching?.title || 'Intelligent Matching'}
+                  {t.features?.smartMatching?.title || 'AI-Powered Matching'}
                 </h3>
                 <p className="text-muted-foreground">
-              {t.useCases?.matching?.description || 'AI algorithms match opportunities with the right people, verified by blockchain reputation systems.'}
+                  {t.features?.smartMatching?.description || 'Machine learning algorithms match opportunities with the most qualified participants based on skills, experience, and past performance.'}
                 </p>
               </div>
 
-              <div className="bg-card rounded-xl p-6 shadow-lg border">
+              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">📊</span>
+                  <span className="text-white text-xl">🔗</span>
                 </div>
                 <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.useCases?.analytics?.title || 'Predictive Analytics'}
+                  {t.features?.decentralized?.title || 'Decentralized Governance'}
                 </h3>
                 <p className="text-muted-foreground">
-              {t.useCases?.analytics?.description || 'AI-powered insights help communities make better decisions about resource allocation and project priorities.'}
+                  {t.features?.decentralized?.description || 'Community members vote on platform decisions using blockchain-based governance systems and token-weighted voting.'}
                 </p>
               </div>
 
-              <div className="bg-card rounded-xl p-6 shadow-lg border">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">🗳️</span>
+              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center mb-4">
+                  <span className="text-white text-xl">🤝</span>
                 </div>
                 <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.useCases?.governance?.title || 'Smart Governance'}
+                  {t.features?.collective?.title || 'Collective Intelligence'}
                 </h3>
                 <p className="text-muted-foreground">
-              {t.useCases?.governance?.description || 'AI assists in analyzing proposals while smart contracts ensure transparent, automated execution of community decisions.'}
+                  {t.features?.collective?.description || 'AI facilitates the emergence of collective intelligence by connecting diverse perspectives and expertise in collaborative problem-solving.'}
                 </p>
               </div>
 
-              <div className="bg-card rounded-xl p-6 shadow-lg border">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-cyan-500 to-green-500 flex items-center justify-center mb-4">
-              <span className="text-white text-xl">🛡️</span>
+              <div className="bg-card rounded-xl p-6 shadow-lg border border-border">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-green-500 to-cyan-500 flex items-center justify-center mb-4">
+                  <span className="text-white text-xl">🔄</span>
                 </div>
                 <h3 className="text-xl font-semibold mb-3 text-card-foreground">
-              {t.useCases?.security?.title || 'Enhanced Security'}
+                  {t.features?.adaptive?.title || 'Adaptive Learning'}
                 </h3>
                 <p className="text-muted-foreground">
-              {t.useCases?.security?.description || 'AI-powered fraud detection combined with blockchain immutability creates robust security for digital interactions.'}
+                  {t.features?.adaptive?.description || 'The platform continuously learns from successful collaborations to improve future matching and coordination.'}
                 </p>
               </div>
             </div>
           </div>
 
           {/* Technical Architecture */}
-      <div className="bg-card rounded-2xl p-8 shadow-lg mb-16 border">
+          <div className="bg-card rounded-2xl p-8 md:p-12 shadow-lg mb-16 border border-border">
             <h2 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
               {t.architecture?.title || 'Technical Architecture'}
             </h2>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="text-center p-6 rounded-xl bg-muted/30 border">
-            <div className="text-3xl mb-4">🔗</div>
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
+                <div className="text-2xl mb-3">⚛️</div>
                 <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-              {t.architecture?.layer1?.title || 'Blockchain Layer'}
+                  {t.architecture?.frontend?.title || 'Frontend Layer'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-              {t.architecture?.layer1?.description || 'Polygon for fast, low-cost transactions with Ethereum security'}
+                  {t.architecture?.frontend?.description || 'React 19 + Next.js 15 interface providing seamless user experience'}
                 </p>
               </div>
 
-          <div className="text-center p-6 rounded-xl bg-muted/30 border">
-            <div className="text-3xl mb-4">🧠</div>
+              <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
+                <div className="text-2xl mb-3">🎯</div>
                 <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-              {t.architecture?.layer2?.title || 'AI Processing Layer'}
+                  {t.architecture?.ai?.title || 'AI Layer'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-              {t.architecture?.layer2?.description || 'Advanced NLP and ML models for intelligent matching and analysis'}
+                  {t.architecture?.ai?.description || 'Machine learning algorithms for intelligent matching and coordination'}
                 </p>
               </div>
 
-          <div className="text-center p-6 rounded-xl bg-muted/30 border">
-            <div className="text-3xl mb-4">💻</div>
+              <div className="text-center p-6 rounded-xl bg-muted/30 border border-border">
+                <div className="text-2xl mb-3">⛓️</div>
                 <h3 className="text-lg font-semibold mb-2 text-card-foreground">
-              {t.architecture?.layer3?.title || 'Application Layer'}
+                  {t.architecture?.blockchain?.title || 'Blockchain Layer'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-              {t.architecture?.layer3?.description || 'React 19 + Next.js 15 for seamless user experience'}
+                  {t.architecture?.blockchain?.description || 'Web3 protocols ensuring decentralized trust and transparency'}
                 </p>
               </div>
+            </div>
+
+            <div className="mt-8 p-6 bg-muted/30 border border-border rounded-xl">
+              <h3 className="text-lg font-semibold mb-3 text-center text-card-foreground">
+                {t.architecture?.integration?.title || 'Integration Layer'}
+              </h3>
+              <p className="text-center text-muted-foreground">
+                {t.architecture?.integration?.description || 'Seamless communication between AI and blockchain components'}
+              </p>
             </div>
           </div>
 
           {/* Future Vision */}
-      <div className="bg-gradient-to-r from-cyan-600 to-purple-600 rounded-2xl p-8 text-white mb-16">
+          <div className="bg-gradient-to-r from-cyan-600 via-purple-500 to-blue-600 rounded-2xl p-8 md:p-12 text-white mb-16">
             <h2 className="text-3xl font-bold text-center mb-8">
-          {t.vision?.title || 'The Future We\'re Building'}
+              {t.future?.title || 'The Future'}
             </h2>
 
-        <Steps>
-          <Step>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold">1</span>
-              </div>
+            <div className="grid md:grid-cols-2 gap-8">
               <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  {t.vision?.phase1?.title || 'Intelligent Collaboration'}
+                <h3 className="text-xl font-semibold mb-4">
+                  {t.future?.nearTerm?.title || 'Near-term Developments'}
                 </h3>
-                <p className="opacity-90">
-                  {t.vision?.phase1?.description || 'AI-assisted matching of skills, interests, and opportunities across the platform'}
-                </p>
+                <ul className="space-y-2 opacity-90">
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-300 mt-1">•</span>
+                    <span>{t.future?.nearTerm?.item1 || 'Enhanced AI matching algorithms'}</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-300 mt-1">•</span>
+                    <span>{t.future?.nearTerm?.item2 || 'Expanded Web3 integration'}</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-cyan-300 mt-1">•</span>
+                    <span>{t.future?.nearTerm?.item3 || 'Community governance features'}</span>
+                  </li>
+                </ul>
               </div>
+
+              <div>
+                <h3 className="text-xl font-semibold mb-4">
+                  {t.future?.longTerm?.title || 'Long-term Vision'}
+                </h3>
+                <ul className="space-y-2 opacity-90">
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-300 mt-1">•</span>
+                    <span>{t.future?.longTerm?.item1 || 'Fully autonomous coordination systems'}</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-300 mt-1">•</span>
+                    <span>{t.future?.longTerm?.item2 || 'Global decentralized collaboration networks'}</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-purple-300 mt-1">•</span>
+                    <span>{t.future?.longTerm?.item3 || 'AI-driven social innovation platforms'}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Getting Started */}
+          <div className="text-center">
+            <div className="bg-card rounded-2xl p-8 md:p-12 shadow-lg border border-border">
+              <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
+                {t.gettingStarted?.title || 'Getting Started'}
+              </h2>
+              <p className="text-xl text-muted-foreground mb-8">
+                {t.gettingStarted?.subtitle || 'Join the future of decentralized collective intelligence'}
+              </p>
+
+              <Steps>
+                <Step>
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center">
+                      <span className="text-white font-bold">1</span>
+                    </div>
+                    <span className="font-medium">{t.gettingStarted?.step1 || 'Create your account'}</span>
                   </div>
                 </Step>
 
                 <Step>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
                       <span className="text-white font-bold">2</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  {t.vision?.phase2?.title || 'Autonomous Organizations'}
-            </h3>
-                <p className="opacity-90">
-                  {t.vision?.phase2?.description || 'Self-governing DAOs powered by AI decision support and smart contract execution'}
-                </p>
-              </div>
-            </div>
-          </Step>
+                    </div>
+                    <span className="font-medium">{t.gettingStarted?.step2 || 'Explore opportunities'}</span>
+                  </div>
+                </Step>
 
-          <Step>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold">3</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  {t.vision?.phase3?.title || 'Global Collective Intelligence'}
-              </h3>
-                <p className="opacity-90">
-                  {t.vision?.phase3?.description || 'A world where AI and humans collaborate seamlessly to solve humanity\'s greatest challenges'}
-              </p>
-              </div>
-            </div>
-          </Step>
-        </Steps>
-        </div>
+                <Step>
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center">
+                      <span className="text-white font-bold">3</span>
+                    </div>
+                    <span className="font-medium">{t.gettingStarted?.step3 || 'Start collaborating'}</span>
+                  </div>
+                </Step>
+              </Steps>
 
-      {/* Call to Action */}
-      <div className="text-center">
-        <div className="bg-card rounded-2xl p-8 shadow-lg border">
-          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
-            {t.cta?.title || 'Join the AI + Web3 Revolution'}
-          </h2>
-          <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-            {t.cta?.subtitle || 'Be part of building the future of decentralized collective intelligence.'}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href={`/${locale}/`}
-              className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold rounded-lg hover:from-cyan-700 hover:to-purple-700 transition-colors"
-            >
-              {t.cta?.getStarted || 'Get Started'}
-            </a>
-            <a
-              href={`/${locale}/docs`}
-              className="inline-flex items-center justify-center px-8 py-3 bg-card text-card-foreground font-semibold rounded-lg border hover:bg-muted transition-colors"
-            >
-              {t.cta?.learnMore || 'Learn More'}
-              </a>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                <a
+                  href={`/${locale}/docs/getting-started`}
+                  className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold rounded-lg hover:from-cyan-700 hover:to-purple-700 transition-colors"
+                >
+                  {t.gettingStarted?.cta || 'Begin Your Journey'}
+                </a>
+              </div>
             </div>
           </div>
         </div>

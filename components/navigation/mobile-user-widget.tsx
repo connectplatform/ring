@@ -39,7 +39,7 @@ import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { eventBus } from '@/lib/event-bus.client'
 
 interface MobileUserWidgetProps {
@@ -90,14 +90,9 @@ function GridItem({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         className={cn(
-          "relative group",
-          "p-4 rounded-2xl",
-          "bg-gradient-to-br backdrop-blur-2xl",
-          "border border-white/20",
-          "shadow-xl hover:shadow-2xl",
-          "transition-all duration-300",
-          "overflow-hidden",
-          `from-${gradientFrom} to-${gradientTo}`
+          'relative group p-4 overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300',
+          'rounded-2xl bg-white/5 backdrop-blur-md border border-white/10',
+          'hover:border-white/20 hover:bg-white/10'
         )}
         style={{
           background: `linear-gradient(135deg, ${color}15, ${color}25)`
@@ -109,7 +104,7 @@ function GridItem({
           animate={{
             x: ['-100%', '100%']
           }}
-          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
         />
 
         {/* Content */}
@@ -181,7 +176,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   const dragStartPos = useRef({ x: 0, y: 0 })
   
   // Real-time data from shared context
-  const { balance: ringBalance } = useCreditBalanceContext()
+  const { balance: tokenBalance } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useUnreadCount()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
@@ -280,7 +275,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
     { 
       icon: <Wallet className="w-6 h-6 text-white" />, 
       label: 'Wallet', 
-      description: `${formatBalance(ringBalance?.amount)} RING`,
+      description: `${formatBalance(tokenBalance?.amount)} PHD`,
       href: ROUTES.WALLET(locale),
       color: '#8B5CF6', // Purple
       gradientFrom: 'purple-500/20',
@@ -479,7 +474,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
                     {session.user.name || 'Anonymous'}
                   </h2>
                   <p className="text-sm text-white/70">
-                    {formatBalance(ringBalance?.amount)} RING
+                    {formatBalance(tokenBalance?.amount)} PHD
                   </p>
                 </motion.div>
 

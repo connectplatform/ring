@@ -1,13 +1,15 @@
+import type { Metadata } from 'next'
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
-import { headers } from 'next/headers'
 import { auth } from "@/auth"
 import { ROUTES } from '@/constants/routes'
-import { UserRole } from '@/features/auth/types'
-import { Entity, SerializedEntity } from '@/features/entities/types'
+import { SerializedEntity } from '@/features/entities/types'
 import EntityDetailsWrapper from '@/components/wrappers/entity-details-wrapper'
 import { LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import BackBar from '@/components/common/back-bar'
 
 // Allow caching for entity details with moderate revalidation for content updates
@@ -45,6 +47,52 @@ async function getEntity(id: string): Promise<SerializedEntity> {
   }
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam, id } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  const t = await getTranslations('entities')
+
+  try {
+    const entity = await getEntity(id)
+    const description =
+      entity.shortDescription ||
+      entity.fullDescription ||
+      `Learn more about ${entity.name} on Ring Platform.`
+    return buildLocalizedMetadata({
+      locale,
+      path: 'entities.detail',
+      pathname: `/entities/${id}`,
+      variables: { name: entity.name, description },
+      fallback: {
+        title: `${entity.name} | Ring Platform`,
+        description,
+        ogImage: entity.logo,
+      },
+      siteName: RING_PLATFORM_SEO.siteName,
+      twitterSite: RING_PLATFORM_SEO.twitterSite,
+    })
+  } catch {
+    return buildLocalizedMetadata({
+      locale,
+      path: 'entities.detail',
+      pathname: `/entities/${id}`,
+      fallback: {
+        title: t('metadata.title'),
+        description: t('metaDescription.description'),
+      },
+      siteName: RING_PLATFORM_SEO.siteName,
+      twitterSite: RING_PLATFORM_SEO.twitterSite,
+    })
+  }
+}
+
 /**
  * Renders the entity details page.
  * 
@@ -62,41 +110,22 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
   const searchParams = await props.searchParams
 
   // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale
-
-  // Load translations for React 19 metadata
-  const translations = loadTranslations(locale)
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale)
 
   const { id } = params
-
-  // Authentication is now handled by the unified service
-  // No need for manual session checks here
 
   let entity: SerializedEntity | null = null
   let error: string | null = null
 
-  // Prepare fallback metadata
-  let title = (translations as any).metadata?.entityDetails || 'Entity Details | Ring App';
-  let description = (translations as any).metaDescription?.entityDetails || 'View entity details in the Ring App ecosystem.';
-  let canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}/${locale}/entities/${id}`;
-  const alternates = generateHreflangAlternates(`/entities/${id}`);
-
   try {
     entity = await getEntity(id)
-
-    // Generate entity-specific metadata
-    if (entity) {
-      title = `${entity.name} | Ring App`
-      description = entity.shortDescription || entity.fullDescription || `Learn more about ${entity.name} in the Ring App ecosystem.`
-    }
-
   } catch (e) {
     if (e instanceof Error) {
       if (e.name === 'EntityAccessDeniedError') {
         if (e.message.includes('Authentication required')) {
-          redirect(ROUTES.LOGIN(locale))
+          redirect(ROUTES.LOGIN(validLocale))
         } else {
-          redirect(ROUTES.UNAUTHORIZED(locale))
+          redirect(ROUTES.UNAUTHORIZED(validLocale))
         }
       } else if (e.name === 'EntityNotFoundError') {
         return notFound()
@@ -110,44 +139,10 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
 
   // Ready to render
 
+  const baseUrl = getSeoSiteBaseUrl()
+
   return (
     <>
-      {/* React 19 Native Document Metadata - Entity-Specific */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="article" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-      
-      {/* Entity-specific OpenGraph data */}
-      {entity?.logo && <meta property="og:image" content={entity.logo} />}
-      {entity?.type && <meta property="article:section" content={entity.type} />}
-      {entity?.tags && entity.tags.map((tag, index) => (
-        <meta key={index} property="article:tag" content={tag} />
-      ))}
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      {entity?.logo && <meta name="twitter:image" content={entity.logo} />}
-      
-      {/* SEO optimization for entity pages */}
-      <meta name="robots" content="index, follow" />
-      <meta name="googlebot" content="index, follow" />
-      
-      {/* Hreflang alternates */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
-
-      {/* Entity-specific structured data */}
       {entity && (
         <script
           type="application/ld+json"
@@ -157,11 +152,11 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
               "@type": "Organization",
               "name": entity.name,
               "description": entity.fullDescription || entity.shortDescription,
-              "url": `https://ring.ck.ua/${locale}/entities/${entity.id}`,
+              "url": `${baseUrl}${ROUTES.ENTITY(entity.id, validLocale)}`,
               ...(entity.website && { "sameAs": [entity.website] }),
               ...(entity.logo && { "image": entity.logo }),
               ...(entity.type && { "category": entity.type }),
-              "inLanguage": locale
+              "inLanguage": validLocale
             })
           }}
         />
@@ -169,9 +164,9 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
 
       {/* Back Navigation Bar */}
       <BackBar
-        href={`/${locale}/entities`}
+        href={ROUTES.ENTITIES(validLocale)}
         title={entity?.name || 'Entity Details'}
-        locale={locale}
+        locale={validLocale}
       />
 
       <Suspense fallback={
@@ -184,22 +179,9 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
           initialError={error}
           params={params}
           searchParams={searchParams}
+          locale={validLocale}
         />
       </Suspense>
     </>
   )
 }
-
-/* 
- * OBSOLETE FUNCTIONS (removed with React 19 migration):
- * - generateMetadata() function (replaced by React 19 native document metadata)
- * 
- * React 19 Native Features Used:
- * - Document metadata: <title>, <meta>, <link> tags automatically hoisted to <head>
- * - Entity-specific metadata: Dynamic title and description based on entity data
- * - Structured data: Native <script> tag with JSON-LD for rich search results
- * - Advanced OpenGraph: Entity images, categories, and tags
- * - Twitter Cards: Enhanced with entity-specific imagery
- * - SEO optimization: Index/follow for public entity pages
- * - Preserved all authentication, data fetching, and authorization logic
- */

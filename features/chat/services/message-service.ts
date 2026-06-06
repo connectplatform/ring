@@ -15,7 +15,7 @@ import { EntityDatabaseError, ValidationError, FetchError, logRingError } from '
 import { revalidatePath } from 'next/cache';
 
 // Tunnel protocol for real-time (replaces Firebase RTDB)
-import { publishToTunnel } from '@/lib/tunnel/publisher';
+import { publishToChannel } from '@/lib/tunnel/publisher';
 
 export class MessageService {
   // Real-time handled by Tunnel protocol, no RTDB needed
@@ -116,7 +116,7 @@ export class MessageService {
 
       // Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
       try {
-        await publishToTunnel(`conversation:${data.conversationId}`, 'message:new', message);
+        await publishToChannel(`conversation:${data.conversationId}`, 'message:new', message);
       } catch (error) {
         // Log but don't fail - real-time is nice-to-have
         logRingError(error, `Failed to trigger real-time update for conversation ${data.conversationId}`)
@@ -450,7 +450,7 @@ export class MessageService {
   private async triggerRealTimeUpdate(conversationId: string, message: Message): Promise<void> {
     try {
       // Use Tunnel protocol for real-time (Ring analog to Firebase RTDB)
-      await publishToTunnel(`conversation:${conversationId}`, 'message:update', {
+      await publishToChannel(`conversation:${conversationId}`, 'message:update', {
         id: message.id,
         senderId: message.senderId,
         senderName: message.senderName,
@@ -573,7 +573,7 @@ export class MessageService {
       }
       
       // Trigger real-time update via Tunnel
-      await publishToTunnel(`message:${messageId}`, 'message:edited', {
+      await publishToChannel(`message:${messageId}`, 'message:edited', {
         ...updates,
         editedAt: Date.now()
       });
@@ -641,7 +641,7 @@ export class MessageService {
       }
       
       // Trigger real-time update via Tunnel
-      await publishToTunnel(`conversation:${conversationId}`, 'message:deleted', {
+      await publishToChannel(`conversation:${conversationId}`, 'message:deleted', {
         id: messageId,
         content: '[Message deleted]',
         deletedAt: Date.now()

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CreditCard, Wallet, Shield, Loader2, CheckCircle } from 'lucide-react'
 import type { StoreOrder } from '@/features/store/types'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface PaymentMethodSelectorProps {
   order: StoreOrder

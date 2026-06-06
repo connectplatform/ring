@@ -5,7 +5,7 @@ import { useLocale } from 'next-intl'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface DocsWrapperProps {
   children: React.ReactNode

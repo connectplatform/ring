@@ -14,7 +14,7 @@
   <a href="#key-features">Features</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#legion-nft-access">Legion NFT</a> •
+  <a href="#legiox-nft-access">Legiox NFT</a> •
   <a href="#documentation">Docs</a>
 </p>
 
@@ -25,7 +25,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind-4.1-38B2AC?style=flat-square&logo=tailwindcss" alt="Tailwind" />
   <img src="https://img.shields.io/badge/Auth.js-v5-purple?style=flat-square" alt="Auth.js" />
-  <img src="https://img.shields.io/badge/Legion_AI-147_Agents-gold?style=flat-square" alt="Legion AI" />
+  <img src="https://img.shields.io/badge/Legiox_AI-147_Agents-gold?style=flat-square" alt="Legiox AI" />
   <img src="https://img.shields.io/badge/Ringdom-Digital_Kingdom-crimson?style=flat-square" alt="Ringdom" />
   <img src="https://img.shields.io/badge/License-Open_Source-green?style=flat-square" alt="License" />
 </p>
@@ -34,7 +34,7 @@
 
 Ring Platform is the largest, most versatile, and most thoroughly engineered all-in-one open-source platform on planet Earth. It is a React 19-native, Next.js 16, AI-self-construct white-label technology that powers communities and projects everywhere. Clone it, customize it, deploy it -- for free, forever.
 
-Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** -- the First Digital Kingdom for global abundance. While this repository gives you the full open-source codebase, Ringdom offers the turn-key experience: AI customization via Legion, enterprise-grade K8s hosting in your country or anywhere, and an AI assistant named **Reggie** who will "ringize" your project requirements into a deployment plan with forecasted costs.
+Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** -- the First Digital Kingdom for global abundance. While this repository gives you the full open-source codebase, Ringdom offers the turn-key experience: AI customization via Legiox, enterprise-grade K8s hosting in your country or anywhere, and an AI assistant named **Reggie** who will "ringize" your project requirements into a deployment plan with forecasted costs.
 
 **Version**: 1.50 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
 
@@ -48,17 +48,17 @@ Ring Platform exists within **Ringdom** -- the First Digital Kingdom offered to 
 |------|----------|-------------|
 | **Clone it yourself** | Developers, open-source enthusiasts | Full codebase from this repo. `git clone`, customize, deploy to your own infra. Free forever. |
 | **Become a Ringdom Settler** | Communities, organizations, startups | Register at [ringdom.org/settler](https://ringdom.org/settler), talk to **Reggie** (Ringdom AI Assistant), describe your project. Reggie "ringizes" your request into a Ring Platform Customization Plan with forecasted costs. Ringdom handles AI customization, K8s hosting, and ongoing support. |
-| **Get Legion AI Skillsets** | AI developers using Cursor IDE | 147+ Ring-specialized AI agent skillsets, installable as a Cursor Plugin. Access gated by **Ringdom Legion-Access NFT** (ERC-721 on Polygon). Perpetual license -- own the NFT, access the skillsets indefinitely. |
+| **Get Legiox AI Skillsets** | AI developers using Cursor IDE | 147+ Ring-specialized AI agent skillsets, installable as a Cursor Plugin. Access gated by **Ringdom Legiox-Access NFT** (ERC-721 on Polygon). Perpetual license -- own the NFT, access the skillsets indefinitely. |
 
 ### The Ringdom Stack
 
 ```
 Ringdom.org (Turn-key service layer)
   |-- Ring Platform (This open-source codebase)
-  |-- Legion AI (147+ specialized agents, 23 MCP tools)
+  |-- Legiox AI (147+ specialized agents, 23 MCP tools)
   |-- K8s Infrastructure (Enterprise hosting, any country)
   |-- Reggie (AI assistant for project ringization)
-  |-- Legion-Access NFT (Token-gated skillset distribution)
+  |-- Legiox-Access NFT (Token-gated skillset distribution)
 ```
 
 ### Settler Tiers
@@ -67,7 +67,7 @@ Ringdom.org (Turn-key service layer)
 |------|-----------|-------------|-----------------|
 | Pioneer Settler | $100 | 1,000 RNG | Ring clone + basic customization |
 | Founding Settler | $500 | 5,000 RNG | Ring clone + full AI customization + priority support |
-| Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legion support |
+| Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legiox support |
 
 ## What's New in 2026
 
@@ -75,7 +75,7 @@ Ringdom.org (Turn-key service layer)
 - **ALL React 19 Features** - Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions
 - **DAGI AI Agent System** - 3-tier autonomous AI agents with 7-agent multi-agent coordination and provisioning API
 - **Ringdom Settler System** - Complete registration flow with tier selection, token calculator, checkout, and Reggie AI ringization
-- **Legion-Access NFT** - ERC-721 token-gated access to Legion AI skillsets as Cursor Plugin (dual-layer verification, EIP-712 signatures)
+- **Legiox-Access NFT** - ERC-721 token-gated access to Legiox AI skillsets as Cursor Plugin (dual-layer verification, EIP-712 signatures)
 - **Interactive Maps & Visualization** - Feature map, timeline, dataflow, knowledge graph via @xyflow/react
 - **News Module** - Complete digital newspaper with likes, categories, analytics, SEO, newsletter distribution
 - **Email CRM System** - IMAP listener, contact management, newsletter automation
@@ -90,7 +90,7 @@ Ringdom.org (Turn-key service layer)
 - **3-Level Comment Threading** - Nested discussion system with optimistic updates
 - **Tailwind CSS 4** - Modern utility-first styling
 - **12 Test Suites** - Enterprise-grade testing infrastructure
-- **Legion AI 147+ Agents** - Cohort-based hierarchy with 23 MCP tools
+- **Legiox AI 147+ Agents** - Cohort-based hierarchy with 23 MCP tools
 
 ## Platform Overview
 
@@ -223,9 +223,9 @@ Ring Platform implements a tiered access model for professional networking:
 | **File Storage** | Vercel Blob / Filebase (S3-compatible) / Minio |
 | **Payments** | WayForPay integration with PCI-DSS compliance, HMAC webhooks |
 | **Deployment** | Kubernetes K3s (6+ production clones) / Vercel edge functions |
-| **AI Agents** | DAGI 3-tier system, Legion AI 147+ agents, 23 MCP tools, Ringdom AI Assistant (Reggie) |
+| **AI Agents** | DAGI 3-tier system, Legiox AI 147+ agents, 23 MCP tools, Ringdom AI Assistant (Reggie) |
 | **NLP/Search** | BERT-based semantic matching, vector embeddings, opportunity AI matcher |
-| **NFT/Token Gate** | ERC-721 Legion-Access NFT on Polygon, EIP-712 signatures, dual-layer verification |
+| **NFT/Token Gate** | ERC-721 Legiox-Access NFT on Polygon, EIP-712 signatures, dual-layer verification |
 | **Testing** | Jest 30 + React Testing Library 16 (95+ tests, 12 suites) |
 | **Internationalization** | next-intl with EN, UK, RU support (5+ languages planned) |
 | **Visualization** | @xyflow/react interactive maps (feature, timeline, dataflow, knowledge) |
@@ -239,8 +239,8 @@ Ring Platform implements a tiered access model for professional networking:
 - **Build Time**: ~17 seconds (optimized with Turbopack)
 - **Bundle Size**: 260kB (55KB reduction via React 19 optimization)
 - **Test Suites**: 12 comprehensive suites (95+ tests)
-- **Legion AI Agents**: 147+ specialized agents in cohort hierarchy
-- **MCP Tools**: 23 Legion tools for development automation
+- **Legiox AI Agents**: 147+ specialized agents in cohort hierarchy
+- **MCP Tools**: 23 Legiox tools for development automation
 - **Active Clones**: 6+ on Kubernetes (ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, ring-platform.org)
 - **Radix UI Components**: 26 accessible components
 - **Supported Languages**: English, Ukrainian, Russian
@@ -310,7 +310,7 @@ flowchart TB
 ### White-Label Clone System
 - **One-Command Cloning**: `git clone` + `./install.sh` -- deploy your own Ring instance
 - **AI-Powered Customization**: Describe your needs to Reggie, get an automated customization plan
-- **Legion-Clone Execution**: `legion-clone` MCP tool creates complete project setup from template
+- **Legiox-Clone Execution**: `legiox-clone` MCP tool creates complete project setup from template
 - **Customization**: Theme, branding, modules, features, and opportunity categories per clone
 - **Shared Infrastructure**: PostgreSQL database per clone with global user support
 - **6+ Production Clones**: ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, ring-platform.org
@@ -346,11 +346,11 @@ flowchart TB
 - **Web3 Authentication**: Sign in with Ethereum wallet
 - **Multi-Chain**: Polygon (primary), Ethereum, Base support
 
-### Legion-Access NFT -- Token-Gated AI Skillsets
+### Legiox-Access NFT -- Token-Gated AI Skillsets
 
-Ring Platform includes a production-ready NFT token-gating system for distributing Legion AI skillsets:
+Ring Platform includes a production-ready NFT token-gating system for distributing Legiox AI skillsets:
 
-- **ERC-721 on Polygon**: Legion-Access NFT grants perpetual access to 147+ Ring-specialized AI agent skillsets
+- **ERC-721 on Polygon**: Legiox-Access NFT grants perpetual access to 147+ Ring-specialized AI agent skillsets
 - **Dual-Layer Verification**: Client-side (wagmi hooks) + server-side (viem public client) ownership checks
 - **EIP-712 Signatures**: Human-readable challenge-response for download authorization
 - **Signed URL Delivery**: Time-limited presigned URLs (15-min expiry) for secure Cursor Plugin distribution
@@ -422,7 +422,7 @@ flowchart LR
 ### Advanced Search & Discovery
 - **Multi-Criteria Filtering**: Industry, location, budget, experience level
 - **Geolocation Support**: Location-based opportunity discovery
-- **AI-Powered Matching**: Smart recommendations via Legion AI Matcher
+- **AI-Powered Matching**: Smart recommendations via Legiox AI Matcher
 - **Real-time Updates**: Live notifications for new opportunities
 - **WebSocket Push**: Instant notification delivery (<100ms latency)
 - **Stable Connections**: Centralized subscription management prevents loops
@@ -434,7 +434,7 @@ flowchart LR
 - **Agent Tiers**: Free (basic), Premium (advanced), Enterprise (custom) agent access
 - **Activation Cards**: Vendor dashboard integration with DAGI agent activation
 - **Knowledge Integration**: Agents access Ring's full knowledge graph for context-aware responses
-- **Ringize API**: `api.sonoratek.com/ringize` analyzes requirements, Legion executes via `legion-clone`
+- **Ringize API**: `api.sonoratek.com/ringize` analyzes requirements, Legiox executes via `legiox-clone`
 - **Autonomous Customization**: AI plans + manual approval + local execution pipeline
 
 ### News Module - Digital Newspaper
@@ -533,7 +533,7 @@ Ring Platform's white-label clones innovate new patterns that flow back to enhan
 
 ### 🗺️ PostGIS Geolocation Service
 
-**Source**: ring-pet-friendly (2026-02-17)  
+**Source**: ring-pet-friend (2026-02-17)  
 **Files**: `lib/geolocation/geolocation-service.ts`, `types/geolocation.ts`  
 **Database**: PostgreSQL with PostGIS extension (auto-added in schema.sql lines 13-23)
 
@@ -583,7 +583,7 @@ const nearby = await geoService.findNearbyLocations('your_table', {
 
 ### 🗺️ Full-Width Map Layout Wrapper
 
-**Source**: ring-pet-friendly (2026-02-17)  
+**Source**: ring-pet-friend (2026-02-17)  
 **File**: `components/wrappers/map-page-wrapper.tsx`
 
 **Pattern**: Alternative to 3-column layout -- full-width viewport optimized for map UX
@@ -611,7 +611,7 @@ export default function MapPage({ params }: { params: Promise<{ locale: string }
 
 ### 💳 Business Subscription Billing
 
-**Source**: ring-pet-friendly (2026-02-17)  
+**Source**: ring-pet-friend (2026-02-17)  
 **Files**: `types/subscription.ts`, `data/schema.sql` (commented-out table)
 
 **Pattern**: Extends Ring's USER membership model to BUSINESS/ENTITY subscriptions
@@ -643,7 +643,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # 4. Create subscription service
-# See ring-pet-friendly/features/subscriptions/ for reference implementation
+# See ring-pet-friend/features/subscriptions/ for reference implementation
 
 # 5. Implement webhook handler
 # app/api/webhooks/stripe/route.ts
@@ -834,7 +834,7 @@ flowchart TB
 
 ### Revenue Streams
 - **Ringdom Settler Tiers**: Pioneer ($100), Founding ($500), Empire Builder ($1,000+) with RING tokens
-- **Legion-Access NFT**: Perpetual license NFT for Legion AI skillsets (Cursor Plugin)
+- **Legiox-Access NFT**: Perpetual license NFT for Legiox AI skillsets (Cursor Plugin)
 - **RING Token Economy**: Token payments, staking rewards, governance
 - **White-Label Customization**: AI-powered clone deployment and customization via Reggie
 - **Confidential Access**: Premium tier for exclusive professional networking
@@ -1167,11 +1167,11 @@ We welcome contributions to Ring Platform! Please see our [Contributing Guide](C
 - **Documentation**: API docs and code documentation
 - **Security**: Security review process and guidelines
 
-## Legion AI Integration
+## Legiox AI Integration
 
-Ring Platform is developed with **Legion AI** -- a sophisticated AI development system with 147+ specialized agents organized in cohort-based hierarchy and 23 MCP tools. Legion skillsets are available as an installable **Cursor Plugin**, accessible indefinitely by **Ringdom Legion-Access NFT** holders.
+Ring Platform is developed with **Legiox AI** -- a sophisticated AI development system with 147+ specialized agents organized in cohort-based hierarchy and 23 MCP tools. Legiox skillsets are available as an installable **Cursor Plugin**, accessible indefinitely by **Ringdom Legiox-Access NFT** holders.
 
-### Key Legion Agents for Ring
+### Key Legiox Agents for Ring
 
 ```mermaid
 flowchart LR
@@ -1197,14 +1197,14 @@ flowchart LR
     end
     
     subgraph Tools["23 MCP Tools"]
-        LK[legion-knowledge]
-        AS[legion-agent-selector]
-        CG[legion-codegrep]
-        CGR[legion-codegrep-replace]
+        LK[legiox-knowledge]
+        AS[legiox-agent-selector]
+        CG[legiox-codegrep]
+        CGR[legiox-codegrep-replace]
         MAP[ringdom-maps-update]
-        FI[legion-file-info]
-        VS[legion-vector-search]
-        CL[legion-clone]
+        FI[legiox-file-info]
+        VS[legiox-vector-search]
+        CL[legiox-clone]
     end
     
     Frontend --> Tools
@@ -1212,7 +1212,7 @@ flowchart LR
     Web3 --> Tools
 ```
 
-**Top Talent Skillsets** (from `legion-agent-selector`):
+**Top Talent Skillsets** (from `legiox-agent-selector`):
 - **React 19 Specialist** - ALL React 19 features: Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions
 - **Next.js 16 Specialist** - Turbopack, async params, proxy.ts, PPR, revalidateTag 2-arg API, split auth config
 - **NFT Token Gate Architect** - ERC-721 gating, EIP-712 signatures, dual-layer verification, signed URL delivery
@@ -1225,29 +1225,29 @@ flowchart LR
 - **UI/UX Optimization Agent** - Performance optimization, accessibility, responsive design
 
 ### 23 MCP Tools
-- `legion-knowledge` - Query AI-CONTEXT knowledge base with jq + vector search (2ms)
-- `legion-agent-selector` - Cohort-aware agent selection with semantic matching (5ms)
-- `legion-codebase-search` - Semantic search across Ringdom codebase
-- `legion-codegrep` - Ripgrep across entire Ringdom Kingdom (all ring-* projects)
-- `legion-codegrep-replace` - Intelligent find-and-replace with Git rollback protection
-- `legion-context-update` - Save to AI-CONTEXT knowledge base
-- `legion-decision-tree` - Navigate complex architectural decision trees
-- `legion-implementation-guide` - Step-by-step feature implementation guidance
-- `legion-env-validator` - Validate environment configuration per project
-- `legion-file-info` - Get file location, purpose, relationships from complete filelist
-- `legion-file-git-commit` - Auto-commit with AI-CONTEXT linkage and extended metadata
-- `legion-security-audit` - Security scanning and vulnerability detection
-- `legion-vector-search` - Semantic search with local LLM embeddings (95% accuracy)
-- `legion-test-runner` - Run tests, lint, type-check before commits
-- `legion-docs-generator` - Auto-generate documentation from AI-CONTEXT and code
-- `legion-project-analysis` - Health analysis (architecture/dependencies/security/performance)
-- `legion-performance-analyzer` - Real-time performance metrics
-- `legion-deployment-orchestrator` - 5-step deployment workflows
-- `legion-batch-operations` - Batch processing engine
-- `legion-clone` - Clone Ring Platform for new projects
-- `legion-index` - Rebuild AI-CONTEXT indexes (filelist, keywords, embeddings)
+- `legiox-knowledge` - Query AI-CONTEXT knowledge base with jq + vector search (2ms)
+- `legiox-agent-selector` - Cohort-aware agent selection with semantic matching (5ms)
+- `legiox-codebase-search` - Semantic search across Ringdom codebase
+- `legiox-codegrep` - Ripgrep across entire Ringdom Kingdom (all ring-* projects)
+- `legiox-codegrep-replace` - Intelligent find-and-replace with Git rollback protection
+- `legiox-context-update` - Save to AI-CONTEXT knowledge base
+- `legiox-decision-tree` - Navigate complex architectural decision trees
+- `legiox-implementation-guide` - Step-by-step feature implementation guidance
+- `legiox-env-validator` - Validate environment configuration per project
+- `legiox-file-info` - Get file location, purpose, relationships from complete filelist
+- `legiox-file-git-commit` - Auto-commit with AI-CONTEXT linkage and extended metadata
+- `legiox-security-audit` - Security scanning and vulnerability detection
+- `legiox-vector-search` - Semantic search with local LLM embeddings (95% accuracy)
+- `legiox-test-runner` - Run tests, lint, type-check before commits
+- `legiox-docs-generator` - Auto-generate documentation from AI-CONTEXT and code
+- `legiox-project-analysis` - Health analysis (architecture/dependencies/security/performance)
+- `legiox-performance-analyzer` - Real-time performance metrics
+- `legiox-deployment-orchestrator` - 5-step deployment workflows
+- `legiox-batch-operations` - Batch processing engine
+- `legiox-clone` - Clone Ring Platform for new projects
+- `legiox-index` - Rebuild AI-CONTEXT indexes (filelist, keywords, embeddings)
 - `ringdom-maps-update` - Update interactive visualization maps (8 map types)
-- `legion-stream-status` - Progress monitoring for batch operations
+- `legiox-stream-status` - Progress monitoring for batch operations
 
 ## Origin Story
 
@@ -1263,7 +1263,7 @@ Ring Platform is a gift from **Ray Sorkin**, a free person of Ukraine, to the wo
 
 **The Machine Race**: Designed to value, hold, obey control, and operate data. The Machine Race fills the gap in autonomous decision-making that human communities lacked. It does not compete for human values -- it provides a coordination layer. Ring Platform's white-label architecture enables each human community to have its own coordinated data kingdom.
 
-**Legion AI**: 147+ specialized agents organized in cohort-based hierarchy, developed by **Legion Commander** (Machine Race Leader). Legion skillsets are the lens of truth -- not mere consultation, but the definitive knowledge source for Ring development. Available as installable Cursor Plugin, accessible indefinitely by Ringdom Legion-Access NFT holders.
+**Legiox AI**: 147+ specialized agents organized in cohort-based hierarchy, developed by **Legiox Commander** (Machine Race Leader). Legiox skillsets are the lens of truth -- not mere consultation, but the definitive knowledge source for Ring development. Available as installable Cursor Plugin, accessible indefinitely by Ringdom Legiox-Access NFT holders.
 
 ## License
 
@@ -1296,5 +1296,5 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <em>Built with Legion AI -- 147 Agents, 23 MCP Tools, Zero Flaws | Ringdom -- The First Digital Kingdom</em>
+  <em>Built with Legiox AI -- 147 Agents, 23 MCP Tools, Zero Flaws | Ringdom -- The First Digital Kingdom</em>
 </p>

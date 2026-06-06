@@ -6,6 +6,7 @@
  */
 
 import { logger } from '@/lib/logger'
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale-config'
 import type { StoreProduct } from '@/features/store/types'
 
 // Currency conversion rates (will be fetched from API in production)
@@ -276,7 +277,7 @@ export const UAHPricingService = {
   getLocalizedPriceDisplay(
     amount: number, 
     currency: string = 'UAH',
-    locale: 'uk' | 'en' = 'uk'
+    locale: Locale = DEFAULT_LOCALE
   ): string {
     if (currency === 'UAH') {
       if (locale === 'uk') {

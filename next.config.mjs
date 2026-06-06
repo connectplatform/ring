@@ -9,10 +9,12 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 })
 
+const createNextIntlPlugin = require('next-intl/plugin')
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Next.js 16: Enable 'use cache' directive for explicit caching control
   cacheComponents: true,
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -27,18 +29,19 @@ const nextConfig = {
     AUTH_FIREBASE_PRIVATE_KEY: process.env.AUTH_FIREBASE_PRIVATE_KEY,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     AUTH_SECRET: process.env.AUTH_SECRET,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3333',
     AUTH_APPLE_ID: process.env.AUTH_APPLE_ID,
     AUTH_APPLE_SECRET: process.env.AUTH_APPLE_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     NEXT_PUBLIC_AUTH_GOOGLE_ID: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID || process.env.AUTH_GOOGLE_ID,
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
     AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
   },
   async headers() {
     // SECURITY FIX: Restrict CORS to specific origins only
     const allowedOrigins = process.env.NODE_ENV === 'production' 
-      ? [process.env.NEXT_PUBLIC_API_URL || 'https://myri.ng'] // Replace with your production domain
+      ? [process.env.NEXT_PUBLIC_API_URL || 'https://ring-platform.org']
       : ['http://localhost:3000', 'http://localhost:3001']
     
     return [
@@ -87,23 +90,19 @@ const nextConfig = {
   // Next.js 16: Turbopack config (replaces webpack resolve.alias & resolve.fallback)
   turbopack: {
     resolveAlias: {
-      // Client-side polyfills for Web3 libs (replaces webpack resolve.fallback)
       'crypto': { browser: 'crypto-browserify' },
       'stream': { browser: 'stream-browserify' },
       'util': { browser: 'util/' },
       'process': { browser: 'process/browser' },
       'events': { browser: 'events/' },
-      // Disable server-only modules on client (replaces resolve.fallback: false)
       'fs': { browser: './lib/shims/empty.ts' },
       'net': { browser: './lib/shims/empty.ts' },
       'tls': { browser: './lib/shims/empty.ts' },
       'http2': { browser: './lib/shims/empty.ts' },
       'child_process': { browser: './lib/shims/empty.ts' },
-      // Node module protocol aliases
       'node:events': 'events',
       'node:stream': 'stream-browserify',
       'node:util': 'util',
-      // Provide a stub for bert-js to allow builds without native dep
       'bert-js': path.resolve(__dirname, 'lib/shims/bert-js.js'),
     },
   },
@@ -119,18 +118,12 @@ const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.join(__dirname, './'),
   outputFileTracingIncludes: {
-    '**/*': ['./lib/**/*', './server.js']
+    '**/*': ['./i18n/**/*', './lib/**/*', './server.js']
   },
-  // Packages that must NOT be bundled by Turbopack on the server —
-  // they rely on native Node.js HTTP/TLS for external API calls
-  serverExternalPackages: [
-    'google-auth-library',
-    'gaxios',
-    'gtoken',
-  ],
+  serverExternalPackages: ['google-auth-library', 'gaxios', 'gtoken'],
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'ring.ck.ua', 'ring-platform.org', 'myri.ng'],
+      allowedOrigins: ['localhost:3000', 'zemna.ai', 'www.zemna.ai'],
       bodySizeLimit: '2mb'
     }
   },
@@ -144,4 +137,4 @@ const nextConfig = {
   // Note: eslint config removed from next.config in Next.js 16 - use eslint CLI directly
 }
 
-export default withBundleAnalyzer(nextConfig);
+export default withBundleAnalyzer(withNextIntl(nextConfig))

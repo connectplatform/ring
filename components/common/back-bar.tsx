@@ -1,12 +1,10 @@
 'use client'
 
-import React from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ChevronLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface BackBarProps {
   href?: string

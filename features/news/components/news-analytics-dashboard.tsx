@@ -37,7 +37,6 @@ import Link from 'next/link'
 interface NewsAnalyticsDashboardProps {
   analytics: NewsAnalytics
   locale: string
-  translations: any
 }
 
 // Mock chart components (replace with actual chart library like Recharts)
@@ -127,7 +126,6 @@ function MetricCard({
 export function NewsAnalyticsDashboard({ 
   analytics, 
   locale, 
-  translations 
 }: NewsAnalyticsDashboardProps) {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d')
   const [selectedMetric, setSelectedMetric] = useState<'views' | 'likes' | 'comments'>('views')

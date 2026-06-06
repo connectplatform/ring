@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
-import { defaultLocale } from '@/i18n-config'
+import { isValidLocale, type Locale } from '@/lib/locale-config'
 import { revalidatePath } from 'next/cache'
 
 export interface UserFormState {
@@ -16,7 +16,8 @@ export interface UserFormState {
 
 export async function updateUserSettings(
   prevState: UserFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<UserFormState> {
 
   const session = await auth()
@@ -40,7 +41,7 @@ export async function updateUserSettings(
     }
   }
 
-  if (language && !['en', 'uk'].includes(language)) {
+  if (language && !isValidLocale(language)) {
     return {
       fieldErrors: { language: 'Invalid language setting' }
     }
@@ -82,7 +83,8 @@ export async function updateUserSettings(
 
 export async function updateUserProfile(
   prevState: UserFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<UserFormState> {
 
   const session = await auth()
@@ -334,7 +336,8 @@ export async function cleanupExpiredUsernameReservations(): Promise<{
 
 export async function registerUser(
   prevState: UserFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<UserFormState> {
 
   // Extract form data
@@ -376,7 +379,7 @@ export async function registerUser(
     console.log('User registration data:', { name, email })
 
     // Simulate success and redirect to login
-    redirect(ROUTES.LOGIN(defaultLocale) + '?message=Registration successful! Please log in.')
+    redirect(ROUTES.LOGIN(locale) + '?message=Registration successful! Please log in.')
   } catch (error) {
     console.error('Error registering user:', error)
     return {

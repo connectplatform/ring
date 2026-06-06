@@ -156,7 +156,8 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   }
 
   if (!session) {
-    const from = typeof window !== 'undefined' ? (window.location.pathname + window.location.search) : undefined
+    const search = searchParams.toString()
+    const from = pathname + (search ? `?${search}` : '')
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
         <motion.h1

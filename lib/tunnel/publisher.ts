@@ -1,14 +1,36 @@
 /**
  * Tunnel Publisher
  * PHASE 1: Server-side tunnel publishing for real-time updates
+ *
+ * - `publishToChannel`: topic channels (e.g. conversation:xyz) + event + payload (matches platform docs)
+ * - `publishToUserTunnel` / `publishToTunnel`: per-connected-user delivery (unread counts, credit balance, etc.)
  */
 
 import { getTunnelTransportManager } from './transport-manager';
 
 /**
- * Publish a message to a specific user's tunnel
+ * Fan-out on a named channel with an event (e.g. conversation:abc + message:new).
+ * Use this for messaging, entities, and other topic subscriptions.
  */
-export async function publishToTunnel(
+export async function publishToChannel(
+  channel: string,
+  event: string,
+  data: unknown
+): Promise<void> {
+  try {
+    const manager = getTunnelTransportManager({
+      debug: process.env.NODE_ENV === 'development',
+    });
+    await manager.publish(channel, event, data);
+  } catch (error) {
+    console.error('TunnelPublisher: publishToChannel failed:', error);
+  }
+}
+
+/**
+ * Publish a message to a specific connected user's tunnel (inbox-style).
+ */
+export async function publishToUserTunnel(
   userId: string,
   channel: string,
   data: any
@@ -43,6 +65,9 @@ export async function publishToTunnel(
   }
 }
 
+/** @deprecated Use publishToUserTunnel; kept as alias for existing imports */
+export const publishToTunnel = publishToUserTunnel;
+
 /**
  * Publish a message to multiple users' tunnels
  */
@@ -52,7 +77,7 @@ export async function publishToUsers(
   data: any
 ): Promise<void> {
   const publishPromises = userIds.map(userId =>
-    publishToTunnel(userId, channel, data)
+    publishToUserTunnel(userId, channel, data)
   );
 
   await Promise.allSettled(publishPromises);

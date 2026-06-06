@@ -6,12 +6,54 @@
  */
 
 import { cache } from 'react'
-import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
-import { UserRole } from '@/features/auth/types'
+import { OpportunitySubmenuCounts, SerializedOpportunity } from '@/features/opportunities/types'
 import { auth } from '@/auth'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { db } from '@/lib/database/DatabaseService'
+
+const parseCountResult = (value: unknown): number => {
+  if (typeof value === 'number') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+
+  return 0
+}
+
+const getMyOpportunitySubmenuCounts = cache(async (userId: string): Promise<OpportunitySubmenuCounts> => {
+  const postedFilter = { field: 'createdBy', operator: '=', value: userId }
+  const expiredFilter = { field: 'expirationDate', operator: '<=', value: new Date() }
+
+  const [postedCountResult, expiredCountResult] = await Promise.all([
+    db().execute('count', {
+      collection: 'opportunities',
+      filters: [postedFilter]
+    }),
+    db().execute('count', {
+      collection: 'opportunities',
+      filters: [postedFilter, expiredFilter]
+    })
+  ])
+
+  const posted = postedCountResult.success ? parseCountResult(postedCountResult.data) : 0
+  const expired = expiredCountResult.success ? parseCountResult(expiredCountResult.data) : 0
+
+  return {
+    all: posted,
+    // NOTE: saved favorites are intentionally set to 0 until explicit
+    // opportunity favorites writes are confirmed in Zemna flows.
+    saved: 0,
+    applied: 0,
+    posted,
+    drafts: 0,
+    expired
+  }
+})
 
 /**
  * Fetches opportunities created by a specific user
@@ -133,7 +175,7 @@ export const getMyOpportunities = cache(async (
   filterType: 'all' | 'created' | 'applied' = 'all',
   limit: number = 20,
   startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null; counts: { created: number; applied: number } }> => {
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null; counts: OpportunitySubmenuCounts }> => {
   const session = await auth();
   
   if (!session || !session.user) {
@@ -161,18 +203,18 @@ export const getMyOpportunities = cache(async (
       lastVisible = applied.lastVisible;
     }
 
-    // Get counts for UI display
-    const createdCount = filterType === 'created' || filterType === 'all' 
-      ? opportunities.filter(o => o.createdBy === userId).length 
-      : 0;
-    const appliedCount = 0; // TODO: Implement when applications tracking is added
+    const counts = await getMyOpportunitySubmenuCounts(userId)
 
     return { 
       opportunities, 
       lastVisible,
       counts: {
-        created: createdCount,
-        applied: appliedCount
+        all: counts.all,
+        saved: counts.saved,
+        applied: counts.applied,
+        posted: counts.posted,
+        drafts: counts.drafts,
+        expired: counts.expired,
       }
     };
   } catch (error) {

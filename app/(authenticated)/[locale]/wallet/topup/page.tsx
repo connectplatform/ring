@@ -1,17 +1,41 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
 import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
-import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
+import { setRequestLocale } from 'next-intl/server'
+import type { Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
 import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import WalletTopUpClient from './topup-client'
 import { connection } from 'next/server'
+import { logger } from '@/lib/logger'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 
+type WalletTopUpParams = Record<string, never>
 
-// Define the type for the wallet topup route params
-type WalletTopUpParams = {};
+const walletRobots: Metadata['robots'] = { index: false, follow: false }
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'wallet.topup',
+    pathname: '/wallet/topup',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: walletRobots,
+  })
+}
 
 /**
  * WalletTopUpPage component
@@ -31,105 +55,71 @@ type WalletTopUpParams = {};
 export default async function WalletTopUpPage(props: LocalePageProps<WalletTopUpParams>) {
   await connection() // Next.js 16: opt out of prerendering
 
-  console.log('WalletTopUpPage: Starting');
+  logger.info('WalletTopUpPage: Starting');
 
-  // Resolve params and searchParams
   const params = await props.params;
   const searchParams = await props.searchParams;
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
 
-  // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('WalletTopUpPage: Using locale', locale);
-
-  // Basic metadata for authenticated page
-  const translations = await loadTranslations(locale);
-  const title = `${(translations as any).modules?.wallet?.topup?.title || 'Top Up'} | Ring Platform`;
-  const description = (translations as any).modules?.wallet?.topup?.description || 'Add funds to your wallet using RING tokens or WayForPay payment methods.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/wallet/topup`;
-
-  const headersList = await headers()
-
-  console.log('WalletTopUpPage: Request details', {
+  const headersList = await headers();
+  logger.info('WalletTopUpPage: Request details', {
     params,
     searchParams,
-    locale,
+    locale: validLocale,
     userAgent: headersList.get('user-agent'),
   });
 
-  try {
-    console.log('WalletTopUpPage: Authenticating session');
-    const session = await auth()
-    console.log('WalletTopUpPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+  const session = await auth();
+  logger.info('WalletTopUpPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+  if (!session) return null // Layout AuthGuard already redirects; this narrowing satisfies TypeScript
 
-    if (!session) {
-      console.log('WalletTopUpPage: No session, redirecting to localized login');
-      redirect(ROUTES.LOGIN(locale))
+  try {
+    try {
+      const { userMigrationService } = await import('@/features/auth/services/user-migration');
+      const userExists = await userMigrationService.userDocumentExists(session.user.id);
+      if (!userExists) {
+        logger.warn('WalletTopUpPage: User document missing, initializing');
+        await userMigrationService.ensureUserDocument(session.user as any);
+        logger.info('WalletTopUpPage: User document created successfully');
+      }
+    } catch (migrationError) {
+      logger.error('WalletTopUpPage: Failed to check/create user document:', migrationError);
     }
 
-    console.log('WalletTopUpPage: Rendering wallet top-up client');
+    logger.info('WalletTopUpPage: Rendering wallet top-up client');
 
     return (
-      <>
-        {/* React 19 Native Document Metadata - Authenticated Page */}
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <link rel="canonical" href={canonicalUrl} />
-
-        {/* Authenticated page security meta tags */}
-        <meta name="robots" content="noindex, nofollow" />
-        <meta name="googlebot" content="noindex, nofollow" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-        <WalletWrapper locale={locale}>
-          <Suspense fallback={
+      <WalletWrapper locale={validLocale}>
+        <Suspense
+          fallback={
             <div className="animate-pulse space-y-6 p-6">
-              <div className="h-8 bg-muted rounded w-1/4"></div>
-              <div className="h-32 bg-muted rounded"></div>
-              <div className="h-64 bg-muted rounded"></div>
+              <div className="h-8 bg-muted rounded w-1/4" />
+              <div className="h-32 bg-muted rounded" />
+              <div className="h-64 bg-muted rounded" />
             </div>
-          }>
-            <WalletTopUpClient
-              locale={locale}
-              searchParams={searchParams}
-            />
-          </Suspense>
-        </WalletWrapper>
-      </>
+          }
+        >
+          <WalletTopUpClient locale={validLocale} searchParams={searchParams} />
+        </Suspense>
+      </WalletWrapper>
     )
 
   } catch (e) {
-    console.error("WalletTopUpPage: Error:", e)
+    logger.error('WalletTopUpPage: Error (non-redirect):', e);
     
     return (
-      <>
-        <title>Wallet Top Up Error | Ring Platform</title>
-        <meta name="robots" content="noindex, nofollow" />
-        
-        <div className="container mx-auto px-0 py-0">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Wallet Top Up Error</h1>
-            <p className="text-muted-foreground mb-4">
-              Failed to load wallet top-up. Please try again later.
-            </p>
-            <a 
-              href={ROUTES.HOME(locale)} 
-              className="text-primary hover:underline"
-            >
-              Return to Home
-            </a>
-          </div>
+      <div className="container mx-auto px-0 py-0">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Wallet Top Up Error</h1>
+          <p className="text-muted-foreground mb-4">
+            Failed to load wallet top-up. Please try again later.
+          </p>
+          <a href={ROUTES.HOME(validLocale)} className="text-primary hover:underline">
+            Return to Home
+          </a>
         </div>
-      </>
+      </div>
     )
   }
 }
-
-/* 
- * React 19 Native Features Used:
- * - Document metadata: <title>, <meta>, <link> tags automatically hoisted to <head>
- * - Automatic meta tag deduplication and precedence handling
- * - Security meta tags for authenticated wallet pages (noindex, nofollow)
- * - Suspense for progressive loading of wallet data
- * - Preserved all authentication and locale logic
- */
 

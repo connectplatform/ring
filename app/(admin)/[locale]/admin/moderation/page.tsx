@@ -1,7 +1,10 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth' 
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import type { Locale } from '@/i18n/shared';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { connection } from 'next/server';
 import { AlertTriangle, Shield, Eye, EyeOff, Flag, Check, X, Clock, User, MessageSquare, FileText, Image, ChevronRight, Filter, Search, MoreHorizontal, Ban, UserCheck, Archive } from 'lucide-react';
+import { routing } from '@/i18n/routing';
+import { ROUTES } from '@/constants/routes';
+import { getTranslations } from 'next-intl/server';
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 
 
 // Types for moderation system
@@ -56,26 +64,46 @@ interface AutoModerationRule {
   accuracy: number;
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'admin.moderation',
+    pathname: '/admin/moderation',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false, noarchive: true, nosnippet: true, noimageindex: true },
+  })
+}
 export default async function ModerationPage({ 
   params 
 }: {
-  params: Promise<{ locale: string }>
+  params: Promise<{ locale: Locale }>
 }) {
   await connection() // Next.js 16: opt out of prerendering
 
-  const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const { locale } = await params; 
+  const validLocale = routing.locales.includes(locale) ? locale : routing.defaultLocale;
+  const t = await getTranslations('modules.admin');
+  const adminLabels = buildModulesAdminLabels(t);
   
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/moderation`);
+    redirect(`${ROUTES.LOGIN(validLocale)}?callbackUrl=${encodeURIComponent(`${ROUTES.ADMIN(validLocale)}/moderation`)}`);
   }
 
-  if (session.user.role !== 'admin') {
-    redirect(`/${validLocale}/unauthorized`);
+  if (!isPlatformAdmin(session.user.role)) {
+    redirect(ROUTES.UNAUTHORIZED(validLocale));
   }
 
   // Mock data - In production, this would come from your moderation service
@@ -243,7 +271,7 @@ export default async function ModerationPage({
       <title>Content Moderation | Ring Platform Admin</title>
       <meta name="description" content="Content moderation dashboard for Ring Platform administrators" />
       
-      <AdminWrapper locale={validLocale} pageContext="moderation">
+      <AdminWrapper locale={validLocale} pageContext="moderation" labels={adminLabels}>
       <div className="container mx-auto px-0 py-0">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">

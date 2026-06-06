@@ -1,24 +1,42 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import { Suspense } from 'react'
-import { Metadata } from 'next'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { XCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { connection } from 'next/server'
 
-export const metadata: Metadata = {
-  title: 'Payment Failed - Ring Platform',
-  description: 'Your membership upgrade payment failed',
-  robots: 'noindex, nofollow'
+interface MembershipFailurePageProps {
+  params: Promise<{ locale: Locale }>
+  searchParams: Promise<{ orderId?: string; reason?: string }>
 }
 
-interface MembershipFailurePageProps {
+
+export async function generateMetadata({
+  params,
+}: {
   params: Promise<{ locale: string }>
-  searchParams: Promise<{ orderId?: string; reason?: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'membership',
+    pathname: '/membership/failure',
+    robots: { index: false, follow: false },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+  })
 }
 
 export default async function MembershipFailurePage({
@@ -30,7 +48,7 @@ export default async function MembershipFailurePage({
   const session = await auth()
   if (!session?.user) {
     const { locale: loc } = await params
-    redirect(ROUTES.LOGIN(loc as any))
+    redirect(ROUTES.LOGIN(loc))
   }
 
   const { locale } = await params

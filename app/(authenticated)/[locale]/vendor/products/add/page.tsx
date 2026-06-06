@@ -1,17 +1,21 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { ROUTES } from '@/constants/routes'
 import { getTranslations } from 'next-intl/server'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
-import { loadTranslations, isValidLocale, defaultLocale, generateHreflangAlternates } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
 import ProductFormWrapper from '@/components/wrappers/product-form-wrapper'
 import ProductForm from '../product-form'
 import { connection } from 'next/server'
+import type { Locale } from '@/i18n/shared'
+import { logger } from '@/lib/logger'
 
-export async function generateMetadata({ params }: { params: { locale: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   await connection() // Next.js 16: opt out of prerendering
 
-  const t = await getTranslations({ locale: params.locale, namespace: 'vendor.products' })
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'vendor.products' })
   
   return {
     title: t('addProduct'),
@@ -22,37 +26,59 @@ export async function generateMetadata({ params }: { params: { locale: string } 
 export default async function AddProductPage({
   params,
 }: {
-  params: { locale: string }
+  params: Promise<{ locale: string }> | { locale: string }
 }) {
   await connection() // Next.js 16: opt out of prerendering
 
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  const translations = await loadTranslations(locale);
-  const alternates = generateHreflangAlternates('/vendor/products/add');
+  logger.info('VendorProductsAddPage: Starting');
 
-  const session = await auth()
+  const resolvedParams = typeof (params as any).then === 'function' ? await (params as Promise<{ locale: string }>) : (params as { locale: string });
+  const validLocale: Locale = routing.locales.includes(resolvedParams.locale as Locale) ? (resolvedParams.locale as Locale) : (routing.defaultLocale as Locale);
 
-  if (!session?.user?.id) {
-    redirect(ROUTES.LOGIN(locale as any))
-  }
+  const headersList = await headers();
+  logger.info('VendorProductsAddPage: Request details', { locale: validLocale, userAgent: headersList.get('user-agent') });
 
-  const vendorEntity = await getVendorEntity(session.user.id)
+  try {
+    logger.info('VendorProductsAddPage: Authenticating session');
+    const session = await auth();
+    logger.info('VendorProductsAddPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
 
-  if (!vendorEntity) {
-    redirect(`/${locale}/vendor/start`)
-  }
+    if (!session?.user?.id) {
+      logger.info('VendorProductsAddPage: No session, redirecting to login');
+      redirect(ROUTES.LOGIN(validLocale));
+    }
 
-  return (
-    <ProductFormWrapper locale={locale} mode="create">
+    try {
+      const { userMigrationService } = await import('@/features/auth/services/user-migration');
+      const userExists = await userMigrationService.userDocumentExists(session.user.id);
+      if (!userExists) {
+        logger.warn('VendorProductsAddPage: User document missing, initializing');
+        await userMigrationService.ensureUserDocument(session.user as any);
+        logger.info('VendorProductsAddPage: User document created successfully');
+      }
+    } catch (migrationError) {
+      logger.error('VendorProductsAddPage: Failed to check/create user document:', migrationError);
+    }
+
+    const vendorEntity = await getVendorEntity(session.user.id);
+    if (!vendorEntity) {
+      redirect(ROUTES.VENDOR_START(validLocale));
+    }
+
+    const t = await getTranslations({ locale: validLocale, namespace: 'vendor.products' });
+    const tStore = await getTranslations({ locale: validLocale, namespace: 'store' });
+
+    return (
+    <ProductFormWrapper locale={validLocale} mode="create">
       {/* Content Header */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm mb-8">
         <div className="container mx-auto px-6 py-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {(translations as any)?.modules?.store?.addProduct || 'Add Product'}
+              {t('addProduct') || tStore('addProduct') || 'Add Product'}
             </h1>
             <p className="text-muted-foreground">
-              {(translations as any)?.modules?.store?.addProductDescription || 'Create and list a new product in your store'}
+              {tStore('addProductDescription') || 'Create and list a new product in your store'}
             </p>
           </div>
         </div>
@@ -62,11 +88,27 @@ export default async function AddProductPage({
       <div className="container mx-auto px-6 max-w-4xl">
         <ProductForm
           mode="create"
-          locale={params.locale}
+          locale={validLocale}
           vendorEntity={vendorEntity}
         />
       </div>
     </ProductFormWrapper>
-  )
+  );
+  } catch (e) {
+    logger.error('VendorProductsAddPage: Error:', e);
+    return (
+      <>
+        <title>Add Product Error | Zemna AI</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <div className="container mx-auto px-0 py-0">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Add Product Error</h1>
+            <p className="text-muted-foreground mb-4">Failed to load add product page. Please try again later.</p>
+            <a href={ROUTES.HOME(validLocale)} className="text-primary hover:underline">Return to Home</a>
+          </div>
+        </div>
+      </>
+    );
+  }
 }
 

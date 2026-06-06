@@ -27,7 +27,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'

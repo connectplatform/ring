@@ -3,6 +3,8 @@
 import React from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
+import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { updateUserProfile, UserFormState } from '@/app/_actions/users'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,9 +39,10 @@ function SubmitButton() {
 
 function UserProfileFormContent() {
   const t = useTranslations('modules.profile')
+  const locale = useLocale() as Locale
   const { data: session } = useSession()
   const [state, formAction] = useActionState<UserFormState | null, FormData>(
-    updateUserProfile,
+    (prevState, formData) => updateUserProfile(prevState, formData, locale),
     null
   )
 

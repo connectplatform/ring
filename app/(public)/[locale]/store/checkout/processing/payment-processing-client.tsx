@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface PaymentProcessingClientProps {
   orderId: string

@@ -1,137 +1,85 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useGoogleLogin, GoogleLogin } from '@react-oauth/google'
+import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter, usePathname } from 'next/navigation'
-import { useTheme } from 'next-themes'
+import { useLocale, useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { FcGoogle } from 'react-icons/fc'
 import { Loader2 } from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
-import { defaultLocale } from '@/i18n-config'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
+import { safePostAuthRedirect } from '@/lib/auth/safe-post-auth-redirect'
+import type { Locale } from '@/i18n/shared'
 
 interface GoogleSignInButtonGISProps {
   disabled?: boolean
+  /** Omitted = profile in the active next-intl locale (via `safePostAuthRedirect`). */
   redirectUrl?: string
   className?: string
   variant?: 'default' | 'outline' | 'secondary'
   size?: 'default' | 'sm' | 'lg'
   onAuthStart?: () => void
   onAuthEnd?: () => void
-  showSigningInStatus?: boolean // Show "Signing in..." status page during auth
+  showSigningInStatus?: boolean
 }
 
 /**
- * Modern Google Sign-In Button using @react-oauth/google (GIS Specialist Recommended)
+ * Google sign-in: full-page OAuth via Auth.js (`signIn('google')`).
  *
- * Features:
- * - Uses GIS specialist-recommended @react-oauth/google library
- * - Proper React integration and lifecycle management
- * - Automatic theme handling and styling
- * - One Tap compatible architecture
- * - React 19 useActionState compatible
- * - Accessible and responsive
+ * - **Locale**: Label from `next-intl` (`modules.auth`), not the GIS iframe (avoids browser-locale mismatch).
+ * - **No popup**: Same-tab redirect — avoids popup blockers / FedCM quirks from embedded `GoogleLogin`.
+ *
+ * `useLocale()` (not pathname) stays correct under `localePrefix: 'as-needed'` (e.g. `/login` is not a locale).
  */
 export default function GoogleSignInButtonGIS({
   disabled = false,
-  redirectUrl = '/profile',
+  redirectUrl: redirectUrlProp,
   className = '',
   variant = 'outline',
   size = 'default',
   onAuthStart,
   onAuthEnd,
-  showSigningInStatus = true // Default to showing status page
+  showSigningInStatus = true,
 }: GoogleSignInButtonGISProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const { theme, resolvedTheme } = useTheme()
+  const tAuth = useTranslations('modules.auth')
+  const locale = useLocale() as Locale
+  const redirectUrl = safePostAuthRedirect(redirectUrlProp, locale)
   const [isLoading, setIsLoading] = useState(false)
-  
-  // Extract locale from pathname (e.g., /uk/login -> uk)
-  const locale = (pathname?.split('/')[1] || defaultLocale) as Locale
 
-  // GIS Specialist recommended: Use GoogleLogin component for proper OAuth flow
-  const handleGoogleSuccess = async (credentialResponse: any) => {
-    console.log('🟢 Google GIS credential received')
-    setIsLoading(true)
+  const handleClick = () => {
+    if (disabled || isLoading) return
     onAuthStart?.()
+    setIsLoading(true)
+    const callbackUrl = buildOAuthCallbackUrl(redirectUrlProp, locale)
 
-    try {
-      // Send JWT credential to google-one-tap credentials provider
-      const result = await signIn('google-one-tap', {
-        credential: credentialResponse.credential,
-        redirect: false,
-        callbackUrl: redirectUrl,
-      })
-
-        if (result?.ok) {
-          console.log('🟢 Google authentication successful, waiting for session to propagate...')
-          // GIS Fix: 100ms delay ensures session cookie is fully established before redirect
-          // This prevents race conditions where NotificationProvider sees session but API calls fail
-          // Pattern: Small timeout ensures session is established before redirect (AI-CONTEXT documented)
-          await new Promise(resolve => setTimeout(resolve, 100))
-          
-          onAuthEnd?.()
-          
-          // Show "Signing in..." status page if enabled (improves UX during OAuth flow)
-          if (showSigningInStatus) {
-            const statusUrl = `${ROUTES.AUTH_STATUS('login', 'pending', locale)}?returnTo=${encodeURIComponent(redirectUrl)}`
-            console.log('🟢 Showing signing in status, then redirecting to:', redirectUrl)
-            router.push(statusUrl)
-          } else {
-            console.log('🟢 Session propagated, redirecting directly to:', redirectUrl)
-            router.push(redirectUrl)
-          }
-        } else {
-          console.error('🟢 Google authentication failed:', result?.error)
-          setIsLoading(false)
-          onAuthEnd?.()
-        }
-    } catch (error) {
-      console.error('🟢 Google authentication error:', error)
-      setIsLoading(false)
-      onAuthEnd?.()
-    }
+    void (async () => {
+      try {
+        await signIn('google', { callbackUrl })
+      } catch (e) {
+        console.error('Google sign-in error:', e)
+        setIsLoading(false)
+        onAuthEnd?.()
+      }
+    })()
   }
 
-  // GIS Specialist recommended: Use GoogleLogin component for proper theming
-  const currentTheme = theme === 'system' ? resolvedTheme : theme
-  const gisTheme = currentTheme === 'dark' ? 'filled_black' : 'outline'
+  const sizeProp = size === 'lg' ? 'lg' : size === 'sm' ? 'sm' : 'default'
 
   return (
-    <div className={`w-full ${className}`}>
-      <GoogleLogin
-        onSuccess={(credentialResponse) => {
-          console.log('🟢 Google Login component success')
-          if (!disabled && !isLoading) {
-            handleGoogleSuccess(credentialResponse)
-          }
-        }}
-        onError={() => {
-          console.error('🟢 Google Login component error')
-          setIsLoading(false)
-          onAuthEnd?.()
-        }}
-        theme={gisTheme}
-        size="large"
-        text="signin_with"
-        shape="rectangular"
-        useOneTap={false} // GIS specialist: disable One Tap for button-only usage
-        containerProps={{
-          style: {
-            backgroundColor: 'transparent',
-            border: 'none',
-            boxShadow: 'none',
-            borderRadius: '0',
-            padding: '0',
-            margin: '0'
-          }
-        }}
-      />
-    </div>
+    <Button
+      type="button"
+      variant={variant}
+      size={sizeProp}
+      className={`w-full min-h-12 font-medium ${className}`}
+      disabled={disabled || isLoading}
+      onClick={handleClick}
+      aria-label={tAuth('signIn.providers.google')}
+    >
+      {isLoading ? (
+        <Loader2 className="mr-2 h-5 w-5 shrink-0 animate-spin" aria-hidden />
+      ) : (
+        <FcGoogle className="mr-2 h-5 w-5 shrink-0" aria-hidden />
+      )}
+      {tAuth('signIn.providers.google')}
+    </Button>
   )
 }
-
-// Type declarations are already defined in google-one-tap.tsx

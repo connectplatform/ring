@@ -4,7 +4,7 @@
  * USER PROFILE WRAPPER - Ring Platform v2.0
  * ==========================================
  * Perfect 3-column responsive layout for public user profiles
- *
+ * 
  * Strike Team: Ring Components Specialist
  */
 
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import {
+import { 
   Settings,
   Activity,
   Heart,
@@ -31,10 +31,10 @@ interface UserProfileWrapperProps {
   username: string
 }
 
-export default function UserProfileWrapper({
-  children,
+export default function UserProfileWrapper({ 
+  children, 
   locale,
-  username
+  username 
 }: UserProfileWrapperProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
@@ -184,3 +184,4 @@ export default function UserProfileWrapper({
     </div>
   )
 }
+

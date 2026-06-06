@@ -15,7 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Switch } from '@/components/ui/switch'
 import { useActionState } from 'react'
 import { Brain } from 'lucide-react'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 /**
  * Response type for the updateSettings function

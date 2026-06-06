@@ -3,7 +3,8 @@
 import React from 'react'
 import { useOptimistic, useActionState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 import { 
   CheckCircle2, 
@@ -91,9 +92,10 @@ export default function OpportunityStatusToggle({
     (current, update) => ({ ...current, ...update, isPending: true })
   )
 
-  // Server action for status updates
+  // Server action for status updates (wrap to pass locale)
+  const locale = useLocale() as Locale
   const [updateState, updateAction] = useActionState<OpportunityFormState | null, FormData>(
-    updateOpportunity,
+    (prevState, formData) => updateOpportunity(prevState, formData, locale),
     null
   )
 

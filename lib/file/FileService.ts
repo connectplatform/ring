@@ -1,5 +1,5 @@
 import { IFileService, FileUploadOptions, FileUploadResult, FileDeleteResult, FileMetadata } from './interfaces/IFileService';
-import { FileSelector, FileBackendType } from './FileSelector';
+import { FileSelector, FileBackendType, getStorageBackendFromEnvironment } from './FileSelector';
 
 class FileServiceManager {
   private selector: FileSelector;
@@ -17,7 +17,7 @@ class FileServiceManager {
     const service = this.selector.getService(backend);
 
     // Cache the service for reuse
-    const backendType = backend || (process.env.FILE_BACKEND as FileBackendType) || 'vercel';
+    const backendType = backend || getStorageBackendFromEnvironment();
     const cacheKey = backendType;
 
     if (!this.cache.has(cacheKey)) {

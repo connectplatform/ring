@@ -129,11 +129,15 @@ export function NotificationProvider({
     // };
   }, [session, showToast]);
 
+  // Safe localStorage (avoid "getItem is not a function" during build/SSR polyfill)
+  const safeLocalStorage = typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function' ? localStorage : null;
+
   // Load settings from localStorage
   useEffect(() => {
-    const savedPosition = localStorage.getItem('notification-toast-position');
-    const savedDuration = localStorage.getItem('notification-toast-duration');
-    const savedMaxToasts = localStorage.getItem('notification-max-toasts');
+    if (!safeLocalStorage) return;
+    const savedPosition = safeLocalStorage.getItem('notification-toast-position');
+    const savedDuration = safeLocalStorage.getItem('notification-toast-duration');
+    const savedMaxToasts = safeLocalStorage.getItem('notification-max-toasts');
 
     if (savedPosition) {
       setToastPosition(savedPosition as any);
@@ -144,23 +148,23 @@ export function NotificationProvider({
     if (savedMaxToasts) {
       setMaxToasts(parseInt(savedMaxToasts));
     }
-  }, []);
+  }, [safeLocalStorage]);
 
   // Save settings to localStorage
   const handleSetToastPosition = useCallback((position: typeof toastPosition) => {
     setToastPosition(position);
-    localStorage.setItem('notification-toast-position', position);
-  }, []);
+    safeLocalStorage?.setItem('notification-toast-position', position);
+  }, [safeLocalStorage]);
 
   const handleSetToastDuration = useCallback((duration: number) => {
     setToastDuration(duration);
-    localStorage.setItem('notification-toast-duration', duration.toString());
-  }, []);
+    safeLocalStorage?.setItem('notification-toast-duration', duration.toString());
+  }, [safeLocalStorage]);
 
   const handleSetMaxToasts = useCallback((max: number) => {
     setMaxToasts(max);
-    localStorage.setItem('notification-max-toasts', max.toString());
-  }, []);
+    safeLocalStorage?.setItem('notification-max-toasts', max.toString());
+  }, [safeLocalStorage]);
 
   const contextValue: NotificationContextType = {
     // Toast management

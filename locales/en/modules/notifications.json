@@ -102,5 +102,11 @@
         "description": "Message delivery was cancelled before reaching the recipient."
       }
     }
+  },
+  "pushPrompt": {
+    "title": "Enable Push Notifications",
+    "description": "Get real-time updates about collaborations, comments, and publication status.",
+    "enable": "Enable",
+    "notNow": "Not now"
   }
 }

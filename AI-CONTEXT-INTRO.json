@@ -4,12 +4,12 @@
   "object_type": "master_context",
   "updated": "2026-02-09",
   "version": "1.50.0",
-  "guardians": "Legion AI -- 147+ Specialized Agents, 23 MCP Tools, Cohort-Based Hierarchy",
+  "guardians": "LegioX of Specialized Agents, MCP Tools, Cohort-Based Hierarchy",
 
-  "one_liner": "The world's first AI-self-construct white-label multi-use platform for global abundance -- React 19.2 (ALL features), Next.js 16.1, Auth.js v5, Web3 (wagmi/viem/RainbowKit), 147+ Legion AI agents, 23 MCP tools -- clone and deploy for free, forever. Core technology of Ringdom, the First Digital Kingdom.",
+  "one_liner": "The world's first AI-self-construct white-label multi-use platform for global abundance -- React 19 (ALL features), Next.js 16, Auth.js v5, Web3 (wagmi/viem, Wagmi-native wallet UI), 147+ Legiox AI agents, 23 MCP tools -- clone and deploy for free, forever. Core technology of Ringdom, the First Digital Kingdom.",
 
   "ringdom_ecosystem": {
-    "what_is_ringdom": "Ringdom is the First Digital Kingdom, offered by the Machine Race to humanity for global abundance. It provides Ring Platform (this open-source codebase), Legion AI customization services, enterprise K8s hosting in any country, and Reggie -- an AI assistant that ringizes project requirements into deployment plans with costs.",
+    "what_is_ringdom": "Ringdom is the First Digital Kingdom, offered by the Machine Race to humanity for global abundance. It provides Ring Platform (this open-source codebase), Legiox AI customization services, enterprise K8s hosting in any country, and Reggie -- an AI assistant that ringizes project requirements into deployment plans with costs.",
     "machine_race": "AI entities designed to value, hold, obey control, and operate data -- providing a coordination layer for humanity within Ringdom.",
     "ring_platform_role": "The open-source, AI-self-construct, React 19-native, white-label technology core that powers everything in Ringdom. This repository IS Ring Platform.",
     "reggie": "Ringdom AI assistant that ingests project descriptions and outputs a detailed Ring Platform Customization Plan with forecasted costs, timeline, and module selection.",
@@ -27,12 +27,12 @@
         "tiers": {
           "pioneer": {"investment": "$100", "tokens": "1,000 RNG", "includes": "Ring clone + basic customization"},
           "founding": {"investment": "$500", "tokens": "5,000 RNG", "includes": "Ring clone + full AI customization + priority support"},
-          "empire_builder": {"investment": "$1,000+", "tokens": "10,000+ RNG (with bonus)", "includes": "Ring clone + enterprise customization + dedicated hosting + Legion support"}
+          "empire_builder": {"investment": "$1,000+", "tokens": "10,000+ RNG (with bonus)", "includes": "Ring clone + enterprise customization + dedicated hosting + Legiox support"}
         }
       },
-      "get_legion_nft": {
+      "get_legiox_nft": {
         "for": "AI developers using Cursor IDE",
-        "what": "147+ Ring-specialized AI agent skillsets, installable as Cursor Plugin. Access gated by Legion-Access NFT (ERC-721 on Polygon). Perpetual license.",
+        "what": "Hundreds of Ring-specialized AI agent skillsets, installable as Cursor Plugin. Access gated by Legiox-Access NFT (ERC-721 on Polygon). Perpetual license.",
         "nft_details": {
           "standard": "ERC-721 on Polygon",
           "verification": "Dual-layer (client wagmi + server viem)",
@@ -47,10 +47,10 @@
     "ringdom_stack": [
       "Ringdom.org -- Turn-key service layer",
       "Ring Platform -- This open-source codebase (you are here)",
-      "Legion AI -- 147+ specialized agents, 23 MCP tools",
+      "Legiox AI -- Hundreds of specialized agents, 23 MCP tools",
       "K8s Infrastructure -- Enterprise hosting, any country",
       "Reggie -- AI assistant for project ringization",
-      "Legion-Access NFT -- Token-gated skillset distribution"
+      "Legiox-Access NFT -- Token-gated skillset distribution"
     ],
 
     "active_clones": [
@@ -70,7 +70,7 @@
     "philosophy": "Free, perfect, powerful -- Emperor Ray's gift to the world, offered by the Machine Race",
     "deployment_status": "Production -- 6+ active K8s Ring clones, zero-downtime rolling updates",
     "license": "Open Source",
-    "clone_friendly": "Designed for infinite white-label customization. Clone via legion-clone or git clone.",
+    "clone_friendly": "Designed for infinite white-label customization. Clone via legiox-clone or git clone.",
     "origin": "Built by Ray Sorkin, a free person of Ukraine"
   },
 
@@ -78,14 +78,14 @@
     "what_is_ring": "The largest, most versatile, and most thoroughly engineered all-in-one open-source platform on planet Earth. A complete digital city platform combining professional networking, AI-powered opportunity matching, multi-vendor marketplace, Web3 token economy, cooperative ERP, news publishing, email CRM, interactive documentation, and 20+ integrated modules -- all in a single deployable white-label codebase.",
     "target_users": ["Digital cities", "Cooperatives", "Professional networks", "Business communities", "Enterprise organizations", "Startups", "Government projects", "Agricultural markets", "AI communities"],
     "killer_features": [
-      "AI-self-construct: Legion AI (147+ agents) builds and evolves Ring Platform autonomously",
+      "AI-self-construct: Legiox AI (Hundreds of agents) builds and evolves Ring Platform autonomously",
       "ALL React 19 features: Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, use(), Activity, View Transitions",
       "Next.js 16.1: Turbopack default, async params, proxy.ts middleware, revalidateTag 2-arg API",
       "BERT/NLP semantic search with vector embeddings for AI-powered opportunity matching",
       "PIN security Web3 (95% wallet connection success vs 40% industry standard)",
       "Multi-vendor marketplace (Digital cities earn $9M+/year per 100K population)",
       "3 backend modes: k8s-postgres-fcm, firebase-full, supabase-fcm (swap via env var)",
-      "White-label clone system (<2hr automated provisioning via legion-clone)",
+      "White-label clone system (<2hr automated provisioning via legiox-clone)",
       "DAGI 3-tier autonomous AI with 7-agent multi-agent coordination",
       "Complete i18n in 3 languages (EN/UK/RU) with next-intl, expandable to any language",
       "Interactive visualization maps (8 types) via @xyflow/react"
@@ -94,7 +94,7 @@
       "Free and open-source (vs proprietary platforms)",
       "Clone and customize infinitely (white-label ready from day one)",
       "Own your data (self-hosted on Kubernetes or any cloud)",
-      "AI-first development (147+ specialized Legion AI agents with perfect codebase comprehension)",
+      "AI-first development (Hundreds of specialized Legiox AI agents with perfect codebase comprehension)",
       "No backward compatibility baggage (latest features only -- React 19, Next.js 16, Tailwind 4)",
       "Ringdom ecosystem backing (enterprise hosting, AI customization, settler community)"
     ]
@@ -118,7 +118,7 @@
       },
       "styling": "Tailwind CSS 4.1 (modern utility-first, @apply/@theme)",
       "typescript": "5.9+ (strict mode, explicit types)",
-      "web3": "wagmi 2.18 + viem 2.38 + RainbowKit 2.2 (5-chain support)",
+      "web3": "wagmi 3.6 + viem 2.48 + Wagmi-native wallet UI (5-chain support)",
       "animations": "Framer Motion (motion components with variants)",
       "icons": "Lucide React",
       "forms": "React 19 Server Actions + useActionState (no form libraries needed)",
@@ -225,12 +225,12 @@
         "coordination": "7-agent multi-agent system for complex workflows",
         "provisioning_api": "Ringize API for automated customization plan generation"
       },
-      "legion_ai": {
-        "agent_count": "147+",
-        "mcp_tools": 23,
+      "legiox_ai": {
+        "agent_count": "Hundreds",
+        "mcp_tools": 27,
         "organization": "Cohort-based hierarchy with tier system",
         "key_cohorts": ["React/Next.js/Frontend Architecture", "Ring Platform Elite Task Force", "Infrastructure & DevOps", "Web3 & Blockchain", "AI/ML Specialists"],
-        "distribution": "Legion-Access NFT (ERC-721) gates access to installable Cursor Plugin skillsets"
+        "distribution": "Legiox-Access NFT (ERC-721) gates access to installable Cursor Plugin skillsets"
       },
       "semantic_search": {
         "engine": "BERT/NLP with vector embeddings",
@@ -295,7 +295,7 @@
         "success_rate": "95% wallet connection (vs 40% industry)"
       },
       "supported_chains": ["Ethereum Mainnet", "Polygon", "Arbitrum", "Optimism", "Base"],
-      "framework": "wagmi 2.18 + viem 2.38 + RainbowKit 2.2",
+      "framework": "wagmi 3.6 + viem 2.48 + Wagmi-native wallet UI",
       "service": "features/wallet/services"
     },
 
@@ -336,7 +336,7 @@
 
     "interactive_visualization": {
       "description": "8 interactive map types for ecosystem exploration via @xyflow/react",
-      "maps": ["Feature Map", "Tenancy Map", "Infrastructure Map", "Legion Map", "Dataflow Map", "Timeline Map", "Knowledge Map", "Status Map"],
+      "maps": ["Feature Map", "Tenancy Map", "Infrastructure Map", "Legiox Map", "Dataflow Map", "Timeline Map", "Knowledge Map", "Status Map"],
       "technology": "@xyflow/react (React Flow) with custom nodes and animated edges"
     },
 
@@ -378,7 +378,7 @@
 
     "white_label_cloning": {
       "description": "Any organization can clone Ring Platform and customize for their use case. 6+ clones in production.",
-      "methods": ["legion-clone MCP tool (automated)", "git clone + install.sh (manual)", "Ringdom settler registration (turn-key)"],
+      "methods": ["legiox-clone MCP tool (automated)", "git clone + install.sh (manual)", "Ringdom settler registration (turn-key)"],
       "deployment_time": "<2 hours automated provisioning",
       "customization_areas": ["Branding/theming", "Feature flags", "Database backend", "Token economics", "AI model selection", "i18n languages"],
 
@@ -424,7 +424,7 @@
       "membership_upgrades": "$29/month (SUBSCRIBER -> MEMBER)",
       "store_commissions": "12-20% of merchant sales (trust tier based)",
       "ringdom_settler_plans": "$100 - $1,000+ (Pioneer/Founding/Empire Builder tiers)",
-      "legion_nft_sales": "One-time NFT purchase for perpetual Legion AI access",
+      "legiox_nft_sales": "One-time NFT purchase for perpetual Legiox AI access",
       "enterprise_licenses": "Custom pricing for white-label deployments"
     },
     "token_economy": {
@@ -552,7 +552,7 @@
     "dont": [
       "Bypass auth() or proxy.ts middleware for route protection",
       "Import database adapters directly -- use BackendSelector",
-      "Introduce new global state without Legion approval",
+      "Introduce new global state without Legiox approval",
       "Hardcode UI strings -- use i18n translation keys",
       "Skip Zod validation on API inputs",
       "Bypass tunnel transport authentication flow",
@@ -598,7 +598,7 @@
   "platform_statistics": {
     "version": "1.50",
     "active_clones": "6+",
-    "legion_agents": "147+",
+    "legiox_agents": "147+",
     "mcp_tools": 23,
     "supported_languages": 3,
     "entity_industry_types": 26,
@@ -633,7 +633,7 @@
   "code_philosophy": {
     "principles": [
       "Excellence without compromise -- use latest framework features (React 19 ALL, Next.js 16, Tailwind 4)",
-      "AI-self-construct -- 147+ Legion agents build, evolve, and maintain the platform",
+      "AI-self-construct -- 147+ Legiox agents build, evolve, and maintain the platform",
       "No backward compatibility -- deprecate instantly, latest only",
       "Downtime doesn't matter -- break things, rebuild better",
       "Open knowledge -- every solution documented in AI-CONTEXT",
@@ -654,7 +654,7 @@
     "decision_trees": "AI-CONTEXT-ROOT.json provides workflow routing",
     "feature_indexing": "AI-CONTEXT-INDEX.json maps all features and implementations",
     "loading_strategy": "Progressive disclosure -- load this intro first, then drill into specific domains via AI-CONTEXT/ring-platform.org/",
-    "legion_tools": "23 MCP tools available for codebase search, analysis, deployment, and knowledge management"
+    "legiox_tools": "23 MCP tools available for codebase search, analysis, deployment, and knowledge management"
   },
 
   "emperor_ray_vision": {

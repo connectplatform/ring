@@ -20,9 +20,10 @@
  * - React 19 Specialist (modern patterns)
  */
 
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow, format } from 'date-fns'
 import { 
@@ -44,7 +45,7 @@ import { cn } from '@/lib/utils'
 // TYPES
 // =============================================================================
 
-interface NewsArticleHeaderProps {
+export interface NewsArticleHeaderProps {
   article: {
     title: string
     excerpt?: string
@@ -72,6 +73,16 @@ interface NewsArticleHeaderProps {
   userHasLiked?: boolean
   likeCount?: number
   showReadingProgress?: boolean
+  /** DaVinci v2.1 — taller hero for long titles (default 55/65/75vh). */
+  heroHeights?: { mobile: string; tablet: string; desktop: string }
+  /** Desktop bleed under right sidebar (px). Set 0 to disable. */
+  sidebarBleedPx?: number
+  blurDataUrl?: string
+  /** Controlled bookmark state when parent wires user_favorites API. */
+  isBookmarked?: boolean
+  onShare?: () => void
+  onSave?: () => void
+  onLoginRequired?: () => void
 }
 
 // =============================================================================
@@ -443,10 +454,52 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
   translations,
   userHasLiked = false,
   likeCount,
-  showReadingProgress = true
+  showReadingProgress = true,
+  heroHeights = { mobile: '55vh', tablet: '65vh', desktop: '75vh' },
+  sidebarBleedPx = 326,
+  blurDataUrl,
+  isBookmarked: isBookmarkedProp,
+  onShare,
+  onSave,
+  onLoginRequired,
 }) => {
   const headerRef = useRef<HTMLElement>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+  const [localBookmarked, setLocalBookmarked] = useState(false)
+  const isBookmarked = isBookmarkedProp ?? localBookmarked
+  const { data: session } = useSession()
+
+  const handleShare = useCallback(async () => {
+    const shareData = {
+      title: article.title,
+      text: article.excerpt || article.title,
+      url: typeof window !== 'undefined' ? window.location.href : '',
+    }
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.share &&
+      (!navigator.canShare || navigator.canShare(shareData))
+    ) {
+      try {
+        await navigator.share(shareData)
+        return
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
+      }
+    }
+    onShare?.()
+  }, [article.title, article.excerpt, onShare])
+
+  const handleSave = useCallback(() => {
+    if (!session?.user) {
+      onLoginRequired?.()
+      return
+    }
+    if (isBookmarkedProp === undefined) {
+      setLocalBookmarked((prev) => !prev)
+    }
+    onSave?.()
+  }, [session?.user, onSave, onLoginRequired, isBookmarkedProp])
   
   // Check for reduced motion preference
   useEffect(() => {
@@ -468,8 +521,6 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
   const imageScale = useTransform(scrollYProgress, [0, 1], [1, 1.1])
   const overlayOpacity = useTransform(scrollYProgress, [0, 0.5], [0.3, 0.7])
 
-  const categoryConfig_ = categoryConfig[article.category] || categoryConfig.other
-
   return (
     <>
       {/* Reading Progress */}
@@ -484,14 +535,17 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
       >
         {/* Featured Image Hero Section */}
         {article.featuredImage && (
-          <div className="relative h-[50vh] min-h-[400px] max-h-[600px] -mx-4 md:-mx-6 lg:-mx-0 overflow-hidden rounded-none lg:rounded-2xl mb-8">
+          <div className="relative h-[55vh] md:h-[65vh] lg:h-[75vh] min-h-[320px] -mx-4 md:-mx-6 lg:-mx-0 overflow-visible rounded-none lg:rounded-2xl mb-8 max-lg:overflow-hidden">
             {/* Parallax Image */}
             <motion.div
-              style={{ 
+              style={{
                 y: prefersReducedMotion ? 0 : imageY,
-                scale: prefersReducedMotion ? 1 : imageScale
+                scale: prefersReducedMotion ? 1 : imageScale,
               }}
-              className="absolute inset-0"
+              className={cn(
+                'absolute inset-0 overflow-hidden',
+                sidebarBleedPx > 0 && 'lg:right-[-326px]'
+              )}
             >
               <Image
                 src={article.featuredImage}
@@ -499,6 +553,8 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
                 fill
                 className="object-cover"
                 priority
+                placeholder={blurDataUrl ? 'blur' : 'empty'}
+                blurDataURL={blurDataUrl}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
               />
             </motion.div>
@@ -515,36 +571,55 @@ export const NewsArticleHeader: React.FC<NewsArticleHeaderProps> = ({
             {/* Bottom Gradient */}
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
 
-            {/* Floating Category Badge on Image */}
-            <div className="absolute top-6 left-6 z-10">
-              <CategoryBadge 
-                category={article.category} 
-                featured={article.featured} 
-              />
-            </div>
-
-            {/* Back Button on Image */}
+            {/* Top bar: back, category, share, save */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="absolute top-6 right-6 z-10"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between gap-2 max-w-[calc(100%-2rem)] lg:max-w-[min(100%,calc(100vw-380px))]"
             >
               <Link href={`/${locale}/news`}>
                 <Button
                   variant="secondary"
-                  size="sm"
-                  className={cn(
-                    'backdrop-blur-md bg-white/10 hover:bg-white/20',
-                    'border border-white/20 text-white',
-                    'shadow-lg shadow-black/20'
-                  )}
+                  size="icon"
+                  className="backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-white h-10 w-10 shrink-0"
+                  aria-label={translations.backToNews || 'Back to News'}
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  {translations.backToNews || 'Back to News'}
+                  <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
+              <div className="hidden sm:block flex-1 min-w-0 px-2">
+                <CategoryBadge category={article.category} featured={article.featured} />
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  onClick={handleSave}
+                  className={cn(
+                    'backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-white h-10 w-10',
+                    isBookmarked && 'text-amber-300'
+                  )}
+                  aria-label="Save article"
+                >
+                  <Bookmark className={cn('w-4 h-4', isBookmarked && 'fill-current')} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  onClick={handleShare}
+                  className="backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-white h-10 w-10"
+                  aria-label="Share article"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+              </div>
             </motion.div>
+
+            <div className="absolute top-20 left-4 z-10 sm:hidden">
+              <CategoryBadge category={article.category} featured={article.featured} />
+            </div>
 
             {/* Title on Image (Desktop) */}
             <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-10 hidden lg:block">

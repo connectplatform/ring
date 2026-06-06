@@ -6,7 +6,15 @@
   "home": {
     "title": "Ring Platform - Decentralized Opportunities & Professional Networking",
     "description": "Connect, collaborate, and create value in the decentralized economy. Join Ring Platform for professional networking, opportunities, and blockchain-enabled collaboration.",
-    "keywords": ["decentralized", "opportunities", "blockchain", "collaboration", "web3", "professional networking", "Ring Platform"],
+    "keywords": [
+      "decentralized",
+      "opportunities",
+      "blockchain",
+      "collaboration",
+      "web3",
+      "professional networking",
+      "Ring Platform"
+    ],
     "ogTitle": "Ring Platform - Decentralized Professional Networking",
     "ogDescription": "Discover and create opportunities in the decentralized economy",
     "twitterTitle": "Ring Platform",
@@ -15,7 +23,14 @@
   "store": {
     "title": "Ring Store - Innovative Products & Services",
     "description": "Discover and purchase innovative products and services on Ring platform. Secure checkout with multiple payment options including RING tokens.",
-    "keywords": ["Ring Store", "products", "services", "blockchain", "RING tokens", "secure checkout"],
+    "keywords": [
+      "Ring Store",
+      "products",
+      "services",
+      "blockchain",
+      "RING tokens",
+      "secure checkout"
+    ],
     "list": {
       "title": "Ring Store - Browse {{count}} Products",
       "description": "Browse {{count}} innovative products and services. Find everything you need on Ring platform's decentralized marketplace."
@@ -23,7 +38,13 @@
     "product": {
       "title": "{{name}} - Ring Store",
       "description": "{{description}}",
-      "keywords": ["{{name}}", "Ring Store", "product", "blockchain", "RING tokens"]
+      "keywords": [
+        "{{name}}",
+        "Ring Store",
+        "product",
+        "blockchain",
+        "RING tokens"
+      ]
     },
     "checkout": {
       "title": "Secure Checkout - Ring Store",
@@ -48,6 +69,10 @@
         "title": "Order #{{orderId}} - Ring Store",
         "description": "View details for order #{{orderId}}. Track shipment status and manage your order."
       }
+    },
+    "settings": {
+      "title": "Store Settings - Ring Platform",
+      "description": "Manage store preferences, shipping addresses, and payment methods on Ring Platform."
     }
   },
   "auth": {
@@ -65,7 +90,14 @@
   "entities": {
     "title": "Professional Entities - Ring Platform",
     "description": "Discover and connect with professional entities, organizations, and businesses on Ring platform. Comprehensive directory with verification system.",
-    "keywords": ["entities", "organizations", "businesses", "professional directory", "verification", "Ring Platform"],
+    "keywords": [
+      "entities",
+      "organizations",
+      "businesses",
+      "professional directory",
+      "verification",
+      "Ring Platform"
+    ],
     "list": {
       "title": "Professional Entities Directory - {{count}} Organizations",
       "description": "Browse {{count}} verified professional entities and organizations. Connect with businesses and expand your professional network."
@@ -73,7 +105,13 @@
     "detail": {
       "title": "{{name}} - Professional Entity",
       "description": "{{description}}",
-      "keywords": ["{{name}}", "professional entity", "organization", "Ring Platform", "{{type}}"]
+      "keywords": [
+        "{{name}}",
+        "professional entity",
+        "organization",
+        "Ring Platform",
+        "{{type}}"
+      ]
     },
     "add": {
       "title": "Add Your Entity - Ring Platform",
@@ -87,7 +125,14 @@
   "opportunities": {
     "title": "Business Opportunities - Ring Platform",
     "description": "Discover and create business opportunities, partnerships, and collaborations on Ring platform. Connect with professionals and grow your network.",
-    "keywords": ["opportunities", "business", "partnerships", "collaborations", "professional networking", "Ring Platform"],
+    "keywords": [
+      "opportunities",
+      "business",
+      "partnerships",
+      "collaborations",
+      "professional networking",
+      "Ring Platform"
+    ],
     "list": {
       "title": "Business Opportunities - {{count}} Active Listings",
       "description": "Browse {{count}} active business opportunities and partnerships. Find your next collaboration on Ring platform."
@@ -95,7 +140,14 @@
     "detail": {
       "title": "{{title}} - Business Opportunity",
       "description": "{{description}}",
-      "keywords": ["{{title}}", "business opportunity", "partnership", "collaboration", "Ring Platform", "{{type}}"]
+      "keywords": [
+        "{{title}}",
+        "business opportunity",
+        "partnership",
+        "collaboration",
+        "Ring Platform",
+        "{{type}}"
+      ]
     },
     "add": {
       "title": "Post Opportunity - Ring Platform",
@@ -109,7 +161,14 @@
   "news": {
     "title": "Ring Platform News & Updates",
     "description": "Stay updated with the latest news, announcements, and developments from Ring Platform and the decentralized ecosystem.",
-    "keywords": ["news", "updates", "announcements", "Ring Platform", "blockchain", "decentralized"],
+    "keywords": [
+      "news",
+      "updates",
+      "announcements",
+      "Ring Platform",
+      "blockchain",
+      "decentralized"
+    ],
     "list": {
       "title": "Latest News - {{count}} Articles",
       "description": "Read the latest {{count}} news articles and updates from Ring Platform and the blockchain ecosystem."
@@ -117,7 +176,17 @@
     "article": {
       "title": "{{title}} - Ring News",
       "description": "{{excerpt}}",
-      "keywords": ["{{title}}", "Ring News", "blockchain", "decentralized", "{{category}}"]
+      "keywords": [
+        "{{title}}",
+        "Ring News",
+        "blockchain",
+        "decentralized",
+        "{{category}}"
+      ]
+    },
+    "category": {
+      "title": "{{categoryName}} - Ring Platform News",
+      "description": "{{description}}"
     }
   },
   "profile": {
@@ -147,45 +216,145 @@
   "about": {
     "title": "About Ring Platform - Decentralized Professional Network",
     "description": "Learn about Ring Platform's mission to create a decentralized professional networking and opportunities ecosystem. Discover our vision for the future of work.",
-    "keywords": ["about", "Ring Platform", "decentralized", "professional network", "blockchain", "mission", "vision"]
+    "keywords": [
+      "about",
+      "Ring Platform",
+      "decentralized",
+      "professional network",
+      "blockchain",
+      "mission",
+      "vision"
+    ]
   },
   "contact": {
     "title": "Contact Ring Platform - Get in Touch",
     "description": "Get in touch with the Ring Platform team. Contact us for support, partnerships, or general inquiries about our decentralized platform.",
-    "keywords": ["contact", "support", "Ring Platform", "partnerships", "inquiries"]
+    "keywords": [
+      "contact",
+      "support",
+      "Ring Platform",
+      "partnerships",
+      "inquiries"
+    ]
   },
   "privacy": {
     "title": "Privacy Policy - Ring Platform",
     "description": "Read Ring Platform's comprehensive privacy policy. Learn how we protect your data and respect your privacy in the decentralized ecosystem.",
-    "keywords": ["privacy policy", "data protection", "Ring Platform", "privacy", "security"]
+    "keywords": [
+      "privacy policy",
+      "data protection",
+      "Ring Platform",
+      "privacy",
+      "security"
+    ]
   },
   "terms": {
     "title": "Terms of Service - Ring Platform",
     "description": "Read Ring Platform's terms of service and user agreement. Understand your rights and responsibilities on our decentralized platform.",
-    "keywords": ["terms of service", "user agreement", "Ring Platform", "terms", "conditions"]
+    "keywords": [
+      "terms of service",
+      "user agreement",
+      "Ring Platform",
+      "terms",
+      "conditions"
+    ]
   },
   "membership": {
     "title": "Ring Membership - Premium Features & Benefits",
     "description": "Discover Ring Platform membership benefits and premium features. Upgrade to access exclusive opportunities and enhanced networking tools.",
-    "keywords": ["membership", "premium", "benefits", "Ring Platform", "upgrade", "exclusive"]
+    "keywords": [
+      "membership",
+      "premium",
+      "benefits",
+      "Ring Platform",
+      "upgrade",
+      "exclusive"
+    ]
   },
   "wallet": {
     "title": "Ring Wallet - Manage Your RING Tokens",
     "description": "Manage your RING tokens, track your balance, and handle transactions securely on Ring Platform's integrated wallet.",
-    "keywords": ["wallet", "RING tokens", "balance", "transactions", "blockchain", "crypto"]
+    "keywords": [
+      "wallet",
+      "RING tokens",
+      "balance",
+      "transactions",
+      "blockchain",
+      "crypto"
+    ],
+    "topup": {
+      "title": "Top Up Wallet - Ring Platform",
+      "description": "Add funds to your Ring wallet using RING tokens or supported payment methods."
+    }
+  },
+  "docs": {
+    "title": "Documentation - Ring Platform",
+    "description": "Ring Platform documentation: architecture, deployment, modules, and integration guides for builders and operators.",
+    "keywords": [
+      "documentation",
+      "Ring Platform",
+      "guides",
+      "deployment",
+      "integration"
+    ]
+  },
+  "marketplace": {
+    "title": "MV Marketplace - Ring Platform",
+    "description": "Browse Ring-powered development vendors and service packages. Connect with verified members offering platform customization and expertise.",
+    "keywords": [
+      "marketplace",
+      "vendors",
+      "services",
+      "Ring Platform",
+      "development",
+      "membership"
+    ]
+  },
+  "messages": {
+    "title": "Messages - Ring Platform",
+    "description": "Private messaging on Ring Platform. Sign in to access conversations and real-time collaboration."
+  },
+  "blog": {
+    "index": {
+      "title": "{{username}}'s Blog - Ring Platform",
+      "description": "Read articles published by {{username}} on Ring Platform."
+    },
+    "article": {
+      "title": "{{title}} - {{username}} | Ring Platform",
+      "description": "{{excerpt}}"
+    }
   },
   "nft": {
     "title": "NFT Marketplace - Ring Platform",
     "description": "Explore, buy, and sell NFTs on Ring Platform's decentralized marketplace. Discover unique digital assets and collections.",
-    "keywords": ["NFT", "marketplace", "digital assets", "collections", "Ring Platform", "blockchain"],
+    "keywords": [
+      "NFT",
+      "marketplace",
+      "digital assets",
+      "collections",
+      "Ring Platform",
+      "blockchain"
+    ],
     "collections": {
       "title": "NFT Collections - Ring Platform",
       "description": "Browse NFT collections on Ring Platform. Discover unique digital art and assets from verified creators."
     },
+    "collection": {
+      "title": "{{slug}} - NFT Collection | Ring Platform",
+      "description": "Explore the {{slug}} NFT collection on Ring Platform. View items, stats, and listings."
+    },
     "search": {
       "title": "Search NFTs - Ring Platform",
       "description": "Search for specific NFTs, collections, and digital assets on Ring Platform's decentralized marketplace."
+    },
+    "item": {
+      "title": "NFT #{{tokenId}} on {{chain}} - Ring Platform",
+      "description": "View NFT details, contract {{contract}}, and trading history on Ring Platform."
     }
+  },
+  "tunnel": {
+    "title": "Tunnel Transport Test - Ring Platform",
+    "description": "Internal test page for Ring Platform tunnel transport abstraction and realtime fallback."
   },
   "admin": {
     "title": "Admin Dashboard - Ring Platform",
@@ -206,7 +375,13 @@
       "title": "Security Dashboard - Ring Admin",
       "description": "Monitor Ring Platform security, review logs, and manage security settings and protocols."
     }
+  },
+  "fcm": {
+    "prompt": {
+      "title": "Enable Push Notifications",
+      "description": "Get real-time updates about collaborations, comments, and publication status.",
+      "enable": "Enable",
+      "notNow": "Not now"
+    }
   }
 }
-
-

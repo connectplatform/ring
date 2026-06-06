@@ -2,7 +2,6 @@
  * Ring Platform - Business Subscription Types
  * 
  * TypeScript interfaces for Stripe-powered business subscription billing
- * Reverse propagated from: ring-pet-friendly (2026-02-17)
  * 
  * @description
  * Generic subscription types supporting B2B recurring revenue models:
@@ -60,7 +59,7 @@
 /**
  * Subscription plan types
  * 
- * @example Ring Pet Friendly:
+ * @example Ring Pet Friend App:
  * - basic: $10/month (standard visibility)
  * 
  * @example Multi-vendor marketplace:
@@ -169,7 +168,7 @@ export interface SubscriptionData {
  * 
  * @note
  * Foreign key (entity_id) should be customized per Ring clone:
- * - ring-pet-friendly: place_id (pet-friendly locations)
+ * - ring-petfriend-app: place_id (pet-friendly locations)
  * - marketplace: vendor_id (store vendors)
  * - job board: employer_id (job posters)
  * - real estate: agency_id (real estate agencies)

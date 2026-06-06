@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useBalance, useChainId } from 'wagmi'
+import { useConnection, useBalance, useChainId } from 'wagmi'
 import { mainnet, polygon, arbitrum, optimism, base } from 'wagmi/chains'
 import { formatEther } from 'viem'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,7 +27,7 @@ const SUPPORTED_CHAINS = [
 ]
 
 export function MultiChainBalance() {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useConnection()
   const currentChainId = useChainId()
   const [totalBalance, setTotalBalance] = useState('0')
   const [chainBalances, setChainBalances] = useState<ChainBalance[]>([])

@@ -44,8 +44,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { file as fileService } from '@/lib/file'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface DeveloperCVFormProps {
   locale: Locale
@@ -298,14 +297,19 @@ export default function DeveloperCVForm({ locale }: DeveloperCVFormProps) {
     setUploadProgress(0)
 
     try {
-      // Upload using our file abstraction layer
-      const result = await fileService().upload(file.name, file, {
-        access: 'public',
-        // Note: Progress callbacks are not yet supported in the abstraction layer
-        // This is a TODO for future enhancement
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('purpose', 'opportunity:cv')
+
+      const response = await fetch('/api/uploads', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
       })
 
-      if (!result.success) {
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
         throw new Error(result.error || 'File upload failed')
       }
 
@@ -480,7 +484,7 @@ ${cvData.resumeUrl ? `Resume: ${cvData.resumeUrl}` : ''}
 
     // Call the original action
     setFormState(null) // Clear previous state
-    const result = await createOpportunity(null, formData)
+    const result = await createOpportunity(null, formData, locale)
     setFormState(result)
 
     if (result?.success) {

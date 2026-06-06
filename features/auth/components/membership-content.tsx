@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { CheckCircle, Users, Building2, Briefcase, ArrowRight, Star, Shield, Globe } from 'lucide-react'
 import { MembershipUpgradeModal } from '@/components/membership/upgrade-modal'
 import type { AuthUser, RoleUpgradeRequest } from '@/features/auth/types'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 
 interface MembershipContentProps {

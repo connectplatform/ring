@@ -7,7 +7,7 @@ import { ProductCard } from './product-card'
 import { useOptionalStore } from '../context'
 import { getVectorSimilarity } from '@/lib/vector-search'
 import type { StoreProduct } from '../types'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface SimilarProductsProps {
   currentProduct: StoreProduct

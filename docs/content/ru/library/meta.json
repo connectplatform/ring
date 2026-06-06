@@ -1,5 +1,6 @@
 {
   "title": "Документация платформы",
+  "description": "Порядок разделов документации. Каждый slug — папка docs/content/{locale}/library/ с собственным meta.json (title, description, pages[]).",
   "pages": [
     "welcome",
     "index",
@@ -11,6 +12,7 @@
     "customization",
     "deployment",
     "development",
-    "examples"
+    "examples",
+    "integrations"
   ]
 }

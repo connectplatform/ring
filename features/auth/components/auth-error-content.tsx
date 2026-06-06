@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
 
 /**
  * AuthErrorContent component
@@ -60,12 +61,12 @@ export default function AuthErrorContent() {
             If this problem persists, please contact our support team.
           </p>
           <div className="flex justify-center space-x-4">
-            <Link href={ROUTES.LOGIN(defaultLocale)}>
+            <Link href={ROUTES.LOGIN(routing.defaultLocale)}>
               <Button variant="default">
                 Try Again
               </Button>
             </Link>
-            <Link href={ROUTES.HOME(defaultLocale)}>
+            <Link href={ROUTES.HOME(routing.defaultLocale)}>
               <Button variant="outline">
                 Go to home
               </Button>

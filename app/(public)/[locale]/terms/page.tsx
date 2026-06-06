@@ -1,72 +1,35 @@
-import React from 'react'
+import type { Metadata } from 'next'
 import TermsOfService from '@/features/terms/components/terms-of-service'
 import { LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { setRequestLocale } from 'next-intl/server'
+import { connection } from 'next/server'
 
-type TermsParams = {}
+type TermsParams = Record<string, never>
 
-/**
- * Terms of Service page component with internationalization support.
- * 
- * @param props - The page properties including params and searchParams as Promises
- * @returns The rendered terms page
- */
-export default async function TermsPage(props: LocalePageProps<TermsParams>) {
-  // Resolve params
-  const params = await props.params;
-  
-  // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-
-  // React 19 metadata preparation
-  const translations = loadTranslations(locale);
-  const title = (translations as any).metadata?.terms || 'Terms of Service | Ring App';
-  const description = (translations as any).metaDescription?.terms || 'Terms of Service for Ring App - Your business connectivity platform. Read our terms and conditions.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/terms`;
-  const alternates = generateHreflangAlternates('/terms');
-  
-  return (
-    <>
-      {/* React 19 Native Document Metadata */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="article" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      
-      {/* Legal page specific meta tags */}
-      <meta name="robots" content="index, follow" />
-      <meta name="googlebot" content="index, follow" />
-      
-      {/* Hreflang alternates */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
-
-      <TermsOfService />
-    </>
-  )
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'terms',
+    pathname: '/terms',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+  })
 }
 
-/* 
- * OBSOLETE FUNCTIONS (removed with React 19 migration):
- * - generateMetadata() function (replaced by React 19 native document metadata)
- * 
- * React 19 Native Features Used:
- * - Document metadata: <title>, <meta>, <link> tags automatically hoisted to <head>
- * - Automatic meta tag deduplication and precedence handling
- * - Native hreflang support for i18n
- * - Legal page SEO optimization (index, follow for compliance content)
- * - OpenGraph article type for legal content
- */
+export default async function TermsPage(props: LocalePageProps<TermsParams>) {
+  await connection()
+  await props.params
+  return <TermsOfService />
+}

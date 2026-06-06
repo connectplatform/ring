@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import React, { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
@@ -8,9 +9,12 @@ import { ROUTES } from '@/constants/routes'
 import { UserRole } from '@/features/auth/types'
 import { PageProps } from '@/types/next-page'
 import { resolvePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { connection } from 'next/server'
-
+import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { logger } from '@/lib/logger'
 
 // Role hierarchy for access control
 const ROLE_HIERARCHY = {
@@ -20,6 +24,58 @@ const ROLE_HIERARCHY = {
   [UserRole.CONFIDENTIAL]: 3,
   [UserRole.ADMIN]: 4,
 } as const
+
+function addOpportunitySeoFallback(type?: string) {
+  if (type === 'request') {
+    return {
+      title: 'Create Request | Ring Platform',
+      description:
+        'Create a request to find services, advice, or collaboration from the Ring Platform community.',
+    }
+  }
+  if (type === 'offer') {
+    return {
+      title: 'Create Offer | Ring Platform',
+      description: 'Post an official opportunity from your organization on Ring Platform.',
+    }
+  }
+  if (type === 'cv') {
+    return {
+      title: 'Share Developer CV | Ring Platform',
+      description: 'Share your developer profile and skills to connect with marketplace opportunities.',
+    }
+  }
+  return {
+    title: 'Add Opportunity | Ring Platform',
+    description:
+      'Add a new opportunity on Ring Platform — job postings, collaboration requests, and partnerships.',
+  }
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>
+  searchParams: Promise<{ type?: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  const { type } = await searchParams
+  const opportunityType = typeof type === 'string' ? type : undefined
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'opportunities.add',
+    pathname: '/opportunities/add',
+    fallback: addOpportunitySeoFallback(opportunityType),
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false },
+  })
+}
 
 /**
  * AddOpportunityPage component for adding new opportunities.
@@ -39,121 +95,72 @@ const ROLE_HIERARCHY = {
 export default async function AddOpportunityPage(props: PageProps) {
   await connection() // Next.js 16: opt out of prerendering
 
-  let error: string | null = null
-  
-  console.log('AddOpportunityPage: Starting');
+  logger.info('AddOpportunityPage: Starting');
 
   // Step 1: Resolve params and searchParams using our utility function
   const { params, searchParams } = await resolvePageProps(props);
   
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
   const type = searchParams.type as 'request' | 'offer' | 'cv' | undefined
 
-  // Load translations for this locale
-  const translations = await loadTranslations(locale);
-  const alternates = generateHreflangAlternates('/opportunities/add');
+  const headersList = await headers();
+  logger.info('AddOpportunityPage: Request details', {
+    params,
+    searchParams,
+    locale: validLocale,
+    type,
+    userAgent: headersList.get('user-agent'),
+  });
 
-  console.log('Params:', params);
-  console.log('Search Params:', searchParams);
-  console.log('Opportunity Type:', type);
-  console.log('Locale:', locale);
-
-  // Step 2: Retrieve cookies and headers
-  const cookieStore = await cookies()
-  const headersList = await headers()
+  const cookieStore = await cookies();
   const token = cookieStore.get("token");
-  const userAgent = headersList.get('user-agent')
+  const userAgent = headersList.get('user-agent');
 
-  // React 19 metadata for form pages - dynamically generated based on type
-  const title = type === 'request'
-    ? 'Create Request | Ring App'
-    : type === 'offer'
-    ? 'Create Offer | Ring App'
-    : type === 'cv'
-    ? 'Share Developer CV | Ring App'
-    : 'Add Opportunity | Ring App';
-  const description = type === 'request'
-    ? 'Create a request to find services, advice, or collaboration from the Ring community.'
-    : type === 'offer'
-    ? 'Post an official opportunity from your organization on the Ring platform.'
-    : type === 'cv'
-    ? 'Share your developer profile and skills to connect with Ring platform opportunities.'
-    : 'Add a new opportunity to the Ring App. Share job postings, collaboration requests, and partnership opportunities with the community.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/opportunities/add${type ? `?type=${type}` : ''}`;
+  const baseUrl = getSeoSiteBaseUrl()
+  const description = addOpportunitySeoFallback(typeof type === 'string' ? type : undefined).description
+  const canonicalUrl =
+    validLocale === routing.defaultLocale
+      ? `${baseUrl}/opportunities/add${type ? `?type=${type}` : ''}`
+      : `${baseUrl}/${validLocale}/opportunities/add${type ? `?type=${type}` : ''}`
 
-  try {
-    // Step 3: Authenticate user
-    console.log('AddOpportunityPage: Authenticating user');
-    const session = await auth()
-    
-    if (!session) {
-      console.log('AddOpportunityPage: No session, redirecting to login');
-      const returnTo = `/${locale}/opportunities/add${type ? `?type=${type}` : ''}`
-      redirect(`/${locale}/auth/login?returnTo=${encodeURIComponent(returnTo)}`)
-    }
-
-    // Step 4: Check user role and permissions
-    const userRole = session.user?.role as UserRole
-
-    // Basic permission check - must be at least SUBSCRIBER
-    if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
-      console.log('AddOpportunityPage: User lacks basic permission', { userRole });
-      redirect(`/${locale}/auth/register?returnTo=${encodeURIComponent(`/${locale}/opportunities/add${type ? `?type=${type}` : ''}`)}`)
-    }
-
-    // Type-specific permission checks
-    if (type === 'offer' && ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
-      console.log('AddOpportunityPage: User lacks permission for offers', { userRole, type });
-      redirect(`/${locale}/membership?returnTo=${encodeURIComponent(`/${locale}/opportunities/add?type=${type}`)}`)
-    }
-
-    // Step 5: Log authentication and request details
-    console.log('AddOpportunityPage: User authenticated', {
-      userRole,
-      type,
-      params,
-      searchParams,
-      userAgent,
-      hasToken: !!token
-    });
-
-  } catch (e) {
-    // Step 6: Handle unexpected errors
-    console.error("AddOpportunityPage: Unexpected error:", e)
-    error = "An unexpected error occurred. Please try again later."
+  // Auth + role checks — all redirect() calls must be outside try/catch
+  const session = await auth();
+  if (!session) {
+    logger.info('AddOpportunityPage: No session, redirecting to login');
+    const returnTo = ROUTES.ADD_OPPORTUNITY(validLocale) + (type ? `?type=${type}` : '');
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(returnTo)}`);
   }
 
-  // Step 7: Render the page content
-  return (
+  const userRole = session.user?.role as UserRole;
+  if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
+    logger.info('AddOpportunityPage: User lacks basic permission', { userRole });
+    redirect(ROUTES.REGISTER(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(validLocale) + (type ? `?type=${type}` : ''))}`);
+  }
+  if (type === 'offer' && ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+    logger.info('AddOpportunityPage: User lacks permission for offers', { userRole, type });
+    redirect(ROUTES.MEMBERSHIP(validLocale) + `?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(validLocale) + (type ? `?type=${type}` : ''))}`);
+  }
+
+  logger.info('AddOpportunityPage: User authenticated', { userRole, type, hasToken: !!token });
+
+  const t = await getTranslations('modules.opportunities')
+
+  try {
+    try {
+      const { userMigrationService } = await import('@/features/auth/services/user-migration');
+      const userExists = await userMigrationService.userDocumentExists(session.user.id);
+      if (!userExists) {
+        logger.warn('AddOpportunityPage: User document missing, initializing');
+        await userMigrationService.ensureUserDocument(session.user as any);
+        logger.info('AddOpportunityPage: User document created successfully');
+      }
+    } catch (migrationError) {
+      logger.error('AddOpportunityPage: Failed to check/create user document:', migrationError);
+    }
+
+    // Render the page content
+    return (
     <>
-      {/* React 19 Native Document Metadata - Form Page */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-      
-      {/* Hreflang alternates */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
-
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      
-      {/* Form page specific meta tags */}
-      <meta name="robots" content="noindex, nofollow" />
-      <meta name="googlebot" content="noindex, nofollow" />
-      
-      {/* Opportunity form structured data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -175,13 +182,13 @@ export default async function AddOpportunityPage(props: PageProps) {
                   "@type": "ListItem",
                   "position": 1,
                   "name": "Home",
-                  "item": "https://ring.ck.ua"
+                  "item": baseUrl
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
                   "name": "Opportunities",
-                  "item": "https://ring.ck.ua/opportunities"
+                  "item": `${baseUrl}/opportunities`
                 },
                 {
                   "@type": "ListItem",
@@ -200,16 +207,16 @@ export default async function AddOpportunityPage(props: PageProps) {
         }}
       />
 
-      <OpportunityFormWrapper locale={locale} opportunityType={type}>
+      <OpportunityFormWrapper locale={validLocale} opportunityType={type}>
         {/* Content Header - Opportunity Creation Style */}
         <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-sm">
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">{(translations as any)?.modules?.opportunities?.createOpportunity || 'Create Opportunity'}</h1>
-                <p className="text-muted-foreground">
-                  {(translations as any)?.opportunitiesDescription || 'Post a new opportunity on the Ring platform'}
-                </p>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {t('createOpportunity')}
+                </h1>
+                <p className="text-muted-foreground">{t('opportunitiesDescription')}</p>
               </div>
             </div>
           </div>
@@ -222,16 +229,28 @@ export default async function AddOpportunityPage(props: PageProps) {
               <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
             </div>
           }>
-            {error ? (
-              <div className="text-center text-red-600 p-4">{error}</div>
-            ) : (
-              <AddOpportunityForm opportunityType={type} locale={locale} />
-            )}
+            <AddOpportunityForm opportunityType={type} />
           </Suspense>
         </div>
       </OpportunityFormWrapper>
     </>
-  )
+  );
+  } catch (e) {
+    logger.error('AddOpportunityPage: Unexpected error:', e);
+    return (
+      <>
+        <title>Add Opportunity Error | Zemna AI</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <div className="container mx-auto px-0 py-0">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Add Opportunity Error</h1>
+            <p className="text-muted-foreground mb-4">An unexpected error occurred. Please try again later.</p>
+            <a href={ROUTES.HOME(validLocale)} className="text-primary hover:underline">Return to Home</a>
+          </div>
+        </div>
+      </>
+    );
+  }
 }
 
 /* 

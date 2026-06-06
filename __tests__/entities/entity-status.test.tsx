@@ -6,7 +6,7 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import EntityStatusPage from '../../components/entities/EntityStatusPage'
-import type { Locale } from '../../i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { jest } from '@jest/globals'
 
 // Mock next/link

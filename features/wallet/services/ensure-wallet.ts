@@ -6,7 +6,7 @@
 
 import { auth } from '@/auth';
 import { UserRole, Wallet, AuthUser } from '@/features/auth/types';
-// ethers.js removed - wallets now connected via wagmi/RainbowKit UI
+// ethers.js removed - wallets now connected via Wagmi (custom wallet UI)
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
@@ -20,7 +20,7 @@ import { getDatabaseService, initializeDatabase } from '@/lib/database';
  * 1. User signs in with Google/Apple (no seed phrase knowledge required)
  * 2. System creates viem wallet, encrypts private key with PIN-based encryption
  * 3. Private key stored securely in database, never sent to client
- * 4. Client uses wagmi/RainbowKit for all blockchain operations
+ * 4. Client uses Wagmi for all blockchain operations
  * 5. PIN access allows emergency fund recovery
  *
  * @returns {Promise<Wallet>} A promise that resolves to the user's primary wallet.
@@ -240,7 +240,7 @@ export async function decryptPrivateKeyWithPin(encryptedPrivateKey: string, pin:
 
 /**
  * Creates a PIN-protected access token for emergency fund recovery.
- * This allows the user to access their funds through wagmi/RainbowKit
+ * This allows the user to access their funds through Wagmi-connected wallets
  * after PIN verification.
  *
  * @param {string} userId - The user ID

@@ -24,7 +24,7 @@ import {
 import { AddressManager } from '@/features/store/components/checkout/address-manager'
 import { PaymentStep } from '@/features/store/components/checkout/payment-step'
 import { toast } from '@/hooks/use-toast'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface StoreSettingsClientProps {
   locale: Locale

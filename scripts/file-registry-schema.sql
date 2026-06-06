@@ -319,7 +319,7 @@ CREATE TABLE IF NOT EXISTS file_backlog (
     status VARCHAR(50) DEFAULT 'planned',                 -- planned, in_progress, completed, cancelled
     description TEXT NOT NULL,
     
-    assigned_agent VARCHAR(255),                          -- Legion agent assigned
+    assigned_agent VARCHAR(255),                          -- Legiox agent assigned
     estimated_hours DECIMAL(5,1),
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -341,7 +341,7 @@ CREATE TABLE IF NOT EXISTS file_versions (
     version VARCHAR(20) NOT NULL,
     date DATE NOT NULL,
     changes TEXT NOT NULL,
-    author VARCHAR(255),                                  -- e.g., 'Emperor Ray + Legion'
+    author VARCHAR(255),                                  -- e.g., 'Emperor Ray + Legiox'
     
     commit_hash VARCHAR(40),                              -- Git commit hash
     

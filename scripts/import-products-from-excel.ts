@@ -405,7 +405,7 @@ async function verifyImport(pool: Pool): Promise<void> {
 // ============================================================================
 
 async function main() {
-  console.log('\n🔥 LEGION PRODUCT IMPORT CONQUEST 🔥\n');
+  console.log('\n🔥 LEGIOX PRODUCT IMPORT CONQUEST 🔥\n');
   console.log('═'.repeat(60));
   
   if (DRY_RUN) {

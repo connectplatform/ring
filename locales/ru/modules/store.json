@@ -151,6 +151,7 @@
     "activeFilters": "Активные фильтры",
     "clearAll": "Очистить все",
     "priceRange": "Диапазон цен",
+    "priceRangeUnavailable": "Нет товаров по вашим фильтрам — фильтр цены недоступен",
     "availability": "Наличие",
     "all": "Все",
     "inStock": "В наличии",

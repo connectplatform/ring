@@ -6,7 +6,7 @@
  */
 
 import { monotime } from './timer'
-import { isBuildTime } from '@/lib/build-cache/phase-detector'
+import { isBuildTime, shouldSkipDatabaseConnect } from '@/lib/build-cache/phase-detector'
 import {
   IDatabaseService,
   DatabaseResult,
@@ -96,6 +96,18 @@ export class DatabaseService {
    * Initialize database connections
    */
   async initialize(): Promise<DatabaseResult<void>> {
+    if (shouldSkipDatabaseConnect()) {
+      return {
+        success: true,
+        data: undefined,
+        metadata: {
+          operation: 'initialize',
+          duration: 0,
+          backend: 'build-skip',
+          timestamp: new Date(0),
+        },
+      }
+    }
     try {
       const result = await this.selector.connect();
       if (result.success) {
@@ -375,6 +387,18 @@ export class DatabaseService {
   async query<T = any>(
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
+    if (shouldSkipDatabaseConnect()) {
+      return {
+        success: true,
+        data: [],
+        metadata: {
+          operation: 'query',
+          duration: 0,
+          backend: 'build-skip',
+          timestamp: new Date(0),
+        },
+      }
+    }
     if (!this.connected) {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'query', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
@@ -1026,7 +1050,7 @@ export async function initializeDbCommand(): Promise<DatabaseResult<void>> {
  * Initialize global database service
  */
 export async function initializeDatabase(): Promise<DatabaseResult<void>> {
-  if (isBuildTime()) {
+  if (shouldSkipDatabaseConnect()) {
     return {
       success: true,
       data: undefined,

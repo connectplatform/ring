@@ -4,8 +4,9 @@ import React from 'react'
 import { useTranslations } from 'next-intl'
 import { FcGoogle } from 'react-icons/fc'
 import { signIn } from 'next-auth/react'
-import { ROUTES } from '@/constants/routes'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
 import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
@@ -39,7 +40,7 @@ const DEFAULT_LOCALE = 'en' as const
 export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
   const tCommon = useTranslations('common')
   const tAuth = useTranslations('modules.auth')
-  const locale = useLocale() as 'en' | 'uk'
+  const locale = useLocale() as Locale
 
   /**
    * Handles the Google Sign-In process
@@ -47,7 +48,8 @@ export default function LoginDialog({ open, onCloseAction }: LoginDialogProps) {
    */
   const handleGoogleSignIn = async () => {
     try {
-      await signIn('google', { callbackUrl: ROUTES.PROFILE(locale) })
+      const callbackUrl = buildOAuthCallbackUrl(undefined, locale)
+      await signIn('google', { callbackUrl })
     } catch (error) {
       console.error('Sign in error:', error)
     } finally {

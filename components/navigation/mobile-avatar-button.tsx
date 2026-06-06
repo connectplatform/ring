@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Avatar } from '@/components/ui/avatar'
 import { useLocale } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { eventBus } from '@/lib/event-bus.client'
 
 interface MobileAvatarButtonProps {
@@ -24,7 +24,7 @@ interface MobileAvatarButtonProps {
  */
 export default function MobileAvatarButton({ className = '' }: MobileAvatarButtonProps) {
   const router = useRouter()
-  const locale = useLocale() as Locale
+  const locale = useLocale()
   const { data: session } = useSession()
   
   // Draggable state
@@ -92,7 +92,7 @@ export default function MobileAvatarButton({ className = '' }: MobileAvatarButto
 
     // Small delay to allow modals to close smoothly
     setTimeout(() => {
-      router.push(ROUTES.PROFILE(locale))
+      router.push(ROUTES.PROFILE(locale.toLowerCase() as Locale))
     }, 150)
   }
 

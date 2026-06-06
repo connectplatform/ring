@@ -133,10 +133,6 @@ firestore-debug.log
 .env.local.template
 docker.env.template
 
-# Scripts (keep only essential ones)
-scripts/setup*.sh
-scripts/deploy*.sh
-
 # Documentation directories
 AI-CONTEXT/
 
@@ -159,4 +155,8 @@ yarn.lock
 *.sln
 *.sw?
 .cursor/*
-AI-CONTEXT/*
+
+# Infrastructure scripts
+infrastructure/*
+k8s/*
+scripts/*

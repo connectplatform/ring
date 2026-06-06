@@ -33,7 +33,8 @@ import {
   ShoppingCart, 
   MessageCircle,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  Zap
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -44,7 +45,7 @@ import { useOptionalStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { Badge } from '@/components/ui/badge'
 import { useTranslations } from 'next-intl'
 
@@ -79,6 +80,7 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
     setPrevCount(count)
   }, [count, prevCount])
 
+  // Connect.Software Scientific Color Palette
   const colorMap = {
     blue: {
       bg: 'from-blue-500/20 to-cyan-500/20',
@@ -548,7 +550,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
   const [mounted, setMounted] = useState(false)
 
   // Real-time data from shared context
-  const { balance: ringBalance, isLoading: balanceLoading } = useCreditBalanceContext()
+  const { balance: tokenBalance, isLoading: balanceLoading } = useCreditBalanceContext()
   const { unreadCount: notificationCount } = useUnreadCount()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
@@ -584,8 +586,8 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
     return num.toFixed(2)
   }
 
-  const displayBalance = formatBalance(ringBalance?.amount)
-  const hasLowBalance = parseFloat(ringBalance?.amount || '0') < 10
+  const displayBalance = formatBalance(tokenBalance?.amount)
+  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 10
 
   if (!session?.user || !mounted) return null
 

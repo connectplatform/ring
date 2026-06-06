@@ -1,0 +1,227 @@
+{
+  "title": "Pet-Friendly Places",
+  "searchPlaces": "Search Places",
+  "nearbyPlaces": "Nearby Places",
+  "addPlace": "Add Place",
+  "editPlace": "Edit Place",
+  "deletePlace": "Delete Place",
+  "noPlaces": "No places found",
+  "discoverPlaces": "Discover pet-friendly places around you!",
+  
+  "types": {
+    "restaurant": "Restaurant",
+    "cafe": "Cafe",
+    "park": "Park",
+    "hotel": "Hotel",
+    "vet_clinic": "Veterinary Clinic",
+    "pet_store": "Pet Store",
+    "grooming": "Grooming Salon",
+    "training": "Training Center",
+    "daycare": "Pet Daycare",
+    "dog_park": "Dog Park",
+    "beach": "Beach",
+    "hiking_trail": "Hiking Trail",
+    "other": "Other"
+  },
+  
+  "priceRanges": {
+    "$": "Budget",
+    "$$": "Moderate",
+    "$$$": "Expensive",
+    "$$$$": "Luxury"
+  },
+  
+  "amenities": {
+    "title": "Amenities",
+    "water_bowls": "Water Bowls",
+    "pet_menu": "Pet Menu",
+    "waste_bags": "Waste Bags",
+    "leash_required": "Leash Required",
+    "off_leash_area": "Off-Leash Area",
+    "pet_grooming": "Pet Grooming",
+    "pet_parking": "Pet Parking",
+    "outdoor_seating": "Outdoor Seating",
+    "shade": "Shaded Areas",
+    "pet_playground": "Pet Playground"
+  },
+  
+  "petPolicy": {
+    "title": "Pet Policy",
+    "allowsDogs": "Dogs Allowed",
+    "allowsCats": "Cats Allowed",
+    "allowsSmallPets": "Small Pets Allowed",
+    "sizeLimit": "Maximum Size",
+    "indoorAllowed": "Indoor Access",
+    "outdoorAllowed": "Outdoor Access",
+    "leashRequired": "Leash Required",
+    "sizeLimits": {
+      "small": "Small Pets Only",
+      "medium": "Up to Medium Size",
+      "large": "Up to Large Size",
+      "any": "All Sizes Welcome"
+    }
+  },
+  
+  "fields": {
+    "name": "Place Name",
+    "placeType": "Type",
+    "description": "Description",
+    "address": "Address",
+    "addressLine1": "Street Address",
+    "addressLine2": "Apartment, Suite, etc.",
+    "city": "City",
+    "state": "State/Region",
+    "postalCode": "Postal Code",
+    "country": "Country",
+    "phone": "Phone",
+    "email": "Email",
+    "website": "Website",
+    "workingHours": "Working Hours",
+    "entryFee": "Entry Fee",
+    "currency": "Currency",
+    "priceRange": "Price Range",
+    "photos": "Photos",
+    "primaryPhoto": "Primary Photo",
+    "coverPhoto": "Cover Photo",
+    "isVerified": "Verified",
+    "isActive": "Active",
+    "visibleOnMap": "Visible on Map"
+  },
+  
+  "workingHours": {
+    "title": "Working Hours",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+    "open": "Open",
+    "close": "Close",
+    "closed": "Closed",
+    "24hours": "Open 24 Hours",
+    "allWeek": "All Week"
+  },
+  
+  "subscription": {
+    "title": "Subscription Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "gracePeriod": "Grace Period",
+    "suspended": "Suspended",
+    "manageSubscription": "Manage Subscription",
+    "renewSubscription": "Renew Subscription",
+    "upgradeSubscription": "Upgrade Plan",
+    "subscriptionRequired": "Active subscription required to be visible on map"
+  },
+  
+  "vendor": {
+    "title": "Vendor Status",
+    "isVendor": "Operating as Vendor",
+    "becomeVendor": "Become a Vendor",
+    "vendorTier": "Vendor Tier",
+    "trustScore": "Trust Score",
+    "tiers": {
+      "NEW": "New",
+      "BASIC": "Basic",
+      "VERIFIED": "Verified",
+      "TRUSTED": "Trusted",
+      "PREMIUM": "Premium"
+    }
+  },
+  
+  "map": {
+    "title": "Map View",
+    "listView": "List View",
+    "nearMe": "Near Me",
+    "searchRadius": "Search Radius",
+    "getDirections": "Get Directions",
+    "currentLocation": "Current Location",
+    "distance": "Distance",
+    "showOnMap": "Show on Map"
+  },
+  
+  "search": {
+    "placeholder": "Search by name, type, or location...",
+    "filterByType": "Filter by Type",
+    "filterByAmenities": "Filter by Amenities",
+    "filterByPetPolicy": "Filter by Pet Policy",
+    "radius": "Radius",
+    "withinKm": "within {{km}} km",
+    "sortBy": "Sort By",
+    "sortOptions": {
+      "distance": "Distance",
+      "rating": "Rating",
+      "newest": "Newest",
+      "popular": "Most Popular"
+    }
+  },
+  
+  "profile": {
+    "title": "Place Profile",
+    "viewProfile": "View Profile",
+    "editProfile": "Edit Profile",
+    "shareProfile": "Share Profile",
+    "reportPlace": "Report Place",
+    "claimPlace": "Claim Place",
+    "stats": "Statistics",
+    "totalVisits": "Total Visits",
+    "totalReviews": "Total Reviews",
+    "averageRating": "Average Rating"
+  },
+  
+  "actions": {
+    "savePlace": "Save Place",
+    "updatePlace": "Update Place",
+    "cancelEdit": "Cancel",
+    "deletePlaceConfirm": "Are you sure you want to delete this place?",
+    "uploadPhoto": "Upload Photo",
+    "setAsPrimary": "Set as Primary Photo",
+    "setCover": "Set as Cover Photo",
+    "removePhoto": "Remove Photo",
+    "addToFavorites": "Add to Favorites",
+    "removeFromFavorites": "Remove from Favorites",
+    "checkIn": "Check In",
+    "writeReview": "Write Review"
+  },
+  
+  "validation": {
+    "nameRequired": "Place name is required",
+    "typeRequired": "Place type is required",
+    "addressRequired": "Address is required",
+    "locationRequired": "Location coordinates are required",
+    "phoneInvalid": "Invalid phone number",
+    "emailInvalid": "Invalid email address",
+    "websiteInvalid": "Invalid website URL",
+    "photosLimit": "Maximum 20 photos allowed"
+  },
+  
+  "success": {
+    "created": "Place created successfully!",
+    "updated": "Place updated successfully!",
+    "deleted": "Place deleted",
+    "photoUploaded": "Photo uploaded successfully",
+    "photoRemoved": "Photo removed",
+    "addedToFavorites": "Added to favorites",
+    "removedFromFavorites": "Removed from favorites",
+    "checkedIn": "Checked in successfully!"
+  },
+  
+  "errors": {
+    "loadFailed": "Failed to load places",
+    "saveFailed": "Failed to save place",
+    "deleteFailed": "Failed to delete place",
+    "uploadFailed": "Photo upload failed",
+    "locationAccessDenied": "Location access denied. Please enable location services.",
+    "geolocationNotSupported": "Geolocation is not supported by your browser"
+  },
+  
+  "nearby": {
+    "title": "Nearby Places",
+    "searching": "Searching nearby places...",
+    "foundPlaces": "Found {{count}} places within {{km}} km",
+    "noPlacesFound": "No pet-friendly places found nearby. Try increasing the search radius.",
+    "locationPermission": "Please allow location access to find nearby places"
+  }
+}

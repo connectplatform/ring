@@ -27,9 +27,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, routing } from '@/i18n/routing'
 import { useTranslations, useLocale } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { useTheme } from 'next-themes'
 import { ProfileContentProps } from '@/types/profile'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
@@ -143,6 +143,7 @@ export default function ProfileContent({
   const t = useTranslations('modules.profile')
   const tCommon = useTranslations('common')
   const router = useRouter()
+  const pathname = usePathname()
   const { getKycStatus, refreshSession } = useAuth()
   const { update: updateSession } = useSession()
   const { setTheme, theme, systemTheme } = useTheme()
@@ -209,10 +210,13 @@ export default function ProfileContent({
 
   // Language switching functionality
   const switchLocale = useCallback((newLocale: string) => {
-    const pathWithoutLocale = window.location.pathname.replace(/^\/[a-z]{2}/, '') || '/'
-    const newPath = `/${newLocale}${pathWithoutLocale}`
-    router.push(newPath, { scroll: false })
-  }, [router])
+    localStorage.setItem('ring-locale', newLocale)
+    document.cookie = `ring-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
+
+    // pathname from @/i18n/routing already strips the locale prefix correctly.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    router.push(pathname as any, { locale: newLocale as any, scroll: false })
+  }, [router, pathname])
 
   // Check if there are unsaved changes
   const hasCommunicationsChanges = JSON.stringify(communicationsForm) !== JSON.stringify({
@@ -535,8 +539,9 @@ export default function ProfileContent({
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', 'avatar')
+      formData.append('purpose', 'profile:avatar')
 
-      const response = await fetch('/api/profile/upload', {
+      const response = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
       })
@@ -563,8 +568,10 @@ export default function ProfileContent({
       formData.append('file', document.file)
       formData.append('type', 'kyc')
       formData.append('documentType', document.type)
+      formData.append('purpose', 'profile:kyc')
+      formData.append('fileType', document.type)
 
-      const response = await fetch('/api/profile/upload', {
+      const response = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
       })
@@ -814,7 +821,7 @@ export default function ProfileContent({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(ROUTES.SETTINGS(locale))}
+                      onClick={() => router.push(ROUTES.SETTINGS(locale.toLowerCase() as Locale) as any)}
                       className="hidden md:flex md:w-auto"
                     >
                       <Settings className="mr-2 h-4 w-4" />
@@ -823,7 +830,7 @@ export default function ProfileContent({
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => signOut({ redirect: true, redirectTo: `/${locale}/login` })}
+                      onClick={() => signOut({ redirect: true, redirectTo: `/${locale.toLowerCase()}/login` })}
                       className="w-full md:w-auto"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -856,7 +863,7 @@ export default function ProfileContent({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/${locale}/profile/edit`)}
+                        onClick={() => router.push(`/${locale.toLowerCase()}/profile/edit` as any)}
                         className="flex items-center gap-1"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -1640,7 +1647,7 @@ export default function ProfileContent({
               {activeTab === 'wallet' && (
                 <div className="space-y-6">
                 <WalletSection
-                  locale={locale}
+                  locale={locale.toLowerCase() as Locale}
                   embedded={true}
                 />
               </div>

@@ -102,5 +102,11 @@
         "description": "Message delivery was cancelled before reaching the recipient."
       }
     }
+  },
+  "pushPrompt": {
+    "title": "Включить push-уведомления",
+    "description": "Получайте обновления в реальном времени о коллаборациях, комментариях и статусе публикаций.",
+    "enable": "Включить",
+    "notNow": "Не сейчас"
   }
 }

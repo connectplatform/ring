@@ -12,10 +12,11 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { useOptionalStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
-import { PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
+import { getDefaultStorePriceBounds, PRICE_MIN, type StoreFilterState } from '@/lib/store-constants'
+import type { CatalogPriceBounds } from '@/lib/store-price-range'
 import {
   Collapsible,
   CollapsibleContent,
@@ -71,8 +72,9 @@ const productCategories = [
 const currencies = ['USD', 'UAH', 'DAAR', 'DAARION']
 
 interface StoreFiltersPanelPropsWithPersisted extends StoreFiltersPanelProps {
-  persistedFilters?: StoreFilterState // Filters from localStorage/parent
-  priceRangeFromDB?: { minPrice: number; maxPrice: number } | null // Price range from database
+  persistedFilters?: StoreFilterState
+  /** Catalog slice bounds from getStoreProducts (updated when search/category/stock changes). */
+  catalogPriceBounds?: CatalogPriceBounds | null
 }
 
 export default function StoreFiltersPanel({
@@ -82,7 +84,7 @@ export default function StoreFiltersPanel({
   filteredRecords,
   onFiltersApplied,
   persistedFilters,
-  priceRangeFromDB
+  catalogPriceBounds,
 }: StoreFiltersPanelPropsWithPersisted) {
   const t = useTranslations('modules.store')
   const store = useOptionalStore()
@@ -91,8 +93,10 @@ export default function StoreFiltersPanel({
   const currencyContext = useOptionalCurrency()
   const displayCurrency = currencyContext?.currency || 'UAH'
 
+  const envDefaults = getDefaultStorePriceBounds()
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['categories']))
-  const [priceMax, setPriceMax] = useState<number | null>(null)
+  const [sliderMax, setSliderMax] = useState(envDefaults.maxPrice)
+  const priceFilterEnabled = catalogPriceBounds?.enabled ?? false
 
   // Track if we're currently applying filters to prevent loops
   const isApplyingFilters = useRef(false)
@@ -136,34 +140,26 @@ export default function StoreFiltersPanel({
     }
   }, [filters, onFiltersApplied])
 
-  // Fetch price range - one time only
+  // Sync slider bounds when catalog result set changes (server action on filter change)
   useEffect(() => {
-    let isCancelled = false
-    const fetchPriceRange = async () => {
-      try {
-        const res = await fetch('/api/store/price-range', { cache: 'no-store' })
-        if (!isCancelled && res.ok) {
-          const data = await res.json()
-          if (data.maxPrice && data.maxPrice > 0) {
-            const dynamicMax = Math.ceil(data.maxPrice)
-            setPriceMax(dynamicMax)
-            // Only update if not already set
-            setFilters(current =>
-              current.priceMax === null
-                ? { ...current, priceMax: dynamicMax }
-                : current
-            )
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch price range:', err)
+    if (!catalogPriceBounds) return
+
+    setSliderMax(catalogPriceBounds.maxPrice)
+
+    if (!catalogPriceBounds.enabled) {
+      return
+    }
+
+    setFilters((current) => {
+      const next = {
+        ...current,
+        priceMin: catalogPriceBounds.minPrice,
+        priceMax: catalogPriceBounds.maxPrice,
       }
-    }
-    void fetchPriceRange()
-    return () => {
-      isCancelled = true
-    }
-  }, []) // ✅ Empty deps, runs once
+      isApplyingFilters.current = true
+      return next
+    })
+  }, [catalogPriceBounds])
 
   // ✅ Debounced price change handler
   const handlePriceChange = useCallback((values: number[]) => {
@@ -204,7 +200,7 @@ export default function StoreFiltersPanel({
       search: '',
       categories: [],
       priceMin: PRICE_MIN,
-      priceMax: priceMax,
+      priceMax: priceFilterEnabled ? catalogPriceBounds?.maxPrice ?? sliderMax : null,
       currency: displayCurrency,
       vendor: '',
       inStock: null,
@@ -212,7 +208,7 @@ export default function StoreFiltersPanel({
     }
     setFilters(clearedFilters)
     onFiltersApplied?.(clearedFilters)
-  }, [priceMax, displayCurrency, onFiltersApplied])
+  }, [priceFilterEnabled, catalogPriceBounds, sliderMax, displayCurrency, onFiltersApplied])
 
   const toggleCategory = useCallback((categoryId: string) => {
     updateFilters({
@@ -227,11 +223,13 @@ export default function StoreFiltersPanel({
     return filters.search ||
       filters.categories.length > 0 ||
       filters.priceMin !== PRICE_MIN ||
-      filters.priceMax !== priceMax ||
+      (priceFilterEnabled &&
+        (filters.priceMin !== (catalogPriceBounds?.minPrice ?? PRICE_MIN) ||
+          filters.priceMax !== (catalogPriceBounds?.maxPrice ?? sliderMax))) ||
       filters.currency !== 'USD' ||
       filters.vendor ||
       filters.inStock !== null
-  }, [filters, priceMax])
+  }, [filters, priceFilterEnabled, catalogPriceBounds, sliderMax])
 
   const displayRecords = filteredRecords !== undefined ? filteredRecords : totalRecords
 
@@ -337,14 +335,21 @@ export default function StoreFiltersPanel({
                     </Button>
                   </Badge>
                 ))}
-                {(filters.priceMin !== PRICE_MIN || filters.priceMax !== priceMax) && (
+                {priceFilterEnabled &&
+                  (filters.priceMin !== (catalogPriceBounds?.minPrice ?? PRICE_MIN) ||
+                    filters.priceMax !== (catalogPriceBounds?.maxPrice ?? sliderMax)) && (
                   <Badge variant="secondary" className="text-xs">
                     💰 {filters.priceMin} - {filters.priceMax} {filters.currency}
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-auto w-auto p-0 ml-1 hover:bg-transparent"
-                      onClick={() => updateFilters({ priceMin: PRICE_MIN, priceMax: priceMax })}
+                      onClick={() =>
+                        updateFilters({
+                          priceMin: catalogPriceBounds?.minPrice ?? PRICE_MIN,
+                          priceMax: catalogPriceBounds?.maxPrice ?? sliderMax,
+                        })
+                      }
                     >
                       <X className="h-2 w-2" />
                     </Button>
@@ -356,27 +361,46 @@ export default function StoreFiltersPanel({
 
           <Separator />
 
-          {/* Price Range - Always Visible Slider */}
+          {/* Price Range — bounds follow catalog filters; disabled when no products */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">{t('filters.priceRange')}</Label>
-              <span className="text-xs text-muted-foreground">
-                {filters.priceMin} - {filters.priceMax} {displayCurrency}
-              </span>
+              <Label
+                className={cn(
+                  'text-sm font-medium',
+                  !priceFilterEnabled && 'text-muted-foreground',
+                )}
+              >
+                {t('filters.priceRange')}
+              </Label>
+              {priceFilterEnabled && (
+                <span className="text-xs text-muted-foreground">
+                  {filters.priceMin} - {filters.priceMax} {displayCurrency}
+                </span>
+              )}
             </div>
 
-            {/* Price Slider (debounced) - Safe fallback values to prevent crashes */}
-            <Slider
-              min={PRICE_MIN}
-              max={priceMax || 1000}
-              step={10}
-              value={[
-                Math.max(PRICE_MIN, filters.priceMin ?? PRICE_MIN),
-                Math.min(filters.priceMax ?? priceMax ?? 1000, priceMax ?? 1000)
-              ]}
-              onValueChange={handlePriceChange} // ✅ Now debounced
-              className="w-full"
-            />
+            {!priceFilterEnabled ? (
+              <p className="text-xs text-muted-foreground">{t('filters.priceRangeUnavailable')}</p>
+            ) : (
+              <Slider
+                min={catalogPriceBounds?.minPrice ?? PRICE_MIN}
+                max={catalogPriceBounds?.maxPrice ?? sliderMax}
+                step={10}
+                disabled={!priceFilterEnabled}
+                value={[
+                  Math.max(
+                    catalogPriceBounds?.minPrice ?? PRICE_MIN,
+                    filters.priceMin ?? PRICE_MIN,
+                  ),
+                  Math.min(
+                    filters.priceMax ?? catalogPriceBounds?.maxPrice ?? sliderMax,
+                    catalogPriceBounds?.maxPrice ?? sliderMax,
+                  ),
+                ]}
+                onValueChange={handlePriceChange}
+                className="w-full"
+              />
+            )}
           </div>
 
           <Separator />

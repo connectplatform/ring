@@ -1,0 +1,24 @@
+---
+title: Ethereum-кошельки (Wagmi v3)
+description: Коннекторы EVM, переменные окружения и клоны Ring — Wagmi без RainbowKit.
+last_modified: '2026-05-10'
+tags: ['web3', 'wagmi', 'viem', 'walletconnect', 'ethereum']
+---
+
+# Ethereum-кошельки (Wagmi v3)
+
+Клон Ring использует **Wagmi v3** + **viem 2.x** и **собственный UI** подключения кошелька (без `@rainbow-me/rainbowkit`). Список кошельков задаётся **коннекторами Wagmi** в `lib/wagmi-config.ts`.
+
+## Коннекторы и peer-зависимости
+
+- `injected()`, `metaMask()` — peer **`@metamask/connect-evm`**.
+- `coinbaseWallet()` — peer **`@coinbase/wallet-sdk`**.
+- `walletConnect()` — peer **`@walletconnect/ethereum-provider`**, включается только при **`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`**.
+
+## SSR
+
+В Ring Platform для SSR используется **cookie storage** в `wagmi-config`. В клонах согласуйте с вашим `Web3Provider`.
+
+## Полная версия на английском
+
+Технические детали: **[English version →](/docs/integrations/ethereum-wallets)**.

@@ -1,21 +1,26 @@
 ---
-title: Index
-description: Index documentation for Ring Platform
+title: Обзор архитектуры
+description: Документация по архитектуре Ring Platform
 ---
 
-# Architecture Overview
+import { Callout } from '@/components/docs/callout'
 
-High-level diagram of Ring components and data flow.
+# Обзор архитектуры
+
+Схема основных компонентов Ring и потоков данных. Режимы базы и push настраиваются через **`DB_BACKEND_MODE`** (см. отдельную страницу ниже).
 
 <Mermaid>
 {`flowchart TD
   U[User] --> A[Next.js App]
   A --> B[Auth.js v5]
-  A --> C[Firebase / Firestore]
+  A --> C[(PostgreSQL)]
+  A --> FB[Firebase FCM / push]
   A --> D[Vercel Blob]
   A --> E[Realtime: WebSocket/SSE]`}
 </Mermaid>
 
-import { Callout } from 'fumadocs-ui/components/callout'
+## Режимы бэкенда и базы данных
 
-<Callout type="info">See sections for Auth, Realtime, Security, and Data Model.</Callout>
+Для работы приложения нужен **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full` или `supabase-fcm`). В продакшене с приоритетом Postgres Firebase обычно используется для **FCM**, а не как основное хранилище Firestore. Полная матрица, **`DB_HYBRID_MODE`**, Tunnel и Supabase: **[Режимы бэкенда и базы данных](/ru/library/architecture/backend-modes-and-databases)**.
+
+<Callout type="info">Подробнее см. разделы: аутентификация, real-time, безопасность, модель данных.</Callout>

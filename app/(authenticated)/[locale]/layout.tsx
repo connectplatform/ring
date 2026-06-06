@@ -1,11 +1,14 @@
 import React, { Suspense } from 'react'
+import { setRequestLocale } from 'next-intl/server'
 import { NotificationProvider } from '@/features/notifications/components/notification-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import Navigation from '@/components/navigation/navigation'
-import { routing } from '@/i18n-config'
-import { notFound, redirect } from 'next/navigation'
+import type { Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
+import { notFound } from 'next/navigation'
+import { localizedRedirect } from '@/lib/i18n-server-redirect'
 import { setupResourcePreloading } from '@/lib/preload/setup'
-import { buildMessages } from '@/lib/i18n'
+import { getMessages } from 'next-intl/server'
 import { auth } from '@/auth'
 import { connection } from 'next/server'
 
@@ -22,15 +25,17 @@ export default async function AuthenticatedLocaleLayout({ children, params }: Au
   const { locale } = await params
   
   // Validate locale using next-intl routing config
-  if (!routing.locales.includes(locale as any)) {
+  if (!routing.locales.includes(locale as Locale)) {
     notFound()
   }
-  
+  const validLocale: Locale = locale as Locale
+  setRequestLocale(validLocale)
+
   setupResourcePreloading()
-  const messages = await buildMessages(locale)
+  const messages = await getMessages()
   
   return (
-    <I18nProvider locale={locale} messages={messages}>
+    <I18nProvider locale={validLocale} messages={messages}>
       <NotificationProvider>
         <div className="flex flex-col min-h-screen">
           <Navigation />
@@ -42,7 +47,7 @@ export default async function AuthenticatedLocaleLayout({ children, params }: Au
               </div>
             </main>
           }>
-            <AuthGuard locale={locale}>
+            <AuthGuard locale={validLocale}>
               {children}
             </AuthGuard>
           </Suspense>
@@ -53,12 +58,12 @@ export default async function AuthenticatedLocaleLayout({ children, params }: Au
 }
 
 /** Auth guard - runs inside Suspense, streams after shell */
-async function AuthGuard({ children, locale }: { children: React.ReactNode; locale: string }) {
+async function AuthGuard({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   await connection()
   
   const session = await auth()
   if (!session) {
-    redirect(`/${locale}/login`)
+    localizedRedirect({ locale, href: '/login' })
   }
   
   return <main className="flex-grow">{children}</main>

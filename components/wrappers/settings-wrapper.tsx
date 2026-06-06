@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface SettingsWrapperProps {
   children: React.ReactNode

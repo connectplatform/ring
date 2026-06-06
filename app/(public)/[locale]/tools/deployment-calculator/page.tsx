@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { buildMessages } from '@/lib/i18n';
 import { DeploymentCalculator } from '@/components/tools/deployment-calculator';
 
-export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const messages = await buildMessages(locale);
   const t = messages['deployment-calculator'] || {};

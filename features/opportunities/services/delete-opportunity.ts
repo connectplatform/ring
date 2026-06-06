@@ -12,8 +12,8 @@ import { Opportunity } from '@/features/opportunities/types'
 import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { publishToTunnel } from '@/lib/tunnel/publisher'
 import { revalidatePath } from 'next/cache'
+import { publishToChannel } from '@/lib/tunnel/publisher'
 
 /**
  * Deletes an opportunity by its ID from the Firestore collection and removes any associated data from Realtime Database.
@@ -170,7 +170,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
 
     // Step 6: Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
     try {
-      await publishToTunnel('opportunities', 'opportunity:deleted', { id });
+      await publishToChannel('opportunities', 'opportunity:deleted', { id });
       logger.info(`Services: deleteOpportunity - Real-time deletion notification sent for opportunity ${id}`);
     } catch (error) {
       logger.warn('Services: deleteOpportunity - Failed to send real-time update, continuing...', error);

@@ -1,23 +1,23 @@
 -- ============================================================================
 -- PostgreSQL Schema for Ring Platform
 -- ============================================================================
--- Version: 4.0.0
+-- Version: 4.0.1
 -- Date: 2026-02-10
 -- Database: ring_platform (or project-specific: ring_zemna_ai, ring_greenfood_live, etc.)
 -- Purpose: SINGLE SOURCE OF TRUTH for all Ring Platform database schemas
--- Includes: Core, social, marketplace, store, content, FCM, reference data
+-- Includes: Core, Auth.js adapter tables (accounts/sessions/verification_tokens), social, marketplace, store, content, FCM, reference data
 -- Compatible with Ring Platform base architecture and all Ring clones
 -- Replaces: scripts/postgres-schema.sql (deprecated)
 
 -- ============================================================================
--- POSTGIS EXTENSIONS (Optional Geolocation - Reverse Propagation from ring-pet-friendly)
+-- POSTGIS EXTENSIONS (Optional Geolocation - Reverse Propagation from ring-petfriend-app)
 -- ============================================================================
 -- Purpose: Enable spatial/geographic data types and functions for location-based features
 -- Use Cases: Store delivery radius, entity locations, event venues, restaurant finders, real estate
 -- Performance: Zero overhead if not used (PostgreSQL skips unused extensions)
 -- Activation: Safe to run even if extensions already exist (IF NOT EXISTS)
 -- Note: PostGIS enables GEOGRAPHY columns for accurate earth-surface distance calculations
--- Propagated from: ring-pet-friendly (2026-02-17) - Battle-tested geolocation patterns
+-- Propagated from: ring-petfriend-app (2026-02-17) - Battle-tested geolocation patterns
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS postgis_topology;
@@ -119,6 +119,53 @@ CREATE INDEX IF NOT EXISTS idx_usernames_data_gin ON usernames USING GIN (data);
 COMMENT ON TABLE usernames IS 'Username reservations with 5-minute expiration and confirmation tracking';
 COMMENT ON COLUMN usernames.id IS 'Lowercase username key (unique identifier)';
 COMMENT ON COLUMN usernames.data IS 'Reservation: userId, username (original case), reservedAt, expiresAt, confirmed, confirmedAt';
+
+-- ============================================================================
+-- AUTH.JS (NEXT-AUTH) ADAPTER TABLES
+-- JSONB document model (id + data + timestamps), same shape as users.
+-- OAuth account links, database sessions, verification tokens. FCM may stay on Firebase.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS accounts (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_accounts_provider ON accounts ((data->>'provider'), (data->>'providerAccountId'));
+CREATE INDEX IF NOT EXISTS idx_accounts_data_gin ON accounts USING GIN (data);
+
+COMMENT ON TABLE accounts IS 'Auth.js OAuth account links (provider + providerAccountId → userId)';
+COMMENT ON COLUMN accounts.data IS 'provider, providerAccountId, userId, tokens, scope, etc.';
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions ((data->>'sessionToken'));
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_sessions_data_gin ON sessions USING GIN (data);
+
+COMMENT ON TABLE sessions IS 'Auth.js database sessions (sessionToken → userId, expires)';
+COMMENT ON COLUMN sessions.data IS 'sessionToken, userId, expires';
+
+CREATE TABLE IF NOT EXISTS verification_tokens (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_lookup ON verification_tokens ((data->>'identifier'), (data->>'token'));
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_data_gin ON verification_tokens USING GIN (data);
+
+COMMENT ON TABLE verification_tokens IS 'Auth.js email magic-link / verification tokens';
+COMMENT ON COLUMN verification_tokens.data IS 'identifier, token, expires';
 
 -- Entities table (Organizations, profiles, etc.)
 CREATE TABLE IF NOT EXISTS entities (
@@ -561,7 +608,7 @@ VALUES ('4.0.0', 'Unified schema: merged core tables from scripts/postgres-schem
 ON CONFLICT (version) DO NOTHING;
 
 -- ============================================================================
--- OPTIONAL: BUSINESS SUBSCRIPTIONS (Reverse propagated from ring-pet-friendly)
+-- OPTIONAL: BUSINESS SUBSCRIPTIONS (Reverse propagated from ring-petfriend-app)
 -- ============================================================================
 -- Purpose: Enable B2B recurring billing for Ring clones (vendor tiers, entity promotions, featured listings)
 -- Use Cases: Multi-vendor marketplaces, premium entity visibility, opportunity promotion, SaaS B2B models
@@ -635,7 +682,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_next_payment ON subscriptions((data
     WHERE (data->>'status') = 'active';
 CREATE INDEX IF NOT EXISTS idx_subscriptions_data_gin ON subscriptions USING GIN(data);
 
-COMMENT ON TABLE subscriptions IS 'Business subscription billing via Stripe (one-time fees + recurring billing) - Reverse propagated from ring-pet-friendly';
+COMMENT ON TABLE subscriptions IS 'Business subscription billing via Stripe (one-time fees + recurring billing) - Reverse propagated from ring-petfriend-app';
 COMMENT ON COLUMN subscriptions.data IS 'Subscription data: Stripe IDs, pricing, status, billing periods, grace period, visibility control';
 
 -- Trigger: Auto-update updated_at timestamp
@@ -898,3 +945,34 @@ SELECT
     COUNT(*) as total_tables
 FROM pg_tables
 WHERE schemaname = 'public';
+
+-- ============================================================================
+-- TELEGRAM ADMIN BOT AUDIT TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS telegram_admin_audit (
+    id VARCHAR(255) PRIMARY KEY,
+    telegram_id VARCHAR(50) NOT NULL,
+    user_id VARCHAR(255) REFERENCES users(id),
+    raw_message TEXT NOT NULL,
+    parsed_intent JSONB,
+    action_taken JSONB,
+    result JSONB,
+    error TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_audit_telegram_id ON telegram_admin_audit(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_audit_user_id ON telegram_admin_audit(user_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_audit_created_at ON telegram_admin_audit(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_telegram_audit_parsed_intent_gin ON telegram_admin_audit USING GIN(parsed_intent);
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users ((data->'communication'->>'telegramId'));
+
+COMMENT ON TABLE telegram_admin_audit IS 'Audit log for Admin Telegram Bot operations (PALADIN security layer)';
+COMMENT ON COLUMN telegram_admin_audit.telegram_id IS 'Telegram Chat ID of sender';
+COMMENT ON COLUMN telegram_admin_audit.user_id IS 'Ring Platform user ID (ADMIN/SUPERADMIN)';
+COMMENT ON COLUMN telegram_admin_audit.raw_message IS 'Original message text from Telegram';
+COMMENT ON COLUMN telegram_admin_audit.parsed_intent IS 'Anthropic Claude parsed intent and tool calls';
+COMMENT ON COLUMN telegram_admin_audit.action_taken IS 'Ring API operations executed';
+COMMENT ON COLUMN telegram_admin_audit.result IS 'Operation results and response data';
+COMMENT ON COLUMN telegram_admin_audit.error IS 'Error message if operation failed';

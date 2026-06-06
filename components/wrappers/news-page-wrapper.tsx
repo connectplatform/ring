@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -39,14 +39,14 @@ interface NewsPageWrapperProps {
   children: React.ReactNode
   locale: string
   categoryInfo: Record<string, { name: string; description: string; color: string; icon: string; articleCount: number }>
-  translations: any
+  translations?: any
 }
 
 export default function NewsPageWrapper({ 
   children, 
   locale, 
   categoryInfo,
-  translations 
+  translations = {},
 }: NewsPageWrapperProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)

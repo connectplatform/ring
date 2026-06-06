@@ -1,13 +1,16 @@
 import React, { Suspense } from 'react'
+import { setRequestLocale } from 'next-intl/server'
 import { NotificationProvider } from '@/features/notifications/components/notification-provider'
 import { I18nProvider } from '@/components/providers/i18n-provider'
 import Navigation from '@/components/navigation/navigation'
-import { routing } from '@/i18n-config'
-import { notFound, redirect } from 'next/navigation'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { notFound } from 'next/navigation'
+import { localizedRedirect } from '@/lib/i18n-server-redirect'
 import { setupResourcePreloading } from '@/lib/preload/setup'
-import { buildMessages } from '@/lib/i18n'
+import { getMessages } from 'next-intl/server'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { connection } from 'next/server'
 
 interface AdminLocaleLayoutProps {
@@ -23,15 +26,17 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
   const { locale } = await params
   
   // Validate locale using next-intl routing config
-  if (!routing.locales.includes(locale as any)) {
+  if (!routing.locales.includes(locale as Locale)) {
     notFound()
   }
-  
+  const validLocale = locale as Locale
+  setRequestLocale(validLocale)
+
   setupResourcePreloading()
-  const messages = await buildMessages(locale)
+  const messages = await getMessages()
   
   return (
-    <I18nProvider locale={locale} messages={messages}>
+    <I18nProvider locale={validLocale} messages={messages}>
       <NotificationProvider>
         <div className="flex flex-col min-h-screen">
           <Navigation />
@@ -43,7 +48,7 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
               </div>
             </main>
           }>
-            <AdminAuthGuard locale={locale}>
+            <AdminAuthGuard locale={validLocale}>
               {children}
             </AdminAuthGuard>
           </Suspense>
@@ -54,16 +59,16 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
 }
 
 /** Auth guard - runs inside Suspense, streams after shell */
-async function AdminAuthGuard({ children, locale }: { children: React.ReactNode; locale: string }) {
+async function AdminAuthGuard({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   await connection()
   
   const session = await auth()
   if (!session) {
-    redirect(`/${locale}/login`)
+    localizedRedirect({ locale, href: '/login' })
   }
   
-  if (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.SUPERADMIN) {
-    redirect(`/${locale}/unauthorized`)
+  if (!isPlatformAdmin(session.user.role)) {
+    localizedRedirect({ locale, href: '/unauthorized' })
   }
   
   return <main className="flex-grow pt-0">{children}</main>

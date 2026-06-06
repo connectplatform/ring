@@ -2,7 +2,7 @@
  * Ring Platform - Geolocation Types
  * 
  * TypeScript interfaces for PostGIS-powered geolocation features
- * Reverse propagated from: ring-pet-friendly (2026-02-17)
+ * Reverse propagated from: ring-petfriend-app (2026-02-17)
  * 
  * @description
  * Generic geolocation types supporting ANY location-based Ring Platform feature:

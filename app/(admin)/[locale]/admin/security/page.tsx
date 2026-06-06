@@ -1,7 +1,13 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import { ROUTES } from '@/constants/routes';
+import { routing } from '@/i18n/routing';
+import type { Locale } from '@/i18n/shared';
+import { getTranslations } from 'next-intl/server';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { connection } from 'next/server';
 import { Shield, AlertTriangle, Lock, Unlock, Eye, KeyRound, Globe, User, Server, Database, Wifi, Activity, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown, Filter, Search, Download, RefreshCw, AlertCircle, UserCheck, FileText, Settings } from 'lucide-react';
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 
 
 // Types for security system
@@ -59,6 +67,30 @@ interface SecurityRule {
   triggerCount: number;
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  const t = await getTranslations('modules.admin')
+  return buildLocalizedMetadata({
+    locale,
+    path: 'admin.security',
+    pathname: '/admin/security',
+    fallback: {
+      title: `${t('securityCenter')} | Connect.Software Admin`,
+      description: 'Monitor Connect.Software security and logs.',
+    },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false, noarchive: true, nosnippet: true, noimageindex: true },
+  })
+}
 export default async function SecurityPage({ 
   params 
 }: {
@@ -67,18 +99,26 @@ export default async function SecurityPage({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale);
+  const tt = await getTranslations('modules.admin');
+  const adminLabels = buildModulesAdminLabels(tt);
+  const t = (key: string) => {
+    try {
+      return tt(key as any);
+    } catch {
+      return undefined;
+    }
+  };
   
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/security`);
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADMIN_SECURITY(validLocale))}`);
   }
 
-  if (session.user.role !== 'admin') {
-    redirect(`/${validLocale}/unauthorized`);
+  if (!isPlatformAdmin(session.user.role)) {
+    redirect(ROUTES.UNAUTHORIZED(validLocale));
   }
 
   // Mock data - In production, this would come from your security monitoring service
@@ -156,7 +196,7 @@ export default async function SecurityPage({
       severity: 'high',
       user: {
         id: 'admin1',
-        email: 'admin@ring.ck.ua',
+        email: 'admin@zemna.ai',
         role: 'admin',
         ip: '10.0.0.1'
       },
@@ -187,7 +227,7 @@ export default async function SecurityPage({
   const permissionAudits: PermissionAudit[] = [
     {
       userId: 'admin1',
-      email: 'admin@ring.ck.ua',
+      email: 'admin@zemna.ai',
       role: 'admin',
       permissions: ['read_all', 'write_all', 'delete_all', 'manage_users', 'system_config'],
       lastAccess: '2025-01-24T14:30:00Z',
@@ -322,19 +362,20 @@ export default async function SecurityPage({
     <AdminWrapper
       locale={validLocale}
       pageContext="security"
+      labels={adminLabels}
     >
-      <title>Security Dashboard | Ring Platform Admin</title>
-      <meta name="description" content="Advanced security monitoring and audit dashboard for Ring Platform administrators" />
+      <title>{t('securityCenter') || 'Security Center'} | Zemna AI Admin</title>
+      <meta name="description" content="Advanced security monitoring and audit dashboard for Zemna AI administrators" />
 
       <div className="mb-8">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            Security Dashboard
+            {t('securityCenter') || 'Security Center'}
           </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Advanced security monitoring, authentication tracking, and permission auditing
+                {t('description') || 'Advanced security monitoring, authentication tracking, and permission auditing'}
               </p>
             </div>
             <div className="flex space-x-2">
@@ -344,7 +385,7 @@ export default async function SecurityPage({
               </Button>
               <Button>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                {t('refresh') || 'Refresh'}
               </Button>
             </div>
           </div>
@@ -388,11 +429,11 @@ export default async function SecurityPage({
 
         <Tabs defaultValue="events" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="events">Security Events</TabsTrigger>
-            <TabsTrigger value="permissions">Permission Audit</TabsTrigger>
-            <TabsTrigger value="rules">Security Rules</TabsTrigger>
-            <TabsTrigger value="monitoring">Real-time Monitoring</TabsTrigger>
-            <TabsTrigger value="reports">Security Reports</TabsTrigger>
+            <TabsTrigger value="events">{t('events') || 'Security Events'}</TabsTrigger>
+            <TabsTrigger value="permissions">{t('permissions') || 'Permission Audit'}</TabsTrigger>
+            <TabsTrigger value="rules">{t('rules') || 'Security Rules'}</TabsTrigger>
+            <TabsTrigger value="monitoring">{t('monitoring') || 'Real-time Monitoring'}</TabsTrigger>
+            <TabsTrigger value="reports">{t('reports') || 'Security Reports'}</TabsTrigger>
           </TabsList>
 
           {/* Security Events Tab */}
@@ -402,16 +443,16 @@ export default async function SecurityPage({
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center">
                     <Shield className="h-5 w-5 mr-2" />
-                    Recent Security Events
+                    {t('recentEvents') || 'Recent Security Events'}
                   </CardTitle>
                   <div className="flex space-x-2">
                     <Button variant="outline" size="sm">
                       <Filter className="h-4 w-4 mr-2" />
-                      Filter
+                      {t('filter') || 'Filter'} 
                     </Button>
                     <Button variant="outline" size="sm">
                       <Search className="h-4 w-4 mr-2" />
-                      Search
+                      {t('search') || 'Search'}
                     </Button>
                   </div>
                 </div>
@@ -470,10 +511,10 @@ export default async function SecurityPage({
                         
                         <div className="flex items-center space-x-2 ml-4">
                           <Button size="sm" variant="outline">
-                            Investigate
+                            {t('investigate') || 'Investigate'}
                           </Button>
                           <Button size="sm" variant="outline">
-                            Resolve
+                            {t('resolve') || 'Resolve'}
                           </Button>
                         </div>
                       </div>
@@ -490,7 +531,7 @@ export default async function SecurityPage({
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <KeyRound className="h-5 w-5 mr-2" />
-                  User Permission Audit
+                  {t('userPermissionAudit') || 'User Permission Audit'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -509,7 +550,7 @@ export default async function SecurityPage({
                         </div>
                         <div className="flex items-center space-x-2">
                           <Badge className={getRiskColor(audit.riskLevel)}>
-                            {audit.riskLevel} risk
+                            {audit.riskLevel} {t('risk') || 'risk'}
                           </Badge>
                           {audit.anomalousActivity && (
                             <Badge className="bg-orange-100 text-orange-800">
@@ -520,7 +561,7 @@ export default async function SecurityPage({
                       </div>
                       
                       <div className="mb-3">
-                        <p className="text-sm font-medium mb-2">Permissions:</p>
+                        <p className="text-sm font-medium mb-2">{t('permissions') || 'Permissions'}:</p>
                         <div className="flex flex-wrap gap-1">
                           {audit.permissions.map((permission) => (
                             <Badge key={permission} variant="secondary" className="text-xs">
@@ -532,10 +573,10 @@ export default async function SecurityPage({
                       
                       <div className="flex justify-end space-x-2">
                         <Button size="sm" variant="outline">
-                          View Details
+                          {t('viewDetails') || 'View Details'}
                         </Button>
                         <Button size="sm" variant="outline">
-                          Modify Permissions
+                          {t('modifyPermissions') || 'Modify Permissions'}
                         </Button>
                       </div>
                     </div>
@@ -552,10 +593,10 @@ export default async function SecurityPage({
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center">
                     <Settings className="h-5 w-5 mr-2" />
-                    Security Rules & Policies
+                    {t('securityRulesPolicies') || 'Security Rules & Policies'}
                   </CardTitle>
                   <Button>
-                    Add New Rule
+                    {t('addNewRule') || 'Add New Rule'}
                   </Button>
                 </div>
               </CardHeader>
@@ -574,9 +615,9 @@ export default async function SecurityPage({
                         <div className="flex items-center space-x-2">
                           <Badge className={getSeverityColor(rule.severity)}>
                             {rule.severity}
-                          </Badge>
+                          </Badge>  
                           <Button size="sm" variant="outline">
-                            {rule.enabled ? 'Disable' : 'Enable'}
+                            {rule.enabled ? t('disable') || 'Disable' : t('enable') || 'Enable'}
                           </Button>
                         </div>
                       </div>
@@ -587,13 +628,13 @@ export default async function SecurityPage({
                       
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-4">
-                          <span>Triggers: <strong>{rule.triggerCount}</strong></span>
+                          <span>{t('triggers') || 'Triggers'}: <strong>{rule.triggerCount}</strong></span>
                           {rule.lastTriggered && (
-                            <span>Last Triggered: <strong>{formatDate(rule.lastTriggered)}</strong></span>
+                            <span>{t('lastTriggered') || 'Last Triggered'}: <strong>{formatDate(rule.lastTriggered)}</strong></span>
                           )}
                         </div>
                         <Button size="sm" variant="ghost">
-                          Configure
+                          {t('configure') || 'Configure'}
                         </Button>
                       </div>
                     </div>
@@ -611,17 +652,17 @@ export default async function SecurityPage({
                   <CardHeader>
                     <CardTitle className="flex items-center">
                       <Activity className="h-5 w-5 mr-2" />
-                      Live Security Feed
+                      {t('liveSecurityFeed') || 'Live Security Feed'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {[
-                        { event: 'User logged in', user: 'john@example.com', time: '5s ago', status: 'success' },
-                        { event: 'Failed login attempt', user: 'unknown', time: '23s ago', status: 'warning' },
-                        { event: 'Permission granted', user: 'admin@ring.ck.ua', time: '1m ago', status: 'info' },
-                        { event: 'Data export', user: 'user@example.com', time: '3m ago', status: 'info' },
-                        { event: 'Security rule triggered', user: 'system', time: '5m ago', status: 'warning' }
+                        { event: t('userLoggedIn') || 'User logged in', user: 'john@example.com', time: '5s ago', status: 'success' },
+                        { event: t('failedLoginAttempt') || 'Failed login attempt', user: 'unknown', time: '23s ago', status: 'warning' },
+                        { event: t('permissionGranted') || 'Permission granted', user: 'admin@ring.ck.ua', time: '1m ago', status: 'info' },
+                        { event: t('dataExport') || 'Data export', user: 'user@example.com', time: '3m ago', status: 'info' },
+                        { event: t('securityRuleTriggered') || 'Security rule triggered', user: 'system', time: '5m ago', status: 'warning' }
                       ].map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 border-l-2 border-l-blue-500 bg-blue-50 dark:bg-blue-950">
                           <div className="flex items-center space-x-2">
@@ -645,21 +686,21 @@ export default async function SecurityPage({
                   <CardHeader>
                     <CardTitle className="flex items-center">
                       <Globe className="h-5 w-5 mr-2" />
-                      Geographic Distribution
+                      {t('geographicDistribution') || 'Geographic Distribution'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       {[
-                        { country: 'Ukraine', sessions: 156, percentage: 45 },
-                        { country: 'United States', sessions: 89, percentage: 26 },
-                        { country: 'Poland', sessions: 67, percentage: 19 },
-                        { country: 'Germany', sessions: 34, percentage: 10 }
+                        { country: t('ukraine') || 'Ukraine', sessions: 156, percentage: 45 },
+                        { country: t('unitedStates') || 'United States', sessions: 89, percentage: 26 },
+                        { country: t('poland') || 'Poland', sessions: 67, percentage: 19 },
+                        { country: t('germany') || 'Germany', sessions: 34, percentage: 10 }
                       ].map((location) => (
                         <div key={location.country} className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <span className="text-sm">{location.country}</span>
-                            <span className="text-xs text-muted-foreground">({location.sessions} sessions)</span>
+                            <span className="text-xs text-muted-foreground">({location.sessions} {t('sessions') || 'sessions'})</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <div className="w-20 bg-gray-200 rounded-full h-2">
@@ -685,7 +726,7 @@ export default async function SecurityPage({
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  Security Reports & Compliance
+                  {t('securityReportsCompliance') || 'Security Reports & Compliance'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -695,27 +736,27 @@ export default async function SecurityPage({
                       <CardContent className="p-4 text-center">
                         <Shield className="h-8 w-8 text-green-600 mx-auto mb-2" />
                         <div className="text-2xl font-bold">GDPR</div>
-                        <div className="text-sm text-muted-foreground">Compliant</div>
+                        <div className="text-sm text-muted-foreground">{t('compliant') || 'Compliant'}</div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-4 text-center">
                         <Lock className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                         <div className="text-2xl font-bold">ISO 27001</div>
-                        <div className="text-sm text-muted-foreground">Certified</div>
+                        <div className="text-sm text-muted-foreground">{t('certified') || 'Certified'}</div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-4 text-center">
                         <CheckCircle className="h-8 w-8 text-purple-600 mx-auto mb-2" />
                         <div className="text-2xl font-bold">SOC 2</div>
-                        <div className="text-sm text-muted-foreground">Type II</div>
+                        <div className="text-sm text-muted-foreground">{t('typeII') || 'Type II'}</div>
                       </CardContent>
                     </Card>
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="font-medium">Available Reports</h3>
+                    <h3 className="font-medium">{t('availableReports') || 'Available Reports'}</h3>
                     {[
                       { name: 'Security Incident Report', description: 'Detailed analysis of security events', date: 'January 2025' },
                       { name: 'Permission Audit Report', description: 'User access and permission analysis', date: 'Monthly' },
@@ -731,7 +772,7 @@ export default async function SecurityPage({
                           <span className="text-xs text-muted-foreground">{report.date}</span>
                           <Button size="sm" variant="outline">
                             <Download className="h-4 w-4 mr-1" />
-                            Download
+                            {t('download') || 'Download'}
                           </Button>
                         </div>
                       </div>

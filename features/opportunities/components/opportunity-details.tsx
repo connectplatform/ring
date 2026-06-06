@@ -149,7 +149,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 }) => {
   const { data: session, status } = useSession()
   const t = useTranslations('modules.opportunities')
-  const { balance: ringBalance } = useCreditBalance()
+  const { balance: tokenBalance } = useCreditBalance()
 
   // Real-time updates
   const realtime = useRealtimeOpportunities({
@@ -320,10 +320,10 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                     </span>
 
                     {/* RING Balance */}
-                    {ringBalance && session?.user && (
+                    {tokenBalance && session?.user && (
                       <div className="flex items-center text-xs text-muted-foreground ml-auto">
                         <Coins className="w-3 h-3 mr-1" />
-                        <span>{ringBalance.amount} RING</span>
+                        <span>{tokenBalance.amount} RING</span>
                       </div>
                     )}
                   </div>
@@ -540,7 +540,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
                   </Button>
                 )}
 
-                {opportunity.budget && ringBalance && (
+                {opportunity.budget && tokenBalance && (
                   <Button variant="outline" size="lg">
                     <Wallet className="w-4 h-4 mr-2" />
                     Pay with RING

@@ -3,6 +3,8 @@ title: Index
 description: Index documentation for Ring Platform
 ---
 
+import { Callout } from '@/components/docs/callout'
+
 # Архітектура Ring Platform
 
 Комплексна архітектура професійної платформи нетворкінгу з Web3 інтеграцією, побудована на Next.js 15, React 19, та Kubernetes.
@@ -224,12 +226,14 @@ description: Index documentation for Ring Platform
 - **Circuit Breakers**: Захист від cascade failures
 - **Backup & Recovery**: Automated database backups та disaster recovery
 
-import { Callout } from 'fumadocs-ui/components/callout'
+## Режими бекенду та бази даних
+
+Деплой вимагає **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full` або `supabase-fcm`). У продакшені з пріоритетом Postgres Firebase зазвичай використовується для **FCM**, а не Firestore як основне сховище. Повна матриця, різниця **`DB_HYBRID_MODE`** / режим бекенду, Tunnel Supabase проти `supabase-fcm`: див. **[Режими бекенду та бази даних](/uk/library/architecture/backend-modes-and-databases)**.
 
 <Callout type="success">
 **Production-Ready Architecture**: Ring Platform побудована з використанням сучасних технологій та best practices для enterprise-grade надійності та масштабованості.
 </Callout>
 
 <Callout type="info">
-Дивіться розділи нижче для детального розгляду окремих компонентів: Аутентифікація, Real-time комунікація, Безпека, Data Model, та Deployment.
+Дивіться розділи нижче для детального розгляду окремих компонентів: **Режими бекенду та БД**, Аутентифікація, Real-time комунікація, Безпека, Data Model та Deployment.
 </Callout>

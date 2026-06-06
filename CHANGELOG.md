@@ -2,15 +2,12 @@
 
 All notable changes to Ring Platform are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [1.49] - 2026-02-05
 
 ### Added
 - **Documentation Update** - Comprehensive README, ROADMAP, and CHANGELOG synchronization with verified facts
 - **Ringdom Maps Update** - All 8 visualization maps updated with current platform statistics
-- **Complete MCP Tools Documentation** - All 22 Legion MCP tools fully documented in legion-map
+- **Complete MCP Tools Documentation** - All 22 Legiox MCP tools fully documented in legiox-map
 
 ### Changed
 - **Version Bump** - 1.48 → 1.49 with synchronized documentation
@@ -21,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.48] - 2026-02-04
 
 ### Added
-- **Legion AI Integration** - 141 specialized AI agents with 22 MCP tools for development acceleration
+- **Legiox AI Integration** - 141 specialized AI agents with 22 MCP tools for development acceleration
 - **Complete DatabaseService Migration** - 49 files converted from Firebase to PostgreSQL-native DatabaseService
 - **Tunnel Protocol Firebase RTDB Analog** - Real-time pub/sub system replacing Firebase Realtime Database for K8s deployments
 
@@ -176,15 +173,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GreenFood Docs JSX Conversion** - Documentation format migration
 
 ### Fixed
-- **Legion MCP Diagnostic Audit** - Tool reliability improvements
+- **Legiox MCP Diagnostic Audit** - Tool reliability improvements
 
 ---
 
 ## [1.36] - 2025-10-26
 
 ### Added
-- **Legion 21 Tools Perfect Tiers** - Complete MCP tool tier system
-- **Legion 18 Tools Triple Advancement** - Enhanced tool capabilities
+- **Legiox 21 Tools Perfect Tiers** - Complete MCP tool tier system
+- **Legiox 18 Tools Triple Advancement** - Enhanced tool capabilities
 - **AI-Context Timeline Organization** - Structured knowledge base
 
 ---
@@ -192,7 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.35] - 2025-10-25
 
 ### Added
-- **Legion Engine MCP Enhancements** - Improved MCP server functionality
+- **Legiox Engine MCP Enhancements** - Improved MCP server functionality
 
 ---
 

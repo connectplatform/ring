@@ -48,10 +48,8 @@ export async function submitContactForm(
       userId: session?.user?.id // Track if from logged-in user
     })
 
-    return {
-      success: true,
-      message: 'Thank you for your message. We\'ll get back to you soon!'
-    }
+    // Redirect to confirmation/thank-you page after success
+    redirect('/contact/thank-you')
   } catch (error) {
     console.error('Error sending contact form:', error)
     return {

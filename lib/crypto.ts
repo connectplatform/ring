@@ -2,7 +2,7 @@
  * Cryptographic utilities for Ring Platform
  * Modern crypto operations for wallet management and security
  *
- * Following Secrets Keeper Legionnaire standards:
+ * Following Secrets Keeper Legioxnaire standards:
  * - AES-256-GCM encryption with authenticated encryption
  * - Scrypt key derivation for enhanced security
  * - Secure random number generation

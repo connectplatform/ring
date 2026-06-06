@@ -1,7 +1,9 @@
 {
   "title": "Architecture",
+  "description": "System layout, Auth.js, data stores, DB_BACKEND_MODE, realtime tunneling, and security.",
   "pages": [
     "index",
+    "backend-modes-and-databases",
     "data-model",
     "authentication",
     "email-ai-crm",

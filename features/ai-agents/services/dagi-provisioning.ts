@@ -1,3 +1,5 @@
+import { SUPPORTED_LOCALES } from '@/lib/locale-config'
+
 /**
  * DAARION.city DAGI Agent Provisioning Service
  * 
@@ -266,7 +268,7 @@ export async function provisionDAGIAgent(config: DAGIAgentConfig): Promise<DAGIA
       apiEndpoint: data.api_endpoint,
       websocketEndpoint: data.websocket_endpoint,
       voiceEnabled: config.agentTier >= 2, // Voice enabled in Tier 2+
-      languagesSupported: data.languages_supported || ['en', 'uk', 'ru'],
+      languagesSupported: data.languages_supported || [...SUPPORTED_LOCALES],
     },
   }
 
@@ -421,7 +423,7 @@ export async function upgradeDAGIAgentTier(
       apiEndpoint: data.api_endpoint,
       websocketEndpoint: data.websocket_endpoint,
       voiceEnabled: newTier >= 2,
-      languagesSupported: data.languages_supported || ['en', 'uk', 'ru'],
+      languagesSupported: data.languages_supported || [...SUPPORTED_LOCALES],
     },
   }
 

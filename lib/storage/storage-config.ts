@@ -8,6 +8,7 @@
 export enum StorageProvider {
   VERCEL_BLOB = 'vercel_blob',
   LOCAL_STORAGE = 'local_storage',
+  RING_FILEBASE = 'ring_filebase',
   FIREBASE_STORAGE = 'firebase_storage'
 }
 
@@ -23,7 +24,7 @@ export interface StorageConfig {
  * Get storage configuration based on environment
  */
 export function getStorageConfig(): StorageConfig {
-  const provider = (process.env.NEXT_PUBLIC_STORAGE_PROVIDER as StorageProvider) || StorageProvider.VERCEL_BLOB;
+  const provider = getStorageProvider();
   
   const baseConfig = {
     maxFileSize: 5 * 1024 * 1024, // 5MB
@@ -55,6 +56,14 @@ export function getStorageConfig(): StorageConfig {
         publicUrl: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_URL
       };
       
+    case StorageProvider.RING_FILEBASE:
+      return {
+        ...baseConfig,
+        provider,
+        uploadUrl: '/api/upload/ring-filebase',
+        publicUrl: process.env.RINGBASE_PUBLIC_URL || process.env.NEXT_PUBLIC_LOCAL_STORAGE_URL
+      };
+
     default:
       return {
         ...baseConfig,
@@ -63,6 +72,32 @@ export function getStorageConfig(): StorageConfig {
         publicUrl: process.env.NEXT_PUBLIC_VERCEL_BLOB_URL
       };
   }
+}
+
+export function normalizeStorageProvider(raw?: string): StorageProvider {
+  const value = String(raw || '').trim().toLowerCase()
+
+  switch (value) {
+    case 'vercel':
+    case StorageProvider.VERCEL_BLOB:
+      return StorageProvider.VERCEL_BLOB
+    case 'local':
+    case StorageProvider.LOCAL_STORAGE:
+      return StorageProvider.LOCAL_STORAGE
+    case 'ringbase':
+    case 'ring_filebase':
+    case 'ring-filebase':
+      return StorageProvider.RING_FILEBASE
+    case 'firebase':
+    case StorageProvider.FIREBASE_STORAGE:
+      return StorageProvider.FIREBASE_STORAGE
+    default:
+      return StorageProvider.VERCEL_BLOB
+  }
+}
+
+export function getStorageProvider(): StorageProvider {
+  return normalizeStorageProvider(process.env.NEXT_PUBLIC_STORAGE_PROVIDER)
 }
 
 /**

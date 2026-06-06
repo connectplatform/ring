@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { buildMessages } from '@/lib/i18n'
+import { isValidLocale, resolveLocale, type Locale } from '@/lib/locale-config'
 import { Steps, Step } from '@/components/docs/steps'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
 
@@ -22,11 +23,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function TokenEconomyPage({ params }: Props) {
   const { locale: localeParam } = await params;
-  const locale = localeParam as 'en' | 'uk' | 'ru';
-
-  if (!['en', 'uk', 'ru'].includes(localeParam)) {
+  if (!isValidLocale(localeParam)) {
     notFound()
   }
+  const locale: Locale = resolveLocale(localeParam)
 
   const messages = await buildMessages(locale);
   const t = messages['tokenomics'] || {};

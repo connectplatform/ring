@@ -1,13 +1,19 @@
 'use client'
 
 import React, { useCallback, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, replaceLocalePath } from '@/i18n/routing'
 import { useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Languages, Moon, Sun } from 'lucide-react'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
+import {
+  localeDisplayLabel,
+  localeNativeTitle,
+  nextLocaleInRoutingOrder,
+  persistRingLocalePreference,
+} from '@/lib/locale-pref'
 
 interface RightSidebarProps {
   children: React.ReactNode
@@ -33,55 +39,20 @@ export default function RightSidebar({
   const locale = useLocale() as Locale
   const { setTheme, theme, resolvedTheme } = useTheme()
 
-  // Smart 2-mode language toggle (same logic as desktop sidebar)
-  const getSmartLanguageToggle = useCallback(() => {
-    const storedLocale = typeof window !== 'undefined' 
-      ? (localStorage.getItem('ring-locale') as Locale || locale)
-      : locale
+  const nextLang = nextLocaleInRoutingOrder(locale)
 
-    let primaryLang: Locale = storedLocale
-    let secondaryLang: Locale = 'en'
-
-    if (primaryLang === 'en') {
-      secondaryLang = 'uk'
-    } else {
-      secondaryLang = 'en'
-    }
-
-    const currentLang = locale
-    const nextLang = currentLang === primaryLang ? secondaryLang : primaryLang
-
-    return { currentLang, nextLang, primaryLang, secondaryLang }
-  }, [locale])
-
-  const switchLocale = useCallback((newLocale: Locale) => {
-    // Store the new locale preference
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ring-locale', newLocale)
-      document.cookie = `ring-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-      
-      // Replace the current locale in the pathname
-      const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/'
-      const newPath = `/${newLocale}${pathWithoutLocale}`
-      
-      // Use window.location.href for FULL page reload to get new messages from Server Components
-      window.location.href = newPath
-    }
-  }, [pathname])
+  const switchLocale = useCallback(
+    (newLocale: Locale) => {
+      persistRingLocalePreference(newLocale)
+      replaceLocalePath(router, pathname, newLocale)
+    },
+    [pathname, router],
+  )
 
   const toggleTheme = useCallback(() => {
     const currentTheme = theme === 'system' ? resolvedTheme : theme
     setTheme(currentTheme === 'dark' ? 'light' : 'dark')
   }, [setTheme, theme, resolvedTheme])
-
-  const getLanguageName = useCallback((locale: string) => {
-    switch (locale) {
-      case 'en': return 'EN'
-      case 'uk': return 'UK'
-      case 'ru': return 'RU'
-      default: return locale.toUpperCase()
-    }
-  }, [])
 
   // Listen for link clicks to trigger auto-hide
   useEffect(() => {
@@ -140,24 +111,17 @@ export default function RightSidebar({
       {showControls && pathname.includes('/docs') && (
         <div className="p-4 border-t border-border bg-background/95">
           <div className="flex items-center justify-center gap-2">
-            {/* Smart 2-Mode Language Toggle */}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const { nextLang } = getSmartLanguageToggle()
-                switchLocale(nextLang)
-              }}
+              onClick={() => switchLocale(nextLang)}
               className="h-8 px-2 text-xs hover:bg-accent flex-1"
-              title={`Switch to ${(() => {
-                const { nextLang } = getSmartLanguageToggle()
-                return nextLang === 'en' ? 'English' : nextLang === 'uk' ? 'Українська' : 'Русский'
-              })()}`}
+              title={`Switch to ${localeNativeTitle(nextLang)}`}
             >
               <Languages className="h-3 w-3 mr-1" />
-              {getLanguageName(locale)}
+              {localeDisplayLabel(locale)}
               <span className="mx-1">↔</span>
-              {getLanguageName(getSmartLanguageToggle().nextLang)}
+              {localeDisplayLabel(nextLang)}
             </Button>
 
             {/* Theme Toggle */}

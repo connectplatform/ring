@@ -5,7 +5,9 @@ export class RingBaseAdapter implements IFileService {
   private apiToken?: string;
 
   constructor(apiUrl?: string, apiToken?: string) {
-    this.apiUrl = apiUrl || 'http://ring-filebase-api.ring-filebase.svc.cluster.local';
+    const defaultApiUrl = process.env.RINGBASE_API_URL || process.env.NEXT_PUBLIC_RINGBASE_API_URL || '';
+    const rawApiUrl = (apiUrl || defaultApiUrl || 'http://ring-filebase-api.ring-filebase.svc.cluster.local').replace(/\/+$/, '');
+    this.apiUrl = rawApiUrl.includes('/api/v1') ? rawApiUrl : `${rawApiUrl}/api/v1`;
     this.apiToken = apiToken || process.env.RINGBASE_API_TOKEN;
   }
 
@@ -151,8 +153,8 @@ export class RingBaseAdapter implements IFileService {
 
   private extractFileIdFromUrl(url: string): string {
     try {
-      // RingBase URLs follow pattern: https://cdn.ring-platform.org/files/.../fileId
-      const urlParts = url.split('/');
+      const raw = url.split('?')[0];
+      const urlParts = raw.split('/');
       const filesIndex = urlParts.indexOf('files');
 
       if (filesIndex !== -1 && filesIndex < urlParts.length - 1) {

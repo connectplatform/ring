@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import type { OpportunitySubmenuCounts, OpportunitySubmenuTab } from '@/features/opportunities/types'
 import { Badge } from '@/components/ui/badge'
 import { 
   FileText, 
@@ -13,16 +14,18 @@ import {
 } from 'lucide-react'
 
 interface OpportunitiesSubmenuProps {
-  activeTab: string
-  onTabChange: (tab: string) => void
-  counts?: {
-    all: number
-    saved: number
-    applied: number
-    posted: number
-    drafts: number
-    expired: number
-  }
+  activeTab: OpportunitySubmenuTab
+  onTabChange: (tab: OpportunitySubmenuTab) => void
+  counts?: OpportunitySubmenuCounts
+}
+
+interface TabConfig {
+  id: OpportunitySubmenuTab
+  label: string
+  icon: typeof FileText
+  count: number
+  color: 'default' | 'secondary' | 'outline' | 'destructive'
+  isAvailable: boolean
 }
 
 const OpportunitiesSubmenu = ({ 
@@ -32,48 +35,54 @@ const OpportunitiesSubmenu = ({
 }: OpportunitiesSubmenuProps) => {
   const t = useTranslations('modules.opportunities')
 
-  const tabs = [
+  const tabs: TabConfig[] = [
     {
       id: 'all',
       label: t('allOpportunities'),
       icon: Globe,
       count: counts.all,
-      color: 'default'
+      color: 'default',
+      isAvailable: true
     },
     {
       id: 'saved', 
       label: t('savedOpportunities'),
       icon: Bookmark,
       count: counts.saved,
-      color: 'secondary'
+      color: 'secondary',
+      isAvailable: false
     },
     {
       id: 'applied',
       label: t('appliedOpportunities'), 
       icon: Send,
       count: counts.applied,
-      color: 'default'
+      color: 'default',
+      isAvailable: false
     },
     {
       id: 'posted',
       label: t('postedOpportunities'),
       icon: FileText, 
       count: counts.posted,
-      color: 'default'
+      color: 'default',
+      isAvailable: true
     },
     {
       id: 'drafts',
       label: t('draftOpportunities'),
       icon: Edit3,
       count: counts.drafts,
-      color: 'outline'
+      color: 'outline',
+      isAvailable: false
     },
     {
       id: 'expired',
       label: t('expiredOpportunities'),
       icon: Clock,
       count: counts.expired, 
-      color: 'destructive'
+      color: 'destructive',
+      isAvailable: true
     }
   ]
 
@@ -85,23 +94,37 @@ const OpportunitiesSubmenu = ({
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             
+            const commonProps = {
+              role: 'tab',
+              'aria-selected': isActive,
+              'aria-disabled': !tab.isAvailable,
+            } as const
+
             return (
               <button
                 key={tab.id}
-                onClick={() => onTabChange(tab.id)}
+                {...commonProps}
+                onClick={() => {
+                  if (!tab.isAvailable) return
+                  onTabChange(tab.id)
+                }}
+                disabled={!tab.isAvailable}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap",
                   "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                   isActive 
                     ? "bg-primary text-primary-foreground shadow-sm" 
-                    : "text-muted-foreground hover:text-foreground"
+                    : cn(
+                        "text-muted-foreground hover:text-foreground", 
+                        !tab.isAvailable && "opacity-50 cursor-not-allowed"
+                      )
                 )}
               >
                 <Icon className="h-4 w-4" />
                 <span>{tab.label}</span>
                 {tab.count > 0 && (
                   <Badge 
-                    variant={isActive ? "secondary" : tab.color as any}
+                    variant={isActive ? "secondary" : tab.color}
                     className={cn(
                       "ml-1 h-5 px-1.5 text-xs",
                       isActive && "bg-primary-foreground/20 text-primary-foreground"

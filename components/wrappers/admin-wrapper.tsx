@@ -28,7 +28,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,65 +58,115 @@ import {
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 
+/** Keys aligned with `modules.admin` / admin right-rail copy (partial overrides allowed). */
+export type ModulesAdminLabels = Partial<{
+  dashboard: string
+  users: string
+  news: string
+  analytics: string
+  moderation: string
+  performance: string
+  security: string
+  settings: string
+  matcher: string
+  store: string
+  quickNav: string
+  systemStats: string
+  totalUsers: string
+  publishedArticles: string
+  activeUsers: string
+  newUsers: string
+  uptime: string
+  recentActivity: string
+  viewAllActivity: string
+  adminTools: string
+  contextualTools: string
+  helpDocs: string
+  adminHelpDescription: string
+  bulkImport: string
+  exportData: string
+  userReports: string
+  bulkPublish: string
+  seoTools: string
+  contentModeration: string
+  inventorySync: string
+  orderManagement: string
+  productAnalytics: string
+  systemBackup: string
+  cacheClear: string
+  viewLogs: string
+  gettingStarted: string
+  apiReference: string
+  troubleshooting: string
+}>
+
 interface AdminWrapperProps {
   children: React.ReactNode
   locale: string
   pageContext?: 'dashboard' | 'users' | 'news' | 'analytics' | 'moderation' | 'performance' | 'security' | 'settings' | 'matcher' | 'store'
-  translations?: any // Pass translations from parent component
+  translations?: { modules?: { admin?: ModulesAdminLabels } }
+  /** Flat admin labels (e.g. from `buildModulesAdminLabels`) — merged over `translations.modules.admin`. */
+  labels?: ModulesAdminLabels
 }
 
 export default function AdminWrapper({
   children,
   locale,
   pageContext = 'dashboard',
-  translations
+  translations,
+  labels,
 }: AdminWrapperProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
-  // Use passed translations or fallback to default object
-  const t = translations?.modules?.admin || {
-    // Fallback translations if none provided
-    'dashboard': 'Dashboard',
-    'users': 'Users',
-    'news': 'News',
-    'analytics': 'Analytics',
-    'moderation': 'Moderation',
-    'performance': 'Performance',
-    'security': 'Security',
-    'settings': 'Settings',
-    'matcher': 'Matcher',
-    'store': 'Store',
-    'quickNav': 'Quick Navigation',
-    'systemStats': 'System Stats',
-    'totalUsers': 'Total Users',
-    'publishedArticles': 'Published',
-    'activeUsers': 'Active Users',
-    'newUsers': 'New Today',
-    'uptime': 'Uptime',
-    'recentActivity': 'Recent Activity',
-    'viewAllActivity': 'View All Activity',
-    'adminTools': 'Admin Tools',
-    'contextualTools': 'Context-specific tools for this page',
-    'helpDocs': 'Help & Docs',
-    'adminHelpDescription': 'Get help with admin tasks and platform management.',
-    'bulkImport': 'Bulk Import',
-    'exportData': 'Export Data',
-    'userReports': 'User Reports',
-    'bulkPublish': 'Bulk Publish',
-    'seoTools': 'SEO Tools',
-    'contentModeration': 'Content Moderation',
-    'inventorySync': 'Inventory Sync',
-    'orderManagement': 'Order Management',
-    'productAnalytics': 'Product Analytics',
-    'systemBackup': 'System Backup',
-    'cacheClear': 'Clear Cache',
-    'viewLogs': 'View Logs',
-    'gettingStarted': 'Getting Started',
-    'apiReference': 'API Reference',
-    'troubleshooting': 'Troubleshooting'
+  const defaultAdminLabels: Required<ModulesAdminLabels> = {
+    dashboard: 'Dashboard',
+    users: 'Users',
+    news: 'News',
+    analytics: 'Analytics',
+    moderation: 'Moderation',
+    performance: 'Performance',
+    security: 'Security',
+    settings: 'Settings',
+    matcher: 'Matcher',
+    store: 'Store',
+    quickNav: 'Quick Navigation',
+    systemStats: 'System Stats',
+    totalUsers: 'Total Users',
+    publishedArticles: 'Published',
+    activeUsers: 'Active Users',
+    newUsers: 'New Today',
+    uptime: 'Uptime',
+    recentActivity: 'Recent Activity',
+    viewAllActivity: 'View All Activity',
+    adminTools: 'Admin Tools',
+    contextualTools: 'Context-specific tools for this page',
+    helpDocs: 'Help & Docs',
+    adminHelpDescription: 'Get help with admin tasks and platform management.',
+    bulkImport: 'Bulk Import',
+    exportData: 'Export Data',
+    userReports: 'User Reports',
+    bulkPublish: 'Bulk Publish',
+    seoTools: 'SEO Tools',
+    contentModeration: 'Content Moderation',
+    inventorySync: 'Inventory Sync',
+    orderManagement: 'Order Management',
+    productAnalytics: 'Product Analytics',
+    systemBackup: 'System Backup',
+    cacheClear: 'Clear Cache',
+    viewLogs: 'View Logs',
+    gettingStarted: 'Getting Started',
+    apiReference: 'API Reference',
+    troubleshooting: 'Troubleshooting',
+  }
+
+  // Merge: English defaults < modules.admin from parent < explicit labels from server builders
+  const t = {
+    ...defaultAdminLabels,
+    ...(translations?.modules?.admin || {}),
+    ...(labels || {}),
   }
 
   useEffect(() => {

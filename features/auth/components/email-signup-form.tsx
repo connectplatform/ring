@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import {
   AUTH_FORM_LABELS,
@@ -164,7 +165,7 @@ export default function EmailSignupForm() {
   const t = useTranslations('modules.auth')
   const { data: session } = useSession()
   const router = useRouter()
-  const locale = useLocale() as 'en' | 'uk'
+  const locale = useLocale() as Locale
 
   // Redirect if already authenticated
   React.useEffect(() => {

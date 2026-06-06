@@ -19,7 +19,7 @@ import {
   Zap
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface MembershipUpsellCardProps {
   className?: string

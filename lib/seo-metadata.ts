@@ -1,10 +1,9 @@
-/**
- * React 19 Native SEO Metadata Helper
- * Provides getSEOMetadata function for localized SEO data with interpolation support
- * Works with locales/[locale]/seo.json structure
- */
+import 'server-only'
 
-import { Locale } from '@/i18n-config'
+import type { Metadata } from 'next'
+import { getMessages, setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import { defaultLocale, type Locale } from '@/i18n/shared'
 
 export interface SEOData {
   title?: string
@@ -19,217 +18,238 @@ export interface SEOData {
   twitterImage?: string
 }
 
-// Cache for loaded SEO translations
-const seoCache = new Map<string, Record<string, any>>()
+type SeoVariables = Record<string, string | number>
 
-/**
- * Load SEO translations for a given locale
- * @param locale - The locale to load translations for
- * @returns Promise resolving to the SEO translations object
- */
-async function loadSEOTranslations(locale: Locale): Promise<Record<string, any>> {
-  const cacheKey = `seo-${locale}`
-  
-  if (seoCache.has(cacheKey)) {
-    return seoCache.get(cacheKey)!
+function withLocalePath(locale: Locale, path: string): string {
+  if (locale === defaultLocale) {
+    return path
   }
+  return path === '/' ? `/${locale}` : `/${locale}${path}`
+}
 
-  try {
-    // Import SEO translations for the locale
-    const translations = await import(`@/locales/${locale}/seo.json`)
-    const seoData = translations.default || translations
-    
-    seoCache.set(cacheKey, seoData)
-    return seoData
-  } catch (error) {
-    console.warn(`Failed to load SEO translations for locale ${locale}:`, error)
-    
-    // Fallback to English if the requested locale fails
-    if (locale !== 'en') {
-      return loadSEOTranslations('en')
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((current, key) => {
+    if (current && typeof current === 'object' && key in (current as Record<string, unknown>)) {
+      return (current as Record<string, unknown>)[key]
     }
-    
-    // Return empty object as last resort
-    return {}
-  }
+    return undefined
+  }, obj)
 }
 
-/**
- * Get nested value from object using dot notation
- * @param obj - Object to search in
- * @param path - Dot notation path (e.g., 'entities.status.title')
- * @returns The value at the path or undefined
- */
-function getNestedValue(obj: Record<string, any>, path: string): any {
-  return path.split('.').reduce((current, key) => current?.[key], obj)
-}
-
-/**
- * Interpolate variables in a string template
- * @param template - String template with {{variable}} placeholders
- * @param variables - Object containing variable values
- * @returns Interpolated string
- */
-function interpolateTemplate(template: string, variables: Record<string, any> = {}): string {
+function interpolateTemplate(template: string, variables: SeoVariables = {}): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     return variables[key] !== undefined ? String(variables[key]) : match
   })
 }
 
-/**
- * Get localized SEO metadata for a specific page/section
- * 
- * @param locale - The locale to use for translations
- * @param path - Dot notation path to the SEO data (e.g., 'entities.list', 'store.checkout.status')
- * @param variables - Optional variables for string interpolation
- * @param fallback - Optional fallback SEO data
- * @returns Promise resolving to SEO metadata object
- * 
- * @example
- * ```tsx
- * // Get localized SEO data
- * const seoData = await getSEOMetadata('en', 'entities.list', {
- *   name: entity.name,
- *   count: entities.length.toString()
- * })
- * 
- * return (
- *   <>
- *     <title>{seoData?.title || `${entity.name} - Ring Platform`}</title>
- *     <meta name="description" content={seoData?.description || entity.description} />
- *     <meta property="og:title" content={seoData?.ogTitle || seoData?.title} />
- *     {/* ... other meta tags ... *\/}
- *     <MyComponent />
- *   </>
- * )
- * ```
- */
-export async function getSEOMetadata(
-  locale: Locale,
-  path: string,
-  variables: Record<string, any> = {},
-  fallback?: Partial<SEOData>
-): Promise<SEOData | null> {
-  try {
-    const translations = await loadSEOTranslations(locale)
-    const seoTemplate = getNestedValue(translations, path)
-    
-    if (!seoTemplate) {
-      console.warn(`SEO template not found for path: ${path} in locale: ${locale}`)
-      return fallback ? { ...fallback } : null
-    }
-    
-    // If seoTemplate is a string, treat it as title
-    if (typeof seoTemplate === 'string') {
-      const title = interpolateTemplate(seoTemplate, variables)
-      return {
-        title,
-        description: fallback?.description,
-        ...fallback
-      }
-    }
-    
-    // Process object template with interpolation
-    const result: SEOData = {}
-    
-    if (seoTemplate.title) {
-      result.title = interpolateTemplate(seoTemplate.title, variables)
-    }
-    
-    if (seoTemplate.description) {
-      result.description = interpolateTemplate(seoTemplate.description, variables)
-    }
-    
-    if (seoTemplate.keywords && Array.isArray(seoTemplate.keywords)) {
-      result.keywords = seoTemplate.keywords.map((keyword: string) => 
-        interpolateTemplate(keyword, variables)
-      )
-    }
-    
-    // Handle OpenGraph metadata
-    if (seoTemplate.ogTitle) {
-      result.ogTitle = interpolateTemplate(seoTemplate.ogTitle, variables)
-    }
-    
-    if (seoTemplate.ogDescription) {
-      result.ogDescription = interpolateTemplate(seoTemplate.ogDescription, variables)
-    }
-    
-    if (seoTemplate.ogImage) {
-      result.ogImage = interpolateTemplate(seoTemplate.ogImage, variables)
-    }
-    
-    // Handle Twitter metadata
-    if (seoTemplate.twitterTitle) {
-      result.twitterTitle = interpolateTemplate(seoTemplate.twitterTitle, variables)
-    }
-    
-    if (seoTemplate.twitterDescription) {
-      result.twitterDescription = interpolateTemplate(seoTemplate.twitterDescription, variables)
-    }
-    
-    if (seoTemplate.twitterImage) {
-      result.twitterImage = interpolateTemplate(seoTemplate.twitterImage, variables)
-    }
-    
-    // Handle canonical URL
-    if (seoTemplate.canonical) {
-      result.canonical = interpolateTemplate(seoTemplate.canonical, variables)
-    }
-    
-    // Merge with fallback data
-    return {
-      ...fallback,
-      ...result
-    }
-    
-  } catch (error) {
-    console.error(`Error loading SEO metadata for ${path} in ${locale}:`, error)
+function templateToSeoData(
+  seoTemplate: unknown,
+  variables: SeoVariables,
+  fallback?: Partial<SEOData>,
+): SEOData | null {
+  if (!seoTemplate) {
     return fallback ? { ...fallback } : null
   }
+
+  if (typeof seoTemplate === 'string') {
+    return {
+      title: interpolateTemplate(seoTemplate, variables),
+      description: fallback?.description,
+      ...fallback,
+    }
+  }
+
+  if (typeof seoTemplate !== 'object') {
+    return fallback ? { ...fallback } : null
+  }
+
+  const tpl = seoTemplate as Record<string, unknown>
+  const result: SEOData = {}
+
+  if (typeof tpl.title === 'string') {
+    result.title = interpolateTemplate(tpl.title, variables)
+  }
+  if (typeof tpl.description === 'string') {
+    result.description = interpolateTemplate(tpl.description, variables)
+  }
+  if (Array.isArray(tpl.keywords)) {
+    result.keywords = tpl.keywords.map((keyword) =>
+      typeof keyword === 'string' ? interpolateTemplate(keyword, variables) : String(keyword),
+    )
+  }
+  if (typeof tpl.ogTitle === 'string') {
+    result.ogTitle = interpolateTemplate(tpl.ogTitle, variables)
+  }
+  if (typeof tpl.ogDescription === 'string') {
+    result.ogDescription = interpolateTemplate(tpl.ogDescription, variables)
+  }
+  if (typeof tpl.ogImage === 'string') {
+    result.ogImage = interpolateTemplate(tpl.ogImage, variables)
+  }
+  if (typeof tpl.twitterTitle === 'string') {
+    result.twitterTitle = interpolateTemplate(tpl.twitterTitle, variables)
+  }
+  if (typeof tpl.twitterDescription === 'string') {
+    result.twitterDescription = interpolateTemplate(tpl.twitterDescription, variables)
+  }
+  if (typeof tpl.twitterImage === 'string') {
+    result.twitterImage = interpolateTemplate(tpl.twitterImage, variables)
+  }
+  if (typeof tpl.canonical === 'string') {
+    result.canonical = interpolateTemplate(tpl.canonical, variables)
+  }
+
+  return { ...fallback, ...result }
 }
 
-/**
- * Generate hreflang alternates for the current page
- * @param pathname - The current page path
- * @param locales - Array of supported locales
- * @returns Record of locale -> URL mappings
- */
-export function generateHreflangAlternates(
-  pathname: string, 
-  locales: readonly Locale[] = ['en', 'uk']
-): Record<string, string> {
-  const alternates: Record<string, string> = {}
-  
-  for (const locale of locales) {
-    alternates[locale] = `/${locale}${pathname}`
+export async function resolveSeoData(
+  locale: Locale,
+  path: string,
+  variables: SeoVariables = {},
+  fallback?: Partial<SEOData>,
+): Promise<SEOData | null> {
+  setRequestLocale(locale)
+  const messages = await getMessages()
+  const seoRoot = messages.seo as Record<string, unknown> | undefined
+  if (!seoRoot) {
+    return fallback ? { ...fallback } : null
   }
-  
+  const seoTemplate = getNestedValue(seoRoot, path)
+  if (!seoTemplate) {
+    return fallback ? { ...fallback } : null
+  }
+  return templateToSeoData(seoTemplate, variables, fallback)
+}
+
+export type BuildLocalizedMetadataOptions = {
+  locale: Locale
+  path: string
+  variables?: SeoVariables
+  pathname?: string
+  canonicalUrl?: string
+  fallback?: Partial<SEOData>
+  siteName?: string
+  twitterSite?: string
+  robots?: Metadata['robots']
+}
+
+/** Default branding for ring-platform.org (override per page when needed). */
+export const RING_PLATFORM_SEO = {
+  siteName: 'Ring Platform',
+  twitterSite: '@RingPlatform',
+} as const
+
+export function getSeoSiteBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    'https://ring-platform.org'
+  ).replace(/\/$/, '')
+}
+
+/** Strip `/uk`, `/ru`, … prefix for hreflang path generation. */
+export function pathnameWithoutLocale(pathname: string): string {
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments.length > 0 && routing.locales.includes(segments[0] as Locale)) {
+    const rest = segments.slice(1).join('/')
+    return rest ? `/${rest}` : '/'
+  }
+  return pathname.startsWith('/') ? pathname : `/${pathname}`
+}
+
+export function generateHreflangAlternates(
+  pathname: string,
+  locales: readonly Locale[] = routing.locales,
+): Record<string, string> {
+  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
+  const alternates: Record<string, string> = {}
+
+  for (const locale of locales) {
+    alternates[locale] = withLocalePath(locale, normalized)
+  }
+  alternates['x-default'] = withLocalePath(defaultLocale, normalized)
+
   return alternates
 }
 
-/**
- * Get default SEO fallback data
- * @param locale - The locale for fallback data
- * @returns Default SEO data object
- */
-export function getDefaultSEOData(locale: Locale): SEOData {
+export async function buildLocalizedMetadata(
+  options: BuildLocalizedMetadataOptions,
+): Promise<Metadata> {
+  const {
+    locale,
+    path,
+    variables = {},
+    pathname,
+    canonicalUrl,
+    fallback,
+    siteName = RING_PLATFORM_SEO.siteName,
+    twitterSite = RING_PLATFORM_SEO.twitterSite,
+    robots = { index: true, follow: true },
+  } = options
+
+  const seoData = await resolveSeoData(locale, path, variables, fallback)
+  const baseUrl = getSeoSiteBaseUrl()
+  const canonical =
+    canonicalUrl ??
+    (seoData?.canonical
+      ? seoData.canonical.startsWith('http')
+        ? seoData.canonical
+        : `${baseUrl}${seoData.canonical}`
+      : pathname
+        ? `${baseUrl}${withLocalePath(locale, pathname)}`
+        : undefined)
+
+  const ogLocale = locale === 'uk' ? 'uk_UA' : 'en_US'
+  const ogImage = seoData?.ogImage ?? '/images/og-default.jpg'
+
   return {
-    title: 'Ring Platform - Decentralized Opportunities',
-    description: 'Connect, collaborate, and create value in the decentralized economy',
-    keywords: ['decentralized', 'opportunities', 'blockchain', 'collaboration', 'web3'],
-    canonical: `/${locale}`,
-    ogTitle: 'Ring Platform - Decentralized Opportunities',
-    ogDescription: 'Discover and create opportunities in the decentralized economy',
-    ogImage: '/images/og-default.jpg',
-    twitterTitle: 'Ring Platform',
-    twitterDescription: 'Decentralized opportunities and collaboration platform',
-    twitterImage: '/images/og-default.jpg'
+    title: seoData?.title,
+    description: seoData?.description,
+    keywords: seoData?.keywords,
+    robots,
+    alternates: canonical ? { canonical } : undefined,
+    openGraph: {
+      title: seoData?.ogTitle ?? seoData?.title,
+      description: seoData?.ogDescription ?? seoData?.description,
+      url: canonical,
+      type: 'website',
+      siteName,
+      locale: ogLocale,
+      alternateLocale: locale === 'uk' ? ['en_US'] : ['uk_UA'],
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      site: twitterSite,
+      title: seoData?.twitterTitle ?? seoData?.title,
+      description: seoData?.twitterDescription ?? seoData?.description,
+      images: [seoData?.twitterImage ?? ogImage],
+    },
   }
 }
 
-/**
- * React 19 Native Metadata Helper (removed renderMetaTags - use inline metadata instead)
- * The renderMetaTags function has been removed as all pages now use inline React 19 native metadata.
- * Use getSEOMetadata() with inline <title>, <meta>, and <link> tags in your components.
- */
+/** @deprecated Use `buildLocalizedMetadata` in `generateMetadata` instead. */
+export async function getSEOMetadata(
+  locale: Locale,
+  path: string,
+  variables: SeoVariables = {},
+  fallback?: Partial<SEOData>,
+): Promise<SEOData | null> {
+  return resolveSeoData(locale, path, variables, fallback)
+}
+
+export function getDefaultSEOData(locale: Locale): SEOData {
+  return {
+    title: 'Ring Platform - Decentralized Opportunities & Professional Networking',
+    description:
+      'Connect, collaborate, and create value in the decentralized economy. Join Ring Platform for professional networking, opportunities, and blockchain-enabled collaboration.',
+    keywords: ['decentralized', 'opportunities', 'blockchain', 'collaboration', 'web3', 'Ring Platform'],
+    canonical: locale === defaultLocale ? '/' : `/${locale}`,
+    ogTitle: 'Ring Platform - Decentralized Professional Networking',
+    ogDescription: 'Discover and create opportunities in the decentralized economy',
+    ogImage: '/og-ring-platform-1200x630.jpg',
+    twitterTitle: 'Ring Platform',
+    twitterDescription: 'Decentralized opportunities and collaboration platform',
+    twitterImage: '/og-ring-platform-1200x630.jpg',
+  }
+}

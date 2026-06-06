@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, replaceLocalePath } from '@/i18n/routing'
 import { useLocale } from 'next-intl'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -43,7 +43,13 @@ import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { routing } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import {
+  localeDisplayLabel,
+  localeNativeTitle,
+  nextLocaleInRoutingOrder,
+  persistRingLocalePreference,
+} from '@/lib/locale-pref'
 import packageInfo from '@/package.json'
 import { MiniCart } from '@/features/store/components/mini-cart'
 import { FavoritesMenu } from '@/features/store/components/favorites-menu'
@@ -53,7 +59,7 @@ import { toast } from '@/hooks/use-toast'
 import { Separator } from '@/components/ui/separator'
 import { useCurrency } from '@/features/store/currency-context'
 import dynamic from 'next/dynamic'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import UserWidget from './user-widget'
 import { TunnelIndicatorCompact } from './tunnel-indicator'
 
@@ -96,7 +102,7 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
 
   // Wallet balance hook for authenticated users
   const {
-    balance: ringBalance,
+    balance: tokenBalance,
     isLoading: balanceLoading,
     error: balanceError,
     refresh: refetchBalance
@@ -150,56 +156,18 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
     setTheme(currentTheme === 'dark' ? 'light' : 'dark')
   }, [setTheme, theme, systemTheme])
 
-  // Smart 2-mode language toggle
-  // Logic: Toggle between user's primary language and English (or English and Ukrainian if EN is primary)
-  const getSmartLanguageToggle = useCallback(() => {
-    // Get stored user preference (if any)
-    const storedLocale = typeof window !== 'undefined' 
-      ? (localStorage.getItem('ring-locale') as Locale || locale)
-      : locale
+  const getNextCyclingLocale = useCallback(
+    () => nextLocaleInRoutingOrder(locale),
+    [locale],
+  )
 
-    // Determine primary and secondary languages for toggle
-    let primaryLang: Locale = storedLocale
-    let secondaryLang: Locale = 'en'
-
-    if (primaryLang === 'en') {
-      // If English is primary, toggle to Ukrainian
-      secondaryLang = 'uk'
-    } else {
-      // If any other language is primary, toggle to English
-      secondaryLang = 'en'
-    }
-
-    // Current language in URL
-    const currentLang = locale
-
-    // Next language to toggle to
-    const nextLang = currentLang === primaryLang ? secondaryLang : primaryLang
-
-    return { currentLang, nextLang, primaryLang, secondaryLang }
-  }, [locale])
-
-  const switchLocale = useCallback((newLocale: Locale) => {
-    // Store the new locale preference
-    localStorage.setItem('ring-locale', newLocale)
-    document.cookie = `ring-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-
-    // Replace the current locale in the pathname
-    const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/'
-    const newPath = `/${newLocale}${pathWithoutLocale}`
-    
-    // Use window.location.href for FULL page reload to get new messages from Server Components
-    window.location.href = newPath
-  }, [pathname])
-
-  const getLanguageName = useCallback((locale: string) => {
-    switch (locale) {
-      case 'en': return 'EN'
-      case 'uk': return 'UA'
-      case 'ru': return 'RU'
-      default: return locale.toUpperCase()
-    }
-  }, [])
+  const switchLocale = useCallback(
+    (newLocale: Locale) => {
+      persistRingLocalePreference(newLocale)
+      replaceLocalePath(router, pathname, newLocale)
+    },
+    [pathname, router],
+  )
 
   // Wallet address copy functionality
   const handleCopyAddress = useCallback(async () => {
@@ -301,8 +269,8 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
             </div>
     },
     {
-      href: `/${locale}/about-trinity`,
-      label: tNav('sidebar.trinityUkraine'),
+      href: `/${locale}/about-publisher`,
+      label: tNav('sidebar.appPublisher'),
       icon: <div className="relative h-5 w-5">
               <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-rose-400 to-red-600 opacity-80" />
               <div className="absolute inset-[2px] rounded-md bg-gradient-to-br from-rose-500/90 to-red-600/90 flex items-center justify-center shadow-inner">
@@ -489,8 +457,8 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
 
   const currentTheme = theme === 'system' ? systemTheme : theme
   const walletAddress = session?.user?.wallets?.[0]?.address
-  const displayBalance = formatBalance(ringBalance?.amount)
-  const hasLowBalance = parseFloat(ringBalance?.amount || '0') < 1
+  const displayBalance = formatBalance(tokenBalance?.amount)
+  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
 
   return (
     <div className={cn(
@@ -645,10 +613,7 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
           <div className="flex items-center gap-2">
             {/* Language Toggle - Gem Button */}
             <button
-              onClick={() => {
-                const { nextLang } = getSmartLanguageToggle()
-                switchLocale(nextLang)
-              }}
+              onClick={() => switchLocale(getNextCyclingLocale())}
               className={cn(
                 "relative flex-1 h-9 px-3 rounded-xl text-xs font-medium",
                 "bg-gradient-to-br from-background to-muted/50",
@@ -659,14 +624,11 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
                 "flex items-center justify-center gap-1.5",
                 "group"
               )}
-              title={`Switch to ${(() => {
-                const { nextLang } = getSmartLanguageToggle()
-                return nextLang === 'en' ? 'English' : nextLang === 'uk' ? 'Українська' : 'Русский'
-              })()}`}
+              title={`Switch to ${localeNativeTitle(getNextCyclingLocale())}`}
             >
               <Languages className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent font-semibold">
-                {getLanguageName(locale)}
+                {localeDisplayLabel(locale)}
               </span>
             </button>
 
@@ -760,12 +722,12 @@ export default function DesktopSidebar({ className, isAuthenticating = false }: 
               {/* Tunnel connection indicator - green dot when connected */}
               <TunnelIndicatorCompact />
               <Link
-                href={`/${locale}/about-trinity`}
+                href={`/${locale}/about-publisher`}
                 className="group flex items-center gap-1 text-[11px] text-muted-foreground/70 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
               >
                 <span className="font-mono">v{packageInfo.version}</span>
                 <span className="text-purple-500/50">•</span>
-                <span className="group-hover:underline underline-offset-2">Trinity</span>
+                <span className="group-hover:underline underline-offset-2">{tNav('sidebar.appPublisher')}</span>
               </Link>
             </div>
             

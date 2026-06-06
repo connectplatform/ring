@@ -4,7 +4,8 @@ import React, { useState, useEffect, useTransition } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Locale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 import { createEntity, EntityFormState } from '@/app/_actions/entities'
 import { Button } from '@/components/ui/button'
@@ -45,7 +46,7 @@ function SubmitButton() {
   )
 }
 
-function AddEntityFormContent({ locale, translations }: { locale: Locale; translations: any } = { locale: DEFAULT_LOCALE, translations: {} }) {
+function AddEntityFormContent({ locale }: { locale: Locale } = { locale: DEFAULT_LOCALE }) {
   const t = useTranslations('modules.entities')
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -56,7 +57,7 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
   const [isPending, startTransition] = useTransition()
 
   const [state, formAction] = useActionState<EntityFormState | null, FormData>(
-    createEntity,
+    (state: EntityFormState, formData: FormData) => createEntity(state, formData, locale),
     null
   )
 
@@ -74,7 +75,7 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
   // Use effect to handle redirect on client-side only
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(DEFAULT_LOCALE))
+      router.push(ROUTES.LOGIN(locale))
     }
   }, [status, router])
 
@@ -93,18 +94,18 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
         <Card>
           <CardHeader>
             <CardTitle>{t('addMyEntity')}</CardTitle>
-            <CardDescription>Upgrade to Member to Create Entities</CardDescription>
+            <CardDescription>{t('upgradeToMemberDescription')}</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-muted-foreground">
-              As a subscriber, you can view entities but need to upgrade to member status to create your own.
+              {t('subscriberDescription')}
             </p>
             <div className="flex justify-center gap-4">
-              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale as 'en' | 'uk'))}>
-                Upgrade to Member
+              <Button onClick={() => router.push(ROUTES.MEMBERSHIP(locale))}>
+                {t('upgradeToMember')}
               </Button>
-              <Button variant="outline" onClick={() => router.push(ROUTES.ENTITIES(locale as 'en' | 'uk'))}>
-                Back to Entities
+              <Button variant="outline" onClick={() => router.push(ROUTES.ENTITIES(locale))}>
+                {t('backToEntities')}
               </Button>
             </div>
           </CardContent>
@@ -128,7 +129,7 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
             {/* Global error message */}
             {state?.error && (
               <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
+                <AlertTitle>{t('error')}</AlertTitle>
                 <AlertDescription>{state.error}</AlertDescription>
               </Alert>
             )}
@@ -311,7 +312,7 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    const entitiesRoute = ROUTES.ENTITIES(DEFAULT_LOCALE)
+                    const entitiesRoute = ROUTES.ENTITIES(locale)
                     router.push(entitiesRoute)
                   }}
                 >
@@ -327,8 +328,8 @@ function AddEntityFormContent({ locale, translations }: { locale: Locale; transl
   )
 }
 
-export default function AddEntityForm({ locale, translations }: { locale: Locale; translations: any } = { locale: DEFAULT_LOCALE, translations: {} }) {
+export default function AddEntityForm({ locale }: { locale: Locale } = { locale: DEFAULT_LOCALE }) {
   return (
-    <AddEntityFormContent locale={locale} translations={translations} />
+    <AddEntityFormContent locale={locale} />
   )
 } 

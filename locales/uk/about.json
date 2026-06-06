@@ -30,5 +30,26 @@
       "title": "Вітаємо",
       "content": "Вітаємо в Ring, {name}! Ми раді бачити вас частиною нашої спільноти."
     }
+  },
+  "sidebar": {
+    "platformInfo": "Platform Info",
+    "platformInfoDesc": "Ring Platform is an open-source solution for building decentralized communities and marketplaces.",
+    "version": "Version",
+    "license": "License",
+    "quickLinks": "Quick Links",
+    "aboutUs": "About Us",
+    "tokenEconomy": "Token Economy",
+    "aiWeb3": "AI & Web3",
+    "globalImpact": "Global Impact",
+    "contact": "Contact",
+    "community": "Community",
+    "github": "GitHub",
+    "githubUrl": "https://github.com/connectplatform/ring",
+    "discord": "Discord",
+    "discordUrl": "https://discord.gg/ring",
+    "needHelp": "Need Help?",
+    "needHelpDesc": "Have questions? Check our documentation or reach out.",
+    "documentation": "Documentation →",
+    "contactSupport": "Contact Support →"
   }
 }

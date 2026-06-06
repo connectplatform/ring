@@ -1,12 +1,14 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+import { safePostAuthRedirect, safePostAuthReturnTo } from '@/lib/auth/safe-post-auth-redirect'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { CheckCircle, XCircle, AlertCircle, Clock, Loader2, Mail, Shield, Key } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -52,30 +54,26 @@ const STATUS_CONFIG = {
 export default function AuthStatusPage({ action, status, locale, email, token, requestId, returnTo }: AuthStatusPageProps) {
   const t = useTranslations('modules.auth.status')
   const router = useRouter()
-  
+  const { status: sessionStatus } = useSession()
+
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending
   const IconComponent = config.icon
 
-  // Auto-redirect for signout success and login pending
   useEffect(() => {
     if (action === 'signout' && status === 'success') {
       const timer = setTimeout(() => {
         router.push(ROUTES.LOGIN(locale))
-      }, 2000)
-
+      }, 500)
       return () => clearTimeout(timer)
     }
+  }, [action, status, router, locale])
 
-    // Auto-redirect for login pending to the returnTo URL or profile
-    if (action === 'login' && status === 'pending') {
-      const timer = setTimeout(() => {
-        const redirectTo = returnTo || ROUTES.PROFILE(locale)
-        router.push(redirectTo)
-      }, 2000) // Show "Signing in..." for 2 seconds
-
-      return () => clearTimeout(timer)
-    }
-  }, [action, status, router, locale, returnTo])
+  // Legacy /auth/status/login/pending bookmark — session-only (OAuth uses Auth.js redirect callback).
+  useEffect(() => {
+    if (action !== 'login' || status !== 'pending') return
+    if (sessionStatus !== 'authenticated') return
+    router.push(safePostAuthRedirect(returnTo, locale))
+  }, [action, status, sessionStatus, returnTo, router, locale])
 
   // Get action-specific navigation buttons
   const getActionButtons = () => {
@@ -124,7 +122,7 @@ export default function AuthStatusPage({ action, status, locale, email, token, r
         if (status === 'success') {
           buttons.push(
             <Button key="continue" asChild>
-              <Link href={returnTo || ROUTES.PROFILE(locale)}>
+              <Link href={safePostAuthRedirect(returnTo, locale)}>
                 {t('actions.continue')}
               </Link>
             </Button>

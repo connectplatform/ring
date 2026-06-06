@@ -21,6 +21,8 @@ import { RingPaymentModal } from './ring-payment-modal'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
+import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { initiateMembershipPayment } from '@/app/_actions/membership-payment'
 import { UserRole } from '@/features/auth/types'
 
@@ -31,14 +33,19 @@ interface PaymentModalProps {
 
 export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
   const t = useTranslations('modules.membership')
+  const locale = useLocale() as Locale
   const { balance } = useCreditBalanceContext()
   const [showRingPayment, setShowRingPayment] = useState(false)
   const [selectedTab, setSelectedTab] = useState('ring')
-  const [formState, formAction] = useActionState(initiateMembershipPayment, null)
+  const [formState, formAction] = useActionState(
+    (state: Awaited<ReturnType<typeof initiateMembershipPayment>> | null, formData: FormData) =>
+      initiateMembershipPayment(state, formData, locale),
+    null
+  )
   
-  const ringBalance = parseFloat(balance?.amount || '0')
+  const tokenBalance = parseFloat(balance?.amount || '0')
   const membershipCost = 1.0
-  const hasSufficientRing = ringBalance >= membershipCost
+  const hasSufficientRing = tokenBalance >= membershipCost
   
   // Redirect to WayForPay when server action returns a payment URL
   useEffect(() => {
@@ -112,7 +119,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                       'font-medium',
                       hasSufficientRing ? 'text-green-600' : 'text-red-600'
                     )}>
-                      {ringBalance.toFixed(2)} RING
+                      {tokenBalance.toFixed(2)} RING
                     </span>
                   </div>
 
@@ -138,7 +145,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                         <p className="text-xs mt-1">
                           {t('payment.ring.need_more', { 
                             defaultValue: 'You need {amount} more RING tokens',
-                            amount: (membershipCost - ringBalance).toFixed(2)
+                            amount: (membershipCost - tokenBalance).toFixed(2)
                           })}
                         </p>
                       </AlertDescription>

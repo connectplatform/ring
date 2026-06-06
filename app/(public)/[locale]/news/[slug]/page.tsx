@@ -11,7 +11,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Calendar, User, Eye, Heart, MessageCircle, ArrowLeft, Share2, Clock } from 'lucide-react';
 import { LocalePageProps } from '@/utils/page-props';
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates } from '@/i18n-config';
+import type { Locale } from '@/i18n/shared';
+import { routing } from '@/i18n/routing';
+import { defaultLocale } from '@/i18n/shared';
+import { getTranslations } from 'next-intl/server';
+import { getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata';
 import NewsArticleWrapper from '@/components/wrappers/news-article-wrapper';
 import { NewsLikeButton } from '@/features/interactions/components/like-button';
 import { AuthorBioCard } from '@/features/news/components/author-bio-card';
@@ -25,6 +29,13 @@ import { connection } from 'next/server'
 interface NewsArticlePageParams {
   locale: string;
   slug: string;
+}
+
+function newsArticleCanonicalUrl(locale: Locale, slug: string): string {
+  const base = getSeoSiteBaseUrl()
+  const path =
+    locale === defaultLocale ? `/news/${slug}` : `/${locale}/news/${slug}`
+  return `${base}${path}`
 }
 
 /**
@@ -94,19 +105,22 @@ export async function generateMetadata({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale, slug } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
+  const validLocale = routing.locales.includes(locale as Locale)
+    ? (locale as Locale)
+    : routing.defaultLocale;
 
   const article = await getArticleBySlug(slug);
+  const newsBrand = `${RING_PLATFORM_SEO.siteName} News`;
 
   if (!article) {
     return {
-      title: 'Article Not Found | Ring Platform News'
+      title: `Article Not Found | ${newsBrand}`,
     };
   }
 
-  const title = `${article.title} | Ring Platform News`;
+  const title = `${article.title} | ${newsBrand}`;
   const description = article.excerpt || article.title;
-  const canonicalUrl = `https://ring.ck.ua/${validLocale}/news/${article.slug}`;
+  const canonicalUrl = newsArticleCanonicalUrl(validLocale, article.slug);
 
   return {
     title,
@@ -116,10 +130,10 @@ export async function generateMetadata({
       article.category.replace('-', ' '),
       'news',
       'articles',
-      'Ring Platform'
+      RING_PLATFORM_SEO.siteName,
     ],
     authors: [{ name: article.authorName }],
-    alternates: generateHreflangAlternates(canonicalUrl),
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title,
       description,
@@ -157,13 +171,20 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
   const searchParams = await props.searchParams;
 
   // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
+  const locale = routing.locales.includes(params.locale as Locale) ? params.locale : routing.defaultLocale;
   const { slug } = params;
 
   console.log('NewsArticlePage: Using locale', locale);
 
   // Load translations for the current locale
-  const translations = loadTranslations(locale);
+  const t = await getTranslations('news');
+  const tr = (key: string, fallback: string) => {
+    try {
+      return t(key as any)
+    } catch {
+      return fallback
+    }
+  }
   
   // Get current user session for like button
   const session = await auth();
@@ -175,10 +196,11 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
   }
 
   // React 19 metadata preparation
-  const title = article.seo?.metaTitle || `${article.title} - Ring Platform`;
+  const newsBrand = `${RING_PLATFORM_SEO.siteName} News`;
+  const title = article.seo?.metaTitle || `${article.title} | ${newsBrand}`;
   const description = article.seo?.metaDescription || article.excerpt;
-  const canonicalUrl = `https://ring.ck.ua/${locale}/news/${slug}`;
-  const alternates = generateHreflangAlternates(`/news/${slug}`);
+  const canonicalUrl = newsArticleCanonicalUrl(locale as Locale, slug);
+  const siteBase = getSeoSiteBaseUrl();
   const publishedDate = article.publishedAt?.toDate() || article.createdAt.toDate();
 
   // Calculate reading time
@@ -228,17 +250,17 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
             "@type": "NewsArticle",
             "headline": article.title,
             "description": article.excerpt,
-            "image": article.featuredImage || `https://ring.ck.ua/api/og/news/${article.slug}`,
+            "image": article.featuredImage || `${siteBase}/images/logo.png`,
             "author": {
               "@type": "Person",
               "name": article.authorName
             },
             "publisher": {
               "@type": "Organization",
-              "name": "Ring Platform",
+              "name": RING_PLATFORM_SEO.siteName,
               "logo": {
                 "@type": "ImageObject",
-                "url": "https://ring.ck.ua/images/logo.png"
+                "url": `${siteBase}/images/logo.png`,
               }
             },
             "datePublished": publishedDate.toISOString(),
@@ -256,9 +278,10 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
       />
 
       <NewsArticleWrapper
-        locale={locale}
+        locale={locale as Locale}
         articleSlug={slug}
         articleData={{
+          id: article.id,
           title: article.title,
           excerpt: article.excerpt,
           category: article.category,
@@ -282,12 +305,12 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
             tags: article.tags,
             featured: article.featured
           }}
-          locale={locale}
+          locale={locale as Locale}
           readingTime={readingTime}
           translations={{
-            byAuthor: (translations as any).news?.byAuthor,
-            featured: (translations as any).news?.featured,
-            backToNews: (translations as any).news?.backToNews
+            byAuthor: tr('byAuthor', 'By'),
+            featured: tr('featured', 'Featured'),
+            backToNews: tr('backToNews', 'Back to News'),
           }}
           userHasLiked={userHasLiked}
           likeCount={likeCount}
@@ -369,7 +392,7 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
               {article.tags.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold mb-3">
-                    {(translations as any).news?.tags || 'Tags'}
+                    {tr('tags', 'Tags')}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {article.tags.map((tag) => (
@@ -385,7 +408,7 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
               {article.gallery && article.gallery.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold mb-3">
-                    {(translations as any).news?.gallery || 'Gallery'}
+                    {tr('gallery', 'Gallery')}
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {article.gallery.map((image, index) => (
@@ -407,7 +430,16 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
                 <AuthorBioCard
                   article={article}
                   locale={locale}
-                  translations={translations}
+                  translations={{
+                    news: {
+                      authorBio: tr(
+                        'authorBio',
+                        'Content creator and contributor to Ring Platform news and updates.',
+                      ),
+                      articles: tr('articles', 'articles'),
+                      joined: tr('joined', 'Joined'),
+                    },
+                  }}
                 />
               </div>
             </article>
@@ -422,7 +454,7 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
           {relatedArticles.length > 0 && (
             <div className="max-w-6xl mx-auto mt-16">
               <h2 className="text-2xl font-semibold mb-6">
-                {(translations as any).news?.relatedArticles || 'Related Articles'}
+                {tr('relatedArticles', 'Related Articles')}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {relatedArticles.map((relatedArticle) => (

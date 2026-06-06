@@ -7,6 +7,7 @@ import type { Entity } from '@/types'
 import { 
   ConfidentialEntitiesProvider 
 } from '@/features/entities/context/confidential-entities-context'
+import { UserRole } from '@/features/auth/types'
 
 // Simple loading component
 function LoadingFallback() {
@@ -66,9 +67,9 @@ export default function ConfidentialEntitiesWrapper({
   }
 
   // Check permissions
-  if (!sessionData.data || 
-      (sessionData.data.user?.role !== 'confidential' && 
-       sessionData.data.user?.role !== 'admin')) {
+  if (!sessionData.data ||
+      (sessionData.data.user?.role !== UserRole.CONFIDENTIAL &&
+       sessionData.data.user?.role !== UserRole.ADMIN)) {
     return (
       <div className="text-center p-4 text-red-500">
         You don't have permission to view this page.

@@ -1,0 +1,227 @@
+{
+  "title": "Pet-Friendly Місця",
+  "searchPlaces": "Шукати Місця",
+  "nearbyPlaces": "Поблизу Місця",
+  "addPlace": "Додати Місце",
+  "editPlace": "Редагувати Місце",
+  "deletePlace": "Видалити Місце",
+  "noPlaces": "Місця не знайдено",
+  "discoverPlaces": "Відкривайте для себе pet-friendly місця навколо вас!",
+  
+  "types": {
+    "restaurant": "Ресторан",
+    "cafe": "Кафе",
+    "park": "Парк",
+    "hotel": "Готель",
+    "vet_clinic": "Ветеринарна Клініка",
+    "pet_store": "Зоомагазин",
+    "grooming": "Грумінг Салон",
+    "training": "Центр Дресирування",
+    "daycare": "Денний Догляд за Тваринами",
+    "dog_park": "Собачий Парк",
+    "beach": "Пляж",
+    "hiking_trail": "Туристичний Маршрут",
+    "other": "Інше"
+  },
+  
+  "priceRanges": {
+    "$": "Бюджетно",
+    "$$": "Помірно",
+    "$$$": "Дорого",
+    "$$$$": "Люкс"
+  },
+  
+  "amenities": {
+    "title": "Зручності",
+    "water_bowls": "Миски для Води",
+    "pet_menu": "Меню для Тварин",
+    "waste_bags": "Пакети для Відходів",
+    "leash_required": "Потрібен Повідець",
+    "off_leash_area": "Зона без Повідця",
+    "pet_grooming": "Грумінг для Тварин",
+    "pet_parking": "Паркування для Тварин",
+    "outdoor_seating": "Місця на Вулиці",
+    "shade": "Затінені Зони",
+    "pet_playground": "Майданчик для Тварин"
+  },
+  
+  "petPolicy": {
+    "title": "Політика щодо Тварин",
+    "allowsDogs": "Собаки Дозволені",
+    "allowsCats": "Коти Дозволені",
+    "allowsSmallPets": "Малі Тварини Дозволені",
+    "sizeLimit": "Максимальний Розмір",
+    "indoorAllowed": "Доступ в Приміщення",
+    "outdoorAllowed": "Доступ на Вулицю",
+    "leashRequired": "Повідець Обов'язковий",
+    "sizeLimits": {
+      "small": "Лише Малі Тварини",
+      "medium": "До Середнього Розміру",
+      "large": "До Великого Розміру",
+      "any": "Всі Розміри Вітаються"
+    }
+  },
+  
+  "fields": {
+    "name": "Назва Місця",
+    "placeType": "Тип",
+    "description": "Опис",
+    "address": "Адреса",
+    "addressLine1": "Вулиця та Будинок",
+    "addressLine2": "Квартира, Офіс тощо",
+    "city": "Місто",
+    "state": "Область/Регіон",
+    "postalCode": "Поштовий Індекс",
+    "country": "Країна",
+    "phone": "Телефон",
+    "email": "Email",
+    "website": "Вебсайт",
+    "workingHours": "Години Роботи",
+    "entryFee": "Вхідна Плата",
+    "currency": "Валюта",
+    "priceRange": "Ціновий Діапазон",
+    "photos": "Фотографії",
+    "primaryPhoto": "Головне Фото",
+    "coverPhoto": "Обкладинка",
+    "isVerified": "Перевірено",
+    "isActive": "Активно",
+    "visibleOnMap": "Видно на Карті"
+  },
+  
+  "workingHours": {
+    "title": "Години Роботи",
+    "monday": "Понеділок",
+    "tuesday": "Вівторок",
+    "wednesday": "Середа",
+    "thursday": "Четвер",
+    "friday": "П'ятниця",
+    "saturday": "Субота",
+    "sunday": "Неділя",
+    "open": "Відчинено",
+    "close": "Зачинено",
+    "closed": "Вихідний",
+    "24hours": "Відчинено 24 Години",
+    "allWeek": "Весь Тиждень"
+  },
+  
+  "subscription": {
+    "title": "Статус Підписки",
+    "active": "Активна",
+    "inactive": "Неактивна",
+    "gracePeriod": "Пільговий Період",
+    "suspended": "Призупинено",
+    "manageSubscription": "Керувати Підпискою",
+    "renewSubscription": "Поновити Підписку",
+    "upgradeSubscription": "Покращити План",
+    "subscriptionRequired": "Активна підписка потрібна для відображення на карті"
+  },
+  
+  "vendor": {
+    "title": "Статус Продавця",
+    "isVendor": "Працює як Продавець",
+    "becomeVendor": "Стати Продавцем",
+    "vendorTier": "Рівень Продавця",
+    "trustScore": "Рейтинг Довіри",
+    "tiers": {
+      "NEW": "Новий",
+      "BASIC": "Базовий",
+      "VERIFIED": "Перевірений",
+      "TRUSTED": "Довірений",
+      "PREMIUM": "Преміум"
+    }
+  },
+  
+  "map": {
+    "title": "Вид Карти",
+    "listView": "Вид Списку",
+    "nearMe": "Поблизу Мене",
+    "searchRadius": "Радіус Пошуку",
+    "getDirections": "Отримати Маршрут",
+    "currentLocation": "Поточна Локація",
+    "distance": "Відстань",
+    "showOnMap": "Показати на Карті"
+  },
+  
+  "search": {
+    "placeholder": "Шукати за назвою, типом або локацією...",
+    "filterByType": "Фільтр за Типом",
+    "filterByAmenities": "Фільтр за Зручностями",
+    "filterByPetPolicy": "Фільтр за Політикою щодо Тварин",
+    "radius": "Радіус",
+    "withinKm": "в межах {{km}} км",
+    "sortBy": "Сортувати за",
+    "sortOptions": {
+      "distance": "Відстань",
+      "rating": "Рейтинг",
+      "newest": "Найновіші",
+      "popular": "Найпопулярніші"
+    }
+  },
+  
+  "profile": {
+    "title": "Профіль Місця",
+    "viewProfile": "Переглянути Профіль",
+    "editProfile": "Редагувати Профіль",
+    "shareProfile": "Поділитися Профілем",
+    "reportPlace": "Скарга на Місце",
+    "claimPlace": "Підтвердити Власність",
+    "stats": "Статистика",
+    "totalVisits": "Всього Відвідувань",
+    "totalReviews": "Всього Відгуків",
+    "averageRating": "Середній Рейтинг"
+  },
+  
+  "actions": {
+    "savePlace": "Зберегти Місце",
+    "updatePlace": "Оновити Місце",
+    "cancelEdit": "Скасувати",
+    "deletePlaceConfirm": "Ви впевнені, що хочете видалити це місце?",
+    "uploadPhoto": "Завантажити Фото",
+    "setAsPrimary": "Встановити як Головне Фото",
+    "setCover": "Встановити як Обкладинку",
+    "removePhoto": "Видалити Фото",
+    "addToFavorites": "Додати до Улюблених",
+    "removeFromFavorites": "Видалити з Улюблених",
+    "checkIn": "Зареєструватися",
+    "writeReview": "Написати Відгук"
+  },
+  
+  "validation": {
+    "nameRequired": "Назва місця обов'язкова",
+    "typeRequired": "Тип місця обов'язковий",
+    "addressRequired": "Адреса обов'язкова",
+    "locationRequired": "Координати локації обов'язкові",
+    "phoneInvalid": "Невірний номер телефону",
+    "emailInvalid": "Невірна email адреса",
+    "websiteInvalid": "Невірний URL вебсайту",
+    "photosLimit": "Максимум 20 фотографій дозволено"
+  },
+  
+  "success": {
+    "created": "Місце успішно створено!",
+    "updated": "Місце успішно оновлено!",
+    "deleted": "Місце видалено",
+    "photoUploaded": "Фото успішно завантажено",
+    "photoRemoved": "Фото видалено",
+    "addedToFavorites": "Додано до улюблених",
+    "removedFromFavorites": "Видалено з улюблених",
+    "checkedIn": "Успішно зареєстровано!"
+  },
+  
+  "errors": {
+    "loadFailed": "Не вдалося завантажити місця",
+    "saveFailed": "Не вдалося зберегти місце",
+    "deleteFailed": "Не вдалося видалити місце",
+    "uploadFailed": "Не вдалося завантажити фото",
+    "locationAccessDenied": "Доступ до локації відхилено. Будь ласка, увімкніть служби геолокації.",
+    "geolocationNotSupported": "Геолокація не підтримується вашим браузером"
+  },
+  
+  "nearby": {
+    "title": "Поблизу Місця",
+    "searching": "Пошук місць поблизу...",
+    "foundPlaces": "Знайдено {{count}} місць в межах {{km}} км",
+    "noPlacesFound": "Pet-friendly місця поблизу не знайдено. Спробуйте збільшити радіус пошуку.",
+    "locationPermission": "Будь ласка, дозвольте доступ до локації для пошуку місць поблизу"
+  }
+}

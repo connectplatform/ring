@@ -526,7 +526,7 @@ export function DeploymentCalculator() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Button asChild>
-                      <Link href="/docs/library/white-label/quick-start">
+                      <Link href="/docs/white-label/quick-start">
                         Start Building
                       </Link>
                     </Button>

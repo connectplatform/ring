@@ -1,7 +1,8 @@
 {
   "login": {
     "title": "Welcome back",
-    "subtitle": "Sign in to continue to Ring"
+    "subtitle": "Sign in to continue to Ring",
+    "description": "Sign in to your Ring account. Access your professional network, opportunities, and blockchain features."
   },
   "marketplace": {
     "title": "MV Marketplace",
@@ -53,30 +54,94 @@
     "hero": {
       "title": "The World's First Free Self-Modifying AI-Orchestrated Platform",
       "subtitle": "Deploy a custom platform to solve any collective need in days. No developers required.",
-      "trinityUkraine": "Built by Trinity Ukraine 🇺🇦 - Our gift to the world with gratitude for helping us prove our right to independence",
+      "appPublisher": "Published by Sonoratek LLC (Ringdom, Arizona) 🇺🇦 — our gift to the world, with gratitude for everyone who helped Ukraine prove its right to independence",
       "description": "",
       "features": [
-        "20+ integrated modules: Entities, Opportunities, Store, Wallet, NFT Market, Staking...",
-        "Works with Firebase, PostgreSQL, or ConnectPlatform backend",
-        "Own RING token economy for opportunity listings, services, AI modifications",
-        "AI agents analyze and notify matches automatically",
-        "Future vision: Platform that writes its own modules per owner's prompt",
-        "Weapon of peace to end technology deficit globally"
+        "Open-source Ring Platform — clone free, customize for your organization",
+        "Post Ring customization requests; contractors browse /opportunities and apply",
+        "AI matcher notifies registered builders when a listing fits their profile",
+        "20+ modules: entities, store, wallet, NFT, messaging, memberships…",
+        "LegioX operators + Connect.Software skillsets & MCP servers for agent tooling",
+        "Ringdom turn-key ringization when you want hosted delivery, not DIY ops"
       ],
       "gitClone": "git clone https://github.com/connectplatform/ring",
       "gitCloneText": "Clone Ring now, it's free forever:",
-      "cta": "Get Started",
-      "learnMore": "Learn More"
+      "marketplaceBand": {
+        "title": "Ship your Ring clone with the right talent",
+        "subtitle": "CEOs and product owners publish briefs. Developers and agencies discover work, respond, and get AI-matched alerts—without enterprise agency overhead.",
+        "postCta": "Post a customization request",
+        "browseCta": "Browse work as a contractor"
+      },
+      "cta": "Choose your path",
+      "learnMore": "Learn More",
+      "ctaCards": {
+        "postOpportunity": {
+          "title": "Post a customization request",
+          "description": "Describe branding, modules, integrations, or deployment needs for your Ring clone."
+        },
+        "browseContractor": {
+          "title": "Browse opportunities as a builder",
+          "description": "Registered freelancers and dev shops find Ring clone projects and get notified by the AI matcher."
+        },
+        "clone": {
+          "title": "Clone Ring Platform",
+          "description": "Free forever. Fork the OSS baseline and self-host your community or marketplace."
+        },
+        "entities": {
+          "title": "Explore entities",
+          "description": "Companies, startups, academia, and institutions in the Ring ecosystem."
+        },
+        "wallet": {
+          "title": "RING token economy",
+          "description": "Credits for listings, services, and platform operations across Ring-powered rings."
+        },
+        "docs": {
+          "title": "Documentation",
+          "description": "Architecture, APIs, deployment paths, and white-label guides in EN / UK / RU."
+        },
+        "settler": {
+          "title": "Ringdom turn-key delivery",
+          "description": "LegioX-powered ringization, hosting, and operations when you want outcomes—not repo archaeology."
+        },
+        "connectSoftware": {
+          "title": "Connect.Software agent marketplace",
+          "description": "Procure installable LegioX skillsets, MCP tool servers, routers, bundles, and hosted AI-CONTEXT—governed listings built on the same Ring commerce substrate.",
+          "marketplaceLink": "Browse marketplace",
+          "skillsetsLink": "Skillsets",
+          "mcpLink": "MCP servers"
+        }
+      }
     },
-  "trinityUkraine": {
-    "title": "Trinity Ukraine - Our Gift to the World",
-    "subtitle": "Built by Trinity Ukraine 🇺🇦 - Our gift to the world with gratitude for helping us prove our right to independence",
+  "appPublisher": {
+    "title": "Sonoratek LLC — App publisher",
+    "heroLegalName": "Sonoratek LLC",
+    "subtitle": "Sonoratek LLC (Tempe, Arizona) is the Ringdom legal entity that publishes Ring — with gratitude for everyone who helped Ukraine prove its right to independence 🇺🇦",
+    "impactStats": {
+      "globalDeployments": "Global deployments",
+      "peopleServed": "People served",
+      "countriesReached": "Countries reached",
+      "communitiesEmpowered": "Communities empowered"
+    },
+    "teamMembers": {
+      "ray": {
+        "role": "Ringdom Emperor",
+        "specialty": "Visionary & Founder"
+      },
+      "max": {
+        "role": "Ringdom Treasurer",
+        "specialty": "Accounting & vaults"
+      },
+      "dima": {
+        "role": "Ringdom Spirit Wizard",
+        "specialty": "Global strategy & development"
+      }
+    },
     "mission": "Our Mission",
     "missionText": "Technology should unite, not divide. Ring enables anyone, anywhere to solve collective needs without expensive developers or vendor lock-in.",
     "philosophy": "Our Philosophy",
     "philosophyText": "Ukrainian farmers can deploy the same sophisticated platform as Silicon Valley startups. African artisans access the same AI-powered marketplace as Amazon.",
     "originStory": "Our Origin Story",
-    "originSubtitle": "How Trinity Ukraine built Ring during Ukraine's struggle for independence",
+    "originSubtitle": "How Ringdom built Ring during Ukraine's struggle for independence",
     "beginning": "The Beginning",
     "beginningText": "As Russia invaded Ukraine, we witnessed how technology could be a weapon of oppression. Centralized platforms controlled by foreign entities could be shut down or manipulated. We decided to build something different.",
     "building": "Building Ring",
@@ -89,21 +154,92 @@
     "worldMapText": "See Ring deployments, use cases per region, and success metrics from live deployments worldwide.",
     "futureVision": "Future Vision",
     "futureQuote": "Imagine asking your Ring platform: 'Add a blockchain-verified certificate system for educational courses' - and watching as the platform autonomously generates the module, deploys smart contracts, updates the UI, and tests itself. No developers in the middle. You talk directly to your platform. This is our roadmap.",
-    "roadmap2025q2": "AI-powered opportunity matching (✅ Complete)",
-    "roadmap2025q3": "Autonomous module customization (voice/text prompts)",
-    "roadmap2026q1": "Complete autonomous platform evolution",
-    "meetTeam": "Meet the Trinity Ukraine Team",
-    "teamSubtitle": "Photos and bios of Trinity Ukraine founders/developers",
+    "roadmapPhase1Title": "Shipped baseline",
+    "roadmapPhase2Title": "In development",
+    "roadmapPhase3Title": "Next horizon",
+    "roadmap2025q2": "✅ Live on flagship rings: Next.js 16 + Turbopack, React 19, Auth.js v5, PostgreSQL/PostGIS, modular i18n, marketplace and opportunities, Ringdom Maps–class integrations, and white-label propagation (Ring Platform v1.49+ lineage).",
+    "roadmap2025q3": "🔧 In progress: LegioX MCP and NODUS-aligned operator workflows, richer AI-CONTEXT, governed prompt-driven customization, ConnectPlatform/Firebase deployment paths, and staged Cache Components where routes are auth/headers-safe.",
+    "roadmap2026q1": "🔭 Next: durable orchestration, audit-friendly multi-tenant controls, and rings that progressively assemble vetted modules from natural-language intent—with human-in-the-loop approval.",
+    "meetTeam": "Meet the team behind Ring",
+    "teamSubtitle": "Sonoratek LLC and Ringdom contributors",
     "joinMission": "Join Our Mission",
     "joinMissionText": "Help us democratize technology access worldwide. Whether you're a developer, organization, or community leader - there's a place for you in the Ring ecosystem.",
     "cloneRing": "Clone Ring Now",
     "findProjects": "Find Ring Projects"
   },
+    "rightRail": {
+      "ecosystemTitle": "Why Ring Platform",
+      "stats": {
+        "oss": {
+          "value": "OSS",
+          "label": "Free forever",
+          "hint": "Clone, customize, self-host — no license fee"
+        },
+        "modules": {
+          "value": "20+",
+          "label": "Platform modules",
+          "hint": "Entities, opportunities, store, wallet, NFT, messaging…"
+        },
+        "matcher": {
+          "value": "AI",
+          "label": "Opportunity matcher",
+          "hint": "Notifies builders when listings fit your skills"
+        },
+        "ringdom": {
+          "value": "⚡",
+          "label": "Ringdom ringization",
+          "hint": "LegioX-powered clone fitting & managed hosting"
+        },
+        "audience": {
+          "value": "🌍",
+          "label": "Global distribution",
+          "hint": "CEOs, CTOs, academia, enthusiasts, contractors"
+        }
+      },
+      "twoPaths": {
+        "title": "Two doors, one Ring ecosystem",
+        "platformTitle": "ring-platform.org — open marketplace",
+        "platformBody": "The OSS reference app and public square. Clone Ring for free, publish customization requests as opportunities, and let registered contractors browse listings, apply, and get matched by AI.",
+        "ringdomTitle": "Ringdom — hosted ringization",
+        "ringdomBody": "The digital kingdom of the Machine Race: LegioX AI automates ring-platform fitting to your brief, plus enterprise hosting when you want turn-key delivery instead of DIY ops."
+      },
+      "freelanceMarket": {
+        "title": "High-value, low-cost customization market",
+        "body": "Post what your next Ring clone needs — branding, modules, integrations, deployment. Freelancers and agencies discover work on /opportunities, respond to listings, and receive AI matcher alerts when fit scores are high.",
+        "postCta": "Post a customization request",
+        "browseCta": "Browse opportunities as a builder"
+      },
+      "audiences": {
+        "title": "Who this serves",
+        "ceos": "Leaders launching a white-label community or marketplace without a six-figure agency quote.",
+        "developers": "Engineers who want a modern Next.js 16 + React 19 baseline instead of rebuilding auth, i18n, and payments.",
+        "contractors": "Registered freelancers earning Ring work by shipping clone customizations for global settlers."
+      },
+      "ringdomSettler": {
+        "title": "Need full turn-key delivery?",
+        "body": "Ringdom settlers get AI ringization, hosting, and ongoing LegioX operations — for teams that want outcomes, not repo archaeology.",
+        "cta": "Become a Ringdom settler"
+      },
+      "legiox": {
+        "title": "LegioX + Connect.Software",
+        "body": "LegioX truth lenses power Cursor operators on Ring clones. For governed procurement of installable skillsets, MCP servers, routers, and bundles, use Connect.Software—the agent-native integrations marketplace on Ring Platform.",
+        "connectMarketplace": "Connect.Software marketplace",
+        "connectSkillsets": "Skillsets catalog",
+        "connectMcp": "MCP servers",
+        "nftNote": "Advanced LegioX operator packs via Legiox-Access NFT",
+        "cta": "LegioX NFT access docs"
+      },
+      "exploreClone": {
+        "title": "Start from source",
+        "docsCta": "Clone & deploy guide",
+        "docsHint": "Free GitHub baseline — customize locally or post work to the marketplace"
+      }
+    },
     "links": {
       "entities": "Explore Entities",
       "entitiesDescription": "Browse companies, startups, communities, and institutions shaping the ecosystem.",
       "opportunities": "Find Opportunities",
-      "opportunitiesDescription": "Explore opportunities like jobs, grants, and collaborations."
+      "opportunitiesDescription": "Explore opportunities like jobs, grants, collaborations, and Ring customization projects."
     }
   }
 }

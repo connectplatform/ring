@@ -1,3 +1,6 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
 import SettingsWrapper from '@/components/wrappers/settings-wrapper'
@@ -5,12 +8,13 @@ import SettingsContent from '@/features/auth/components/settings-content'
 import { updateSettings } from '@/app/_actions/settings'
 import { auth } from '@/auth'
 import { UserSettings } from '@/features/auth/types'
-import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
-import { loadTranslations, isValidLocale, generateHreflangAlternates, type Locale, defaultLocale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations } from 'next-intl/server'
 import { connection } from 'next/server'
-
+import { logger } from '@/lib/logger'
 // Define the type for the settings route params
 type SettingsParams = {};
 
@@ -30,98 +34,93 @@ type SettingsParams = {};
  * @param props - The LocalePageProps with params and searchParams as Promises
  * @returns The rendered SettingsPage component
  */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'settings',
+    pathname: '/settings',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false },
+  })
+}
 export default async function SettingsPage(props: LocalePageProps<SettingsParams>) {
   await connection() // Next.js 16: opt out of prerendering
 
-  console.log('SettingsPage: Starting');
+  logger.info('SettingsPage: Starting');
 
-  // Resolve params and searchParams
   const params = await props.params;
   const searchParams = await props.searchParams;
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
 
-  // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('SettingsPage: Using locale', locale);
-
-  // Basic metadata for authenticated page (no SEO needed)
-  const translations = await loadTranslations(locale);
-  const title = `${(translations as any).settings?.title || 'Settings'} | Ring Platform`;
-  const description = (translations as any).settings?.description || 'Manage your Ring account settings, preferences, and privacy options.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/settings`;
-
-  let initialSettings: UserSettings | null = null
-  let error: string | null = null
-
-  const headersList = await headers()
-
-  console.log('SettingsPage: Request details', {
+  const headersList = await headers();
+  logger.info('SettingsPage: Request details', {
     params,
     searchParams,
-    locale,
+    locale: validLocale,
     userAgent: headersList.get('user-agent'),
   });
 
+  const session = await auth();
+  logger.info('SettingsPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+  if (!session) return null // Layout AuthGuard already redirects; this narrowing satisfies TypeScript
+
   try {
-    console.log('SettingsPage: Authenticating session');
-    const session = await auth()
-    console.log('SettingsPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
-
-    if (!session) {
-      console.log('SettingsPage: No session, redirecting to localized login');
-      redirect(ROUTES.LOGIN(locale))
+    const { userMigrationService } = await import('@/features/auth/services/user-migration');
+    const userExists = await userMigrationService.userDocumentExists(session.user.id);
+    if (!userExists) {
+      logger.warn('SettingsPage: User document missing, initializing');
+      await userMigrationService.ensureUserDocument(session.user as any);
     }
-
-    // Check if user document exists (with caching - migration now handled at auth level)
-    try {
-      const { userMigrationService } = await import('@/features/auth/services/user-migration');
-      const userExists = await userMigrationService.userDocumentExists(session.user.id);
-      if (!userExists) {
-        console.warn('SettingsPage: User document missing, initializing');
-        await userMigrationService.ensureUserDocument(session.user as any);
-        console.log('SettingsPage: User document created successfully');
-      }
-    } catch (migrationError) {
-      console.error('SettingsPage: Failed to check/create user document:', migrationError);
-      // Continue anyway - settings will handle missing document gracefully
-    }
-
-    // Fetch settings using direct service call
-    console.log('SettingsPage: Calling getUserSettings service');
-    const { getUserSettings } = await import('@/features/auth/services/get-user-settings');
-    initialSettings = await getUserSettings();
-    console.log('SettingsPage: User settings fetched', { hasSettings: !!initialSettings });
-
-  } catch (e) {
-    console.error("SettingsPage: Error fetching user settings:", e)
-    error = "Failed to load user settings. Please try again later."
+  } catch (migrationError) {
+    logger.error('SettingsPage: Failed to check/create user document:', migrationError);
   }
 
-  console.log('SettingsPage: Rendering', { hasError: !!error, hasSettings: !!initialSettings, locale });
+  const translations = await getTranslations('settings');
+  const title = `${(translations as any).settings?.title || 'Settings'} | Zemna AI`;
+  const description = (translations as any).settings?.description || 'Manage your Ring account settings, preferences, and privacy options.';
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://zemna.ai"}${ROUTES.SETTINGS(validLocale)}`;
+
+  let initialSettings: UserSettings | null = null;
+  let error: string | null = null;
+
+  try {
+    const { getUserSettings } = await import('@/features/auth/services/get-user-settings');
+    initialSettings = await getUserSettings();
+    logger.info('SettingsPage: User settings fetched', { hasSettings: !!initialSettings });
+  } catch (e) {
+    logger.error('SettingsPage: Error fetching user settings:', e);
+    error = 'Failed to load user settings. Please try again later.';
+  }
 
   return (
     <>
-      {/* React 19 Native Document Metadata - Authenticated Page */}
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonicalUrl} />
-      
-      {/* Authenticated page security meta tags */}
       <meta name="robots" content="noindex, nofollow" />
       <meta name="googlebot" content="noindex, nofollow" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-      <SettingsWrapper locale={locale}>
+      <SettingsWrapper locale={validLocale}>
         <SettingsContent
           initialSettings={initialSettings}
           initialError={error}
           searchParams={searchParams as { [key: string]: string | string[] | undefined }}
           updateSettingsAction={updateSettings}
-          locale={locale}
+          locale={validLocale}
         />
       </SettingsWrapper>
     </>
-  )
-}
+  );
+} 
 
 /* 
  * OBSOLETE FUNCTIONS (removed with React 19 migration):

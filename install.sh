@@ -84,11 +84,11 @@ print_80s_motd() {
     echo -e "██  ${WHITE}to benefit humanity through intelligent cooperation and${CYAN}${BOLD}   ██"
     echo -e "██  ${WHITE}shared innovation.${CYAN}${BOLD}                                        ██"
     echo "██                                                            ██"
-    echo -e "██  ${GREEN}${BOLD}Join our legion of light by contributing your modules or${CYAN}${BOLD}  ██"
+    echo -e "██  ${GREEN}${BOLD}Join our legiox of light by contributing your modules or${CYAN}${BOLD}  ██"
     echo -e "██  ${GREEN}${BOLD}deploying Ring in production environments for everyone's${CYAN}${BOLD}  ██"
     echo -e "██  ${GREEN}${BOLD}benefit.${CYAN}${BOLD}                                                  ██"
     echo "██                                                            ██"
-    echo -e "██  ${PURPLE}${BOLD}▶ Trinity Ukraine's Gift to the World${CYAN}${BOLD}                     ██"
+    echo -e "██  ${PURPLE}${BOLD}▶ Sonoratek LLC / Ringdom — Ring Platform${CYAN}${BOLD}                     ██"
     echo -e "██  ${PURPLE}${BOLD}▶ Script Version: ${SCRIPT_VERSION}${CYAN}${BOLD}                                   ██"
     # Adjust spacing based on environment name length
     if [[ "$(echo $SETUP_MODE | tr '[:lower:]' '[:upper:]')" == "PROD" ]]; then
@@ -912,7 +912,7 @@ EOF
     
     # Check for .cursor directory
     if [[ -d ".cursor" ]]; then
-        print_success ".cursor configuration found (Legion AI ready)"
+        print_success ".cursor configuration found (Legiox AI ready)"
     fi
     
     print_success "IDE configuration completed!"

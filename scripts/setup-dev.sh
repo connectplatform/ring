@@ -67,7 +67,7 @@ print_motd() {
     echo -e "██  ${WHITE}to benefit humanity through intelligent cooperation and${CYAN}${BOLD}   ██"
     echo -e "██  ${WHITE}shared innovation.${CYAN}${BOLD}                                        ██"
     echo "██                                                            ██"
-    echo -e "██  ${GREEN}${BOLD}Join our legion of light by contributing your modules or${CYAN}${BOLD}  ██"
+    echo -e "██  ${GREEN}${BOLD}Join our legiox of light by contributing your modules or${CYAN}${BOLD}  ██"
     echo -e "██  ${GREEN}${BOLD}deploying Ring in production environments for everyone's${CYAN}${BOLD}  ██"
     echo -e "██  ${GREEN}${BOLD}benefit.${CYAN}${BOLD}                                                  ██"
     echo "██                                                            ██"

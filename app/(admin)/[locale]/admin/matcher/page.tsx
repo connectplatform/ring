@@ -11,7 +11,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,8 @@ import {
   Download,
   Settings
 } from 'lucide-react';
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import { type Locale } from '@/i18n/shared';
 
 // Mock data - in real implementation this would come from database/analytics service
 const mockAnalyticsData = {
@@ -161,6 +163,9 @@ const MetricCard: React.FC<MetricCardProps> = ({
 
 const MatcherAnalyticsDashboard: React.FC = () => {
   const t = useTranslations('admin.matcherAnalytics');
+  const tAdmin = useTranslations('modules.admin');
+  const locale = (useLocale() as Locale) || 'en';
+  const adminLabels = buildModulesAdminLabels(tAdmin);
   const [timeRange, setTimeRange] = useState('7d');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -189,7 +194,7 @@ const MatcherAnalyticsDashboard: React.FC = () => {
   };
 
   return (
-    <AdminWrapper locale="en" pageContext="matcher">
+    <AdminWrapper locale={locale} pageContext="matcher" labels={adminLabels}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

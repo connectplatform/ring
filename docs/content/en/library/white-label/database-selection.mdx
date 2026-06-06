@@ -9,7 +9,7 @@ import { Steps, Step } from '@/components/docs/steps'
 # Database Backend Selection
 
 <Callout type="info">
-  **Key Decision**: Your database choice affects scalability, cost, and features. Ring supports Firebase, PostgreSQL, and ConnectPlatform - migrate anytime.
+  **Canonical env model:** Ring Platform selects the primary database and push stack with **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full`, `supabase-fcm`). Postgres‑primary production still uses Firebase for **FCM** when enabled — not Firestore as the system of record. Full matrix: [Backend modes and databases](/en/library/architecture/backend-modes-and-databases).
 </Callout>
 
 Ring's unique database abstraction layer allows you to start with one database and migrate to another without rewriting application code. This guide helps you choose the right backend for your needs.

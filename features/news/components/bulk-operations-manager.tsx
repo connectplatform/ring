@@ -46,7 +46,6 @@ import Link from 'next/link'
 interface BulkOperationsManagerProps {
   initialArticles: NewsArticle[]
   locale: string
-  translations: any
 }
 
 interface BulkOperationState {
@@ -188,7 +187,6 @@ function BulkActionButton({
 export function BulkOperationsManager({ 
   initialArticles, 
   locale, 
-  translations 
 }: BulkOperationsManagerProps) {
   const [articles, setArticles] = useState<NewsArticle[]>(initialArticles)
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set())

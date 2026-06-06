@@ -1,12 +1,18 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import { Suspense } from "react";
 import { LocalePageProps } from "@/utils/page-props";
-import { isValidLocale, defaultLocale } from '@/i18n-config';
+import type { Locale } from '@/i18n/shared';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import { routing } from '@/i18n/routing';
+import { getTranslations } from 'next-intl/server';
 
 
 // Force dynamic rendering for real-time metrics
 
-type PerformanceParams = {};
+type PerformanceParams = { locale: Locale };
 
 /**
  * 🚀 Firebase Performance Monitoring Dashboard
@@ -125,9 +131,30 @@ const MetricCard = ({
   );
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'admin.performance',
+    pathname: '/admin/performance',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false, noarchive: true, nosnippet: true, noimageindex: true },
+  })
+}
 export default async function PerformancePage(props: LocalePageProps<PerformanceParams>) {
   const params = await props.params;
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
+  const tt = await getTranslations('modules.admin');
+  const adminLabels = buildModulesAdminLabels(tt);
   
   const metrics = getPerformanceMetrics();
 
@@ -136,7 +163,7 @@ export default async function PerformancePage(props: LocalePageProps<Performance
       <title>🚀 Firebase Performance Dashboard | Ring Admin</title>
       <meta name="description" content="Real-time monitoring of Firebase optimization performance and build improvements" />
       
-      <AdminWrapper locale={locale} pageContext="performance">
+      <AdminWrapper locale={validLocale} pageContext="performance" labels={adminLabels}>
       <div className="py-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, usePathname } from 'next/navigation'
-import { SerializedOpportunity, OpportunityVisibility, Attachment } from '@/features/opportunities/types'
+import { SerializedOpportunity, OpportunityVisibility, Attachment, type OpportunitySubmenuTab } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 import { useAppContext } from '@/contexts/app-context'
 import { Locale, useTranslations } from 'next-intl'
@@ -51,7 +51,7 @@ export default function OpportunitiesWrapper({
   initialLimit
 }: OpportunitiesWrapperProps) {
   const [isClient, setIsClient] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState('all')
+  const [activeTab, setActiveTab] = React.useState<OpportunitySubmenuTab>('all')
 
   const searchParams = useSearchParams()
   const pathname = usePathname()

@@ -1,6 +1,32 @@
+import type { Metadata } from 'next'
 import React from 'react'
 import { Order } from '@/features/store/types'
 import StoreWrapper from '@/components/wrappers/store-wrapper'
+import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam, id } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'store.orders.detail',
+    pathname: `/store/orders/${id}`,
+    variables: { orderId: id },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false },
+  })
+}
 
 async function getOrder(id: string): Promise<Order | null> {
   try {
@@ -20,11 +46,13 @@ async function getOrder(id: string): Promise<Order | null> {
   }
 }
 
-export default async function OrderDetailsPage({ params }: { params: { id: string } }) {
-  const order = await getOrder(params.id)
+export default async function OrderDetailsPage({ params }: { params: Promise<{ id: string; locale: string }> }) {
+  const { id, locale } = await params;
+  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
+  const order = await getOrder(id)
   if (!order) return <div>Order not found</div>
   return (
-    <StoreWrapper locale="en">
+    <StoreWrapper locale={validLocale}>
       <div>
         <h1 className="text-2xl font-semibold mb-4">Order #{order.id}</h1>
         <div className="space-y-2">

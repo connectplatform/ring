@@ -2,6 +2,7 @@
 
 import { auth } from '@/auth'
 import { UserSettings } from '@/features/auth/types'
+import { UserRole } from '@/features/auth/types'
 
 export type UpdateSettingsResponse = {
   success: boolean;
@@ -26,7 +27,7 @@ export async function updateSettings(state: UpdateSettingsResponse | null, formD
   const currentUserId = session.user.id
   
   // Users can only update their own settings (unless they're admin)
-  const isAdmin = session.user.role === 'admin'
+  const isAdmin = session.user.role === UserRole.ADMIN
   
   if (!isAdmin && requestedUserId !== currentUserId) {
     return {

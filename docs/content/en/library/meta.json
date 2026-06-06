@@ -1,5 +1,6 @@
 {
   "title": "Platform Documentation",
+  "description": "Ordered top-level doc sections. Each slug is a folder under docs/content/{locale}/library/ with its own meta.json (title, description, pages[]).",
   "pages": [
     "welcome",
     "index",
@@ -11,6 +12,7 @@
     "customization",
     "deployment",
     "development",
-    "examples"
+    "examples",
+    "integrations"
   ]
 }

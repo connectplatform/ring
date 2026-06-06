@@ -1,13 +1,17 @@
-import React from 'react';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from "@/auth"
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { AuthUser } from '@/features/auth/types';
 import { AdminUserManager } from '@/features/auth/components/admin-user-manager';
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import type { Locale } from '@/i18n/shared';
+import { routing } from '@/i18n/routing';
+import { ROUTES } from '@/constants/routes';
+import { getTranslations } from 'next-intl/server';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import { connection } from 'next/server'
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 
 
 async function getUsers(): Promise<AuthUser[]> {
@@ -45,12 +49,12 @@ export async function generateMetadata({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale);
+  const t = await getTranslations('modules.admin');
 
   return {
-    title: `${t.modules.admin.userManagement} | Ring Platform`,
-    description: t.modules.admin.userManagementDescription
+    title: `${t('userManagement')} | Zemna AI`,
+    description: t('userManagementDescription')
   };
 }
 
@@ -62,39 +66,38 @@ export default async function AdminUsersPage({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
-  
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale);
+  const t = await getTranslations('modules.admin');
+
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/users`);
+    redirect(`${ROUTES.LOGIN(validLocale)}?callbackUrl=${encodeURIComponent(ROUTES.ADMIN_USERS(validLocale))}`);
   }
 
-  // Check if user has admin role
-  if (session.user.role !== 'admin') {
-    redirect(`/${validLocale}/unauthorized`);
+  if (!isPlatformAdmin(session.user.role)) {
+    redirect(ROUTES.UNAUTHORIZED(validLocale));
   }
   
   const users = await getUsers();
+  const adminLabels = buildModulesAdminLabels(t);
 
   return (
-    <AdminWrapper locale={validLocale} pageContext="users">
+    <AdminWrapper locale={validLocale} pageContext="users" labels={adminLabels}>
       <div className="container mx-auto px-0 py-0">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {t.modules.admin.userManagement}
+            {t('userManagement')}
           </h1>
           <p className="text-muted-foreground">
-            {t.modules.admin.userManagementDescription}
+            {t('userManagementDescription')}
           </p>
         </div>
 
         <AdminUserManager
           initialUsers={users}
           locale={validLocale}
-          translations={t}
         />
       </div>
     </AdminWrapper>

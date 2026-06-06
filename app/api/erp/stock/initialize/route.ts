@@ -6,7 +6,7 @@
  * Initializes stock levels for all products in the warehouse.
  * Requires admin authentication in production.
  * 
- * @author Legion Commander - AI-ERP Warehouse Manager
+ * @author Legiox Commander - AI-ERP Warehouse Manager
  * @date 2025-12-08
  */
 

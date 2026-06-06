@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useCallback, useEffect, useState } from "react"
+import { usePathname, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from "framer-motion"
 import { useTranslations } from "next-intl"
 import { useTheme } from "next-themes"
@@ -48,6 +49,8 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
   const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { opportunities, setOpportunities, error, setError } = useAppContext()
   const [loading, setLoading] = useState(false)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
@@ -102,7 +105,8 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
   }
 
   if (!session) {
-    const from = typeof window !== 'undefined' ? (window.location.pathname + window.location.search) : undefined
+    const search = searchParams.toString()
+    const from = pathname + (search ? `?${search}` : '')
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
         <motion.div

@@ -1,8 +1,11 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { usePathname, useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
+import { useLocale, useTranslations } from 'next-intl'
+import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
@@ -10,16 +13,105 @@ import {
   Home, Info, Phone, FileText, HelpCircle, ChevronRight,
   Sparkles, Zap, Globe
 } from 'lucide-react'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
-import { signIn } from 'next-auth/react'
-import { FcGoogle } from 'react-icons/fc'
-import { AiFillApple } from 'react-icons/ai'
-import { FaEthereum } from 'react-icons/fa'
-import { HiMail } from 'react-icons/hi'
+const authButtonLift =
+  'transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0'
+
+function MobileMenuGuestAuth({
+  onClose,
+  className,
+}: {
+  onClose?: () => void
+  className?: string
+}) {
+  const tAuth = useTranslations('modules.auth')
+  const tNav = useTranslations('navigation')
+  const router = useRouter()
+  const pathname = usePathname()
+  const locale = useLocale() as Locale
+
+  const handleSignIn = async (provider: 'google' | 'apple' | 'metamask') => {
+    if (provider === 'metamask') {
+      router.push(`/${locale}/auth/wallet-connect`)
+      onClose?.()
+      return
+    }
+    const callbackUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : `/${locale}`
+    await signIn(provider, { callbackUrl })
+    onClose?.()
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-2xl bg-white/5 backdrop-blur-md border border-white/10',
+        'hover:border-white/20 hover:bg-white/10 transition-all duration-300 p-5',
+        className
+      )}
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+          <LogIn className="h-5 w-5 text-primary-foreground" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">{tNav('signIn') || tAuth('login')}</p>
+          <p className="text-xs text-muted-foreground">{tAuth('signIn.subtitle')}</p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => handleSignIn('google')}
+          className={cn(
+            'flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-xl',
+            'bg-white text-gray-800 hover:bg-gray-50 font-semibold shadow-lg shadow-black/5',
+            authButtonLift
+          )}
+        >
+          <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+          </svg>
+          {tAuth('signIn.providers.google')}
+        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => handleSignIn('apple')}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
+              'bg-black text-white hover:bg-gray-900 font-semibold shadow-lg',
+              authButtonLift
+            )}
+          >
+            {tAuth('signIn.providers.apple')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSignIn('metamask')}
+            className={cn(
+              'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
+              'bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-lg',
+              authButtonLift
+            )}
+          >
+            {tAuth('signIn.providers.metamask')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Import the Session type from next-auth
 import { Session } from 'next-auth'
@@ -35,7 +127,7 @@ interface MobileMenuProps {
   navigationLinks: Array<{ href: string; label: string; icon: React.ReactNode; description?: string }>
   theme: string
   toggleTheme: () => void
-  locale: string
+  locale: Locale
   user: Session['user'] | null
   loading: boolean
   handleGoogleSignIn: () => void
@@ -98,9 +190,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   onClose,
 }) => {
   const t = useTranslations('navigation')
-  const tAuth = useTranslations('modules.auth')
-  const [showAuthOptions, setShowAuthOptions] = useState(false)
-  const [isSigningIn, setIsSigningIn] = useState(false)
   
   const userRole = getUserRole(user)
   
@@ -131,13 +220,13 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     // Additional user links for authenticated users
     const userLinks: NavigationLink[] = user ? [
       {
-        href: ROUTES.PROFILE(locale as 'en' | 'uk'),
+        href: ROUTES.PROFILE(locale),
         label: t('profile'),
         icon: User,
         gradient: 'from-indigo-500 to-blue-600'
       },
       {
-        href: ROUTES.SETTINGS(locale as 'en' | 'uk'),
+        href: ROUTES.SETTINGS(locale),
         label: t('settings'),
         icon: Settings,
         gradient: 'from-gray-500 to-slate-600'
@@ -149,7 +238,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         gradient: 'from-pink-500 to-rose-600'
       },
       {
-        href: ROUTES.MEMBERSHIP(locale as 'en' | 'uk'),
+        href: ROUTES.MEMBERSHIP(locale),
         label: 'Membership',
         icon: Heart,
         gradient: 'from-red-500 to-pink-600'
@@ -159,7 +248,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     // Confidential links for high-tier users
     const confidentialLinks: NavigationLink[] = (userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN) ? [
       {
-        href: ROUTES.CONFIDENTIAL_ENTITIES(locale as 'en' | 'uk'),
+        href: ROUTES.CONFIDENTIAL_ENTITIES(locale),
         label: 'Confidential Entities',
         icon: Shield,
         requiredRole: UserRole.CONFIDENTIAL,
@@ -167,7 +256,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         gradient: 'from-purple-500 to-indigo-600'
       },
       {
-        href: ROUTES.CONFIDENTIAL_OPPORTUNITIES(locale as 'en' | 'uk'),
+        href: ROUTES.CONFIDENTIAL_OPPORTUNITIES(locale),
         label: 'Confidential Opportunities',
         icon: Crown,
         requiredRole: UserRole.CONFIDENTIAL,
@@ -178,21 +267,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 
     return [...mainLinks, ...userLinks, ...confidentialLinks]
   }, [navigationLinks, locale, t, user, userRole])
-
-  // Handle authentication
-  const handleAuthAction = useCallback(async (provider: 'google' | 'apple' | 'crypto-wallet') => {
-    setIsSigningIn(true)
-    try {
-      await signIn(provider, { 
-        redirect: false,
-        callbackUrl: ROUTES.PROFILE(locale as 'en' | 'uk')
-      })
-    } catch (error) {
-      console.error('Sign in error:', error)
-    } finally {
-      setIsSigningIn(false)
-    }
-  }, [locale])
 
   // Animation variants
   const containerVariants = {
@@ -217,15 +291,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   const itemVariants = {
     hidden: { x: -20, opacity: 0 },
     visible: { x: 0, opacity: 1 }
-  }
-
-  const authVariants = {
-    hidden: { height: 0, opacity: 0 },
-    visible: { 
-      height: 'auto', 
-      opacity: 1,
-      transition: { duration: 0.3 }
-    }
   }
 
   return (
@@ -376,71 +441,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               {t('signOut')}
             </Button>
           ) : (
-            <div className="space-y-3">
-              <Button
-                variant="ghost"
-                className="w-full justify-center text-blue-600 hover:bg-blue-500/10"
-                onClick={() => setShowAuthOptions(!showAuthOptions)}
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                {t('signIn')}
-              </Button>
-              
-              <AnimatePresence>
-                {showAuthOptions && (
-                  <motion.div
-                    variants={authVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="hidden"
-                    className="space-y-2 overflow-hidden"
-                  >
-                    {/* Magic Link / Email */}
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20 hover:from-green-500/20 hover:to-emerald-500/20"
-                      disabled={isSigningIn}
-                    >
-                      <HiMail className="w-4 h-4 mr-3" />
-                      {tAuth('signIn.providers.email')}
-                    </Button>
-
-                    {/* Google */}
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/20 hover:from-blue-500/20 hover:to-indigo-500/20"
-                      onClick={() => handleAuthAction('google')}
-                      disabled={isSigningIn}
-                    >
-                      <FcGoogle className="w-4 h-4 mr-3" />
-                      {tAuth('signIn.providers.google')}
-                    </Button>
-
-                    {/* Apple */}
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-gradient-to-r from-gray-500/10 to-slate-500/10 border-gray-500/20 hover:from-gray-500/20 hover:to-slate-500/20"
-                      onClick={() => handleAuthAction('apple')}
-                      disabled={isSigningIn}
-                    >
-                      <AiFillApple className="w-4 h-4 mr-3" />
-                      {tAuth('signIn.providers.apple')}
-                    </Button>
-
-                    {/* MetaMask */}
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/20 hover:from-orange-500/20 hover:to-amber-500/20"
-                      onClick={() => handleAuthAction('crypto-wallet')}
-                      disabled={isSigningIn}
-                    >
-                      <FaEthereum className="w-4 h-4 mr-3" />
-                      {tAuth('signIn.providers.metamask')}
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <MobileMenuGuestAuth className="mb-0" onClose={onClose} />
           )}
         </motion.div>
       </div>

@@ -1,0 +1,149 @@
+{
+  "title": "My Pets",
+  "addPet": "Add Pet",
+  "editPet": "Edit Pet",
+  "deletePet": "Delete Pet",
+  "noPets": "No pets yet",
+  "addYourFirstPet": "Add your first pet to discover pet-friendly places and connect with other pet owners!",
+  
+  "types": {
+    "dog": "Dog",
+    "cat": "Cat",
+    "bird": "Bird",
+    "rabbit": "Rabbit",
+    "hamster": "Hamster",
+    "guinea_pig": "Guinea Pig",
+    "reptile": "Reptile",
+    "fish": "Fish",
+    "horse": "Horse",
+    "other": "Other"
+  },
+  
+  "sizes": {
+    "tiny": "Tiny",
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "giant": "Giant"
+  },
+  
+  "genders": {
+    "male": "Male",
+    "female": "Female",
+    "unknown": "Unknown"
+  },
+  
+  "temperament": {
+    "title": "Temperament",
+    "calm": "Calm",
+    "playful": "Playful",
+    "shy": "Shy",
+    "aggressive": "Aggressive",
+    "social": "Social",
+    "energetic": "Energetic",
+    "lazy": "Lazy",
+    "anxious": "Anxious"
+  },
+  
+  "fields": {
+    "name": "Pet Name",
+    "petType": "Type",
+    "breed": "Breed",
+    "size": "Size",
+    "weight": "Weight (kg)",
+    "color": "Color",
+    "age": "Age",
+    "ageYears": "Years",
+    "ageMonths": "Months",
+    "gender": "Gender",
+    "bio": "Bio",
+    "isNeutered": "Neutered/Spayed",
+    "isVaccinated": "Vaccinated",
+    "vaccinationDate": "Vaccination Date",
+    "microchipId": "Microchip ID",
+    "energyLevel": "Energy Level",
+    "friendlinessPeople": "Friendliness with People",
+    "friendlinessPets": "Friendliness with Pets",
+    "trainability": "Trainability",
+    "hasSpecialNeeds": "Has Special Needs",
+    "specialNeeds": "Special Needs Details",
+    "dietaryRestrictions": "Dietary Restrictions",
+    "medications": "Medications",
+    "goodWithKids": "Good with Kids",
+    "goodWithDogs": "Good with Dogs",
+    "goodWithCats": "Good with Cats",
+    "goodInApartments": "Good in Apartments",
+    "photos": "Photos",
+    "primaryPhoto": "Primary Photo",
+    "isActive": "Active",
+    "isPublic": "Public Profile"
+  },
+  
+  "levels": {
+    "veryLow": "Very Low",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "veryHigh": "Very High"
+  },
+  
+  "compatibility": {
+    "title": "Compatibility",
+    "description": "Help us match you with compatible pets and places",
+    "goodWithKidsLabel": "Good with children",
+    "goodWithDogsLabel": "Good with other dogs",
+    "goodWithCatsLabel": "Good with cats",
+    "goodInApartmentsLabel": "Suitable for apartment living"
+  },
+  
+  "health": {
+    "title": "Health & Care",
+    "vaccinated": "Up to date on vaccinations",
+    "neutered": "Neutered/Spayed",
+    "microchipped": "Microchipped"
+  },
+  
+  "profile": {
+    "title": "Pet Profile",
+    "viewProfile": "View Profile",
+    "editProfile": "Edit Profile",
+    "shareProfile": "Share Profile",
+    "visibility": "Profile Visibility",
+    "publicProfile": "Public (visible to everyone)",
+    "privateProfile": "Private (only visible to you)",
+    "stats": "Statistics"
+  },
+  
+  "actions": {
+    "savePet": "Save Pet",
+    "updatePet": "Update Pet",
+    "cancelEdit": "Cancel",
+    "deletePetConfirm": "Are you sure you want to delete this pet profile?",
+    "uploadPhoto": "Upload Photo",
+    "setAsPrimary": "Set as Primary Photo",
+    "removePhoto": "Remove Photo"
+  },
+  
+  "validation": {
+    "nameRequired": "Pet name is required",
+    "typeRequired": "Pet type is required",
+    "ageInvalid": "Invalid age",
+    "weightInvalid": "Weight must be a positive number",
+    "photosLimit": "Maximum 10 photos allowed"
+  },
+  
+  "success": {
+    "created": "Pet profile created successfully!",
+    "updated": "Pet profile updated successfully!",
+    "deleted": "Pet profile deleted",
+    "photoUploaded": "Photo uploaded successfully",
+    "photoRemoved": "Photo removed"
+  },
+  
+  "errors": {
+    "loadFailed": "Failed to load pet profiles",
+    "saveFailed": "Failed to save pet profile",
+    "deleteFailed": "Failed to delete pet profile",
+    "uploadFailed": "Photo upload failed"
+  }
+}

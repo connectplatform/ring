@@ -1,7 +1,7 @@
 /**
  * Email Service Module
  * ====================
- * AI-Assisted Email Management for info@ringdom.org
+ * AI-Assisted Email Management for Ring Platform
  * 
  * Architecture:
  * - IMAP: Real-time email listening via IMAP IDLE

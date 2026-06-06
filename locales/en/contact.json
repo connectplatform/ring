@@ -1,0 +1,32 @@
+{
+  "title": "Contact Zemna.AI",
+  "getInTouch": "Get in Touch",
+  "description": "We'd love to hear from you. Please fill out the form below and we'll get back to you as soon as possible.",
+  "contactInformation": "Contact Information",
+  "faq": "Frequently Asked Questions",
+  "partners": "Our Partners",
+  "loadingForm": "Loading contact form...",
+  "faqWhatIs": "What is Zemna.AI?",
+  "faqWhatIsAnswer": "Zemna.AI is a scientific writing and publication platform. It provides a rich-text editor with LaTeX equations, citation highlighting (Pronto), auto-save, version history, and an AI research assistant to help researchers draft and structure papers.",
+  "faqStart": "How do I start writing a paper?",
+  "faqStartAnswer": "Sign in and open the Editor from the navigation. Create a new document or choose a template (e.g. Research Article, Review Paper). Use the toolbar for formatting, equations, tables, and Pronto to highlight and validate in-text citations.",
+  "faqSaved": "Is my work saved automatically?",
+  "faqSavedAnswer": "Yes. Zemna.AI auto-saves your publication every 30 seconds. You can also use version history to restore earlier drafts or create named snapshots.",
+  "faqExport": "Can I export to PDF or Word?",
+  "faqExportAnswer": "Export to PDF, Word (DOCX), and Markdown is supported. Use the Export option in the editor header when your document is ready.",
+  "sidebar": {
+    "zemnaInfo": "Zemna.AI Info",
+    "zemnaInfoDesc": "Scientific writing and publication platform with LaTeX, Pronto citations, and AI research assistant.",
+    "quickLinks": "Quick Links",
+    "docs": "Documentation",
+    "gettingStarted": "Getting Started",
+    "pricing": "Pricing",
+    "support": "Support",
+    "contact": "Contact",
+    "community": "Community",
+    "needHelp": "Need Help?",
+    "needHelpDesc": "Check our docs or reach out.",
+    "documentation": "Documentation →",
+    "contactSupport": "Contact Support →"
+  }
+}

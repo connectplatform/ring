@@ -2,10 +2,15 @@ import React from 'react';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth'
+import { ROUTES } from '@/constants/routes'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
 import { NewsArticle } from '@/features/news/types';
 import { AdminNewsManager } from '@/features/news/components/admin-news-manager';
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import { NewsSubmissionsReady } from '@/features/news/components/news-submissions-ready';
+import { mapNewsDocument } from '@/lib/news/map-news-document';
+import { routing } from '@/i18n/routing';
+import type { Locale } from '@/i18n/shared';
+import { getTranslations } from 'next-intl/server';
 import NewsWrapper from '@/components/wrappers/news-wrapper';
 import { connection } from 'next/server'
 
@@ -35,10 +40,9 @@ async function getNewsArticles(): Promise<NewsArticle[]> {
       return []
     }
     
-    return result.data.map(doc => ({
-      id: doc.id,
-      ...doc
-    })) as any[] as NewsArticle[];
+    return result.data.map((doc) =>
+      mapNewsDocument(doc as { id: string; data?: Record<string, unknown> })
+    );
   } catch (error) {
     console.error('Error fetching news articles:', error);
     return [];
@@ -53,12 +57,11 @@ export async function generateMetadata({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const t = await getTranslations('modules.admin');
 
   return {
-    title: `${t.modules.admin.newsManagement} | Ring Platform`,
-    description: t.modules.admin.newsManagementDescription
+    title: `${t('newsManagement')} | Zemna AI`,
+    description: t('newsManagementDescription')
   };
 }
 
@@ -71,14 +74,14 @@ export default async function AdminNewsPage({
 
   const startTime = Date.now();
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale);
+  const t = await getTranslations('modules.admin');
   
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/news`);
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADMIN_NEWS(validLocale))}`);
   }
 
   // Check if user has admin role (simplified check for now)
@@ -90,21 +93,21 @@ export default async function AdminNewsPage({
     <NewsWrapper
       pageContext="articles"
       stats={{ totalArticles: articles.length, publishedArticles: 0, draftArticles: 0, recentViews: 0 }}
-      translations={t}
     >
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">
-        {t.modules.admin.newsManagement}
+        {t('newsManagement')}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-        {t.modules.admin.newsManagementDescription}
+        {t('newsManagementDescription')}
         </p>
       </div>
+
+      <NewsSubmissionsReady articles={articles} locale={validLocale} />
 
       <AdminNewsManager
         initialArticles={articles}
         locale={validLocale}
-        translations={t}
       />
     </NewsWrapper>
   );

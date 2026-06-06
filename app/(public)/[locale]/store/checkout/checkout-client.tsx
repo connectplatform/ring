@@ -7,7 +7,7 @@ import { ROUTES } from '@/constants/routes'
 import { useStore } from '@/features/store/context'
 import { PrebillingPage, type BillingData } from '@/features/store/components/checkout/prebilling-page'
 import { ReviewStep } from '@/features/store/components/checkout/review-step'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { useTranslations } from 'next-intl'
 import { SpecialOfferModal } from '@/features/store/components/special-offer-modal'
 
@@ -31,19 +31,16 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 
 		setSubmitting(true)
 		try {
-			// Create order with billing data (Phase 2: Include variants!)
 			const items = cartItems.map(i => ({
 				productId: i.product.id,
 				name: i.product.name,
 				price: i.product.price,
-				currency: 'UAH', // Convert to UAH for WayForPay
+				currency: 'UAH',
 				quantity: i.quantity,
-				// Phase 2: Include selected variants and final price
 				selectedVariants: i.selectedVariants,
 				finalPrice: i.finalPrice
 			}))
 			
-			// Phase 2: Use finalPrice for total calculation if available
 			const cartTotal = cartItems.reduce((sum, item) => {
 				const price = item.finalPrice || parseFloat(item.product.price)
 				return sum + (price * item.quantity)
@@ -74,7 +71,6 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 				status: 'new'
 			}
 
-			// Create order
 			const orderRes = await fetch('/api/store/orders', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -85,9 +81,12 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 			const orderData = await orderRes.json()
 			setOrderId(orderData.orderId)
 
-			// Handle payment based on method
-			if (billingData.paymentMethod === 'wayforpay') {
-				// Initiate WayForPay payment via API
+			const method =
+				(billingData.paymentMethod as string) === 'ring'
+					? 'credit'
+					: billingData.paymentMethod
+
+			if (method === 'wayforpay') {
 				const paymentRes = await fetch('/api/store/payments/wayforpay', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -98,27 +97,34 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 					})
 				})
 
-				if (!paymentRes.ok) {
-					throw new Error('Failed to initiate payment')
-				}
-
+				if (!paymentRes.ok) throw new Error('Failed to initiate payment')
 				const paymentResult = await paymentRes.json()
-
 				if (paymentResult.success && paymentResult.paymentUrl) {
-					// Redirect to WayForPay
 					window.location.href = paymentResult.paymentUrl
 					return
-				} else {
-					throw new Error('Failed to initiate payment')
 				}
-			} else {
-				// For other payment methods, go to confirmation
-				clearCart()
-				setStep('confirmation')
+				throw new Error('Failed to initiate payment')
 			}
+
+			if (method === 'credit') {
+				const creditRes = await fetch('/api/store/payments/credit', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ orderId: orderData.orderId }),
+				})
+				const creditResult = await creditRes.json()
+				if (!creditRes.ok || !creditResult.success) {
+					throw new Error(creditResult.error || 'Credit payment failed')
+				}
+				clearCart()
+				router.push(`/${locale}/store/checkout/success`)
+				return
+			}
+
+			throw new Error(t('paymentMethodNotAvailable', { default: 'This payment method is not available yet.' }))
 		} catch (e) {
 			console.error('Order placement failed:', e)
-			alert(t('orderPlacementFailed'))
+			alert(e instanceof Error ? e.message : t('orderPlacementFailed'))
 		} finally {
 			setSubmitting(false)
 		}
@@ -140,7 +146,6 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 
 	return (
 		<div>
-			{/* Special offer floating modal - demo wiring for Store feature */}
 			<SpecialOfferModal
 				offer={{
 					id: 'checkout-offer-1',
@@ -148,7 +153,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 					description: t('specialOfferDesc', { default: 'Order today and get free shipping on all items.' }) as unknown as string,
 					price: undefined,
 					currency: 'UAH',
-					expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours
+					expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
 					ctaText: t('specialOfferCta', { default: 'Apply Offer' }) as unknown as string,
 					dismissText: t('dismiss', { default: 'Dismiss' }) as unknown as string,
 					onClick: () => setShowOffer(false)

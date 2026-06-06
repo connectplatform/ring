@@ -5,7 +5,10 @@ import { useTranslations } from 'next-intl'
 import { CreditCard, Wallet, Coins, Smartphone } from 'lucide-react'
 import { CompactSecurityBadges } from './security-badges'
 
-export type PaymentMethod = 'wayforpay' | 'crypto' | 'stripe' | 'ring'
+export type PaymentMethod = 'wayforpay' | 'crypto' | 'stripe' | 'credit' | 'token'
+
+/** @deprecated Use 'credit' */
+export type LegacyPaymentMethod = PaymentMethod | 'ring'
 
 interface PaymentOption {
   id: PaymentMethod
@@ -23,7 +26,7 @@ interface PaymentStepProps {
 
 export function PaymentStep({ method, setMethod }: PaymentStepProps) {
   const t = useTranslations('modules.store.checkout')
-  
+
   const paymentOptions: PaymentOption[] = [
     {
       id: 'wayforpay',
@@ -31,44 +34,56 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
       description: t('cardPaymentDescription'),
       icon: <CreditCard className="h-5 w-5" />,
       enabled: true,
-      badges: ['Visa', 'Mastercard', 'Apple Pay', 'Google Pay']
+      badges: ['Visa', 'Mastercard', 'Apple Pay', 'Google Pay'],
+    },
+    {
+      id: 'credit',
+      name: t('creditBalance', { default: 'Credit balance' }),
+      description: t('creditBalanceDescription', {
+        default: 'Pay with your account credit balance (fiat)',
+      }),
+      icon: <Coins className="h-5 w-5" />,
+      enabled: process.env.NEXT_PUBLIC_PAYMENT_STORE_ALLOW_CREDIT !== 'false',
+      badges: ['USD', 'UAH'],
+    },
+    {
+      id: 'token',
+      name: t('nativeToken', { default: 'Native token' }),
+      description: t('nativeTokenDescription', {
+        default: 'On-chain payment — coming soon',
+      }),
+      icon: <Wallet className="h-5 w-5" />,
+      enabled: false,
+      badges: ['RING'],
     },
     {
       id: 'crypto',
       name: t('cryptoPayment'),
       description: t('cryptoPaymentDescription'),
       icon: <Wallet className="h-5 w-5" />,
-      enabled: true,
-      badges: ['DAAR', 'DAARION']
-    },
-    {
-      id: 'ring',
-      name: t('ringTokens'),
-      description: t('ringTokensDescription'),
-      icon: <Coins className="h-5 w-5" />,
-      enabled: true,
-      badges: ['RING']
+      enabled: false,
+      badges: ['DAAR', 'DAARION'],
     },
     {
       id: 'stripe',
       name: t('stripePayment'),
       description: t('stripePaymentDescription'),
       icon: <Smartphone className="h-5 w-5" />,
-      enabled: false, // Will be enabled later
-      badges: ['Test Mode']
-    }
+      enabled: false,
+      badges: ['Test Mode'],
+    },
   ]
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">{t('paymentMethod')}</h3>
-      
+
       <div className="space-y-3">
         {paymentOptions.map((option) => (
           <div
             key={option.id}
             className={`border rounded-lg p-4 transition-all ${
-              option.enabled 
+              option.enabled
                 ? `cursor-pointer ${
                     method === option.id
                       ? 'border-primary bg-primary/10'
@@ -78,73 +93,37 @@ export function PaymentStep({ method, setMethod }: PaymentStepProps) {
             }`}
             onClick={() => option.enabled && setMethod(option.id)}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  method === option.id && option.enabled
-                    ? 'bg-primary/20 text-primary'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {option.icon}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{option.name}</span>
-                    {!option.enabled && (
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
-                        {t('comingSoon')}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">{option.description}</p>
-                  {option.badges && (
-                    <div className="flex items-center gap-2 mt-2">
-                      {option.badges.map((badge) => (
-                        <span
-                          key={badge}
-                          className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded"
-                        >
-                          {badge}
-                        </span>
-                      ))}
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5">{option.icon}</div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">{option.name}</h4>
+                  {method === option.id && option.enabled && (
+                    <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-primary-foreground" />
                     </div>
                   )}
                 </div>
-              </div>
-              
-              <div className="ml-4">
-                <input
-                  type="radio"
-                  checked={method === option.id}
-                  onChange={() => option.enabled && setMethod(option.id)}
-                  disabled={!option.enabled}
-                  className="h-4 w-4 text-primary accent-primary"
-                />
+                <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
+                {option.badges && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {option.badges.map((badge) => (
+                      <span
+                        key={badge}
+                        className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground"
+                      >
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Payment Security Info */}
-      <div className="mt-6">
-        <CompactSecurityBadges className="justify-center" />
-      </div>
-
-      {/* WayForPay Specific Info */}
-      {method === 'wayforpay' && (
-        <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <CreditCard className="h-4 w-4 text-primary" />
-            <span className="font-medium">{t('secureCardPayment')}</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {t('wayforpaySecurityNote')}
-          </p>
-        </div>
-      )}
+      <CompactSecurityBadges />
     </div>
   )
 }
-
-

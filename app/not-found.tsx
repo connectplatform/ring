@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
-import { defaultLocale } from '@/i18n-config'
+import { defaultLocale } from '@/i18n/shared'
 
 export default function NotFound() {
   return (

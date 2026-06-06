@@ -27,3 +27,7 @@ export enum UserRole {
   SUPERADMIN = 'superadmin'
 }
 
+/** Admin UI + most admin APIs: both roles; use strict SUPERADMIN-only where required (e.g. settings). */
+export function isPlatformAdmin(role: string | undefined | null): boolean {
+  return role === UserRole.ADMIN || role === UserRole.SUPERADMIN
+}

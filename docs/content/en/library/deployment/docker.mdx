@@ -501,7 +501,7 @@ kubectl apply -f ring-platform-backup.yaml`}
 
 ### Container Runtime Cleanup
 
-Kubernetes doesn't provide native kubectl commands for container runtime maintenance. Use these Legion-approved procedures for node-level cleanup:
+Kubernetes doesn't provide native kubectl commands for container runtime maintenance. Use these Legiox-approved procedures for node-level cleanup:
 
 #### Docker Image Cleanup on Nodes
 On control plane node On worker nodes (via SSH) Check disk usage after cleanup
@@ -517,7 +517,7 @@ df -h`}
 </Code>
 
 #### Automated Cleanup Script
-Legion Kubernetes Node Maintenance Script Usage: ./k8s-node-maintenance.sh [node1] [node2] ...
+Legiox Kubernetes Node Maintenance Script Usage: ./k8s-node-maintenance.sh [node1] [node2] ...
 
 <Code language="bash" title="terminal">
 {`#!/bin/bash
@@ -527,7 +527,7 @@ if [ ${#NODES[@]} -eq 0 ]; then
     NODES=("k8s-control-01" "k8s-worker-01" "k8s-worker-02")
 fi
 
-echo "🛡️ Legion Kubernetes Node Maintenance Starting..."
+echo "🛡️ Legiox Kubernetes Node Maintenance Starting..."
 
 for node in "${NODES[@]}"; do
     echo "🔧 Cleaning node: $node"
@@ -553,7 +553,7 @@ for node in "${NODES[@]}"; do
     echo "✅ Node $node cleaned"
 done
 
-echo "🎯 Legion maintenance complete!"`}
+echo "🎯 Legiox maintenance complete!"`}
 </Code>
 
 ### Kubernetes Resource Cleanup

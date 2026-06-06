@@ -1,0 +1,188 @@
+{
+  "title": "Pet Meetups",
+  "createMeetup": "Create Meetup",
+  "editMeetup": "Edit Meetup",
+  "deleteMeetup": "Delete Meetup",
+  "noMeetups": "No meetups found",
+  "discoverMeetups": "Discover and join pet meetups in your area!",
+  "upcomingMeetups": "Upcoming Meetups",
+  "pastMeetups": "Past Meetups",
+  "myMeetups": "My Meetups",
+  
+  "types": {
+    "dog_park_meetup": "Dog Park Meetup",
+    "hiking": "Hiking with Pets",
+    "beach_day": "Beach Day",
+    "training_class": "Training Class",
+    "playtime": "Playtime",
+    "socialization": "Socialization Event",
+    "charity": "Charity Event",
+    "other": "Other"
+  },
+  
+  "privacy": {
+    "public": "Public",
+    "private": "Private",
+    "publicDescription": "Anyone can see and join",
+    "privateDescription": "Invite-only"
+  },
+  
+  "fields": {
+    "title": "Meetup Title",
+    "description": "Description",
+    "meetupType": "Type",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "location": "Location",
+    "maxParticipants": "Maximum Participants",
+    "allowedPets": "Allowed Pets",
+    "requiresRsvp": "Requires RSVP",
+    "entryFee": "Entry Fee",
+    "photos": "Photos",
+    "safetyGuidelines": "Safety Guidelines"
+  },
+  
+  "allowedPets": {
+    "title": "Allowed Pets",
+    "dogs": "Dogs",
+    "cats": "Cats",
+    "smallPets": "Small Pets",
+    "allPets": "All Pets Welcome",
+    "noPets": "No Pets (Human-only event)"
+  },
+  
+  "rsvp": {
+    "title": "RSVP",
+    "going": "Going",
+    "interested": "Interested",
+    "notGoing": "Not Going",
+    "rsvpNow": "RSVP Now",
+    "cancelRsvp": "Cancel RSVP",
+    "waitlist": "Join Waitlist",
+    "onWaitlist": "On Waitlist",
+    "spotsAvailable": "{{count}} spots available",
+    "noSpotsAvailable": "Event is full",
+    "attendees": "Attendees",
+    "viewAttendees": "View Attendees"
+  },
+  
+  "participants": {
+    "title": "Participants",
+    "organizer": "Organizer",
+    "attendees": "Attendees",
+    "waitlist": "Waitlist",
+    "petCount": "{{count}} pets",
+    "humanCount": "{{count}} people",
+    "invited": "Invited",
+    "confirmed": "Confirmed",
+    "declined": "Declined"
+  },
+  
+  "groupChat": {
+    "title": "Group Chat",
+    "openChat": "Open Chat",
+    "chatCreated": "Group chat created automatically for this meetup",
+    "joinChat": "Join Chat",
+    "leaveChat": "Leave Chat",
+    "members": "{{count}} members"
+  },
+  
+  "safety": {
+    "title": "Safety Guidelines",
+    "leashRequired": "Leashes required",
+    "supervisionRequired": "Pet supervision required at all times",
+    "vaccinationProof": "Proof of vaccination may be required",
+    "aggressivePets": "Aggressive pets not allowed",
+    "childrenWelcome": "Children welcome",
+    "weatherDependent": "Weather-dependent event",
+    "emergencyContact": "Emergency contact available"
+  },
+  
+  "search": {
+    "placeholder": "Search meetups...",
+    "filterByType": "Filter by Type",
+    "filterByDate": "Filter by Date",
+    "filterByLocation": "Filter by Location",
+    "filterByPets": "Filter by Allowed Pets",
+    "radius": "Radius",
+    "withinKm": "within {{km}} km",
+    "sortBy": "Sort By",
+    "sortOptions": {
+      "date": "Date",
+      "distance": "Distance",
+      "popular": "Most Popular",
+      "newest": "Newest"
+    }
+  },
+  
+  "status": {
+    "upcoming": "Upcoming",
+    "ongoing": "Happening Now",
+    "finished": "Finished",
+    "canceled": "Canceled",
+    "postponed": "Postponed",
+    "full": "Full"
+  },
+  
+  "actions": {
+    "saveMeetup": "Save Meetup",
+    "updateMeetup": "Update Meetup",
+    "cancelEdit": "Cancel",
+    "deleteMeetupConfirm": "Are you sure you want to delete this meetup?",
+    "cancelMeetup": "Cancel Meetup",
+    "cancelMeetupConfirm": "Are you sure you want to cancel this meetup? All participants will be notified.",
+    "postponeMeetup": "Postpone Meetup",
+    "shareMeetup": "Share Meetup",
+    "reportMeetup": "Report Meetup",
+    "inviteFriends": "Invite Friends",
+    "checkIn": "Check In",
+    "uploadPhoto": "Upload Photo",
+    "viewOnMap": "View on Map",
+    "getDirections": "Get Directions"
+  },
+  
+  "validation": {
+    "titleRequired": "Meetup title is required",
+    "typeRequired": "Meetup type is required",
+    "startTimeRequired": "Start time is required",
+    "locationRequired": "Location is required",
+    "startTimeInPast": "Start time cannot be in the past",
+    "endTimeBeforeStart": "End time must be after start time",
+    "maxParticipantsInvalid": "Maximum participants must be at least 2",
+    "entryFeeInvalid": "Entry fee must be a positive number"
+  },
+  
+  "success": {
+    "created": "Meetup created successfully! Group chat has been created.",
+    "updated": "Meetup updated successfully!",
+    "deleted": "Meetup deleted",
+    "canceled": "Meetup canceled. All participants have been notified.",
+    "postponed": "Meetup postponed. All participants have been notified.",
+    "rsvpConfirmed": "Your RSVP has been confirmed!",
+    "rsvpCanceled": "Your RSVP has been canceled",
+    "joinedWaitlist": "You've been added to the waitlist",
+    "photoUploaded": "Photo uploaded successfully",
+    "checkedIn": "Checked in successfully!"
+  },
+  
+  "errors": {
+    "loadFailed": "Failed to load meetups",
+    "saveFailed": "Failed to save meetup",
+    "deleteFailed": "Failed to delete meetup",
+    "rsvpFailed": "Failed to RSVP. Please try again.",
+    "joinChatFailed": "Failed to join group chat",
+    "uploadFailed": "Photo upload failed",
+    "locationAccessDenied": "Location access denied"
+  },
+  
+  "notifications": {
+    "newMeetupNearby": "New meetup nearby: {{title}}",
+    "meetupStartingSoon": "Meetup starting in {{minutes}} minutes!",
+    "meetupCanceled": "Meetup canceled: {{title}}",
+    "meetupPostponed": "Meetup postponed: {{title}}",
+    "newAttendee": "{{name}} is attending your meetup",
+    "waitlistPromoted": "You've been promoted from the waitlist! {{title}}",
+    "reminderOneDayBefore": "Reminder: Meetup tomorrow - {{title}}",
+    "reminderOneHourBefore": "Reminder: Meetup starting in 1 hour - {{title}}"
+  }
+}

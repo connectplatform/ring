@@ -1,11 +1,18 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
+import { ROUTES } from '@/constants/routes'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations } from 'next-intl/server'
 import { NewsAnalyticsDashboard } from '@/features/news/components/news-analytics-dashboard'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
 import { connection } from 'next/server'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 
 /**
  * Get news analytics - Server Component async/await (React 19)
@@ -99,6 +106,27 @@ async function getNewsAnalytics(): Promise<NewsAnalytics> {
   }
 }
 
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'admin.analytics',
+    pathname: '/admin/news/analytics',
+    robots: { index: false, follow: false },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+  })
+}
+
 export default async function AdminNewsAnalyticsPage({ 
   params 
 }: { 
@@ -107,19 +135,18 @@ export default async function AdminNewsAnalyticsPage({
   await connection() // Next.js 16: opt out of prerendering
 
   const { locale } = await params
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale
-  const t = await loadTranslations(validLocale)
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (routing.defaultLocale as Locale)
+  const t = await getTranslations('modules.admin.matcher')
   
   // Check authentication and admin role
   const session = await auth()
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin/news/analytics`)
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADMIN_NEWS_ANALYTICS(validLocale))}`)
   }
 
-  // Check if user has admin role
-  if (session.user.role !== 'admin') {
-    redirect(`/${validLocale}/unauthorized`)
+  if (!isPlatformAdmin(session.user.role)) {
+    redirect(ROUTES.UNAUTHORIZED(validLocale))
   }
   
   const analytics = await getNewsAnalytics()
@@ -136,11 +163,10 @@ export default async function AdminNewsAnalyticsPage({
     <NewsWrapper
       pageContext="analytics"
       stats={stats}
-      translations={t}
     >
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          {t.modules.admin.analytics || 'News Analytics'}
+          {t('analytics.title') || 'News Analytics'}
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Comprehensive insights and performance metrics for your news content
@@ -150,7 +176,6 @@ export default async function AdminNewsAnalyticsPage({
       <NewsAnalyticsDashboard
         analytics={analytics}
         locale={validLocale}
-        translations={t}
       />
     </NewsWrapper>
   )

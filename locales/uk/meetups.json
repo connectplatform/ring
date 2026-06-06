@@ -1,0 +1,188 @@
+{
+  "title": "Зустрічі з Тваринами",
+  "createMeetup": "Створити Зустріч",
+  "editMeetup": "Редагувати Зустріч",
+  "deleteMeetup": "Видалити Зустріч",
+  "noMeetups": "Зустрічі не знайдено",
+  "discoverMeetups": "Відкривайте та приєднуйтесь до зустрічей з тваринами у вашому районі!",
+  "upcomingMeetups": "Майбутні Зустрічі",
+  "pastMeetups": "Минулі Зустрічі",
+  "myMeetups": "Мої Зустрічі",
+  
+  "types": {
+    "dog_park_meetup": "Зустріч в Собачому Парку",
+    "hiking": "Походи з Тваринами",
+    "beach_day": "День на Пляжі",
+    "training_class": "Заняття з Дресирування",
+    "playtime": "Час для Ігор",
+    "socialization": "Соціалізація",
+    "charity": "Благодійна Подія",
+    "other": "Інше"
+  },
+  
+  "privacy": {
+    "public": "Публічна",
+    "private": "Приватна",
+    "publicDescription": "Будь-хто може побачити та приєднатися",
+    "privateDescription": "Лише за запрошенням"
+  },
+  
+  "fields": {
+    "title": "Назва Зустрічі",
+    "description": "Опис",
+    "meetupType": "Тип",
+    "startTime": "Час Початку",
+    "endTime": "Час Завершення",
+    "location": "Локація",
+    "maxParticipants": "Максимум Учасників",
+    "allowedPets": "Дозволені Тварини",
+    "requiresRsvp": "Потрібна Реєстрація",
+    "entryFee": "Вхідна Плата",
+    "photos": "Фотографії",
+    "safetyGuidelines": "Правила Безпеки"
+  },
+  
+  "allowedPets": {
+    "title": "Дозволені Тварини",
+    "dogs": "Собаки",
+    "cats": "Коти",
+    "smallPets": "Малі Тварини",
+    "allPets": "Всі Тварини Вітаються",
+    "noPets": "Без Тварин (Лише для людей)"
+  },
+  
+  "rsvp": {
+    "title": "Реєстрація",
+    "going": "Йду",
+    "interested": "Цікавлюсь",
+    "notGoing": "Не Йду",
+    "rsvpNow": "Зареєструватися Зараз",
+    "cancelRsvp": "Скасувати Реєстрацію",
+    "waitlist": "Приєднатися до Листа Очікування",
+    "onWaitlist": "В Листі Очікування",
+    "spotsAvailable": "{{count}} місць доступно",
+    "noSpotsAvailable": "Подія заповнена",
+    "attendees": "Учасники",
+    "viewAttendees": "Переглянути Учасників"
+  },
+  
+  "participants": {
+    "title": "Учасники",
+    "organizer": "Організатор",
+    "attendees": "Учасники",
+    "waitlist": "Лист Очікування",
+    "petCount": "{{count}} тварин",
+    "humanCount": "{{count}} людей",
+    "invited": "Запрошені",
+    "confirmed": "Підтверджені",
+    "declined": "Відхилені"
+  },
+  
+  "groupChat": {
+    "title": "Груповий Чат",
+    "openChat": "Відкрити Чат",
+    "chatCreated": "Груповий чат автоматично створено для цієї зустрічі",
+    "joinChat": "Приєднатися до Чату",
+    "leaveChat": "Вийти з Чату",
+    "members": "{{count}} учасників"
+  },
+  
+  "safety": {
+    "title": "Правила Безпеки",
+    "leashRequired": "Повідці обов'язкові",
+    "supervisionRequired": "Нагляд за тваринами обов'язковий завжди",
+    "vaccinationProof": "Може знадобитися підтвердження вакцинації",
+    "aggressivePets": "Агресивні тварини не дозволені",
+    "childrenWelcome": "Діти вітаються",
+    "weatherDependent": "Залежить від погоди",
+    "emergencyContact": "Екстрений контакт доступний"
+  },
+  
+  "search": {
+    "placeholder": "Шукати зустрічі...",
+    "filterByType": "Фільтр за Типом",
+    "filterByDate": "Фільтр за Датою",
+    "filterByLocation": "Фільтр за Локацією",
+    "filterByPets": "Фільтр за Дозволеними Тваринами",
+    "radius": "Радіус",
+    "withinKm": "в межах {{km}} км",
+    "sortBy": "Сортувати за",
+    "sortOptions": {
+      "date": "Дата",
+      "distance": "Відстань",
+      "popular": "Найпопулярніші",
+      "newest": "Найновіші"
+    }
+  },
+  
+  "status": {
+    "upcoming": "Майбутня",
+    "ongoing": "Відбувається Зараз",
+    "finished": "Завершена",
+    "canceled": "Скасована",
+    "postponed": "Відкладена",
+    "full": "Заповнена"
+  },
+  
+  "actions": {
+    "saveMeetup": "Зберегти Зустріч",
+    "updateMeetup": "Оновити Зустріч",
+    "cancelEdit": "Скасувати",
+    "deleteMeetupConfirm": "Ви впевнені, що хочете видалити цю зустріч?",
+    "cancelMeetup": "Скасувати Зустріч",
+    "cancelMeetupConfirm": "Ви впевнені, що хочете скасувати цю зустріч? Всі учасники будуть повідомлені.",
+    "postponeMeetup": "Відкласти Зустріч",
+    "shareMeetup": "Поділитися Зустріччю",
+    "reportMeetup": "Скарга на Зустріч",
+    "inviteFriends": "Запросити Друзів",
+    "checkIn": "Зареєструватися",
+    "uploadPhoto": "Завантажити Фото",
+    "viewOnMap": "Показати на Карті",
+    "getDirections": "Отримати Маршрут"
+  },
+  
+  "validation": {
+    "titleRequired": "Назва зустрічі обов'язкова",
+    "typeRequired": "Тип зустрічі обов'язковий",
+    "startTimeRequired": "Час початку обов'язковий",
+    "locationRequired": "Локація обов'язкова",
+    "startTimeInPast": "Час початку не може бути в минулому",
+    "endTimeBeforeStart": "Час завершення повинен бути після початку",
+    "maxParticipantsInvalid": "Максимум учасників має бути щонайменше 2",
+    "entryFeeInvalid": "Вхідна плата має бути позитивним числом"
+  },
+  
+  "success": {
+    "created": "Зустріч успішно створено! Груповий чат створено.",
+    "updated": "Зустріч успішно оновлено!",
+    "deleted": "Зустріч видалено",
+    "canceled": "Зустріч скасовано. Всі учасники повідомлені.",
+    "postponed": "Зустріч відкладено. Всі учасники повідомлені.",
+    "rsvpConfirmed": "Вашу реєстрацію підтверджено!",
+    "rsvpCanceled": "Вашу реєстрацію скасовано",
+    "joinedWaitlist": "Вас додано до листа очікування",
+    "photoUploaded": "Фото успішно завантажено",
+    "checkedIn": "Успішно зареєстровано!"
+  },
+  
+  "errors": {
+    "loadFailed": "Не вдалося завантажити зустрічі",
+    "saveFailed": "Не вдалося зберегти зустріч",
+    "deleteFailed": "Не вдалося видалити зустріч",
+    "rsvpFailed": "Не вдалося зареєструватися. Спробуйте ще раз.",
+    "joinChatFailed": "Не вдалося приєднатися до групового чату",
+    "uploadFailed": "Не вдалося завантажити фото",
+    "locationAccessDenied": "Доступ до локації відхилено"
+  },
+  
+  "notifications": {
+    "newMeetupNearby": "Нова зустріч поблизу: {{title}}",
+    "meetupStartingSoon": "Зустріч почнеться через {{minutes}} хвилин!",
+    "meetupCanceled": "Зустріч скасовано: {{title}}",
+    "meetupPostponed": "Зустріч відкладено: {{title}}",
+    "newAttendee": "{{name}} приєднується до вашої зустрічі",
+    "waitlistPromoted": "Вас переведено з листа очікування! {{title}}",
+    "reminderOneDayBefore": "Нагадування: Зустріч завтра - {{title}}",
+    "reminderOneHourBefore": "Нагадування: Зустріч почнеться через 1 годину - {{title}}"
+  }
+}

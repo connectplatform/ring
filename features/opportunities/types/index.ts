@@ -3,8 +3,8 @@ import { Timestamp, FieldValue } from 'firebase/firestore';
 
 export type OpportunityType = 
   // REVOLUTIONARY TECHNICAL EXCELLENCE (Shown in UI now)
-  | 'ring_customization'      // 🔥 Legion-powered Ring Platform cloning & customization
-  | 'ai_instructor'           // 🎓 AI instructors teach product owners how to guide Legion
+  | 'ring_customization'      // 🔥 Legiox-powered Ring Platform cloning & customization
+  | 'ai_instructor'           // 🎓 AI instructors teach product owners how to guide Legiox
   // FUTURE UI ADDITIONS (Implemented but hidden until Phase 2)
   | 'collective_need'         // 🌐 Unsolved collective problems seeking Ring solutions  
   | 'platform_mentorship'     // ⚡ Experienced Ring deployers mentor newcomers
@@ -104,6 +104,17 @@ export interface SerializedOpportunity {
   priority?: OpportunityPriority;
   // Logic: Offers require linkedEntity, requests can have isPrivate=true for individual posts
   isPrivate?: boolean;
+}
+
+export type OpportunitySubmenuTab = 'all' | 'saved' | 'applied' | 'posted' | 'drafts' | 'expired'
+
+export interface OpportunitySubmenuCounts {
+  all: number
+  saved: number
+  applied: number
+  posted: number
+  drafts: number
+  expired: number
 }
 
 export interface OpportunityFormData {

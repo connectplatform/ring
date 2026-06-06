@@ -16,15 +16,16 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale-config'
 
 export interface UserPreferences {
-  locale: 'en' | 'uk' | 'ru'
+  locale: Locale
   currency: 'UAH' | 'DAAR'
   theme: 'light' | 'dark' | 'system'
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  locale: 'uk',
+  locale: DEFAULT_LOCALE,
   currency: 'UAH',
   theme: 'system'
 }

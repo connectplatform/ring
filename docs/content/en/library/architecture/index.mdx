@@ -3,6 +3,8 @@ title: Index
 description: Index documentation for Ring Platform
 ---
 
+import { Callout } from '@/components/docs/callout'
+
 # Architecture Overview
 
 Ring Platform's architecture is designed for maximum performance, scalability, and developer experience using the latest versions of every framework.
@@ -29,7 +31,7 @@ Ring Platform's architecture is designed for maximum performance, scalability, a
       Connection Pooling
     Web3 Integration
       Wagmi + Viem
-      RainbowKit Wallet UI
+      Wagmi wallet UI
       Multi-Chain Support
       Smart Contract Layer
     Infrastructure
@@ -191,12 +193,14 @@ Ring Platform establishes modern component architecture patterns that ensure mai
 - **Mobile Innovation**: Revolutionary navigation with fullscreen modal system
 - **Performance Standards**: 60fps animations and efficient mobile rendering
 
+## Backend modes and databases
+
+Deployments require **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full`, or `supabase-fcm`). Postgres‑primary production uses Firebase mainly for **FCM**, not Firestore. See **[Backend modes and databases](/en/library/architecture/backend-modes-and-databases)** for the full matrix, **`DB_HYBRID_MODE`** vs backend mode, Supabase Tunnel vs `supabase-fcm`, and links to push and tunnel docs.
+
 ### Anti-Patterns Avoided
 - ❌ Page components importing feature components
 - ❌ Feature components with direct service calls
 - ❌ Tight coupling between unrelated feature domains
 - ❌ Direct Firebase calls in presentation components
-
-import { Callout } from 'fumadocs-ui/components/callout'
 
 <Callout type="info">See sections for Auth, Realtime, Security, and Data Model.</Callout>

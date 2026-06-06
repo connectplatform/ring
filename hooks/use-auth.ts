@@ -3,8 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AuthUser, UserRole } from '@/features/auth/types'
-import { ROUTES } from '@/constants/routes'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 /**
  * Auth status navigation types
@@ -146,7 +145,7 @@ export function useAuth(): UseAuthReturn {
     }
   ) => {
     // Extract locale from current pathname
-    const locale = pathname.split('/')[1] as Locale || 'en'
+    const locale = pathname.split('/')[1]
     
     // Build URL with query parameters
     const searchParams = new URLSearchParams()
@@ -154,7 +153,7 @@ export function useAuth(): UseAuthReturn {
     if (options?.requestId) searchParams.set('requestId', options.requestId)
     if (options?.returnTo) searchParams.set('returnTo', options.returnTo)
     
-    const statusUrl = `/${locale}/auth/${action}/${status}`
+    const statusUrl = `/${locale.toLowerCase() as Locale}/auth/${action}/${status}`
     const finalUrl = searchParams.toString() 
       ? `${statusUrl}?${searchParams.toString()}`
       : statusUrl

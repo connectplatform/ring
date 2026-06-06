@@ -15,10 +15,15 @@
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
+import {
+  DEFAULT_LOCALE,
+  type Locale,
+  resolveLocale,
+} from '@/lib/locale-config'
 
 interface RingWidgetProps {
   theme?: 'light' | 'dark'
-  locale?: 'en' | 'uk' | 'ru'
+  locale?: Locale
   categories?: string
   maxItems?: number
   apiKey?: string
@@ -27,7 +32,7 @@ interface RingWidgetProps {
 // React 19 Widget Component
 function RingWidgetComponent({ 
   theme = 'light', 
-  locale = 'en', 
+  locale = DEFAULT_LOCALE, 
   categories = '', 
   maxItems = 10,
   apiKey 
@@ -158,7 +163,7 @@ class RingWidget extends HTMLElement {
   private getProps(): RingWidgetProps {
     return {
       theme: (this.getAttribute('theme') as 'light' | 'dark') || 'light',
-      locale: (this.getAttribute('locale') as 'en' | 'uk' | 'ru') || 'en',
+      locale: resolveLocale(this.getAttribute('locale')),
       categories: this.getAttribute('categories') || '',
       maxItems: parseInt(this.getAttribute('max-items') || '10'),
       apiKey: this.getAttribute('api-key') || undefined

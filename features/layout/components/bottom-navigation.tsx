@@ -18,7 +18,7 @@ import { ROUTES } from '@/constants/routes'
 import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRole } from '@/features/auth/types'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
   ssr: false,
@@ -121,7 +121,7 @@ function FullscreenMenuModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       title: t('wallet'),
       description: t('menu.wallet.description'),
       icon: '💰',
-      href: `/${locale}/wallet`,
+      href: ROUTES.WALLET(locale),
       color: 'from-green-500 to-blue-500'
     },
     {
@@ -129,7 +129,7 @@ function FullscreenMenuModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       title: t('store'),
       description: t('menu.store.description'),
       icon: '🛍️',
-      href: `/${locale}/store`,
+      href: ROUTES.STORE(locale),
       color: 'from-purple-500 to-pink-500'
     },
     {
@@ -161,7 +161,7 @@ function FullscreenMenuModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       title: t('notifications'),
       description: t('menu.notifications.description'),
       icon: '🔔',
-      href: `/${locale}/notifications`,
+      href: ROUTES.NOTIFICATIONS(locale),
       color: 'from-yellow-500 to-orange-500'
     },
     {

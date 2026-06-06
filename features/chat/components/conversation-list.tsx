@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { getMessageTimeMs } from '@/features/chat/lib/message-time'
 
 interface ConversationListProps {
   userId: string
@@ -80,7 +81,7 @@ const ConversationItem = ({
     .some(p => p.isOnline)
 
   const formatTime = (timestamp: any) => {
-    const date = new Date(timestamp.toMillis())
+    const date = new Date(getMessageTimeMs(timestamp))
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)

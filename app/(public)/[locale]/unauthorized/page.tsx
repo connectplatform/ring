@@ -1,80 +1,56 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations, generateHreflangAlternates, type Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { connection } from 'next/server'
 
-type UnauthorizedParams = {}
+type UnauthorizedParams = { locale: Locale }
 
-export default async function Unauthorized(props: LocalePageProps<UnauthorizedParams>) {
-  // Resolve params
-  const params = await props.params;
-  
-  // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  
-  // Load translations for the current locale
-  const translations = loadTranslations(locale);
-
-  // React 19 metadata preparation
-  const title = (translations as any).metadata?.unauthorized || 'Unauthorized | Ring App';
-  const description = (translations as any).metaDescription?.unauthorized || 'Access denied - You do not have permission to view this page.';
-  const canonicalUrl = `https://ring.ck.ua/${locale}/unauthorized`;
-  const alternates = generateHreflangAlternates('/unauthorized');
-
-  return (
-    <>
-      {/* React 19 Native Document Metadata */}
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={canonicalUrl} />
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={locale === 'uk' ? 'en_US' : 'uk_UA'} />
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      
-      {/* Error page specific meta tags */}
-      <meta name="robots" content="noindex, nofollow" />
-      <meta name="googlebot" content="noindex, nofollow" />
-      
-      {/* Hreflang alternates */}
-      {Object.entries(alternates).map(([lang, url]) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={url as string} />
-      ))}
-
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">
-            {(translations as any).unauthorized?.title || 'Unauthorized Access'}
-          </h1>
-          <p className="text-xl mb-8">
-            {(translations as any).unauthorized?.message || 'You do not have permission to view this page.'}
-          </p>
-          <Link href={ROUTES.HOME(locale)} className="text-primary hover:underline">
-            {(translations as any).unauthorized?.returnHome || 'Return to home'}
-          </Link>
-        </div>
-      </div>
-    </>
-  )
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  const t = await getTranslations('common')
+  return buildLocalizedMetadata({
+    locale,
+    path: 'unauthorized',
+    pathname: '/unauthorized',
+    fallback: {
+      title: t('metadata.unauthorized'),
+      description: t('metaDescription.unauthorized'),
+    },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false },
+  })
 }
 
-/* 
- * OBSOLETE FUNCTIONS (removed with React 19 migration):
- * - generateMetadata() function (replaced by React 19 native document metadata)
- * 
- * React 19 Native Features Used:
- * - Document metadata: <title>, <meta>, <link> tags automatically hoisted to <head>
- * - Automatic meta tag deduplication and precedence handling
- * - Native hreflang support for i18n
- * - Error page SEO protection (noindex, nofollow for error states)
- * - Preserved all i18n functionality and error handling
- */
+export default async function Unauthorized(props: LocalePageProps<UnauthorizedParams>) {
+  await connection()
+  const params = await props.params
+  const locale = routing.locales.includes(params.locale as Locale)
+    ? (params.locale as Locale)
+    : routing.defaultLocale
+
+  const t = await getTranslations('common')
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+      <h1 className="text-3xl font-bold mb-4">{t('unauthorized.title')}</h1>
+      <p className="text-muted-foreground mb-8 max-w-md">{t('unauthorized.message')}</p>
+      <Link href={ROUTES.HOME(locale)} className="text-primary hover:underline">
+        {t('unauthorized.returnHome')}
+      </Link>
+    </div>
+  )
+}

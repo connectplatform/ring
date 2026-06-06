@@ -1,5 +1,5 @@
 /**
- * IMAP IDLE Listener Service for info@ringdom.org
+ * IMAP IDLE Listener Service for platform inbound mail
  * ================================================
  * Real-time email detection using IMAP IDLE command
  * Reference: Email Automation Specialist skillset
@@ -270,7 +270,7 @@ export class ImapListener extends EventEmitter {
         messageId: parsed.messageId || `${uid}@mail.ringdom.org`,
         from: fromAddress?.address || '',
         fromName: fromAddress?.name || null,
-        to: toAddress?.address || 'info@ringdom.org',
+        to: toAddress?.address || emailConfig.user,
         subject: parsed.subject || '(No Subject)',
         bodyText: parsed.text || null,
         bodyHtml: parsed.html || null,

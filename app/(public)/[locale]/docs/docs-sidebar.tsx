@@ -2,188 +2,160 @@
 
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ChevronLeft, ChevronRight, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface DocsSidebarProps {
   locale: string
 }
 
+interface NavItem {
+  href: string
+  label: string
+  external?: boolean
+}
+
+/** Legacy / alternate docs chrome — Ring Platform portal (not GreenFood). */
 export function DocsSidebar({ locale }: DocsSidebarProps) {
   const t = useTranslations('navigation')
+  const pt = (key: string) => t(`docs_sidebar.portal.${key}` as Parameters<typeof t>[0])
+  const s = (key: string) => t(`docs_sidebar.sidebar.${key}` as Parameters<typeof t>[0])
 
-  const navSections = [
+  const navSections: { title: string; items: NavItem[] }[] = [
     {
-      title: '🌾 ' + t('docs_sidebar.sidebar.gettingStarted'),
+      title: '📘 ' + pt('sectionLibrary'),
       items: [
-        {
-          href: `/${locale}/docs/`,
-          label: t('docs_sidebar.sidebar.overview')
-        },
-        {
-          href: `/${locale}/docs/for-farmers`,
-          label: 'For Farmers'
-        },
-        {
-          href: `/${locale}/docs/for-buyers`,
-          label: 'For Buyers'
-        },
-      ]
+        { href: `/${locale}/docs`, label: pt('linkLibrary') },
+        { href: `/${locale}/docs/welcome`, label: pt('linkWelcome') },
+      ],
     },
     {
-      title: '💰 ' + t('docs_sidebar.sidebar.tokenEconomics'),
+      title: '🔷 ' + pt('sectionRingdom'),
       items: [
         {
-          href: `/${locale}/docs/token-economy`,
-          label: 'DAAR/DAARION System'
+          href: 'https://ringdom.org',
+          label: pt('linkRingdom'),
+          external: true,
         },
         {
-          href: `/${locale}/docs/token-economy/daarsales`,
-          label: 'Buy DAAR Tokens'
+          href: `/${locale}/docs/white-label/ai-customization`,
+          label: s('aiCustomization'),
         },
         {
-          href: `/${locale}/docs/token-economy/daarionsales`,
-          label: 'Buy DAARION Tokens'
+          href: `/${locale}/docs/examples`,
+          label: s('examplesOverview'),
         },
-        {
-          href: `/${locale}/docs/token-economy/staking`,
-          label: 'Staking & Rewards'
-        },
-      ]
+      ],
     },
     {
-      title: '🌱 Agricultural Features',
+      title: '🚀 ' + pt('sectionGettingStarted'),
       items: [
-        {
-          href: `/${locale}/docs/agricultural-features`,
-          label: 'Complete Feature Set'
-        },
-        {
-          href: `/${locale}/docs/agricultural-features/product-schema`,
-          label: 'Product Schema (80+ fields)'
-        },
-        {
-          href: `/${locale}/docs/agricultural-features/entity-types`,
-          label: 'Entity Types (262 fields)'
-        },
-        {
-          href: `/${locale}/docs/agricultural-features/certifications`,
-          label: 'Certifications & Compliance'
-        },
-        {
-          href: `/${locale}/docs/agricultural-features/sustainability`,
-          label: 'Sustainability Metrics'
-        },
-      ]
+        { href: `/${locale}/docs/getting-started`, label: s('overview') },
+        { href: `/${locale}/docs/getting-started/prerequisites`, label: s('prerequisites') },
+        { href: `/${locale}/docs/getting-started/installation`, label: s('installation') },
+        { href: `/${locale}/docs/getting-started/first-success`, label: s('firstSuccess') },
+        { href: `/${locale}/docs/getting-started/next-steps`, label: s('nextSteps') },
+      ],
     },
     {
-      title: '🔗 Blockchain Traceability',
+      title: '🧱 ' + pt('sectionArchitecture'),
       items: [
-        {
-          href: `/${locale}/docs/traceability`,
-          label: 'FSMA 204 Compliance'
-        },
-        {
-          href: `/${locale}/docs/traceability/fsma-204`,
-          label: 'FDA Requirements Guide'
-        },
-        {
-          href: `/${locale}/docs/traceability/blockchain`,
-          label: 'Blockchain Verification'
-        },
-        {
-          href: `/${locale}/docs/traceability/smart-contracts`,
-          label: 'Smart Contract Documentation'
-        },
-        {
-          href: `/${locale}/docs/traceability/cold-chain`,
-          label: 'Cold Chain Monitoring'
-        },
-      ]
+        { href: `/${locale}/docs/architecture`, label: s('architectureOverview') },
+        { href: `/${locale}/docs/architecture/backend-modes-and-databases`, label: s('backendModesAndDatabases') },
+        { href: `/${locale}/docs/architecture/authentication`, label: s('authArchitecture') },
+        { href: `/${locale}/docs/features`, label: s('platformFeatures') },
+        { href: `/${locale}/docs/features/security`, label: s('security') },
+      ],
     },
     {
-      title: '🤖 AI Operations',
+      title: '☸️ ' + pt('sectionDeploy'),
       items: [
-        {
-          href: `/${locale}/docs/dagi-agents`,
-          label: 'DAGI Agent Overview'
-        },
-        {
-          href: `/${locale}/docs/dagi-agents/tier-1`,
-          label: 'Junior Agent (Tier 1)'
-        },
-        {
-          href: `/${locale}/docs/dagi-agents/tier-2`,
-          label: 'Medium Agent (Tier 2)'
-        },
-        {
-          href: `/${locale}/docs/dagi-agents/tier-3`,
-          label: 'Senior Agent (Tier 3)'
-        },
-      ]
+        { href: `/${locale}/docs/deployment`, label: s('deploymentOverview') },
+        { href: `/${locale}/docs/deployment/docker`, label: s('docker') },
+        { href: `/${locale}/docs/deployment/performance`, label: s('performance') },
+      ],
     },
     {
-      title: '🏛️ Cooperative Governance',
+      title: '🏷️ ' + pt('sectionWhiteLabel'),
       items: [
+        { href: `/${locale}/docs/white-label`, label: s('whiteLabelOverview') },
+        { href: `/${locale}/docs/white-label/customization-guide`, label: s('customizationGuide') },
+        { href: `/${locale}/docs/white-label/database-selection`, label: s('databaseSelection') },
+        { href: `/${locale}/docs/white-label/token-economics`, label: s('tokenEconomics') },
+      ],
+    },
+    {
+      title: '🔌 ' + pt('sectionApi'),
+      items: [
+        { href: `/${locale}/docs/api`, label: s('apiOverview') },
+        { href: `/${locale}/docs/api/entities`, label: s('entitiesApi') },
+        { href: `/${locale}/docs/integrations/ethereum-wallets`, label: s('web3Integration') },
+      ],
+    },
+    {
+      title: '🧪 ' + pt('sectionDev'),
+      items: [
+        { href: `/${locale}/docs/development`, label: s('developmentGuide') },
+        { href: `/${locale}/docs/examples`, label: s('examplesOverview') },
+        { href: `/${locale}/docs/cli`, label: s('ringCli') },
+      ],
+    },
+    {
+      title: '🛡️ ' + pt('sectionAudit'),
+      items: [
+        { href: `/${locale}/docs/features/security`, label: s('securityCompliance') },
+        { href: `/${locale}/docs/white-label/database-selection`, label: s('databaseSelection') },
         {
-          href: `/${locale}/docs/cooperative-governance`,
-          label: 'Democratic Management'
+          href: 'https://github.com/connectplatform/ring',
+          label: pt('linkGithub'),
+          external: true,
         },
-        {
-          href: `/${locale}/docs/cooperative-governance/voting-systems`,
-          label: 'Voting Systems'
-        },
-        {
-          href: `/${locale}/docs/cooperative-governance/proposals`,
-          label: 'Creating Proposals'
-        },
-        {
-          href: `/${locale}/docs/cooperative-governance/patronage-refunds`,
-          label: 'Patronage Refunds'
-        },
-        {
-          href: `/${locale}/docs/cooperative-governance/microdao`,
-          label: 'microDAO Integration'
-        },
-        {
-          href: `/${locale}/docs/cooperative-governance/treasury`,
-          label: 'Treasury Management'
-        },
-      ]
-    }
+      ],
+    },
   ]
 
   return (
     <>
-      <aside className="w-64 bg-card border-r border-border min-h-screen sticky top-0 overflow-y-auto hidden lg:block">
+      <aside className="w-72 bg-card border-r border-border min-h-screen sticky top-0 overflow-y-auto hidden lg:block">
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🌾</span>
-            <span className="font-bold text-xl bg-gradient-to-r from-green-600 to-amber-600 bg-clip-text text-transparent">
-              GreenFood.live
+            <span className="text-2xl" aria-hidden>
+              💠
+            </span>
+            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
+              Ring Platform
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            {t('sidebar.verifiedFarms')}
-          </p>
+          <p className="text-sm text-muted-foreground mt-2">{pt('footerMission')}</p>
         </div>
 
         <nav className="p-4">
-          <div className="space-y-2">
+          <div className="space-y-6">
             {navSections.map((section) => (
               <div key={section.title}>
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">
+                <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">
                   {section.title}
                 </h3>
                 <ul className="space-y-1">
                   {section.items.map((item) => (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        className="text-sm hover:text-primary transition-colors block py-1"
-                      >
-                        {item.label}
-                      </Link>
+                    <li key={item.href + item.label}>
+                      {item.external ? (
+                        <a
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm hover:text-primary transition-colors block py-1"
+                        >
+                          {item.label}
+                        </a>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className="text-sm hover:text-primary transition-colors block py-1"
+                        >
+                          {item.label}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -192,24 +164,32 @@ export function DocsSidebar({ locale }: DocsSidebarProps) {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-border mt-8">
-          <div className="text-xs text-muted-foreground">
-            <div className="flex gap-4 flex-wrap mb-3">
-              <a href="https://github.com/connectplatform/ring" className="hover:text-foreground transition-colors">GitHub</a>
-              <a href="https://discord.gg/ring-platform" className="hover:text-foreground transition-colors">Discord</a>
-            </div>
-            <div className="flex items-center justify-between mb-2">
-              <span>© 2025 Ring Platform</span>
-              <span className="text-primary">v1.0.0</span>
-            </div>
-            <div className="pt-2 border-t border-border">
-              With ❤️ from Cherkasy
-            </div>
+        <div className="p-4 border-t border-border mt-4 space-y-3 text-xs text-muted-foreground">
+          <p>{pt('footerRingdomLine')}</p>
+          <div className="flex gap-4 flex-wrap">
+            <a
+              href="https://github.com/connectplatform/ring"
+              className="hover:text-foreground transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub
+            </a>
+            <a
+              href="https://ringdom.org"
+              className="hover:text-foreground transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ringdom.org
+            </a>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span>{pt('footerYear')}</span>
           </div>
         </div>
       </aside>
 
-      {/* Mobile sidebar toggle */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
           <Menu className="h-4 w-4" />

@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     // Step 6: Prepare payment request
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
-    const webhookUrl = `${baseUrl}/api/store/payments/wayforpay/webhook`
+    const webhookUrl = `${baseUrl}/api/payments/wayforpay/webhook`
     const defaultReturnUrl = `${baseUrl}/store/checkout/processing?orderId=${orderId}`
 
     const paymentRequest: StorePaymentRequest = {

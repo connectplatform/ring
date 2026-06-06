@@ -3,6 +3,8 @@
 import React from 'react'
 import { useActionState, useOptimistic } from 'react'
 import { useFormStatus } from 'react-dom'
+import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -87,10 +89,11 @@ export default function CryptoOnboardingForm({
   onComplete 
 }: CryptoOnboardingFormProps) {
   const { data: session, update } = useSession()
-  
-  // Form state management with useActionState
+  const locale = useLocale() as Locale
+
+  // Form state management with useActionState (wrap to pass locale)
   const [state, formAction] = useActionState<CryptoOnboardingFormState | null, FormData>(
-    completeCryptoOnboarding,
+    (prevState, formData) => completeCryptoOnboarding(prevState, formData, locale),
     null
   )
 

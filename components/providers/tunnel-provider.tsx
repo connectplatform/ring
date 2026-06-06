@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, use } from 'react';
+import React, { createContext, useEffect, useRef, useState, useCallback, useMemo, use, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { getTunnelTransportManager, TunnelTransportManager } from '@/lib/tunnel/transport-manager';
@@ -19,32 +19,15 @@ import {
 } from '@/lib/tunnel/types';
 import { tunnelTimingManager, TunnelTimingStrategy } from '@/lib/tunnel/tunnel-timing';
 import { toast } from '@/hooks/use-toast';
+import {
+  DISCONNECTED_TUNNEL_CONTEXT,
+  type TunnelContextValue,
+} from '@/lib/tunnel/disconnected-tunnel-context';
 
-interface TunnelContextType {
-  // Connection state
-  isConnected: boolean;
-  connectionState: TunnelConnectionState;
-  provider: TunnelProviderType | null;
-
-  // Connection management
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  manualConnect?: () => Promise<void>;
-
-  // Messaging
-  publish: (channel: string, event: string, data: any) => Promise<void>;
-  subscribe: (channel: string, handler: (message: TunnelMessage) => void) => () => void;
-
-  // Health and diagnostics
-  health: TunnelHealth | null;
-  latency: number;
-
-  // Transport management
-  switchProvider: (provider: TunnelProviderType) => Promise<void>;
-  availableProviders: TunnelProviderType[];
-
-  // Error state
-  error: Error | null;
+export type TunnelContextType = Omit<TunnelContextValue, 'health' | 'publish' | 'subscribe'> & {
+  health: TunnelHealth | null
+  publish: (channel: string, event: string, data: unknown) => Promise<void>
+  subscribe: (channel: string, handler: (message: TunnelMessage) => void) => () => void
 }
 
 export const TunnelContext = createContext<TunnelContextType | null>(null);
@@ -66,10 +49,26 @@ interface TunnelProviderProps {
 }
 
 /**
- * Tunnel Provider Component
- * Manages a single shared tunnel instance for the entire app
+ * Tunnel Provider — static shell + deferred runtime.
+ *
+ * K8s (connect.software): WebSocket primary; `autoConnect={false}` + tunnelTimingManager
+ * progressive connect after auth/pathname resolve. usePathname/useSession stay in runtime only.
  */
-export function TunnelProvider({
+export function TunnelProvider(props: TunnelProviderProps) {
+  return (
+    <Suspense
+      fallback={
+        <TunnelContext.Provider value={DISCONNECTED_TUNNEL_CONTEXT as TunnelContextType}>
+          {props.children}
+        </TunnelContext.Provider>
+      }
+    >
+      <TunnelProviderRuntime {...props} />
+    </Suspense>
+  )
+}
+
+function TunnelProviderRuntime({
   children,
   config,
   autoConnect = true,
@@ -200,10 +199,10 @@ export function TunnelProvider({
       // This prevents tunnel connection while database operations in signIn callbacks are still running
       const now = Date.now();
       const timeSinceAuth = lastAuthTime ? now - lastAuthTime : Infinity;
-      const isRecentlyAuthenticated = sessionStatus === 'authenticated' && timeSinceAuth < 2000; // 2 second buffer
+      const authGraceMs = 400;
+      const isRecentlyAuthenticated = sessionStatus === 'authenticated' && timeSinceAuth < authGraceMs;
 
       if (isRecentlyAuthenticated) {
-        console.log(`[TunnelProvider] Recently authenticated (${timeSinceAuth}ms ago) - delaying tunnel connection to prevent racing`);
         setTimeout(() => {
           if (!manager.isConnected()) {
             tunnelTimingManager.initializeForRoute(pathname).catch(err => {
@@ -211,7 +210,7 @@ export function TunnelProvider({
               setError(err);
             });
           }
-        }, Math.max(0, 2000 - timeSinceAuth)); // Wait remaining time up to 2 seconds
+        }, Math.max(0, authGraceMs - timeSinceAuth));
       } else {
         // Normal timing for anonymous users or well-established authenticated sessions
         tunnelTimingManager.initializeForRoute(pathname).catch(err => {

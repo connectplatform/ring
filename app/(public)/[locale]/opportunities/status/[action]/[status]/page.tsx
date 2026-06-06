@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import React from 'react'
 import { connection } from 'next/server'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import OpportunityStatusPage from '@/components/opportunities/opportunity-status-page'
-import { getSEOMetadata } from '@/lib/seo-metadata'
-import { isValidLocale, defaultLocale } from '@/i18n-config'
+import { defaultLocale } from '@/i18n/shared'
 import { notFound } from 'next/navigation'
 
 // Valid opportunity action types
@@ -27,7 +30,26 @@ const VALID_STATUSES = {
 type OpportunityAction = typeof VALID_ACTIONS[number]
 type OpportunityStatus = typeof VALID_STATUSES[OpportunityAction][number]
 
-// Metadata will be handled inline using React 19 native approach
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; action: string; status: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam, action, status } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'opportunities.status',
+    variables: { action, status: status.charAt(0).toUpperCase() + status.slice(1) },
+    pathname: '/opportunities/status',
+    siteName: 'Ring Platform',
+    twitterSite: '@RingPlatform',
+  })
+}
 
 export default async function OpportunityStatusDynamicPage({ 
   params,
@@ -51,17 +73,10 @@ export default async function OpportunityStatusDynamicPage({
     notFound()
   }
   
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale
-  
-  // Get SEO metadata for the opportunity status
-  const seoData = await getSEOMetadata(
-    validLocale, 
-    'opportunities.status', 
-    { 
-      action: action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' '),
-      status: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')
-    }
-  )
+  const validLocale = routing.locales.includes(locale as Locale)
+    ? (locale as Locale)
+    : routing.defaultLocale
+
   
   // Extract relevant query parameters
   const opportunityId = typeof resolvedSearchParams.opportunityId === 'string' ? resolvedSearchParams.opportunityId : undefined
@@ -74,44 +89,6 @@ export default async function OpportunityStatusDynamicPage({
   const nextStep = typeof resolvedSearchParams.nextStep === 'string' ? resolvedSearchParams.nextStep : undefined
   
   return (
-    <>
-      {/* React 19 Native Metadata */}
-      <title>{seoData?.title || `Opportunity ${action.charAt(0).toUpperCase() + action.slice(1)} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} - Ring Platform`}</title>
-      <meta name="description" content={seoData?.description || `Your opportunity ${action} is ${status.replace('_', ' ')}. Manage your opportunity status and next steps.`} />
-      {seoData?.keywords && (
-        <meta name="keywords" content={seoData.keywords.join(', ')} />
-      )}
-      {seoData?.canonical && (
-        <link rel="canonical" href={seoData.canonical} />
-      )}
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || `Opportunity ${action.charAt(0).toUpperCase() + action.slice(1)} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} - Ring Platform`} />
-      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || `Your opportunity ${action} is ${status.replace('_', ' ')}. Manage your opportunity status and next steps.`} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={validLocale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:site_name" content="Ring Platform" />
-      {seoData?.ogImage && (
-        <meta property="og:image" content={seoData.ogImage} />
-      )}
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:site" content="@RingPlatform" />
-      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || `Opportunity ${action.charAt(0).toUpperCase() + action.slice(1)} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}`} />
-      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || `Your opportunity ${action} is ${status.replace('_', ' ')}. Manage your opportunity status and next steps.`} />
-      {seoData?.twitterImage && (
-        <meta name="twitter:image" content={seoData.twitterImage} />
-      )}
-      
-      {/* Hreflang alternates */}
-      <link rel="alternate" hrefLang="en" href={`/en/opportunities/status/${action}/${status}`} />
-      <link rel="alternate" hrefLang="uk" href={`/uk/opportunities/status/${action}/${status}`} />
-      
-      {/* Standard SEO metadata */}
-      <meta name="robots" content="index, follow" />
-      <meta name="author" content="Ring Platform" />
-
       <OpportunityStatusPage 
         action={action as OpportunityAction}
         status={status as OpportunityStatus}
@@ -125,7 +102,6 @@ export default async function OpportunityStatusDynamicPage({
         reason={reason}
         nextStep={nextStep}
       />
-    </>
   )
 }
 

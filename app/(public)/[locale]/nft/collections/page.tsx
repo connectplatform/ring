@@ -1,10 +1,32 @@
+import type { Metadata } from 'next'
 import type { LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
+import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
+import { loadTranslations } from '@/i18n/load-translations'
+import { setRequestLocale } from 'next-intl/server'
 import StoreWrapper from '@/components/wrappers/store-wrapper'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 
 type CollectionsParams = {}
 
-// Allow caching for NFT collections with moderate revalidation for marketplace data
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'nft.collections',
+    pathname: '/nft/collections',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+  })
+}
 
 export default async function CollectionsPage(props: LocalePageProps<CollectionsParams>) {
   const params = await props.params

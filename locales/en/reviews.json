@@ -1,0 +1,146 @@
+{
+  "title": "Reviews",
+  "writeReview": "Write Review",
+  "editReview": "Edit Review",
+  "deleteReview": "Delete Review",
+  "noReviews": "No reviews yet",
+  "beFirstToReview": "Be the first to review this place!",
+  "allReviews": "All Reviews",
+  "myReviews": "My Reviews",
+  
+  "rating": {
+    "title": "Rating",
+    "overall": "Overall Rating",
+    "cleanliness": "Cleanliness",
+    "petFriendliness": "Pet Friendliness",
+    "service": "Service",
+    "value": "Value for Money",
+    "atmosphere": "Atmosphere",
+    "facilities": "Facilities"
+  },
+  
+  "fields": {
+    "rating": "Your Rating",
+    "title": "Review Title",
+    "comment": "Your Review",
+    "photos": "Photos",
+    "visitDate": "Visit Date",
+    "wouldRecommend": "Would you recommend this place?",
+    "petsWithYou": "Pets with You",
+    "verified": "Verified Visit"
+  },
+  
+  "filters": {
+    "title": "Filter Reviews",
+    "allRatings": "All Ratings",
+    "fiveStars": "5 Stars",
+    "fourStars": "4 Stars",
+    "threeStars": "3 Stars",
+    "twoStars": "2 Stars",
+    "oneStar": "1 Star",
+    "verified": "Verified Only",
+    "withPhotos": "With Photos",
+    "sortBy": "Sort By",
+    "sortOptions": {
+      "newest": "Newest First",
+      "oldest": "Oldest First",
+      "highestRating": "Highest Rating",
+      "lowestRating": "Lowest Rating",
+      "mostHelpful": "Most Helpful"
+    }
+  },
+  
+  "helpful": {
+    "wasHelpful": "Was this review helpful?",
+    "yes": "Yes",
+    "no": "No",
+    "helpfulCount": "{{count}} people found this helpful",
+    "thankYou": "Thank you for your feedback!"
+  },
+  
+  "response": {
+    "title": "Business Response",
+    "respondToReview": "Respond to Review",
+    "editResponse": "Edit Response",
+    "deleteResponse": "Delete Response",
+    "businessResponse": "Response from Business",
+    "respondedOn": "Responded on {{date}}"
+  },
+  
+  "verification": {
+    "verified": "Verified Visit",
+    "notVerified": "Unverified",
+    "verificationRequired": "Visit verification required",
+    "checkInToVerify": "Check in at this place to verify your visit",
+    "verifiedBadge": "✓ Verified Visit"
+  },
+  
+  "trust": {
+    "title": "Trust Score",
+    "trustScore": "Trust Score: {{score}}/100",
+    "breakdown": "Score Breakdown",
+    "sales": "Sales History (30%)",
+    "rating": "Customer Ratings (25%)",
+    "disputes": "Dispute Resolution (20%)",
+    "delivery": "Delivery Performance (15%)",
+    "tenure": "Account Tenure (10%)",
+    "calculation": "How is this calculated?"
+  },
+  
+  "actions": {
+    "saveReview": "Save Review",
+    "updateReview": "Update Review",
+    "cancelEdit": "Cancel",
+    "deleteReviewConfirm": "Are you sure you want to delete this review?",
+    "reportReview": "Report Review",
+    "shareReview": "Share Review",
+    "markHelpful": "Mark as Helpful",
+    "uploadPhoto": "Upload Photo",
+    "removePhoto": "Remove Photo"
+  },
+  
+  "validation": {
+    "ratingRequired": "Please select a rating",
+    "commentRequired": "Please write a review comment",
+    "commentTooShort": "Review must be at least 10 characters",
+    "commentTooLong": "Review must be less than 1000 characters",
+    "titleRequired": "Review title is required",
+    "photosLimit": "Maximum 5 photos per review"
+  },
+  
+  "success": {
+    "created": "Review submitted successfully! Thank you for your feedback.",
+    "updated": "Review updated successfully!",
+    "deleted": "Review deleted",
+    "helpfulMarked": "Thank you for your feedback!",
+    "photoUploaded": "Photo uploaded successfully",
+    "reported": "Review reported. We'll investigate this."
+  },
+  
+  "errors": {
+    "loadFailed": "Failed to load reviews",
+    "saveFailed": "Failed to save review",
+    "deleteFailed": "Failed to delete review",
+    "uploadFailed": "Photo upload failed",
+    "alreadyReviewed": "You have already reviewed this place. You can edit your existing review.",
+    "mustVisit": "You must visit this place before reviewing"
+  },
+  
+  "stats": {
+    "totalReviews": "{{count}} Reviews",
+    "averageRating": "{{rating}} Average",
+    "distribution": "Rating Distribution",
+    "verifiedPercentage": "{{percent}}% Verified Visits",
+    "wouldRecommend": "{{percent}}% Would Recommend"
+  },
+  
+  "guidelines": {
+    "title": "Review Guidelines",
+    "beHonest": "Be honest and fair",
+    "beRespectful": "Be respectful and constructive",
+    "beSpecific": "Provide specific details",
+    "noHateSpeech": "No hate speech or profanity",
+    "relevantContent": "Keep content relevant to the place",
+    "noSpam": "No spam or promotional content"
+  }
+}

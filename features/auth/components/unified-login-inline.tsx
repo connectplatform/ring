@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { ROUTES } from '@/constants/routes'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
 import { AiFillApple } from 'react-icons/ai'
 import { FaEthereum } from 'react-icons/fa'
 import { HiMail } from 'react-icons/hi'
@@ -34,6 +35,21 @@ declare global {
 interface UnifiedLoginInlineProps {
   from?: string
   variant?: 'default' | 'hero'
+  locale?: Locale
+  /** Auth.js OAuth error code from `/login?error=` */
+  initialAuthError?: string
+}
+
+function mapAuthJsError(code: string | undefined, tAuth: (key: string) => string): string | null {
+  if (!code) return null
+  const key = `errors.${code}` as const
+  try {
+    const msg = tAuth(key)
+    if (msg && msg !== key) return msg
+  } catch {
+    /* fall through */
+  }
+  return code.replace(/_/g, ' ')
 }
 
 /**
@@ -42,11 +58,15 @@ interface UnifiedLoginInlineProps {
  * @param {UnifiedLoginInlineProps} props - Component props
  * @returns {React.ReactElement} The unified-login-inline component
  */
-const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant = 'default' }) => {
+const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
+  from,
+  variant = 'default',
+  locale,
+  initialAuthError,
+}) => {
   const tAuth = useTranslations('modules.auth')
   const router = useRouter()
-  const locale = useLocale() as 'en' | 'uk'
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => mapAuthJsError(initialAuthError, tAuth))
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [emailSent, setEmailSent] = useState(false)
@@ -126,31 +146,14 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
    */
   const handleSignIn = useCallback(async (provider: string) => {
     try {
-      // For OAuth providers like Apple, pass the callback URL
-      // Auth.js will handle redirect to provider, then callback will process the response
-      const result = await signIn(provider, { 
-        redirect: false,
-        callbackUrl: from || ROUTES.PROFILE(locale)
-      })
-      
-      if (result?.error) {
-        console.error(`${provider} sign-in error:`, result.error)
-        setError(`Failed to sign in with ${provider}`)
-        return
-      }
-      
-      if (result?.url) {
-        console.log(`Redirecting to ${provider} OAuth provider...`)
-        // Redirect to OAuth provider - browser will handle the OAuth flow
-        // After user authenticates, provider redirects back to auth callback
-        // Callback completes, session is established, and user is redirected to profile
-        router.push(result.url)
-      }
+      const activeLocale = (locale ?? DEFAULT_LOCALE) as Locale
+      const callbackUrl = buildOAuthCallbackUrl(from, activeLocale)
+      await signIn(provider, { callbackUrl })
     } catch (error) {
       console.error(`${provider} sign-in error:`, error)
       setError(`Failed to sign in with ${provider}`)
     }
-  }, [from, locale, router])
+  }, [from, locale])
 
   /**
    * Handles sign-in with Crypto Wallet (MetaMask)
@@ -214,7 +217,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
               {/* Google Sign-in with GIS (No redirects!) - spans over both buttons below */}
               <div className="mb-4">
                 <GoogleSignInButtonGIS
-                  redirectUrl={from || ROUTES.PROFILE(locale)}
+                  redirectUrl={from}
                   className="w-full"
                   variant="outline"
                   size="lg"
@@ -353,7 +356,7 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({ from, variant =
         <div className="space-y-3">
           {/* Google Sign-in with GIS (No redirects!) */}
           <GoogleSignInButtonGIS
-            redirectUrl={from || ROUTES.PROFILE(locale)}
+            redirectUrl={from}
             className="w-full"
             variant="outline"
             size="default"

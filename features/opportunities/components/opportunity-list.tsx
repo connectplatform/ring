@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useTransition } from 'react'
 import { useOptimistic, useActionState, startTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { useTheme } from 'next-themes'
 import { useCreditBalance } from '@/hooks/use-credit-balance'
 import { useSession } from 'next-auth/react'
@@ -110,9 +111,9 @@ export default function OpportunityList({
     setEntities(initialEntities)
   }, [initialEntities])
 
-  // Server action state for opportunity creation
+  // Server action state for opportunity creation (wrap to pass locale)
   const [createState, createAction] = useActionState<OpportunityFormState | null, FormData>(
-    createOpportunity,
+    (prevState, formData) => createOpportunity(prevState, formData, locale as Locale),
     null
   )
 
@@ -387,7 +388,7 @@ function OpportunityCard({
 }: OpportunityCardProps) {
   const t = useTranslations('modules.opportunities')
   const { data: session } = useSession()
-  const { balance: ringBalance } = useCreditBalance()
+  const { balance: tokenBalance } = useCreditBalance()
 
   // Ensure we always pass a defined translation key
   const typeKey = opportunity?.type === 'request' ? 'request' : 'offer'
@@ -557,10 +558,10 @@ function OpportunityCard({
                   </p>
 
                   {/* RING Balance Indicator */}
-                  {ringBalance && session?.user && (
+                  {tokenBalance && session?.user && (
                     <div className="flex items-center text-xs text-muted-foreground">
                       <Coins className="w-3 h-3 mr-1" />
-                      <span>{ringBalance.amount} RING</span>
+                      <span>{tokenBalance.amount} RING</span>
                     </div>
                   )}
                 </div>
@@ -679,7 +680,7 @@ function OpportunityCard({
               )}
 
               {/* Wallet Integration */}
-              {opportunity.budget && ringBalance && (
+              {opportunity.budget && tokenBalance && (
                 <Button
                   variant="ghost"
                   size="sm"

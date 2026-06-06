@@ -23,10 +23,18 @@
  * - UI/UX Optimization Agent (mobile excellence)
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import { useSession } from 'next-auth/react'
+import type { Locale } from '@/i18n/shared'
+import UnifiedLoginComponent from '@/features/auth/components/unified-login-component'
+import {
+  NewsArticleHeader,
+  type NewsArticleHeaderProps,
+} from '@/features/news/components/news-article-header'
+import { useContentFavorite } from '@/features/news/hooks/use-content-favorite'
+import { toast } from '@/hooks/use-toast'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,6 +65,7 @@ interface NewsArticleWrapperProps {
   locale: string
   articleSlug?: string
   articleData?: {
+    id?: string
     title?: string
     excerpt?: string
     category?: string
@@ -73,12 +82,18 @@ export default function NewsArticleWrapper({
   articleData
 }: NewsArticleWrapperProps) {
   const router = useRouter()
+  const { data: session } = useSession()
   const t = useTranslations('modules.news')
   const tCommon = useTranslations('common')
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [emailSubscribed, setEmailSubscribed] = useState(false)
   const [newsletterEmail, setNewsletterEmail] = useState('')
+
+  const articleFavoriteId = articleData?.id ?? articleSlug
+  const { isFavorited, toggleFavorite } = useContentFavorite(articleFavoriteId)
 
   useEffect(() => {
     setMounted(true)
@@ -164,6 +179,46 @@ export default function NewsArticleWrapper({
     }
     setRightSidebarOpen(false)
   }
+
+  const handleOpenShareModal = useCallback(() => {
+    setShareModalOpen(true)
+  }, [])
+
+  const handleSaveArticle = useCallback(async () => {
+    if (!session?.user) return
+    try {
+      const favorited = await toggleFavorite()
+      toast({
+        title: favorited
+          ? t('savedToFavorites', { defaultValue: 'Saved' })
+          : t('removedFromFavorites', { defaultValue: 'Removed from saved' }),
+      })
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: t('saveFailed', { defaultValue: 'Could not save article' }),
+      })
+    }
+  }, [session?.user, toggleFavorite, t])
+
+  const handleLoginRequired = useCallback(() => {
+    setIsLoginDialogOpen(true)
+  }, [])
+
+  const headerCallbacks = useMemo(
+    () => ({
+      isBookmarked: isFavorited,
+      onShare: handleOpenShareModal,
+      onSave: handleSaveArticle,
+      onLoginRequired: handleLoginRequired,
+    }),
+    [isFavorited, handleOpenShareModal, handleSaveArticle, handleLoginRequired]
+  )
+
+  const enhancedChildren = useMemo(
+    () => injectNewsArticleHeaderCallbacks(children, headerCallbacks),
+    [children, headerCallbacks]
+  )
 
   const handleNewsletterSubscribe = () => {
     if (newsletterEmail) {
@@ -378,7 +433,7 @@ export default function NewsArticleWrapper({
 
         {/* Center Content Area */}
         <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
-          {children}
+          {enhancedChildren}
         </div>
 
         {/* Right Sidebar - Article Info & Engagement (Desktop only, 1024px+) */}
@@ -398,6 +453,40 @@ export default function NewsArticleWrapper({
       >
         <RightSidebarContent />
       </FloatingSidebarToggle>
+
+      <UnifiedLoginComponent
+        open={isLoginDialogOpen}
+        onClose={() => setIsLoginDialogOpen(false)}
+      />
     </div>
   )
+}
+
+type ArticleHeaderCallbacks = Pick<
+  NewsArticleHeaderProps,
+  'isBookmarked' | 'onShare' | 'onSave' | 'onLoginRequired'
+>
+
+function injectNewsArticleHeaderCallbacks(
+  node: React.ReactNode,
+  callbacks: ArticleHeaderCallbacks
+): React.ReactNode {
+  if (!React.isValidElement(node)) return node
+
+  if (node.type === NewsArticleHeader) {
+    return React.cloneElement(
+      node as React.ReactElement<NewsArticleHeaderProps>,
+      callbacks
+    )
+  }
+
+  const props = node.props as { children?: React.ReactNode }
+  if (props.children != null) {
+    const nextChildren = React.Children.map(props.children, (child) =>
+      injectNewsArticleHeaderCallbacks(child, callbacks)
+    )
+    return React.cloneElement(node, {}, nextChildren)
+  }
+
+  return node
 }

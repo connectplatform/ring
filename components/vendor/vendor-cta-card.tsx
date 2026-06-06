@@ -26,7 +26,7 @@ import { Store, Sparkles, TrendingUp, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ROUTES } from '@/constants/routes'
 import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface VendorCTACardProps {
   className?: string

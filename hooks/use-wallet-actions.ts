@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useSendTransaction } from 'wagmi'
+import { useWriteContract, useWaitForTransactionReceipt, useConnection, useSendTransaction } from 'wagmi'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import {
@@ -17,28 +17,28 @@ import type { WalletTransaction } from '@/features/wallet/types'
  * Hook for wallet actions like sending tokens, staking, etc.
  */
 export function useWalletActions() {
-  const { address, isConnected, chainId } = useAccount()
+  const { address, isConnected, chainId } = useConnection()
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [pendingTx, setPendingTx] = useState<string | null>(null)
 
-  // Wagmi hooks for contract interactions
-  const { writeContract, data: contractHash, isPending: contractPending, error: contractError } = useWriteContract()
+  // Wagmi v3: mutation hooks expose mutate / data on the hook return object
+  const contractWrite = useWriteContract()
   const { isLoading: contractConfirming, isSuccess: contractConfirmed } = useWaitForTransactionReceipt({
-    hash: contractHash,
+    hash: contractWrite.data,
   })
 
-  // Wagmi hooks for native token transfers
-  const { sendTransaction: wagmiSendTransaction, data: sendHash, isPending: sendPending, error: sendError } = useSendTransaction()
+  const sendTx = useSendTransaction()
   const { isLoading: sendConfirming, isSuccess: sendConfirmed } = useWaitForTransactionReceipt({
-    hash: sendHash,
+    hash: sendTx.data,
   })
 
   // Combined loading and error states
-  const combinedIsLoading = contractPending || contractConfirming || sendPending || sendConfirming
-  const combinedHash = contractHash || sendHash
+  const combinedIsLoading =
+    contractWrite.isPending || contractConfirming || sendTx.isPending || sendConfirming
+  const combinedHash = contractWrite.data || sendTx.data
   const combinedIsConfirmed = contractConfirmed || sendConfirmed
-  const combinedError = contractError || sendError
+  const combinedError = contractWrite.error || sendTx.error
 
   /**
    * Record transaction in database
@@ -159,7 +159,7 @@ export function useWalletActions() {
       setIsLoading(false)
       setPendingTx(null)
     }
-  }, [address, isConnected, wagmiSendTransaction, sendHash, sendConfirmed, sendError, recordTransaction, updateTransactionStatus])
+  }, [address, isConnected, recordTransaction, updateTransactionStatus])
 
   /**
    * Send ERC20 tokens (RING, USDT, etc.)
@@ -225,7 +225,7 @@ export function useWalletActions() {
       setIsLoading(false)
       setPendingTx(null)
     }
-  }, [address, isConnected, writeContract, combinedHash, combinedIsConfirmed, combinedError, recordTransaction, updateTransactionStatus])
+  }, [address, isConnected, recordTransaction, updateTransactionStatus])
 
   /**
    * Send transaction (wrapper for native or token)

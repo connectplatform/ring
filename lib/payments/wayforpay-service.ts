@@ -120,8 +120,8 @@ export async function initiatePayment(request: PaymentRequest): Promise<PaymentR
       };
     }
 
-    // Generate unique order reference
-    const orderId = `ring_${request.userId}_${Date.now()}`;
+    // Generate unique order reference (membership_* ; legacy ring_* still parsed by webhooks)
+    const orderId = `membership_${request.userId}_${Date.now()}`;
     const timestamp = Math.floor(Date.now() / 1000);
 
     // Prepare payment data
@@ -228,9 +228,10 @@ export async function processSuccessfulPayment(payload: WebhookPayload): Promise
       return false;
     }
 
-    // Extract user ID and target role from order reference
+    // Extract user ID from order reference (membership_* or legacy ring_*)
     const orderParts = payload.orderReference.split('_');
-    if (orderParts.length < 3 || orderParts[0] !== 'ring') {
+    const prefix = orderParts[0];
+    if (orderParts.length < 3 || (prefix !== 'membership' && prefix !== 'ring')) {
       logger.error('WayForPay: Invalid order reference format', {
         orderReference: payload.orderReference
       });

@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import React from 'react'
 import { connection } from 'next/server'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import AuthStatusPage from '@/components/auth/auth-status-page'
-import { getSEOMetadata } from '@/lib/seo-metadata'
-import { isValidLocale, defaultLocale } from '@/i18n-config'
+import { defaultLocale } from '@/i18n/shared'
 import { notFound } from 'next/navigation'
 
 // Valid auth action types
@@ -27,7 +30,26 @@ const VALID_STATUSES = {
 type AuthAction = typeof VALID_ACTIONS[number]
 type AuthStatus = typeof VALID_STATUSES[AuthAction][number]
 
-// Metadata will be handled inline using React 19 native approach
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; action: string; status: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam, action, status } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'auth.status',
+    variables: { action, status: status.charAt(0).toUpperCase() + status.slice(1) },
+    pathname: '/auth/status',
+    siteName: 'Ring Platform',
+    twitterSite: '@RingPlatform',
+  })
+}
 
 export default async function AuthStatusDynamicPage({ 
   params,
@@ -51,18 +73,10 @@ export default async function AuthStatusDynamicPage({
     notFound()
   }
   
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale
-  
-  // Get SEO metadata for the auth status
-  const seoData = await getSEOMetadata(
-    validLocale, 
-    'auth.status', 
-    { 
-      action: action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' '),
-      status: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')
-    }
-  )
-  
+  const validLocale = routing.locales.includes(locale as Locale)
+    ? (locale as Locale)
+    : routing.defaultLocale
+
   // Extract relevant query parameters
   const email = typeof resolvedSearchParams.email === 'string' ? resolvedSearchParams.email : undefined
   const token = typeof resolvedSearchParams.token === 'string' ? resolvedSearchParams.token : undefined
@@ -70,44 +84,6 @@ export default async function AuthStatusDynamicPage({
   const returnTo = typeof resolvedSearchParams.returnTo === 'string' ? resolvedSearchParams.returnTo : undefined
   
   return (
-    <>
-      {/* React 19 Native Metadata */}
-      <title>{seoData?.title || `${action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' ')} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} - Ring Platform`}</title>
-      <meta name="description" content={seoData?.description || `Your ${action.replace('-', ' ')} is ${status.replace('_', ' ')}. Manage your authentication status and next steps.`} />
-      {seoData?.keywords && (
-        <meta name="keywords" content={seoData.keywords.join(', ')} />
-      )}
-      {seoData?.canonical && (
-        <link rel="canonical" href={seoData.canonical} />
-      )}
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || `${action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' ')} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} - Ring Platform`} />
-      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || `Your ${action.replace('-', ' ')} is ${status.replace('_', ' ')}. Manage your authentication status and next steps.`} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={validLocale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:site_name" content="Ring Platform" />
-      {seoData?.ogImage && (
-        <meta property="og:image" content={seoData.ogImage} />
-      )}
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:site" content="@RingPlatform" />
-      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || `${action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' ')} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}`} />
-      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || `Your ${action.replace('-', ' ')} is ${status.replace('_', ' ')}. Manage your authentication status and next steps.`} />
-      {seoData?.twitterImage && (
-        <meta name="twitter:image" content={seoData.twitterImage} />
-      )}
-      
-      {/* Hreflang alternates */}
-      <link rel="alternate" hrefLang="en" href={`/en/auth/status/${action}/${status}`} />
-      <link rel="alternate" hrefLang="uk" href={`/uk/auth/status/${action}/${status}`} />
-      
-      {/* Standard SEO metadata */}
-      <meta name="robots" content="index, follow" />
-      <meta name="author" content="Ring Platform" />
-
       <AuthStatusPage 
         action={action as AuthAction}
         status={status as AuthStatus}
@@ -117,7 +93,6 @@ export default async function AuthStatusDynamicPage({
         requestId={requestId}
         returnTo={returnTo}
       />
-    </>
   )
 }
 

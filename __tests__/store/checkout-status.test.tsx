@@ -6,7 +6,7 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import CheckoutStatusPage from '@/components/store/CheckoutStatusPage'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 // Mock next/link
 jest.mock('next/link', () => {

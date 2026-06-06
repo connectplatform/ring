@@ -2,7 +2,7 @@
  * Ring Platform - PostGIS Geolocation Service
  * 
  * Provides high-performance geospatial queries using PostGIS for location-based features.
- * Reverse-propagated from ring-pet-friendly (2026-02-17) with generalized filter patterns.
+ * Reverse-propagated from ring-petfriend-app (2026-02-17) with generalized filter patterns.
  * 
  * Target Performance: <100ms p95 latency for nearby searches
  * 
@@ -32,6 +32,7 @@
  */
 
 import { Pool } from 'pg';
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locale-config';
 import type { 
   GeolocationPoint,
   NearbySearchParams,
@@ -192,7 +193,7 @@ export class GeolocationService {
   }
 
   /**
-   * LEGACY METHOD - For backward compatibility with ring-pet-friendly
+   * LEGACY METHOD - For backward compatibility with ring-petfriend-app
    * Use findNearbyLocations('places', params) instead
    * 
    * @deprecated Use findNearbyLocations('places', params) for generic usage
@@ -306,7 +307,7 @@ export class GeolocationService {
   }
 
   /**
-   * LEGACY METHOD - For backward compatibility with ring-pet-friendly
+   * LEGACY METHOD - For backward compatibility with ring-petfriend-app
    * Use findNearbyEvents('meetups', location, radius, filters) instead
    * 
    * @deprecated Use findNearbyEvents for generic usage
@@ -494,7 +495,7 @@ export class GeolocationService {
   }
 
   /**
-   * LEGACY METHOD - For backward compatibility with ring-pet-friendly
+   * LEGACY METHOD - For backward compatibility with ring-petfriend-app
    * Use getLocationsInBounds('places', bounds, filters) instead
    * 
    * @deprecated Use getLocationsInBounds for generic usage
@@ -650,7 +651,7 @@ export function kilometersToMeters(km: number): number {
  * @param locale - Display locale (en or uk)
  * @returns Formatted string (e.g., "2.5 km" or "0.8 mi")
  */
-export function formatDistance(meters: number, locale: 'en' | 'uk' = 'en'): string {
+export function formatDistance(meters: number, locale: Locale = DEFAULT_LOCALE): string {
   if (locale === 'uk') {
     // Ukraine uses metric
     if (meters < 1000) {

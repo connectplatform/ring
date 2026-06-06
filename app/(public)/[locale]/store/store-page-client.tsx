@@ -1,17 +1,18 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import type { Locale } from '@/i18n-config'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import type { Locale } from '@/i18n/shared'
 import { useStore } from '@/features/store/context'
 import { ProductCard } from '@/features/store/components/product-card'
 import { useInView } from '@/hooks/use-intersection-observer'
 import { useTranslations } from 'next-intl'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
+import type { CatalogPriceBounds } from '@/lib/store-price-range'
 
 interface StorePageClientProps {
   locale: Locale
   onCountsUpdate?: (totalRecords: number, filteredRecords?: number) => void
-  onPriceRangeUpdate?: (priceRange: { minPrice: number; maxPrice: number }) => void
+  onPriceRangeUpdate?: (bounds: CatalogPriceBounds) => void
   filters?: StoreFilterState // Receive filters from parent wrapper
 }
 
@@ -27,7 +28,6 @@ export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUp
   const [lastVisible, setLastVisible] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-  const [priceRange, setPriceRange] = useState<{ minPrice: number; maxPrice: number } | null>(null)
   const { ref, inView } = useInView({ rootMargin: '200px', skip: !hasMore })
   
   // Use shared default filters constant
@@ -46,6 +46,23 @@ export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUp
   const lastErrorTimeRef = useRef(0) // Track last error time
   const debouncedFiltersRef = useRef(debouncedFilters) // Ref for stable callback
   const lastQueryStringRef = useRef<string | null>(null) // Prevent duplicate loads
+  const lastCatalogFilterKeyRef = useRef<string | null>(null)
+
+  const catalogFilterKey = useMemo(
+    () =>
+      JSON.stringify({
+        search: debouncedFilters.search,
+        categories: debouncedFilters.categories,
+        vendor: debouncedFilters.vendor,
+        inStock: debouncedFilters.inStock,
+      }),
+    [
+      debouncedFilters.search,
+      debouncedFilters.categories,
+      debouncedFilters.vendor,
+      debouncedFilters.inStock,
+    ],
+  )
   useEffect(() => { loadingRef.current = loading }, [loading])
   useEffect(() => { hasMoreRef.current = hasMore }, [hasMore])
   useEffect(() => { debouncedFiltersRef.current = debouncedFilters }, [debouncedFilters])
@@ -157,11 +174,14 @@ export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUp
       setTotalRecords(dbTotal)
       setFilteredRecords(dbFiltered)
       
-      // Update price range from server response (Phase 1 implementation)
-      if (data.priceRange) {
-        setPriceRange(data.priceRange)
-        onPriceRangeUpdate?.(data.priceRange)  // Notify parent
-        console.log('💰 Price range from DB:', data.priceRange)
+      // Catalog bounds when search/category/vendor/stock change (not price slider alone)
+      if (
+        reset &&
+        data.priceRange &&
+        lastCatalogFilterKeyRef.current !== catalogFilterKey
+      ) {
+        lastCatalogFilterKeyRef.current = catalogFilterKey
+        onPriceRangeUpdate?.(data.priceRange)
       }
       
       // onCountsUpdate called by useEffect below to prevent double updates
@@ -186,7 +206,7 @@ export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUp
       setLoading(false)
       inFlightRef.current = false
     }
-  }, [onPriceRangeUpdate]) // FIXED: Removed debouncedFilters and unnecessary onCountsUpdate dep
+  }, [onPriceRangeUpdate, catalogFilterKey])
 
   // Reload products when debounced filters change
   // FIXED: Added duplicate prevention using lastQueryStringRef

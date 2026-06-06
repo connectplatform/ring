@@ -1,14 +1,20 @@
-import React, { Suspense } from 'react'
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 import { ROUTES } from '@/constants/routes'
-import { isValidLocale, defaultLocale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations } from 'next-intl/server'
 import dynamicImport from 'next/dynamic'
 import { logger } from '@/lib/logger'
 import { type AdminOrdersSearchParams } from '@/features/store/types'
 import AdminWrapper from '@/components/wrappers/admin-wrapper'
+import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
 import { connection } from 'next/server'
 
 const AdminOrdersClient = dynamicImport(() => import('./admin-orders-client'), {
@@ -42,6 +48,27 @@ async function getAdminOrders(statusFilter?: string) {
   }
 }
 
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'store.orders.list',
+    pathname: '/admin/store/orders',
+    robots: { index: false, follow: false },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+  })
+}
+
 export default async function AdminOrdersPage({ 
   params, 
   searchParams 
@@ -58,25 +85,27 @@ export default async function AdminOrdersPage({
   const resolvedSearchParams = await searchParams;
 
   // Extract and validate locale
-  const locale = isValidLocale(resolvedParams.locale) ? resolvedParams.locale : defaultLocale;
-  logger.info('AdminOrdersPage: Using locale', { locale });
+  const validLocale: Locale = routing.locales.includes(resolvedParams.locale as Locale) ? (resolvedParams.locale as Locale) : (routing.defaultLocale as Locale);
+  logger.info('AdminOrdersPage: Using locale', { locale: validLocale });
+  const t = await getTranslations('modules.admin');
+  const adminLabels = buildModulesAdminLabels(t);
 
   // Step 1: Authenticate and check admin role
   const session = await auth();
 
   if (!session?.user) {
-    redirect(ROUTES.LOGIN(locale));
+    redirect(ROUTES.LOGIN(validLocale));
   }
 
-  if (session.user.role !== UserRole.ADMIN) {
+  if (!isPlatformAdmin(session.user.role)) {
     logger.info('AdminOrdersPage: Non-admin user, redirecting to unauthorized');
-    redirect(ROUTES.UNAUTHORIZED(locale));
+    redirect(ROUTES.UNAUTHORIZED(validLocale));
   }
 
   // Step 2: Get status filter from search params
   const statusFilter = resolvedSearchParams.status;
   logger.info('AdminOrdersPage: Request details', { 
-    locale, 
+    locale: validLocale, 
     statusFilter,
     searchParams: resolvedSearchParams 
   });
@@ -87,11 +116,11 @@ export default async function AdminOrdersPage({
   logger.info('AdminOrdersPage: Rendering', { 
     orderCount: orders.length, 
     statusFilter,
-    locale 
+    locale: validLocale 
   });
 
   return (
-    <AdminWrapper locale={locale} pageContext="store">
+    <AdminWrapper locale={validLocale} pageContext="store" labels={adminLabels}>
       <Suspense fallback={
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
@@ -100,7 +129,7 @@ export default async function AdminOrdersPage({
         <AdminOrdersClient 
           initialOrders={orders}
           currentStatusFilter={statusFilter}
-          locale={locale}
+          locale={validLocale}
         />
       </Suspense>
     </AdminWrapper>

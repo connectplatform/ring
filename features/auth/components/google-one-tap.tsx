@@ -6,6 +6,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import { ROUTES } from '@/constants/routes'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
+import type { Locale } from '@/i18n/shared'
+import { defaultLocale, supportedLocales } from '@/i18n/shared'
 
 // Type declarations for Google Identity Services
 declare global {
@@ -32,12 +35,9 @@ interface GoogleOneTapProps {
 }
 
 /**
- * Global Google One Tap Component
- *
- * Loads Google Identity Services (GIS) script globally and manages One Tap popup.
- * Only shows for visitor users (not authenticated) and is hidden on login pages.
- *
- * Critical for mobile compatibility - prevents GIS script loading conflicts.
+ * Global Google One Tap — mounted in root `app/layout.tsx` outside `NextIntlClientProvider`.
+ * Use `next/navigation` only (not next-intl `useRouter`). Pending URL must use `ROUTES.AUTH_STATUS`
+ * so `localePrefix: as-needed` does not get a bogus `/en/` prefix for default locale.
  */
 export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
   const router = useRouter()
@@ -47,18 +47,13 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
   const [gisLoaded, setGisLoaded] = useState(false)
   const [gisInitialized, setGisInitialized] = useState(false)
 
-  // Get locale from pathname
-  const getLocale = (): 'en' | 'uk' | 'ru' => {
+  const getLocale = (): Locale => {
     const pathLocale = pathname?.split('/')[1]
-    if (pathLocale === 'uk' || pathLocale === 'ru') {
-      return pathLocale
-    }
-    return 'en'
+    return supportedLocales.includes(pathLocale as Locale) ? (pathLocale as Locale) : defaultLocale
   }
 
   const locale = getLocale()
-  const profileUrl = ROUTES.PROFILE(locale)
-  const effectiveRedirectUrl = redirectUrl || profileUrl
+  const oauthCallbackUrl = buildOAuthCallbackUrl(redirectUrl, locale)
 
   // Load GIS script globally
   useEffect(() => {
@@ -77,8 +72,9 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
 
     console.log('🟢 Loading Google Identity Services script globally...')
 
+    const hl = getLocale()
     const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
+    script.src = `https://accounts.google.com/gsi/client?hl=${encodeURIComponent(hl)}`
     script.async = true
     script.defer = true
     script.onload = () => {
@@ -113,6 +109,7 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
 
       window.google.accounts.id.initialize({
         client_id: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID!,
+        locale: getLocale(),
         callback: async (response: any) => {
           console.log('🟢 One Tap callback received')
           try {
@@ -120,14 +117,12 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
             const result = await signIn('google-one-tap', {
               credential: response.credential,
               redirect: false,
-              callbackUrl: effectiveRedirectUrl,
+              callbackUrl: oauthCallbackUrl,
             })
 
             if (result?.ok) {
               console.log('🟢 One Tap authentication successful')
-              // Show "login in progress" page first, then redirect to profile
-              const loginPendingUrl = `/${locale}/auth/status/login/pending?returnTo=${encodeURIComponent(effectiveRedirectUrl)}`
-              router.push(loginPendingUrl)
+              router.push(oauthCallbackUrl)
             } else {
               console.error('🟢 One Tap authentication failed:', result?.error)
             }
@@ -169,7 +164,7 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
     } catch (error) {
       console.error('🟢 Failed to initialize Google One Tap:', error)
     }
-  }, [gisLoaded, gisInitialized, status, session, pathname, router, effectiveRedirectUrl])
+  }, [gisLoaded, gisInitialized, status, session, pathname, router, oauthCallbackUrl, redirectUrl])
 
   // Handle authentication state changes
   useEffect(() => {

@@ -167,7 +167,30 @@ export function getDataStrategy() {
  * Conditional execution based on build phase
  */
 export function isBuildTime(): boolean {
+  if (process.env.RING_BUILD_SKIP_DB === '1') {
+    return true;
+  }
   return getCurrentPhase().isBuildTime;
+}
+
+/** True during `next build` and in SSG workers where NEXT_PHASE may be unset. */
+export function shouldSkipDatabaseConnect(): boolean {
+  if (process.env.RING_BUILD_SKIP_DB === '1') {
+    return true;
+  }
+  if (isBuildTime()) {
+    return true;
+  }
+  // Static-generation workers often lack NEXT_PHASE; never connect without a password (Docker build / CI).
+  if (!process.env.DB_PASSWORD?.trim()) {
+    const inBuildLifecycle =
+      process.env.npm_lifecycle_event === 'build' ||
+      process.argv.some((a) => a.includes('next') && process.argv.includes('build'));
+    if (inBuildLifecycle) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isProductionRuntime(): boolean {

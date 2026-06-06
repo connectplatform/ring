@@ -35,6 +35,15 @@ export class PostgreSQLAdapter implements IDatabaseService {
     users: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    accounts: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    sessions: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    verification_tokens: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     entities: new Set([
       'id', 'created_at', 'updated_at'
     ]),

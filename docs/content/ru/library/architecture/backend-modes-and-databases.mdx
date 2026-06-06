@@ -1,0 +1,63 @@
+---
+title: Режимы бэкенда и базы данных
+description: DB_BACKEND_MODE, PostgreSQL против Firebase против Supabase, Firebase только для FCM, транспорты Tunnel и чем это отличается от DB_HYBRID_MODE
+last_modified: "2026-05-15"
+---
+
+# Режимы бэкенда и базы данных
+
+Ring Platform — это **единая кодовая база приложения** с **обязательным** переключателем в рантайме: **`DB_BACKEND_MODE`**. Значение определяет, какие адаптеры БД регистрируются, используется ли Firestore для данных приложения и как подключены push-уведомления.
+
+Эта страница — **канонический справочник** для операторов и сопровождения клонов. Реализация: `lib/database/backend-mode-config.ts`, `lib/database/DatabaseService.ts`, `lib/database/BackendSelector.ts`.
+
+## `DB_BACKEND_MODE` (обязательно)
+
+| Режим | Основная БД приложения | Firebase Admin для БД / Firestore? | Push (FCM / Apple) |
+|-------|------------------------|-------------------------------------|---------------------|
+| **`k8s-postgres-fcm`** | PostgreSQL (ваш кластер — например k3s + CloudNativePG / PostGIS) | **Нет** — `shouldUseFirebaseForDatabase()` = false; вне `firebase-full` `getAdminDb()` возвращает **mock** Firestore | **FCM** (и Apple по настройке) через Firebase Admin **messaging** и web-конфиг; Firestore не является источником истины |
+| **`firebase-full`** | Firestore / пути на Firebase | **Да** | FCM как часть полного стека Firebase |
+| **`supabase-fcm`** | PostgreSQL на **Supabase** (подключение через env) | **Нет** (тот же подход к Firestore, что и в k8s-режиме) | **FCM** + Apple по настройке |
+
+**Имена в документации:** продакшен на собственном Postgres часто описывают как **«self-hosted PostgreSQL + FCM»** или **«режим с приоритетом Postgres»**. **Строка enum остаётся `k8s-postgres-fcm`** — переименование сломает все деплои, хранилища секретов и клоны без согласованной миграции.
+
+## Firebase в `k8s-postgres-fcm` и `supabase-fcm`
+
+- **Данные приложения** (коллекции через `DatabaseService` / `BackendSelector`) идут в **PostgreSQL** через `PostgreSQLAdapter`.
+- **`lib/firebase-admin.server.ts`** явно не поднимает настоящий Firestore, когда `shouldUseFirebaseForDatabase()` = false (см. комментарии у `getAdminDb()` / `getAdminAuth()`).
+- **FCM** по-прежнему использует учётные данные проекта Firebase, если включено (`shouldInitializeFirebaseFCM()`, `NEXT_PUBLIC_FIREBASE_*`, переменные service account). Это **доставка push**, а не основное транзакционное хранилище.
+
+Формулировка «мы ушли с Firebase как с БД» корректна для режимов с приоритетом Postgres; **Firebase не исчез** из репозитория — остаётся **стандартным путём FCM**, пока push не отключён.
+
+## Supabase: две разные роли
+
+1. **`DB_BACKEND_MODE=supabase-fcm`** — Postgres на Supabase; тот же паттерн «Postgres primary + FCM», что и в k8s-режиме по отношению к Firestore.
+2. **Tunnel realtime (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`)** — опциональный канал **Realtime** в `lib/tunnel/transports/supabase-transport.ts` через `@supabase/supabase-js` и `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Это **ортогонально** тому, какой SQL-бэкенд владеет таблицами; наличие Supabase в env **не всегда** означает режим `supabase-fcm`.
+
+## Vercel и «serverless Postgres»
+
+В этом дереве кода Ring Platform **не** используется **`@vercel/postgres`** как основной драйвер БД. **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) — для файлового / blob-хранилища по настройке; это **не** реляционная база.
+
+## `DB_HYBRID_MODE` — это не то же самое, что `DB_BACKEND_MODE`
+
+**`DB_HYBRID_MODE`** — **устаревший / на уровне фич** переключатель, на который ещё ссылаются несколько мест (например `features/store/config.ts`, `features/notifications/services/notification-service-loader.ts`, `scripts/inject-firebase-config.js`). Он **не** заменяет и **не** тождественен **`DB_BACKEND_MODE`**.
+
+- **`DB_BACKEND_MODE`** — глобальный режим деплоя (приоритет Postgres против полный Firebase против Postgres на Supabase).
+- **`DB_HYBRID_MODE`** — более старая «гибридная» терминология для **частичного** Firebase против Postgres в отдельных фичах.
+
+**Рекомендация:** для новых деплоев документируйте и задавайте **`DB_BACKEND_MODE`**. Если в документации «hybrid» заменяете на «self-hosted», делайте это в **прозе и именах в новом коде**, а не в **строке enum `DB_BACKEND_MODE`** без плана миграции.
+
+## Auth.js и PostgreSQL
+
+Таблицы auth (`users`, `accounts`, `sessions`, `verification_tokens`, …) входят в схему **Postgres** при адаптере PostgreSQL. См. `lib/auth/postgres-adapter.ts` и `data/schema.sql`. Поддержка нескольких режимов кратко в [Authentication](./authentication).
+
+## Связанная документация
+
+- [Конфигурация окружения](../deployment/environment) — сгруппированные секреты и URL (указатель на режимы бэкенда).
+- [Push-уведомления (FCM)](../features/push-notifications-fcm) — токены хранятся через `BackendSelector` и режим.
+- [Протокол Tunnel](../features/tunnel-protocol) — транспорты против `DB_BACKEND_MODE`.
+- [Выбор бэкенда БД (white-label)](../white-label/database-selection) — продуктовое сравнение; env согласуйте с этой страницей.
+- Продакшен-подключение: `k8s/ENV-PROD-WIRING.md` (секреты кластера, build args, `DB_BACKEND_MODE` в образе против runtime).
+
+## Открытое решение (именование)
+
+Если нужно, чтобы **строка** `k8s-postgres-fcm` в **env** читалась как `self-hosted` или `postgres`, потребуются: новое допустимое значение в `backend-mode-config.ts`, манифесты деплоя, секреты всех колец, CI и документация — **или** длительная депрекация с поддержкой алиасов. **Только документационное** переименование в «self-hosted» безопасно и уже отражено выше.

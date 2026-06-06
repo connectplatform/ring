@@ -1,10 +1,22 @@
+import type { Metadata } from 'next'
+import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+
+const adminRobots: Metadata['robots'] = {
+  index: false,
+  follow: false,
+  noarchive: true,
+  nosnippet: true,
+  noimageindex: true,
+}
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from "@/auth"
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config';
+import { ROUTES } from '@/constants/routes';
+import { routing } from '@/i18n/routing';
 import AdminWrapper from '@/components/wrappers/admin-wrapper';
 import {
   Users,
@@ -19,8 +31,36 @@ import {
 } from 'lucide-react';
 import { isFeatureEnabledOnServer } from '@/whitelabel/features'
 import { connection } from 'next/server'
+import { buildMessages } from '@/lib/i18n';
+import type { Locale } from '@/i18n/shared';
+import { defaultLocale } from '@/i18n/shared';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  const t = await getTranslations('modules.admin')
+  return buildLocalizedMetadata({
+    locale,
+    path: 'admin',
+    pathname: '/admin',
+    fallback: {
+      title: `${t('title')} | ${RING_PLATFORM_SEO.siteName}`,
+      description: t('userManagementDescription'),
+    },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: adminRobots,
+  })
+}
 export default async function AdminDashboardPage({ 
   params 
 }: {
@@ -32,39 +72,39 @@ export default async function AdminDashboardPage({
     return null
   }
   const { locale } = await params;
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale;
-  const t = await loadTranslations(validLocale);
+  const validLocale: Locale = routing.locales.includes(locale as Locale) ? (locale as Locale) : (defaultLocale as Locale);
+  const messages = await buildMessages(validLocale);
+  const t = messages.modules?.admin || {};
   
   // Check authentication and admin role
   const session = await auth();
   
   if (!session?.user) {
-    redirect(`/${validLocale}/login?callbackUrl=/${validLocale}/admin`);
+    redirect(ROUTES.LOGIN(validLocale) + `?callbackUrl=${encodeURIComponent(ROUTES.ADMIN(validLocale))}`);
   }
 
-  // Check if user has admin role
-  if (session.user.role !== 'admin') {
-    redirect(`/${validLocale}/unauthorized`);
+  if (!isPlatformAdmin(session.user.role)) {
+    redirect(ROUTES.UNAUTHORIZED(validLocale));
   }
 
   // React 19 metadata for admin pages
-  const title = `${(t as any).admin?.dashboard || 'Admin Dashboard'} | Ring Platform`;
-  const description = (t as any).admin?.dashboardDescription || 'Administrative dashboard for Ring Platform management and monitoring.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}/${validLocale}/admin`;
+  const title = `${t('title')} | Ring Platform`;
+  const description = t('userManagementDescription');
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL}${ROUTES.ADMIN(validLocale)}`;
 
   const adminSections = [
     {
-      title: (t as any).admin?.userManagement || 'User Management',
-      description: (t as any).admin?.userManagementDescription || 'Manage user accounts and permissions',
-      href: `/${validLocale}/admin/users`,
+      title: t('userManagement'),
+      description: t('userManagementDescription'),
+      href: ROUTES.ADMIN_USERS(validLocale),
       icon: Users,
       color: 'bg-blue-500',
       stats: 'User accounts, roles, and access control'
     },
     {
-      title: (t as any).admin?.newsManagement || 'News Management',
-      description: (t as any).admin?.newsManagementDescription || 'Manage news articles and content',
-      href: `/${validLocale}/admin/news`,
+      title: t('newsManagement'),
+      description: t('newsManagementDescription'),
+      href: ROUTES.ADMIN_NEWS(validLocale),
       icon: FileText,
       color: 'bg-green-500',
       stats: 'Create, edit, and publish news articles'
@@ -72,7 +112,7 @@ export default async function AdminDashboardPage({
     {
       title: 'System Analytics',
       description: 'Monitor platform performance and user engagement',
-      href: `/${validLocale}/admin/analytics`,
+      href: ROUTES.ADMIN_ANALYTICS(validLocale),
       icon: BarChart3,
       color: 'bg-purple-500',
       stats: 'Web Vitals, performance metrics, user analytics'
@@ -80,7 +120,7 @@ export default async function AdminDashboardPage({
     {
       title: 'Content Moderation',
       description: 'Advanced content filtering and community management',
-      href: `/${validLocale}/admin/moderation`,
+      href: `${ROUTES.ADMIN(validLocale)}/moderation`,
       icon: Shield,
       color: 'bg-orange-500',
       stats: 'Auto-moderation rules, user reports, content review'
@@ -88,7 +128,7 @@ export default async function AdminDashboardPage({
     {
       title: 'Security & Audit',
       description: 'Security monitoring and compliance tracking',
-      href: `/${validLocale}/admin/security`,
+      href: ROUTES.ADMIN_SECURITY(validLocale),
       icon: Lock,
       color: 'bg-red-500',
       stats: 'Authentication monitoring, permission audits, security events'
@@ -107,8 +147,8 @@ export default async function AdminDashboardPage({
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
-      <meta property="og:locale" content={validLocale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:alternate_locale" content={validLocale === 'uk' ? 'en_US' : 'uk_UA'} />
+      <meta property="og:locale" content={validLocale === 'uk' ? 'uk_UA' : validLocale === 'ru' ? 'ru_UA' : 'en_US'} />
+      <meta property="og:alternate_locale" content={validLocale === 'uk' ? 'en_US' : validLocale === 'ru' ? 'en_US' : 'uk_UA'} />
       
       {/* Twitter Card metadata */}
       <meta name="twitter:card" content="summary" />
@@ -142,7 +182,7 @@ export default async function AdminDashboardPage({
                   "@type": "ListItem",
                   "position": 1,
                   "name": "Home",
-                  "item": "https://ring.ck.ua"
+                  "item": "https://ring-platform.org"
                 },
                 {
                   "@type": "ListItem",
@@ -158,14 +198,14 @@ export default async function AdminDashboardPage({
         }}
       />
 
-      <AdminWrapper locale={validLocale} pageContext="dashboard">
+      <AdminWrapper locale={validLocale} pageContext="dashboard" translations={t}>
         <div className="container mx-auto px-0 py-0">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              {(t as any).admin?.dashboard || 'Admin Dashboard'}
+              {t('title')}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {(t as any).admin?.dashboardDescription || 'Administrative dashboard for Ring Platform management and monitoring.'}
+              {t('userManagementDescription')}
             </p>
           </div>
 

@@ -4,7 +4,8 @@ import React, { useState, useTransition } from 'react'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { useSession } from 'next-auth/react'
 import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
@@ -59,7 +60,6 @@ const DeveloperCVForm = dynamic(() => import('./developer-cv-form'), {
 
 interface AddOpportunityFormProps {
   opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'cv' | 'resource' | 'event'
-  locale: string
 }
 
 function SubmitButton() {
@@ -224,7 +224,7 @@ function getFormConfig(type: string) {
   return configs[type as keyof typeof configs] || configs.request
 }
 
-function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFormProps) {
+function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps) {
   const t = useTranslations('modules.opportunities')
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -236,12 +236,12 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showOptionalFields, setShowOptionalFields] = useState(false)
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
-
+  const locale = useLocale() as Locale
   // React 19 useTransition for non-blocking tag/skill updates
   const [isPending, startTransition] = useTransition()
 
   const [state, formAction] = useActionState<OpportunityFormState | null, FormData>(
-    createOpportunity,
+    (state: OpportunityFormState, formData: FormData) => createOpportunity(state, formData, locale),
     null
   )
 
@@ -287,7 +287,7 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   // Use effect to handle redirect on client-side only
   React.useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(ROUTES.LOGIN(locale as any))
+      router.push(ROUTES.LOGIN(locale))
     }
   }, [status, router, locale])
 
@@ -327,8 +327,10 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
 
   // Use specialized Developer CV form for cv type
   if (currentType === 'cv') {
-    return <DeveloperCVForm locale={locale as any} />
+    return <DeveloperCVForm locale={locale} />
   }
+
+  return <AddOpportunityFormContent opportunityType={opportunityType} />
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -803,7 +805,7 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => router.push(`/${locale}/opportunities`)}
+                  onClick={() => router.push(ROUTES.OPPORTUNITIES(locale))}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   ← {t('cancel', { defaultValue: 'Cancel' })}
@@ -848,8 +850,8 @@ function AddOpportunityFormContent({ opportunityType, locale }: AddOpportunityFo
   )
 }
 
-export default function AddOpportunityForm({ opportunityType, locale }: AddOpportunityFormProps) {
+export default function AddOpportunityForm({ opportunityType }: AddOpportunityFormProps) {
   return (
-    <AddOpportunityFormContent opportunityType={opportunityType} locale={locale} />
+    <AddOpportunityFormContent opportunityType={opportunityType} />
   )
 } 

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useTranslations } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertTitle } from '@/components/ui/alert'
@@ -21,7 +22,7 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, closeAction, successAction }: LoginModalProps) {
   const t = useTranslations('modules.auth')
   const router = useRouter()
-  const locale = useLocale() as 'en' | 'uk'
+  const locale = useLocale() as Locale
   const { data: session, status } = useSession()
   const [error, setError] = useState<string | null>(null)
 

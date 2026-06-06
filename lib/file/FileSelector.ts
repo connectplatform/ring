@@ -1,8 +1,10 @@
 import { IFileService } from './interfaces/IFileService';
 import { VercelAdapter } from './adapters/VercelAdapter';
 import { RingBaseAdapter } from './adapters/RingBaseAdapter';
+import { LocalStorageAdapter } from './adapters/LocalStorageAdapter';
+import { StorageProvider, getStorageProvider } from '../storage/storage-config';
 
-export type FileBackendType = 'vercel' | 'ringbase';
+export type FileBackendType = StorageProvider.VERCEL_BLOB | StorageProvider.RING_FILEBASE | StorageProvider.LOCAL_STORAGE;
 
 export interface FileBackendConfig {
   type: FileBackendType;
@@ -14,26 +16,26 @@ export class FileSelector {
   private backends = new Map<FileBackendType, IFileService>();
   private defaultBackend: FileBackendType;
 
-  constructor(defaultBackend: FileBackendType = 'vercel') {
+  constructor(defaultBackend: FileBackendType = StorageProvider.VERCEL_BLOB) {
     this.defaultBackend = defaultBackend;
     this.initializeBackends();
   }
 
   private initializeBackends(): void {
-    // Initialize Vercel adapter
-    this.backends.set('vercel', new VercelAdapter());
+    this.backends.set(StorageProvider.VERCEL_BLOB, new VercelAdapter());
+    this.backends.set(StorageProvider.LOCAL_STORAGE, new LocalStorageAdapter());
 
-    // Initialize RingBase adapter
+    // Initialize RingBase adapter for ring_filebase selector
     const ringbaseApiUrl = process.env.RINGBASE_API_URL;
     const ringbaseApiToken = process.env.RINGBASE_API_TOKEN;
-    this.backends.set('ringbase', new RingBaseAdapter(ringbaseApiUrl, ringbaseApiToken));
+    this.backends.set(StorageProvider.RING_FILEBASE, new RingBaseAdapter(ringbaseApiUrl, ringbaseApiToken));
   }
 
   /**
    * Get file service for specified backend
    */
   getService(backend?: FileBackendType): IFileService {
-    const backendType = backend || this.getBackendFromEnvironment();
+    const backendType = backend || getStorageBackendFromEnvironment();
     const service = this.backends.get(backendType);
 
     if (!service) {
@@ -46,15 +48,8 @@ export class FileSelector {
   /**
    * Get backend type from environment variables
    */
-  private getBackendFromEnvironment(): FileBackendType {
-    const backend = process.env.FILE_BACKEND || process.env.NEXT_PUBLIC_FILE_BACKEND;
-
-    if (backend === 'ringbase') {
-      return 'ringbase';
-    }
-
-    // Default to vercel for backward compatibility
-    return 'vercel';
+  getBackendFromEnvironment(): FileBackendType {
+    return getStorageBackendFromEnvironment();
   }
 
   /**
@@ -77,4 +72,19 @@ export class FileSelector {
   getAvailableBackends(): FileBackendType[] {
     return Array.from(this.backends.keys());
   }
+}
+
+export function getStorageBackendFromEnvironment(): FileBackendType {
+  const provider = getStorageProvider();
+
+  if (!Object.values(StorageProvider).includes(provider as StorageProvider)) {
+    return StorageProvider.VERCEL_BLOB;
+  }
+
+  // LocalStorageSelector intentionally ignores firebase path until first-party support is implemented.
+  if (provider === StorageProvider.FIREBASE_STORAGE) {
+    return StorageProvider.LOCAL_STORAGE;
+  }
+
+  return provider as FileBackendType;
 }

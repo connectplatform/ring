@@ -14,7 +14,8 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 
 interface UserSettings {
@@ -69,6 +70,7 @@ function SubmitButton({ hasChanges }: { hasChanges: boolean }) {
 
 export default function UserSettingsOptimistic({ initialSettings, className }: UserSettingsFormProps) {
   const t = useTranslations('modules.settings')
+  const locale = useLocale() as Locale
   const { data: session } = useSession()
 
   // Optimistic updates for instant settings feedback
@@ -82,7 +84,7 @@ export default function UserSettingsOptimistic({ initialSettings, className }: U
   )
 
   const [state, formAction] = useActionState<UserFormState | null, FormData>(
-    updateUserSettings,
+    (prevState, formData) => updateUserSettings(prevState, formData, locale),
     null
   )
 

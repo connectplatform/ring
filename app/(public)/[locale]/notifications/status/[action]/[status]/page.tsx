@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { routing } from '@/i18n/routing'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import React from 'react'
 import { connection } from 'next/server'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import NotificationStatusPage from '@/components/notifications/notification-status-page'
-import { getSEOMetadata } from '@/lib/seo-metadata'
-import { isValidLocale, defaultLocale } from '@/i18n-config'
+import {isValidLocale, defaultLocale} from '@/i18n/shared'
 import { notFound } from 'next/navigation'
 
 // Valid notification action types
@@ -25,7 +28,26 @@ const VALID_STATUSES = {
 type NotificationAction = typeof VALID_ACTIONS[number]
 type NotificationStatus = typeof VALID_STATUSES[NotificationAction][number]
 
-// Metadata will be handled inline using React 19 native approach
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; action: string; status: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam, action, status } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'notifications.status',
+    variables: { action, status: status.charAt(0).toUpperCase() + status.slice(1) },
+    pathname: '/notifications/status',
+    siteName: 'Ring Platform',
+    twitterSite: '@RingPlatform',
+  })
+}
 
 export default async function NotificationStatusDynamicPage({ 
   params,
@@ -50,17 +72,7 @@ export default async function NotificationStatusDynamicPage({
   }
   
   const validLocale = isValidLocale(locale) ? locale : defaultLocale
-  
-  // Get SEO metadata for the notification status
-  const seoData = await getSEOMetadata(
-    validLocale, 
-    'notifications.status', 
-    { 
-      action: action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' '),
-      status: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')
-    }
-  )
-  
+
   // Extract relevant query parameters
   const notificationId = typeof resolvedSearchParams.notificationId === 'string' ? resolvedSearchParams.notificationId : undefined
   const subscriptionId = typeof resolvedSearchParams.subscriptionId === 'string' ? resolvedSearchParams.subscriptionId : undefined
@@ -70,44 +82,6 @@ export default async function NotificationStatusDynamicPage({
   const topic = typeof resolvedSearchParams.topic === 'string' ? resolvedSearchParams.topic : undefined
   
   return (
-    <>
-      {/* React 19 Native Metadata */}
-      <title>{seoData?.title || `Notification ${action.charAt(0).toUpperCase() + action.slice(1)} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} - Ring Platform`}</title>
-      <meta name="description" content={seoData?.description || `Your notification ${action} is ${status.replace('_', ' ')}. Manage your notification settings and preferences.`} />
-      {seoData?.keywords && (
-        <meta name="keywords" content={seoData.keywords.join(', ')} />
-      )}
-      {seoData?.canonical && (
-        <link rel="canonical" href={seoData.canonical} />
-      )}
-      
-      {/* OpenGraph metadata */}
-      <meta property="og:title" content={seoData?.ogTitle || seoData?.title || `Notification ${action.charAt(0).toUpperCase() + action.slice(1)} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} - Ring Platform`} />
-      <meta property="og:description" content={seoData?.ogDescription || seoData?.description || `Your notification ${action} is ${status.replace('_', ' ')}. Manage your notification settings and preferences.`} />
-      <meta property="og:type" content="website" />
-      <meta property="og:locale" content={validLocale === 'uk' ? 'uk_UA' : 'en_US'} />
-      <meta property="og:site_name" content="Ring Platform" />
-      {seoData?.ogImage && (
-        <meta property="og:image" content={seoData.ogImage} />
-      )}
-      
-      {/* Twitter Card metadata */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:site" content="@RingPlatform" />
-      <meta name="twitter:title" content={seoData?.twitterTitle || seoData?.title || `Notification ${action.charAt(0).toUpperCase() + action.slice(1)} ${status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}`} />
-      <meta name="twitter:description" content={seoData?.twitterDescription || seoData?.description || `Your notification ${action} is ${status.replace('_', ' ')}. Manage your notification settings and preferences.`} />
-      {seoData?.twitterImage && (
-        <meta name="twitter:image" content={seoData.twitterImage} />
-      )}
-      
-      {/* Hreflang alternates */}
-      <link rel="alternate" hrefLang="en" href={`/en/notifications/status/${action}/${status}`} />
-      <link rel="alternate" hrefLang="uk" href={`/uk/notifications/status/${action}/${status}`} />
-      
-      {/* Standard SEO metadata */}
-      <meta name="robots" content="index, follow" />
-      <meta name="author" content="Ring Platform" />
-
       <NotificationStatusPage 
         action={action as NotificationAction}
         status={status as NotificationStatus}
@@ -119,7 +93,6 @@ export default async function NotificationStatusDynamicPage({
         reason={reason}
         topic={topic}
       />
-    </>
   )
 }
 

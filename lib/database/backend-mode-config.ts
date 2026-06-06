@@ -8,9 +8,10 @@
  * - supabase-fcm: Supabase PostgreSQL + Firebase FCM + Apple Push
  * 
  * Created: 2025-10-23
- * Author: Ring Backend Administrator (Legion Agent)
+ * Author: Ring Backend Administrator (Legiox Agent)
  */
 
+import { shouldSkipDatabaseConnect } from '@/lib/build-cache/phase-detector'
 import { DatabaseBackendConfig, DatabaseSyncConfig } from './interfaces/IDatabaseService'
 
 /**
@@ -37,13 +38,21 @@ export interface BackendModeConfig {
  * DB_BACKEND_MODE is REQUIRED - no defaults, no backward compatibility
  */
 export function detectBackendMode(): BackendMode {
+  if (shouldSkipDatabaseConnect()) {
+    const buildMode = process.env.DB_BACKEND_MODE as BackendMode | undefined
+    if (buildMode && ['k8s-postgres-fcm', 'firebase-full', 'supabase-fcm'].includes(buildMode)) {
+      return buildMode
+    }
+    return 'k8s-postgres-fcm'
+  }
+
   const backendMode = process.env.DB_BACKEND_MODE as BackendMode | undefined
 
   if (!backendMode) {
     console.error('❌ DB_BACKEND_MODE environment variable is REQUIRED')
     console.error('   Valid modes: k8s-postgres-fcm, firebase-full, supabase-fcm')
     console.error('   Example: DB_BACKEND_MODE=k8s-postgres-fcm')
-    console.error('   Documentation: https://ring-platform.org/docs/deployment/backend-modes')
+    console.error('   Documentation: https://ring-platform.org/en/library/architecture/backend-modes-and-databases')
     throw new Error('DB_BACKEND_MODE environment variable is required')
   }
 

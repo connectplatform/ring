@@ -1,7 +1,7 @@
 ---
 title: Environment Configuration
 description: Complete production environment setup with secure configuration management, secrets handling, and deployment environments
-last_modified: "2025-10-16"
+last_modified: "2026-05-15"
 ---
 
 import { Callout } from '@/components/docs/callout'
@@ -26,6 +26,12 @@ import { Steps, Step } from '@/components/docs/steps'
 - **Regulatory Compliance** with GDPR, SOC 2, and PCI DSS
 - **Multi-Layer Encryption** for sensitive configuration data
 - **Automated Secret Rotation** and key management
+
+## Database and push backend modes
+
+Ring Platform requires **`DB_BACKEND_MODE`** at runtime (`k8s-postgres-fcm` | `firebase-full` | `supabase-fcm`). It controls PostgreSQL vs Firebase for **application data** and how **FCM** is wired. **`DB_HYBRID_MODE`** is a separate legacy toggle — see [Backend modes and databases](/en/library/architecture/backend-modes-and-databases).
+
+Optional **Tunnel** realtime may use Supabase (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`) regardless of `DB_BACKEND_MODE`; see [Tunnel protocol](/en/library/features/tunnel-protocol).
 
 ## 🏗️ Environment Architecture
 

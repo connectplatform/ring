@@ -3,9 +3,12 @@
 import React, { useState, useEffect } from 'react'
 import { motion, Variants } from 'framer-motion'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { Session } from 'next-auth'
+import type { Locale } from '@/i18n/shared'
+import { ROUTES } from '@/constants/routes'
+import { CONNECT_SOFTWARE_LINKS } from '@/lib/constants/connect-software-urls'
 
 /**
  * @interface HomeContentProps
@@ -33,7 +36,7 @@ interface HomeContentProps {
 const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
   const tCommon = useTranslations('common')
   const tPages = useTranslations('pages.home')
-  const tConfig = useTranslations('config')
+  const currentLocale = useLocale() as Locale
   const { theme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [currentFeature, setCurrentFeature] = useState(0)
@@ -222,7 +225,7 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           {tPages('hero.subtitle')}
         </motion.div>
 
-        {/* Trinity Ukraine origin story */}
+        {/* App publisher origin story */}
         <motion.div
           style={{
             fontSize: 'clamp(0.9rem, 1.8vw, 1.1rem)',
@@ -236,7 +239,7 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           animate={mounted ? "visible" : false}
           className="motion-safe motion-element"
         >
-          {tPages('hero.trinityUkraine')}
+          {tPages('hero.appPublisher')}
         </motion.div>
 
       {/* Self-typing features animation */}
@@ -342,9 +345,83 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           </button>
         </div>
       </motion.div>
+
+      {/* Marketplace — primary CTAs */}
+      <motion.div
+        style={{
+          marginTop: '2rem',
+          padding: '1.5rem',
+          borderRadius: '1rem',
+          border: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--card))',
+          maxWidth: '640px',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          textAlign: 'center',
+        }}
+        variants={mounted ? linksVariants : undefined}
+        initial={mounted ? 'hidden' : false}
+        animate={mounted ? 'visible' : false}
+        className="motion-safe motion-element"
+      >
+        <h3
+          style={{
+            fontSize: '1.2rem',
+            fontWeight: 600,
+            color: 'hsl(var(--foreground))',
+            marginBottom: '0.75rem',
+          }}
+        >
+          {tPages('hero.marketplaceBand.title')}
+        </h3>
+        <p
+          style={{
+            fontSize: '0.9rem',
+            color: 'hsl(var(--muted-foreground))',
+            lineHeight: 1.5,
+            marginBottom: '1.25rem',
+          }}
+        >
+          {tPages('hero.marketplaceBand.subtitle')}
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+            alignItems: 'stretch',
+          }}
+        >
+          <Link
+            href={ROUTES.ADD_OPPORTUNITY(currentLocale)}
+            style={{
+              ...linkStyle,
+              background: 'hsl(var(--primary))',
+              color: 'hsl(var(--primary-foreground))',
+              textAlign: 'center',
+              padding: '0.875rem 1.25rem',
+            }}
+          >
+            {tPages('hero.marketplaceBand.postCta')}
+          </Link>
+          <Link
+            href={ROUTES.OPPORTUNITIES(currentLocale)}
+            style={{
+              ...linkStyle,
+              background: 'transparent',
+              color: 'hsl(var(--foreground))',
+              border: '1px solid hsl(var(--border))',
+              textAlign: 'center',
+              padding: '0.875rem 1.25rem',
+            }}
+          >
+            {tPages('hero.marketplaceBand.browseCta')}
+          </Link>
+        </div>
+      </motion.div>
       </div>
 
-      {/* Get Started Section */}
+      {/* Path cards */}
       <motion.div
         style={{
           ...linksContainerStyle,
@@ -368,9 +445,82 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           maxWidth: '500px',
           margin: '0 auto'
         }}>
-          {/* Card 1: Clone Ring Platform */}
           <Link
-            href="/docs/getting-started"
+            href={ROUTES.ADD_OPPORTUNITY(currentLocale)}
+            style={{
+              ...linkStyle,
+              background: currentTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 88, 12, 0.12) 100%)'
+                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(234, 88, 12, 0.16) 100%)',
+              border: '1px solid',
+              borderColor: currentTheme === 'dark'
+                ? 'rgba(245, 158, 11, 0.35)'
+                : 'rgba(245, 158, 11, 0.45)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: 'hsl(var(--foreground))',
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(234, 88, 12) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              flexShrink: 0,
+              color: 'white',
+            }}>&#9998;</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>{tPages('hero.ctaCards.postOpportunity.title')}</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.postOpportunity.description')}</div>
+            </div>
+          </Link>
+          <Link
+            href={ROUTES.OPPORTUNITIES(currentLocale)}
+            style={{
+              ...linkStyle,
+              background: currentTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)'
+                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, rgba(99, 102, 241, 0.14) 100%)',
+              border: '1px solid',
+              borderColor: currentTheme === 'dark'
+                ? 'rgba(59, 130, 246, 0.3)'
+                : 'rgba(59, 130, 246, 0.4)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: 'hsl(var(--foreground))',
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(99, 102, 241) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              flexShrink: 0,
+              color: 'white',
+            }}>&#128188;</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>{tPages('hero.ctaCards.browseContractor.title')}</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.browseContractor.description')}</div>
+            </div>
+          </Link>
+          <Link
+            href={`${ROUTES.DOCS(currentLocale)}/getting-started`}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -414,63 +564,12 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               flexShrink: 0
             }}>{'>'}_</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Clone Ring Platform</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Free forever. git clone and deploy your own.</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.clone.title')}</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.clone.description')}</div>
             </div>
           </Link>
-          {/* Card 2: Ring Customization Opportunities */}
           <Link
-            href="/opportunities?type=ring_customization"
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(234, 88, 12, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 88, 12, 0.12) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(245, 158, 11, 0.25)'
-                : 'rgba(245, 158, 11, 0.35)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(245, 158, 11, 0.2)'
-                : '0 8px 24px rgba(0,0,0,0.12)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(234, 88, 12) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0,
-              color: 'white'
-            }}>&#9881;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Ring Customization Opportunities</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Browse or post module development and white-label projects</div>
-            </div>
-          </Link>
-          {/* Card 3: Browse Entities */}
-          <Link
-            href="/entities"
+            href={ROUTES.ENTITIES(currentLocale)}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -513,13 +612,61 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               flexShrink: 0
             }}>&#127970;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Browse Entities</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Explore companies, startups, and institutions in the Ring ecosystem</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.entities.title')}</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.entities.description')}</div>
             </div>
           </Link>
-          {/* Card 4: RING Token Economy */}
+          <a
+            href={CONNECT_SOFTWARE_LINKS.marketplace}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...linkStyle,
+              background: currentTheme === 'dark'
+                ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%)'
+                : 'linear-gradient(135deg, rgba(139, 92, 246, 0.14) 0%, rgba(124, 58, 237, 0.14) 100%)',
+              border: '1px solid',
+              borderColor: currentTheme === 'dark'
+                ? 'rgba(139, 92, 246, 0.35)'
+                : 'rgba(139, 92, 246, 0.45)',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: 'hsl(var(--foreground))',
+              textDecoration: 'none',
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, rgb(139, 92, 246) 0%, rgb(124, 58, 237) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              flexShrink: 0,
+              color: 'white',
+            }}>&#129302;</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>
+                {tPages('hero.ctaCards.connectSoftware.title')} <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>&#8599;</span>
+              </div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>
+                {tPages('hero.ctaCards.connectSoftware.description')}
+              </div>
+              <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span style={{ color: 'hsl(var(--primary))' }}>{tPages('hero.ctaCards.connectSoftware.skillsetsLink')}</span>
+                <span>·</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>{tPages('hero.ctaCards.connectSoftware.mcpLink')}</span>
+              </div>
+            </div>
+          </a>
           <Link
-            href="/wallet/topup"
+            href={ROUTES.WALLET(currentLocale) + '/topup'}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -562,13 +709,12 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               flexShrink: 0
             }}>&#129689;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>RING Token Economy</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Buy RING tokens for services, listings, and AI modifications</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.wallet.title')}</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.wallet.description')}</div>
             </div>
           </Link>
-          {/* Card 5: Read Documentation */}
           <Link
-            href="/docs"
+            href={ROUTES.DOCS(currentLocale)}
             style={{
               ...linkStyle,
               background: currentTheme === 'dark'
@@ -611,11 +757,10 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               flexShrink: 0
             }}>&#128214;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Read Documentation</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Architecture, API, features, deployment guides in EN/UK/RU</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.docs.title')}</div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.docs.description')}</div>
             </div>
           </Link>
-          {/* Card 6: Become a Ringdom Settler */}
           <a
             href="https://ringdom.org/en/settler"
             target="_blank"
@@ -662,8 +807,8 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
               flexShrink: 0
             }}>&#128081;</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Become a Ringdom Settler <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>&#8599;</span></div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>Let Ringdom deploy your Ring clone. Talk to Reggie and get a customization plan.</div>
+              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.settler.title')} <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>&#8599;</span></div>
+              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.settler.description')}</div>
             </div>
           </a>
         </div>

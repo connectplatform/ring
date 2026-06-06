@@ -311,7 +311,7 @@ export class PriceOracleService {
    */
   async convertRingToUsd(ringAmount: string): Promise<{
     usd_amount: string;
-    ring_amount: string;
+    token_amount: string;
     rate: string;
     timestamp: number;
     confidence: number;
@@ -330,7 +330,7 @@ export class PriceOracleService {
 
     return {
       usd_amount: usdValue,
-      ring_amount: ringAmount,
+      token_amount: ringAmount,
       rate: priceData.price,
       timestamp: priceData.timestamp,
       confidence: priceData.confidence,
@@ -341,7 +341,7 @@ export class PriceOracleService {
    * Convert USD amount to RING
    */
   async convertUsdToRing(usdAmount: string): Promise<{
-    ring_amount: string;
+    token_amount: string;
     usd_amount: string;
     rate: string;
     timestamp: number;
@@ -360,7 +360,7 @@ export class PriceOracleService {
     });
 
     return {
-      ring_amount: ringValue,
+      token_amount: ringValue,
       usd_amount: usdAmount,
       rate: priceData.price,
       timestamp: priceData.timestamp,

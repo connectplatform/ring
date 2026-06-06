@@ -6,7 +6,7 @@ import type { StoreProduct } from '@/features/store'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
 import { useStore } from '@/features/store/context'
 import { useCurrency } from '@/features/store/currency-context'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
 
@@ -165,7 +165,7 @@ export function ProductCard({
   return (
     <div className="group border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-background">
       {/* Product Image - Top 67% - Square with rounded corners */}
-      <Link href={`${ROUTES.STORE(locale)}/${product.id}`} className="block relative aspect-square overflow-hidden">
+      <Link href={`${ROUTES.STORE(locale.toLowerCase() as Locale)}/${product.id}`} className="block relative aspect-square overflow-hidden">
         {product.images && product.images.length > 0 ? (
           <img
             src={product.images[0]}
@@ -209,7 +209,7 @@ export function ProductCard({
       {/* Product Details - Bottom 33% */}
       <div className="p-4 space-y-3">
         {/* Product Title */}
-        <Link href={`${ROUTES.STORE(locale)}/${product.id}`}>
+        <Link href={`${ROUTES.STORE(locale.toLowerCase() as Locale)}/${product.id}`}>
           <h3 className="font-semibold text-base hover:text-primary transition-colors line-clamp-2 min-h-[2.5rem]">
             {product.name}
           </h3>

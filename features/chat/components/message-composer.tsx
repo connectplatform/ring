@@ -200,6 +200,7 @@ export function MessageComposer({
       const formData = new FormData()
       formData.append('file', attachment.file)
       formData.append('conversationId', conversationId)
+      formData.append('purpose', 'chat:attachment')
 
       const response = await fetch('/api/conversations/upload', {
         method: 'POST',

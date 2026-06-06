@@ -1,9 +1,34 @@
+import type { Metadata } from 'next'
 import React, { Suspense } from 'react'
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
-import type { Locale } from '@/i18n-config'
-import { isValidLocale, defaultLocale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
+import { isValidLocale, defaultLocale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import PaymentProcessingClient from './payment-processing-client'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'store.checkout.status',
+    pathname: '/store/checkout/processing',
+    variables: { status: 'processing' },
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false },
+  })
+}
 
 export default async function CheckoutProcessingPage({
   params,
@@ -25,11 +50,6 @@ export default async function CheckoutProcessingPage({
   
   return (
     <>
-      {/* React 19 Native Metadata */}
-      <title>Processing Payment - Ring Store</title>
-      <meta name="description" content="Processing your payment. Please wait..." />
-      <meta name="robots" content="noindex, nofollow" />
-      
       <Suspense fallback={
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">

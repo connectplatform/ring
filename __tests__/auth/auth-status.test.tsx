@@ -6,7 +6,7 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import AuthStatusPage from '../../components/auth/AuthStatusPage'
-import type { Locale } from '../../i18n-config'
+import type { Locale } from '@/i18n/shared'
 import  {  describe,  it,  expect,  jest, beforeEach,  afterEach  }  from  '@jest/globals'
 import '@testing-library/jest-dom'
 

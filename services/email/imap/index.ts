@@ -5,5 +5,5 @@
 
 export { ImapListener, getImapListener } from './imap-listener';
 export type { EmailReceivedEvent, ImapListenerEvents } from './imap-listener';
-export { emailConfig, validateEmailConfig, envTemplate } from './config';
+export { emailConfig, validateEmailConfig } from './config';
 export type { EmailConfig } from './config';

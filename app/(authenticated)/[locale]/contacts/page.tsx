@@ -1,13 +1,18 @@
+import type { Metadata } from 'next'
+import { setRequestLocale } from 'next-intl/server'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
 import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
-import { loadTranslations, isValidLocale, type Locale, defaultLocale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
+import { getTranslations } from 'next-intl/server'
 import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import ContactList from '@/features/wallet/components/contact-list'
 import { connection } from 'next/server'
+import { logger } from '@/lib/logger'
 
 
 // Define the type for the contacts route params
@@ -28,59 +33,73 @@ type ContactsParams = {};
  * @param props - The LocalePageProps with params and searchParams as Promises
  * @returns The rendered ContactsPage component
  */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}): Promise<Metadata> {
+  const { locale: localeParam } = await params
+  const locale = routing.locales.includes(localeParam as Locale)
+    ? (localeParam as Locale)
+    : routing.defaultLocale
+  setRequestLocale(locale)
+  return buildLocalizedMetadata({
+    locale,
+    path: 'contacts',
+    pathname: '/contacts',
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+    robots: { index: false, follow: false },
+  })
+}
 export default async function ContactsPage(props: LocalePageProps<ContactsParams>) {
   await connection() // Next.js 16: opt out of prerendering
 
-  console.log('ContactsPage: Starting');
+  logger.info('ContactsPage: Starting');
 
   // Resolve params and searchParams
   const params = await props.params;
   const searchParams = await props.searchParams;
 
   // Extract and validate locale
-  const locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
-  console.log('ContactsPage: Using locale', locale);
+  const validLocale: Locale = routing.locales.includes(params.locale as Locale) ? (params.locale as Locale) : (routing.defaultLocale as Locale);
+  logger.info('ContactsPage: Using locale', { locale: validLocale });
 
   // Basic metadata for authenticated page
-  const translations = await loadTranslations(locale);
-  const title = `Contacts | ${(translations as any).modules?.wallet?.title || 'Ring Platform'}`;
+  const translations = await getTranslations('modules.wallet');
+  const title = `Contacts | ${(translations as any).modules?.wallet?.title || 'Zemna AI'}`;
   const description = 'Manage your wallet contacts and address book for easy token transfers.';
-  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://ring.platform"}/${locale}/contacts`;
+  const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://zemna.ai"}${ROUTES.CONTACTS(validLocale)}`;
 
   const headersList = await headers()
 
-  console.log('ContactsPage: Request details', {
+  logger.info('ContactsPage: Request details', {
     params,
     searchParams,
-    locale,
+    locale: validLocale,
     userAgent: headersList.get('user-agent'),
   });
 
+  const session = await auth()
+  logger.info('ContactsPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
+  if (!session) return null // Layout AuthGuard already redirects; this narrowing satisfies TypeScript
+
   try {
-    console.log('ContactsPage: Authenticating session');
-    const session = await auth()
-    console.log('ContactsPage: Session authenticated', { sessionExists: !!session, userId: session?.user?.id });
-
-    if (!session) {
-      console.log('ContactsPage: No session, redirecting to localized login');
-      redirect(ROUTES.LOGIN(locale))
-    }
-
     // Check if user document exists (with caching - migration now handled at auth level)
     try {
       const { userMigrationService } = await import('@/features/auth/services/user-migration');
       const userExists = await userMigrationService.userDocumentExists(session.user.id);
       if (!userExists) {
-        console.warn('ContactsPage: User document missing, initializing');
+        logger.warn('ContactsPage: User document missing, initializing');
         await userMigrationService.ensureUserDocument(session.user as any);
-        console.log('ContactsPage: User document created successfully');
+        logger.info('ContactsPage: User document created successfully');
       }
     } catch (migrationError) {
-      console.error('ContactsPage: Failed to check/create user document:', migrationError);
+      logger.error('ContactsPage: Failed to check/create user document:', migrationError);
       // Continue anyway - contacts will handle missing document gracefully
     }
 
-    console.log('ContactsPage: Rendering contacts list');
+    logger.info('ContactsPage: Rendering contacts list');
 
     return (
       <>
@@ -94,7 +113,7 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
         <meta name="googlebot" content="noindex, nofollow" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <WalletWrapper locale={locale}>
+        <WalletWrapper locale={validLocale}>
           <Suspense fallback={
             <div className="animate-pulse space-y-6 p-6">
               <div className="h-8 bg-muted rounded w-1/4"></div>
@@ -102,18 +121,18 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
               <div className="h-64 bg-muted rounded"></div>
             </div>
           }>
-            <ContactList locale={locale} />
+            <ContactList locale={validLocale} />
           </Suspense>
         </WalletWrapper>
       </>
     )
 
   } catch (e) {
-    console.error("ContactsPage: Error:", e)
+    logger.error("ContactsPage: Error (non-redirect):", e)
 
     return (
       <>
-        <title>Contacts Error | Ring Platform</title>
+        <title>Contacts Error | Zemna AI</title>
         <meta name="robots" content="noindex, nofollow" />
 
         <div className="container mx-auto px-0 py-0">
@@ -123,7 +142,7 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
               Failed to load contacts. Please try again later.
             </p>
             <a
-              href={ROUTES.HOME(locale)}
+              href={ROUTES.HOME(validLocale)}
               className="text-primary hover:underline"
             >
               Return to Home

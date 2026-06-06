@@ -44,7 +44,7 @@ export interface NotificationPreferences {
 // Global User Identity - Universal across all Ring projects
 export interface GlobalUserIdentity {
   globalUserId: string; // Universal UUID across all projects
-  legionUserId?: string; // Internal Legion tracking ID
+  legioxUserId?: string; // Internal Legiox tracking ID
   email: string;
   emailVerified: Date | null;
   name?: string | null;
@@ -64,9 +64,10 @@ export interface GlobalUserIdentity {
 // Enhanced Communication Channels
 export interface CommunicationChannels {
   phoneNumber?: string;
-  telegramUsername?: string;
   whatsappNumber?: string;
   preferredContactMethod: 'email' | 'phone' | 'telegram' | 'whatsapp';
+  telegramUsername?: string;
+  telegramId?: string; // Numeric Telegram Chat ID for Admin Bot integration
 }
 
 // Cultural & Geographic Context

@@ -21,7 +21,8 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Upload, X, Loader2, Save, ArrowLeft } from 'lucide-react'
+import { Upload, X, Loader2, Save, ArrowLeft, Link as LinkIcon } from 'lucide-react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,14 +38,12 @@ import {
 } from '@/components/ui/select'
 import { createVendorProduct, updateVendorProduct } from '@/app/_actions/vendor-actions'
 import { ROUTES } from '@/constants/routes'
-import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
-import Link from 'next/link'
+import type { Locale } from '@/i18n/shared'
 import AgriculturalFieldsSection from '@/components/vendor/agricultural-fields-section'
 
 interface ProductFormProps {
   mode: 'create' | 'edit'
-  locale: string
+  locale: Locale
   vendorEntity: any
   existingProduct?: any
 }
@@ -184,7 +183,7 @@ export default function ProductForm({ mode, locale, vendorEntity, existingProduc
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href={ROUTES.VENDOR_PRODUCTS(locale as Locale)}>
+        <Link href={ROUTES.VENDOR_PRODUCTS(locale)}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -403,7 +402,7 @@ export default function ProductForm({ mode, locale, vendorEntity, existingProduc
                 )}
               </Button>
               
-              <Link href={ROUTES.VENDOR_PRODUCTS(locale as Locale)}>
+              <Link href={ROUTES.VENDOR_PRODUCTS(locale)}>
                 <Button type="button" variant="outline" disabled={isPending}>
                   {t('cancel')}
                 </Button>

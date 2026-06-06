@@ -1,0 +1,63 @@
+---
+title: Backend modes and databases
+description: DB_BACKEND_MODE, PostgreSQL vs Firebase vs Supabase, FCM-only Firebase, Tunnel transports, and how this differs from DB_HYBRID_MODE
+last_modified: "2026-05-15"
+---
+
+# Backend modes and databases
+
+Ring Platform uses a **single application codebase** with a **required** runtime switch: **`DB_BACKEND_MODE`**. The value selects which database adapters are registered, whether Firestore is used for application data, and how push notifications are wired.
+
+This page is the **canonical reference** for operators and clone maintainers. Implementation lives in `lib/database/backend-mode-config.ts`, `lib/database/DatabaseService.ts`, and `lib/database/BackendSelector.ts`.
+
+## `DB_BACKEND_MODE` (required)
+
+| Mode | Primary application database | Firebase Admin used for DB / Firestore? | Push (FCM / Apple) |
+|------|------------------------------|------------------------------------------|---------------------|
+| **`k8s-postgres-fcm`** | PostgreSQL (your cluster — e.g. k3s + CloudNativePG / PostGIS) | **No** — `shouldUseFirebaseForDatabase()` is false; `getAdminDb()` returns a **mock** Firestore when not in `firebase-full` | **FCM** (and Apple where configured) via Firebase Admin **messaging** and web config; not Firestore as source of truth |
+| **`firebase-full`** | Firestore / Firebase-backed paths | **Yes** | FCM as part of full Firebase stack |
+| **`supabase-fcm`** | PostgreSQL hosted on **Supabase** (connection via env) | **No** (same pattern as k8s mode for Firestore) | **FCM** + Apple as configured |
+
+**Narrative names:** Production on your own Postgres is often described as **“self‑hosted PostgreSQL + FCM”** or **“Postgres‑primary mode.”** The **enum value remains `k8s-postgres-fcm`** — renaming the string would break every deployment, secret store, and clone without a coordinated migration.
+
+## Firebase in `k8s-postgres-fcm` and `supabase-fcm`
+
+- **Application data** (collections routed through `DatabaseService` / `BackendSelector`) goes to **PostgreSQL** via `PostgreSQLAdapter`.
+- **`lib/firebase-admin.server.ts`** explicitly avoids real Firestore when `shouldUseFirebaseForDatabase()` is false (see comments around `getAdminDb()` / `getAdminAuth()`).
+- **FCM** still uses Firebase project credentials where enabled (`shouldInitializeFirebaseFCM()`, `NEXT_PUBLIC_FIREBASE_*`, service account vars). That is **push delivery**, not the primary transactional store.
+
+So “we moved off Firebase for the database” is accurate for Postgres‑primary modes; **Firebase is not gone** from the repo — it remains the **standard FCM path** unless you disable push.
+
+## Supabase: two different roles
+
+1. **`DB_BACKEND_MODE=supabase-fcm`** — Postgres runs on Supabase; same “Postgres primary + FCM” pattern as k8s mode for Firestore.
+2. **Tunnel realtime (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`)** — optional **Realtime** channel in `lib/tunnel/transports/supabase-transport.ts`, using `@supabase/supabase-js` and `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`. This is **orthogonal** to which SQL backend owns your tables; do not assume “Supabase in env” always equals `supabase-fcm` mode.
+
+## Vercel and “serverless Postgres”
+
+Ring Platform does **not** use **`@vercel/postgres`** as the primary database driver in this tree. **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) is used for file/blob storage where configured — that is **not** the relational database.
+
+## `DB_HYBRID_MODE` — not the same as `DB_BACKEND_MODE`
+
+**`DB_HYBRID_MODE`** is a **legacy / feature-level** toggle still referenced in a few places (for example `features/store/config.ts`, `features/notifications/services/notification-service-loader.ts`, `scripts/inject-firebase-config.js`). It does **not** replace and is **not** synonymous with **`DB_BACKEND_MODE`**.
+
+- **`DB_BACKEND_MODE`** — global deployment mode (Postgres‑primary vs full Firebase vs Supabase Postgres).
+- **`DB_HYBRID_MODE`** — older “hybrid” wording for **partial** Firebase vs Postgres behavior in specific features.
+
+**Recommendation:** Prefer documenting and setting **`DB_BACKEND_MODE`** for all new deployments. If you rename documentation from “hybrid” to “self‑hosted,” apply it to **prose and variable names in new code**, not to the **`DB_BACKEND_MODE` enum** without a migration plan.
+
+## Auth.js and PostgreSQL
+
+Auth tables (`users`, `accounts`, `sessions`, `verification_tokens`, …) are part of the **Postgres** schema when using the PostgreSQL adapter. See `lib/auth/postgres-adapter.ts` and `data/schema.sql`. Multi‑mode support is summarized in [Authentication](./authentication).
+
+## Related documentation
+
+- [Environment configuration](../deployment/environment) — where secrets and URLs are grouped (includes pointer to backend modes).
+- [Push notifications (FCM)](../features/push-notifications-fcm) — token storage follows `BackendSelector` + mode.
+- [Tunnel protocol](../features/tunnel-protocol) — transports vs `DB_BACKEND_MODE`.
+- [Database backend selection (white-label)](../white-label/database-selection) — product-level comparison; align env with this page.
+- Production wiring: `k8s/ENV-PROD-WIRING.md` (cluster secrets, build args, `DB_BACKEND_MODE` in image vs runtime).
+
+## Open decision (naming)
+
+If you want the **string** `k8s-postgres-fcm` to read as `self-hosted` or `postgres` in **env only**, that requires: new accepted value in `backend-mode-config.ts`, deployment manifests, all rings’ secrets, CI, and docs — **or** a long deprecation with alias support. **Docs‑only** rename to “self‑hosted” is safe and already reflected above.

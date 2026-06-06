@@ -23,13 +23,16 @@ import { file } from '@/lib/file'
 import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { createVendorProfile } from '@/features/store/services/vendor-lifecycle'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
+import { defaultLocale } from '@/i18n/shared'
 
 // ============================================================================
 // VENDOR ONBOARDING
 // ============================================================================
 
 export async function createVendorStore(prevState: any, formData: FormData) {
+
+  const locale = (formData.get('locale') as Locale) || defaultLocale as Locale
 
   try {
     const session = await auth()
@@ -50,7 +53,6 @@ export async function createVendorStore(prevState: any, formData: FormData) {
     const storeDescription = (formData.get('storeDescription') as string)?.trim()
     const storeCategoriesRaw = formData.get('storeCategories') as string
     const storeCategories = storeCategoriesRaw ? JSON.parse(storeCategoriesRaw) : []
-    const locale = (formData.get('locale') as Locale) || 'en'
 
     // Validation
     if (!storeSlug || storeSlug.length < 3 || storeSlug.length > 50) {
@@ -212,24 +214,12 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       }
     }
 
-    // Success - redirect to vendor dashboard
-    try {
-      redirect(`/${locale}/vendor/dashboard`)
-    } catch (redirectError) {
-      // NEXT_REDIRECT is expected behavior - don't log as error
-      if (!(redirectError instanceof Error && redirectError.message.includes('NEXT_REDIRECT'))) {
-        console.error('Unexpected redirect error:', redirectError)
-      }
-      throw redirectError // Re-throw to maintain Next.js behavior
-    }
-
   } catch (error) {
-    // Only log actual errors, not redirect exceptions
-    if (!(error instanceof Error && error.message.includes('NEXT_REDIRECT'))) {
-      console.error('Error creating vendor store:', error)
-    }
+    console.error('Error creating vendor store:', error)
     return { error: error instanceof Error ? error.message : 'Failed to create vendor store' }
   }
+
+  redirect(`/${locale}/vendor/dashboard` as any)
 }
 
 // ============================================================================
@@ -282,7 +272,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     const description = (formData.get('description') as string)?.trim() || ''
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
-    const locale = (formData.get('locale') as Locale) || 'en'
+    const locale = (formData.get('locale') as Locale) || defaultLocale as Locale
 
     // Validation
     if (!name || name.length < 3 || name.length > 100) {
@@ -515,7 +505,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     }
 
     // Success - redirect to products list
-    redirect(`/${locale}/vendor/products`)
+    redirect(`/${locale as Locale}/vendor/products`)
     
   } catch (error) {
     console.error('Error creating product:', error)
@@ -762,7 +752,7 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
   }
 }
 
-export async function deleteVendorProduct(productId: string, locale: Locale = 'en') {
+export async function deleteVendorProduct(productId: string, locale: Locale = defaultLocale as Locale) {
 
   try {
     const session = await auth()
@@ -824,7 +814,7 @@ export async function deleteVendorProduct(productId: string, locale: Locale = 'e
   }
 }
 
-export async function duplicateVendorProduct(productId: string, locale: Locale = 'en') {
+  export async function duplicateVendorProduct(productId: string, locale: Locale = defaultLocale) {
 
   try {
     const session = await auth()

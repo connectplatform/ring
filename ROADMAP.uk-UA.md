@@ -68,7 +68,7 @@
   MessageThread та MessageComposer — у роботі
 
 * **🔍 AI-пошук**
-  Повнотекстовий + семантичний пошук з Legion AI Matcher
+  Повнотекстовий + семантичний пошук з Legiox AI Matcher
 
 * **📈 Аналітична панель**
   Бізнес- та performance-метрики
@@ -96,7 +96,7 @@
 * **Testing:** Jest 30 + RTL 16
 * **i18n:** next-intl (EN / UK / RU)
 * **Realtime:** Tunnel Protocol / Firebase RTDB
-* **AI:** Legion AI (136 агентів, 21 MCP-інструмент)
+* **AI:** Legiox AI (136 агентів, 21 MCP-інструмент)
 
 ---
 
@@ -126,7 +126,7 @@
 5. Web3-економіка токена RING
 6. Сильна тестова інфраструктура
 7. Актуальний стек React 19 + Next.js 15
-8. Глибока інтеграція Legion AI
+8. Глибока інтеграція Legiox AI
 
 **Загальний статус:** 🟢 *Production Deployed — Phase of Expansion*
 **Версія:** 1.48

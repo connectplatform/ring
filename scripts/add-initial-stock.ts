@@ -12,7 +12,7 @@
  *   npx ts-node scripts/add-initial-stock.ts 100
  *   npx ts-node scripts/add-initial-stock.ts      # Default: 100 units
  * 
- * @author Legion Commander - AI-ERP Stock Management
+ * @author Legiox Commander - AI-ERP Stock Management
  * @date 2025-12-08
  */
 

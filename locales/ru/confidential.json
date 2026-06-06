@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "metadata": {
+      "title": "Конфиденциальные организации | Ring Platform"
+    },
+    "metaDescription": {
+      "description": "Закрытый каталог профилей организаций для участников Ring Platform со статусом Confidential. Только после аутентификации; не индексируется поиском."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Конфиденциальные организации — Ring Platform",
+      "mainEntityDescription": "Каталог чувствительных записей об организациях для доверенных операторов и партнёров на Ring Platform."
+    }
+  },
+  "opportunities": {
+    "metadata": {
+      "title": "Конфиденциальные возможности | Ring Platform"
+    },
+    "metaDescription": {
+      "description": "Закрытый список возможностей для участников Ring Platform с доступом Confidential. Сценарии после входа, согласованные с профессиональной сетью и маркетплейсом."
+    },
+    "jsonLd": {
+      "siteRootName": "Ring Platform",
+      "webPageName": "Конфиденциальные возможности — Ring Platform",
+      "mainEntityDescription": "Приватный конвейер возможностей для проверенных ролей, партнёрств и запросов, видимый только участникам уровня Confidential."
+    }
+  }
+}

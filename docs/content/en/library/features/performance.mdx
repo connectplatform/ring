@@ -175,9 +175,9 @@ export function CreateEntityForm() {
 
 <Code language="typescript" title="TypeScript">
 {`class DatabaseService {
-  // React 19 cache() enabled operations
+  // React 19 cache() enabled operations (illustrative — production uses lib/database/DatabaseService.ts + BackendSelector)
   read = cache(async (collection: string, id: string) => {
-    // Automatically routes to PostgreSQL or Firebase based on DB_HYBRID_MODE
+    // Production routing: DB_BACKEND_MODE → initializeDatabase() registers PostgreSQLAdapter and/or FirebaseAdapter
     const backend = this.getBackendForCollection(collection)
     return backend.read(collection, id)
   })
@@ -204,14 +204,15 @@ export function CreateEntityForm() {
   }
 
   private getBackendForCollection(collection: string) {
-    // Route based on environment and collection migration status
-    const hybridMode = process.env.DB_HYBRID_MODE === 'false'
+    // DB_HYBRID_MODE is a legacy per-feature toggle (store, notifications); do not confuse with DB_BACKEND_MODE.
+    // Pseudocode below illustrates a per-collection split; real routing: lib/database/BackendSelector.ts
+    const postgresOnly = process.env.DB_HYBRID_MODE === 'false'
 
-    if (hybridMode) {
+    if (postgresOnly) {
       return this.postgresBackend // PostgreSQL primary
     }
 
-    // Hybrid mode: route based on migration status
+    // Illustrative split during migration-style rollout
     const migratedCollections = ['users', 'entities', 'notifications', 'comments']
     return migratedCollections.includes(collection)
       ? this.postgresBackend

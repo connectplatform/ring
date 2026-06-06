@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
+import { routing } from '@/i18n/routing'
 import { logger } from '@/lib/logger'
 
 export interface CryptoOnboardingFormState {
@@ -15,7 +16,8 @@ export interface CryptoOnboardingFormState {
 
 export async function completeCryptoOnboarding(
   prevState: CryptoOnboardingFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<CryptoOnboardingFormState> {
 
   // Get current user session

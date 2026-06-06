@@ -7,7 +7,7 @@ import { ROUTES } from '@/constants/routes'
 import { useOptionalStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
 import { useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 export function MiniCart({ locale }: { locale: Locale }) {
   const store = useOptionalStore()

@@ -16,7 +16,7 @@ import {
   Coins
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface WalletNavigationProps {
   locale: Locale

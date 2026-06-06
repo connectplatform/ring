@@ -9,10 +9,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Rss } from 'lucide-react'
-import { LocalePageProps } from '@/utils/page-props'
-import { isValidLocale, defaultLocale, loadTranslations } from '@/i18n-config'
-import { getSEOMetadata } from '@/lib/seo-metadata'
+import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
+import { SUPPORTED_LOCALES } from '@/lib/locale-config'
+import { routing } from '@/i18n/routing'
+import { setRequestLocale } from 'next-intl/server'
+import { loadTranslations } from '@/i18n/load-translations'
 import NewsPageWrapper from '@/components/wrappers/news-page-wrapper'
+import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 
 interface CategoryPageParams {
   locale: string
@@ -90,6 +93,20 @@ const categoryInfo: Record<NewsCategory, CategoryInfo> = {
     color: 'bg-gray-500',
     icon: '📝',
     articleCount: 0
+  },
+  security: {
+    name: 'Security',
+    description: 'Security updates and advisories',
+    color: 'bg-red-500',
+    icon: '🔒',
+    articleCount: 0
+  },
+  blogs: {
+    name: 'Blogs',
+    description: 'Member blog posts and community writing',
+    color: 'bg-slate-500',
+    icon: '✍️',
+    articleCount: 0
   }
 }
 
@@ -155,51 +172,38 @@ async function getCategoryArticles(category: NewsCategory, limit: number = 20): 
 }
 
 export async function generateMetadata({
-  params
+  params,
 }: {
   params: Promise<CategoryPageParams>
 }): Promise<Metadata> {
   const { locale, category } = await params
-  const validLocale = isValidLocale(locale) ? locale : defaultLocale
+  const validLocale = routing.locales.includes(locale as Locale)
+    ? (locale as Locale)
+    : defaultLocale
+  setRequestLocale(validLocale)
 
-  // Validate category
   if (!Object.keys(categoryInfo).includes(category)) {
     return {
-      title: 'Category Not Found | Ring Platform'
+      title: 'Category Not Found | Ring Platform',
     }
   }
 
   const categoryData = categoryInfo[category as NewsCategory]
   const t = await loadTranslations(validLocale)
+  const localizedCategoryName =
+    t.news?.categories?.[category as NewsCategory] || categoryData.name
 
-  const title = `${categoryData.name} | ${t.news?.title || 'Ring Platform News'}`
-  const description = categoryData.description
-
-  return {
-    title,
-    description,
-    keywords: [
-      categoryData.name.toLowerCase(),
-      'news',
-      'articles',
-      'Ring Platform',
-      category.replace('-', ' ')
-    ],
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      locale: validLocale === 'uk' ? 'uk_UA' : 'en_US'
+  return buildLocalizedMetadata({
+    locale: validLocale,
+    path: 'news.category',
+    pathname: `/news/category/${category}`,
+    variables: {
+      categoryName: localizedCategoryName,
+      description: categoryData.description,
     },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description
-    },
-    alternates: {
-      canonical: `https://ring.ck.ua/${validLocale}/news/category/${category}`
-    }
-  }
+    siteName: RING_PLATFORM_SEO.siteName,
+    twitterSite: RING_PLATFORM_SEO.twitterSite,
+  })
 }
 
 export default async function CategoryPage({
@@ -224,10 +228,6 @@ export default async function CategoryPage({
   return (
     <NewsPageWrapper locale={validLocale} categoryInfo={categoryInfo} translations={t}>
       <>
-        {/* React 19 Native Metadata */}
-        <title>{`${localizedCategoryName} - ${t.news?.title || 'Ring Platform News'}`}</title>
-        <meta name="description" content={catInfo.description} />
-
         <div className="container mx-auto px-0 py-0">
         {/* Back Button */}
         <div className="mb-6">
@@ -341,7 +341,7 @@ export default async function CategoryPage({
 // Generate static params for all categories
 export async function generateStaticParams() {
   const categories = Object.keys(categoryInfo)
-  const locales = ['en', 'uk', 'ru']
+  const locales = SUPPORTED_LOCALES
 
   const params = []
   for (const locale of locales) {

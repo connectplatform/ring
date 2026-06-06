@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
+import { useRouter } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +23,7 @@ import { useCreditBalance } from '@/hooks/use-credit-balance'
 import { toast } from '@/hooks/use-toast'
 import { MultiChainWalletDashboard } from '@/components/web3/multi-chain-wallet-dashboard'
 import { GasOptimization } from '@/components/web3/gas-optimization'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface WalletPageClientProps {
   locale: Locale
@@ -34,11 +35,12 @@ export default function WalletPageClient({ locale, searchParams, embedded = fals
   const t = useTranslations('modules.wallet')
   const tCommon = useTranslations('common')
   const { data: session } = useSession()
+  const router = useRouter()
   const [copied, setCopied] = useState(false)
 
   // Get wallet balance data
   const { 
-    balance: ringBalance, 
+    balance: tokenBalance, 
     subscription,
     limits,
     isLoading: balanceLoading, 
@@ -82,8 +84,8 @@ export default function WalletPageClient({ locale, searchParams, embedded = fals
   }
 
   // Check if balance is low
-  const hasLowBalance = parseFloat(ringBalance?.amount || '0') < 1
-  const displayBalance = formatBalance(ringBalance?.amount)
+  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
+  const displayBalance = formatBalance(tokenBalance?.amount)
   const walletAddress = session?.user?.wallets?.[0]?.address
 
   if (balanceLoading) {
@@ -159,13 +161,13 @@ export default function WalletPageClient({ locale, searchParams, embedded = fals
                   {displayBalance} <span className="text-2xl text-muted-foreground">RING</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  ≈ ${ringBalance?.usd_equivalent || '0.00'} USD
+                  ≈ ${tokenBalance?.usd_equivalent || '0.00'} USD
                 </div>
               </div>
 
               <div className="flex flex-col gap-3">
                 <Button
-                  onClick={() => window.location.href = `/${locale}/wallet/topup`}
+                  onClick={() => router.push('/wallet/topup')}
                   className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -266,7 +268,7 @@ export default function WalletPageClient({ locale, searchParams, embedded = fals
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => window.location.href = `/${locale}/wallet/topup`}
+                  onClick={() => router.push('/wallet/topup')}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add RING Tokens
@@ -275,7 +277,7 @@ export default function WalletPageClient({ locale, searchParams, embedded = fals
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => window.location.href = `/${locale}/wallet/history`}
+                  onClick={() => router.push('/wallet/history')}
                 >
                   <History className="h-4 w-4 mr-2" />
                   View History

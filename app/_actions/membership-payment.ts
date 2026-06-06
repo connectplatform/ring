@@ -1,11 +1,10 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
-import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
 import { logger } from '@/lib/logger'
+import type { Locale } from '@/i18n/shared'
 
 // Role hierarchy for validation
 const ROLE_HIERARCHY = {
@@ -30,7 +29,8 @@ export interface MembershipPaymentFormState {
  */
 export async function initiateMembershipPayment(
   prevState: MembershipPaymentFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale
 ): Promise<MembershipPaymentFormState> {
 
   const session = await auth()
@@ -89,8 +89,8 @@ export async function initiateMembershipPayment(
     // Generate callback URLs
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const callbackUrl = `${baseUrl}/api/payments/wayforpay/webhook`
-    const successReturnUrl = returnUrl || `${baseUrl}/${defaultLocale}/profile/membership/success`
-    const failureReturnUrl = `${baseUrl}/${defaultLocale}/profile/membership/failure`
+    const successReturnUrl = returnUrl || `${baseUrl}/${locale}/profile/membership/success`
+    const failureReturnUrl = `${baseUrl}/${locale}/profile/membership/failure`
 
     // Import and call the WayForPay service
     const { initiatePayment, MEMBERSHIP_PRICES } = await import('@/lib/payments/wayforpay-service')
@@ -161,7 +161,8 @@ export async function initiateMembershipPayment(
  */
 export async function handlePaymentSuccess(
   prevState: MembershipPaymentFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale,
 ): Promise<MembershipPaymentFormState> {
 
   const session = await auth()
@@ -204,7 +205,7 @@ export async function handlePaymentSuccess(
       return {
         success: true,
         message: 'Payment completed successfully! Your membership has been upgraded.',
-        redirectUrl: `/${defaultLocale}/profile/membership/success?orderId=${orderId}`
+        redirectUrl: `/${locale}/profile/membership/success?orderId=${orderId}`
       }
     } else {
       logger.warn('Membership payment: Payment not approved', {
@@ -231,7 +232,8 @@ export async function handlePaymentSuccess(
  */
 export async function handlePaymentFailure(
   prevState: MembershipPaymentFormState | null,
-  formData: FormData
+  formData: FormData,
+  locale: Locale,
 ): Promise<MembershipPaymentFormState> {
 
   const session = await auth()
@@ -265,7 +267,7 @@ export async function handlePaymentFailure(
     return {
       success: false,
       message: 'Payment was not completed. You can try again or contact support for assistance.',
-      redirectUrl: `/${defaultLocale}/profile/membership/failure?orderId=${orderId}&reason=${encodeURIComponent(reason || 'Unknown error')}`
+      redirectUrl: `/${locale}/profile/membership/failure?orderId=${orderId}&reason=${encodeURIComponent(reason || 'Unknown error')}`
     }
 
   } catch (error) {

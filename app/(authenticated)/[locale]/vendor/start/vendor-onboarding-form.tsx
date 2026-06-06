@@ -32,12 +32,11 @@ import { Button } from '@/components/ui/button'
 import StoreLogoUploader from '@/components/vendor/store-logo-uploader'
 import CategoryMultiSelect from '@/components/vendor/category-multi-select'
 import { createVendorStore } from '@/app/_actions/vendor-actions'
+import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
-import type { Locale } from '@/i18n-config'
 
 interface VendorOnboardingFormProps {
-  locale: string
-  translations?: any
+  locale: Locale
 }
 
 // Helper function to generate slug from store name
@@ -51,11 +50,11 @@ function generateSlugFromName(name: string): string {
     .slice(0, 50) // Max 50 chars
 }
 
-export default function VendorOnboardingForm({ locale, translations }: VendorOnboardingFormProps) {
+export default function VendorOnboardingForm({ locale }: VendorOnboardingFormProps) {
   const t = useTranslations('vendor.onboarding')
   const tForm = useTranslations('vendor.onboarding.form')
   const tValidation = useTranslations('vendor.onboarding.validation')
-  const tStartPage = translations?.vendor?.startPage || {}
+  const tStartPage = useTranslations('vendor.startPage')
 
   const [state, formAction, isPending] = useActionState(createVendorStore, null)
 
@@ -97,21 +96,21 @@ export default function VendorOnboardingForm({ locale, translations }: VendorOnb
           <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-semibold text-sm">
             ✓
           </div>
-          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{tStartPage.progressSteps?.account || 'Account'}</span>
+          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{tStartPage('progressSteps.account')}</span>
         </div>
         <div className="w-12 h-px bg-border"></div>
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm">
             2
           </div>
-          <span className="text-sm font-medium text-foreground">{tStartPage.progressSteps?.storeSetup || 'Store Setup'}</span>
+          <span className="text-sm font-medium text-foreground">{tStartPage('progressSteps.storeSetup')}</span>
         </div>
         <div className="w-12 h-px bg-border"></div>
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-semibold text-sm">
             3
           </div>
-          <span className="text-sm font-medium text-muted-foreground">{tStartPage.progressSteps?.launch || 'Launch'}</span>
+          <span className="text-sm font-medium text-muted-foreground">{tStartPage('progressSteps.launch')}</span>
         </div>
       </motion.div>
 
@@ -303,15 +302,15 @@ export default function VendorOnboardingForm({ locale, translations }: VendorOnb
                 <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <span>🌾</span>
-                    <span>{tStartPage.trustIndicators?.farms || '50+ Farms'}</span>
+                    <span>{tStartPage('trustIndicators.farms') || '50+ Farms'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span>⚡</span>
-                    <span>{tStartPage.trustIndicators?.activation || 'Instant Activation'}</span>
+                    <span>{tStartPage('trustIndicators.activation') || 'Instant Activation'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span>🛡️</span>
-                    <span>{tStartPage.trustIndicators?.security || 'Secure Platform'}</span>
+                    <span>{tStartPage('trustIndicators.security') || 'Secure Platform'}</span>
                   </div>
                 </div>
               </div>

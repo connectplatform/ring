@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useTranslations } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { AiFillApple } from 'react-icons/ai'
 import { FaEthereum } from 'react-icons/fa'
@@ -56,7 +57,7 @@ const UnifiedLoginComponent: React.FC<UnifiedLoginComponentProps> = ({ open, onC
   const tAuth = useTranslations('modules.auth')
   const router = useRouter()
   const { data: session, status } = useSession()
-  const locale = useLocale() as 'en' | 'uk'
+  const locale = useLocale() as Locale
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')

@@ -98,7 +98,22 @@
       "priority_listing": "Priority project visibility",
       "developer_pool": "Access to Ring developer network"
     }
+  },
+  "contact": {
+    "copyToClipboard": "Copy to clipboard",
+    "copied": "Copied",
+    "whatsapp": "(WhatsApp)",
+    "lisbonPortugal": "(Lisbon, Portugal)"
+  },
+  "metadata": {
+    "unauthorized": "Unauthorized | Ring Platform"
+  },
+  "metaDescription": {
+    "unauthorized": "Access denied — you do not have permission to view this page."
+  },
+  "unauthorized": {
+    "title": "Unauthorized access",
+    "message": "You do not have permission to view this page.",
+    "returnHome": "Return to home"
   }
 }
-
-

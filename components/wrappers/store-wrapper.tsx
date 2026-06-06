@@ -1,15 +1,16 @@
 'use client'
 
 import React, { useState, useCallback, useEffect, useTransition } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import StoreFiltersPanel from '@/components/store/store-filters-panel'
 import FloatingButtons from '@/components/store/floating-buttons'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import VendorCTACard from '@/components/vendor/vendor-cta-card'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
+import type { CatalogPriceBounds } from '@/lib/store-price-range'
 
 const STORAGE_KEY = 'ring-store-filters'
 const STORAGE_VERSION = 'v1'
@@ -20,14 +21,14 @@ interface StoreWrapperProps {
 }
 
 export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
-  const currentLocale = useLocale()
+  const currentLocale = locale.toLowerCase()
   const t = useTranslations('modules.store')
   
   const [totalRecords, setTotalRecords] = useState(0)
   const [filteredRecords, setFilteredRecords] = useState<number | undefined>(undefined)
   const [filters, setFilters] = useState<StoreFilterState>(DEFAULT_STORE_FILTERS)
   const [isHydrated, setIsHydrated] = useState(false)
-  const [priceRange, setPriceRange] = useState<{ minPrice: number; maxPrice: number } | null>(null)
+  const [catalogPriceBounds, setCatalogPriceBounds] = useState<CatalogPriceBounds | null>(null)
 
   // React 19 useTransition for non-blocking filter updates
   const [isPending, startTransition] = useTransition()
@@ -80,9 +81,19 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
     setFilteredRecords(filtered)
   }, [])
 
-  const handlePriceRangeUpdate = useCallback((range: { minPrice: number; maxPrice: number }) => {
-    setPriceRange(range)
-    console.log('💰 Price range updated:', range)
+  const handlePriceRangeUpdate = useCallback((bounds: CatalogPriceBounds) => {
+    setCatalogPriceBounds((prev) => {
+      if (
+        prev &&
+        prev.enabled === bounds.enabled &&
+        prev.minPrice === bounds.minPrice &&
+        prev.maxPrice === bounds.maxPrice &&
+        prev.catalogMatchCount === bounds.catalogMatchCount
+      ) {
+        return prev
+      }
+      return bounds
+    })
   }, [])
 
   const handleFiltersChange = useCallback((newFilters: StoreFilterState) => {
@@ -145,7 +156,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
               filteredRecords={filteredRecords}
               onFiltersApplied={handleFiltersChange}
               persistedFilters={filters}
-              priceRangeFromDB={priceRange}
+              catalogPriceBounds={catalogPriceBounds}
             />
             
             {/* Vendor CTA - Show to non-vendor users */}
@@ -186,7 +197,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
                 filteredRecords={filteredRecords}
                 onFiltersApplied={handleFiltersChange}
                 persistedFilters={filters}
-                priceRangeFromDB={priceRange}
+                catalogPriceBounds={catalogPriceBounds}
               />
             </div>
           </FloatingSidebarToggle>
@@ -216,7 +227,7 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
               filteredRecords={filteredRecords}
               onFiltersApplied={handleFiltersChange}
               persistedFilters={filters}
-              priceRangeFromDB={priceRange}
+              catalogPriceBounds={catalogPriceBounds}
             />
           </div>
         </FloatingSidebarToggle>

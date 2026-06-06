@@ -3,12 +3,14 @@ import { getTranslations } from 'next-intl/server'
 import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
 import VendorStorefront from './vendor-storefront'
 import StoreWrapper from '@/components/wrappers/store-wrapper'
+import { isValidLocale, defaultLocale } from '@/i18n/shared'
 
-export async function generateMetadata({ params }: { params: { locale: string; vendorId: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; vendorId: string }> }) {
+  const { vendorId } = await params
   await initializeDatabase()
   const db = getDatabaseService()
   
-  const entityResult = await db.read('entities', params.vendorId)
+  const entityResult = await db.read('entities', vendorId)
   
   if (!entityResult.success || !entityResult.data) {
     return {
@@ -27,13 +29,16 @@ export async function generateMetadata({ params }: { params: { locale: string; v
 export default async function VendorStorefrontPage({
   params,
 }: {
-  params: { locale: string; vendorId: string }
+  params: Promise<{ locale: string; vendorId: string }>
 }) {
+  const { locale, vendorId } = await params
+  const validLocale = isValidLocale(locale) ? locale : defaultLocale
+  
   // Fetch vendor entity
   await initializeDatabase()
   const db = getDatabaseService()
   
-  const entityResult = await db.read('entities', params.vendorId)
+  const entityResult = await db.read('entities', vendorId)
   
   if (!entityResult.success || !entityResult.data) {
     notFound()
@@ -52,7 +57,7 @@ export default async function VendorStorefrontPage({
     filters: [{
       field: 'entity_id',
       operator: '=',
-      value: params.vendorId
+      value: vendorId
     }, {
       field: 'status',
       operator: '=',
@@ -65,9 +70,9 @@ export default async function VendorStorefrontPage({
     : []
 
   return (
-    <StoreWrapper locale={params.locale as 'en' | 'uk' | 'ru'}>
+    <StoreWrapper locale={validLocale}>
       <VendorStorefront 
-        locale={params.locale}
+        locale={validLocale}
         vendorEntity={vendorEntity}
         products={products}
       />

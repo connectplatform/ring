@@ -1,0 +1,59 @@
+---
+title: Ethereum wallets (Wagmi v3)
+description: Default EVM wallet connectors, environment variables, and maintainer notes for Ring Platform clones — Wagmi-native UI without RainbowKit.
+last_modified: '2026-05-10'
+tags: ['web3', 'wagmi', 'viem', 'walletconnect', 'ethereum']
+---
+
+# Ethereum wallets (Wagmi v3)
+
+Ring ships **Wagmi v3** and **viem 2.x** with a **custom connector picker and account menu** (no `@rainbow-me/rainbowkit`). Multi-wallet support comes from **Wagmi connectors** configured in `lib/wagmi-config.ts`.
+
+## Default connectors
+
+Typical production lineup (exact list is in your clone’s `getConnectors()`):
+
+1. **`injected()`** — browser extensions and **EIP-6963** discovery where available.
+2. **`metaMask()`** — explicit MetaMask connector (install peer `@metamask/connect-evm`).
+3. **`coinbaseWallet({ appName, appLogoUrl })`** — install peer `@coinbase/wallet-sdk`.
+4. **`walletConnect({ projectId, metadata, showQrModal })`** — mobile and broad wallet support (install peer `@walletconnect/ethereum-provider`), **only if** `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` is set and not a placeholder.
+
+WalletConnect is omitted when the project ID is missing to avoid **403** responses from WalletConnect Cloud.
+
+## Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect Cloud **projectId** ([WalletConnect Cloud](https://cloud.walletconnect.com)). Required for QR / deep-link flows. |
+
+RPC URLs for viem `http()` transports use public defaults unless you customize `transports` in `wagmi-config`.
+
+## Wagmi v3 usage patterns
+
+- Prefer **`useConnection()`** for `address`, `chain`, `isConnected`, and related state.
+- List connectors with **`useConnectors()`** (not `useConnect().connectors`).
+- Connect with **`const c = useConnect(); c.mutate({ connector })`** or **`mutateAsync`** when you need the hash in scope.
+- Switch chains with **`useSwitchChain().mutate({ chainId })`**.
+- Configured chains for UI: **`useChains()`** (avoids duplicating chain metadata).
+
+Official migration reference: [Migrate from v2 to v3](https://wagmi.sh/react/guides/migrate-from-v2-to-v3).
+
+## SSR and persistence
+
+`createConfig` uses **`ssr: true`** where noted in the codebase. Ring Platform’s canonical app also uses **cookie storage** so server-rendered pages can hydrate wallet state consistently (`cookieStorage` + `createStorage` in `wagmi-config.ts`). Clones without that wrapper may still run client-only Web3 providers; align with your layout’s dynamic import strategy.
+
+## White-label: changing connectors
+
+1. Edit **`lib/wagmi-config.ts`** — add or remove connectors from `@wagmi/connectors` / `wagmi/connectors`.
+2. Install each connector’s **documented peer dependencies** only for connectors you enable.
+3. Adjust **branding** (`appName`, `appLogoUrl`, WalletConnect `metadata`) for your domain.
+4. The **connector picker** lists `useConnectors()` output; if you see duplicate EIP-6963 entries, dedupe by `connector.id` in the picker component (Ring’s default picker already dedupes by `id`).
+
+## Security notes
+
+- Do not expose **server secrets** to the client bundle.
+- Treat **`NEXT_PUBLIC_*`** RPC keys as public: anyone can read them from the browser.
+
+## Related
+
+- Legacy examples page (ethers-era) was retired — see **[Web3 integration (redirect)](/docs/examples/web3-integration)** for the pointer only.

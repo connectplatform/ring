@@ -4,8 +4,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageBubble } from './message-bubble'
 import { TypingIndicator } from './typing-indicator'
 import { MessageComposer } from './message-composer'
-import { useMessages, useConversation } from '@/hooks/use-messaging'
-import { Message } from '@/features/chat/types'
+import { useMessages, useConversation, useMarkConversationRead } from '@/hooks/use-messaging'
+import { Conversation, Message } from '@/features/chat/types'
+import { getMessageTimeMs } from '@/features/chat/lib/message-time'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Loader2, ArrowDown } from 'lucide-react'
@@ -14,6 +15,8 @@ import { cn } from '@/lib/utils'
 interface MessageThreadProps {
   conversationId: string
   userId: string
+  /** When provided, skips duplicate useConversation fetch (e.g. Ring Messenger shell) */
+  conversation?: Conversation | null
   className?: string
   onMessageEditAction?: (messageId: string, newContent: string) => Promise<void>
   onMessageDeleteAction?: (messageId: string) => Promise<void>
@@ -23,6 +26,7 @@ interface MessageThreadProps {
 export function MessageThread({
   conversationId,
   userId,
+  conversation: conversationProp,
   className,
   onMessageEditAction,
   onMessageDeleteAction,
@@ -35,7 +39,11 @@ export function MessageThread({
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  const { conversation } = useConversation(conversationId)
+  const { conversation: fetched, loading: convLoading } = useConversation(conversationId, {
+    enabled: !conversationProp
+  })
+  const conversation = conversationProp ?? fetched
+  const { markAsRead } = useMarkConversationRead(conversationId)
   const { 
     messages, 
     loading, 
@@ -77,13 +85,17 @@ export function MessageThread({
     }
   }, [messages.length, isNearBottom, scrollToBottom])
 
-  // Mark messages as read when they come into view
+  useEffect(() => {
+    if (conversationId) {
+      void markAsRead()
+    }
+  }, [conversationId, markAsRead])
+
   useEffect(() => {
     if (isNearBottom && messages.length > 0) {
-      // TODO: Implement markAsRead functionality
-      // This would call an API to mark messages as read
+      void markAsRead()
     }
-  }, [isNearBottom, messages.length])
+  }, [isNearBottom, messages.length, markAsRead])
 
   // Group messages by sender and time for better display
   const groupMessages = (messages: Message[]) => {
@@ -92,8 +104,10 @@ export function MessageThread({
     messages.forEach((message, index) => {
       const prevMessage = messages[index - 1]
       const isSameSender = prevMessage?.senderId === message.senderId
-      const isWithinTimeFrame = prevMessage && 
-        (message.timestamp.toMillis() - prevMessage.timestamp.toMillis()) < 5 * 60 * 1000 // 5 minutes
+      const isWithinTimeFrame =
+        prevMessage &&
+        getMessageTimeMs(message.timestamp) - getMessageTimeMs(prevMessage.timestamp) <
+          5 * 60 * 1000
       
       if (isSameSender && isWithinTimeFrame) {
         // Add to existing group
@@ -135,10 +149,18 @@ export function MessageThread({
     setReplyTo(undefined)
   }, [])
 
-  if (!conversation) {
+  if (!conversation && convLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    )
+  }
+
+  if (!conversation) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Conversation not found
       </div>
     )
   }

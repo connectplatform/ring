@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useAccount, useBalance, useReadContract, useBlockNumber } from 'wagmi'
+import { useConnection, useBalance, useReadContract, useBlockNumber } from 'wagmi'
 import { formatUnits } from 'viem'
 import {
   RING_TOKEN_ADDRESS,
@@ -35,7 +35,7 @@ const PUSH_DEBOUNCE_MS = 1000
  * Hook to fetch and manage token balances using wagmi
  */
 export function useTokenBalance() {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useConnection()
   const { data: blockNumber } = useBlockNumber({ watch: true })
 
   // Native POL balance
@@ -47,7 +47,7 @@ export function useTokenBalance() {
   })
 
   // RING token balance
-  const { data: ringBalance, isLoading: ringLoading, refetch: refetchRing } = useReadContract({
+  const { data: tokenBalance, isLoading: ringLoading, refetch: refetchRing } = useReadContract({
     address: RING_TOKEN_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
@@ -82,7 +82,7 @@ export function useTokenBalance() {
   // Combine all balances
   const tokenBalances: WalletBalances = {
     POL: polBalance ? formatUnits(polBalance.value, polBalance.decimals) : '0',
-    RING: ringBalance ? formatUnits(ringBalance as bigint, 18) : '0',
+    RING: tokenBalance ? formatUnits(tokenBalance as bigint, 18) : '0',
     USDT: usdtBalance ? formatUnits(usdtBalance as bigint, 6) : '0',
     USDC: usdcBalance ? formatUnits(usdcBalance as bigint, 6) : '0',
   }

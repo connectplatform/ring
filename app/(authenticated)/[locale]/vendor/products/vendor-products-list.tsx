@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, Search, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,18 +30,18 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import VendorProductCard from '@/components/vendor/vendor-product-card'
 import { ROUTES } from '@/constants/routes'
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 interface VendorProductsListProps {
-  locale: string
+  locale: Locale
   vendorEntityId: string
 }
 
 export default function VendorProductsList({ locale, vendorEntityId }: VendorProductsListProps) {
   const t = useTranslations('vendor.products')
   const tFilters = useTranslations('vendor.products.filters')
-  
+  const router = useRouter()
+
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -108,9 +109,7 @@ export default function VendorProductsList({ locale, vendorEntityId }: VendorPro
     })
 
   const handleProductUpdated = () => {
-    // Reload products after update
-    setLoading(true)
-    setTimeout(() => window.location.reload(), 500)
+    router.refresh()
   }
 
   if (loading) {
@@ -132,7 +131,7 @@ export default function VendorProductsList({ locale, vendorEntityId }: VendorPro
           </p>
         </div>
         
-        <Link href={ROUTES.VENDOR_PRODUCTS_ADD(locale as Locale)}>
+        <Link href={ROUTES.VENDOR_PRODUCTS_ADD(locale)}>
           <Button className="bg-gradient-to-r from-emerald-600 to-lime-600 hover:from-emerald-700 hover:to-lime-700">
             <Plus className="w-4 h-4 mr-2" />
             {t('addProduct')}
@@ -197,7 +196,7 @@ export default function VendorProductsList({ locale, vendorEntityId }: VendorPro
             </div>
             <h3 className="text-xl font-semibold mb-2">{t('noProducts')}</h3>
             <p className="text-muted-foreground mb-6">{t('addFirstProduct')}</p>
-            <Link href={ROUTES.VENDOR_PRODUCTS_ADD(locale as Locale)}>
+            <Link href={ROUTES.VENDOR_PRODUCTS_ADD(locale)}>
               <Button className="bg-gradient-to-r from-emerald-600 to-lime-600">
                 <Plus className="w-4 h-4 mr-2" />
                 {t('addProduct')}

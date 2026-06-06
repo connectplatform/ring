@@ -3,7 +3,7 @@
 /**
  * Map Page Wrapper - Full-Width Layout Pattern
  * 
- * Reverse-propagated from: ring-pet-friendly (2026-02-17)
+ * Reverse-propagated from: ring-petfriend-app (2026-02-17)
  * 
  * Full-width layout for map interface (NO sidebars - map takes full viewport)
  * Mobile-optimized with floating controls
@@ -16,7 +16,7 @@
  * - Event venue maps (meetups, conferences, workshops)
  * - Real estate listing maps (properties, rentals)
  * - Restaurant finders (dining, cafes, food delivery)
- * - Pet-friendly place maps (ring-pet-friendly original use case)
+ * - Pet-friendly place maps (ring-petfriend-app original use case)
  * 
  * Layout:
  * - Fixed top navigation bar with logo + actions
@@ -137,7 +137,7 @@ export function MapPageWrapper({
  * ```tsx
  * <MapPageWrapper 
  *   locale={locale}
- *   brandName="Pet Friendly Places"
+ *   brandName="Pet Friend App"
  * >
  *   <PetFriendlyMap />
  * </MapPageWrapper>

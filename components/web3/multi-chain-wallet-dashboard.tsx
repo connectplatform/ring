@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount, useConnect, useDisconnect, useSwitchChain, useChainId } from 'wagmi'
+import { useConnection, useSwitchChain, useChainId } from 'wagmi'
 import { mainnet, polygon, arbitrum, optimism, base } from 'wagmi/chains'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { ConnectedWalletMenu } from './connected-wallet-menu'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,8 +21,8 @@ const SUPPORTED_CHAINS = [
 ]
 
 export function MultiChainWalletDashboard() {
-  const { address, isConnected, chain } = useAccount()
-  const { switchChain } = useSwitchChain()
+  const { isConnected, chain } = useConnection()
+  const switchChain = useSwitchChain()
   const currentChainId = useChainId()
 
   const [activeTab, setActiveTab] = useState('overview')
@@ -91,19 +91,7 @@ export function MultiChainWalletDashboard() {
                 </Badge>
               </div>
 
-              {/* RainbowKit Connect Button */}
-              <ConnectButton.Custom>
-                {({ account, chain: rainbowChain, openAccountModal, openChainModal }) => (
-                  <Button
-                    variant="outline"
-                    onClick={openAccountModal}
-                    className="flex items-center gap-2"
-                  >
-                    <Wallet className="h-4 w-4" />
-                    {account?.displayName}
-                  </Button>
-                )}
-              </ConnectButton.Custom>
+              <ConnectedWalletMenu variant="compact" />
             </div>
           </div>
         </CardHeader>
@@ -124,7 +112,7 @@ export function MultiChainWalletDashboard() {
                 key={chainInfo.id}
                 variant={currentChainId === chainInfo.id ? "default" : "outline"}
                 className="h-auto p-4 flex flex-col items-center gap-2"
-                onClick={() => switchChain({ chainId: chainInfo.id })}
+                onClick={() => switchChain.mutate({ chainId: chainInfo.id })}
               >
                 <div className={`w-8 h-8 ${color} rounded-full flex items-center justify-center text-white font-bold text-sm`}>
                   {icon}

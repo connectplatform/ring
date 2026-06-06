@@ -3,7 +3,7 @@
 -- ============================================================================
 -- Version: 1.1.0
 -- Database: ring_ringdom_org
--- Purpose: AI-assisted email management with CRM and task funnel for info@ringdom.org
+-- Purpose: AI-assisted email management with CRM and task funnel for Ring Platform.
 -- Reference: Email Automation Specialist + Prompt Injection Prevention Specialist
 -- ============================================================================
 

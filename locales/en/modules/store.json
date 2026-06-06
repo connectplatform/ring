@@ -132,6 +132,7 @@
     "activeFilters": "Active Filters",
     "clearAll": "Clear all",
     "priceRange": "Price Range",
+    "priceRangeUnavailable": "No products match your filters — price filter unavailable",
     "availability": "Availability",
     "all": "All",
     "inStock": "In Stock",

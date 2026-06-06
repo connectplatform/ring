@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
 import { SerializedEntity } from '@/features/entities/types'
@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserRole } from '@/features/auth/types'
-import { ROUTES } from '@/constants/routes'
-import { defaultLocale } from '@/i18n-config'
+import { routing } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
 import SlidingPopup from '@/components/common/widgets/modal'
 import { EntityLogo } from '@/components/ui/safe-image'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
@@ -47,14 +47,12 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 }) => {
   const tEntities = useTranslations('modules.entities')
   const tCommon = useTranslations('common')
-  const { theme } = useTheme()
   const { data: session, status } = useSession({ required: false })
   const [entities, setentities] = useState<SerializedEntity[]>(initialEntities)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
   const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
-  
-
+  const locale = useLocale() as Locale
   const fetchEntities = useCallback(async () => {
     if (!session) {
       return
@@ -125,7 +123,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
           {tEntities('introDescription')}
         </motion.p>
         <div className="w-full max-w-md">
-          <UnifiedLoginInline from={from} variant="hero" />
+          <UnifiedLoginInline from={from} variant="hero" locale={locale} />
         </div>
       </div>
     )

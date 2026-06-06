@@ -6,19 +6,22 @@ import { useTranslations } from 'next-intl'
 import EntityDetails from '@/features/entities/components/entity-details'
 import { SerializedEntity } from '@/features/entities/types'
 import ModernChat from '@/features/chat/components/modern-chat'
+import type { Locale } from '@/i18n/shared'
 
 interface EntityDetailsWrapperProps {
   initialEntity: SerializedEntity | null
   initialError: string | null
   params: { id: string }
   searchParams: Record<string, string | string[] | undefined>
+  locale: Locale
 }
 
 export default function EntityDetailsWrapper({
   initialEntity,
   initialError,
   params,
-  searchParams
+  searchParams,
+  locale,
 }: EntityDetailsWrapperProps) {
   const { data: session, status } = useSession()
   const t = useTranslations('common')
@@ -47,6 +50,7 @@ export default function EntityDetailsWrapper({
         initialEntity={initialEntity} 
         initialError={initialError} 
         chatComponent={chatComponent}
+        locale={locale}
       />
     </Suspense>
   )

@@ -8,7 +8,7 @@ import { ROUTES } from '@/constants/routes'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { useOptionalStore } from '@/features/store/context'
 import { useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n-config'
+import type { Locale } from '@/i18n/shared'
 
 export function FavoritesMenu({ locale }: { locale: Locale }) {
   const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])

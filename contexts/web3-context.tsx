@@ -5,11 +5,16 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { eventBus } from '@/lib/event-bus.client'
-import { POLYGON_CHAIN_ID, POLYGON_RPC_URL } from '@/constants/web3'
-
-// Wagmi imports for modern Web3 functionality
-import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, useChainId } from 'wagmi'
-import { mainnet, polygon, arbitrum, optimism, base } from 'wagmi/chains'
+// Wagmi v3: connection model + TanStack-style mutations
+import {
+  useBalance,
+  useChainId,
+  useConnect,
+  useConnectors,
+  useConnection,
+  useDisconnect,
+  useSwitchChain,
+} from 'wagmi'
 
 export interface Web3ContextType {
   // Legacy API - removed (fully migrated to wagmi)
@@ -79,11 +84,12 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   const [chainId, setChainId] = useState<number | null>(null)
   const [error, setError] = useState<Error | null>(null)
 
-  // Modern wagmi hooks
-  const { address: wagmiAddress, isConnected: wagmiIsConnected, isConnecting: wagmiIsConnecting } = useAccount()
-  const { connect: wagmiConnect, connectors } = useConnect()
-  const { disconnect: wagmiDisconnect } = useDisconnect()
-  const { switchChain: wagmiSwitchChain } = useSwitchChain()
+  const { address: wagmiAddress, isConnected: wagmiIsConnected, isConnecting: wagmiIsConnecting } =
+    useConnection()
+  const wagmiConnect = useConnect()
+  const connectors = useConnectors()
+  const wagmiDisconnect = useDisconnect()
+  const wagmiSwitchChain = useSwitchChain()
   const wagmiChainId = useChainId()
   const { data: wagmiBalance } = useBalance({ address: wagmiAddress })
 
@@ -98,7 +104,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   // Connect with Ring platform wallet (from Auth.js session)
   const connectWithWallet = useCallback(async () => {
     // For Ring platform wallets, we redirect to the multi-chain dashboard
-    // since wallet connections are now handled by wagmi/RainbowKit
+    // since wallet connections are now handled by Wagmi (custom wallet UI)
     toast({
       title: 'Wallet Connection Updated',
       description: 'Please use the multi-chain wallet dashboard for connections',
@@ -111,9 +117,9 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   // Connect with MetaMask (using wagmi)
   const connectWithMetaMask = useCallback(async () => {
     try {
-      const metaMaskConnector = connectors.find(connector => connector.name === 'MetaMask')
+      const metaMaskConnector = connectors.find((connector) => connector.name === 'MetaMask')
       if (metaMaskConnector) {
-        wagmiConnect({ connector: metaMaskConnector })
+        wagmiConnect.mutate({ connector: metaMaskConnector })
       } else {
         throw new Error('MetaMask connector not found')
       }
@@ -132,7 +138,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   // Switch network (using wagmi)
   const switchNetwork = useCallback(async (targetChainId: number) => {
     try {
-      wagmiSwitchChain({ chainId: targetChainId })
+      wagmiSwitchChain.mutate({ chainId: targetChainId })
 
       toast({
         title: 'Network Switched',
@@ -176,7 +182,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   // Disconnect wallet (using wagmi)
   const disconnect = useCallback(() => {
     // Disconnect wagmi first
-    wagmiDisconnect()
+    wagmiDisconnect.mutate()
 
     const connectionMethod = localStorage.getItem('connectionMethod')
 

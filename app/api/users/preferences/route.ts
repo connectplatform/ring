@@ -1,6 +1,7 @@
 import { NextResponse, connection} from 'next/server'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { auth } from '@/auth'
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/locale-config'
 
 export async function GET() {
   await connection() // Next.js 16: opt out of prerendering
@@ -19,7 +20,7 @@ export async function GET() {
     if (!result.success || !result.data?.data) {
       return NextResponse.json({ 
         preferences: {
-          locale: 'uk',
+          locale: DEFAULT_LOCALE,
           currency: 'UAH',
           theme: 'system'
         }
@@ -28,7 +29,7 @@ export async function GET() {
 
     const userData = result.data.data
     const preferences = userData.preferences || {
-      locale: 'uk',
+      locale: DEFAULT_LOCALE,
       currency: 'UAH',
       theme: 'system'
     }
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     const { locale, currency, theme } = body
 
     // Validate preferences
-    const validLocales = ['en', 'uk', 'ru']
+    const validLocales: readonly string[] = SUPPORTED_LOCALES
     const validCurrencies = ['UAH', 'DAAR']
     const validThemes = ['light', 'dark', 'system']
 
