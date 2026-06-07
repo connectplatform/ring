@@ -79,6 +79,7 @@ export const getOpportunitiesForRole = cache(async (
       UserRole.SUBSCRIBER,
       UserRole.MEMBER,
       UserRole.ADMIN,
+      UserRole.SUPERADMIN,
       UserRole.CONFIDENTIAL
     ];
 

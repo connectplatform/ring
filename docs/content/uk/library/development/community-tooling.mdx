@@ -1,0 +1,53 @@
+---
+title: Community tooling
+description: install.sh і setup-скрипти для OSS-клонів — Ring CLI не в публічному репозиторії
+last_modified: "2026-06-06"
+---
+
+# Community tooling
+
+З **v1.6.0** **Ring CLI** (команда `ring`, теку `cli/`) **не публікується** в GitHub. Він лишається для внутрішніх операцій Ringdom (gitignored).
+
+## Замість CLI
+
+### install.sh (рекомендовано)
+
+```bash
+git clone https://github.com/connectplatform/ring.git
+cd ring
+./install.sh
+```
+
+### scripts/setup-dev.sh
+
+```bash
+./scripts/setup-dev.sh
+```
+
+### scripts/setup-env.js
+
+```bash
+npm run setup:env
+```
+
+### scripts/run-migration.sh
+
+PostgreSQL schema + kingdom-міграції — див. [Міграції](/docs/library/getting-started/migrations).
+
+## Застарілі кроки в старій документації
+
+```bash
+npm link
+ring --version
+ring deploy prod
+```
+
+Це лише для **enterprise** checkout з `cli/`. Спільнота — [Self-hosted](/docs/library/deployment/self-hosted).
+
+## Enterprise / поселенці Ringdom
+
+[ringdom.org](https://ringdom.org) — кероване розгортання, K8s, Legiox-кастомізація.
+
+## Пов’язане
+
+- [OSS vs enterprise](/docs/library/development/oss-vs-enterprise)

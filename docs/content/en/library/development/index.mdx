@@ -10,7 +10,7 @@ Welcome to the Ring Platform development guide. This section covers everything y
 ## 🛠️ Development Setup
 
 ### Prerequisites
-- Node.js 18.17 or later
+- Node.js 20 or later (22 recommended)
 - npm or pnpm package manager
 - Git for version control
 - MongoDB (optional, for local development)
@@ -34,7 +34,7 @@ npm run dev`}
 
 ```
 ring/
-├── app/             # Next.js 15 App Router
+├── app/             # Next.js 16 App Router
 ├── components/      # React components
 ├── lib/             # Utility functions
 ├── features/        # Feature modules
@@ -47,6 +47,8 @@ ring/
 
 ### Local Development
 - [Local Setup](/en/library/development/local-setup) - Complete local environment setup
+- [Community tooling](/en/library/development/community-tooling) - `install.sh` (no Ring CLI in OSS)
+- [Ring MCP](/en/library/development/ring-mcp) - Operate clones via `AI-RING/ring-mcp` (55 tools)
 - [Code Structure](/en/library/development/code-structure) - Understanding the codebase
 - [Whitelabel Navigation](/en/library/development/whitelabel-navigation) - Custom navigation for Ring clones
 - [Best Practices](/en/library/development/best-practices) - Coding standards and patterns
@@ -59,7 +61,7 @@ ring/
 ## 🚀 Key Technologies
 
 - **React 19** - Latest React features
-- **Next.js 15** - App Router and Server Components
+- **Next.js 16** - App Router and Server Components
 - **TypeScript** - Type safety and better DX
 - **Tailwind CSS v4** - Utility-first styling
 - **Auth.js v5** - Authentication

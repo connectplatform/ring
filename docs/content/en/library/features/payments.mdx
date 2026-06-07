@@ -1,20 +1,26 @@
 ---
 title: Payment Integration
-description: WayForPay payment processing, membership upgrades, and store checkout
+description: PaymentConductor with WayForPay, Stripe, internal credit — store, membership, and news promotion
+last_modified: "2026-06-06"
 ---
 
 # Payment Integration
 
-Comprehensive payment system with WayForPay integration for membership upgrades, store checkout, and multi-currency support.
+Ring Platform **v1.6.0** routes all card and credit flows through **PaymentConductor** (`lib/payments/conductor/`). WayForPay remains the primary PSP for Ukraine; Stripe is supported for international rails.
+
+> **Deep dive:** [PaymentConductor feature](/docs/library/features/payment-conductor) · [Architecture](/docs/library/architecture/payment-conductor)
 
 ## Overview
 
-The Ring Platform integrates with **WayForPay** for secure payment processing, supporting:
+PaymentConductor supports:
 
-- **Membership Upgrades**: SUBSCRIBER → MEMBER (₴299 UAH)
-- **Store Checkout**: Multi-vendor marketplace payments
-- **Multi-Currency**: UAH primary, crypto wallet support
-- **Security**: PCI DSS compliant, encrypted transactions
+- **Store checkout** — `store_order` purpose, WayForPay/Stripe redirect or internal credit
+- **Membership upgrades** — `membership_upgrade` purpose
+- **News promotion** — `news_promotion` purpose (News Kingdom)
+- **Ledger** — `payment_transactions` table (migration 004)
+- **Webhooks** — Unified dispatcher for WayForPay and Stripe
+
+Legacy WayForPay-only flows below remain accurate for merchant configuration; orchestration is now conductor-driven.
 
 ## Payment Methods
 

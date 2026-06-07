@@ -1,0 +1,28 @@
+---
+title: Міграції бази даних
+description: PostgreSQL schema та kingdom-міграції для новин і платежів
+last_modified: "2026-06-06"
+---
+
+# Міграції бази даних
+
+Для `DB_BACKEND_MODE=k8s-postgres-fcm` або `supabase-fcm` застосуйте міграції після `data/schema.sql`.
+
+## Порядок
+
+```bash
+psql "$DATABASE_URL" -f data/schema.sql
+psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
+psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+```
+
+Допоміжник: `./scripts/run-migration.sh`
+
+## Опційні seeds
+
+```bash
+psql "$DATABASE_URL" -f scripts/seed-news-v1.6.0-uk.sql
+```
+
+Див. [Режими backend](/docs/library/architecture/backend-modes-and-databases).

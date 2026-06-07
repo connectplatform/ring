@@ -1,48 +1,56 @@
 ---
 title: Code Structure
-description: Code Structure documentation for Ring Platform
+description: Next.js 16 App Router layout, payments, news, and services (v1.6.0)
+last_modified: "2026-06-06"
 ---
 
 # Code Structure
 
-Understanding Ring Platform's codebase architecture and organization.
+Understanding Ring Platform v1.6.0 codebase architecture.
 
 ## 📁 High-Level Architecture
 
-Ring Platform follows a **feature-based architecture** with clear separation of concerns:
-
 ```
 ring/
-├── app/                 # Next.js 15 App Router
-├── components/         # Reusable React components
-├── features/           # Feature modules (domain-driven)
-├── lib/               # Shared utilities and configurations
-├── @actions/          # Server actions (Next.js 15)
-├── public/            # Static assets
-└── AI-CONTEXT/        # AI documentation system
+├── app/                    # Next.js 16 App Router (route groups + app/api)
+├── components/             # Shared UI, editor, navigation, providers
+├── features/               # Domain modules (news, store, auth, …)
+├── lib/                    # locale-config, payments/conductor, database, tunnel
+├── services/               # email AI CRM, blockchain oracle
+├── locales/                # next-intl JSON bundles (en, uk, ru)
+├── data/                   # schema.sql + migrations/
+├── docs/content/           # MDX documentation library
+└── scripts/                # Community setup scripts (OSS)
 ```
+
+**Not in public OSS tree:** `k8s/`, `cli/`, `propagation/` (gitignored).
 
 ## 🏗️ App Directory Structure
 
-### App Router (Next.js 15)
+### App Router (Next.js 16)
 
 ```
 app/
-├── (auth)/            # Route groups for auth pages
-│   ├── login/
-│   └── register/
-├── (dashboard)/       # Protected dashboard routes
-│   ├── entities/
-│   ├── opportunities/
-│   └── wallet/
-├── api/              # API routes
-│   ├── auth/
-│   ├── entities/
-│   └── opportunities/
-├── globals.css       # Global styles
-├── layout.tsx        # Root layout
-└── page.tsx          # Homepage
+├── (public)/[locale]/      # Marketing, news, store, blog
+├── (authenticated)/[locale]/  # Editor, entities, settings
+├── (admin)/[locale]/       # Admin panels
+├── (confidential)/[locale]/ # Tier-gated docs
+├── api/                    # 132+ route handlers (auth, store, payments, …)
+├── _actions/               # Server actions
+├── layout.tsx
+└── proxy.ts                # Slim intl proxy (root may use proxy.ts)
 ```
+
+### Key v1.6.0 modules
+
+| Area | Path |
+|------|------|
+| PaymentConductor | `lib/payments/conductor/` |
+| News Kingdom | `features/news/services/`, `lib/news/` |
+| Locale SSOT | `lib/locale-config.ts`, `i18n/routing.ts` |
+| Scientific editor | `components/editor/`, `app/api/publications/` |
+| Email CRM | `services/email/` |
+| Member blogs | `app/(public)/[locale]/blog/[username]/` |
 
 ### Route Groups
 - `(auth)` - Authentication-related pages

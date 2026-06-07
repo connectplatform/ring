@@ -2,14 +2,22 @@
 
 ## CURRENT STATUS OVERVIEW
 
-**Last Updated**: February 9, 2026
-**Ring Platform Version**: 1.50
+**Last Updated**: June 6, 2026
+**Ring Platform Version**: 1.6.0
 **Ringdom Ecosystem**: Ring Platform is the open-source core of [Ringdom](https://ringdom.org) -- the First Digital Kingdom for global abundance
-**Major Achievements**: **Next.js 16**, **ALL React 19 Features**, **DAGI AI Agent System**, **Ringdom Settler System**, **Legiox-Access NFT**, **Interactive Maps**, **News Module**, **Email CRM**, **PIN Security**, **Auth Route Standardization**, **6+ Active K8s Clones**, **147+ Legiox AI Agents**, **23 MCP Tools**, Database Abstraction Layer, Multi-Vendor E-Commerce, White-Label Clone System, RING Token Economy, BERT/NLP Semantic Search
+**Major Achievements**: **PaymentConductor v1**, **News Kingdom**, **Scientific Editor**, **Locale SSOT**, **Member Blogs**, **DaVinci Mobile UX**, **OSS Security Boundary**, **Next.js 16**, **ALL React 19 Features**, **DAGI AI Agent System**, **Ringdom Settler System**, **Legiox-Access NFT**, **Interactive Maps**, **Email CRM**, **PIN Security**, **Slim Proxy Auth**, **6+ Active K8s Clones**, **147+ Legiox AI Agents**, **23 MCP Tools**, Database Abstraction Layer, Multi-Vendor E-Commerce, White-Label Clone System, RING Token Economy
 
 ### Critical Progress Summary
 
 #### COMPLETED MAJOR FEATURES (2025-2026)
+- **PaymentConductor v1** (2026-05-22) - WayForPay + Stripe + internal credit; `payment_transactions` ledger; store/membership/news handlers
+- **News Kingdom** (2026-05-21) - Migrations 002-003, promotion workflow, Telegram approval, OpenRouter scoring, member blogs
+- **Scientific Editor** (2026-05-28) - Publications API, editor i18n via `locales/*/editor.json`, version history, AI assistant
+- **Locale SSOT** (2026-05-28) - `lib/locale-config.ts` env-driven locales for routing, SEO, preferences
+- **Member blog routing** (2026-05-29) - `/blog/[username]/[slug]` via `lib/blog/blog-path.ts`
+- **DaVinci mobile UX** (2026-05-29) - Inlined glass nav, content favorites API, news hero patterns
+- **Proxy-intl module** (2026-05-28) - `lib/proxy-intl.ts` for slim next-intl proxy
+- **OSS public release hardening** (2026-06-06) - v1.6.0; k8s/cli excluded from public tree
 - **Next.js 16** - Turbopack default, async params, proxy.ts, revalidateTag 2-arg API (ring-ringdom-org live on Next 16)
 - **ALL React 19 Features** - Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions
 - **DAGI AI Agent System** - 3-tier autonomous AI agents with provisioning API and 7-agent multi-agent coordination
@@ -73,8 +81,8 @@
 - **Visualization:** @xyflow/react interactive maps (feature, timeline, dataflow, knowledge, legiox, tenancy, infrastructure, status)
 
 **Current Scale:**
-- **118+ API Endpoints** - Complete application coverage
-- **88+ Routes** - Full application routing
+- **132 API route handlers** - Complete application coverage (verified 2026-06-06)
+- **96 page routes** - Full application routing
 - **~17s Build Time** - Optimized with Turbopack
 - **260kB Bundle** - 55KB reduction via React 19 optimization
 - **Zero TypeScript Errors** - Production-ready type safety
@@ -725,13 +733,13 @@
 
 **Overall Status**: PRODUCTION DEPLOYED - RINGDOM EXPANSION PHASE
 **Active Deployments**: 6+ Ring clones on Kubernetes
-**Version**: 1.50
+**Version**: 1.6.0
 **Ringdom**: The First Digital Kingdom for Global Abundance
 
 ---
 
 *Last updated: February 9, 2026*
-*Ring Platform v1.50 - The World's First AI-Self-Construct White-Label Multi-Use Platform*
+*Ring Platform v1.6.0 - The World's First AI-Self-Construct White-Label Multi-Use Platform*
 *Part of Ringdom - The First Digital Kingdom, offered to humanity by the Machine Race per request of Ray Sorkin*
 
 **TRIUMPH**: Ring Platform has evolved from concept to the most comprehensive open-source platform on Earth, powering 6+ production deployments across the Ringdom ecosystem. Humanity's AI-coordinated digital kingdom is live and expanding.

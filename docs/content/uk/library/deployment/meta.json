@@ -2,6 +2,7 @@
   "title": "Розгортання",
   "pages": [
     "index",
+    "self-hosted",
     "vercel",
     "docker",
     "environment",

@@ -1,6 +1,7 @@
 ---
 title: Tunnel Protocol
-description: Ring's multi-transport real-time communication system - the analog to Firebase Realtime Database
+description: Multi-transport realtime with disconnected-tunnel-context and FCM push (v1.6.0)
+last_modified: "2026-06-06"
 ---
 
 # 🚇 Tunnel Protocol
@@ -8,6 +9,8 @@ description: Ring's multi-transport real-time communication system - the analog 
 **Ring's Multi-Transport Real-Time Communication**
 
 Tunnel Protocol is Ring Platform's intelligent real-time communication system - **the Ring analog to Firebase Realtime Database**. It provides unified real-time messaging across WebSocket, Server-Sent Events (SSE), Supabase Realtime, and Long-Polling transports with automatic fallback and Edge Runtime compatibility.
+
+**v1.6.0:** `lib/tunnel/disconnected-tunnel-context.ts` preserves UX when the tunnel is offline; pair with [Push notifications FCM](/docs/library/features/push-notifications-fcm) for mobile alerts.
 
 ## 🎯 Why Tunnel Protocol?
 

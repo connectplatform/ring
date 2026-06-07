@@ -1,0 +1,28 @@
+---
+title: Система локалей
+description: Единый источник локалей через env для маршрутизации, SEO и настроек
+last_modified: "2026-06-06"
+---
+
+# Система локалей
+
+В v1.6.0 конфигурация локалей централизована в **`lib/locale-config.ts`**.
+
+## Переменные окружения
+
+```bash
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+Коды должны соответствовать папкам в `locales/`.
+
+## Навигация (канонично)
+
+- `Link`, `useRouter`, `usePathname` из `@/i18n/routing`
+- Переключение: `persistRingLocalePreference()` + `replaceLocalePath()`
+
+## Связанное
+
+- [Локализация](/docs/library/customization/localization)
+- [Proxy и intl](/docs/library/architecture/proxy-and-intl)

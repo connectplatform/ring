@@ -7,7 +7,7 @@ import { Callout } from '@/components/docs/callout'
 
 # Архітектура Ring Platform
 
-Комплексна архітектура професійної платформи нетворкінгу з Web3 інтеграцією, побудована на Next.js 15, React 19, та Kubernetes.
+Комплексна архітектура професійної платформи нетворкінгу з Web3 інтеграцією, побудована на Next.js 16, React 19, та Kubernetes.
 
 ## Загальна Архітектура
 
@@ -19,7 +19,7 @@ import { Callout } from '@/components/docs/callout'
     end
 
     subgraph "Edge Layer (Vercel/K8s)"
-        W --> E[⚡ Next.js 15 Edge Runtime]
+        W --> E[⚡ Next.js 16 Edge Runtime]
         M --> E
         E --> C[🔐 Auth.js v5]
         E --> T[🌐 Tunnel Transport]
@@ -54,7 +54,7 @@ import { Callout } from '@/components/docs/callout'
 <Mermaid>
 {`mindmap
   root((🎨 Фронтенд Шар))
-    Next.js 15 App Router
+    Next.js 16 App Router
       Server Components
         Data Fetching
         SEO Optimization

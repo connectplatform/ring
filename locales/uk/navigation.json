@@ -2,6 +2,7 @@
   "title": "Навігація",
   "menu": {
     "title": "Ring Platform",
+    "subtitle": "Open-source white-label платформа для AI-оркестрованих колективних потреб.",
     "version": "Ring Platform v{version}",
     "wallet": {
       "description": "Керуйте своїми RING токенами та крипто активами"

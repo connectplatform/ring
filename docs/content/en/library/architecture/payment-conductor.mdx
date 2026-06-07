@@ -1,0 +1,41 @@
+---
+title: PaymentConductor architecture
+description: Types, webhook dispatcher, order references, and processor adapters
+last_modified: "2026-06-06"
+---
+
+# PaymentConductor architecture
+
+## Core modules
+
+| Module | Responsibility |
+|--------|----------------|
+| `payment-conductor.ts` | Orchestrates create → redirect / credit / token flows |
+| `webhook-dispatcher.ts` | Verifies and routes PSP webhooks to handlers |
+| `types.ts` | `PaymentPurpose`, `PaymentProcessorId`, `PaymentRail` |
+| `order-reference.ts` | Idempotent `orderReference` generation |
+| `payment-transaction-service.ts` | Persists ledger rows |
+
+## Processors
+
+- `processors/wayforpay.processor.ts` + `wayforpay-verify.ts`
+- `processors/stripe.processor.ts`
+- `processors/internal-credit.processor.ts`
+
+Config surface: `lib/payments/payment.config.ts` — `getPaymentProvider(purpose)`, `isRailEnabled(purpose, rail)`.
+
+## API routes
+
+- `app/api/payments/stripe/webhook/route.ts`
+- Store credit: `app/api/store/payments/credit/route.ts`
+- Membership credit: `app/api/membership/payment/credit/route.ts`
+- News promotion webhooks: `app/api/news/promotion/wayforpay-webhook/route.ts`
+
+## Idempotency
+
+All card flows use stable `orderReference` values stored in `payment_transactions` to prevent double-settlement on webhook retries.
+
+## Related
+
+- [Feature: PaymentConductor](/docs/library/features/payment-conductor)
+- [Migrations](/docs/library/getting-started/migrations)

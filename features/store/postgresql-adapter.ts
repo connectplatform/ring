@@ -179,12 +179,28 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
           inStock: (data?.stock || data?.stock_quantity || 0) > 0,
           category: data?.category,
           tags: data?.tags || [],
+          images: data?.pictures || [], // Map pictures JSONB array to images property
+
+          // P0 Critical Fields (Phase 2: 2025-11-04)
+          sku: data?.sku,
+          slug: data?.slug,
+          longDescription: data?.longDescription,
+          reorderPoint: data?.reorderPoint,
+          vendorTier: data?.vendorTier as any,
+          commissionRate: data?.commissionRate,
+          approvalStatus: data?.approvalStatus as any,
+          approvedBy: data?.approvedBy,
+          approvedAt: data?.approvedAt,
+          rejectionReason: data?.rejectionReason,
+
           vendorName: data?.vendorName || data?.vendor_name,
           productListedAt: ['1'], // Default store
           productOwner: data?.vendorId || data?.vendor_id,
           ownerEntityId: data?.entity_id,
           storeId: '1', // Default store
-          status: (data?.status as any) || 'active'
+          status: (data?.status as any) || 'active',
+          // Phase 1: Include variants from database
+          variants: data?.variants || undefined
         }
       })
 

@@ -1,0 +1,32 @@
+---
+title: Архитектура Email AI-CRM
+description: Ingestion, 4-layer security, AI tiering и PostgreSQL schema
+last_modified: "2026-06-06"
+---
+
+# Архитектура Email AI-CRM
+
+## Поток данных
+
+Mail server (IMAP/SMTP) → `ImapListener` → `EmailParser` → `SecurityPipeline` (L1–L4) → `IntentClassifier` + `SentimentAnalyzer` → `ContextBuilder` → `ResponseGenerator` (+ tools) → `EmailDraftService` → SMTP / Slack.
+
+## Security pipeline
+
+| Слой | Модуль | Latency |
+|------|--------|---------|
+| L1 Sanitization | `input-sanitizer.ts` | < 5ms |
+| L2 Classifier | `injection-classifier.ts` | < 200ms |
+| L3 Spotlighting | `spotlighting.ts` | sync |
+| L4 Output | `output-validator.ts` | sync |
+
+## Model tiering
+
+- **Haiku** — intent, sentiment, injection
+- **Sonnet** — response generation
+- **Opus** — enterprise, escalations
+
+## Хранилище
+
+PostgreSQL: contacts → threads → messages / drafts / tasks. RAG: `email_knowledge_base`.
+
+См. [Email AI-CRM](/docs/library/features/email-ai-crm).

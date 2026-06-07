@@ -1,0 +1,51 @@
+---
+title: Database migrations
+description: Apply PostgreSQL schema and kingdom migrations for news and payments
+last_modified: "2026-06-06"
+---
+
+# Database migrations
+
+Ring Platform v1.6.0 requires PostgreSQL when using `DB_BACKEND_MODE=k8s-postgres-fcm` or `supabase-fcm`.
+
+## Prerequisites
+
+- PostgreSQL 14+ with optional PostGIS
+- `DATABASE_URL` or `DB_*` connection vars in `.env.local`
+
+## Apply order
+
+```bash
+# 1. Base schema (v4)
+psql "$DATABASE_URL" -f data/schema.sql
+
+# 2. News content
+psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
+
+# 3. News Kingdom fields
+psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
+
+# 4. PaymentConductor ledger
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+```
+
+Helper: `./scripts/run-migration.sh` (when configured).
+
+## Optional seeds
+
+```bash
+psql "$DATABASE_URL" -f scripts/seed-news-v1.6.0.sql
+```
+
+## Verify
+
+```bash
+psql "$DATABASE_URL" -c "\dt news*"
+psql "$DATABASE_URL" -c "\dt payment_transactions"
+```
+
+## Related
+
+- [Installation](/docs/library/getting-started/installation)
+- [Backend modes](/docs/library/architecture/backend-modes-and-databases)
+- [data/migrations/README.md](https://github.com/connectplatform/ring/blob/main/data/migrations/README.md)

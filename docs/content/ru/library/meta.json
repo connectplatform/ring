@@ -1,6 +1,6 @@
 {
   "title": "Документация платформы",
-  "description": "Порядок разделов документации. Каждый slug — папка docs/content/{locale}/library/ с собственным meta.json (title, description, pages[]).",
+  "description": "Документация Ring Platform v1.6.0 (RU). EN canonical для ring-mcp deep reference.",
   "pages": [
     "welcome",
     "index",

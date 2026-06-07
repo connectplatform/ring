@@ -1,11 +1,25 @@
 ---
 title: Authentication
-description: Authentication documentation for Ring Platform
+description: Auth.js v5 with slim proxy, layout-level protection, and Resend magic links (v1.6.0)
+last_modified: "2026-06-06"
 ---
 
 # Authentication System
 
 Auth.js v5 multi-provider authentication with magic links, OAuth providers, crypto wallets, and GDPR compliance.
+
+## v1.6.0 protection model
+
+| Layer | Role |
+|-------|------|
+| `proxy.ts` | Locale rewrite + optimistic redirect to `ROUTES.LOGIN(locale)` |
+| `(authenticated)/[locale]/layout.tsx` | `await auth()` — canonical session gate |
+| `(admin)/[locale]/layout.tsx` | Role check (ADMIN/SUPERADMIN) |
+| API routes | Per-handler `auth()` |
+
+OAuth and Google One Tap use `/api/auth/*` (excluded from intl middleware). See [Proxy and intl](/docs/library/architecture/proxy-and-intl).
+
+Login canonical pattern: `ROUTES.LOGIN(locale)` with unified `from` / `callbackUrl` / `returnTo` query params.
 
 ## Overview
 

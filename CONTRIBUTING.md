@@ -39,6 +39,13 @@ We're excited that you're interested in contributing to Ring! This document outl
    ```
 7. Submit a pull request from your fork to the main Ring repository.
 
+## Documentation (v1.6.0)
+
+- **EN-first:** New docs land in `docs/content/en/library/` first.
+- **UK/RU:** Track gaps in [`docs/content/LOCALE-GAPS.md`](docs/content/LOCALE-GAPS.md); update locale `meta.json` when translating.
+- **No secrets:** Never commit passwords, SMTP keys, or k8s secrets — use env templates and placeholders only.
+- **Public OSS:** Do not document empire-only paths (`k8s/`, `cli/`, `propagation/`) as if they ship in the public repo.
+
 ## Pull Request Process
 
 1. Ensure your PR description clearly describes the problem and solution.

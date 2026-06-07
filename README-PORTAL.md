@@ -2,7 +2,7 @@
 
 **The Central Hub for Ring Ecosystem** - A comprehensive platform connecting opportunities, vendors, developers, and innovators in a unified Web3-powered ecosystem.
 
-[![Next.js 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-blue)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Web3 Ready](https://img.shields.io/badge/Web3-Ready-purple)](https://web3.org/)
@@ -59,7 +59,7 @@ Ring Platform Portal serves as the central nervous system of the Ring ecosystem,
 
 ### **Frontend Stack**
 ```
-Next.js 15 + React 19
+Next.js 16 + React 19
 ├── TypeScript 5.9
 ├── Tailwind CSS v4
 ├── Radix UI Components

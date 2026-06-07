@@ -16,7 +16,7 @@ Successfully implemented a comprehensive, production-ready tunnel transport abst
 - **WebSocket Transport**: Refactored existing WebSocketManager to implement TunnelTransport
 - **SSE Transport**: Server-Sent Events with Edge Runtime compatibility
 - **Supabase Transport**: Primary Edge-compatible solution with real-time capabilities
-- **SSE API Endpoint**: Next.js 15 streaming endpoint with React 19 support
+- **SSE API Endpoint**: Next.js 16 streaming endpoint with React 19 support
 
 ### Phase 2: Transport Manager & Fallback Logic
 - **TunnelTransportManager**: Central orchestrator with intelligent provider detection
@@ -69,7 +69,7 @@ Successfully implemented a comprehensive, production-ready tunnel transport abst
 
 ### Edge Runtime Compatibility
 - **Full Vercel Support**: Production deployment with JWT authentication
-- **SSE Streaming**: Next.js 15 streaming with <100ms latency
+- **SSE Streaming**: Next.js 16 streaming with <100ms latency
 - **Supabase Integration**: 4x faster reads with real-time capabilities
 - **No Node.js Dependencies**: Pure Edge Runtime implementation
 

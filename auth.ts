@@ -1,4 +1,5 @@
 import NextAuth from "next-auth"
+import type { Session } from "next-auth"
 import { getAuthAdapter } from "@/lib/auth-adapter-singleton"
 import { getAdminDb } from "@/lib/firebase-admin.server"
 import { getDatabaseService, initializeDatabase } from "@/lib/database/DatabaseService"
@@ -24,6 +25,7 @@ import {
   getGoogleIdTokenAudiences,
   getGoogleOAuthClientId,
 } from "@/lib/auth/google-oauth-client"
+import { getMcpActor } from "@/lib/auth/mcp-actor-context"
 
 const googleOAuthClientId = getGoogleOAuthClientId()
 
@@ -81,7 +83,7 @@ if (hasAdapter && !hasResendKey && !shouldSkipDatabaseConnect()) {
   )
 }
 
-export const { auth, handlers, signIn, signOut } = NextAuth({
+const nextAuthApp = NextAuth({
   ...authConfig,
   // Use configured adapter (PostgreSQL or Firebase based on DB_HYBRID_MODE)
   ...(hasAdapter && { adapter: authAdapter }),
@@ -610,8 +612,32 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   debug: process.env.AUTH_DEBUG === "true", // Disabled by default to reduce log noise
 })
 
+const { auth: nextAuthBase, handlers, signIn, signOut } = nextAuthApp
+
 /**
  * Auth.js v5 Universal auth() method
  * Replaces getServerSession, getToken, etc.
+ * MCP service gateway injects a synthetic SUPERADMIN session via AsyncLocalStorage.
+ *
+ * Typed as zero-arg server session lookup — do not use Parameters<typeof nextAuthBase>
+ * (that resolves to the middleware overload and breaks every await auth() call site).
  */
+export async function auth(): Promise<Session | null> {
+  const mcpActor = getMcpActor()
+  if (mcpActor) {
+    return {
+      user: {
+        id: mcpActor.id,
+        email: mcpActor.email,
+        name: mcpActor.name,
+        role: mcpActor.role,
+      },
+      expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    } as Session
+  }
+  return nextAuthBase()
+}
+
+export { handlers, signIn, signOut }
+
 export default { auth }

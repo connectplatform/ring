@@ -1,0 +1,408 @@
+---
+title: Ring MCP Server
+description: Operator manual for ring-mcp — connect Cursor and other MCP clients to any Ring Platform clone
+---
+
+# Ring MCP Server (`ring-mcp`)
+
+**Operate any Ring clone from natural language in Cursor, Claude Desktop, or any MCP host.**
+
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io/docs/getting-started/intro) is an open standard for connecting AI apps to external systems — data sources, tools, and workflows. Think of it as a USB-C port for AI: build a server once, plug it into Cursor, Claude, VS Code Copilot, and others.
+
+`ring-mcp` is Ringdom's MCP server for **Ring Platform clones**. It does not talk to PostgreSQL directly. It calls a **service-token HTTP gateway** on the clone at `/api/mcp/v1/*`, which runs as synthetic **SUPERADMIN** and reuses Ring's existing service layer.
+
+```text
+You (chat) → MCP host (Cursor) → ring-mcp (stdio) → Bearer token → /api/mcp/v1/* → Ring services → DB
+```
+
+Compared to kingdom tools (`legiox-*`, `ringdom-*`), `ring-*` tools target **one Ring white-label instance** (entities, opportunities, news, store, users, credits, payments, notifications, messaging).
+
+## AI-RING package (v1.0.0)
+
+Ringdom ships per-clone MCP under **`AI-RING/`** — operator tooling for individual Ring clones (not kingdom-wide LegioX assets).
+
+| Package | Path | Role |
+|---------|------|------|
+| **ring-mcp** | `AI-RING/ring-mcp/` | stdio MCP server, 55 `ring-*` tools |
+| Operator manual | This page | Full tool reference + troubleshooting |
+| Package README | `AI-RING/ring-mcp/README.md` | Install, config, smoke test |
+| Roadmap | `AI-RING/ring-mcp/ROADMAP.md` | v1.1 polish, multi-clone profiles |
+
+**Kingdom MCP (different scope):**
+
+| Server | Scope |
+|--------|--------|
+| `legiox-mcp` | AI-CONTEXT, agents, deployment across Ringdom |
+| `ringdom-mcp` | Kingdom DB health, file registry |
+| `reggie-mcp` | Code propagation between ring clones |
+
+Gateway code lives in the Ring app (`app/api/mcp/v1/`, `lib/auth/service-token.ts`, `lib/auth/mcp-actor-context.ts`). The stdio server lives in `AI-RING/ring-mcp/ring-mcp-server.js`.
+
+---
+
+## Features
+
+| Capability | What you get |
+|------------|--------------|
+| **Full CRUD** | Entities, opportunities, news, store products/orders, users |
+| **Admin / operator** | News Kingdom score/approve/reject, vendor approve/suspend, credit add/spend |
+| **Read & search** | Entity/opportunity search, news categories, payment/credit lookup |
+| **Messaging** | In-app notifications, FCM push, conversations, chat messages |
+| **Per-clone tenancy** | One `ring-mcp` entry per clone via `RING_API_BASE_URL` + `RING_SERVICE_TOKEN` |
+| **Safety guards** | Destructive tools require `confirm: true` |
+
+---
+
+## Prerequisites
+
+- **Node.js 20+** (Ring Platform baseline)
+- A **running Ring clone** with the MCP gateway deployed (`app/api/mcp/v1/`)
+- **MCP client**: [Cursor](https://cursor.com/docs/context/mcp), Claude Desktop, VS Code, or MCPJam
+- A **service token** configured on both sides (Ring env + MCP env)
+
+---
+
+## Quick start
+
+### 1 — Ring clone: enable the gateway
+
+In the clone's `.env.local` (never commit real tokens):
+
+```bash
+# Comma-separated; ring-mcp uses ONE of these as RING_SERVICE_TOKEN
+RING_MCP_SERVICE_TOKENS=replace-with-long-random-string
+
+# Optional synthetic service identity (defaults are fine for dev)
+# RING_MCP_SERVICE_USER_ID=ring-mcp-service
+# RING_MCP_SERVICE_USER_EMAIL=ring-mcp@system.local
+# RING_MCP_SERVICE_USER_NAME=Ring MCP Service
+# RING_CLONE_NAME=connect-software
+```
+
+Restart the Next.js dev server after changing env.
+
+**Examples by clone:**
+
+| Clone | Typical `RING_API_BASE_URL` |
+|-------|----------------------------|
+| `ring-platform.org` | `http://localhost:3000` |
+| `ring-connect-software` | `http://localhost:3690` (check `NEXTAUTH_URL` in `.env.local`) |
+| Production | `https://your-clone.example.com` |
+
+### 2 — Install ring-mcp
+
+```bash
+cd /path/to/ringdom/AI-RING/ring-mcp
+npm install
+node ring-mcp-server.js --test
+```
+
+Expected output includes `"tools": 55` and `"ok": true`.
+
+### 3 — Register in Cursor
+
+Edit `.cursor/mcp.json` at the kingdom root (or Cursor Settings → MCP):
+
+```json
+"ring-mcp": {
+  "command": "node",
+  "args": ["/Users/insight/code/ringdom/AI-RING/ring-mcp/ring-mcp-server.js"],
+  "env": {
+    "RING_API_BASE_URL": "http://localhost:3690",
+    "RING_SERVICE_TOKEN": "replace-with-long-random-string",
+    "RING_CLONE_NAME": "ring-connect-software"
+  }
+}
+```
+
+Use the **same token string** as one entry in `RING_MCP_SERVICE_TOKENS` on the Ring app.
+
+Reload MCP in Cursor (restart Cursor or toggle the server).
+
+### 4 — Verify
+
+Ask the agent to run **`ring-health`** and **`ring-whoami`**, or run the smoke script:
+
+```bash
+RING_API_BASE_URL=http://localhost:3690 \
+RING_SERVICE_TOKEN=your-token \
+npm run smoke --prefix AI-RING/ring-mcp
+```
+
+---
+
+## Usage examples
+
+Once connected, use natural language; the agent picks the right `ring-*` tool.
+
+### Meta & health
+
+```
+"Run ring-health and ring-whoami for this clone"
+"Which Ring clone am I connected to?"
+```
+
+### Entities
+
+```
+"List the first 20 entities"
+"Search entities for 'agritech' in Cherkasy"
+"Create an entity for Acme Farms with type vendor"
+"Delete entity <id> — I confirm this is destructive"
+```
+
+### Opportunities
+
+```
+"List open opportunities"
+"Search opportunities mentioning React developer"
+"Create an opportunity titled 'Need agronomist' and run matching"
+```
+
+### News (Member Blog / News Kingdom)
+
+```
+"List draft news articles"
+"Create a draft post titled 'Platform update' with excerpt and body"
+"Publish news article <id>"
+"Score article <id> for main-page promotion"
+"Approve main-page publication for <id>"
+```
+
+### Store
+
+```
+"List store products"
+"Update order <id> status to shipped"
+"Approve vendor <entityId>"
+"Suspend vendor <id> for 30 days — confirm"
+```
+
+### Users & credits
+
+```
+"List users with role member"
+"Set user <id> role to admin — confirm"
+"Show credit balance for user <id>"
+"Add 100 credits to user <id> — confirm"
+```
+
+### Notifications & messaging
+
+```
+"List unread notifications for user <id>"
+"Send in-app notification to user <id>: title 'Hello', body 'Test'"
+"List conversations for user <id>"
+"Send message in conversation <id>: 'Following up on your order'"
+```
+
+---
+
+## Tool reference (55 tools)
+
+All tools are prefixed `ring-`. Sensitive mutations require **`confirm: true`** in tool arguments.
+
+### Meta
+
+| Tool | Description |
+|------|-------------|
+| `ring-health` | Gateway liveness |
+| `ring-whoami` | Clone name, base URL, service actor role |
+
+### Entities
+
+| Tool | Description |
+|------|-------------|
+| `ring-entity-list` | Paginated list (`limit`, `startAfter`, `search`) |
+| `ring-entity-get` | Get by `id` |
+| `ring-entity-search` | Full-text search (`q`, `limit`, `location`) |
+| `ring-entity-create` | Create (`data` object) |
+| `ring-entity-update` | Update (`id`, `data`) |
+| `ring-entity-delete` | Delete (`id`, **`confirm`**) |
+
+### Opportunities
+
+| Tool | Description |
+|------|-------------|
+| `ring-opportunity-list` | List with filters |
+| `ring-opportunity-get` | Get by `id` |
+| `ring-opportunity-search` | Search (`q`) |
+| `ring-opportunity-create` | Create (`data`) |
+| `ring-opportunity-update` | Update (`id`, `data`) |
+| `ring-opportunity-delete` | Delete (`id`, **`confirm`**) |
+| `ring-opportunity-match` | AI match users to opportunity |
+
+### News
+
+| Tool | Description |
+|------|-------------|
+| `ring-news-list` | List (`category`, `status`, `search`, `authorId`) |
+| `ring-news-get` | Get by `id` |
+| `ring-news-categories` | Distinct categories |
+| `ring-news-create` | Create draft (`data`) |
+| `ring-news-update` | Update (`id`, `data`) |
+| `ring-news-publish` | Publish (`id`) |
+| `ring-news-delete` | Delete (`id`, **`confirm`**) |
+| `ring-news-score` | AI score (News Kingdom) |
+| `ring-news-approve` | Approve main-page publication |
+| `ring-news-reject` | Reject (`id`, **`confirm`**, `reason`) |
+
+### Store
+
+| Tool | Description |
+|------|-------------|
+| `ring-store-product-list` / `ring-store-product-get` | Products |
+| `ring-store-product-create` / `update` / `delete` | Product CRUD (`delete` needs **`confirm`**) |
+| `ring-vendor-list` / `ring-vendor-get` | Vendors |
+| `ring-vendor-approve` | Approve onboarding |
+| `ring-vendor-suspend` | Suspend (`id`, **`confirm`**, `reason`, `durationDays`) |
+| `ring-order-list` / `ring-order-get` | Orders |
+| `ring-order-update-status` | Update order `status` |
+
+### Users
+
+| Tool | Description |
+|------|-------------|
+| `ring-user-list` | List (`role`, `limit`) |
+| `ring-user-get` | Get by `id` |
+| `ring-user-create` | Create (`email`, `name`, `role`) |
+| `ring-user-update` | Update (`id`, `data`) |
+| `ring-user-set-role` | Set role (`id`, `role`, **`confirm`**) |
+| `ring-user-delete` | Delete (`id`, **`confirm`**) |
+
+### Credit & payments
+
+| Tool | Description |
+|------|-------------|
+| `ring-credit-balance` | Balance for `userId` |
+| `ring-credit-history` | Transaction history |
+| `ring-credit-add` / `ring-credit-spend` | Mutations (**`confirm`**) |
+| `ring-payment-list` / `ring-payment-get` | Payment lookup |
+| `ring-payment-status` | Update payment `status` |
+
+### Notifications & messaging
+
+| Tool | Description |
+|------|-------------|
+| `ring-notification-list` | List for `userId` |
+| `ring-notify-send` | Create in-app notification |
+| `ring-fcm-send` | Push via FCM (**`confirm`**) |
+| `ring-conversation-list` | Conversations for `userId` |
+| `ring-message-send` | Send chat message |
+
+---
+
+## Configuration
+
+### Ring clone (server)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `RING_MCP_SERVICE_TOKENS` | Yes | Comma-separated bearer tokens |
+| `RING_MCP_SERVICE_USER_ID` | No | Synthetic actor id (default `ring-mcp-service`) |
+| `RING_MCP_SERVICE_USER_EMAIL` | No | Synthetic actor email |
+| `RING_MCP_SERVICE_USER_NAME` | No | Display name |
+| `RING_CLONE_NAME` / `RING_PUBLIC_BASE_URL` | No | Shown in `ring-whoami` |
+
+### ring-mcp (MCP client env)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `RING_SERVICE_TOKEN` | Yes | One token from `RING_MCP_SERVICE_TOKENS` |
+| `RING_API_BASE_URL` | Yes | Clone origin, no trailing slash |
+| `RING_CLONE_NAME` | No | Label for operators |
+
+### Multiple clones
+
+Add **separate** MCP entries, e.g. `ring-mcp-platform` and `ring-mcp-connect`, each with its own `RING_API_BASE_URL`, token, and `RING_CLONE_NAME`.
+
+---
+
+## Architecture notes
+
+Ring's 130+ user-facing API routes use **Auth.js session cookies**, not bearer tokens. Retrofitting every route was avoided by introducing **`/api/mcp/v1/*`**:
+
+1. `Authorization: Bearer <token>` checked against `RING_MCP_SERVICE_TOKENS`
+2. `AsyncLocalStorage` injects a SUPERADMIN actor into `auth()` for that request
+3. Handlers call existing `features/*/services/*` code
+4. Uniform JSON: `{ success, data?, error? }`
+
+Source: `AI-RING/ring-mcp/` (stdio server), `ring-platform.org/app/api/mcp/v1/` (gateway).
+
+---
+
+## Troubleshooting
+
+### `Invalid service token` / 401
+
+- Token in Cursor `RING_SERVICE_TOKEN` must **exactly match** one value in Ring `RING_MCP_SERVICE_TOKENS`
+- Restart Ring after env changes
+- No `Bearer` prefix in env — the client adds it
+
+### `RING_MCP_SERVICE_TOKENS is not configured`
+
+- Set the variable on the **Ring app**, not only in MCP config
+
+### Connection refused / `fetch failed`
+
+- Ring dev server must be running
+- `RING_API_BASE_URL` must match the clone port (e.g. `3690` for connect-software, not `3000`)
+
+### `RING_SERVICE_TOKEN is not set`
+
+- Fill `RING_SERVICE_TOKEN` in `.cursor/mcp.json` and reload MCP
+
+### Tool works but returns empty data
+
+- Clone database may be empty — seed dev data or create records via UI first
+- Store requires `RING_STORE_ADAPTER=postgresql` and migrated schema
+
+### FCM / messaging failures
+
+- FCM needs Firebase Admin configured on the clone
+- Conversation list uses PostgreSQL `conversations` collection; legacy Firebase-only chat may differ
+
+### MCP server not listed in Cursor
+
+- Run `node ring-mcp-server.js --test` manually
+- Check `npm install` in `AI-RING/ring-mcp`
+- Confirm absolute path in `args`
+
+---
+
+## Security
+
+- **SUPERADMIN power**: service token equals full operator access — treat like a root API key
+- Never commit tokens; use per-environment secrets (k8s secrets, `.env.local` gitignored)
+- Rotate immediately if leaked
+- Prefer **one token per clone per environment** (dev/staging/prod)
+- Destructive MCP tools require explicit `confirm: true` — do not disable this pattern in wrappers
+
+---
+
+## Development
+
+```bash
+# List tools
+node AI-RING/ring-mcp/ring-mcp-server.js --test
+
+# HTTP smoke (Ring must be up)
+RING_API_BASE_URL=http://localhost:3000 RING_SERVICE_TOKEN=dev-token \
+  npm run smoke --prefix AI-RING/ring-mcp
+
+# curl gateway directly
+curl -s -H "Authorization: Bearer dev-token" \
+  http://localhost:3000/api/mcp/v1/meta/health | jq
+```
+
+---
+
+## Related links
+
+- [Model Context Protocol — intro](https://modelcontextprotocol.io/docs/getting-started/intro)
+- [Cursor MCP docs](https://cursor.com/docs/context/mcp)
+- [Twenty CRM MCP Server](https://github.com/mhenry3164/twenty-crm-mcp-server) — similar CRUD + MCP client pattern (reference implementation)
+- Package README: `AI-RING/ring-mcp/README.md`
+- Package roadmap: `AI-RING/ring-mcp/ROADMAP.md`
+- Kingdom MCP: `legiox-mcp`, `ringdom-mcp`, `reggie-mcp` (Ringdom-wide, not per-clone)
+- Implementation log: `AI-CONTEXT/ring-platform.org/implementations/2026-06-06-ring-mcp-server.json`

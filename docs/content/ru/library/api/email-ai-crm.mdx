@@ -1,0 +1,31 @@
+---
+title: Email AI-CRM API
+description: Сервисы и типы модуля services/email
+last_modified: "2026-06-06"
+---
+
+# Email AI-CRM API
+
+## EmailProcessor
+
+```typescript
+import { getEmailProcessor } from '@/services/email';
+
+const processor = getEmailProcessor();
+await processor.start();
+processor.on('email:received', (event) => {});
+processor.on('draft:auto_sent', ({ draft, messageId }) => {});
+```
+
+## Ключевые сервисы
+
+| Сервис | Экспорт | Назначение |
+|--------|---------|------------|
+| `ImapListener` | `getImapListener()` | IMAP IDLE |
+| `SecurityPipeline` | `getSecurityPipeline()` | 4-layer checks |
+| `IntentClassifier` | `getIntentClassifier()` | 16 intent types |
+| `ResponseGenerator` | `getResponseGenerator()` | Claude + tools |
+| `EmailContactService` | `getEmailContactService()` | CRM |
+| `EmailDraftService` | `getEmailDraftService()` | Draft queue |
+
+Полная EN-справка: [Email AI-CRM API](/docs/library/api/email-ai-crm).

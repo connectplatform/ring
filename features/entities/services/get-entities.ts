@@ -76,6 +76,7 @@ export const getEntitiesForRole = cache(async (
       UserRole.SUBSCRIBER,
       UserRole.MEMBER,
       UserRole.ADMIN,
+      UserRole.SUPERADMIN,
       UserRole.CONFIDENTIAL
     ]
 
@@ -602,7 +603,7 @@ export const getEntitiesByIds = cache(async (
  */
 function canUserViewEntity(entity: Entity, userRole: UserRole): boolean {
   // ADMIN and CONFIDENTIAL users can see all entities
-  if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
+  if ([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.CONFIDENTIAL].includes(userRole)) {
     return true;
   }
 

@@ -34,7 +34,7 @@ export async function deleteUser(userIdToDelete: string): Promise<boolean> {
 
     const { id: currentUserId, role: currentUserRole } = session.user
 
-    if (currentUserRole !== UserRole.ADMIN) {
+    if (![UserRole.ADMIN, UserRole.SUPERADMIN].includes(currentUserRole as UserRole)) {
       throw new Error('Unauthorized access: Admin privileges required')
     }
 

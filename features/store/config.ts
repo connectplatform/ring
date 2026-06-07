@@ -29,7 +29,8 @@ export async function getStoreAdapter(): Promise<StoreAdapter> {
     const { PostgreSQLStoreAdapter } = await import('./postgresql-adapter')
     return new PostgreSQLStoreAdapter()
   }
-  // ConnectPlatform adapter is not wired yet; fallback to mock
+  // TBD: wire ConnectPlatformStoreAdapter when Connect OTT order bus is ready.
+  // Same StoreAdapter interface for BERT + REST transports; selection via RING_STORE_ADAPTER.
   return new MockStoreAdapter()
 }
 

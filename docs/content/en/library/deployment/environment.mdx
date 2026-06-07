@@ -33,6 +33,33 @@ Ring Platform requires **`DB_BACKEND_MODE`** at runtime (`k8s-postgres-fcm` | `f
 
 Optional **Tunnel** realtime may use Supabase (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`) regardless of `DB_BACKEND_MODE`; see [Tunnel protocol](/en/library/features/tunnel-protocol).
 
+## Locales (v1.6.0)
+
+```bash
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+See `lib/locale-config.ts` and [Locale system](/docs/library/features/locale-system).
+
+## PaymentConductor (v1.6.0)
+
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay   # or stripe
+PAYMENT_STORE_PROCESSOR=wayforpay     # optional per-purpose override
+PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay
+PAYMENT_NEWS_PROCESSOR=wayforpay
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_FIAT_CURRENCY=UAH
+```
+
+Apply `data/migrations/004_payment_transactions.sql` before production payments.
+
+**Never commit real secrets** — use `.env.local` (gitignored) and placeholders in docs only.
+
 ## 🏗️ Environment Architecture
 
 ### Multi-Environment Strategy

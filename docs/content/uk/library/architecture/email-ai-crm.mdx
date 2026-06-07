@@ -1,0 +1,40 @@
+---
+title: Архітектура Email AI-CRM
+description: Ingestion, 4-layer security, AI tiering та PostgreSQL schema
+last_modified: "2026-06-06"
+---
+
+# Архітектура Email AI-CRM
+
+## Потік даних
+
+Mail server (IMAP/SMTP) → `ImapListener` → `EmailParser` → `SecurityPipeline` (L1–L4) → `IntentClassifier` + `SentimentAnalyzer` → `ContextBuilder` → `ResponseGenerator` (+ tools) → `EmailDraftService` → SMTP / Slack.
+
+## Security pipeline
+
+| Шар | Модуль | Latency |
+|-----|--------|---------|
+| L1 Sanitization | `input-sanitizer.ts` | < 5ms |
+| L2 Classifier | `injection-classifier.ts` | < 200ms |
+| L3 Spotlighting | `spotlighting.ts` | sync |
+| L4 Output | `output-validator.ts` | sync |
+
+`SecurityPipeline.checkInbound()` блокує або позначає `requiresReview` перед AI.
+
+## Model tiering
+
+- **Haiku** — intent, sentiment, injection, batch analytics
+- **Sonnet** — response generation, technical support
+- **Opus** — enterprise, partnership, escalated complaints
+
+System prompt + tools кешуються (`cache_control: ephemeral`).
+
+## Сховище
+
+PostgreSQL: `email_contacts` ↔ `email_threads` ↔ `email_messages` / `email_drafts` / `email_tasks`. RAG: `email_knowledge_base` з vector embedding.
+
+## Масштабування
+
+Workers з IMAP IDLE → Redis queue → AI processors → primary PG + read replicas. Rate-limit retry для Anthropic 429.
+
+Див. [Email AI-CRM](/docs/library/features/email-ai-crm).

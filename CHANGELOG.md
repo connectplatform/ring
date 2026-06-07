@@ -2,6 +2,61 @@
 
 All notable changes to Ring Platform are documented in this file.
 
+## [1.6.1] - 2026-06-07
+
+### Added
+- **Ring MCP Service Gateway** — `/api/mcp/v1/*` bearer-token API for ring-mcp (entities, opportunities, news, store, credit, messaging, notifications, payments, users) with `lib/auth/service-token.ts` and `lib/auth/mcp-actor-context.ts`
+- **Shared date serialization** — `lib/serialization/to-iso-date.ts` (`toIsoDate`, `toIsoDateOrUndefined`) for MCP and cross-boundary ISO 8601 output
+- **Docs library v1.6** — New EN/UK/RU pages: locale system, Ring MCP, PaymentConductor, member blog, scientific editor, proxy/intl, self-hosted deployment, community tooling, OSS vs enterprise, news kingdom architecture, migrations getting-started
+- **News seed scripts** — `scripts/seed-news-v1.6.0.sql` (+ `uk`, `ru` variants) for fresh clone content
+- **MCP env template** — `RING_MCP_SERVICE_TOKENS` and synthetic service-user vars in `.env.local.template`
+
+### Fixed
+- **`auth()` TypeScript contract** — Explicit `Promise<Session | null>` return; restores `tsc --noEmit` after broken `Parameters<typeof nextAuthBase>` overload resolution
+- **Next.js 16 `cacheComponents` production build** — Root Suspense fallback no longer renders route `children`; instance config loaded server-side in `app/layout.tsx` and passed into `AppClientShell` (no sync `fs` in client tree)
+- **Dynamic route prerender** — `await connection()` on member blog pages and `/api/store/price-range` (replaces removed `force-dynamic`)
+- **MCP route typings** — Credit history, notifications pagination, news category union, opportunity match serialization, store order status enum
+
+### Changed
+- **Version** — `1.6.0` → `1.6.1`
+- **Docs navigation** — `docs-navigation-tree.tsx` aligned with expanded library structure and locale gap tracker (`docs/content/LOCALE-GAPS.md`)
+- **Store PostgreSQL adapter** — Order status and query hardening in `features/store/postgresql-adapter.ts`
+
+---
+
+## [1.6.0] - 2026-06-06
+
+### Added
+- **PaymentConductor v1** (2026-05-22) — Config-driven payment orchestration with WayForPay + Stripe processors, `payment_transactions` ledger (migration 004), unified webhooks, internal credit rail for store orders, and thin facades for membership, store, and news promotion
+- **News Kingdom upgrade** (2026-05-21) — Migrations 002–003, OpenRouter scoring, WayForPay/Stripe promotion workflow, Telegram approval callbacks, member blog routing, and kingdom-wide news branding via `lib/site-branding.ts`
+- **Scientific editor + publications API** (2026-05-28) — `components/editor/*`, `app/api/publications/**`, version history, AI research assistant, equation editor; UI copy in `locales/*/editor.json`
+- **Locale SSOT** (2026-05-28) — `lib/locale-config.ts` with env-driven `NEXT_PUBLIC_SUPPORTED_LOCALES` / `NEXT_PUBLIC_DEFAULT_LOCALE` for routing, SEO, preferences, and legacy browser gate
+- **Member blog URLs** (2026-05-29) — `/blog/[username]/[slug]` via `lib/blog/blog-path.ts` (replaces mistaken parallel `@` route slot)
+- **Content favorites API** (2026-05-29) — `app/(public)/api/user/favorites` + `useContentFavorite` for news articles
+- **DaVinci mobile UX (inline)** (2026-05-29) — Glass guest auth and fullscreen menu inlined in `bottom-navigation.tsx` and `mobile-menu.tsx`; news hero + Web Share in `NewsArticleHeader`
+- **Proxy-intl module** (2026-05-28) — `lib/proxy-intl.ts` shared helpers for `localePrefix: 'as-needed'` slim proxy
+- **Backend modes documentation** — `docs/content/en/library/architecture/backend-modes-and-databases.mdx`
+- **Push notifications FCM + Ethereum wallets docs** — New integration MDX pages (EN)
+- **OSS security boundary** — Hardened `.gitignore`; public tree excludes `k8s/`, `cli/`, propagation manifests, and internal ops scripts
+
+### Changed
+- **Editor i18n** — Migrated from `editor-ui-copy.ts` pattern to `next-intl` + `locales/*/editor.json`
+- **About narrative** — `about-trinity` renamed to `about-publisher` across routes and locales
+- **API route layout** — Normalized handlers under `app/api/**` (legacy `app/(public)/api/**` removed)
+- **Email IMAP config** — Empty-string defaults for `IMAP_PASSWORD` / `SMTP_PASSWORD` (env required; validation enforced)
+- **Platform statistics** — 132 API route handlers, 96 page routes, 12 test suites (verified 2026-06-06)
+
+### Security
+- Removed hardcoded mail credential fallbacks in `services/email/imap/config.ts`
+- Public repository no longer ships k8s secrets, Ring CLI, or empire-only deployment scripts
+- Community clones use `install.sh`, `scripts/setup-dev.sh`, and env templates only
+
+### Removed (public OSS)
+- `cli/` deployment tooling (remains available locally for Ringdom empire ops, gitignored)
+- Internal scripts: `setup-github-secrets`, `setup-vercel-env`, `import-firebase-service-account`, `add-products-production`
+
+---
+
 ## [1.49] - 2026-02-05
 
 ### Added
@@ -23,7 +78,7 @@ All notable changes to Ring Platform are documented in this file.
 - **Tunnel Protocol Firebase RTDB Analog** - Real-time pub/sub system replacing Firebase Realtime Database for K8s deployments
 
 ### Changed
-- **React 19.2 + Next.js 15.5** - Latest framework versions with Server Components and optimistic updates
+- **React 19.2 + Next.js 16.5** - Latest framework versions with Server Components and optimistic updates
 - **Tailwind CSS 4.1** - Modern utility-first styling with semantic token system
 - **API Endpoints** - Expanded to 118+ documented endpoints
 - **Application Routes** - Expanded to 88+ application routes

@@ -1,0 +1,82 @@
+---
+title: Email AI-CRM
+description: AI-управление почтой с 4-слойной защитой, CRM-контактами и очередью черновиков
+last_modified: "2026-06-06"
+---
+
+# Email AI-CRM
+
+**AI-управление почтой для операторов сообществ Ring Platform**
+
+Модуль `services/email/` обрабатывает входящую почту через IMAP IDLE, классифицирует intent и тон, генерирует ответы через Claude и интегрируется с CRM (контакты, задачи, черновики).
+
+## Архитектура
+
+```text
+IMAP → Parser → 4-Layer Security → Intent + Sentiment → Context → Response Generator
+  → Contacts / Tasks / Drafts → Auto-send или human review → SMTP
+```
+
+| Слой | Путь | Роль |
+|------|------|------|
+| Ingestion | `services/email/imap/` | IMAP IDLE + fallback polling |
+| Parser | `services/email/parser/` | RFC 5322, threads |
+| Security | `services/email/security/` | 4 слоя anti-injection |
+| AI | `services/email/ai/` | Intent, sentiment, generation, cost |
+| CRM | `services/email/crm/` | Контакты, auto-tasks |
+| Drafts | `services/email/drafts/` | Review queue, auto-send |
+| Orchestrator | `services/email/email-processor.ts` | Координация событий |
+
+## 4-слойная защита
+
+1. **Input sanitization** — скрытые символы, delimiter attacks
+2. **Injection classifier** — Claude Haiku
+3. **Spotlighting** — datamarking недоверенного контента (`>>>`)
+4. **Output validation** — утечка промптов, PII, exfiltration
+
+## AI pipeline
+
+- **16 категорий intent** (`pricing_inquiry`, `technical_support`, `enterprise_inquiry`, …)
+- **Sentiment** — urgency, `at_risk` / `satisfied`
+- **Model tiering** — Haiku (классификация) → Sonnet/Opus (сложные ответы)
+- **Prompt caching** — до ~90% экономии на system prompt
+- **5 tools** в генераторе: `search_knowledge_base`, `lookup_contact`, `create_task`, `escalate_to_human`, `check_account_status`
+
+## CRM и черновики
+
+- Контакты с `sentiment_history`, связь с `ring_user_id`
+- Auto-tasks: enterprise inquiry, demo, complaint, bug, frustrated sentiment
+- Auto-send при confidence ≥ 0.90 для безопасных intent
+
+## База данных
+
+Миграция: `data/migrations/001_email_crm_schema.sql` — 9 таблиц.
+
+## Admin UI
+
+- `/admin/email-inbox` — threads
+- `/admin/email-drafts` — approve / reject
+- `/admin/email-contacts` — CRM
+- `/admin/email-analytics` — volume, cost, cache hit rate
+
+## Быстрый старт
+
+```bash
+IMAP_HOST=mail.example.com
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+ANTHROPIC_API_KEY=
+
+psql "$DATABASE_URL" -f data/migrations/001_email_crm_schema.sql
+```
+
+```typescript
+import { getEmailProcessor } from '@/services/email';
+await getEmailProcessor().start();
+```
+
+## Связанное
+
+- [Архитектура](/docs/library/architecture/email-ai-crm)
+- [API](/docs/library/api/email-ai-crm)
+- [Туториал](/docs/library/examples/email-ai-crm)

@@ -1,11 +1,15 @@
 {
   "title": "Архітектура",
-  "description": "Компоновка системи, Auth.js, сховище даних, DB_BACKEND_MODE, realtime та безпека.",
+  "description": "Компоновка системи, Auth.js, PaymentConductor, News Kingdom, proxy-intl (v1.6.0).",
   "pages": [
     "index",
     "backend-modes-and-databases",
     "data-model",
     "authentication",
+    "email-ai-crm",
+    "payment-conductor",
+    "news-kingdom",
+    "proxy-and-intl",
     "real-time",
     "security"
   ]

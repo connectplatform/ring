@@ -63,28 +63,45 @@ This single command will:
 
 ---
 
-### ⚡ **Option 2: Firebase Service Account Import**
-
-Perfect when you already have Firebase service account credentials:
+### ⚡ **Option 2: Manual Setup (developers)**
 
 ```bash
-# Clone and install dependencies
 git clone https://github.com/connectplatform/ring.git
 cd ring
 npm install
-
-# Import Firebase credentials from JSON file
-./scripts/import-firebase-service-account.sh your-service-account.json
-
-# Start development server
+cp .env.local.template .env.local   # Edit locales, DB, auth keys
+npm run setup:env                   # Interactive env wizard (optional)
+./scripts/run-migration.sh          # PostgreSQL: apply schema + migrations
 npm run dev
 ```
 
-**Features:**
-- 🔍 Validates Firebase service account JSON files
-- 📝 Updates `.env.local` with extracted credentials
-- 🌐 Imports to Vercel production environment
-- 🚀 Optional automatic deployment
+**Locale configuration (v1.6.0):**
+
+```bash
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+See [`lib/locale-config.ts`](lib/locale-config.ts) and [docs: locale system](/docs/library/features/locale-system).
+
+**PostgreSQL migrations (order):**
+
+1. `data/schema.sql` (base v4)
+2. `data/migrations/002_news_content_schema.sql`
+3. `data/migrations/003_news_kingdom_upgrade.sql`
+4. `data/migrations/004_payment_transactions.sql`
+
+Details: [`data/migrations/README.md`](data/migrations/README.md).
+
+**PaymentConductor env (optional):**
+
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay   # or stripe
+WAYFORPAY_MERCHANT_ACCOUNT=...
+WAYFORPAY_SECRET_KEY=...
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
+```
 - 🔒 Security warnings and best practices
 
 ---
@@ -289,7 +306,7 @@ After installation, your project structure will be:
 
 ```
 ring/
-├── app/                     # Next.js 15 App Router
+├── app/                     # Next.js 16 App Router
 ├── components/              # React components
 ├── lib/                     # Utilities and configurations
 ├── scripts/                 # Setup and utility scripts

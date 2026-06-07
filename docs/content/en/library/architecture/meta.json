@@ -1,12 +1,15 @@
 {
   "title": "Architecture",
-  "description": "System layout, Auth.js, data stores, DB_BACKEND_MODE, realtime tunneling, and security.",
+  "description": "System layout, Auth.js, data stores, DB_BACKEND_MODE, PaymentConductor, News Kingdom, proxy-intl (v1.6.0 EN).",
   "pages": [
     "index",
     "backend-modes-and-databases",
     "data-model",
     "authentication",
     "email-ai-crm",
+    "payment-conductor",
+    "news-kingdom",
+    "proxy-and-intl",
     "real-time",
     "security"
   ]

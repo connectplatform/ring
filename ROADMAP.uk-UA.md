@@ -2,16 +2,24 @@
 
 ## 📊 ПОТОЧНИЙ СТАН
 
-**Останнє оновлення:** 3 лютого 2026
-**Версія платформи Ring:** 1.48
+**Останнє оновлення:** 6 червня 2026
+**Версія платформи Ring:** 1.6.0
 
-**Ключовий результат:** платформа **повністю розгорнута в production** з Kubernetes-інфраструктурою, мультивендорною e-commerce, white-label архітектурою та Web3-економікою токена **RING**.
+**Канонічна англомовна дорожня карта:** [ROADMAP.md](ROADMAP.md) (EN-first; UK переклад у наступному проході).
+
+**Ключовий результат:** v1.6.0 — **PaymentConductor**, **News Kingdom**, **науковий редактор**, **locale SSOT**, публічний OSS без k8s/cli секретів; платформа в production на Kubernetes з мультивендорною e-commerce та Web3 **RING**.
 
 ---
 
 ## 🎯 КЛЮЧОВІ ДОСЯГНЕННЯ
 
 ### ✅ ЗАВЕРШЕНІ КРИТИЧНІ ФУНКЦІЇ (2025–2026)
+
+* **💳 PaymentConductor v1** (2026-05-22) — WayForPay + Stripe + внутрішній кредит
+* **📰 News Kingdom** (2026-05-21) — промоція, Telegram, блоги учасників
+* **✍️ Науковий редактор** (2026-05-28) — publications API, i18n редактора
+* **🌐 Locale SSOT** (2026-05-28) — `lib/locale-config.ts`
+* **🔒 OSS v1.6.0** (2026-06-06) — публічний репозиторій без k8s/cli
 
 * **🗄️ Абстракційний шар бази даних**
   Уніфікований `DatabaseService` з підтримкою PostgreSQL, Firebase та ConnectPlatform
@@ -35,7 +43,7 @@
 * **🧪 Комплексне тестування**
   Понад **95 автоматизованих тестів** для критичної бізнес-логіки
 
-* **⚡ React 19.2 + Next.js 15.5**
+* **⚡ React 19.2 + Next.js 16**
   Server Components, `useActionState`, `useOptimistic`, `useFormStatus`
 
 * **🎨 Tailwind CSS 4.1**
@@ -86,7 +94,7 @@
 
 ## 🧱 ТЕХНОЛОГІЧНИЙ СТЕК
 
-* **Frontend:** Next.js 15.5.4, React 19.2
+* **Frontend:** Next.js 16, React 19.2
 * **Auth:** Auth.js v5 (NextAuth)
 * **DB:** PostgreSQL / Firebase / ConnectPlatform
 * **UI:** Tailwind CSS 4.1 + Radix UI
@@ -125,7 +133,7 @@
 4. White-label архітектура з активними клонами
 5. Web3-економіка токена RING
 6. Сильна тестова інфраструктура
-7. Актуальний стек React 19 + Next.js 15
+7. Актуальний стек React 19 + Next.js 16
 8. Глибока інтеграція Legiox AI
 
 **Загальний статус:** 🟢 *Production Deployed — Phase of Expansion*

@@ -1,7 +1,7 @@
 ---
 title: Store API
-description: Complete API documentation for Ring Platform's multi-vendor marketplace with vendor management, product catalog, order processing, and WayForPay integration
-last_modified: "2025-10-16"
+description: Multi-vendor marketplace API with PaymentConductor checkout and internal credit (v1.6.0)
+last_modified: "2026-06-06"
 ---
 
 import { Callout } from '@/components/docs/callout'
@@ -11,8 +11,8 @@ import { Steps, Step } from '@/components/docs/steps'
 
 Ring Platform provides a comprehensive multi-vendor marketplace with **12 REST endpoints** for vendor management, product catalog, order processing, and automated settlements. The system integrates with WayForPay for secure payment processing and supports both RING token and traditional currency transactions.
 
-<Callout type="info" title="💰 Dual Payment System">
-Built-in integration with **WayForPay** for traditional payments and **RING tokens** for cryptocurrency transactions, providing maximum flexibility for vendors and customers.
+<Callout type="info" title="💰 PaymentConductor (v1.6.0)">
+Checkout flows through **PaymentConductor** (`store_order` purpose): WayForPay/Stripe redirect, **internal credit** (`POST /api/store/payments/credit`), optional RING token rail. See [PaymentConductor](/docs/library/features/payment-conductor).
 </Callout>
 
 ## 🏗️ System Architecture

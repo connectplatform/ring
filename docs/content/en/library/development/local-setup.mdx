@@ -1,6 +1,7 @@
 ---
 title: Local Setup
-description: Local Setup documentation for Ring Platform
+description: Local development with install.sh, locale env, and PostgreSQL migrations (v1.6.0)
+last_modified: "2026-06-06"
 ---
 
 import { Tabs, Tab } from '@/components/docs/tabs'
@@ -12,7 +13,7 @@ Complete guide to setting up Ring Platform for local development.
 ## 🛠️ Prerequisites
 
 ### Required Software
-- **Node.js 18.17+** - [Download from nodejs.org](https://nodejs.org/)
+- **Node.js 20+** (22 recommended) - [Download from nodejs.org](https://nodejs.org/)
 - **npm 9+** or **pnpm 8+** - Package manager
 - **Git** - Version control
 - **VS Code** - Recommended IDE
@@ -117,7 +118,7 @@ ESLint runs automatically. For manual linting:
 
 ```
 ring/
-├── app/               # Next.js 15 App Router
+├── app/               # Next.js 16 App Router
 │   ├── (auth)/        # Auth-related pages
 │   ├── api/           # API routes
 │   └── globals.css    # Global styles

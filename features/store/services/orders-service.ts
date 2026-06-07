@@ -1,9 +1,16 @@
 /**
  * Store Orders Service
- * 
- * PostgreSQL DatabaseService for all order operations
- * React 19 cache() for read operations
- * No cache() for mutations (order state changes)
+ *
+ * Domain service for order lifecycle (create, list, status, payments).
+ * React 19 cache() for read operations; no cache() for mutations.
+ *
+ * TBD (Connect Platform OTT order bus): resolve collection/backend via ring-backend
+ * selection — postgres | connect | hybrid — not hard-coded `orders` + getDatabaseService().
+ * Ring app code should call StoreOrdersService only; this service maps to the configured
+ * store/order adapter (PostgreSQLStoreAdapter today, ConnectPlatformStoreAdapter later).
+ *
+ * Migration note: `store_orders` is legacy (adapter.checkout path). Canonical target is
+ * `orders` for all marketplace checkout; migrate then drop `store_orders`.
  */
 
 import { z } from 'zod'

@@ -1,0 +1,32 @@
+---
+title: Науковий редактор
+description: API публікацій, історія версій, рівняння та AI-асистент досліджень з next-intl
+last_modified: "2026-06-06"
+---
+
+# Науковий редактор
+
+У v1.6.0 Ring Platform надає редактор наукових публікацій для спільнот із довгими структурованими матеріалами.
+
+## Компоненти
+
+| Шлях | Роль |
+|------|------|
+| `components/editor/scientific-editor.tsx` | Основний редактор |
+| `components/editor/equation-editor.tsx` | Рівняння LaTeX |
+| `components/editor/version-history-panel.tsx` | Версії документа |
+| `app/(authenticated)/[locale]/editor/page.tsx` | Маршрут редактора |
+
+## API публікацій
+
+- `GET/POST /api/publications`
+- `GET/PATCH/DELETE /api/publications/[id]`
+- `GET /api/publications/[id]/versions`
+
+## Інтернаціоналізація
+
+Тексти UI в `locales/{en,uk,ru}/editor.json`, завантаження через `next-intl`. Див. [Система локалей](/docs/library/features/locale-system).
+
+## Пов’язане
+
+- [Структура коду](/docs/library/development/code-structure)

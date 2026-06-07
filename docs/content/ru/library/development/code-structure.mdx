@@ -3,28 +3,36 @@ title: Code Structure
 description: Code Structure documentation for Ring Platform
 ---
 
-# Code Structure
+# Структура кода
 
-Understanding Ring Platform's codebase architecture and organization.
+Понимание кодовой базы Ring Platform **v1.6.0**.
 
-## 📁 High-Level Architecture
-
-Ring Platform follows a **feature-based architecture** with clear separation of concerns:
+## 📁 Высокоуровневая архитектура
 
 ```
 ring/
-├── app/                 # Next.js 15 App Router
-├── components/         # Reusable React components
-├── features/           # Feature modules (domain-driven)
-├── lib/               # Shared utilities and configurations
-├── @actions/          # Server actions (Next.js 15)
-├── public/            # Static assets
-└── AI-CONTEXT/        # AI documentation system
+├── app/                    # Next.js 16 App Router
+├── components/             # UI, editor, navigation
+├── features/               # news, store, auth, …
+├── lib/                    # locale-config, payments/conductor, database
+├── locales/                # next-intl JSON (en, uk, ru)
+├── data/                   # schema.sql + migrations/
+└── scripts/                # Community OSS scripts
 ```
+
+**Не в публичном OSS:** `k8s/`, `cli/`, `propagation/` (gitignored).
+
+### Ключевые модули v1.6.0
+
+| Область | Путь |
+|---------|------|
+| PaymentConductor | `lib/payments/conductor/` |
+| News Kingdom | `features/news/services/`, `lib/news/` |
+| Locale SSOT | `lib/locale-config.ts` |
 
 ## 🏗️ App Directory Structure
 
-### App Router (Next.js 15)
+### App Router (Next.js 16)
 
 ```
 app/

@@ -2,7 +2,7 @@
 
 **Complete Docker containerization guide for Ring Platform - Professional Networking with Web3 Integration**
 
-> **Ring Platform** is a modern Next.js 15 + React 19 professional networking platform with Firebase backend, real-time messaging, and Web3 integration. This guide covers Docker deployment across Mac, Windows, and Linux.
+> **Ring Platform v1.6.0** is a Next.js 16 + React 19 professional networking platform with PostgreSQL-primary or Firebase backends, PaymentConductor, and Web3 integration. This guide covers **Docker self-hosted** deployment. Kubernetes manifests are **not** in the public OSS repo — see [Ringdom](https://ringdom.org) for managed hosting.
 
 ---
 

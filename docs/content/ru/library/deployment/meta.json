@@ -1,7 +1,8 @@
 {
-  "title": "Развертывание",
+  "title": "Развёртывание",
   "pages": [
     "index",
+    "self-hosted",
     "vercel",
     "docker",
     "environment",

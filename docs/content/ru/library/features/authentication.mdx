@@ -7,6 +7,17 @@ description: Authentication documentation for Ring Platform
 
 Auth.js v5 multi-provider authentication with magic links, OAuth providers, crypto wallets, and GDPR compliance.
 
+## Модель защиты v1.6.0
+
+| Слой | Роль |
+|------|------|
+| `proxy.ts` | Перезапись локали + optimistic redirect на `ROUTES.LOGIN(locale)` |
+| `(authenticated)/[locale]/layout.tsx` | `await auth()` — каноничный gate сессии |
+| `(admin)/[locale]/layout.tsx` | Проверка роли (ADMIN/SUPERADMIN) |
+| API routes | `auth()` в каждом handler |
+
+OAuth: `/api/auth/*` исключено из intl middleware. См. [Proxy и intl](/docs/library/architecture/proxy-and-intl).
+
 ## Overview
 
 Ring Platform uses Auth.js v5 to provide seamless authentication across multiple providers while maintaining security and user privacy.

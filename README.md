@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.50-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.6.0-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/React-19.2_(ALL_features)-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -36,7 +36,7 @@ Ring Platform is the largest, most versatile, and most thoroughly engineered all
 
 Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** -- the First Digital Kingdom for global abundance. While this repository gives you the full open-source codebase, Ringdom offers the turn-key experience: AI customization via Legiox, enterprise-grade K8s hosting in your country or anywhere, and an AI assistant named **Reggie** who will "ringize" your project requirements into a deployment plan with forecasted costs.
 
-**Version**: 1.50 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
+**Version**: 1.6.0 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
 
 ## Ringdom Ecosystem
 
@@ -69,28 +69,24 @@ Ringdom.org (Turn-key service layer)
 | Founding Settler | $500 | 5,000 RNG | Ring clone + full AI customization + priority support |
 | Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legiox support |
 
-## What's New in 2026
+## What's New in v1.6.0 (June 2026)
 
-- **Next.js 16** - Turbopack default, async params, proxy.ts middleware, `revalidateTag` 2-arg API (ring-ringdom-org live on Next 16)
-- **ALL React 19 Features** - Server Components, useActionState, useOptimistic, useFormStatus, React Compiler, `use()`, Activity, View Transitions
-- **DAGI AI Agent System** - 3-tier autonomous AI agents with 7-agent multi-agent coordination and provisioning API
-- **Ringdom Settler System** - Complete registration flow with tier selection, token calculator, checkout, and Reggie AI ringization
-- **Legiox-Access NFT** - ERC-721 token-gated access to Legiox AI skillsets as Cursor Plugin (dual-layer verification, EIP-712 signatures)
-- **Interactive Maps & Visualization** - Feature map, timeline, dataflow, knowledge graph via @xyflow/react
-- **News Module** - Complete digital newspaper with likes, categories, analytics, SEO, newsletter distribution
-- **Email CRM System** - IMAP listener, contact management, newsletter automation
-- **PIN Security System** - Revolutionary Web3 without seed phrases (95% wallet connection vs 40% industry standard)
-- **Auth Route Standardization** - ROUTES.LOGIN(locale) canonical pattern, unified query params (from/callbackUrl/returnTo)
-- **6+ Active Ring Clones** - ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua, gopadel.now on Kubernetes
-- **Database Abstraction Layer** - PostgreSQL/Firebase/ConnectPlatform via unified DatabaseService
-- **Multi-Vendor Store** - Complete e-commerce with cart, checkout, and WayForPay payments
-- **Tunnel Protocol** - Real-time pub/sub replacing Firebase RTDB for K8s deployments
-- **RING Token Economy** - Web3 wallet integration with token payments and staking
-- **BERT/NLP Semantic Search** - AI-powered opportunity matching with vector embeddings
-- **3-Level Comment Threading** - Nested discussion system with optimistic updates
-- **Tailwind CSS 4** - Modern utility-first styling
-- **12 Test Suites** - Enterprise-grade testing infrastructure
-- **Legiox AI 147+ Agents** - Cohort-based hierarchy with 23 MCP tools
+- **PaymentConductor v1** — Unified payment ledger for store, membership, and news promotion (WayForPay + Stripe + internal credit)
+- **News Kingdom** — Digital newspaper upgrade: promotion workflow, Telegram approval, OpenRouter scoring, member blogs
+- **Scientific Editor** — Publications API, version history, equation editor, AI research assistant (`locales/*/editor.json`)
+- **Locale SSOT** — `lib/locale-config.ts` env-driven `NEXT_PUBLIC_SUPPORTED_LOCALES` for routing, SEO, and preferences
+- **Member blog URLs** — Clean `/blog/[username]/[slug]` routing via `lib/blog/blog-path.ts`
+- **DaVinci mobile UX** — Inlined glass navigation, content favorites API, news hero patterns
+- **Slim proxy + proxy-intl** — Auth enforcement in layouts; shared `lib/proxy-intl.ts` for next-intl `as-needed` locales
+- **OSS security boundary** — Public repo excludes k8s secrets, Ring CLI, and internal empire scripts; use `install.sh` + env templates
+- **132 API routes, 96 pages** — Verified platform scale (see [CHANGELOG.md](CHANGELOG.md))
+- **Next.js 16 + React 19** — Turbopack, Server Components, useActionState, React Compiler
+- **Email AI CRM** — IMAP listener, 4-layer injection defense, admin draft queue
+- **Database Abstraction** — PostgreSQL-primary (`k8s-postgres-fcm`) or Firebase via `DB_BACKEND_MODE`
+- **Tunnel Protocol** — Real-time pub/sub for K8s deployments
+- **Legiox AI 147+ Agents** — Cohort-based hierarchy with 23 MCP tools (Ringdom settlers)
+
+> **Note:** The Ring CLI (`ring` command) is **not** included in the public OSS tree. Community developers use [`install.sh`](install.sh) and [`scripts/setup-dev.sh`](scripts/setup-dev.sh). Enterprise/K8s tooling is available through [Ringdom](https://ringdom.org) settlers.
 
 ## Platform Overview
 
@@ -233,7 +229,7 @@ Ring Platform implements a tiered access model for professional networking:
 
 ### Platform Statistics
 
-- **Version**: 1.50 (production-deployed, 6+ live clones)
+- **Version**: 1.6.0 (production-deployed, 6+ live clones)
 - **API Endpoints**: 118+ documented endpoints
 - **Routes**: 88+ application routes
 - **Build Time**: ~17 seconds (optimized with Turbopack)
@@ -263,7 +259,7 @@ flowchart TB
     end
     
     subgraph App["Application Layer"]
-        NEXT[Next.js 15.5/16 App]
+        NEXT[Next.js 16 App]
         API[API Routes 118+]
         ACTIONS[Server Actions]
         TUNNEL[Tunnel Protocol]
@@ -662,7 +658,7 @@ pending → active → [payment fails] → grace_period (3-7 days) → past_due 
 
 ```
 ring-platform.org/
-├── app/                    # Next.js 15/16 App Router
+├── app/                    # Next.js 16/16 App Router
 │   ├── (public)/          # Public routes with locale
 │   ├── (authenticated)/   # Auth-protected routes
 │   ├── (admin)/           # Admin panel routes
@@ -1021,7 +1017,7 @@ flowchart LR
     
     subgraph Push["Push Phase"]
         GHCR[ghcr.io Registry]
-        TAG[v1.50-project-amd64]
+        TAG[v1.6.0-project-amd64]
     end
     
     subgraph Deploy["Deploy Phase"]
@@ -1044,7 +1040,7 @@ flowchart LR
 ring --prod
 
 # Deploy specific version
-ring --prod --version 1.50
+# Enterprise Ring CLI (not in public OSS) — use install.sh for community clones
 
 # Skip certain steps
 ring --prod --skip-build  # Only push and deploy
@@ -1292,7 +1288,7 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <strong>Version 1.50</strong> | <strong>React 19.2 (ALL features)</strong> | <strong>Next.js 16.1</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
+  <strong>Version 1.6.0</strong> | <strong>React 19.2 (ALL features)</strong> | <strong>Next.js 16.1</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
 </p>
 
 <p align="center">

@@ -12,9 +12,8 @@ import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
 
 type Params = { locale: string; username: string; slug: string }
 
-export const dynamic = 'force-dynamic'
-
 async function getBlogPost(username: string, slug: string, locale: string) {
+  await connection()
   await initializeDatabase()
   const db = getDatabaseService()
   const handle = normalizeBlogHandle(username)

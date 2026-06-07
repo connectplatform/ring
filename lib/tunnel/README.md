@@ -16,7 +16,7 @@ Vercel and other Edge Runtime platforms don't support WebSocket connections, cau
 - **Edge Runtime Compatible**: Full support for Vercel's Edge Runtime
 - **Provider Auto-Discovery**: Detects available providers from environment variables
 - **Unified API**: Consistent interface across all transports
-- **React 19 & Next.js 15**: Leverages latest features
+- **React 19 & Next.js 16**: Leverages latest features
 - **Zero Breaking Changes**: Backward compatible with existing WebSocket code
 - **Vercel Production Ready**: Automatic environment detection and transport selection
 - **Production Ready**: JWT authentication, comprehensive API endpoints, demo components

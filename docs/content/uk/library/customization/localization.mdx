@@ -6,7 +6,18 @@ last_modified: 2025-10-16
 
 # Локалізація та багатомовна підтримка
 
-Комплексна система локалізації платформи Ring з підтримкою декількох мов, культурною адаптацією та динамічним перемиканням мов.
+Ring Platform v1.6.0 використовує **env-driven locale config** і **next-intl** з `localePrefix: 'as-needed'`.
+
+## Канонічна конфігурація (v1.6.0)
+
+```bash
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+Джерело правди: `lib/locale-config.ts`. Див. [Система локалей](/docs/library/features/locale-system).
+
+**Навігація:** лише `Link`, `useRouter`, `usePathname` з `@/i18n/routing`. Перемикання: `persistRingLocalePreference()` + `replaceLocalePath()`.
 
 ## 🌍 Підтримувані мови
 

@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "authentication",
+    "email-ai-crm",
     "entities",
     "opportunities",
     "messaging",

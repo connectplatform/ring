@@ -12,13 +12,14 @@ interface DocsNavigationTreeProps {
   locale: string
 }
 
+interface NavItem {
+  href: string
+  label: string
+}
+
 interface NavigationSection {
   title: string
-  items: {
-    href: string
-    label: string
-    exists: boolean
-  }[]
+  items: NavItem[]
 }
 
 export default async function DocsNavigationTree({ locale }: DocsNavigationTreeProps) {
@@ -40,122 +41,111 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
     ? validLocale
     : defaultLocale
 
-  const loadNavigation = (): NavigationSection[] => {
+  const libraryRoot = path.join(process.cwd(), 'docs', 'content', docsLocale, 'library')
+
+  const readMeta = (metaPath: string): { title?: string; pages?: string[] } => {
     try {
-      const docsRoot = path.join(process.cwd(), 'docs', 'content', docsLocale, 'library')
-      const articles: { href: string; label: string; exists: boolean }[] = []
-
-      const findMdxFiles = (dir: string, basePath: string = '') => {
-        const items = fs.readdirSync(dir)
-
-        for (const item of items) {
-          const fullPath = path.join(dir, item)
-          const stat = fs.statSync(fullPath)
-
-          if (stat.isDirectory()) {
-            if (item.startsWith('.') || item === 'node_modules') continue
-
-            const relativePath = basePath ? `${basePath}/${item}` : item
-            findMdxFiles(fullPath, relativePath)
-          } else if (item.endsWith('.mdx')) {
-            let href: string
-            if (basePath === '') {
-              href =
-                item === 'index.mdx'
-                  ? `/${validLocale}/docs`
-                  : `/${validLocale}/docs/${item.replace('.mdx', '')}`
-            } else {
-              href =
-                item === 'index.mdx'
-                  ? `/${validLocale}/docs/${basePath}`
-                  : `/${validLocale}/docs/${basePath}/${item.replace('.mdx', '')}`
-            }
-
-            const title =
-              item === 'index.mdx' && basePath
-                ? getSectionTitle(basePath, docsLocale)
-                : getPageTitleFromFile(fullPath, basePath, item.replace('.mdx', ''), docsLocale)
-
-            articles.push({
-              href,
-              label: title,
-              exists: true,
-            })
-          }
-        }
-      }
-
-      findMdxFiles(docsRoot)
-      articles.sort((a, b) => a.label.localeCompare(b.label))
-
-      return [
-        {
-          title: pt('treeSectionTitle'),
-          items: articles,
-        },
-      ]
-    } catch (error) {
-      console.error('Failed to load unified navigation:', error)
-      return [
-        {
-          title: pt('treeSectionTitle'),
-          items: [
-            {
-              href: `/${validLocale}/docs`,
-              label: pt('linkLibrary'),
-              exists: true,
-            },
-          ],
-        },
-      ]
+      if (!fs.existsSync(metaPath)) return {}
+      return JSON.parse(fs.readFileSync(metaPath, 'utf8'))
+    } catch {
+      return {}
     }
   }
 
-  const getSectionTitle = (sectionSlug: string, loc: string): string => {
+  const getTitleFromMdx = (filePath: string, fallback: string): string => {
     try {
-      const metaPath = path.join(process.cwd(), 'docs', 'content', loc, 'library', sectionSlug, 'meta.json')
-      if (fs.existsSync(metaPath)) {
-        const metaContent = fs.readFileSync(metaPath, 'utf8')
-        const meta = JSON.parse(metaContent)
-        if (meta.title) {
-          return meta.title
-        }
-      }
-    } catch (error) {
-      console.warn(`Failed to read section title from ${sectionSlug}:`, error)
+      if (!fs.existsSync(filePath)) return fallback
+      const { data } = matter(fs.readFileSync(filePath, 'utf8'))
+      if (data.title && typeof data.title === 'string') return data.title
+    } catch {
+      // ignore
     }
+    return fallback
+  }
 
-    return sectionSlug
+  const slugToLabel = (slug: string): string =>
+    slug
       .split('-')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
+
+  const buildHref = (sectionSlug: string | null, pageSlug: string): string => {
+    if (sectionSlug === null) {
+      if (pageSlug === 'index') return `/${validLocale}/docs`
+      return `/${validLocale}/docs/${pageSlug}`
+    }
+    if (pageSlug === 'index') return `/${validLocale}/docs/${sectionSlug}`
+    return `/${validLocale}/docs/${sectionSlug}/${pageSlug}`
   }
 
-  const getPageTitleFromFile = (
-    filePath: string,
-    sectionSlug: string,
-    pageSlug: string,
-    loc: string,
-  ): string => {
-    try {
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf8')
-        const { data } = matter(content)
-        if (data.title) return data.title
+  const loadHierarchicalNavigation = (): NavigationSection[] => {
+    const sections: NavigationSection[] = []
+    const rootMeta = readMeta(path.join(libraryRoot, 'meta.json'))
+    const sectionSlugs = rootMeta.pages ?? []
+
+    for (const entry of sectionSlugs) {
+      if (entry === 'index') {
+        const indexPath = path.join(libraryRoot, 'index.mdx')
+        if (fs.existsSync(indexPath)) {
+          sections.push({
+            title: pt('linkLibrary'),
+            items: [
+              {
+                href: buildHref(null, 'index'),
+                label: getTitleFromMdx(indexPath, 'Overview'),
+              },
+            ],
+          })
+        }
+        continue
       }
-    } catch (error) {
-      console.warn(`Failed to read title from ${filePath}:`, error)
+
+      if (entry === 'welcome') {
+        const welcomePath = path.join(libraryRoot, 'welcome.mdx')
+        if (fs.existsSync(welcomePath)) {
+          sections.push({
+            title: pt('linkWelcome'),
+            items: [
+              {
+                href: buildHref(null, 'welcome'),
+                label: getTitleFromMdx(welcomePath, 'Welcome'),
+              },
+            ],
+          })
+        }
+        continue
+      }
+
+      const sectionDir = path.join(libraryRoot, entry)
+      if (!fs.existsSync(sectionDir) || !fs.statSync(sectionDir).isDirectory()) {
+        continue
+      }
+
+      const sectionMeta = readMeta(path.join(sectionDir, 'meta.json'))
+      const sectionTitle = sectionMeta.title ?? slugToLabel(entry)
+      const pageSlugs = sectionMeta.pages ?? ['index']
+
+      const items: NavItem[] = []
+      for (const pageSlug of pageSlugs) {
+        const fileName = pageSlug === 'index' ? 'index.mdx' : `${pageSlug}.mdx`
+        const filePath = path.join(sectionDir, fileName)
+        if (!fs.existsSync(filePath)) continue
+
+        items.push({
+          href: buildHref(entry, pageSlug),
+          label: getTitleFromMdx(filePath, pageSlug === 'index' ? sectionTitle : slugToLabel(pageSlug)),
+        })
+      }
+
+      if (items.length > 0) {
+        sections.push({ title: sectionTitle, items })
+      }
     }
 
-    return pageSlug === 'index'
-      ? 'Overview'
-      : pageSlug
-          .split('-')
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ')
+    return sections
   }
 
-  const navSections = loadNavigation()
+  const navSections = loadHierarchicalNavigation()
 
   const quickLinks: { href: string; label: string; external?: boolean }[] = [
     { href: `/${validLocale}/docs`, label: pt('linkLibrary') },
@@ -163,9 +153,9 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
     { href: `/${validLocale}/docs/getting-started`, label: pt('linkGettingStarted') },
     { href: `/${validLocale}/docs/architecture`, label: pt('linkArchitecture') },
     { href: `/${validLocale}/docs/architecture/backend-modes-and-databases`, label: pt('linkBackendModes') },
+    { href: `/${validLocale}/docs/deployment/self-hosted`, label: 'Self-hosted' },
+    { href: `/${validLocale}/docs/development/ring-mcp`, label: 'Ring MCP' },
     { href: `/${validLocale}/docs/deployment`, label: pt('linkDeployment') },
-    { href: `/${validLocale}/docs/white-label`, label: pt('linkWhiteLabel') },
-    { href: `/${validLocale}/docs/white-label/token-economics`, label: pt('linkTokenEconomy') },
     { href: `/${validLocale}/docs/features/security`, label: pt('linkSecurity') },
     { href: 'https://ringdom.org', label: pt('linkRingdom'), external: true },
     { href: 'https://github.com/connectplatform/ring', label: pt('linkGithub'), external: true },
@@ -175,35 +165,38 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 pb-2 border-b border-border">
-          <div className="w-1 h-4 rounded-full bg-primary" />
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-            {pt('treeSectionTitle')}
-          </h3>
-        </div>
-
-        <div className="space-y-1">
-          {navSections[0]?.items.map((item) => (
-            <div key={item.href} className="flex items-center gap-2">
-              <div
-                className={`w-1 h-3 rounded-full ${
-                  isActive(item.href) ? 'bg-primary' : 'bg-muted-foreground/30'
-                }`}
-              />
-              <Link
-                href={item.href}
-                className={`text-sm hover:text-primary transition-colors block py-1 px-2 rounded-md hover:bg-muted/50 flex-1 ${
-                  isActive(item.href)
-                    ? 'text-primary font-medium bg-primary/5'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {item.label}
-              </Link>
+      <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
+        {navSections.map((section) => (
+          <div key={section.title} className="space-y-2">
+            <div className="flex items-center gap-2 pb-1 border-b border-border/60">
+              <div className="w-1 h-3 rounded-full bg-primary/70" />
+              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+                {section.title}
+              </h3>
             </div>
-          ))}
-        </div>
+            <div className="space-y-0.5 pl-1">
+              {section.items.map((item) => (
+                <div key={item.href} className="flex items-center gap-2">
+                  <div
+                    className={`w-1 h-2 rounded-full shrink-0 ${
+                      isActive(item.href) ? 'bg-primary' : 'bg-muted-foreground/20'
+                    }`}
+                  />
+                  <Link
+                    href={item.href}
+                    className={`text-sm hover:text-primary transition-colors block py-0.5 px-2 rounded-md hover:bg-muted/50 flex-1 leading-snug ${
+                      isActive(item.href)
+                        ? 'text-primary font-medium bg-primary/5'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="pt-4 border-t border-border space-y-3">

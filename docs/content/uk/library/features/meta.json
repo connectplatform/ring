@@ -1,1 +1,28 @@
-{"title":"Функції","pages":["index","authentication","entities","opportunities","messaging","notifications","push-notifications-fcm","wallet","store","payments","wayforpay-integration","security","nft-market","staking","performance","mobile-experience"]}
+{
+  "title": "Функції",
+  "description": "Ring Platform v1.6.0 — UK переклад синхронізовано з EN.",
+  "pages": [
+    "index",
+    "authentication",
+    "email-ai-crm",
+    "entities",
+    "opportunities",
+    "messaging",
+    "notifications",
+    "push-notifications-fcm",
+    "wallet",
+    "store",
+    "payments",
+    "payment-conductor",
+    "wayforpay-integration",
+    "news",
+    "member-blog",
+    "scientific-editor",
+    "locale-system",
+    "security",
+    "nft-market",
+    "staking",
+    "performance",
+    "mobile-experience"
+  ]
+}

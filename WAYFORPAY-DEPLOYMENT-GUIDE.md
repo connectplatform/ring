@@ -4,12 +4,11 @@
 
 ### **1. Database Migration**
 ```bash
-# Run payments table migration
-psql -U ring_user -d ring_platform -f scripts/create-payments-table.sql
-
-# Or update main schema
-psql -U ring_user -d ring_platform -f scripts/postgres-schema.sql
+# PaymentConductor ledger (v1.6.0)
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
 ```
+
+See also [`data/migrations/README.md`](data/migrations/README.md) and [PaymentConductor docs](/docs/library/features/payment-conductor).
 
 ### **2. Environment Variables**
 Add to `.env.local` (development) or Vercel/K8s secrets (production):
@@ -27,7 +26,7 @@ NEXTAUTH_URL=https://ring-platform.org  # Must be HTTPS for production
 ### **3. WayForPay Dashboard Configuration**
 1. Login to wayforpay.com
 2. Go to Settings → API
-3. Configure webhook URL: `https://your-domain.com/api/payments/wayforpay/webhook`
+3. Configure webhook URL: `https://your-domain.com/api/payments/wayforpay/webhook` (routed via PaymentConductor in `lib/payments/conductor/`)
 4. **CRITICAL**: Must be HTTPS
 5. **CRITICAL**: Must be publicly accessible (not localhost)
 6. Save and test webhook connectivity

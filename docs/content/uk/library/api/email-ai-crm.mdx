@@ -1,0 +1,42 @@
+---
+title: Email AI-CRM API
+description: Сервіси та типи модуля services/email
+last_modified: "2026-06-06"
+---
+
+# Email AI-CRM API
+
+## EmailProcessor
+
+```typescript
+import { getEmailProcessor } from '@/services/email';
+
+const processor = getEmailProcessor();
+await processor.start();
+processor.on('email:received', (event) => {});
+processor.on('email:blocked', ({ security }) => {});
+processor.on('draft:auto_sent', ({ draft, messageId }) => {});
+processor.on('task:created', (task) => {});
+```
+
+## Ключові сервіси
+
+| Сервіс | Експорт | Призначення |
+|--------|---------|-------------|
+| `ImapListener` | `getImapListener()` | IMAP IDLE |
+| `SecurityPipeline` | `getSecurityPipeline()` | `checkInbound`, `checkOutput` |
+| `IntentClassifier` | `getIntentClassifier()` | 16 intent types |
+| `ResponseGenerator` | `getResponseGenerator()` | Claude + tools |
+| `EmailContactService` | `getEmailContactService()` | CRM contacts |
+| `EmailTaskService` | `getEmailTaskService()` | Auto-tasks |
+| `EmailDraftService` | `getEmailDraftService()` | Draft queue |
+| `CostTracker` | `getCostTracker()` | API usage |
+
+## Типи
+
+- `ProcessedEmail` — повний результат пайплайну
+- `SecurityCheckResult` — `passed`, `riskScore`, `blockedReason`
+- `IntentClassification` — `intent`, `confidence`, `requiresHumanReview`
+- `EmailDraft` — `confidenceScore`, `status` (`pending` | `auto_sent` | …)
+
+Повна EN-довідка: перемкніть локаль на EN → [Email AI-CRM API](/docs/library/api/email-ai-crm).

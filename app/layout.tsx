@@ -7,6 +7,7 @@ import {
   AppClientShell,
   AppShellStaticFallback,
 } from '@/components/providers/app-client-shell'
+import { getPublicInstanceConfig } from '@/lib/instance-config'
 import {
   DEFAULT_LOCALE,
   getClientLocaleConfig,
@@ -51,6 +52,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   setupResourcePreloading()
+  const instanceConfig = getPublicInstanceConfig()
 
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
@@ -133,8 +135,8 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-inter antialiased">
-        <Suspense fallback={<AppShellStaticFallback>{children}</AppShellStaticFallback>}>
-          <AppClientShell>{children}</AppClientShell>
+        <Suspense fallback={<AppShellStaticFallback />}>
+          <AppClientShell instanceConfig={instanceConfig}>{children}</AppClientShell>
         </Suspense>
       </body>
     </html>

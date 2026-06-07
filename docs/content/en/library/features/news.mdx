@@ -1,7 +1,8 @@
 ---
 title: News Module - Digital Newspaper Experience
-description: Complete content management system with professional publishing, author management, and multilingual support
+description: News Kingdom — promotion, member blogs, Telegram approval, OpenRouter scoring (v1.6.0)
 icon: Newspaper
+last_modified: "2026-06-06"
 ---
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,9 +22,21 @@ The News module provides a complete content management system that rivals profes
 <Alert>
   <CheckCircle className="h-4 w-4" />
   <AlertDescription>
-    **Zero-flaw implementation** with React 19, Next.js 15, DatabaseService, and multilingual support.
+    **v1.6.0 News Kingdom** — React 19, Next.js 16, PaymentConductor promotion, member blogs at `/blog/[username]/[slug]`, content favorites API.
   </AlertDescription>
 </Alert>
+
+## News Kingdom (2026-05-21)
+
+| Capability | Details |
+|------------|---------|
+| Migrations | `002_news_content_schema.sql`, `003_news_kingdom_upgrade.sql` |
+| Promotion | WayForPay/Stripe via PaymentConductor + Telegram admin approval |
+| Scoring | OpenRouter-powered duplicate/score checks |
+| Member blogs | `lib/blog/blog-path.ts`, `blogUsername` field |
+| Favorites | `POST /api/user/favorites`, `useContentFavorite` |
+
+Architecture: [News Kingdom](/docs/library/architecture/news-kingdom) · Member blogs: [feature doc](/docs/library/features/member-blog)
 
 ## 🏗️ Architecture
 
@@ -490,7 +503,7 @@ interface ArticleEditorProps {
 
 This News module represents the pinnacle of modern content management, combining:
 
-- **Zero-flaw architecture** with React 19 and Next.js 15
+- **Production architecture** with React 19 and Next.js 16
 - **Enterprise-grade performance** with DatabaseService
 - **Professional publishing experience** rivaling major platforms
 - **Complete multilingual support** for global audiences

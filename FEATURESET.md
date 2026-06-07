@@ -1,6 +1,6 @@
 # 🚀 Ring Platform: Complete Feature Set
 
-> **The Most Advanced React 19 + Next.js 15 Professional Networking Platform**  
+> **The Most Advanced React 19 + Next.js 16 Professional Networking Platform** (v1.6.0)  
 > *Enterprise-grade features with Web3 integration, real-time communication, and confidential access tiers*
 
 ---
@@ -9,13 +9,23 @@
 
 - **Bundle Size**: 260kB optimized (-55kB from React 19 migration)
 - **Build Time**: 17.0s with TypeScript 5.8.3
-- **API Endpoints**: 77 RESTful routes
+- **API Endpoints**: 132 route handlers
+- **Page Routes**: 96 App Router pages
 - **Test Coverage**: 95+ comprehensive tests
 - **WebSocket Latency**: <100ms notification delivery
 - **API Call Reduction**: ~90% via WebSocket push
 - **Security Score**: 100% (6 critical vulnerabilities fixed)
 - **Edge Runtime**: Full Vercel compatibility
 - **Real-time Transports**: 8 providers with automatic fallback
+
+## v1.6.0 Highlights (June 2026)
+
+- ✅ **PaymentConductor** — WayForPay + Stripe + internal credit; `payment_transactions` ledger
+- ✅ **News Kingdom** — Promotion workflow, Telegram approval, member blogs, OpenRouter scoring
+- ✅ **Scientific Editor** — Publications API, version history, `locales/*/editor.json`
+- ✅ **Locale SSOT** — `lib/locale-config.ts` env-driven EN/UK/RU
+- ✅ **Content favorites** — News bookmark API + `useContentFavorite`
+- ✅ **OSS boundary** — Public repo: `install.sh` + community scripts; no k8s/cli in tree
 
 ## ⚠️ Implementation Status Legend
 
@@ -125,7 +135,7 @@ This document provides a comprehensive, categorized overview of all features ava
 - ✅ Modern context API
 - ✅ React DevTools v5+ compatibility
 
-### 🔷 Next.js 15 Features:
+### 🔷 Next.js 16 Features:
 - ✅ App Router (File-based routing)
 - ✅ Server Actions (stable)
 - ✅ Partial Prerendering (PPR)
@@ -527,7 +537,7 @@ AI-powered opportunity matching with LLM analysis:
 8. **📊 Unified Status Pages** - Dynamic [action]/[status] routing across all domains
 
 ### 📋 **Standard Modern Platform Features:**
-- React 19 + Next.js 15 + Auth.js v5 stack
+- React 19 + Next.js 16 + Auth.js v5 stack
 - TypeScript, testing, CI/CD, monitoring
 - i18n, accessibility, responsive design
 - Standard authentication, security, analytics

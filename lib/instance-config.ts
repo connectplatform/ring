@@ -16,6 +16,21 @@ export type InstanceConfig = {
   features: Record<string, boolean>
 }
 
+/** Client-safe subset passed from server layout into AppClientShell. */
+export type PublicInstanceConfig = {
+  name: string
+  brand: {
+    colors: { primary: string; background: string; foreground: string; accent: string }
+    logoUrl?: string
+    faviconUrl?: string
+    ogImageUrl?: string
+  }
+  seo?: { titleSuffix?: string; defaultDescription?: string }
+  navigation?: { links?: Array<{ label: string; href: string }> }
+  hero?: { title?: string; subtitle?: string; ctaText?: string; ctaHref?: string; showOnHome?: boolean }
+  features: Record<string, boolean>
+}
+
 let cached: InstanceConfig | null = null
 
 export function getInstanceConfig(): InstanceConfig {
@@ -37,4 +52,21 @@ export function getBrandColors() {
 export function isFeatureEnabled(key: string, defaultValue = true) {
   const { features } = getInstanceConfig()
   return features[key] ?? defaultValue
+}
+
+export function getPublicInstanceConfig(): PublicInstanceConfig {
+  const cfg = getInstanceConfig()
+  return {
+    name: cfg.name,
+    brand: {
+      colors: cfg.brand.colors,
+      logoUrl: cfg.brand.logoUrl,
+      faviconUrl: cfg.brand.faviconUrl,
+      ogImageUrl: cfg.brand.ogImageUrl,
+    },
+    seo: cfg.seo,
+    navigation: cfg.navigation,
+    hero: cfg.hero,
+    features: cfg.features,
+  }
 }

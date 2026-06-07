@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
 import { shouldSkipDatabaseConnect } from '@/lib/build-cache/phase-detector'
 import { getDefaultStorePriceBounds, type StoreFilterState } from '@/lib/store-constants'
@@ -6,8 +6,6 @@ import {
   applyCatalogFilters,
   computeCatalogPriceBounds,
 } from '@/lib/store-price-range'
-
-export const dynamic = 'force-dynamic'
 
 function parseCatalogFilters(searchParams: URLSearchParams): Pick<
   StoreFilterState,
@@ -30,6 +28,7 @@ function parseCatalogFilters(searchParams: URLSearchParams): Pick<
  * Prefer getStoreProducts.priceRange from the store page server action.
  */
 export async function GET(request: NextRequest) {
+  await connection()
   try {
     if (shouldSkipDatabaseConnect()) {
       const defaults = getDefaultStorePriceBounds()

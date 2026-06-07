@@ -11,8 +11,8 @@ import { Steps, Step } from '@/components/docs/steps'
 
 Платформа Ring надає комплексний мульти-вендорний маркетплейс із **12 REST кінцевими точками** для управління продавцями, каталогом продуктів, обробкою замовлень та автоматизованими розрахунками. Система інтегрується з WayForPay для безпечної обробки платежів та підтримує як токени RING, так і традиційні валюти.
 
-<Callout type="info" title="💰 Двосистемна оплата">
-Вбудована інтеграція з **WayForPay** для традиційних платежів та **токенами RING** для криптовалютних транзакцій, що забезпечує максимальну гнучкість для продавців та покупців.
+<Callout type="info" title="💰 PaymentConductor (v1.6.0)">
+Checkout через **PaymentConductor** (`store_order`): WayForPay/Stripe redirect, **внутрішній кредит** (`POST /api/store/payments/credit`). Див. [PaymentConductor](/docs/library/features/payment-conductor).
 </Callout>
 
 ## 🏗️ Архітектура системи

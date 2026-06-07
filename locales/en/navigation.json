@@ -2,6 +2,7 @@
   "title": "Navigation",
   "menu": {
     "title": "Ring Platform",
+    "subtitle": "Open-source white-label platform for AI-orchestrated collective needs.",
     "version": "Ring Platform v{version}",
     "wallet": {
       "description": "Manage your RING tokens and crypto assets"

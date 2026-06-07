@@ -1,0 +1,43 @@
+---
+title: Email AI-CRM — туториал
+description: Настройка IMAP, миграции и запуск процессора
+last_modified: "2026-06-06"
+---
+
+# Email AI-CRM — туториал
+
+## Предпосылки
+
+- PostgreSQL + `001_email_crm_schema.sql`
+- `ANTHROPIC_API_KEY`
+- IMAP/SMTP для community inbox
+
+## Шаги
+
+### 1. Миграция
+
+```bash
+psql "$DATABASE_URL" -f data/migrations/001_email_crm_schema.sql
+```
+
+### 2. Env
+
+```bash
+IMAP_HOST=mail.example.com
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+ANTHROPIC_API_KEY=
+```
+
+### 3. Запуск
+
+```typescript
+import { getEmailProcessor } from '@/services/email';
+await getEmailProcessor().start();
+```
+
+### 4. Admin
+
+`/admin/email-inbox`, `/admin/email-drafts`, `/admin/email-contacts`.
+
+См. [Функция](/docs/library/features/email-ai-crm).

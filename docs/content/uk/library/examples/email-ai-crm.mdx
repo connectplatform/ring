@@ -1,0 +1,61 @@
+---
+title: Email AI-CRM — туторіал
+description: Налаштування IMAP, міграції та запуск процесора за 30 хвилин
+last_modified: "2026-06-06"
+---
+
+# Email AI-CRM — туторіал
+
+## Передумови
+
+- PostgreSQL + `001_email_crm_schema.sql`
+- `ANTHROPIC_API_KEY`
+- IMAP/SMTP доступ до community inbox
+
+## Кроки
+
+### 1. Міграція
+
+```bash
+psql "$DATABASE_URL" -f data/migrations/001_email_crm_schema.sql
+```
+
+### 2. Env
+
+```bash
+IMAP_HOST=mail.example.com
+IMAP_PORT=993
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+ANTHROPIC_API_KEY=
+```
+
+### 3. Валідація
+
+```typescript
+import { validateEmailConfig } from '@/services/email/imap/config';
+const { valid, errors } = validateEmailConfig();
+```
+
+### 4. Запуск
+
+```typescript
+import { getEmailProcessor, getKnowledgeBaseService } from '@/services/email';
+
+await getKnowledgeBaseService().initializeDefaultKnowledge();
+const processor = getEmailProcessor();
+processor.on('email:analyzed', ({ intent, sentiment }) => {
+  console.log(intent.intent, sentiment.sentiment);
+});
+await processor.start();
+```
+
+### 5. Admin
+
+Відкрийте `/admin/email-inbox`, `/admin/email-drafts`, `/admin/email-contacts`.
+
+Див. [Функція](/docs/library/features/email-ai-crm) · [API](/docs/library/api/email-ai-crm).

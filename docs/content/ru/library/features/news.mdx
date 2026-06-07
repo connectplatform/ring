@@ -21,9 +21,20 @@ import { CheckCircle, Users, Globe, Zap, Share2, Rss, Eye, Heart } from 'lucide-
 <Alert>
   <CheckCircle className="h-4 w-4" />
   <AlertDescription>
-    **Имплементация без недостатков** с React 19, Next.js 15, DatabaseService и многоязычной поддержкой.
+    **v1.6.0 News Kingdom** — React 19, Next.js 16, промоция через PaymentConductor, блоги участников `/blog/[username]/[slug]`, API избранного.
   </AlertDescription>
 </Alert>
+
+## News Kingdom (2026-05-21)
+
+| Возможность | Детали |
+|-------------|--------|
+| Миграции | `002_news_content_schema.sql`, `003_news_kingdom_upgrade.sql` |
+| Промоция | WayForPay/Stripe + Telegram-одобрение |
+| Скоринг | OpenRouter |
+| Блоги | [Блоги участников](/docs/library/features/member-blog) |
+
+См. [Архитектура News Kingdom](/docs/library/architecture/news-kingdom).
 
 ## 🏗️ Архитектура
 
@@ -490,7 +501,7 @@ interface ArticleEditorProps {
 
 Этот модуль новостей представляет вершину современного управления контентом, объединяя:
 
-- **Архитектуру без недостатков** с React 19 и Next.js 15
+- **Архитектуру без недостатков** с React 19 и Next.js 16
 - **Корпоративную производительность** с DatabaseService
 - **Профессиональный опыт публикации** конкурирующий с основными платформами
 - **Полную многоязычную поддержку** для глобальной аудитории

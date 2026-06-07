@@ -47,21 +47,13 @@ This directory contains various setup and configuration scripts for the Ring Pla
 
 ---
 
-### 🌐 `setup-vercel-env.sh` - Production Environment Variables
-**Vercel deployment environment setup**
+### 🗄️ `run-migration.sh` - PostgreSQL migrations
 
-```bash
-./scripts/setup-vercel-env.sh
-```
+Applies `data/schema.sql` and kingdom migrations (002–004). See [`data/migrations/README.md`](../data/migrations/README.md).
 
-**Features:**
-- 🔄 Update existing environment variables
-- 📋 Auto-import from `.env.local` file
-- 🛡️ Error handling and validation
-- 🌍 Multi-environment setup (production, preview, development)
-- 🔗 Special handling for production URLs
+### 📰 `seed-news-v1.6.0.sql` - Platform announcement seeds
 
----
+Optional EN news posts for v1.6.0 launch (requires migration 002 applied).
 
 ### ⚙️ `setup-env.js` - Environment File Management
 **Node.js script for environment file management**
