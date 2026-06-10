@@ -1,5 +1,6 @@
 import {
   createLLMClient,
+  createStreamingLLMClient,
   normalizeStreamMessages,
   type LLMStreamMessage,
 } from '@/lib/ai/llm-client'
@@ -194,7 +195,7 @@ export class ProductAgentService {
   }
 
   createStreamingClient() {
-    return createLLMClient(true)
+    return createStreamingLLMClient(true)
   }
 
   async sendMessage(

@@ -1,3 +1,5 @@
+import { getXaiTextConfig } from '@/lib/text/text.config'
+
 /**
  * Unified LLM Client for Ring Platform
  *
@@ -74,7 +76,7 @@ export class LLMClient {
   private getApiKey(): string {
     if (this.config.apiKey) return this.config.apiKey
 
-    if (this.config.baseUrl?.includes('openrouter.ai')) {
+    if (this.config.baseUrl?.includes('openrouter.ai') || this.config.baseUrl?.includes('api.x.ai')) {
       const key = process.env.OPENROUTER_API_KEY
       if (!key) {
         throw new LLMError('Missing OPENROUTER_API_KEY', {
@@ -87,9 +89,11 @@ export class LLMClient {
     }
 
     const envKey =
-      this.config.provider === 'openai'
-        ? process.env.OPENAI_API_KEY
-        : process.env.ANTHROPIC_API_KEY
+      this.config.baseUrl?.includes('api.x.ai')
+        ? process.env.XAI_API_KEY
+        : this.config.provider === 'openai'
+          ? process.env.OPENAI_API_KEY
+          : process.env.ANTHROPIC_API_KEY
 
     if (!envKey) {
       throw new LLMError(`Missing API key for ${this.config.provider}`, {
@@ -454,6 +458,59 @@ export class LLMClient {
   }
 }
 
+export function isStreamingCompatibleEnvProvider(): boolean {
+  const explicit = (process.env.LLM_PROVIDER || '').trim().toLowerCase()
+
+  if (explicit === 'xai') {
+    return false
+  }
+
+  if (explicit === 'openrouter' || (explicit === '' && process.env.OPENROUTER_API_KEY)) {
+    return !!process.env.OPENROUTER_API_KEY
+  }
+
+  if (explicit === 'anthropic' || (explicit === '' && process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY)) {
+    return !!process.env.ANTHROPIC_API_KEY
+  }
+
+  if (explicit === 'openai' || process.env.OPENAI_API_KEY) {
+    return !!process.env.OPENAI_API_KEY
+  }
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    return true
+  }
+
+  if (process.env.OPENROUTER_API_KEY) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Prefer env LLM when it supports chat-completions SSE; otherwise xAI Grok (OpenAI-compatible).
+ */
+export function createStreamingLLMClient(fallback: boolean = true): LLMClient {
+  if (isStreamingCompatibleEnvProvider()) {
+    return createLLMClient(fallback)
+  }
+
+  const xai = getXaiTextConfig({ maxTokens: 600 })
+  if (xai.apiKey) {
+    return new LLMClient({
+      provider: 'openai',
+      model: xai.model,
+      baseUrl: xai.baseUrl,
+      apiKey: xai.apiKey,
+      temperature: 0.35,
+      maxTokens: 600,
+    })
+  }
+
+  return createLLMClient(fallback)
+}
+
 export function createLLMClient(fallback: boolean = true): LLMClient {
   const providerEnv = (process.env.LLM_PROVIDER || 'openai').toLowerCase()
 
@@ -520,7 +577,12 @@ export function estimateTokens(text: string): number {
 }
 
 export function isLLMAvailable(): boolean {
-  return !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENROUTER_API_KEY)
+  return !!(
+    process.env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.XAI_API_KEY
+  )
 }
 
 export function normalizeStreamMessages(messages: LLMStreamMessage[]): LLMStreamMessage[] {

@@ -1,20 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Loader2, Send, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageBubble } from '@/features/chat/components/message-bubble'
 import { STORE_AGENT_SENDER_ID } from '@/features/store/services/product-agent-service'
+import { withProductAgentChatOpen } from '@/features/store/lib/product-agent-chat-url'
 import { useProductAgentChat } from '@/hooks/use-product-agent-chat'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { cn } from '@/lib/utils'
-import { signIn } from 'next-auth/react'
 
 export function ProductAgentChatPanel({
   productId,
@@ -28,6 +30,7 @@ export function ProductAgentChatPanel({
   className?: string
 }) {
   const t = useTranslations('modules.store')
+  const pathname = usePathname()
   const { data: session, status } = useSession()
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
@@ -42,20 +45,27 @@ export function ProductAgentChatPanel({
     messages,
     messagesLoading,
     isAuthenticated,
-  } = useProductAgentChat(productId)
+  } = useProductAgentChat(productId, status === 'authenticated')
+
+  const loginReturnTo = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return withProductAgentChatOpen(pathname, '')
+    }
+    return withProductAgentChatOpen(pathname, window.location.search)
+  }, [pathname])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, sending, streamingContent])
+  }, [messages, streamingContent])
 
   const handleSend = useCallback(async () => {
-    if (!draft.trim() || sending) return
+    if (!draft.trim() || sending || !isAuthenticated) return
     const content = draft
     setDraft('')
     await sendMessage(content)
-  }, [draft, sending, sendMessage])
+  }, [draft, sending, sendMessage, isAuthenticated])
 
-  if (status === 'loading' || bootstrapping) {
+  if (status === 'loading') {
     return (
       <div className={cn('flex flex-1 items-center justify-center p-6 text-muted-foreground', className)}>
         <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -66,12 +76,31 @@ export function ProductAgentChatPanel({
 
   if (!isAuthenticated || !session?.user?.id) {
     return (
-      <div className={cn('flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center', className)}>
-        <Sparkles className="h-10 w-10 text-purple-500" />
-        <p className="text-sm text-muted-foreground">{t('product.agentChatSignIn')}</p>
-        <Button onClick={() => void signIn(undefined, { callbackUrl: window.location.href })}>
-          {t('product.agentChatSignInAction')}
-        </Button>
+      <div className={cn('flex flex-col flex-1 min-h-0', className)}>
+        <div className="border-b px-4 py-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{productName}</p>
+              <p className="text-xs text-muted-foreground">{t('product.aiSalesAssistant')}</p>
+            </div>
+          </div>
+        </div>
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-4 space-y-4">
+            <p className="text-sm text-muted-foreground text-center">{t('product.agentChatSignIn')}</p>
+            <UnifiedLoginInline from={loginReturnTo} variant="default" locale={locale} />
+          </div>
+        </ScrollArea>
+      </div>
+    )
+  }
+
+  if (bootstrapping) {
+    return (
+      <div className={cn('flex flex-1 items-center justify-center p-6 text-muted-foreground', className)}>
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        {t('product.agentChatLoading')}
       </div>
     )
   }
@@ -141,6 +170,7 @@ export function ProductAgentChatPanel({
             placeholder={t('product.agentChatPlaceholder')}
             className="min-h-[44px] max-h-28 resize-none"
             rows={2}
+            disabled={sending}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -155,7 +185,7 @@ export function ProductAgentChatPanel({
             onClick={() => void handleSend()}
             aria-label={t('product.chat')}
           >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>
