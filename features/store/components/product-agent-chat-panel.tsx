@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageBubble } from '@/features/chat/components/message-bubble'
+import { STORE_AGENT_SENDER_ID } from '@/features/store/services/product-agent-service'
 import { useProductAgentChat } from '@/hooks/use-product-agent-chat'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
@@ -35,6 +36,7 @@ export function ProductAgentChatPanel({
     subject,
     bootstrapping,
     sending,
+    streamingContent,
     error,
     sendMessage,
     messages,
@@ -44,7 +46,7 @@ export function ProductAgentChatPanel({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, sending])
+  }, [messages, sending, streamingContent])
 
   const handleSend = useCallback(async () => {
     if (!draft.trim() || sending) return
@@ -112,6 +114,21 @@ export function ProductAgentChatPanel({
               isOwn={message.senderId === session.user.id}
             />
           ))}
+          {streamingContent !== null && (
+            <MessageBubble
+              message={{
+                id: 'streaming-agent',
+                conversationId: conversation?.id || '',
+                senderId: STORE_AGENT_SENDER_ID,
+                senderName: t('product.aiSalesAssistant'),
+                content: streamingContent,
+                type: 'text',
+                status: 'sending',
+                timestamp: new Date().toISOString(),
+              }}
+              isOwn={false}
+            />
+          )}
           <div ref={endRef} />
         </div>
       </ScrollArea>

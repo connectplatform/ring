@@ -1,286 +1,545 @@
 /**
  * Unified LLM Client for Ring Platform
  *
- * Supports multiple LLM providers with automatic fallback and cost optimization.
- * Designed for opportunity matching, auto-fill, and user analysis features.
- *
- * @author Ring Platform Team
- * @version 1.0.0
+ * Supports multiple LLM providers with automatic fallback, streaming, and OpenRouter.
  */
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic';
-  model: string;
-  temperature?: number;
-  maxTokens?: number;
-  apiKey?: string;
+  provider: 'openai' | 'anthropic'
+  model: string
+  temperature?: number
+  maxTokens?: number
+  apiKey?: string
+  baseUrl?: string
 }
 
 export interface LLMResponse {
-  content: string;
+  content: string
   usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  provider: string;
-  model: string;
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  provider: string
+  model: string
+}
+
+export interface LLMStreamMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface LLMStreamChunk {
+  type: 'token' | 'done' | 'error'
+  content?: string
+  usage?: LLMResponse['usage']
+  error?: string
 }
 
 export class LLMError extends Error {
-  provider: string;
-  model: string;
-  code?: string;
-  retryable: boolean;
+  provider: string
+  model: string
+  code?: string
+  retryable: boolean
 
-  constructor(message: string, options: {
-    provider: string;
-    model: string;
-    code?: string;
-    retryable?: boolean;
-  }) {
-    super(message);
-    this.name = 'LLMError';
-    this.provider = options.provider;
-    this.model = options.model;
-    this.code = options.code;
-    this.retryable = options.retryable ?? true;
+  constructor(
+    message: string,
+    options: {
+      provider: string
+      model: string
+      code?: string
+      retryable?: boolean
+    },
+  ) {
+    super(message)
+    this.name = 'LLMError'
+    this.provider = options.provider
+    this.model = options.model
+    this.code = options.code
+    this.retryable = options.retryable ?? true
   }
 }
 
-/**
- * Unified LLM Client with provider abstraction and fallback support
- */
 export class LLMClient {
-  private config: LLMConfig;
-  private fallbackClient?: LLMClient;
+  private config: LLMConfig
+  private fallbackClient?: LLMClient
 
   constructor(config: LLMConfig, fallbackConfig?: LLMConfig) {
-    this.config = config;
+    this.config = config
     if (fallbackConfig) {
-      this.fallbackClient = new LLMClient(fallbackConfig);
+      this.fallbackClient = new LLMClient(fallbackConfig)
     }
   }
 
-  /**
-   * Get API key from environment or config
-   */
   private getApiKey(): string {
-    if (this.config.apiKey) return this.config.apiKey;
+    if (this.config.apiKey) return this.config.apiKey
 
-    const envKey = this.config.provider === 'openai'
-      ? process.env.OPENAI_API_KEY
-      : process.env.ANTHROPIC_API_KEY;
+    if (this.config.baseUrl?.includes('openrouter.ai')) {
+      const key = process.env.OPENROUTER_API_KEY
+      if (!key) {
+        throw new LLMError('Missing OPENROUTER_API_KEY', {
+          provider: this.config.provider,
+          model: this.config.model,
+          retryable: false,
+        })
+      }
+      return key
+    }
+
+    const envKey =
+      this.config.provider === 'openai'
+        ? process.env.OPENAI_API_KEY
+        : process.env.ANTHROPIC_API_KEY
 
     if (!envKey) {
       throw new LLMError(`Missing API key for ${this.config.provider}`, {
         provider: this.config.provider,
         model: this.config.model,
-        retryable: false
-      });
+        retryable: false,
+      })
     }
 
-    return envKey;
+    return envKey
   }
 
-  /**
-   * Make a completion request to the LLM
-   */
+  private getChatCompletionsUrl(): string {
+    const base = this.config.baseUrl?.replace(/\/$/, '') || 'https://api.openai.com/v1'
+    return `${base}/chat/completions`
+  }
+
   async complete(prompt: string, options: Partial<LLMConfig> = {}): Promise<LLMResponse> {
-    const requestConfig = { ...this.config, ...options };
+    const requestConfig = { ...this.config, ...options }
 
     try {
-      const apiKey = this.getApiKey();
+      const apiKey = this.getApiKey()
 
       if (requestConfig.provider === 'openai') {
-        return await this.callOpenAI(prompt, requestConfig, apiKey);
-      } else if (requestConfig.provider === 'anthropic') {
-        return await this.callAnthropic(prompt, requestConfig, apiKey);
-      } else {
-        throw new LLMError(`Unsupported provider: ${requestConfig.provider}`, {
-          provider: requestConfig.provider,
-          model: requestConfig.model,
-          retryable: false
-        });
+        return await this.callOpenAI(prompt, requestConfig, apiKey)
       }
-    } catch (error) {
-      // Try fallback if available and error is retryable
-      if (this.fallbackClient && error instanceof LLMError && error.retryable) {
-        console.warn(`LLM: Primary provider failed, trying fallback: ${error.message}`);
-        return await this.fallbackClient.complete(prompt, options);
+      if (requestConfig.provider === 'anthropic') {
+        return await this.callAnthropic(prompt, requestConfig, apiKey)
       }
 
-      throw error;
+      throw new LLMError(`Unsupported provider: ${requestConfig.provider}`, {
+        provider: requestConfig.provider,
+        model: requestConfig.model,
+        retryable: false,
+      })
+    } catch (error) {
+      if (this.fallbackClient && error instanceof LLMError && error.retryable) {
+        console.warn(`LLM: Primary provider failed, trying fallback: ${error.message}`)
+        return await this.fallbackClient.complete(prompt, options)
+      }
+      throw error
     }
   }
 
-  /**
-   * Call OpenAI API
-   */
-  private async callOpenAI(prompt: string, config: LLMConfig, apiKey: string): Promise<LLMResponse> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  async *streamMessages(
+    messages: LLMStreamMessage[],
+    options: Partial<LLMConfig> & { system?: string } = {},
+  ): AsyncGenerator<LLMStreamChunk> {
+    const requestConfig = { ...this.config, ...options }
+
+    try {
+      const apiKey = this.getApiKey()
+
+      if (requestConfig.provider === 'anthropic') {
+        yield* this.streamAnthropicMessages(messages, requestConfig, apiKey, options.system)
+        return
+      }
+
+      if (requestConfig.provider === 'openai') {
+        yield* this.streamOpenAIMessages(messages, requestConfig, apiKey, options.system)
+        return
+      }
+
+      yield { type: 'error', error: `Streaming unsupported for provider: ${requestConfig.provider}` }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Stream failed'
+      yield { type: 'error', error: message }
+    }
+  }
+
+  private async callOpenAI(
+    prompt: string,
+    config: LLMConfig,
+    apiKey: string,
+  ): Promise<LLMResponse> {
+    const response = await fetch(this.getChatCompletionsUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        Authorization: `Bearer ${apiKey}`,
+        ...(config.baseUrl?.includes('openrouter.ai')
+          ? {
+              'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://ring-platform.org',
+              'X-Title': process.env.OPENROUTER_APP_NAME || 'Ring Platform',
+            }
+          : {}),
       },
       body: JSON.stringify({
         model: config.model,
         messages: [{ role: 'user', content: prompt }],
         temperature: config.temperature ?? 0.7,
-        max_tokens: config.maxTokens ?? 1000
-      })
-    });
+        max_tokens: config.maxTokens ?? 1000,
+      }),
+    })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new LLMError(
-        `OpenAI API error: ${response.status} ${response.statusText}`,
-        {
-          provider: 'openai',
-          model: config.model,
-          code: errorData.error?.code,
-          retryable: response.status >= 500 || response.status === 429
-        }
-      );
+      const errorData = await response.json().catch(() => ({}))
+      throw new LLMError(`OpenAI API error: ${response.status} ${response.statusText}`, {
+        provider: 'openai',
+        model: config.model,
+        code: (errorData as { error?: { code?: string } }).error?.code,
+        retryable: response.status >= 500 || response.status === 429,
+      })
     }
 
-    const data = await response.json();
+    const data = await response.json()
 
     return {
       content: data.choices[0]?.message?.content || '',
-      usage: data.usage ? {
-        promptTokens: data.usage.prompt_tokens,
-        completionTokens: data.usage.completion_tokens,
-        totalTokens: data.usage.total_tokens
-      } : undefined,
-      provider: 'openai',
-      model: config.model
-    };
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          }
+        : undefined,
+      provider: config.baseUrl?.includes('openrouter.ai') ? 'openrouter' : 'openai',
+      model: config.model,
+    }
   }
 
-  /**
-   * Call Anthropic API
-   */
-  private async callAnthropic(prompt: string, config: LLMConfig, apiKey: string): Promise<LLMResponse> {
+  private async callAnthropic(
+    prompt: string,
+    config: LLMConfig,
+    apiKey: string,
+  ): Promise<LLMResponse> {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: config.model,
         max_tokens: config.maxTokens ?? 1000,
         temperature: config.temperature ?? 0.7,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new LLMError(
-        `Anthropic API error: ${response.status} ${response.statusText}`,
-        {
-          provider: 'anthropic',
-          model: config.model,
-          code: errorData.error?.type,
-          retryable: response.status >= 500 || response.status === 429
-        }
-      );
+      const errorData = await response.json().catch(() => ({}))
+      throw new LLMError(`Anthropic API error: ${response.status} ${response.statusText}`, {
+        provider: 'anthropic',
+        model: config.model,
+        code: (errorData as { error?: { type?: string } }).error?.type,
+        retryable: response.status >= 500 || response.status === 429,
+      })
     }
 
-    const data = await response.json();
+    const data = await response.json()
 
     return {
       content: data.content[0]?.text || '',
-      usage: data.usage ? {
-        promptTokens: data.usage.input_tokens,
-        completionTokens: data.usage.output_tokens,
-        totalTokens: data.usage.input_tokens + data.usage.output_tokens
-      } : undefined,
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.input_tokens,
+            completionTokens: data.usage.output_tokens,
+            totalTokens: data.usage.input_tokens + data.usage.output_tokens,
+          }
+        : undefined,
       provider: 'anthropic',
-      model: config.model
-    };
+      model: config.model,
+    }
   }
 
-  /**
-   * Batch completion for multiple prompts (cost optimization)
-   */
-  async batchComplete(prompts: string[], options: Partial<LLMConfig> = {}): Promise<LLMResponse[]> {
-    // For now, process sequentially. Could be optimized for parallel processing
-    const results: LLMResponse[] = [];
+  private async *streamOpenAIMessages(
+    messages: LLMStreamMessage[],
+    config: LLMConfig,
+    apiKey: string,
+    system?: string,
+  ): AsyncGenerator<LLMStreamChunk> {
+    const chatMessages = system
+      ? [{ role: 'system' as const, content: system }, ...messages]
+      : messages
 
-    for (const prompt of prompts) {
-      try {
-        const result = await this.complete(prompt, options);
-        results.push(result);
-      } catch (error) {
-        console.error('LLM: Batch completion failed for prompt:', error);
-        // Continue with other prompts even if one fails
-        results.push({
-          content: '',
-          provider: this.config.provider,
-          model: this.config.model
-        });
+    const response = await fetch(this.getChatCompletionsUrl(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        ...(config.baseUrl?.includes('openrouter.ai')
+          ? {
+              'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'https://ring-platform.org',
+              'X-Title': process.env.OPENROUTER_APP_NAME || 'Ring Platform',
+            }
+          : {}),
+      },
+      body: JSON.stringify({
+        model: config.model,
+        stream: true,
+        messages: chatMessages,
+        temperature: config.temperature ?? 0.7,
+        max_tokens: config.maxTokens ?? 1000,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      yield {
+        type: 'error',
+        error: `OpenAI API error: ${response.status} ${JSON.stringify(errorData)}`,
+      }
+      return
+    }
+
+    if (!response.body) {
+      yield { type: 'error', error: 'No response body from OpenAI-compatible provider' }
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let usage: LLMResponse['usage'] | undefined
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6).trim()
+        if (!payload || payload === '[DONE]') continue
+
+        try {
+          const event = JSON.parse(payload) as {
+            choices?: Array<{ delta?: { content?: string } }>
+            usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+          }
+
+          const token = event.choices?.[0]?.delta?.content
+          if (token) yield { type: 'token', content: token }
+
+          if (event.usage) {
+            usage = {
+              promptTokens: event.usage.prompt_tokens ?? 0,
+              completionTokens: event.usage.completion_tokens ?? 0,
+              totalTokens: event.usage.total_tokens ?? 0,
+            }
+          }
+        } catch {
+          // ignore malformed SSE chunks
+        }
       }
     }
 
-    return results;
+    yield { type: 'done', usage }
+  }
+
+  private async *streamAnthropicMessages(
+    messages: LLMStreamMessage[],
+    config: LLMConfig,
+    apiKey: string,
+    system?: string,
+  ): AsyncGenerator<LLMStreamChunk> {
+    const body: Record<string, unknown> = {
+      model: config.model,
+      max_tokens: config.maxTokens ?? 1000,
+      temperature: config.temperature ?? 0.7,
+      stream: true,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    }
+
+    if (system) {
+      body.system = system
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      yield {
+        type: 'error',
+        error: `Anthropic API error: ${response.status} ${JSON.stringify(errorData)}`,
+      }
+      return
+    }
+
+    if (!response.body) {
+      yield { type: 'error', error: 'No response body from Anthropic' }
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let usage: LLMResponse['usage'] | undefined
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6).trim()
+        if (!payload || payload === '[DONE]') continue
+
+        try {
+          const event = JSON.parse(payload) as {
+            type?: string
+            delta?: { type?: string; text?: string }
+            usage?: { input_tokens?: number; output_tokens?: number }
+          }
+
+          if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+            const text = event.delta.text || ''
+            if (text) yield { type: 'token', content: text }
+          }
+
+          if (event.type === 'message_delta' && event.usage) {
+            usage = {
+              promptTokens: event.usage.input_tokens ?? 0,
+              completionTokens: event.usage.output_tokens ?? 0,
+              totalTokens: (event.usage.input_tokens ?? 0) + (event.usage.output_tokens ?? 0),
+            }
+          }
+        } catch {
+          // ignore malformed SSE chunks
+        }
+      }
+    }
+
+    yield { type: 'done', usage }
+  }
+
+  async batchComplete(prompts: string[], options: Partial<LLMConfig> = {}): Promise<LLMResponse[]> {
+    const results: LLMResponse[] = []
+
+    for (const prompt of prompts) {
+      try {
+        const result = await this.complete(prompt, options)
+        results.push(result)
+      } catch (error) {
+        console.error('LLM: Batch completion failed for prompt:', error)
+        results.push({
+          content: '',
+          provider: this.config.provider,
+          model: this.config.model,
+        })
+      }
+    }
+
+    return results
   }
 }
 
-/**
- * Factory function to create LLM client with environment-based configuration
- */
 export function createLLMClient(fallback: boolean = true): LLMClient {
-  const provider = (process.env.LLM_PROVIDER || 'openai') as 'openai' | 'anthropic';
+  const providerEnv = (process.env.LLM_PROVIDER || 'openai').toLowerCase()
+
+  if (providerEnv === 'openrouter' || process.env.OPENROUTER_API_KEY) {
+    const primaryConfig: LLMConfig = {
+      provider: 'openai',
+      model: process.env.LLM_MODEL || 'anthropic/claude-3.5-sonnet',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.OPENROUTER_API_KEY,
+      temperature: 0.7,
+      maxTokens: 1000,
+    }
+
+    let fallbackConfig: LLMConfig | undefined
+    if (fallback && process.env.ANTHROPIC_API_KEY) {
+      fallbackConfig = {
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet-20241022',
+        temperature: 0.7,
+        maxTokens: 1000,
+      }
+    }
+
+    return new LLMClient(primaryConfig, fallbackConfig)
+  }
+
+  const provider = (providerEnv === 'anthropic' ? 'anthropic' : 'openai') as 'openai' | 'anthropic'
 
   const primaryConfig: LLMConfig = {
     provider,
-    model: provider === 'openai'
-      ? (process.env.LLM_MODEL || 'gpt-4o')
-      : (process.env.LLM_MODEL || 'claude-3-5-sonnet-20241022'),
+    model:
+      provider === 'openai'
+        ? process.env.LLM_MODEL || 'gpt-4o'
+        : process.env.LLM_MODEL || 'claude-3-5-sonnet-20241022',
     temperature: 0.7,
-    maxTokens: 1000
-  };
+    maxTokens: 1000,
+  }
 
-  let fallbackConfig: LLMConfig | undefined;
+  let fallbackConfig: LLMConfig | undefined
 
   if (fallback) {
-    // Create fallback config with opposite provider
     if (provider === 'openai' && process.env.ANTHROPIC_API_KEY) {
       fallbackConfig = {
         provider: 'anthropic',
         model: 'claude-3-5-sonnet-20241022',
         temperature: 0.7,
-        maxTokens: 1000
-      };
+        maxTokens: 1000,
+      }
     } else if (provider === 'anthropic' && process.env.OPENAI_API_KEY) {
       fallbackConfig = {
         provider: 'openai',
         model: 'gpt-4o',
         temperature: 0.7,
-        maxTokens: 1000
-      };
+        maxTokens: 1000,
+      }
     }
   }
 
-  return new LLMClient(primaryConfig, fallbackConfig);
+  return new LLMClient(primaryConfig, fallbackConfig)
 }
 
-/**
- * Utility function to estimate token count (rough approximation)
- */
 export function estimateTokens(text: string): number {
-  // Rough estimation: ~4 characters per token for English text
-  return Math.ceil(text.length / 4);
+  return Math.ceil(text.length / 4)
 }
 
-/**
- * Utility function to check if LLM is available
- */
 export function isLLMAvailable(): boolean {
-  return !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY);
+  return !!(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.OPENROUTER_API_KEY)
+}
+
+export function normalizeStreamMessages(messages: LLMStreamMessage[]): LLMStreamMessage[] {
+  const trimmed = messages.filter((message) => message.content.trim())
+  let normalized = [...trimmed]
+
+  while (normalized.length > 0 && normalized[0].role === 'assistant') {
+    normalized.shift()
+  }
+
+  const merged: LLMStreamMessage[] = []
+  for (const message of normalized) {
+    const last = merged[merged.length - 1]
+    if (last && last.role === message.role) {
+      last.content = `${last.content}\n\n${message.content}`
+      continue
+    }
+    merged.push({ ...message })
+  }
+
+  return merged
 }
