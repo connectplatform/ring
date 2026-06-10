@@ -34,7 +34,7 @@
   "learnMore": "Дізнатися більше",
   "youMightAlsoLike": "Вам також може сподобатися",
   "youMightLike": "Вам може сподобатися",
-    "cart": {
+  "cart": {
     "title": "Кошик",
     "empty": "Ваш кошик порожній.",
     "emptyDescription": "Схоже, ви ще нічого не додали. Почніть покупки, щоб наповнити кошик!",
@@ -108,10 +108,16 @@
     "reviews": "Відгуки",
     "noOverview": "Огляд цього продукту відсутній.",
     "noDescription": "Детальний опис цього продукту відсутній.",
-    "chat": "Чат",
+    "chat": "Запитати ШІ",
     "close": "Закрити",
     "aiSalesAssistant": "ШІ консультант продажів",
-    "comingSoon": "Незабаром"
+    "agentReady": "Готовий",
+    "agentRailLabel": "Запитати ШІ",
+    "agentChatLoading": "Завантаження асистента…",
+    "agentChatSignIn": "Увійдіть, щоб ставити запитання про товар і зберігати історію чату.",
+    "agentChatSignInAction": "Увійти",
+    "agentChatPlaceholder": "Запитайте про цей товар…",
+    "openInMessenger": "Відкрити в Ring Messenger"
   },
   "favorites": {
     "button": "Обране",
@@ -134,26 +140,20 @@
     "inStock": "В наявності",
     "categories": "Категорії",
     "becomeVendor": "Стати продавцем",
-    "becomeVendorDescription": "Продавайте свої продукти на GreenFood.live і досягайте тисяч клієнтів.",
+    "becomeVendorDescription": "Продавайте свої продукти на Ring Marketplace та охопіть тисячі розробників, засновників і технічних лідерів.",
     "startSelling": "Почати продаж",
     "records": "товарів",
     "filteredOf": "відібрано з"
   },
   "categories": {
-    "fresh-vegetables": "Свіжі овочі",
-    "fresh-fruits": "Свіжі фрукти",
-    "herbs-greens": "Зелень і трави",
-    "dairy-eggs": "Молочні продукти і яйця",
-    "meat-poultry": "М'ясо і птиця",
-    "grains-cereals": "Зернові і крупи",
-    "legumes-beans": "Бобові",
-    "nuts-seeds": "Горіхи і насіння",
-    "honey-sweeteners": "Мед і підсолоджувачі",
-    "preserves-pickles": "Консервація",
-    "baked-goods": "Випічка",
-    "beverages": "Напої",
-    "farm-supplies": "Фермерське приладдя",
-    "other": "Інше"
+    "ring-platform": "Ring Platform",
+    "dev-kits": "Стартер-кіти для розробників",
+    "ai-tools": "AI-інструменти та промпти",
+    "expert-services": "Експертні послуги",
+    "digital-templates": "Цифрові шаблони та конфігурації",
+    "learn": "Курси та навчання",
+    "community": "Спільноти та мережі",
+    "saas-assets": "SaaS-активи для бізнесу"
   },
   "aiConsultant": {
     "title": "AI консультант продуктів",
@@ -173,10 +173,12 @@
     "back": "Назад",
     "review": "Переглянути замовлення",
     "reviewOrder": "Переглянути замовлення",
+    "referralApplied": "Реферальний код застосовано",
+    "referralAppliedToast": "Код {code} прив’язано до замовлення — реферер отримає винагороду після завершення.",
+    "referralAppliedToastGeneric": "Твоє реферальне посилання прив’язано до замовлення.",
     "orderPlacementFailed": "Не вдалося оформити замовлення. Спробуйте ще раз.",
     "processing": "Обробка...",
     "proceedToPayment": "Перейти до оплати",
-    
     "loginForFasterCheckout": "Увійдіть для швидшого оформлення",
     "progressSteps": {
       "storeSetup": "Налаштування магазину",
@@ -198,13 +200,12 @@
     "orContinueAsGuest": "або продовжте як гість",
     "contactInformation": "Контактна інформація",
     "firstName": "Ім'я",
-    "lastName": "Прізвище", 
+    "lastName": "Прізвище",
     "email": "Email",
     "phone": "Телефон",
     "enterFirstName": "Введіть ім'я",
     "enterLastName": "Введіть прізвище",
     "enterEmail": "Введіть email адресу",
-    
     "shippingAddress": "Адреса доставки",
     "addNewAddress": "Додати нову адресу",
     "addFirstAddress": "Додайте вашу першу адресу",
@@ -231,13 +232,12 @@
     "saveAddress": "Зберегти адресу",
     "useThisAddress": "Використати цю адресу",
     "pleaseSelectAddress": "Будь ласка, оберіть адресу доставки",
-    
     "shippingMethod": "Спосіб доставки",
     "novaPost": "Нова Пошта",
     "novaPostDescription": "Доставка до відділення Нової Пошти",
     "expressDelivery": "Експрес доставка",
     "expressDescription": "Швидка доставка до дверей",
-    "standardDelivery": "Стандартна доставка", 
+    "standardDelivery": "Стандартна доставка",
     "standardDescription": "Звичайна служба доставки",
     "storePickup": "Самовивіз",
     "pickupDescription": "Забрати з нашого магазину",
@@ -250,7 +250,6 @@
     "pickupAddress": "вул. Головна 123, Київ, Україна",
     "pickupHours": "Пн-Пт: 9:00-18:00, Сб: 10:00-16:00",
     "estimatedDelivery": "Очікувана доставка",
-    
     "paymentMethod": "Спосіб оплати",
     "paymentInformation": "Інформація про оплату",
     "cardPayment": "Оплата карткою",
@@ -267,7 +266,6 @@
     "billingAddressSameAsShipping": "Адреса для виставлення рахунку збігається з адресою доставки",
     "savePaymentMethodForFuture": "Зберегти спосіб оплати для майбутніх покупок",
     "marketingOptIn": "Я хочу отримувати маркетингові листи про нові продукти та пропозиції",
-    
     "securityAssurance": "Ваш платіж безпечний",
     "pciCompliant": "Відповідає PCI DSS",
     "sslSecured": "Захищено SSL",
@@ -276,7 +274,6 @@
     "moneyBack": "30-денна гарантія повернення коштів",
     "secureConnection": "Безпечне з'єднання",
     "dataProtected": "Дані захищені",
-    
     "orderSummary": "Підсумок замовлення",
     "quantity": "К-ть",
     "subtotal": "Проміжний підсумок",
@@ -321,7 +318,6 @@
         "checkStatus": "Перевірити статус замовлення"
       }
     }
-  }
+  },
+  "loading": "Завантаження продуктів…"
 }
-
-

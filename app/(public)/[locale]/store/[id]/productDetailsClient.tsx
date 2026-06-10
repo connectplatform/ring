@@ -16,11 +16,12 @@
  * • SEO optimized
  */
 
-import React, { useMemo, useState, useCallback } from 'react'
+import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, MessageSquare, Sparkles, Package, Truck, Shield, Heart } from 'lucide-react'
+import { ArrowLeft, Package, Truck, Shield, Heart } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
+import { ProductAgentChatTopBar } from '@/features/store/components/product-agent-chat-shell'
 import { useStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
 import type { Locale } from '@/i18n/shared'
@@ -40,7 +41,6 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
   const router = useRouter()
   const { products, addToCart, updateQuantity } = useStore()
   const currencyContext = useOptionalCurrency()
-  const [chatOpen, setChatOpen] = useState(false)
   const [favorites, setFavorites] = useLocalStorage<string[]>('ring_favorites', [])
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({})
   const [finalPrice, setFinalPrice] = useState(0)
@@ -88,34 +88,62 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
     }))
   }, [product])
 
-  // Mock reviews (in production, fetch from API)
-  const mockReviews = useMemo(() => [
-    {
-      id: '1',
-      author: 'Олена К.',
-      rating: 5,
-      title: 'Чудовий продукт!',
-      content: 'Дуже якісний товар, швидка доставка. Рекомендую всім! Особливо сподобалася якість матеріалу та увага до деталей.',
-      verifiedPurchase: true,
-      helpful: 12,
-      date: '2025-10-28',
-      images: []
-    },
-    {
-      id: '2',
-      author: 'Іван М.',
-      rating: 4,
-      title: 'Гарна ціна',
-      content: 'За таку ціну - відмінна якість. Єдине, доставка була трохи довшою, ніж очікувалось.',
-      verifiedPurchase: true,
-      helpful: 8,
-      date: '2025-10-25',
-      sellerResponse: {
-        content: 'Дякуємо за відгук! Працюємо над покращенням швидкості доставки.',
-        date: '2025-10-26'
-      }
+  // Reviews from the reviews collection (GET /api/store/products/[id]/reviews)
+  const [reviews, setReviews] = useState<Array<{
+    id: string
+    author: string
+    rating: number
+    title: string
+    content: string
+    verifiedPurchase: boolean
+    helpful: number
+    date: string
+    images?: never[]
+    sellerResponse?: { content: string; date: string }
+  }>>([])
+  const [averageRating, setAverageRating] = useState(0)
+
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    fetch(`/api/store/products/${id}/reviews`)
+      .then((r) => (r.ok ? r.json() : { reviews: [], averageRating: 0 }))
+      .then((json) => {
+        if (cancelled) return
+        setReviews(
+          (json.reviews || []).map(
+            (review: {
+              id: string
+              author: string
+              rating: number
+              title?: string
+              content: string
+              verifiedPurchase: boolean
+              helpful: number
+              date: string
+              sellerResponse?: { content: string; date: string }
+            }) => ({
+              id: review.id,
+              author: review.author,
+              rating: review.rating,
+              title: review.title ?? '',
+              content: review.content,
+              verifiedPurchase: review.verifiedPurchase,
+              helpful: review.helpful,
+              date: review.date,
+              sellerResponse: review.sellerResponse,
+            }),
+          ),
+        )
+        setAverageRating(json.averageRating || 0)
+      })
+      .catch(() => {
+        /* reviews are non-critical */
+      })
+    return () => {
+      cancelled = true
     }
-  ], [])
+  }, [id])
 
   // Related products (actual data from same category)
   const relatedProducts = useMemo(() => {
@@ -208,40 +236,8 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
             <span className="hidden sm:inline">{tCommon('actions.back')}</span>
           </button>
 
-          {/* AI Salesman Bar */}
-          <div className="flex-1 border rounded-lg bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-purple-950/30 overflow-hidden">
-            <div
-              onClick={() => setChatOpen(!chatOpen)}
-              className="w-full px-4 py-2 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="font-medium text-sm">AI-Salesman</span>
-                  <span className="text-green-600 dark:text-green-400 font-semibold text-sm">Ready</span>
-                </div>
-              </div>
-              <div className="px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-sm font-medium rounded-md transition-all flex items-center gap-2">
-                <MessageSquare className="w-3.5 h-3.5" />
-                {chatOpen ? t('product.close') : t('product.chat')}
-              </div>
-            </div>
-          </div>
+          <ProductAgentChatTopBar />
         </div>
-
-        {/* AI Chat Panel (collapsed/expanded) */}
-        {chatOpen && (
-          <div className="mb-6 border rounded-lg bg-white dark:bg-gray-900 p-6 animate-in slide-in-from-top-4 duration-300">
-            <div className="h-96 flex items-center justify-center">
-              <div className="text-center">
-                <Sparkles className="w-12 h-12 mx-auto text-purple-600 dark:text-purple-400 mb-4" />
-                <h4 className="font-semibold text-lg mb-2">{t('product.aiSalesAssistant')}</h4>
-                <p className="text-sm text-muted-foreground">{t('product.comingSoon')}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Main Product Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
@@ -347,7 +343,7 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">{t('product.overview')}</TabsTrigger>
               <TabsTrigger value="description">{t('product.description')}</TabsTrigger>
-              <TabsTrigger value="reviews">{t('product.reviews')} ({mockReviews.length})</TabsTrigger>
+              <TabsTrigger value="reviews">{t('product.reviews')} ({reviews.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-6">
@@ -376,9 +372,9 @@ export default function ProductDetailsClient({ locale, id }: { locale: Locale; i
 
             <TabsContent value="reviews" className="mt-6">
               <ProductReviews
-                reviews={mockReviews}
-                averageRating={4.5}
-                totalReviews={mockReviews.length}
+                reviews={reviews}
+                averageRating={averageRating}
+                totalReviews={reviews.length}
                 ratingDistribution={[12, 8, 2, 1, 0]}
               />
             </TabsContent>

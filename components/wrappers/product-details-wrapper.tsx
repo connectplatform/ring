@@ -28,8 +28,9 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import { ProductAgentChatProvider } from '@/features/store/context/product-agent-chat-context'
+import { ProductAgentChatShell } from '@/features/store/components/product-agent-chat-shell'
 import { SimilarProducts } from '@/features/store/components/similar-products'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -299,33 +300,36 @@ export default function ProductDetailsWrapper({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      {/* Left Sidebar - Fixed positioned, outside flex layout */}
-      <DesktopSidebar />
+    <ProductAgentChatProvider
+      productId={productId || currentProduct?.id || ''}
+      productName={currentProduct?.name || 'Product'}
+    >
+      <div className="min-h-full text-foreground relative transition-colors duration-300">
+        <div className="flex min-h-full gap-3">
+          <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
+            {children}
+          </div>
 
-      <div className="flex gap-6 min-h-screen">
-        {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-6 lg:pr-6 lg:pb-8 pb-24">
-          {children}
-        </div>
-
-        {/* Right Sidebar - Product Info & Actions (Desktop only, 1024px+) */}
-        <div className="hidden lg:block w-[320px] flex-shrink-0 py-8 pr-6">
-          <div className="sticky top-8">
-            <RightSidebarContent />
+          <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
+            <div className="sticky top-8">
+              <RightSidebarContent />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
-      <FloatingSidebarToggle
-        isOpen={rightSidebarOpen}
-        onToggle={setRightSidebarOpen}
-        mobileWidth="90%"
-        tabletWidth="380px"
-      >
-        <RightSidebarContent />
-      </FloatingSidebarToggle>
-    </div>
+        <FloatingSidebarToggle
+          isOpen={rightSidebarOpen}
+          onToggle={setRightSidebarOpen}
+          mobileWidth="90%"
+          tabletWidth="380px"
+        >
+          <RightSidebarContent />
+        </FloatingSidebarToggle>
+
+        {productId && currentProduct?.id && (
+          <ProductAgentChatShell locale={locale as Locale} />
+        )}
+      </div>
+    </ProductAgentChatProvider>
   )
 }

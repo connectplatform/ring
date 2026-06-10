@@ -117,7 +117,23 @@
     "backToStore": "Back to store",
     "notFound": "Product not found",
     "addedToCart": "{name} added to cart",
-    "addedToFavorites": "{name} added to favorites"
+    "addedToFavorites": "{name} added to favorites",
+    "specifications": "Specifications",
+    "overview": "Overview",
+    "description": "Description",
+    "reviews": "Reviews",
+    "noOverview": "No overview available for this product.",
+    "noDescription": "No detailed description available for this product.",
+    "chat": "Ask AI",
+    "close": "Close",
+    "aiSalesAssistant": "AI Sales Assistant",
+    "agentReady": "Ready",
+    "agentRailLabel": "Ask AI",
+    "agentChatLoading": "Loading assistant…",
+    "agentChatSignIn": "Sign in to ask product questions and save chat history.",
+    "agentChatSignInAction": "Sign in",
+    "agentChatPlaceholder": "Ask about this product…",
+    "openInMessenger": "Open in Ring Messenger"
   },
   "favorites": {
     "button": "Favorites",
@@ -138,26 +154,53 @@
     "inStock": "In Stock",
     "categories": "Categories",
     "becomeVendor": "Become a Vendor",
-    "becomeVendorDescription": "Sell your products on GreenFood.live and reach thousands of customers.",
+    "becomeVendorDescription": "Sell your products on Ring Marketplace and reach thousands of developers, founders, and tech leaders.",
     "startSelling": "Start Selling",
     "records": "records",
     "filteredOf": "filtered of"
   },
   "categories": {
-    "fresh-vegetables": "Fresh Vegetables",
-    "fresh-fruits": "Fresh Fruits",
-    "herbs-greens": "Herbs & Greens",
-    "dairy-eggs": "Dairy & Eggs",
-    "meat-poultry": "Meat & Poultry",
-    "grains-cereals": "Grains & Cereals",
-    "legumes-beans": "Legumes & Beans",
-    "nuts-seeds": "Nuts & Seeds",
-    "honey-sweeteners": "Honey & Sweeteners",
-    "preserves-pickles": "Preserves & Pickles",
-    "baked-goods": "Baked Goods",
-    "beverages": "Beverages",
-    "farm-supplies": "Farm Supplies",
-    "other": "Other"
+    "ring-platform": "Ring Platform",
+    "dev-kits": "Developer Starter Kits",
+    "ai-tools": "AI Tools & Prompts",
+    "expert-services": "Expert Services",
+    "digital-templates": "Digital Templates & Configs",
+    "learn": "Courses & Learning",
+    "community": "Community & Networks",
+    "saas-assets": "SaaS Business Assets"
+  },
+  "vendorAttribution": {
+    "fastResponse": "Fast response",
+    "fulfillmentRate": "{rate}% order fulfillment rate",
+    "vendorTypes": {
+      "farm": "Independent Vendor",
+      "food-producer": "Product Studio",
+      "farmers-market": "Marketplace Seller",
+      "artisan": "Creator Shop",
+      "cooperative": "Collective Vendor"
+    },
+    "trustTiers": {
+      "PREMIUM": {
+        "label": "Premium Vendor",
+        "description": "1+ years, 4.8+ rating, $50K+ sales"
+      },
+      "TRUSTED": {
+        "label": "Trusted Vendor",
+        "description": "6+ months, 4.7+ rating, $10K+ sales"
+      },
+      "VERIFIED": {
+        "label": "Verified Vendor",
+        "description": "90+ days, 4.5+ rating, $1K+ sales"
+      },
+      "BASIC": {
+        "label": "Basic Vendor",
+        "description": "30+ days active, positive feedback"
+      },
+      "NEW": {
+        "label": "New Vendor",
+        "description": "Recently joined marketplace"
+      }
+    }
   },
   "aiConsultant": {
     "title": "AI Product Consultant",
@@ -176,10 +219,12 @@
     "back": "Back",
     "review": "Review Order",
     "reviewOrder": "Review Order",
+    "referralApplied": "Referral code applied",
+    "referralAppliedToast": "Code {code} is linked to this order — your referrer earns when it completes.",
+    "referralAppliedToastGeneric": "Your referral link is linked to this order.",
     "orderPlacementFailed": "Order placement failed. Please try again.",
     "processing": "Processing...",
     "proceedToPayment": "Proceed to Payment",
-    
     "loginForFasterCheckout": "Sign in for faster checkout",
     "progressSteps": {
       "storeSetup": "Store Setup",
@@ -201,13 +246,12 @@
     "orContinueAsGuest": "or continue as guest",
     "contactInformation": "Contact Information",
     "firstName": "First Name",
-    "lastName": "Last Name", 
+    "lastName": "Last Name",
     "email": "Email",
     "phone": "Phone",
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",
     "enterEmail": "Enter email address",
-    
     "shippingAddress": "Shipping Address",
     "addNewAddress": "Add New Address",
     "addFirstAddress": "Add Your First Address",
@@ -234,13 +278,12 @@
     "saveAddress": "Save Address",
     "useThisAddress": "Use This Address",
     "pleaseSelectAddress": "Please select a shipping address",
-    
     "shippingMethod": "Shipping Method",
     "novaPost": "Nova Post",
     "novaPostDescription": "Delivery to Nova Post office",
     "expressDelivery": "Express Delivery",
     "expressDescription": "Fast delivery to your door",
-    "standardDelivery": "Standard Delivery", 
+    "standardDelivery": "Standard Delivery",
     "standardDescription": "Regular delivery service",
     "storePickup": "Store Pickup",
     "pickupDescription": "Pick up from our store",
@@ -253,7 +296,6 @@
     "pickupAddress": "123 Main St, Kyiv, Ukraine",
     "pickupHours": "Mon-Fri: 9AM-6PM, Sat: 10AM-4PM",
     "estimatedDelivery": "Estimated delivery",
-    
     "paymentMethod": "Payment Method",
     "paymentInformation": "Payment Information",
     "cardPayment": "Card Payment",
@@ -270,7 +312,6 @@
     "billingAddressSameAsShipping": "Billing address same as shipping",
     "savePaymentMethodForFuture": "Save payment method for future purchases",
     "marketingOptIn": "I want to receive marketing emails about new products and offers",
-    
     "securityAssurance": "Your payment is secure",
     "pciCompliant": "PCI DSS Compliant",
     "sslSecured": "SSL Secured",
@@ -280,7 +321,6 @@
     "moneyBack": "30-day money-back guarantee",
     "secureConnection": "Secure connection",
     "dataProtected": "Data protected",
-    
     "orderSummary": "Order Summary",
     "quantity": "Qty",
     "subtotal": "Subtotal",
@@ -325,7 +365,6 @@
         "checkStatus": "Check Order Status"
       }
     }
-  }
+  },
+  "loading": "Loading more products…"
 }
-
-

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import EntityDetails from '@/features/entities/components/entity-details'
 import { SerializedEntity } from '@/features/entities/types'
-import ModernChat from '@/features/chat/components/modern-chat'
+import { EntityConversationPanel } from '@/features/chat/components/entity-conversation-panel'
 import type { Locale } from '@/i18n/shared'
 
 interface EntityDetailsWrapperProps {
@@ -35,16 +35,16 @@ export default function EntityDetailsWrapper({
   }
 
   const chatComponent = initialEntity ? (
-    <ModernChat 
-      entityId={initialEntity.id} 
-      entityName={initialEntity.name} 
+    <EntityConversationPanel
+      entityId={initialEntity.id}
+      entityName={initialEntity.name}
       entityCreatorId={initialEntity.addedBy}
-      showConversationList={false}
       className="border-0 shadow-none"
     />
   ) : null;
 
   return (
+    <div className="ring-content-panel min-w-0 min-h-full">
     <Suspense fallback={<div>{t('loading')}</div>}>
       <EntityDetails 
         initialEntity={initialEntity} 
@@ -53,6 +53,7 @@ export default function EntityDetailsWrapper({
         locale={locale}
       />
     </Suspense>
+    </div>
   )
 }
 

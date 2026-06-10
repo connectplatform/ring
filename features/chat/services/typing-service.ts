@@ -1,131 +1,107 @@
-import { getAdminRtdb } from '@/lib/firebase-admin.server'
-import { TypingIndicator } from '@/features/chat/types'
+import { TypingIndicator } from '@/features/chat/types';
+import { publishToChannel } from '@/lib/tunnel/publisher';
+
+const TYPING_TIMEOUT_MS = 5000;
+
+type TypingEntry = {
+  userName: string;
+  expiresAt: number;
+};
+
+const typingByConversation = new Map<string, Map<string, TypingEntry>>();
+
+function getConversationMap(conversationId: string): Map<string, TypingEntry> {
+  let map = typingByConversation.get(conversationId);
+  if (!map) {
+    map = new Map();
+    typingByConversation.set(conversationId, map);
+  }
+  return map;
+}
+
+function pruneExpired(conversationId: string): Map<string, TypingEntry> {
+  const map = getConversationMap(conversationId);
+  const now = Date.now();
+  for (const [userId, entry] of map.entries()) {
+    if (entry.expiresAt <= now) {
+      map.delete(userId);
+    }
+  }
+  if (map.size === 0) {
+    typingByConversation.delete(conversationId);
+  }
+  return map;
+}
 
 export class TypingService {
-  private rtdb = getAdminRtdb()
-  private readonly TYPING_TIMEOUT = 5000 // 5 seconds
+  async updateTypingStatus(
+    conversationId: string,
+    userId: string,
+    userName: string,
+    isTyping: boolean,
+  ): Promise<void> {
+    const map = getConversationMap(conversationId);
 
-  async updateTypingStatus(conversationId: string, userId: string, userName: string, isTyping: boolean): Promise<void> {
-    const typingRef = this.rtdb.ref(`typing/${conversationId}/${userId}`)
-    
     if (isTyping) {
-      // Set typing status with auto-cleanup timeout
-      const typingData: TypingIndicator = {
-        conversationId,
+      map.set(userId, {
+        userName,
+        expiresAt: Date.now() + TYPING_TIMEOUT_MS,
+      });
+    } else {
+      map.delete(userId);
+      if (map.size === 0) {
+        typingByConversation.delete(conversationId);
+      }
+    }
+
+    try {
+      await publishToChannel(`conversation:${conversationId}`, 'typing:update', {
         userId,
         userName,
-        timestamp: Date.now() as any // Convert to number for real-time database
-      }
-      
-      await typingRef.set(typingData)
-      
-      // Set auto-cleanup timeout (will be overridden if user continues typing)
-      await typingRef.onDisconnect().remove()
-      
-      // Set server-side cleanup after timeout
-      setTimeout(async () => {
-        try {
-          const snapshot = await typingRef.once('value')
-          const data = snapshot.val()
-          
-          // Only remove if timestamp is old (user stopped typing)
-          if (data && Date.now() - data.timestamp > this.TYPING_TIMEOUT) {
-            await typingRef.remove()
-          }
-        } catch (error) {
-          console.error('Error cleaning up typing indicator:', error)
-        }
-      }, this.TYPING_TIMEOUT)
-      
-    } else {
-      // Remove typing status
-      await typingRef.remove()
+        isTyping,
+      });
+    } catch (error) {
+      console.warn(`Failed to publish typing:update for conversation:${conversationId}`, error);
     }
   }
 
   async getTypingUsers(conversationId: string): Promise<TypingIndicator[]> {
-    const typingRef = this.rtdb.ref(`typing/${conversationId}`)
-    const snapshot = await typingRef.once('value')
-    const typingData = snapshot.val()
-    
-    if (!typingData) {
-      return []
-    }
-    
-    const now = Date.now()
-    const activeTypingUsers: TypingIndicator[] = []
-    
-    // Filter out expired indicators and convert to proper format
-    for (const [userId, data] of Object.entries(typingData as Record<string, any>)) {
-      const typingInfo = data as TypingIndicator
-      
-      // Check if typing indicator is still valid (not expired)
-      if (now - (typingInfo.timestamp as any) <= this.TYPING_TIMEOUT) {
-        activeTypingUsers.push(typingInfo)
-      } else {
-        // Clean up expired indicator
-        await this.rtdb.ref(`typing/${conversationId}/${userId}`).remove()
-      }
-    }
-    
-    return activeTypingUsers
+    const map = pruneExpired(conversationId);
+    const now = Date.now();
+
+    return [...map.entries()].map(([userId, entry]) => ({
+      conversationId,
+      userId,
+      userName: entry.userName,
+      timestamp: new Date(entry.expiresAt - TYPING_TIMEOUT_MS),
+    })).filter((indicator) => {
+      const entry = map.get(indicator.userId);
+      return entry != null && entry.expiresAt > now;
+    });
   }
 
   async cleanupTypingIndicators(conversationId: string): Promise<void> {
-    const typingRef = this.rtdb.ref(`typing/${conversationId}`)
-    const snapshot = await typingRef.once('value')
-    const typingData = snapshot.val()
-    
-    if (!typingData) {
-      return
-    }
-    
-    const now = Date.now()
-    const batch: Promise<void>[] = []
-    
-    // Remove all expired typing indicators
-    for (const [userId, data] of Object.entries(typingData as Record<string, any>)) {
-      const typingInfo = data as TypingIndicator
-      
-      if (now - (typingInfo.timestamp as any) > this.TYPING_TIMEOUT) {
-        batch.push(this.rtdb.ref(`typing/${conversationId}/${userId}`).remove())
-      }
-    }
-    
-    await Promise.all(batch)
+    pruneExpired(conversationId);
   }
 
   async stopTyping(conversationId: string, userId: string): Promise<void> {
-    await this.rtdb.ref(`typing/${conversationId}/${userId}`).remove()
-  }
+    const map = getConversationMap(conversationId);
+    const entry = map.get(userId);
+    map.delete(userId);
+    if (map.size === 0) {
+      typingByConversation.delete(conversationId);
+    }
 
-  // Helper method to set up real-time listeners for typing indicators
-  setupTypingListener(conversationId: string, callback: (typingUsers: TypingIndicator[]) => void): () => void {
-    const typingRef = this.rtdb.ref(`typing/${conversationId}`)
-    
-    const listener = typingRef.on('value', (snapshot) => {
-      const typingData = snapshot.val()
-      const typingUsers: TypingIndicator[] = []
-      
-      if (typingData) {
-        const now = Date.now()
-        
-        for (const [userId, data] of Object.entries(typingData as Record<string, any>)) {
-          const typingInfo = data as TypingIndicator
-          
-          // Only include non-expired typing indicators
-          if (now - (typingInfo.timestamp as any) <= this.TYPING_TIMEOUT) {
-            typingUsers.push(typingInfo)
-          }
-        }
+    if (entry) {
+      try {
+        await publishToChannel(`conversation:${conversationId}`, 'typing:update', {
+          userId,
+          userName: entry.userName,
+          isTyping: false,
+        });
+      } catch (error) {
+        console.warn(`Failed to publish typing stop for conversation:${conversationId}`, error);
       }
-      
-      callback(typingUsers)
-    })
-    
-    // Return cleanup function
-    return () => {
-      typingRef.off('value', listener)
     }
   }
-} 
+}

@@ -1,6 +1,4 @@
 // /features/chat/types/index.ts
-import type { Timestamp } from 'firebase/firestore';
-import type { Timestamp as AdminTimestamp } from 'firebase-admin/firestore';
 
 // Legacy interface - keeping for backward compatibility
 export interface chat {
@@ -11,34 +9,42 @@ export interface chat {
     id: string;
     senderId: string;
     content: string;
-    timestamp: Timestamp;
+    timestamp: string | Date;
   }[];
 }
+
+export type RingTimestamp = string | Date;
 
 // Enhanced conversation management types
 export interface Conversation {
   id: string
-  type: 'direct' | 'entity' | 'opportunity'
+  type: 'direct' | 'entity' | 'opportunity' | 'product'
   participants: ConversationParticipant[]
   lastMessage?: Message
-  lastActivity: Timestamp | AdminTimestamp
+  lastActivity: RingTimestamp
   isActive: boolean
   unreadCount?: number
   metadata: {
     entityId?: string
-    entityName?: string  
+    entityName?: string
     opportunityId?: string
     opportunityName?: string
+    directUserId?: string
+    directUserName?: string
+    productId?: string
+    productName?: string
+    subject?: string
+    vendorId?: string
   }
-  createdAt: Timestamp | AdminTimestamp
-  updatedAt: Timestamp | AdminTimestamp
+  createdAt: RingTimestamp
+  updatedAt: RingTimestamp
 }
 
 export interface ConversationParticipant {
   userId: string
-  role: 'admin' | 'member' | 'observer' 
-  joinedAt: Timestamp | AdminTimestamp
-  lastReadAt?: Timestamp | AdminTimestamp
+  role: 'admin' | 'member' | 'observer'
+  joinedAt: RingTimestamp
+  lastReadAt?: RingTimestamp
   isTyping: boolean
   isOnline: boolean
 }
@@ -54,8 +60,8 @@ export interface Message {
   status: 'sending' | 'sent' | 'delivered' | 'read'
   replyTo?: string
   attachments?: MessageAttachment[]
-  timestamp: Timestamp | AdminTimestamp
-  editedAt?: Timestamp | AdminTimestamp
+  timestamp: RingTimestamp
+  editedAt?: RingTimestamp
   reactions?: MessageReaction[]
 }
 
@@ -71,25 +77,31 @@ export interface MessageAttachment {
 export interface MessageReaction {
   emoji: string
   userId: string
-  timestamp: Timestamp | AdminTimestamp
+  timestamp: RingTimestamp
 }
 
 export interface TypingIndicator {
   conversationId: string
   userId: string
   userName: string
-  timestamp: Timestamp | AdminTimestamp
+  timestamp: RingTimestamp
 }
 
 // Request/Response types for API
 export interface CreateConversationRequest {
-  type: 'direct' | 'entity' | 'opportunity'
+  type: 'direct' | 'entity' | 'opportunity' | 'product'
   participantIds: string[]
   metadata?: {
     entityId?: string
     entityName?: string
     opportunityId?: string
     opportunityName?: string
+    directUserId?: string
+    directUserName?: string
+    productId?: string
+    productName?: string
+    subject?: string
+    vendorId?: string
   }
 }
 
@@ -102,11 +114,14 @@ export interface SendMessageRequest {
 }
 
 export interface ConversationFilters {
-  type?: 'direct' | 'entity' | 'opportunity'
+  type?: 'direct' | 'entity' | 'opportunity' | 'product'
   isActive?: boolean
+  entityId?: string
+  opportunityId?: string
+  productId?: string
   lastActivity?: {
-    from?: Timestamp
-    to?: Timestamp
+    from?: RingTimestamp
+    to?: RingTimestamp
   }
 }
 

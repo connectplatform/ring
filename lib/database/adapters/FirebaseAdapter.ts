@@ -513,6 +513,44 @@ export class FirebaseAdapter implements IDatabaseService {
     }
   }
 
+  private matchesPostFilter(data: Record<string, unknown>, filter: DatabaseFilter): boolean {
+    const fieldValue = data[filter.field];
+
+    if (filter.operator === 'ilike') {
+      const haystack = String(fieldValue ?? '').toLowerCase();
+      const needle = String(filter.value ?? '').replace(/%/g, '').toLowerCase();
+      if (String(filter.value).startsWith('%') && String(filter.value).endsWith('%')) {
+        return haystack.includes(needle);
+      }
+      if (String(filter.value).endsWith('%')) {
+        return haystack.startsWith(needle);
+      }
+      return haystack === needle;
+    }
+
+    if (filter.operator === 'jsonb-contains') {
+      if (Array.isArray(fieldValue) && Array.isArray(filter.value)) {
+        return filter.value.every((item) =>
+          fieldValue.some((entry) => JSON.stringify(entry) === JSON.stringify(item)),
+        );
+      }
+      if (
+        fieldValue &&
+        typeof fieldValue === 'object' &&
+        filter.value &&
+        typeof filter.value === 'object' &&
+        !Array.isArray(filter.value)
+      ) {
+        return Object.entries(filter.value as Record<string, unknown>).every(
+          ([key, val]) => (fieldValue as Record<string, unknown>)[key] === val,
+        );
+      }
+      return JSON.stringify(fieldValue).includes(JSON.stringify(filter.value));
+    }
+
+    return true;
+  }
+
   async query<T extends FirebaseDocumentData = FirebaseDocumentData>(
     querySpec: DatabaseQuery
   ): Promise<DatabaseResult<DatabaseDocument<T>[]>> {
@@ -520,21 +558,48 @@ export class FirebaseAdapter implements IDatabaseService {
       const startTime = monotime();
       const firestore = await this.getFirestore();
 
+      const nativeFilters: DatabaseFilter[] = [];
+      const postFilters: DatabaseFilter[] = [];
+
+      for (const filter of querySpec.filters || []) {
+        if (filter.operator === 'ilike') {
+          postFilters.push(filter);
+        } else if (
+          filter.operator === 'jsonb-contains' &&
+          filter.field === 'participants' &&
+          Array.isArray(filter.value) &&
+          filter.value.length === 1
+        ) {
+          nativeFilters.push({
+            field: filter.field,
+            operator: 'array-contains',
+            value: filter.value[0],
+          });
+        } else if (filter.operator === 'jsonb-contains') {
+          postFilters.push(filter);
+        } else {
+          nativeFilters.push(filter);
+        }
+      }
+
       let query: Query = firestore.collection(querySpec.collection);
 
-      // Apply filters
-      for (const filter of (querySpec.filters || [])) {
+      for (const filter of nativeFilters) {
         query = query.where(filter.field, filter.operator as any, filter.value);
       }
 
       // Apply ordering
-      for (const order of (querySpec.orderBy || [])) {
+      for (const order of querySpec.orderBy || []) {
         query = query.orderBy(order.field, order.direction);
       }
 
-      // Apply pagination
-      if (querySpec.pagination?.limit) {
-        query = query.limit(querySpec.pagination.limit);
+      const fetchLimit =
+        querySpec.pagination?.limit && postFilters.length > 0
+          ? Math.max(querySpec.pagination.limit * 4, querySpec.pagination.limit)
+          : querySpec.pagination?.limit;
+
+      if (fetchLimit) {
+        query = query.limit(fetchLimit);
       }
 
       if (querySpec.pagination?.offset) {
@@ -542,7 +607,7 @@ export class FirebaseAdapter implements IDatabaseService {
       }
 
       const querySnapshot = await query.get();
-      const documents = querySnapshot.docs.map(doc => {
+      let documents = querySnapshot.docs.map((doc) => {
         const data = doc.data() as T;
         return {
           id: doc.id,
@@ -550,10 +615,21 @@ export class FirebaseAdapter implements IDatabaseService {
           metadata: {
             createdAt: toDate(data.createdAt),
             updatedAt: toDate(data.updatedAt),
-            version: data.version || 1
-          }
+            version: data.version || 1,
+          },
         };
       });
+
+      if (postFilters.length > 0) {
+        documents = documents.filter((doc) =>
+          postFilters.every((filter) =>
+            this.matchesPostFilter(doc.data as Record<string, unknown>, filter),
+          ),
+        );
+        if (querySpec.pagination?.limit) {
+          documents = documents.slice(0, querySpec.pagination.limit);
+        }
+      }
 
       return {
         success: true,
@@ -562,8 +638,8 @@ export class FirebaseAdapter implements IDatabaseService {
           operation: 'query',
           duration: monotime() - startTime,
           backend: 'firebase',
-          timestamp: new Date()
-        }
+          timestamp: new Date(),
+        },
       };
     } catch (error) {
       return {
@@ -573,8 +649,8 @@ export class FirebaseAdapter implements IDatabaseService {
           operation: 'query',
           duration: 0,
           backend: 'firebase',
-          timestamp: new Date()
-        }
+          timestamp: new Date(),
+        },
       };
     }
   }

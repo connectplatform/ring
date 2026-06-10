@@ -26,12 +26,20 @@ export interface DatabaseResult<T = any> {
   };
 }
 
+/** Cross-backend filter operators (Firebase WhereFilterOp + PostgreSQL extensions). */
+export type DatabaseFilterOperator =
+  | WhereFilterOp
+  | '='
+  | '<>'
+  | 'ilike'
+  | 'jsonb-contains';
+
 /**
  * Query filter for cross-backend compatibility
  */
 export interface DatabaseFilter {
   field: string;
-  operator: WhereFilterOp | string; // Support both Firebase and SQL operators
+  operator: DatabaseFilterOperator | string;
   value: any;
 }
 

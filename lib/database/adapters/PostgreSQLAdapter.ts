@@ -88,6 +88,22 @@ export class PostgreSQLAdapter implements IDatabaseService {
       'notes', 'created_at', 'createdAt', 'updated_at', 'updatedAt',
       'last_active_at', 'lastActiveAt'
     ]),
+    // store_products uses JSONB 'data' column — only top-level columns listed
+    store_products: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    store_orders: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    products: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    conversations: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    messages: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
   };
 
   constructor(config: DatabaseBackendConfig) {
@@ -988,6 +1004,14 @@ export class PostgreSQLAdapter implements IDatabaseService {
     }
   }
 
+  /** JSONB object/array path for @> containment (uses GIN-friendly `data->'field'`). */
+  private getJsonFieldReference(collection: string, field: string): string {
+    if (this.isTopLevelField(collection, field)) {
+      return field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    }
+    return `data->'${field}'`;
+  }
+
   private convertRowToDocument<T>(row: any): T {
     // For JSONB-based schema, parse the data column and convert snake_case columns to camelCase
     const converted: any = {};
@@ -1065,15 +1089,26 @@ export class PostgreSQLAdapter implements IDatabaseService {
       const { field, operator, value } = filter;
       const fieldRef = this.getFieldReference(collection, field);
 
-      // Convert Firebase operators to SQL
+      // Convert Firebase and SQL operators to SQL (IDatabaseService supports both forms)
       switch (operator) {
         case '==':
-          conditions.push(`${fieldRef} = $${paramIndex}`);
-          params.push(value);
+        case '=':
+          if (value === null) {
+            // JSONB text extraction yields SQL NULL for missing keys; `= NULL` never matches.
+            conditions.push(`${fieldRef} IS NULL`);
+          } else {
+            conditions.push(`${fieldRef} = $${paramIndex}`);
+            params.push(value);
+          }
           break;
         case '!=':
-          conditions.push(`${fieldRef} != $${paramIndex}`);
-          params.push(value);
+        case '<>':
+          if (value === null) {
+            conditions.push(`${fieldRef} IS NOT NULL`);
+          } else {
+            conditions.push(`${fieldRef} != $${paramIndex}`);
+            params.push(value);
+          }
           break;
         case '<':
           conditions.push(`${fieldRef} < $${paramIndex}`);
@@ -1103,6 +1138,16 @@ export class PostgreSQLAdapter implements IDatabaseService {
           conditions.push(`${fieldRef} && $${paramIndex}`);
           params.push(value);
           break;
+        case 'ilike':
+          conditions.push(`${fieldRef} ILIKE $${paramIndex}`);
+          params.push(value);
+          break;
+        case 'jsonb-contains': {
+          const jsonFieldRef = this.getJsonFieldReference(collection, field);
+          conditions.push(`${jsonFieldRef} @> $${paramIndex}::jsonb`);
+          params.push(JSON.stringify(value));
+          break;
+        }
         default:
           throw new Error(`Unsupported operator: ${operator}`);
       }
@@ -1121,6 +1166,10 @@ export class PostgreSQLAdapter implements IDatabaseService {
 class PostgreSQLTransaction implements IDatabaseTransaction {
   constructor(private client: PoolClient) {}
 
+  // NOTE: all Ring tables use the JSONB row model (id, data JSONB, created_at, updated_at).
+  // The previous implementation spread document fields as SQL columns, which failed on
+  // every JSONB table — making all transactional pipelines silently broken.
+
   async create<T = any>(
     collection: string,
     data: T,
@@ -1129,30 +1178,19 @@ class PostgreSQLTransaction implements IDatabaseTransaction {
     const id = options.id || require('crypto').randomUUID();
     const now = new Date();
 
-    const documentData = {
-      ...data,
-      id,
-      created_at: now,
-      updated_at: now,
-      version: 1
-    };
-
-    const columns = Object.keys(documentData);
-    const values = Object.values(documentData);
-    const placeholders = columns.map((_, i) => `$${i + 1}`);
-
     const query = `
-      INSERT INTO ${collection} (${columns.join(', ')})
-      VALUES (${placeholders.join(', ')})
+      INSERT INTO ${collection} (id, data, created_at, updated_at)
+      VALUES ($1, $2::jsonb, $3, $4)
+      ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
       RETURNING *
     `;
 
-    const result = await this.client.query(query, values);
+    const result = await this.client.query(query, [id, JSON.stringify(data), now, now]);
     const row = result.rows[0];
 
     return {
       id: row.id,
-      data: row as T,
+      data: row.data as T,
       metadata: {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -1165,7 +1203,7 @@ class PostgreSQLTransaction implements IDatabaseTransaction {
     collection: string,
     id: string
   ): Promise<DatabaseDocument<T> | null> {
-    const query = `SELECT * FROM ${collection} WHERE id = $1`;
+    const query = `SELECT * FROM ${collection} WHERE id = $1 FOR UPDATE`;
     const result = await this.client.query(query, [id]);
 
     if (result.rows.length === 0) {
@@ -1175,7 +1213,7 @@ class PostgreSQLTransaction implements IDatabaseTransaction {
     const row = result.rows[0];
     return {
       id: row.id,
-      data: row as T,
+      data: row.data as T,
       metadata: {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -1190,34 +1228,15 @@ class PostgreSQLTransaction implements IDatabaseTransaction {
     data: Partial<T>
   ): Promise<DatabaseDocument<T>> {
     const now = new Date();
-    const updateData = {
-      ...data,
-      updated_at: now,
-      version: { __increment: 1 }
-    };
-
-    const columns = Object.keys(updateData);
-    const values = Object.values(updateData);
-    const setClause = columns.map((col, i) => {
-      if (col === 'version' && updateData[col]?.__increment) {
-        return `version = version + 1`;
-      }
-      return `${col} = $${i + 1}`;
-    }).join(', ');
-
-      const filteredValues = values.filter((val, i) => {
-        const col = columns[i];
-        return !(col === 'version' && typeof val === 'object' && val && '__increment' in val);
-      });
 
     const query = `
       UPDATE ${collection}
-      SET ${setClause}
-      WHERE id = $${filteredValues.length + 1}
+      SET data = data || $1::jsonb, updated_at = $2
+      WHERE id = $3
       RETURNING *
     `;
 
-    const result = await this.client.query(query, [...filteredValues, id]);
+    const result = await this.client.query(query, [JSON.stringify(data), now, id]);
 
     if (result.rows.length === 0) {
       throw new Error('Document not found');
@@ -1226,7 +1245,7 @@ class PostgreSQLTransaction implements IDatabaseTransaction {
     const row = result.rows[0];
     return {
       id: row.id,
-      data: row as T,
+      data: row.data as T,
       metadata: {
         createdAt: row.created_at,
         updatedAt: row.updated_at,

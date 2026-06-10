@@ -41,9 +41,15 @@ export function ConversationHeader({
     }
     
     if (conversation.type === 'direct') {
-      // For direct conversations, show the other participant's name
+      if (conversation.metadata.directUserName) {
+        return conversation.metadata.directUserName
+      }
       const otherParticipant = conversation.participants.find(p => p.userId !== currentUserId)
       return otherParticipant ? `Direct with ${otherParticipant.userId}` : 'Direct conversation'
+    }
+
+    if (conversation.type === 'product') {
+      return conversation.metadata.subject || conversation.metadata.productName || 'Product chat'
     }
     
     return 'Conversation'

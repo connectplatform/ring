@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react'
 import { Search, Plus, Circle } from 'lucide-react'
-import { useConversations } from '@/hooks/use-messaging'
+import type { UseConversationsResult } from '@/hooks/use-messaging'
 import { Conversation } from '@/features/chat/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { getMessageTimeMs } from '@/features/chat/lib/message-time'
 
+export type ConversationInboxProps = Pick<
+  UseConversationsResult,
+  'conversations' | 'loading' | 'error' | 'hasMore' | 'loadMore' | 'refresh'
+>
+
 interface ConversationListProps {
   userId: string
+  inbox: ConversationInboxProps
   onConversationSelectAction: (conversationId: string) => void
   selectedConversationId?: string
   onNewConversationAction?: () => void
@@ -42,8 +48,15 @@ const ConversationItem = ({
     }
     
     if (conversation.type === 'direct') {
+      if (conversation.metadata.directUserName) {
+        return conversation.metadata.directUserName
+      }
       const otherParticipant = conversation.participants.find(p => p.userId !== currentUserId)
       return otherParticipant ? `${otherParticipant.userId}` : 'Direct'
+    }
+
+    if (conversation.type === 'product') {
+      return conversation.metadata.subject || conversation.metadata.productName || 'Product chat'
     }
     
     return 'Conversation'
@@ -110,7 +123,8 @@ const ConversationItem = ({
       <div className="flex-shrink-0 relative">
         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
           {conversation.type === 'entity' ? '🏢' : 
-           conversation.type === 'opportunity' ? '💼' : '👤'}
+           conversation.type === 'opportunity' ? '💼' : 
+           conversation.type === 'product' ? '🛍️' : '👤'}
         </div>
         {isOnline && (
           <Circle className="absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-green-500 text-green-500" />
@@ -152,19 +166,21 @@ const ConversationItem = ({
 
 export function ConversationList({
   userId,
+  inbox,
   onConversationSelectAction,
   selectedConversationId,
   onNewConversationAction,
-  className
+  className,
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const { conversations, loading, error } = useConversations()
+  const { conversations, loading, error, hasMore, loadMore } = inbox
 
   // Filter conversations based on search query
   const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) return conversations
+    const list = conversations ?? []
+    if (!searchQuery.trim()) return list
 
-    return conversations.filter(conversation => {
+    return list.filter(conversation => {
       const title = conversation.type === 'entity' ? conversation.metadata.entityName :
                    conversation.type === 'opportunity' ? conversation.metadata.opportunityName :
                    'Direct conversation'
@@ -241,6 +257,13 @@ export function ConversationList({
                   currentUserId={userId}
                 />
               ))}
+              {hasMore && (
+                <div className="pt-2 pb-1 text-center">
+                  <Button type="button" variant="ghost" size="sm" onClick={loadMore}>
+                    Load more
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

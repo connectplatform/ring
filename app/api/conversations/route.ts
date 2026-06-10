@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     
     // Parse filters from query parameters, with Object.hasOwn() validation
     const filters: ConversationFilters = {}
-    const validFilterKeys = ['type', 'isActive', 'entityId', 'opportunityId'];
+    const validFilterKeys = ['type', 'isActive', 'entityId', 'opportunityId', 'productId'];
     
     // ES2022 Object.hasOwn() for safe query parameter validation
     const queryParams = Object.fromEntries(searchParams.entries());
@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
       if (Object.hasOwn(queryParams, key) && queryParams[key] !== null) {
         switch (key) {
           case 'type':
-            if (['direct', 'entity', 'opportunity'].includes(queryParams[key])) {
-              filters.type = queryParams[key] as 'direct' | 'entity' | 'opportunity'
+            if (['direct', 'entity', 'opportunity', 'product'].includes(queryParams[key])) {
+              filters.type = queryParams[key] as 'direct' | 'entity' | 'opportunity' | 'product'
             }
             break;
           case 'isActive':
@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
             break;
           case 'entityId':
           case 'opportunityId':
+          case 'productId':
             if (typeof queryParams[key] === 'string' && queryParams[key].trim()) {
               filters[key] = queryParams[key];
             }
@@ -179,10 +180,10 @@ export async function POST(request: NextRequest) {
 
     // Enhanced type validation using Object.hasOwn()
     if (!hasOwnProperty(requestData, 'type') || 
-        !['direct', 'entity', 'opportunity'].includes(requestData.type)) {
+        !['direct', 'entity', 'opportunity', 'product'].includes(requestData.type)) {
       return NextResponse.json({
         error: 'Invalid conversation type',
-        validTypes: ['direct', 'entity', 'opportunity'],
+        validTypes: ['direct', 'entity', 'opportunity', 'product'],
         context: { timestamp: requestContext.timestamp }
       }, { status: 400 });
     }

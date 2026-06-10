@@ -16,8 +16,10 @@ import { revalidatePath } from 'next/cache';
 
 // Tunnel protocol for real-time (replaces Firebase RTDB)
 import { publishToChannel } from '@/lib/tunnel/publisher';
+import { ConversationService } from '@/features/chat/services/conversation-service';
 
 export class MessageService {
+  private conversationService = new ConversationService();
   // Real-time handled by Tunnel protocol, no RTDB needed
 
   /**
@@ -408,25 +410,7 @@ export class MessageService {
    */
   private async updateConversationLastMessage(conversationId: string, message: Message): Promise<void> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      const updateResult = await db.update('conversations', conversationId, {
-        lastMessage: {
-          id: message.id,
-          content: message.content,
-          senderId: message.senderId,
-          senderName: message.senderName,
-          timestamp: message.timestamp,
-          type: message.type
-        },
-        lastActivity: message.timestamp,
-        updatedAt: new Date()
-      });
-      
-      if (!updateResult.success) {
-        throw updateResult.error || new Error('Failed to update conversation');
-      }
+      await this.conversationService.touchLastActivity(conversationId, message);
     } catch (error) {
       throw new EntityDatabaseError(
         'Failed to update conversation last message',
