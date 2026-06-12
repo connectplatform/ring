@@ -56,7 +56,7 @@ export async function handleStoreWayForPayWebhook(
       await StoreOrdersService.updateOrderPaymentStatus(orderId, paymentData)
       await StoreOrdersService.adminUpdateOrderStatus(orderId, 'paid')
 
-      const order = (await StoreOrdersService.getOrderWithPaymentDetails(orderId)) as StoreOrder | null
+      const order = await StoreOrdersService.getOrderWithPaymentDetails(orderId)
 
       if (order?.items?.length) {
         try {

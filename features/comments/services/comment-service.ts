@@ -2,15 +2,40 @@
 
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
-import { CommentFormData } from '@/features/comments/types'
+import { Comment, CommentFormData, CommentTargetType } from '@/features/comments/types'
 
 interface CreateCommentResult {
   success: boolean
-  data?: Record<string, unknown>
+  data?: Comment
   error?: string
 }
 
 type CommentRow = Record<string, unknown> & { id: string }
+
+function mapCommentRow(id: string, row: CommentRow): Comment {
+  const toDate = (value: unknown): Date =>
+    value instanceof Date ? value : new Date(String(value ?? Date.now()))
+
+  return {
+    id,
+    content: String(row.content ?? ''),
+    authorId: String(row.author_id ?? row.authorId ?? ''),
+    authorName: String(row.author_name ?? row.authorName ?? 'Anonymous'),
+    authorAvatar: (row.author_avatar ?? row.authorAvatar) as string | undefined,
+    targetId: String(row.target_id ?? row.targetId ?? ''),
+    targetType: String(row.target_type ?? row.targetType ?? 'news') as CommentTargetType,
+    parentId: (row.parent_id ?? row.parentId) as string | undefined,
+    level: Number(row.level ?? 0),
+    likes: Number(row.likes ?? 0),
+    replies: Number(row.replies ?? 0),
+    status: (row.status as Comment['status']) ?? 'active',
+    isEdited: Boolean(row.is_edited ?? row.isEdited),
+    isPinned: Boolean(row.is_pinned ?? row.isPinned),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+    editedAt: row.edited_at || row.editedAt ? toDate(row.edited_at ?? row.editedAt) : undefined,
+  }
+}
 
 export async function createComment(formData: CommentFormData): Promise<CreateCommentResult> {
   try {
@@ -100,15 +125,14 @@ export async function createComment(formData: CommentFormData): Promise<CreateCo
       updated_at: new Date(),
     })
 
-    const commentData = {
-      id: commentId,
-      ...newComment,
-      createdAt: newComment.created_at,
-      updatedAt: newComment.updated_at,
-      editedAt: null,
+    return {
+      success: true,
+      data: mapCommentRow(commentId, {
+        id: commentId,
+        ...newComment,
+        edited_at: null,
+      }),
     }
-
-    return { success: true, data: commentData }
   } catch (error) {
     console.error('Error creating comment:', error)
     return { success: false, error: 'Failed to create comment' }
@@ -200,12 +224,7 @@ export async function updateComment(commentId: string, content: string): Promise
 
     return {
       success: true,
-      data: {
-        id: commentId,
-        ...updatedCommentData,
-        updatedAt: updatedCommentData.updated_at,
-        editedAt: updatedCommentData.edited_at,
-      },
+      data: mapCommentRow(commentId, updatedCommentData),
     }
   } catch (error) {
     console.error('Error updating comment:', error)

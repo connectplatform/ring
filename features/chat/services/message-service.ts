@@ -365,12 +365,16 @@ export class MessageService {
           });
         }
 
+        const rawType = attachment.type || 'file'
+        const attachmentType: MessageAttachment['type'] =
+          rawType === 'image' || rawType === 'document' ? rawType : 'file'
+
         const processedAttachment: MessageAttachment = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           url: attachment.url,
           name: attachment.name || 'unknown',
           size: attachment.size || 0,
-          type: attachment.type || 'unknown',
+          type: attachmentType,
           mimeType: attachment.mimeType || 'application/octet-stream'
         }
         

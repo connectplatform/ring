@@ -59,16 +59,12 @@ export function mapDbQueryRowToSerializedOpportunity(
 }
 
 /** Map flat `{ id, …fields }` documents from `db().*Doc` results. */
-export function mapDbDocumentToOpportunity(
-  doc: Record<string, unknown> & { id: string },
-): Opportunity {
-  const { id, ...data } = doc
+export function mapDbDocumentToOpportunity(doc: { id: string } & object): Opportunity {
+  const { id, ...data } = doc as { id: string } & Record<string, unknown>
   return mapDbRowToOpportunity(id, data)
 }
 
-export function mapDbDocumentToSerializedOpportunity(
-  doc: Record<string, unknown> & { id: string },
-): SerializedOpportunity {
+export function mapDbDocumentToSerializedOpportunity(doc: { id: string } & object): SerializedOpportunity {
   const { id, ...data } = doc
   return mapDbRowToSerializedOpportunity(id, data)
 }

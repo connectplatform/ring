@@ -497,7 +497,10 @@ export async function getUserNotificationPreferences(
   userId: string
 ): Promise<DetailedNotificationPreferences | null> {
   try {
-    const result = await db().readDoc('notification_preferences', userId);
+    const result = await db().readDoc<DetailedNotificationPreferences & Record<string, unknown>>(
+      'notification_preferences',
+      userId
+    );
 
     if (!result.success || !result.data) {
       return null;
@@ -506,7 +509,7 @@ export async function getUserNotificationPreferences(
     const data = result.data;
     return {
       ...data,
-      updatedAt: data.updated_at || new Date()
+      updatedAt: (data.updated_at as Date | string | undefined) ?? data.updatedAt ?? new Date(),
     } as DetailedNotificationPreferences;
 
   } catch (error) {

@@ -1,3 +1,5 @@
+import 'server-only'
+
 import {
   createStreamingLLMClientAsync,
   normalizeStreamMessages,
@@ -14,9 +16,12 @@ import {
   getProductAgentWelcome,
 } from '@/lib/i18n/store-labels'
 import type { Locale } from '@/lib/locale-config'
+import {
+  STORE_AGENT_SENDER_ID,
+  STORE_AGENT_SENDER_NAME,
+} from '@/features/store/lib/product-agent-constants'
 
-export const STORE_AGENT_SENDER_ID = 'ring-store-agent'
-export const STORE_AGENT_SENDER_NAME = 'AI Sales Assistant'
+export { STORE_AGENT_SENDER_ID, STORE_AGENT_SENDER_NAME }
 
 export function buildAgentSystemPrompt(product: StoreProduct): string {
   return `You are a helpful, concise Ring Store sales assistant for one product.

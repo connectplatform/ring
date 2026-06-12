@@ -1,5 +1,6 @@
 // 🚀 Entity Retrieval Service - Ring-native with React 19 cache()
 import { Entity } from '@/features/entities/types'
+import { mapDbRowToSerializedEntity } from '@/features/entities/lib/entity-db-mapper'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
@@ -60,7 +61,7 @@ export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]
     logger.info('Services: getEntitiesBySlug - Executing query with DatabaseService')
 
     // Step 3: Execute query
-    const result = await db().queryDocs({
+    const result = await db().queryDocs<Record<string, unknown> & { id: string }>({
       collection: 'entities',
       orderBy: [{ field: 'dateAdded', direction: 'desc' }],
       pagination: { limit: 200 },
@@ -72,7 +73,9 @@ export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]
     }
 
     // Step 4: Map results and apply filtering
-    let entities = result.data as Entity[]
+    let entities = result.data.map((row) =>
+      mapDbRowToSerializedEntity(row.id, row) as unknown as Entity
+    )
 
     // Filter by slug (array-contains-any equivalent)
     if (slugs.length > 0) {

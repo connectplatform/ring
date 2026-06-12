@@ -7,7 +7,6 @@
  */
 
 import type { DetectedCitation } from './patterns'
-import { createLLMClient, isLLMAvailable } from '@/lib/ai/llm-client'
 
 export type ValidationStatus = 'valid' | 'needs-correction' | 'ambiguous'
 
@@ -175,33 +174,7 @@ export async function batchValidate(citations: DetectedCitation[]): Promise<Cita
     }
   }
 
-  // Pass 2: LLM fallback for ambiguous
-  if (ambiguousIndices.length > 0 && isLLMAvailable()) {
-    try {
-      const llm = createLLMClient(true)
-      const prompts = ambiguousIndices.map((idx) => {
-        const text = citations[idx].text
-        return `Is this a valid APA 7th edition in-text citation? Reply only "valid" or "invalid".\nCitation: "${text}"`
-      })
-
-      const llmResults = await llm.batchComplete(prompts, { temperature: 0.1, maxTokens: 10 })
-
-      for (let j = 0; j < ambiguousIndices.length; j++) {
-        const idx = ambiguousIndices[j]
-        const answer = llmResults[j]?.content?.trim().toLowerCase() ?? ''
-        if (answer.startsWith('valid')) {
-          results[idx] = {
-            citation: citations[idx],
-            status: 'valid',
-            reason: 'APA format confirmed by AI review'
-          }
-        }
-        // 'invalid' or anything else keeps 'needs-correction' from pass 1
-      }
-    } catch {
-      // LLM failure → keep safe fallback (needs-correction) from pass 1
-    }
-  }
+  // LLM fallback runs server-side only (see batchValidateWithLLM) — client editor uses regex pass.
 
   return results
 }

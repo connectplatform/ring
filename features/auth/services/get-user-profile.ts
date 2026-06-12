@@ -5,7 +5,8 @@
  * Uses React 19 cache() for request deduplication
  */
 
-import { AuthUser, UserRole, Wallet, NotificationPreferences, UserSettings } from '@/features/auth/types'
+import { AuthUser, UserRole, NotificationPreferences, UserSettings } from '@/features/auth/types'
+import type { UserRow } from '@/features/auth/lib/user-row'
 import { cache } from 'react'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
@@ -28,7 +29,7 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
 
     console.log('getUserProfile: Authenticated')
 
-    const result = await db().findDocById<Record<string, unknown>>('users', userId)
+    const result = await db().findDocById<UserRow>('users', userId)
 
     if (!result.success || !result.data) {
       console.log('getUserProfile: User not found')
@@ -46,7 +47,7 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
       name: data.name || null,
       role: data.role as UserRole,
       photoURL: data.photoURL || null,
-      wallets: (data.wallets || []) as Wallet[],
+      wallets: data.wallets || [],
       authProvider: data.authProvider,
       authProviderId: data.authProviderId,
       isVerified: data.isVerified || false,
@@ -56,8 +57,8 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
       bio: data.bio || undefined,
       canPostconfidentialOpportunities: data.canPostconfidentialOpportunities || false,
       canViewconfidentialOpportunities: data.canViewconfidentialOpportunities || false,
-      postedopportunities: data.postedopportunities || [],
-      savedopportunities: data.savedopportunities || [],
+      postedopportunities: Array.isArray(data.postedopportunities) ? data.postedopportunities : [],
+      savedopportunities: Array.isArray(data.savedopportunities) ? data.savedopportunities : [],
       nonce: data.nonce,
       nonceExpires: data.nonceExpires,
       notificationPreferences: data.notificationPreferences as NotificationPreferences || {

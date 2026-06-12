@@ -9,9 +9,10 @@ import { z } from 'zod'
 import { cache } from 'react'
 import { orderCreateSchema } from '@/lib/zod'
 import { db } from '@/lib/database'
-import type { StorePayment, VendorSettlement } from '@/features/store/types'
+import type { Order, StoreOrder, StorePayment, VendorSettlement } from '@/features/store/types'
 
-type OrderRow = Record<string, unknown> & { id: string }
+type OrderRow = Order & Record<string, unknown> & { id: string }
+type StoreOrderRow = StoreOrder & Record<string, unknown> & { id: string }
 
 export const StoreOrdersService = {
   listOrdersForUser: cache(async (userId: string, opts?: { limit?: number; startAfter?: string }) => {
@@ -39,12 +40,12 @@ export const StoreOrdersService = {
     }
   }),
 
-  getOrderById: cache(async (id: string) => {
+  getOrderById: cache(async (id: string): Promise<Order | null> => {
     try {
       const result = await db().findDocById<OrderRow>('orders', id)
       if (!result.success || !result.data) return null
       
-      return result.data
+      return result.data as Order
     } catch (error) {
       console.error('[StoreOrdersService] Error getting order by ID:', error)
       throw new Error('Failed to retrieve order')
@@ -187,19 +188,19 @@ export const StoreOrdersService = {
     }
   },
 
-  getOrderWithPaymentDetails: cache(async (id: string) => {
+  getOrderWithPaymentDetails: cache(async (id: string): Promise<StoreOrder | null> => {
     try {
-      const result = await db().findDocById<OrderRow>('orders', id)
+      const result = await db().findDocById<StoreOrderRow>('orders', id)
       if (!result.success || !result.data) return null
       
-      const orderData: OrderRow & { payment?: StorePayment } = { ...result.data }
+      const orderData = { ...result.data } as StoreOrder
       
       if (!orderData.payment) {
         orderData.payment = {
           method: 'wayforpay',
           status: 'pending',
           amount: Number(orderData.total ?? 0),
-          currency: String(orderData.currency ?? 'UAH'),
+          currency: String((result.data as Record<string, unknown>).currency ?? 'UAH'),
         } satisfies StorePayment
       }
       

@@ -13,6 +13,7 @@ import {
 } from '@/features/store/lib/referral-commission'
 import { getMerchantConfigByEntityId } from '@/features/store/lib/merchant-config'
 import type { MerchantConfiguration } from '@/features/store/types/vendor'
+import type { Settlement } from '@/features/store/services/settlement'
 
 export interface ProductReferralRateRow {
   productId: string
@@ -44,10 +45,10 @@ export async function processDueSettlementsAction() {
   return { success: true, batch }
 }
 
-export async function listAllSettlements(limit: number = 50) {
+export async function listAllSettlements(limit: number = 50): Promise<Settlement[]> {
   await assertAdmin()
 
-  const result = await db().queryDocs({
+  const result = await db().queryDocs<Settlement & Record<string, unknown>>({
     collection: 'settlements',
     orderBy: [{ field: 'scheduledFor', direction: 'desc' }],
     pagination: { limit },
@@ -57,10 +58,7 @@ export async function listAllSettlements(limit: number = 50) {
     return []
   }
 
-  return result.data.map((item) => ({
-    id: item.id,
-    ...item,
-  }))
+  return result.data as Settlement[]
 }
 
 export async function listProductReferralRates(limit: number = 50): Promise<ProductReferralRateRow[]> {

@@ -291,7 +291,7 @@ const nextAuthApp = NextAuth({
               if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
                 authLog('Looking up user in PostgreSQL via BackendSelector:', userId)
               }
-              const result = await db().readDoc<Record<string, unknown>>('users', userId)
+              const result = await db().readDoc<import('@/features/auth/lib/user-row').UserRow>('users', userId)
 
               if (!result.success) {
                 if (result.metadata?.operation === 'initialize') {
@@ -306,14 +306,14 @@ const nextAuthApp = NextAuth({
                   authLog('Found user data in PostgreSQL:', { name: userData?.name, email: userData?.email, role: userData?.role })
                 }
                 
-                token.username = userData?.username
-                token.phoneNumber = userData?.phoneNumber
-                token.bio = userData?.bio
-                token.organization = userData?.organization
-                token.position = userData?.position
-                token.photoURL = userData?.photoURL || userData?.image
-                token.role = userData?.role ?? UserRole.SUBSCRIBER
-                token.isVerified = userData?.isVerified ?? false
+                token.username = userData.username as string | undefined
+                token.phoneNumber = userData.phoneNumber as string | undefined
+                token.bio = userData.bio as string | undefined
+                token.organization = userData.organization as string | undefined
+                token.position = userData.position as string | undefined
+                token.photoURL = (userData.photoURL || userData.image) as string | undefined
+                token.role = (userData.role as UserRole | undefined) ?? UserRole.SUBSCRIBER
+                token.isVerified = Boolean(userData.isVerified)
               } else {
                 authLog('User document not found in PostgreSQL for ID:', userId)
               }

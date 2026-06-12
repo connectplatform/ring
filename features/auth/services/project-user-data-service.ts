@@ -71,13 +71,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         pagination: { limit }
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserProjectSession & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query sessions: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserProjectSession[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting sessions:', error);
       throw error;
@@ -130,13 +130,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         orderBy: [{ field: 'created_at', direction: 'desc' as const }]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserProductInteraction & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query interactions: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserProductInteraction[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting interactions:', error);
       throw error;
@@ -219,13 +219,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         orderBy: [{ field: 'created_at', direction: 'desc' as const }]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserFavorite & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query favorites: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserFavorite[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting favorites:', error);
       throw error;
@@ -278,13 +278,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         orderBy: [{ field: 'added_at', direction: 'desc' as const }]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserCartHistory & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query cart history: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserCartHistory[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting cart history:', error);
       throw error;
@@ -332,13 +332,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         pagination: { limit: 100 }
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserSearchHistory & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query search history: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserSearchHistory[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting search history:', error);
       throw error;
@@ -391,13 +391,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         orderBy: [{ field: 'created_at', direction: 'desc' as const }]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserContentEngagement & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query engagement history: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserContentEngagement[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting engagement history:', error);
       throw error;
@@ -467,13 +467,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         ]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserProjectNotification & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query notification settings: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserProjectNotification[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting notification settings:', error);
       throw error;
@@ -521,13 +521,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         orderBy: [{ field: 'created_at', direction: 'desc' as const }]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserProjectAchievement & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query achievements: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserProjectAchievement[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting achievements:', error);
       throw error;
@@ -574,13 +574,13 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         orderBy: [{ field: 'created_at', direction: 'desc' as const }]
       };
 
-      const result = await db().queryDocs(dbQuery);
+      const result = await db().queryDocs<UserProjectFeedback & Record<string, unknown>>(dbQuery);
 
       if (!result.success) {
         throw new Error(`Failed to query feedback: ${result.error}`);
       }
 
-      return result.data ?? [];
+      return (result.data ?? []) as UserProjectFeedback[];
     } catch (error) {
       console.error('ProjectUserDataService - Error getting feedback:', error);
       throw error;

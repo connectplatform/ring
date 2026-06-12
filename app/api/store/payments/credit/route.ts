@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     })
     await StoreOrdersService.adminUpdateOrderStatus(body.orderId, 'paid')
 
-    const paidOrder = (await StoreOrdersService.getOrderWithPaymentDetails(body.orderId)) as StoreOrder | null
+    const paidOrder = await StoreOrdersService.getOrderWithPaymentDetails(body.orderId)
     if (paidOrder) {
       if (paidOrder.items?.length) {
         try {

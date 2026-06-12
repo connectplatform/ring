@@ -339,10 +339,11 @@ export function PostgreSQLAdapter(): Adapter {
         return null
       }
 
+      const row = result.data as Record<string, unknown>
       return {
-        sessionToken: result.data.sessionToken as string,
-        userId: result.data.userId as string,
-        expires: result.data.expires as Date,
+        sessionToken,
+        userId: String(row.userId ?? session.userId ?? existingSession.userId),
+        expires: (row.expires ?? session.expires) as Date,
       } as AdapterSession
     },
 

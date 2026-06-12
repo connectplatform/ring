@@ -95,7 +95,7 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
       })
 
       // Step 7: Fetch and return the updated opportunity
-      const updatedResult = await db().findDocById<Opportunity & { id: string }>('opportunities', id)
+      const updatedResult = await db().findDocById<Record<string, unknown> & { id: string }>('opportunities', id)
 
       if (!updatedResult.success || !updatedResult.data) {
         throw new Error('Failed to retrieve updated opportunity');

@@ -7,7 +7,17 @@ import {
   computeCatalogPriceBounds,
 } from '@/lib/store-price-range'
 
-type ProductRow = Record<string, unknown> & { id: string }
+type ProductRow = Record<string, unknown> & {
+  id: string
+  name: string
+  price?: string | number | null
+  description?: string | null
+  category?: string | null
+  stock?: number | null
+  inStock?: boolean
+  vendorId?: string | null
+  vendorName?: string | null
+}
 
 function parseCatalogFilters(searchParams: URLSearchParams): Pick<
   StoreFilterState,
@@ -53,10 +63,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...empty, productCount: 0 })
     }
 
-    const catalogProducts = applyCatalogFilters(
-      result.data as Parameters<typeof applyCatalogFilters>[0],
-      catalogFilters,
-    )
+    const catalogProducts = applyCatalogFilters(result.data, catalogFilters)
     const bounds = computeCatalogPriceBounds(catalogProducts)
 
     return NextResponse.json({

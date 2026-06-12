@@ -37,7 +37,7 @@ async function getOrder(id: string): Promise<Order | null> {
     const order = await StoreOrdersService.getOrderById(id);
     
     console.log('getOrder: Order fetched successfully', { orderExists: !!order });
-    return order as Order | null;
+    return order;
   } catch (error) {
     console.error('getOrder: Error during service call:', error);
     return null;

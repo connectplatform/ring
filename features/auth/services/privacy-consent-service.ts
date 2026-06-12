@@ -5,6 +5,7 @@
 
 import { cache } from 'react';
 import { PrivacyConsent } from '@/features/auth/types';
+import type { UserRow } from '@/features/auth/lib/user-row';
 import { db } from '@/lib/database';
 import { auth } from '@/auth';
 
@@ -31,7 +32,7 @@ export class PrivacyConsentService {
     console.log(`🔒 PrivacyConsentService - Getting consent for user ${userId}`);
 
     try {
-      const result = await db().readDoc<Record<string, unknown>>('users', userId);
+      const result = await db().readDoc<UserRow>('users', userId);
 
       if (!result.success || !result.data) {
         console.log(`PrivacyConsentService - No user data found for ${userId}`);
@@ -46,14 +47,19 @@ export class PrivacyConsentService {
       }
 
       return {
-        dataSharingConsent: userData.data_sharing_consent,
-        anonymizedResearchConsent: userData.anonymized_research_consent || false,
-        contactPreferences: userData.contact_preferences || {
+        dataSharingConsent: userData.data_sharing_consent ?? {
+          analytics: false,
+          personalization: false,
+          notifications: false,
+          research: false,
+        },
+        anonymizedResearchConsent: Boolean(userData.anonymized_research_consent),
+        contactPreferences: userData.contact_preferences ?? {
           marketing: false,
           opportunities: true,
           system: true,
-          evolution: true
-        }
+          evolution: true,
+        },
       };
     } catch (error) {
       console.error('PrivacyConsentService - Error getting user consent:', error);
