@@ -12,6 +12,8 @@
   },
   "settings": {
     "title": "Настройки платформы (СуперАдмин)",
+    "subtitle": "Настройте AI-провайдеров, брендинг и глобальные параметры платформы.",
+    "navTitle": "Разделы",
     "projectName": "Название проекта",
     "shortDescription": "Краткое описание",
     "extendedDescription": "Расширенное описание",
@@ -33,7 +35,50 @@
     "customEntityCategories": "Пользовательские категории сущностей",
     "customEntityPlaceholder": "По одной на строку, например: Стартап, НГО, МСП",
     "reset": "Сбросить",
-    "save": "Сохранить настройки"
+    "save": "Сохранить настройки",
+    "sections": {
+      "ai": {
+        "nav": "AI и LLM",
+        "title": "Конфигурация AI и LLM",
+        "description": "Провайдер, модели, API-ключи, matcher и параметры product agent.",
+        "provider": "Основной провайдер",
+        "model": "Модель",
+        "streamingStrategy": "Стратегия стриминга",
+        "streaming": {
+          "env_then_grok": "Env-провайдер, fallback Grok",
+          "env_only": "Только env-провайдер",
+          "grok_only": "Только xAI Grok"
+        },
+        "streamingHint": {
+          "env_then_grok": "Использовать настроенный провайдер для SSE при наличии ключей; иначе xAI Grok.",
+          "env_only": "Никогда не использовать Grok fallback для стриминга.",
+          "grok_only": "Принудительно xAI Grok для всего стримингового чата."
+        },
+        "apiKeys": "API-ключи",
+        "keySet": "настроено",
+        "keyPlaceholder": "Вставьте ключ для установки или замены",
+        "matcher": {
+          "scoreThreshold": "Порог оценки совпадения (0–1)",
+          "maxMatches": "Макс. совпадений на возможность",
+          "autoApprove": "Авто-одобрение возможностей по LLM-совпадению",
+          "autoApproveHelp": "Только проверенные LLM совпадения; базовый fallback никогда не авто-одобряет.",
+          "autoApproveMinScore": "Мин. оценка для авто-одобрения (0–1)"
+        },
+        "productAgent": {
+          "maxTokens": "Макс. токенов product agent",
+          "temperature": "Температура product agent"
+        },
+        "testConnection": "Проверить соединение",
+        "testing": "Проверка…",
+        "save": "Сохранить AI-настройки",
+        "lastUpdated": "Последнее обновление {at}"
+      },
+      "branding": {
+        "nav": "Брендинг",
+        "title": "Брендинг и функции",
+        "description": "Название проекта, цвета темы, флаги функций и категории сущностей."
+      }
+    }
   },
   "matcher": {
     "title": "AI Matcher Analytics",
@@ -166,7 +211,101 @@
   "moderation": "Модерация",
   "performance": "Производительность",
   "security": "Безопасность",
-  "store": "Магазин"
+  "store": "Магазин",
+  "refcodes": "Реферальные награды",
+  "matcherModeration": {
+    "tab": "Модерация организаций",
+    "title": "Жалобы на организации",
+    "subtitle": "Жалобы пользователей сгруппированы по организации. Глобальная блокировка убирает из поиска и matcher.",
+    "refresh": "Обновить",
+    "empty": "Очередь жалоб пуста.",
+    "reportCount": "{count} жалоб",
+    "reporter": "Автор: {id}",
+    "blockGlobally": "Заблокировать глобально",
+    "confirmBlock": "Заблокировать эту организацию для всех пользователей и убрать из поиска?",
+    "adminBlockReason": "Заблокировано администратором из очереди модерации matcher"
+  },
+  "storeHub": {
+    "orders": "Заказы",
+    "stock": "Склад",
+    "commissions": "Комиссии",
+    "stockTitle": "Складской учёт",
+    "commissionsTitle": "Комиссии и выплаты продавцам",
+    "initializeStock": "Инициализировать склад (100 ед.)",
+    "initializingStock": "Инициализация…",
+    "stockSummary": "Сводка по запасам",
+    "lowStock": "Низкий остаток",
+    "movements": "Последние движения",
+    "product": "Товар",
+    "stock": "Остаток",
+    "movementType": "Тип",
+    "quantityChange": "Изменение",
+    "timestamp": "Когда",
+    "processPayouts": "Обработать выплаты",
+    "processingPayouts": "Обработка…",
+    "pendingSettlements": "Ожидающие расчёты",
+    "vendor": "Продавец",
+    "netPayout": "К выплате",
+    "commission": "Комиссия",
+    "status": "Статус",
+    "scheduledFor": "Запланировано",
+    "noSettlements": "Записей о расчётах пока нет.",
+    "totalProductsLabel": "Всего товаров",
+    "inStockLabel": "В наличии",
+    "lowStockCountLabel": "Низкий остаток",
+    "criticalLabel": "Критический",
+    "outOfStockLabel": "Нет в наличии",
+    "inventoryValueLabel": "Стоимость запасов",
+    "noLowStockAlerts": "Нет предупреждений о низком остатке.",
+    "noMovementsYet": "Движений по складу пока не зафиксировано.",
+    "stockUnits": "{count} ед.",
+    "initStockError": "Не удалось инициализировать склад",
+    "settlementsTable": "Расчёты",
+    "confirmProcessPayouts": "Обработать все подлежащие выплаты продавцам сейчас?",
+    "noSettlementsDueMessage": "Нет расчётов, готовых к обработке.",
+    "batchComplete": "Пакет {batchId}: {completed} выполнено, {failed} с ошибкой.",
+    "processSettlementsError": "Не удалось обработать расчёты",
+    "inclReferral": "вкл. реферал {amount}",
+    "effectiveReferralRate": "эффективно {percent}%",
+    "simulatedBadge": "Симуляция",
+    "referralRatesTitle": "Реферальные ставки товаров",
+    "referralRatesProduct": "Товар",
+    "referralRatesVendor": "Сущность продавца",
+    "referralRatesPercent": "Эффективная %",
+    "referralRatesSource": "Источник",
+    "referralRatesEmpty": "Каталог товаров пуст.",
+    "referralSource": {
+      "product": "Переопределение товара",
+      "merchant": "Конфиг продавца",
+      "default": "Дефолт платформы",
+      "env": "Дефолт из env"
+    },
+    "ordersPage": {
+      "title": "Заказы",
+      "allStatuses": "Все статусы",
+      "refresh": "Обновить",
+      "refreshing": "Обновление…",
+      "errorPrefix": "Ошибка",
+      "updateStatusError": "Не удалось обновить статус заказа",
+      "noOrders": "Заказов нет.",
+      "noOrdersWithStatus": "Нет заказов со статусом «{status}».",
+      "orderNumber": "Заказ #{id}",
+      "statusLabel": "Статус",
+      "userLabel": "Пользователь",
+      "createdLabel": "Создан",
+      "itemsLabel": "Товары",
+      "update": "Обновить",
+      "updating": "Обновление…",
+      "statuses": {
+        "new": "Новый",
+        "paid": "Оплачен",
+        "processing": "Обработка",
+        "shipped": "Отправлен",
+        "completed": "Завершён",
+        "canceled": "Отменён"
+      }
+    }
+  }
 }
 
 

@@ -13,6 +13,7 @@ import { auth } from '@/auth'
 import { connection } from 'next/server'
 import { headers } from 'next/headers'
 import { UserRole } from '@/features/auth/types'
+import { AppContentShell } from '@/components/layout/ring-app-shell'
 
 interface ConfidentialLocaleLayoutProps {
   children: React.ReactNode
@@ -60,7 +61,7 @@ export default async function ConfidentialLocaleLayout({ children, params }: Con
           <Navigation />
           <Suspense
             fallback={
-              <main className="flex-grow">
+              <main className="flex-grow md:pl-(--sidebar-total-w)">
                 <div className="animate-pulse p-6 space-y-4">
                   <div className="h-8 bg-muted rounded w-1/3"></div>
                   <div className="h-64 bg-muted rounded"></div>
@@ -105,6 +106,10 @@ async function ConfidentialAuthGuard({
     localizedRedirect({ locale, href: '/unauthorized' })
   }
 
-  return <main className="flex-grow">{children}</main>
+  return (
+    <main className="flex-grow md:pl-(--sidebar-total-w)">
+      <AppContentShell>{children}</AppContentShell>
+    </main>
+  )
 }
 

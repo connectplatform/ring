@@ -8,7 +8,7 @@ import { UserRole, AuthUser } from '@/features/auth/types';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -48,18 +48,7 @@ export async function getUsersByRole(
 
     console.log(`Services: getUsersByRole - User authenticated with ID ${currentUserId} and role ${currentUserRole}`);
 
-    // Step 2: Database setup
-    console.log('Services: getUsersByRole - Initializing database service');
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      console.error('Services: getUsersByRole - Database initialization failed:', initResult.error);
-      return { users: [], lastVisible: null };
-    }
-
-    const dbService = getDatabaseService();
-
-    // Step 3: Build query for users with specific role
-    const querySpec = {
+    const queryResult = await db().queryDocs<Record<string, unknown>>({
       collection: 'users',
       filters: [{
         field: 'role',
@@ -71,10 +60,8 @@ export async function getUsersByRole(
         limit: limit,
         ...(lastUserId && { offset: 0 }) // For simplicity, not implementing cursor-based pagination yet
       }
-    };
+    });
 
-    // Step 4: Execute query
-    const queryResult = await dbService.query(querySpec);
     if (!queryResult.success) {
       console.error('Services: getUsersByRole - Query failed:', queryResult.error);
       return { users: [], lastVisible: null };
@@ -83,17 +70,16 @@ export async function getUsersByRole(
     const users: Partial<AuthUser>[] = [];
     let lastVisible: string | null = null;
 
-    for (const doc of queryResult.data) {
-      const userData = doc.data;
+    for (const row of queryResult.data) {
       users.push({
-        id: doc.id,
-        name: userData?.name,
-        email: userData?.email,
-        role: userData?.role,
-        photoURL: userData?.photoURL || userData?.image,
-        createdAt: userData?.createdAt,
+        id: row.id,
+        name: row.name as string | undefined,
+        email: row.email as string | undefined,
+        role: row.role as UserRole | undefined,
+        photoURL: (row.photoURL as string | undefined) || (row.image as string | undefined),
+        createdAt: row.createdAt as Date | undefined,
       });
-      lastVisible = doc.id;
+      lastVisible = row.id;
     }
 
     console.log(`Services: getUsersByRole - Retrieved ${users.length} users with role ${role}`);
@@ -104,4 +90,3 @@ export async function getUsersByRole(
     return { users: [], lastVisible: null }; // Return empty array in case of error
   }
 }
-

@@ -3,47 +3,33 @@
  *
  * Domain service for order lifecycle (create, list, status, payments).
  * React 19 cache() for read operations; no cache() for mutations.
- *
- * TBD (Connect Platform OTT order bus): resolve collection/backend via ring-backend
- * selection — postgres | connect | hybrid — not hard-coded `orders` + getDatabaseService().
- * Ring app code should call StoreOrdersService only; this service maps to the configured
- * store/order adapter (PostgreSQLStoreAdapter today, ConnectPlatformStoreAdapter later).
- *
- * Migration note: `store_orders` is legacy (adapter.checkout path). Canonical target is
- * `orders` for all marketplace checkout; migrate then drop `store_orders`.
  */
 
 import { z } from 'zod'
 import { cache } from 'react'
 import { orderCreateSchema } from '@/lib/zod'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import type { StorePayment, VendorSettlement } from '@/features/store/types'
+
+type OrderRow = Record<string, unknown> & { id: string }
 
 export const StoreOrdersService = {
   listOrdersForUser: cache(async (userId: string, opts?: { limit?: number; startAfter?: string }) => {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
       const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
       
-      const result = await db.query({
+      const result = await db().queryDocs<OrderRow>({
         collection: 'orders',
         filters: [{ field: 'userId', operator: '=', value: userId }],
         orderBy: [{ field: 'createdAt', direction: 'desc' }],
         pagination: { limit }
       })
       
-      if (!result.success || !result.data) {
+      if (!result.success) {
         return { items: [], lastVisible: null }
       }
       
-      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      const items = data.map(item => ({
-        id: item.id,
-        ...(item.data || item)
-      }))
-      
+      const items = result.data
       const lastVisible = items.length > 0 ? items[items.length - 1].id : null
         
       return { items, lastVisible }
@@ -55,35 +41,35 @@ export const StoreOrdersService = {
 
   getOrderById: cache(async (id: string) => {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      const result = await db.findById('orders', id)
+      const result = await db().findDocById<OrderRow>('orders', id)
       if (!result.success || !result.data) return null
       
-      const data = result.data.data || result.data
-      return { id, ...data }
+      return result.data
     } catch (error) {
       console.error('[StoreOrdersService] Error getting order by ID:', error)
       throw new Error('Failed to retrieve order')
     }
   }),
 
-  async createOrder(userId: string, data: z.infer<typeof orderCreateSchema>) {
+  async createOrder(
+    userId: string,
+    data: z.infer<typeof orderCreateSchema>,
+    referral?: { referralCode?: string; referrerUserId?: string; referrerWallet?: string }
+  ) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
       const now = new Date().toISOString()
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const orderData = { 
         ...data, 
         userId, 
         status: data.status || 'new', 
-        createdAt: now 
+        createdAt: now,
+        ...(referral?.referralCode ? { referralCode: referral.referralCode } : {}),
+        ...(referral?.referrerUserId ? { referrerUserId: referral.referrerUserId } : {}),
+        ...(referral?.referrerWallet ? { referrerWallet: referral.referrerWallet } : {}),
       }
       
-      const result = await db.create('orders', orderData, { id: orderId })
+      const result = await db().createDoc('orders', orderData, { id: orderId })
       if (!result.success) {
         throw new Error('Failed to create order')
       }
@@ -95,39 +81,61 @@ export const StoreOrdersService = {
     }
   },
 
+  listOrdersForVendor: cache(async (vendorEntityId: string, opts?: { limit?: number }) => {
+    try {
+      const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
+
+      const result = await db().queryDocs<OrderRow>({
+        collection: 'orders',
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        pagination: { limit: 200 },
+      })
+
+      if (!result.success) {
+        return { items: [], lastVisible: null }
+      }
+
+      const items = result.data
+        .filter((order) =>
+          Array.isArray(order.vendorSettlements) &&
+          (order.vendorSettlements as VendorSettlement[]).some(
+            (s) => s.vendorId === vendorEntityId || (s as { vendorEntityId?: string }).vendorEntityId === vendorEntityId
+          ),
+        )
+        .slice(0, limit)
+
+      return { items, lastVisible: items.length > 0 ? items[items.length - 1].id : null }
+    } catch (error) {
+      console.error('[StoreOrdersService] Error listing vendor orders:', error)
+      return { items: [], lastVisible: null }
+    }
+  }),
+
   adminListAllOrders: cache(async (opts?: { 
     limit?: number; 
     startAfter?: string; 
     statusFilter?: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled';
   }) => {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
       const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100)
       
-      const filters: any[] = []
+      const filters: { field: string; operator: string; value: unknown }[] = []
       if (opts?.statusFilter) {
         filters.push({ field: 'status', operator: '=', value: opts.statusFilter })
       }
       
-      const result = await db.query({
+      const result = await db().queryDocs<OrderRow>({
         collection: 'orders',
         filters,
         orderBy: [{ field: 'createdAt', direction: 'desc' }],
         pagination: { limit }
       })
       
-      if (!result.success || !result.data) {
+      if (!result.success) {
         return { items: [], lastVisible: null }
       }
       
-      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      const items = data.map(item => ({
-        id: item.id,
-        ...(item.data || item)
-      }))
-      
+      const items = result.data
       const lastVisible = items.length > 0 ? items[items.length - 1].id : null
         
       return { items, lastVisible }
@@ -139,10 +147,7 @@ export const StoreOrdersService = {
 
   async adminUpdateOrderStatus(id: string, status: 'new' | 'paid' | 'processing' | 'shipped' | 'completed' | 'canceled') {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', id, { 
+      await db().updateDoc('orders', id, {
         status, 
         updatedAt: new Date().toISOString() 
       })
@@ -156,10 +161,7 @@ export const StoreOrdersService = {
 
   async updateOrderPaymentStatus(id: string, paymentData: StorePayment) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', id, {
+      await db().updateDoc('orders', id, {
         payment: paymentData,
         updatedAt: new Date().toISOString()
       })
@@ -173,10 +175,7 @@ export const StoreOrdersService = {
 
   async updateOrderSettlements(id: string, settlements: VendorSettlement[]) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', id, {
+      await db().updateDoc('orders', id, {
         vendorSettlements: settlements,
         updatedAt: new Date().toISOString()
       })
@@ -190,21 +189,18 @@ export const StoreOrdersService = {
 
   getOrderWithPaymentDetails: cache(async (id: string) => {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      const result = await db.findById('orders', id)
+      const result = await db().findDocById<OrderRow>('orders', id)
       if (!result.success || !result.data) return null
       
-      const data = result.data.data || result.data
-      const orderData: any = { id, ...data }
+      const orderData: OrderRow & { payment?: StorePayment } = { ...result.data }
       
-      // Ensure payment data is included
       if (!orderData.payment) {
         orderData.payment = {
           method: 'wayforpay',
-          status: 'pending'
-        }
+          status: 'pending',
+          amount: Number(orderData.total ?? 0),
+          currency: String(orderData.currency ?? 'UAH'),
+        } satisfies StorePayment
       }
       
       return orderData
@@ -214,4 +210,3 @@ export const StoreOrdersService = {
     }
   })
 }
-

@@ -9,9 +9,10 @@
  */
 
 import { cache } from 'react';
-import type { Opportunity } from '@/features/opportunities/types';
+import type { SerializedOpportunity } from '@/features/opportunities/types';
 import type { UserProfile, UserMatch, MatchFactors, OpportunityInput, LLMConfig } from './types';
-import { createLLMClient, isLLMAvailable } from './llm-client';
+import { createLLMClientAsync, isLLMAvailableAsync } from './llm-client';
+import type { LLMClient } from './llm-client';
 import { AIOperationError, LLMServiceError } from './types';
 import { logger } from '@/lib/logger';
 
@@ -29,9 +30,25 @@ export interface Match {
  * Falls back to baseline heuristics when LLM is unavailable.
  */
 export class Matcher {
-  private llmClient = createLLMClient();
-  private readonly maxMatches = parseInt(process.env.MAX_MATCHES_PER_OPPORTUNITY || '10');
-  private readonly minMatchScore = parseFloat(process.env.MATCHING_SCORE_THRESHOLD || '0.7');
+  private matcherLimits = {
+    maxMatches: parseInt(process.env.MAX_MATCHES_PER_OPPORTUNITY || '10', 10),
+    minMatchScore: parseFloat(process.env.MATCHING_SCORE_THRESHOLD || '0.7'),
+  };
+
+  private async ensureMatcherConfig(): Promise<void> {
+    const { getResolvedAIConfig } = await import(
+      '@/features/admin/platform-settings/resolved-ai-config'
+    );
+    const resolved = await getResolvedAIConfig();
+    this.matcherLimits = {
+      maxMatches: resolved.matcher.maxMatches,
+      minMatchScore: resolved.matcher.scoreThreshold,
+    };
+  }
+
+  private async getLlmClient(): Promise<LLMClient> {
+    return createLLMClientAsync();
+  }
 
   /**
    * Cached user profiles lookup - React 19 cache() prevents duplicate API calls
@@ -39,9 +56,8 @@ export class Matcher {
    */
   getUserProfilesForMatching = cache(async (): Promise<UserProfile[]> => {
     try {
-      // This would be replaced with actual database call
-      // For now, return empty array as placeholder
-      return [];
+      const { loadCandidateProfiles } = await import('@/lib/ai/user-profile-loader');
+      return await loadCandidateProfiles();
     } catch (error) {
       logger.warn('Failed to fetch user profiles for matching', { error });
       return [];
@@ -52,7 +68,7 @@ export class Matcher {
    * Cached opportunity conversion - React 19 cache() ensures same opportunity
    * is only converted once per request cycle
    */
-  convertToOpportunityInputCached = cache((opportunity: Opportunity): OpportunityInput => {
+  convertToOpportunityInputCached = cache((opportunity: SerializedOpportunity): OpportunityInput => {
     return this.convertToOpportunityInput(opportunity);
   });
 
@@ -70,9 +86,11 @@ export class Matcher {
     return this.llmBasedMatching(opportunity, userProfiles);
   });
 
-  async match(opportunity: Opportunity): Promise<Match[]> {
+  async match(opportunity: SerializedOpportunity): Promise<Match[]> {
     try {
       logger.info('Matcher: Starting opportunity matching', { opportunityId: opportunity.id });
+
+      await this.ensureMatcherConfig();
 
       // Convert opportunity to standardized input format (cached)
       const opportunityInput = this.convertToOpportunityInputCached(opportunity);
@@ -86,7 +104,7 @@ export class Matcher {
       }
 
       // Use LLM for intelligent matching if available (cached)
-      if (isLLMAvailable()) {
+      if (await isLLMAvailableAsync()) {
         return await this.llmBasedMatchingCached(opportunityInput, userProfiles);
       } else {
         logger.warn('Matcher: LLM unavailable, falling back to baseline matching');
@@ -121,8 +139,8 @@ export class Matcher {
       // Sort by score and limit results
       const sortedMatches = matches
         .sort((a, b) => b.score - a.score)
-        .slice(0, this.maxMatches)
-        .filter(match => match.score >= this.minMatchScore * 100);
+        .slice(0, this.matcherLimits.maxMatches)
+        .filter(match => match.score >= this.matcherLimits.minMatchScore * 100);
 
       logger.info('Matcher: LLM matching completed', {
         totalUsers: userProfiles.length,
@@ -151,7 +169,8 @@ export class Matcher {
     const batchPrompt = this.createBatchMatchingPrompt(opportunity, userProfiles);
 
     try {
-      const response = await this.llmClient.complete(batchPrompt, {
+      const llmClient = await this.getLlmClient();
+      const response = await llmClient.complete(batchPrompt, {
         temperature: 0.3, // Lower temperature for consistent scoring
         maxTokens: 2000
       });
@@ -161,7 +180,7 @@ export class Matcher {
       // Convert analysis results to Match objects
       for (const result of analysis) {
         const userProfile = userProfiles.find(u => u.id === result.userId);
-        if (userProfile && result.score >= this.minMatchScore * 100) {
+        if (userProfile && result.score >= this.matcherLimits.minMatchScore * 100) {
           matches.push({
             id: result.userId,
             score: result.score,
@@ -201,14 +220,15 @@ export class Matcher {
     const prompt = this.createIndividualMatchingPrompt(opportunity, userProfile);
 
     try {
-      const response = await this.llmClient.complete(prompt, {
+      const llmClient = await this.getLlmClient();
+      const response = await llmClient.complete(prompt, {
         temperature: 0.3,
         maxTokens: 800
       });
 
       const analysis = this.parseIndividualMatchingResponse(response.content);
 
-      if (analysis.score >= this.minMatchScore * 100) {
+      if (analysis.score >= this.matcherLimits.minMatchScore * 100) {
         return {
           id: userProfile.id,
           score: analysis.score,
@@ -231,14 +251,14 @@ export class Matcher {
    * Baseline heuristic matching (fallback when LLM unavailable)
    */
   private async baselineMatching(
-    opportunity: Opportunity,
+    opportunity: SerializedOpportunity,
     userProfiles: UserProfile[]
   ): Promise<Match[]> {
     const matches: Match[] = [];
 
     for (const user of userProfiles) {
       const score = this.calculateBaselineScore(opportunity, user);
-      if (score >= this.minMatchScore * 100) {
+      if (score >= this.matcherLimits.minMatchScore * 100) {
         matches.push({
           id: user.id,
           score,
@@ -249,13 +269,13 @@ export class Matcher {
 
     return matches
       .sort((a, b) => b.score - a.score)
-      .slice(0, this.maxMatches);
+      .slice(0, this.matcherLimits.maxMatches);
   }
 
   /**
    * Convert Opportunity to OpportunityInput format
    */
-  private convertToOpportunityInput(opportunity: Opportunity): OpportunityInput {
+  private convertToOpportunityInput(opportunity: SerializedOpportunity): OpportunityInput {
     return {
       id: opportunity.id,
       type: opportunity.type,
@@ -332,7 +352,7 @@ INSTRUCTIONS:
 1. Analyze each user's skills, experience, and preferences against the opportunity requirements
 2. Calculate match scores (0-100) based on skill alignment, experience fit, location compatibility, and budget expectations
 3. Provide a 160-character explanation for each match explaining why it's a good fit
-4. Focus on the top ${this.maxMatches} matches with scores >= ${this.minMatchScore * 100}
+4. Focus on the top ${this.matcherLimits.maxMatches} matches with scores >= ${this.matcherLimits.minMatchScore * 100}
 
 Return JSON format:
 [{
@@ -472,7 +492,7 @@ Return JSON format:
   /**
    * Calculate baseline matching score (fallback method)
    */
-  private calculateBaselineScore(opportunity: Opportunity, user: UserProfile): number {
+  private calculateBaselineScore(opportunity: SerializedOpportunity, user: UserProfile): number {
     let score = 0;
 
     // Skill matching (40% weight)
@@ -499,7 +519,7 @@ Return JSON format:
   /**
    * Helper methods for baseline matching
    */
-  private getMatchingSkills(opportunity: Opportunity, user: UserProfile): string[] {
+  private getMatchingSkills(opportunity: SerializedOpportunity, user: UserProfile): string[] {
     const oppSkills = opportunity.requiredSkills || [];
     return oppSkills.filter(skill =>
       user.skills.some(userSkill =>
@@ -509,7 +529,7 @@ Return JSON format:
     );
   }
 
-  private getMatchingTags(opportunity: Opportunity, user: UserProfile): string[] {
+  private getMatchingTags(opportunity: SerializedOpportunity, user: UserProfile): string[] {
     const oppTags = opportunity.tags || [];
     // Simple tag matching - in real implementation would use more sophisticated matching
     return oppTags.filter(tag =>
@@ -518,7 +538,7 @@ Return JSON format:
     );
   }
 
-  private getLocationScore(opportunity: Opportunity, user: UserProfile): number {
+  private getLocationScore(opportunity: SerializedOpportunity, user: UserProfile): number {
     if (!opportunity.location || !user.location) return 50; // Neutral score if location not specified
 
     const oppLocation = opportunity.location.toLowerCase();
@@ -531,7 +551,7 @@ Return JSON format:
     return 25; // Different locations
   }
 
-  private getExperienceScore(opportunity: Opportunity, user: UserProfile): number {
+  private getExperienceScore(opportunity: SerializedOpportunity, user: UserProfile): number {
     // Simple experience level matching
     const oppLevel = this.inferExperienceLevel(opportunity);
     const userLevel = user.experienceLevel;
@@ -548,7 +568,7 @@ Return JSON format:
     return Math.max(100 - diff * 25, 25);
   }
 
-  private inferExperienceLevel(opportunity: Opportunity): string {
+  private inferExperienceLevel(opportunity: SerializedOpportunity): string {
     const description = (opportunity.briefDescription + ' ' + (opportunity.fullDescription || '')).toLowerCase();
     if (description.includes('lead') || description.includes('senior') || description.includes('expert')) return 'senior';
     if (description.includes('mid') || description.includes('intermediate')) return 'mid';
@@ -556,14 +576,14 @@ Return JSON format:
     return 'mid'; // Default
   }
 
-  private inferUrgency(opportunity: Opportunity): string {
+  private inferUrgency(opportunity: SerializedOpportunity): string {
     const description = (opportunity.briefDescription + ' ' + (opportunity.fullDescription || '')).toLowerCase();
     if (description.includes('urgent') || description.includes('asap') || description.includes('immediately')) return 'high';
     if (description.includes('soon') || description.includes('quick')) return 'medium';
     return 'low';
   }
 
-  private inferWorkType(opportunity: Opportunity): string {
+  private inferWorkType(opportunity: SerializedOpportunity): string {
     const description = (opportunity.briefDescription + ' ' + (opportunity.fullDescription || '')).toLowerCase();
     if (description.includes('contract') || description.includes('freelance')) return 'contract';
     if (description.includes('part-time') || description.includes('part time')) return 'part-time';
@@ -573,7 +593,7 @@ Return JSON format:
 }
 
 // Export helper function for backward compatibility
-export async function generateOpportunityEmbedding(opportunity: Opportunity): Promise<number[]> {
+export async function generateOpportunityEmbedding(opportunity: SerializedOpportunity): Promise<number[]> {
   // Placeholder - maintain compatibility with existing code
   // In the new system, embeddings are handled by the LLM client
   const tags = (opportunity.tags || []).slice(0, 16);

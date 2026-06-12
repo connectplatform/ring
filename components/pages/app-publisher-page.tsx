@@ -71,14 +71,8 @@ const appPublisherPage: React.FC<appPublisherPageProps> = ({
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Three-column layout for desktop — publisher page spans feed + options columns */}
-      <div className="grid grid-cols-[280px_1fr] gap-6 min-h-screen">
-        {/* Left Sidebar - Navigation */}
-        <div className="hidden lg:block">
-          {/* We can add a minimal sidebar or leave it empty for now */}
-        </div>
-
-        {/* Main Content - Spans across feed and options columns */}
-        <div className="lg:ml-0 lg:mr-0 mr-4 ml-4">
+      <div className="min-h-screen">
+        <div className="mr-4 ml-4">
           {/* Hero Section */}
           <motion.section
             className="relative py-20 px-4 bg-gradient-to-br from-blue-50 via-white to-yellow-50 dark:from-blue-950/20 dark:via-background dark:to-yellow-950/20"

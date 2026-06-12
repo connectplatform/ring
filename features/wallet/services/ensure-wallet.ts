@@ -10,7 +10,7 @@ import { UserRole, Wallet, AuthUser } from '@/features/auth/types';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 /**
  * Ensures that the authenticated user has at least one wallet.
@@ -58,22 +58,19 @@ export async function ensureWallet(userOverride?: { id: string; role: string }):
     }
 
     // Step 3: Retrieve user document using database abstraction layer
-    console.log(`🔐 Services: ensureWallet - Initializing database service`)
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      console.error(`🔐 Services: ensureWallet - Database initialization failed:`, initResult.error)
-      throw new Error('Database initialization failed')
-    }
-
-    const dbService = getDatabaseService()
-    const userResult = await dbService.read('users', userId)
+    console.log(`🔐 Services: ensureWallet - Fetching user document`)
+    const userResult = await db().findDocById<{ wallets?: Wallet[] } & Record<string, unknown>>('users', userId)
 
     if (!userResult.success) {
+      if (userResult.metadata?.operation === 'initialize') {
+        console.error(`🔐 Services: ensureWallet - Database initialization failed:`, userResult.error)
+        throw new Error('Database initialization failed')
+      }
       console.error(`🔐 Services: ensureWallet - User document not found for ID: ${userId}`)
       throw new Error('User document not found in database')
     }
 
-    const userData = userResult.data.data || userResult.data
+    const userData = userResult.data
     if (!userData) {
       throw new Error('User document exists but has no data')
     }
@@ -138,13 +135,9 @@ export async function ensureWallet(userOverride?: { id: string; role: string }):
     console.log(`🔐 Services: ensureWallet - Current userData wallets:`, userData.wallets)
     const currentWallets = userData.wallets || []
     const updatedWallets = [...currentWallets, newWallet]
-    const updatedUserData = {
-      ...userData,
-      wallets: updatedWallets
-    }
 
     console.log(`🔐 Services: ensureWallet - Updating user with wallets:`, updatedWallets.map(w => w.address))
-    const updateResult = await dbService.update('users', userId, updatedUserData)
+    const updateResult = await db().updateDoc('users', userId, { wallets: updatedWallets })
     console.log(`🔐 Services: ensureWallet - Update result:`, { success: updateResult.success, error: updateResult.error?.message })
 
     if (!updateResult.success) {

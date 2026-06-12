@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { isValidLocale, type Locale } from '@/lib/locale-config'
 import { revalidatePath } from 'next/cache'
 
@@ -48,9 +48,6 @@ export async function updateUserSettings(
   }
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     const updateData = {
       settings: {
         theme,
@@ -61,7 +58,7 @@ export async function updateUserSettings(
       updatedAt: new Date(),
     }
 
-    const result = await db.update('users', session.user.id, updateData)
+    const result = await db().updateDoc('users', session.user.id, updateData)
     if (!result.success) {
       throw result.error || new Error('Failed to update settings')
     }
@@ -149,9 +146,6 @@ export async function updateUserProfile(
   }
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // If username provided, ensure uniqueness via transaction with rollback protection
     if (username) {
       const usernameKey = username.toLowerCase()
@@ -160,16 +154,16 @@ export async function updateUserProfile(
       const expiryTime = new Date(now.getTime() + RESERVATION_EXPIRY_MS)
       
       try {
-        await db.transaction(async (txn) => {
+        await db().transaction(async (txn) => {
           // Check if username is taken by another user
           const usernameDoc = await txn.read('usernames', usernameKey)
           const userDoc = await txn.read('users', session.user.id)
           
-          const currentUsername = userDoc ? (userDoc as any).username?.toLowerCase() : undefined
+          const currentUsername = userDoc ? (userDoc.data as any)?.username?.toLowerCase() : undefined
           
           // Check if username exists and belongs to someone else
           if (usernameDoc) {
-            const reservationData = usernameDoc as any
+            const reservationData = (usernameDoc.data ?? usernameDoc) as any
             const owner = reservationData.userId
             const reservedAt = reservationData.reservedAt ? new Date(reservationData.reservedAt) : null
             const confirmed = reservationData.confirmed || false
@@ -253,7 +247,7 @@ export async function updateUserProfile(
       updatedAt: new Date(),
     }
 
-    const result = await db.update('users', session.user.id, updateData)
+    const result = await db().updateDoc('users', session.user.id, updateData)
     if (!result.success) {
       // Profile update failed - username reservation will expire in 5 minutes
       console.error('Profile update failed after username reservation:', result.error)
@@ -263,7 +257,7 @@ export async function updateUserProfile(
     // Confirm username reservation permanently (only if profile update succeeded!)
     if (username) {
       const usernameKey = username.toLowerCase()
-      const confirmResult = await db.update('usernames', usernameKey, {
+      const confirmResult = await db().updateDoc('usernames', usernameKey, {
         confirmed: true,
         confirmedAt: new Date(),
         expiresAt: null // Remove expiration - username now permanently owned
@@ -297,28 +291,23 @@ export async function updateUserProfile(
 export async function cleanupExpiredUsernameReservations(): Promise<{
  cleaned: number }> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     const now = new Date()
     
-    // Query unconfirmed reservations that have expired
-    const expiredResult = await db.query({
+    const expiredResult = await db().queryDocs<{ id: string }>({
       collection: 'usernames',
       filters: [
         { field: 'confirmed', operator: '==', value: false },
-        { field: 'expiresAt', operator: '<', value: now }
-      ]
+        { field: 'expiresAt', operator: '<', value: now },
+      ],
     })
     
-    if (!expiredResult.success || expiredResult.data.length === 0) {
+    if (!expiredResult.success || !expiredResult.data?.length) {
       return { cleaned: 0 }
     }
     
-    // Delete expired reservations
     let cleaned = 0
     for (const reservation of expiredResult.data) {
-      const deleteResult = await db.delete('usernames', reservation.id)
+      const deleteResult = await db().deleteDoc('usernames', reservation.id)
       if (deleteResult.success) {
         cleaned++
         console.log(`Cleaned expired username reservation: ${reservation.id}`)

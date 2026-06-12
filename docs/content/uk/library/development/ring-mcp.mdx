@@ -1,7 +1,7 @@
 ---
 title: Ring MCP Server
 description: Операторський посібник ring-mcp — підключення Cursor до клону Ring Platform
-last_modified: "2026-06-06"
+last_modified: "2026-06-09"
 ---
 
 # Ring MCP Server (`ring-mcp`)
@@ -10,13 +10,22 @@ last_modified: "2026-06-06"
 
 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — відкритий стандарт підключення AI до зовнішніх систем. `ring-mcp` викликає **HTTP gateway** клону на `/api/mcp/v1/*` з service token (синтетичний SUPERADMIN).
 
-Пакет: **`AI-RING/ring-mcp/`** (v1.0.0, 55 інструментів). Kingdom MCP (`legiox-mcp`, `ringdom-mcp`, `reggie-mcp`) — інший scope. Див. `AI-RING/README.md` та `AI-RING/ring-mcp/ROADMAP.md`.
+Пакет: **`AI-RING/ring-mcp/`** (v1.0.0, **57** інструментів). Kingdom MCP (`legiox-mcp`, `ringdom-mcp`, `reggie-mcp`) — інший scope. Див. `AI-RING/README.md` та `AI-RING/ring-mcp/ROADMAP.md`.
 
 ```text
 Чат → MCP host → ring-mcp (stdio) → Bearer token → /api/mcp/v1/* → сервіси Ring → БД
 ```
 
 Інструменти `ring-*` — CRUD сутностей, новин, магазину, користувачів, кредитів, платежів, повідомлень. Деструктивні операції потребують `confirm: true`.
+
+**Генеративні можливості (v1.6.0+):**
+
+| Інструмент | Опис |
+|------------|------|
+| `ring-image-create` | ImageConductor (xAI / Google Imagen) → CDN URL |
+| `ring-news-generate` | Автономна редакція: Grok + зображення + TTS → чернетка новини |
+
+Деталі: [Генеративні зображення](/docs/library/development/generative-images) · [Автономна редакція](/docs/library/development/generative-newsroom)
 
 ## Передумови
 
@@ -40,7 +49,7 @@ npm install
 node ring-mcp-server.js --test
 ```
 
-Очікується `"tools": 55` і `"ok": true`.
+Очікується `"tools": 57` і `"ok": true`.
 
 ### 3 — Cursor `.cursor/mcp.json`
 
@@ -62,6 +71,8 @@ node ring-mcp-server.js --test
 
 ## Пов’язане
 
-Повна EN-документація (55 інструментів, приклади): перемкніть локаль на EN → [Ring MCP](/docs/library/development/ring-mcp).
+Повна EN-документація (57 інструментів, повні таблиці): перемкніть локаль на EN → [Ring MCP](/docs/library/development/ring-mcp).
 
+- [Генеративні зображення](/docs/library/development/generative-images)
+- [Автономна редакція](/docs/library/development/generative-newsroom)
 - [OSS vs enterprise](/docs/library/development/oss-vs-enterprise)

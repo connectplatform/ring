@@ -23,7 +23,7 @@ Ringdom ships per-clone MCP under **`AI-RING/`** — operator tooling for indivi
 
 | Package | Path | Role |
 |---------|------|------|
-| **ring-mcp** | `AI-RING/ring-mcp/` | stdio MCP server, 55 `ring-*` tools |
+| **ring-mcp** | `AI-RING/ring-mcp/` | stdio MCP server, 57 `ring-*` tools |
 | Operator manual | This page | Full tool reference + troubleshooting |
 | Package README | `AI-RING/ring-mcp/README.md` | Install, config, smoke test |
 | Roadmap | `AI-RING/ring-mcp/ROADMAP.md` | v1.1 polish, multi-clone profiles |
@@ -48,6 +48,8 @@ Gateway code lives in the Ring app (`app/api/mcp/v1/`, `lib/auth/service-token.t
 | **Admin / operator** | News Kingdom score/approve/reject, vendor approve/suspend, credit add/spend |
 | **Read & search** | Entity/opportunity search, news categories, payment/credit lookup |
 | **Messaging** | In-app notifications, FCM push, conversations, chat messages |
+| **Image generation** | `ring-image-create` via ImageConductor (xAI / Google Imagen) → ring-filebase CDN URL |
+| **Autonomous newsroom** | `ring-news-generate` via TextConductor + ImageConductor + AudioConductor → cited draft article |
 | **Per-clone tenancy** | One `ring-mcp` entry per clone via `RING_API_BASE_URL` + `RING_SERVICE_TOKEN` |
 | **Safety guards** | Destructive tools require `confirm: true` |
 
@@ -198,7 +200,7 @@ Once connected, use natural language; the agent picks the right `ring-*` tool.
 
 ---
 
-## Tool reference (55 tools)
+## Tool reference (57 tools)
 
 All tools are prefixed `ring-`. Sensitive mutations require **`confirm: true`** in tool arguments.
 
@@ -289,6 +291,34 @@ All tools are prefixed `ring-`. Sensitive mutations require **`confirm: true`** 
 | `ring-fcm-send` | Push via FCM (**`confirm`**) |
 | `ring-conversation-list` | Conversations for `userId` |
 | `ring-message-send` | Send chat message |
+
+### Autonomous newsroom
+
+| Tool | Description |
+|------|-------------|
+| `ring-news-generate` | Research URL/topic with Grok `web_search` + `x_search`, write cited HTML draft, pick category/tags, generate featured image + optional TTS |
+
+**Quick example:**
+
+```
+ring-news-generate source url value https://example.com/press-release
+```
+
+**Full reference:** [Autonomous newsroom (generative-newsroom)](/en/library/development/generative-newsroom) — parameters, Telegram flow, translation fan-out, env block, troubleshooting.
+
+### Image generation
+
+| Tool | Description |
+|------|-------------|
+| `ring-image-create` | Generate image via ImageConductor (`xai` or `google`), store in ring-filebase, return CDN URL |
+
+**Quick example:**
+
+```
+ring-image-create prompt "professional tech referral banner, vibrant gradient" aspectRatio 2:1 purpose og
+```
+
+**Full reference:** [Generative images (generative-images)](/en/library/development/generative-images) — providers, OG presets, env block, `GenerateImageDialog`, migration `006_generated_images_schema.sql`.
 
 ---
 

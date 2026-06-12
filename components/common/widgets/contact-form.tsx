@@ -51,6 +51,14 @@ export function ContactForm({ entityId, entityName, initialUserInfo }: ContactFo
       {/* Hidden fields for entity info */}
       <input type="hidden" name="entityId" value={entityId} />
       <input type="hidden" name="entityName" value={entityName} />
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {/* Show error message if any */}
       {state?.error && (

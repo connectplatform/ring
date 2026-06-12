@@ -12,7 +12,7 @@
  * - PALADIN Layer 2: Authorization check
  */
 
-import { getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { UserRole } from '@/features/auth/types'
 
 interface WhitelistCache {
@@ -23,6 +23,11 @@ interface WhitelistCache {
 const CACHE_TTL_MS = 60 * 1000 // 60 seconds
 let cache: WhitelistCache | null = null
 
+type AdminUserRow = {
+  id: string
+  communication?: { telegramId?: string }
+}
+
 /**
  * Get all Telegram Chat IDs for ADMIN/SUPERADMIN users
  * Cached for 60 seconds to reduce database load
@@ -32,17 +37,12 @@ let cache: WhitelistCache | null = null
 export async function getAdminTelegramIds(): Promise<string[]> {
   const now = Date.now()
 
-  // Return cached data if still valid
   if (cache && now - cache.lastUpdated < CACHE_TTL_MS) {
     return Array.from(cache.ids)
   }
 
-  // Query database for admin telegram IDs
   try {
-    const db = getDatabaseService()
-
-    // Query users with ADMIN or SUPERADMIN role AND telegramId set
-    const adminUsersResult = await db.query({
+    const adminUsersResult = await db().queryDocs<AdminUserRow>({
       collection: 'users',
       filters: [
         {
@@ -55,17 +55,13 @@ export async function getAdminTelegramIds(): Promise<string[]> {
 
     if (!adminUsersResult.success) {
       console.error('[ADMIN BOT WHITELIST] Failed to query users:', adminUsersResult.error)
-      return cache ? Array.from(cache.ids) : [] // Return stale cache on error
+      return cache ? Array.from(cache.ids) : []
     }
 
-    const adminUsers = adminUsersResult.data?.map((user) => user.data) || []
+    const telegramIds = (adminUsersResult.data || [])
+      .map((user) => user.communication?.telegramId)
+      .filter((id): id is string => !!id && id.trim() !== '')
 
-    // Extract telegramId from communication.telegramId JSONB path
-    const telegramIds = adminUsers
-      .map((user) => user.data?.communication?.telegramId)
-      .filter((id): id is string => !!id && id.trim() !== '') || []
-
-    // Update cache
     cache = {
       ids: new Set(telegramIds),
       lastUpdated: now,
@@ -78,7 +74,7 @@ export async function getAdminTelegramIds(): Promise<string[]> {
     return telegramIds
   } catch (error) {
     console.error('[ADMIN BOT WHITELIST] Error fetching admin IDs:', error)
-    return cache ? Array.from(cache.ids) : [] // Return stale cache on error
+    return cache ? Array.from(cache.ids) : []
   }
 }
 
@@ -101,9 +97,7 @@ export async function isWhitelisted(chatId: string): Promise<boolean> {
  */
 export async function getUserIdFromTelegramId(chatId: string): Promise<string | null> {
   try {
-    const db = getDatabaseService()
-
-    const result = await db.query({
+    const result = await db().queryDocs<AdminUserRow>({
       collection: 'users',
       filters: [
         {
@@ -116,9 +110,7 @@ export async function getUserIdFromTelegramId(chatId: string): Promise<string | 
 
     if (!result.success) return null
 
-    const users = result.data || []
-    const user = users.find((u: any) => u.data?.communication?.telegramId === chatId)
-
+    const user = (result.data || []).find((u) => u.communication?.telegramId === chatId)
     return user?.id || null
   } catch (error) {
     console.error('[ADMIN BOT WHITELIST] Error fetching user ID:', error)

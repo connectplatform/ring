@@ -5,21 +5,21 @@
  * MUTATION - NO CACHE! (opportunity creation affects matching/discovery)
  * Uses React 19 revalidatePath() for UI freshness
  */
-import { Opportunity } from '@/features/opportunities/types';
+import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
-import { opportunityConverter } from '@/lib/converters/opportunity-converter';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
 import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
-import { invalidateOpportunitiesCache } from '@/lib/cached-data'
+import { mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
+import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
 import { appendEvent } from '@/lib/events/event-log.server'
 import { Matcher } from '@/lib/ai/matcher'
 import { OpportunityAutoFillService } from './auto-fill-service'
 import { OpportunityMatchingService } from './matching-service'
+import { maybeAutoApproveOpportunity } from './auto-approval-service'
 import { logger } from '@/lib/logger';
 
-import { db } from '@/lib/database/DatabaseService';
-import { revalidatePath } from 'next/cache';
+import { db } from '@/lib/database';
 
 /**
  * Type definition for the data required to create a new opportunity.
@@ -43,13 +43,13 @@ type NewOpportunityData = Omit<Opportunity, 'id' | 'dateCreated' | 'dateUpdated'
  * 4. If validation passes, the opportunity is created and returned.
  * 
  * @param {NewOpportunityData} data - The data for the new opportunity.
- * @returns {Promise<Opportunity>} A promise that resolves to the created Opportunity object, including its generated ID.
+ * @returns {Promise<SerializedOpportunity>} Created opportunity with ISO date fields (PostgreSQL path).
  * @throws {OpportunityAuthError} If user authentication fails
  * @throws {OpportunityPermissionError} If user lacks permission to create opportunities
  * @throws {OpportunityDatabaseError} If database operations fail
  * @throws {OpportunityQueryError} If opportunity creation fails
  */
-export async function createOpportunity(data: NewOpportunityData): Promise<Opportunity> {
+export async function createOpportunity(data: NewOpportunityData): Promise<SerializedOpportunity> {
   try {
     logger.info('Services: createOpportunity - Starting opportunity creation process...');
 
@@ -259,26 +259,16 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
     newOpportunityData.applicantCount ??= 0;
     // Priority is optional and only set for certain opportunity types
 
-    // Step 4: Create the opportunity document using db.command()
-    let docRef;
+    // Step 4: Create the opportunity document
+    let createdOpportunity: SerializedOpportunity
     try {
-      const result = await db().execute('create', {
-        collection: 'opportunities',
-        data: newOpportunityData
-      });
+      const result = await db().createDoc('opportunities', newOpportunityData)
 
-      if (!result.success) {
+      if (!result.success || !result.data) {
         throw new Error(result.error?.message || 'Failed to create opportunity');
       }
 
-      // Create a mock document reference for compatibility
-      docRef = {
-        id: result.data?.id || 'unknown',
-        get: async () => ({
-          data: () => result.data?.data,
-          exists: true
-        })
-      };
+      createdOpportunity = mapDbDocumentToSerializedOpportunity(result.data)
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to create opportunity document',
@@ -293,83 +283,11 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
       );
     }
 
-    // Step 5: Retrieve the created opportunity using db.command()
-    let rawData;
-    try {
-      const result = await db().execute('findById', {
-        collection: 'opportunities',
-        id: docRef.id
-      });
-
-      if (!result.success || !result.data) {
-        throw new OpportunityQueryError(
-          'Created opportunity document not found',
-          undefined,
-          {
-            timestamp: Date.now(),
-            userId,
-            userRole,
-            opportunityId: docRef.id,
-            operation: 'opportunity_verification'
-          }
-        );
-      }
-
-      rawData = result.data.data;
-    } catch (error) {
-      throw new OpportunityQueryError(
-        'Failed to retrieve created opportunity',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          opportunityId: docRef.id,
-          operation: 'opportunity_retrieval'
-        }
-      );
-    }
-
-    if (!rawData) {
-      throw new OpportunityQueryError(
-        'Created opportunity document has no data',
-        undefined,
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          opportunityId: docRef.id,
-          operation: 'opportunity_data_validation'
-        }
-      );
-    }
-
-    const opportunityData: Opportunity = {
-      ...rawData,
-      id: docRef.id,
-      dateCreated: rawData.dateCreated || new Date().toISOString(),
-      dateUpdated: rawData.dateUpdated || new Date().toISOString(),
-    } as Opportunity;
-
-    let createdOpportunity;
-    try {
-      createdOpportunity = opportunityData;
-    } catch (error) {
-      throw new OpportunityQueryError(
-        'Failed to process opportunity document',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          opportunityId: docRef.id,
-          operation: 'opportunity_processing'
-        }
-      );
-    }
-
-    console.log(`Services: createOpportunity - Opportunity created successfully with ID: ${docRef.id}`);
-    invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin'])
+    console.log(`Services: createOpportunity - Opportunity created successfully with ID: ${createdOpportunity.id}`);
+    await syncOpportunityDiscovery({
+      opportunityId: createdOpportunity.id,
+      event: 'created',
+    })
     
     // AI-Powered Opportunity Processing: Auto-fill and Matching
     try {
@@ -404,6 +322,19 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
         processingTime: matchingResult.processingTime
       });
 
+      const approvalResult = await maybeAutoApproveOpportunity(createdOpportunity, matchingResult)
+      if (approvalResult.approved) {
+        createdOpportunity = {
+          ...createdOpportunity,
+          status: 'active',
+          dateUpdated: new Date().toISOString(),
+        }
+        logger.info('Services: createOpportunity - Opportunity auto-approved', {
+          opportunityId: createdOpportunity.id,
+          reason: approvalResult.reason,
+        })
+      }
+
       // Step 3: Emit enhanced opportunity_matched event with LLM data
       await appendEvent({
         type: 'opportunity_matched_ai',
@@ -425,7 +356,9 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Oppor
 
       // Step 4: Notify matched users (async, don't wait for completion)
       if (matchingResult.matches.length > 0) {
-        matchingService.notifyMatchedUsers(matchingResult).catch(error => {
+        matchingService.notifyMatchedUsers(matchingResult, {
+          organizationId: createdOpportunity.organizationId,
+        }).catch(error => {
           logger.warn('Services: createOpportunity - User notification failed', { error });
         });
       }

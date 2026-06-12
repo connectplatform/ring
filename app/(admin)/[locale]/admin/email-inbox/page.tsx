@@ -10,6 +10,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { 
   Mail, Search, Filter, RefreshCw, Eye, Send, Archive, Trash2,
   AlertTriangle, CheckCircle, Clock, User, Building, Tag
@@ -35,54 +37,8 @@ interface EmailThread {
   };
 }
 
-// Mock data for demo
-const MOCK_THREADS: EmailThread[] = [
-  {
-    id: 'thread_1',
-    subject: 'Enterprise inquiry about Ring Platform deployment',
-    fromEmail: 'john@bigcorp.com',
-    fromName: 'John Smith',
-    status: 'new',
-    priority: 'urgent',
-    intent: 'enterprise_inquiry',
-    sentiment: 'neutral',
-    messageCount: 1,
-    hasDraft: true,
-    lastMessageAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    contact: { type: 'lead', company: 'BigCorp Inc', interactions: 1 },
-  },
-  {
-    id: 'thread_2',
-    subject: 'Help with authentication setup',
-    fromEmail: 'dev@startup.io',
-    fromName: 'Sarah Developer',
-    status: 'ongoing',
-    priority: 'normal',
-    intent: 'technical_support',
-    sentiment: 'frustrated',
-    messageCount: 3,
-    hasDraft: true,
-    lastMessageAt: new Date(Date.now() - 3600000).toISOString(),
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    contact: { type: 'customer', company: 'Startup.io', interactions: 5 },
-  },
-  {
-    id: 'thread_3',
-    subject: 'Feature request: Dark mode support',
-    fromEmail: 'user@example.com',
-    fromName: null,
-    status: 'waiting',
-    priority: 'low',
-    intent: 'feature_request',
-    sentiment: 'positive',
-    messageCount: 2,
-    hasDraft: false,
-    lastMessageAt: new Date(Date.now() - 7200000).toISOString(),
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    contact: { type: 'lead', company: null, interactions: 2 },
-  },
-];
+// Threads load from GET /api/admin/email/threads (email_threads JSONB table,
+// migration 009). IMAP/inbound ingest populates the table; empty inbox = no mail yet.
 
 const statusColors = {
   new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -106,11 +62,33 @@ const sentimentColors = {
 };
 
 export default function EmailInboxPage() {
-  const [threads, setThreads] = useState<EmailThread[]>(MOCK_THREADS);
+  const params = useParams<{ locale: string }>();
+  const [threads, setThreads] = useState<EmailThread[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadThreads = React.useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const res = await fetch('/api/admin/email/threads', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Failed to load threads (${res.status})`);
+      const json = await res.json();
+      setThreads(Array.isArray(json.threads) ? json.threads : []);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load threads');
+      setThreads([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadThreads();
+  }, [loadThreads]);
 
   const filteredThreads = threads.filter(thread => {
     const matchesSearch = 
@@ -124,9 +102,7 @@ export default function EmailInboxPage() {
   });
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => setIsLoading(false), 1000);
+    loadThreads();
   };
 
   const formatDate = (dateStr: string) => {
@@ -241,7 +217,12 @@ export default function EmailInboxPage() {
                       </div>
                       
                       <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
-                        {thread.subject}
+                        <Link
+                          href={`/${params.locale}/admin/email-inbox/${encodeURIComponent(thread.id)}`}
+                          className="hover:text-blue-600"
+                        >
+                          {thread.subject}
+                        </Link>
                       </h3>
                       
                       <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">

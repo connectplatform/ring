@@ -39,6 +39,7 @@ import {
   Settings
 } from 'lucide-react';
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import EntityModerationPanel from '@/features/admin/matcher/entity-moderation-panel';
 import { type Locale } from '@/i18n/shared';
 
 // Mock data - in real implementation this would come from database/analytics service
@@ -286,11 +287,12 @@ const MatcherAnalyticsDashboard: React.FC = () => {
 
       {/* Detailed Analytics Tabs */}
       <Tabs defaultValue="performance" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="performance">{t('tabs.performance')}</TabsTrigger>
           <TabsTrigger value="quality">{t('tabs.quality')}</TabsTrigger>
           <TabsTrigger value="usage">{t('tabs.usage')}</TabsTrigger>
           <TabsTrigger value="trends">{t('tabs.trends')}</TabsTrigger>
+          <TabsTrigger value="moderation">{tAdmin('matcherModeration.tab')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="performance" className="space-y-6">
@@ -495,6 +497,10 @@ const MatcherAnalyticsDashboard: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="moderation" className="space-y-6">
+          <EntityModerationPanel locale={locale} />
         </TabsContent>
       </Tabs>
       </div>

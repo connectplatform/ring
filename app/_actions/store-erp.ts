@@ -8,7 +8,7 @@
  */
 
 import { cache } from 'react'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import type { StoreProduct } from '@/features/store/types'
 import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
 
@@ -20,14 +20,10 @@ import type { ExtendedVendorProfile } from '@/features/store/types/vendor'
  */
 export const getEnhancedProducts = cache(async (limit: number = 50): Promise<StoreProduct[]> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // Get all products (READ operation - cached)
-    const productsResult = await db.query({
+    const productsResult = await db().queryDocs<StoreProduct>({
       collection: 'store_products',
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      pagination: { limit }
+      pagination: { limit },
     })
 
     if (!productsResult.success) {
@@ -35,7 +31,7 @@ export const getEnhancedProducts = cache(async (limit: number = 50): Promise<Sto
       return []
     }
 
-    const products = productsResult.data as any[] as StoreProduct[]
+    const products = productsResult.data
 
     // Get unique vendor IDs from products
     const vendorIds = [...new Set(
@@ -49,9 +45,9 @@ export const getEnhancedProducts = cache(async (limit: number = 50): Promise<Sto
 
     for (const vendorId of vendorIds) {
       try {
-        const profileResult = await db.read('vendorProfiles', `vendor_${vendorId}`)
+        const profileResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', `vendor_${vendorId}`)
         if (profileResult.success && profileResult.data) {
-          vendorProfiles.push(profileResult.data as any as ExtendedVendorProfile)
+          vendorProfiles.push(profileResult.data)
         }
       } catch (error) {
         console.warn(`Could not fetch vendor profile for ${vendorId}:`, error)
@@ -92,27 +88,22 @@ export const getProductsByVendor = cache(async (
   }
 ): Promise<StoreProduct[]> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // Get vendor profile (READ - cached)
-    const profileResult = await db.read('vendorProfiles', `vendor_${vendorId}`)
+    const profileResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', `vendor_${vendorId}`)
     if (!profileResult.success || !profileResult.data) {
       return []
     }
-    const vendorProfile = profileResult.data as any as ExtendedVendorProfile
+    const vendorProfile = profileResult.data
 
-    // Get products by this vendor (READ - cached)
-    const productsResult = await db.query({
+    const productsResult = await db().queryDocs<StoreProduct>({
       collection: 'store_products',
       filters: [
         {
           field: 'productOwner',
           operator: '==',
-          value: vendorId
-        }
+          value: vendorId,
+        },
       ],
-      pagination: { limit: 100 }
+      pagination: { limit: 100 },
     })
 
     if (!productsResult.success) {
@@ -120,7 +111,7 @@ export const getProductsByVendor = cache(async (
       return []
     }
 
-    const products = productsResult.data as any[] as StoreProduct[]
+    const products = productsResult.data
 
     // Apply quality filters
     let enhancedProducts = products.map(product =>
@@ -222,26 +213,21 @@ export async function getAIRecommendedProducts(limit: number = 10): Promise<Stor
  */
 export async function updateProductQualityMetrics(vendorId: string): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // Get vendor profile (READ - cached)
-    const profileResult = await db.read('vendorProfiles', `vendor_${vendorId}`)
+    const profileResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', `vendor_${vendorId}`)
     if (!profileResult.success || !profileResult.data) {
       return
     }
-    const vendorProfile = profileResult.data as any as ExtendedVendorProfile
+    const vendorProfile = profileResult.data
 
-    // Get all products by this vendor (READ for update)
-    const productsResult = await db.query({
+    const productsResult = await db().queryDocs<StoreProduct>({
       collection: 'store_products',
       filters: [
         {
           field: 'productOwner',
           operator: '==',
-          value: vendorId
-        }
-      ]
+          value: vendorId,
+        },
+      ],
     })
 
     if (!productsResult.success) {
@@ -249,7 +235,7 @@ export async function updateProductQualityMetrics(vendorId: string): Promise<voi
       return
     }
 
-    const products = productsResult.data as any[] as StoreProduct[]
+    const products = productsResult.data
 
     // Update quality metrics for each product (MUTATION - NO CACHE!)
     for (const product of products) {

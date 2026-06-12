@@ -1,0 +1,302 @@
+---
+title: Referral Codes (Refcodes)
+description: Per-wallet shareable referral links, first-touch attribution, visit analytics, checkout UX, and on-chain token rewards via server-side gasless minter
+last_modified: "2026-06-12"
+---
+
+# Referral Codes (Refcodes)
+
+The **refcodes** module turns Ring Platform into a referral growth engine: each connected wallet gets a random shareable code, first-time buyers can be attributed to a referrer, and referrers earn project tokens minted on-chain by a server-side operator wallet.
+
+<Callout type="info" title="Dual-rail context">
+  Token rewards (this module) run alongside **vendor-funded ERP referral commission** on the same attribution. See [Affiliate & referral enablement](/docs/library/features/affiliate-enablement) for the full dual-rail map and audit keys.
+</Callout>
+
+> **Architecture:** [Refcodes architecture](/docs/library/architecture/refcodes) · **Dual-rail overview:** [Affiliate enablement](/docs/library/features/affiliate-enablement) · **Migrations:** [Getting started: migrations](/docs/library/getting-started/migrations) · **Clone install:** `scripts/install-refcodes-module.sh`
+
+## Overview
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Attribution** | `?ref=CODE` → `ring_ref` + `ring_ref_visible` cookies (30 days, first-touch) |
+| **Signup** | New users persist `users.data.referredBy` from `ring_ref` on first sign-in |
+| **Checkout** | `ReferralCheckoutBadge` on review step; APIs return `referralApplied` + `referralCode`; toast or sessionStorage flash |
+| **Visits** | `visitDaily` buckets + `POST /api/refcodes/track`; stats on `/refcodes` and `/admin/refcodes` |
+| **Ledger** | PostgreSQL `referral_rewards` — off-chain state + mint tracking |
+| **ERP rail** | Same `resolveReferralCommissionPercent` hierarchy deducts vendor commission — see [ERP commissions](/docs/library/features/erp/commissions) |
+| **Notify** | `REFERRAL_REWARD_MINTED` in-app notification after mint (locale from `modules/refcodes.json`) |
+| **On-chain** | UUPS `ReferralRewards` contract — idempotent `payReferral` per order |
+
+### Business rules
+
+- **One code per wallet** — 8-character random code (Base58-style alphabet, no ambiguous chars).
+- **First purchase only** — buyer with any prior paid order is not attributed.
+- **No self-referral** — referrer user ID or any linked buyer wallet blocks attribution.
+- **Idempotent rewards** — one reward row per `orderReference`; contract rejects duplicate `orderRef` hashes.
+- **Payment path** — WayForPay (`rail: 'fiat'`) creates `pending_approval` rewards until admin approves; internal credit (`rail: 'crypto'`) auto-approves and mints immediately.
+- **Referrer-only incentive** — referee checkout discount is deferred; attribution still surfaces in checkout UX.
+
+## User journey
+
+<Mermaid>
+{`sequenceDiagram
+    participant R as Referrer
+    participant V as Visitor
+    participant P as Ring Platform
+    participant DB as PostgreSQL
+    participant C as ReferralRewards (Polygon)
+
+    R->>P: Open /refcodes — get share link ?ref=Ab3xY9kL
+    R->>V: Share link
+    V->>P: Land with ?ref= — proxy sets ring_ref cookie
+    V->>P: Register + checkout (first paid order)
+    P->>DB: Create order with referrer fields
+    V->>P: Pay (WayForPay or credit)
+    P->>DB: referral_rewards row
+    alt WayForPay (fiat)
+        P->>P: status pending_approval
+        P->>P: Admin approves at /admin/refcodes
+    else Internal credit
+        P->>P: status approved → mint immediately
+    end
+    P->>C: payReferral(referrerWallet, amount, orderRef)
+    C->>R: Mint RING (or configured token)
+    P->>DB: status minted + txHash`}
+</Mermaid>
+
+## Routes and UI
+
+| Route | Access | Purpose |
+|-------|--------|---------|
+| `/refcodes` | Authenticated | List codes per wallet, copy share URLs, reward history |
+| `/admin/refcodes` | Admin | Approve/reject pending fiat rewards, trigger mint |
+| `GET /api/refcodes` | Session | JSON: codes + stats for current user |
+| `POST /api/refcodes/mint` | Admin | Batch-mint approved rewards |
+| `POST /api/refcodes/track` | Public | Visit beacon — increments `visits` on the refcode |
+| `GET /api/cron/refcodes-mint` | Cron (`CRON_SECRET`) | Processes approved rewards queue (up to 20 per run) |
+
+Share URL format: `{APP_URL}?ref={CODE}` (locale prefix optional; cookie is set on any landing page).
+
+`ReferralAttributionEffect` (public layout) fires the visit beacon when `ring_ref_visible` is present.
+
+## Visit analytics
+
+Visit counts are stored on each refcode document — no separate analytics table.
+
+| Field | Meaning |
+|-------|---------|
+| `visits` | All-time total |
+| `visitDaily` | `YYYY-MM-DD` → count map (28-day retention via `visit-analytics.ts`) |
+
+**User dashboard** (`/refcodes`) shows aggregate windows: total, today, last 7d, last 28d, plus per-link counts on each share card.
+
+**Admin dashboard** (`/admin/refcodes`) shows platform-wide visit aggregates alongside reward queue stats.
+
+```typescript
+// POST /api/refcodes/track — body: { code: string }
+// features/refcodes/services/attribution-service.ts → trackRefcodeVisit
+```
+
+## Checkout buyer UX
+
+| Surface | Behavior |
+|---------|----------|
+| **Review step** | `ReferralCheckoutBadge` reads `ring_ref_visible` — shows referred code before place order |
+| **Order create** | `POST /api/store/orders` and `/api/store/checkout` return `referralApplied` + `referralCode` |
+| **Credit / Ring pay** | Immediate toast via `referralAppliedToast` i18n keys |
+| **WayForPay redirect** | `checkout-referral-flash.ts` stashes sessionStorage; processing page consumes flash and shows toast |
+
+Cookies: httpOnly `ring_ref` (attribution) + client-readable `ring_ref_visible` (badge + beacon), both set in `proxy.ts` on first `?ref=` touch.
+
+## Attribution flow
+
+1. **`proxy.ts`** reads `?ref=` and sets httpOnly `ring_ref` plus client-readable `ring_ref_visible` (30 days) if not already set — first-touch wins.
+2. **Signup** — Auth.js `signIn` event (`isNewUser`) calls `persistSignupReferralAttribution` so `users.data.referredBy` survives beyond the cookie TTL.
+3. **`POST /api/store/orders`** reads the cookie, resolves the code via `RefcodeService.resolveCode`, runs `resolveOrderReferral` guards, and passes attribution into `StoreOrdersService.createOrder`.
+4. On payment success:
+   - **WayForPay webhook** (`handleStoreWayForPayWebhook`) → stock + `settlements` ledger + `ReferralRewardService.onOrderPaid` (`rail: 'fiat'`).
+   - **Credit checkout** (`/api/store/payments/credit`) → same pipeline with `rail: 'crypto'` (auto-approved).
+5. **Membership upgrade** — `handleMembershipWayForPayWebhook` calls `ReferralRewardService.onMembershipPaid` when `referredBy` is set (no prior store order required).
+
+## Reward calculation
+
+Token rewards use the same **`resolveReferralCommissionPercent`** hierarchy as ERP settlement (`features/store/lib/referral-commission.ts`). For mixed carts, `computeWeightedReferralPercentFromCart` yields a subtotal-weighted effective percent stored as `rewardPercent` on each `referral_rewards` record.
+
+```typescript
+// Simplified — see features/refcodes/services/referral-reward-service.ts
+const rewardPercent = computeWeightedReferralPercentFromCart(order.items, merchantConfigByEntityId)
+const usdValue = orderTotalInUsd * (rewardPercent / 100)
+const { token_amount } = await priceOracleService.convertUsdToRing(usdValue)
+```
+
+| Env var | Default | Meaning |
+|---------|---------|---------|
+| `REFERRAL_REWARD_PERCENT` | `5` | Fallback platform % when `DEFAULT_COMMISSION_STRUCTURE` unset |
+| `REFERRAL_COMMISSION_MAX_PERCENT` | `50` | Upper bound for all resolved referral rates |
+| `REFERRAL_UAH_PER_USD` | `40` | UAH → USD for WayForPay orders |
+| `REFERRAL_CHAIN_ID` | `137` | Polygon mainnet |
+
+Token amount uses the existing **price oracle** (`priceOracleService.convertUsdToRing`).
+
+## Reward status machine
+
+| Status | Meaning |
+|--------|---------|
+| `pending_approval` | Fiat order paid; awaiting admin |
+| `approved` | Ready to mint (credit path skips pending) |
+| `minting` | Transaction submitted |
+| `minted` | On-chain success; `txHash` stored |
+| `failed` | Mint reverted or RPC error; `failureReason` set |
+| `rejected` | Admin rejected fiat reward |
+
+## Smart contract
+
+**`ReferralRewards`** (UUPS, OpenZeppelin 5) in `contracts/contracts-src/ReferralRewards.sol`.
+
+| Role / setting | Holder |
+|----------------|--------|
+| `DEFAULT_ADMIN_ROLE` | Deployer — upgrade, pause, token/mode config |
+| `OPERATOR_ROLE` | Server minter wallet — calls `payReferral` |
+| `rewardMode` | `0` = MINT (calls `IMintableERC20.mint`), `1` = TRANSFER |
+
+```solidity
+function payReferral(address refWallet, uint256 amount, bytes32 orderRef)
+    external onlyRole(OPERATOR_ROLE) whenNotPaused
+```
+
+`orderRef` = `keccak256(utf8(orderReference))` — matches PaymentConductor `orderReference` strings.
+
+### Deploy
+
+```bash
+cd contracts
+rm -rf node_modules package-lock.json && npm install
+REFERRAL_REWARD_TOKEN_ADDRESS=0xYourToken \
+REFERRAL_MINTER_ADDRESS=0xOperator \
+REFERRAL_REWARD_MODE=0 \
+DEPLOYER_PRIVATE_KEY=0x... \
+npx hardhat run scripts/deploy-referral-rewards.js --network polygon
+```
+
+Save the **proxy address** as `REFERRAL_REWARDS_ADDRESS`.
+
+### Grant minter permission (MINT mode)
+
+The **token** must allow the **ReferralRewards proxy** to mint:
+
+| Token type | Action |
+|------------|--------|
+| Ownable `mint` (e.g. test `MockMintableToken`) | `token.transferOwnership(referralRewardsProxy)` |
+| OpenZeppelin `AccessControl` | `token.grantRole(MINTER_ROLE, referralRewardsProxy)` |
+| Custom Ring token | Grant your project's mint permission to the proxy |
+
+The operator wallet (`REFERRAL_MINTER_PRIVATE_KEY`) only needs **`OPERATOR_ROLE` on ReferralRewards** — set in `initialize(admin, operator, token, mode)` at deploy.
+
+## Database
+
+Migration **`005_refcodes_schema.sql`** creates:
+
+| Table | Collection key | Purpose |
+|-------|----------------|---------|
+| `refcodes` | `refcodes` | Code document; `id` = code string |
+| `referral_rewards` | `referral_rewards` | Reward ledger |
+
+**Dev database name:** `ring_platform` on local Homebrew Postgres or Docker `ring-postgres-dev` (see `infrastructure/postgres/init/README.md`). Tables are also in `data/schema.sql` v4.0.1+; migration `005` remains for incremental apply. This is **not** `ring_file_registry` or clone DBs like `ring_greenfood_live`.
+
+```bash
+# Dev
+export DATABASE_URL=postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform
+./scripts/apply-refcodes-migrations-dev.sh
+
+# Prod (k8s)
+K8S_NAMESPACE=ring-platform-org POSTGRES_DB=ring_platform POSTGRES_USER=ring_user \
+  ./scripts/apply-refcodes-migrations-prod.sh
+```
+
+## Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `REFERRAL_MINTER_PRIVATE_KEY` | Yes (mint) | Server wallet with `OPERATOR_ROLE` — never expose to client |
+| `REFERRAL_REWARDS_ADDRESS` | Yes | UUPS proxy address |
+| `REFERRAL_REWARD_TOKEN_ADDRESS` | Yes | Mintable ERC20 on target chain |
+| `REFERRAL_REWARD_PERCENT` | No | Default `5` |
+| `REFERRAL_CHAIN_ID` | No | Default `137` |
+| `REFERRAL_UAH_PER_USD` | No | Default `40` |
+| `REFERRAL_REWARD_MODE` | No | `0` MINT, `1` TRANSFER |
+| `POLYGON_RPC_URL` | Yes (mint) | Server RPC for viem |
+| `REFERRAL_MINTER_ADDRESS` | No | Deploy script operator fallback |
+| `DEPLOYER_PRIVATE_KEY` | Deploy only | Hardhat deployer |
+| `CRON_SECRET` | Prod cron | Bearer token for `GET /api/cron/refcodes-mint` |
+
+Copy `env.local.template` to `.env.local` and fill the **REFERRAL CODES MODULE** block per clone. Add secrets to `.reggie-propagate-exclude.json` when propagating to white-label clones.
+
+## Module layout
+
+```
+features/refcodes/
+  constants.ts               # Cookie names, collection names, env defaults
+  types.ts
+  abi/referral-rewards.json
+  lib/
+    visit-analytics.ts         # visitDaily buckets + window stats
+    checkout-referral-flash.ts # WayForPay redirect toast
+  services/
+    refcode-service.ts         # Generate/list/resolve codes + visitStats enrich
+    attribution-service.ts     # Cookie → order guards + trackRefcodeVisit
+    referral-reward-service.ts
+    reward-minter.ts           # viem payReferral + localized notification
+lib/i18n/refcodes-labels.ts    # Server mint notification copy (EN/UK/RU)
+lib/web3/server-wallet.ts      # Operator wallet client
+components/refcodes/
+  referral-attribution-effect.tsx
+  referral-checkout-badge.tsx
+app/(authenticated)/[locale]/refcodes/
+app/(admin)/[locale]/admin/refcodes/
+app/api/refcodes/
+```
+
+## Propagation to clones
+
+Use the installer for `ring-connect-software`, `ring-ringdom-org`, and other Ring clones:
+
+```bash
+./scripts/install-refcodes-module.sh /path/to/clone
+```
+
+Copies new files, runs migration when `DATABASE_URL` is set, and prints **shared-file patch anchors** (`proxy.ts`, `routes.ts`, store hooks, i18n).
+
+## Operations
+
+- On-chain deploy and env checklist: `REFERRAL-ONCHAIN-OPS.md` (repo root).
+- Cron mint: `Authorization: Bearer $CRON_SECRET` → `GET /api/cron/refcodes-mint` (batch up to 20 `approved` rewards).
+- After mint: `REFERRAL_REWARD_MINTED` notification — copy from `locales/{en,uk,ru}/modules/refcodes.json` → `notifications.minted` via `lib/i18n/refcodes-labels.ts` (user profile locale, `{amount}` + `{token}` interpolation).
+
+<Tabs items={['Developers', 'Operators']}>
+
+<Tab value="Developers">
+
+- Server labels: `lib/i18n/refcodes-labels.ts` (`getReferralMintNotificationCopy`, `getUserPreferredLocaleForNotifications`)
+- Do not import `resolve-server-locale.ts` from minter/cron paths loaded by `tsx` smokes — use DB-only locale helper above
+- Smoke: `DB_BACKEND_MODE=k8s-postgres-fcm` + `NODE_OPTIONS=--conditions=react-server`
+
+</Tab>
+
+<Tab value="Operators">
+
+- Schedule k8s CronJob or external scheduler for `/api/cron/refcodes-mint`
+- `REFERRAL_UAH_PER_USD` is a static FX fallback (live oracle deferred for UAH orders)
+- Approve fiat-path rewards at `/admin/refcodes` before cron or manual batch mint
+
+</Tab>
+
+</Tabs>
+
+## Related
+
+- [Affiliate & referral enablement](/docs/library/features/affiliate-enablement) — dual-rail economics and audit
+- [Ring ERP — Commissions](/docs/library/features/erp/commissions)
+- [Multi-Vendor Store](/docs/library/features/store)
+- [Payment Integration](/docs/library/features/payments)
+- [PaymentConductor](/docs/library/features/payment-conductor)
+- [Web3 Wallet](/docs/library/features/wallet)

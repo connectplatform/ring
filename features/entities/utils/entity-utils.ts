@@ -1,24 +1,19 @@
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database'
 
 /**
  * Checks if the current user is the owner of the specified entity.
- * Ring-native implementation using DatabaseService
- * 
+ * Ring-native implementation using DatabaseService command layer
+ *
  * @param {string} userId - The ID of the user to check.
  * @param {string} entityId - The ID of the entity to check ownership for.
  * @returns {Promise<boolean>} True if the user is the owner, false otherwise.
  */
 export async function checkEntityOwnership(userId: string, entityId: string): Promise<boolean> {
-  await initializeDatabase();
-  const db = getDatabaseService();
-
-  const result = await db.read('entities', entityId);
+  const result = await db().findDocById<{ addedBy?: string } & { id: string }>('entities', entityId)
 
   if (!result.success || !result.data) {
-    return false;
+    return false
   }
 
-  const entity = result.data as any;
-  return entity?.addedBy === userId;
+  return result.data.addedBy === userId
 }
-

@@ -1,206 +1,201 @@
 ---
-title: Index
-description: Index documentation for Ring Platform
+title: Architecture
+description: Ring Platform system layout — Postgres-primary deployments, Auth.js, PaymentConductor, realtime, and white-label extension points (v1.6.0)
+last_modified: "2026-06-10"
 ---
 
-import { Callout } from '@/components/docs/callout'
+# Architecture
 
-# Architecture Overview
+<Callout type="info">
+  **For executives:** Ring is a **white-label platform** — one codebase, many branded deployments. Production rings run **PostgreSQL-primary** on Kubernetes with optional Firebase for **push only**, unified payments via **PaymentConductor**, and locale-aware routing without auth redirect loops.
+</Callout>
 
-Ring Platform's architecture is designed for maximum performance, scalability, and developer experience using the latest versions of every framework.
+Ring Platform v1.6.0 is a **multi-tenant Next.js application** with a single `DatabaseService` contract, config-driven payments, and optional Web3/token layers per clone. This page is the **architecture hub**; each topic below has a dedicated deep-dive page.
 
-## Platform Overview
+## Platform at a glance
 
-<Mermaid title="Ring Platform Architecture">
-{`mindmap
-  root((Ring Platform Architecture))
-    Frontend Layer
-      React 19 Server Components
-      Next.js 16 App Router
-      Tailwind CSS 4
-      TypeScript 5.x
-    Backend Services
-      Auth.js v5 Multi-Provider
-      PostgreSQL Primary DB
-      Firebase Optional
-      Edge Runtime API
-    Real-Time Layer
-      WebSocket Transport
-      Server-Sent Events
-      Tunnel Protocol
-      Connection Pooling
-    Web3 Integration
-      Wagmi + Viem
-      Wagmi wallet UI
-      Multi-Chain Support
-      Smart Contract Layer
-    Infrastructure
-      Vercel Deployment
-      CDN Edge Network
-      Serverless Functions
-      Database Migrations`}
+| Dimension | Ring approach |
+|-----------|---------------|
+| **Application** | Next.js 16 App Router, React 19 Server Components, Tailwind 4 |
+| **Data (production default)** | `DB_BACKEND_MODE=k8s-postgres-fcm` — Postgres + PostGIS, JSONB-first schema |
+| **Auth** | Auth.js v5 — layout-level `auth()`, slim `proxy.ts` for locale only |
+| **Payments** | PaymentConductor — WayForPay, Stripe, ledger + webhooks |
+| **Realtime** | Tunnel protocol — WebSocket / SSE / optional Supabase channel |
+| **Files** | Vercel Blob or clone-specific object storage |
+| **Deploy target** | k3s (ringdom.org rings) — not Vercel-hosted Postgres |
+| **Extension** | White-label env, portal config, per-clone token contracts |
+
+## System map
+
+<Mermaid title="Ring Platform — logical layers">
+{`flowchart TB
+  subgraph Client
+    Web[Browser / PWA]
+    Admin[Admin console]
+  end
+
+  subgraph Edge["Next.js (proxy + RSC)"]
+    Proxy[proxy.ts — locale only]
+    Layouts[Route layouts — auth gates]
+    SA[Server Actions + Route Handlers]
+  end
+
+  subgraph Core["Domain services"]
+    DBsvc[DatabaseService / BackendSelector]
+    Pay[PaymentConductor]
+    Sub[Membership + credit ledger]
+    RT[Tunnel transports]
+    AI[AI matcher + Email CRM]
+  end
+
+  subgraph Data
+    PG[(PostgreSQL)]
+    FCM[Firebase FCM — push only]
+    Blob[Blob storage]
+    Chain[Polygon — optional Web3]
+  end
+
+  Web --> Proxy --> Layouts --> SA
+  Admin --> Layouts
+  SA --> DBsvc --> PG
+  SA --> Pay
+  SA --> Sub
+  SA --> RT
+  SA --> AI
+  DBsvc -.-> FCM
+  SA --> Blob
+  Sub -.-> Chain`}
 </Mermaid>
 
-## High-Level Data Flow
+<Tabs items={['Developers', 'Operators']}>
 
-<Mermaid>
-{`flowchart LR
-    Client[Client Layer<br/>React 19 + Next.js 16] --> Auth[Authentication Layer<br/>Auth.js v5]
-    Client --> API[API Layer<br/>Server Actions + REST]
-    
-    Auth --> Session[Session Store<br/>JWT + Cookies]
-    
-    API --> DB[(Database<br/>PostgreSQL Primary<br/>Firebase Optional)]
-    API --> RT[Real-Time Layer<br/>WebSocket + SSE]
-    API --> Web3[Web3 Layer<br/>Wagmi + Viem]
-    
-    RT --> Tunnel[Tunnel Transport<br/>Connection Pool]
-    Web3 --> Blockchain[Blockchain Networks<br/>Multi-Chain]
-    
-    DB --> Cache[Query Cache<br/>Edge Runtime]
-    Tunnel --> Client
-    
-    style Client fill:#e1f5ff
-    style Auth fill:#fff4e1
-    style API fill:#e8f5e9
-    style DB fill:#f3e5f5
-    style RT fill:#ffe0e0
-    style Web3 fill:#fff9c4`}
-</Mermaid>
+<Tab value="Developers">
 
-## Request Lifecycle Architecture
+### Request path
 
 <Mermaid>
 {`sequenceDiagram
-    participant User
-    participant Browser
-    participant Edge as Edge Runtime
-    participant Server as Next.js Server
-    participant Auth as Auth.js
-    participant DB as PostgreSQL
-    participant RT as Real-Time Layer
-    
-    User->>Browser: Request Page
-    Browser->>Edge: HTTP Request
-    Edge->>Server: Forward to Server
-    Server->>Auth: Verify Session
-    Auth-->>Server: Session Valid
-    Server->>DB: Fetch Data
-    DB-->>Server: Return Data
-    Server->>RT: Subscribe to Updates
-    RT-->>Browser: WebSocket Connection
-    Server-->>Edge: Render Response
-    Edge-->>Browser: Serve Page
-    Browser-->>User: Display UI
-    RT->>Browser: Real-Time Updates
-    Browser->>User: Live Data Updates`}
+    participant B as Browser
+    participant P as proxy.ts
+    participant L as authenticated layout
+    participant A as auth()
+    participant S as Server Action / API
+    participant D as DatabaseService
+
+    B->>P: GET /dashboard
+    P->>P: Locale rewrite (next-intl)
+    P->>L: Forward
+    L->>A: Session check
+    alt no session
+      A-->>B: Redirect /login
+    else ok
+      L->>S: Mutation or loader
+      S->>D: query / create / update
+      D-->>B: RSC stream + client islands
+    end`}
 </Mermaid>
 
-## Complete System Flow
+**Code landmarks**
 
-### User Journey & Data Flow
+| Concern | Where to read |
+|---------|---------------|
+| Locale proxy | `proxy.ts`, `lib/proxy-intl.ts` |
+| Auth enforcement | `(authenticated)/[locale]/layout.tsx`, `auth.config.ts` |
+| DB mode switch | `lib/database/backend-mode-config.ts` |
+| Payments | `features/store/services/payment-conductor*` |
+| Schema SSOT | `data/schema.sql` |
 
-<Mermaid>
-{`flowchart TD
-    Start([User Visits Platform]) --> Auth{Authenticated?}
-    Auth -->|No| Login[Login Page]
-    Auth -->|Yes| Dashboard[User Dashboard]
+**Component layering**
 
-    Login --> OAuth[OAuth / Magic Link]
-    OAuth --> AuthVerify{Auth Successful?}
-    AuthVerify -->|Yes| Dashboard
-    AuthVerify -->|No| Login
+- **Hooks** — data fetching, wallet credit, realtime subscriptions
+- **Feature components** — store, messages, wallet sections (reusable across routes)
+- **Pages** — compose features; no direct adapter calls from presentation components
 
-    Dashboard --> Features{Select Feature}
+</Tab>
 
-    Features -->|Browse| Opportunities[Opportunities Feed]
-    Features -->|Search| Entities[Entities Directory]
-    Features -->|Shop| Store[Multi-vendor Store]
-    Features -->|Finance| Wallet[RING Wallet]
-    Features -->|NFTs| NFTMarket[NFT Marketplace]
+<Tab value="Operators">
 
-    Opportunities --> AIMatch[AI Matching Engine]
-    AIMatch --> Score[8-factor Scoring]
-    Score --> Notify[Real-time Notifications]
+### Deployment checklist
 
-    Entities --> Search[Full-text Search]
-    Search --> Filter[Advanced Filters]
-    Filter --> Results[Filtered Results]
+1. Set **`DB_BACKEND_MODE`** — `k8s-postgres-fcm` for self-hosted Postgres (canonical enum string).
+2. Wire **Postgres** connection + run migrations (`getting-started/migrations`).
+3. Configure **FCM** vars if push is enabled — Firebase is **not** the primary database in Postgres mode.
+4. Set **PaymentConductor** processors (WayForPay / Stripe secrets, webhook URLs).
+5. Point **ingress** at the Next.js service; secrets via k8s, not committed `.env`.
+6. Optional: deploy **RING** / **ReferralRewards** contracts; set `NEXT_PUBLIC_RING_TOKEN_ADDRESS`.
 
-    Store --> Browse[Browse Products]
-    Browse --> Cart[Shopping Cart]
-    Cart --> CheckoutFlow[Checkout]
+### What we do *not* rely on
 
-    Wallet --> Balance[Check Balance]
-    Balance --> Topup{Need Funds?}
-    Topup -->|Yes| TopupFlow[Top-up Flow]
-    Topup -->|No| Transfer[Transfer/Stake]
+- `@vercel/postgres` as primary SQL driver
+- Auth inside `proxy.ts` (prevents redirect loops — see zero-loop proxy pattern)
+- Firestore as source of truth when `k8s-postgres-fcm` is set
 
-    NFTMarket --> Mint[Mint NFT]
-    Mint --> List[List for Sale]
-    List --> Trade[Trade/Transfer]
+### Monitoring signals
 
-    CheckoutFlow --> PaySelect{Payment Method}
-    PaySelect -->|WayForPay| Fiat[Card Payment]
-    PaySelect -->|RING| Crypto[Token Payment]
+- API p95, failed payment webhooks, subscription renewal failures
+- DB connection pool saturation, migration version drift
+- FCM token registration errors, Tunnel disconnect rate
 
-    Fiat --> PayProcess[WayForPay Processing]
-    Crypto --> BlockchainTx[Blockchain Transaction]
+</Tab>
 
-    PayProcess --> Confirm[Order Confirmation]
-    BlockchainTx --> Confirm
-    TopupFlow --> BlockchainTx
+</Tabs>
 
-    Confirm --> DB[(PostgreSQL)]
-    DB --> WebSocket[WebSocket/SSE]
-    WebSocket --> RealTime[Real-time Updates]
-    RealTime --> Dashboard`}
-</Mermaid>
+## Architecture deep dives
 
-## Component Architecture Principles
+<Cards>
+  <Card title="Backend modes & databases" href="/docs/architecture/backend-modes-and-databases">
+    `DB_BACKEND_MODE` matrix — Postgres vs Firebase vs Supabase, FCM-only Firebase, Tunnel vs SQL backend
+  </Card>
+  <Card title="Data model" href="/docs/architecture/data-model">
+    JSONB-first schema, PostGIS, collections contract, migrations
+  </Card>
+  <Card title="Authentication" href="/docs/architecture/authentication">
+    Auth.js v5 providers, JWT sessions, Postgres adapter, role gates
+  </Card>
+  <Card title="Proxy & internationalization" href="/docs/architecture/proxy-and-intl">
+    Slim proxy, layout auth, `localePrefix: as-needed`, OAuth exclusions
+  </Card>
+  <Card title="PaymentConductor" href="/docs/architecture/payment-conductor">
+    Config-driven processors, `payment_transactions` ledger, unified webhooks
+  </Card>
+  <Card title="Email AI-CRM" href="/docs/architecture/email-ai-crm">
+    IMAP ingest, JSONB tables, cron poll, admin review pipeline
+  </Card>
+  <Card title="Discovery mutation sync" href="/docs/architecture/discovery-mutation-sync">
+    Post-CRUD cache tags, revalidatePath, and Tunnel events for opportunities and entities
+  </Card>
+  <Card title="News Kingdom" href="/docs/architecture/news-kingdom">
+    Editorial pipeline, generative newsroom hooks, publication flow
+  </Card>
+  <Card title="Refcodes" href="/docs/architecture/refcodes">
+    Attribution cookies, visit analytics, dual-rail ledger + on-chain minter
+  </Card>
+  <Card title="Real-time" href="/docs/architecture/real-time">
+    Tunnel transports, WebSocket/SSE, connection pooling
+  </Card>
+  <Card title="Security" href="/docs/architecture/security">
+    Defense in depth, secrets, webhook verification, admin boundaries
+  </Card>
+</Cards>
 
-### Separation of Concerns & Hierarchy
-Ring Platform establishes modern component architecture patterns that ensure maintainability, reusability, and proper separation of concerns.
+## Cross-cutting flows
 
-<Mermaid>
-{`flowchart TD
-    A[Hooks Layer] --> B[Feature Components]
-    B --> C[Page Components]
-    D[Data Access] --> A
-    E[UI Primitives] --> B
+### Commerce + membership
 
-    A[useCreditBalance<br/>useAuth<br/>useRealtime]
-    B[WalletSection<br/>KYCUpload<br/>MobileAvatarButton]
-    C[Profile Page<br/>Wallet Page<br/>Dashboard]`}
-</Mermaid>
+Store checkout flows through **PaymentConductor** (fiat) or **RING credit / on-chain** subscription (Web3-enabled clones). Settlement, vendor referral commission, and platform token rewards are documented under [PaymentConductor](/docs/architecture/payment-conductor), [Affiliate enablement](/docs/library/features/affiliate-enablement), and [ERP commissions](/docs/library/features/erp/commissions).
 
-### Architectural Patterns
+### Content + locale
 
-#### 🎯 **Component Hierarchy Rules**
-- **Hooks Layer**: Data access, business logic, and state management
-- **Feature Components**: Reusable UI components with specific business functionality
-- **Page Components**: Route-level components that compose feature components
+Public pages use **next-intl** with shared label modules. News and docs content are **per-locale files** under `docs/content/{locale}/library/`. EN is canonical unless LOCALE-GAPS marks a condensed UK/RU summary.
 
-#### 📱 **Mobile Architecture Excellence**
-- **Navigation Revolution**: Top-right gradient avatar button + 9-dots fullscreen menu
-- **Reusable Components**: Feature components designed for cross-context usage
-- **Performance Optimized**: Mobile-specific rendering and interaction patterns
-- **Accessibility First**: WCAG compliant touch targets and interactions
+### White-label clones
 
-#### 🏗️ **Key Architectural Achievements**
-- **Component Separation**: Eliminated page component imports in feature components
-- **Reusable Wallet**: WalletSection component used in profiles and dedicated wallet pages
-- **Mobile Innovation**: Revolutionary navigation with fullscreen modal system
-- **Performance Standards**: 60fps animations and efficient mobile rendering
+Operators fork the Ring repo, set portal branding, choose database mode, and optionally enable token economics — see [White-label quick start](/docs/customization/quick-start) and [Token economics](/docs/customization/token-economics).
 
-## Backend modes and databases
+<Callout type="success">
+  **v1.6.0 baseline:** Postgres-primary + PaymentConductor + slim proxy + locale system. Start with [Backend modes](/docs/architecture/backend-modes-and-databases), then [Environment configuration](/docs/deployment/environment). Hub layout patterns: [Documentation components](/docs/development/docs-components).
+</Callout>
 
-Deployments require **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full`, or `supabase-fcm`). Postgres‑primary production uses Firebase mainly for **FCM**, not Firestore. See **[Backend modes and databases](/en/library/architecture/backend-modes-and-databases)** for the full matrix, **`DB_HYBRID_MODE`** vs backend mode, Supabase Tunnel vs `supabase-fcm`, and links to push and tunnel docs.
-
-### Anti-Patterns Avoided
-- ❌ Page components importing feature components
-- ❌ Feature components with direct service calls
-- ❌ Tight coupling between unrelated feature domains
-- ❌ Direct Firebase calls in presentation components
-
-<Callout type="info">See sections for Auth, Realtime, Security, and Data Model.</Callout>
+<Callout type="warning">
+  **`DB_HYBRID_MODE` ≠ `DB_BACKEND_MODE`.** Use `DB_BACKEND_MODE` for all new deployments; see backend-modes page for legacy hybrid references.
+</Callout>

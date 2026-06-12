@@ -68,7 +68,7 @@ export function MiniCart({ locale }: { locale: Locale }) {
         )}
       </button>
       {open && (
-        <div className="fixed left-0 top-[140px] w-[280px] bottom-[80px] bg-popover/95 backdrop-blur-sm border-r border-l border-border z-40 overflow-y-auto" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+        <div className="fixed left-(--sidebar-rail-w) top-[140px] w-[280px] bottom-[80px] bg-popover/95 backdrop-blur-sm border-r border-l border-border z-40 overflow-y-auto" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingCart className="h-5 w-5" />

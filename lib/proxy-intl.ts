@@ -132,7 +132,14 @@ export function finalizeIntlResponse(
   intlResponse: NextResponse | null | undefined,
 ): NextResponse {
   if (intlResponse) {
-    return stampPathHeadersOnResponse(intlResponse, req)
+    // Rewrites must forward `intlReq` (carries x-pathname) or RSC `headers()` falls back to `/`
+    // and scoped i18n loads `public-home` — dropping namespaces like deployment-calculator.
+    if (intlResponse.headers.get('x-middleware-rewrite')) {
+      return stampPathHeadersOnResponse(applyIntlMiddlewareOutcome(intlReq, intlResponse), req)
+    }
+    const passthrough = NextResponse.next({ request: intlReq })
+    intlResponse.cookies.getAll().forEach((cookie) => passthrough.cookies.set(cookie))
+    return stampPathHeadersOnResponse(passthrough, req)
   }
   return nextWithPathHeaders(req, intlReq)
 }

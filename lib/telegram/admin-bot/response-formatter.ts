@@ -73,6 +73,9 @@ export function formatResponse(
     case 'report':
       return formatReportResponse(result.data, entity!)
 
+    case 'article_generation':
+      return formatArticleGenerationResponse(result.data)
+
     default:
       return `✅ <b>Success</b>\n\nOperation completed successfully.`
   }
@@ -81,6 +84,23 @@ export function formatResponse(
 /**
  * Format CREATE operation response
  */
+function formatArticleGenerationResponse(data: {
+  articleId?: string
+  title?: string
+  locale?: string
+  featuredImage?: string
+  audioUrl?: string
+}): string {
+  let message = '📰 <b>News draft generated</b>\n\n'
+  message += `<b>Title:</b> ${escapeHtml(data.title || 'Untitled')}\n`
+  message += `<b>Locale:</b> ${escapeHtml(data.locale || 'en')}\n`
+  message += `<b>ID:</b> <code>${escapeHtml(data.articleId || 'unknown')}</code>\n`
+  if (data.featuredImage) message += '\n🖼 Featured image attached.'
+  if (data.audioUrl) message += '\n🔊 Audio narration attached.'
+  message += '\n\nUse the inline buttons above to approve or reject.'
+  return truncateMessage(message)
+}
+
 function formatCreateResponse(data: any, entity: string): string {
   const id = data?.id || 'unknown'
   let message = `✅ <b>Created ${entity}</b>\n\n`

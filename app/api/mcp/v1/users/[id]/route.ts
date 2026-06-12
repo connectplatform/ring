@@ -1,4 +1,4 @@
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { deleteUser } from '@/features/auth/services/delete-user'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
@@ -8,24 +8,19 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export const GET = withMcpGuard(async (_request, _actor, context?: Ctx) => {
   const { id } = await (context?.params || Promise.resolve({ id: '' }))
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const result = await db.findById('users', id)
+  const result = await db().findDocById('users', id)
   if (!result.success || !result.data) return mcpError('User not found', 404)
-  const data = (result.data as any).data || result.data
-  return mcpOk({ id, ...data })
+  return mcpOk(result.data)
 })
 
 export const PATCH = withMcpGuard(async (request, _actor, context?: Ctx) => {
   const { id } = await (context?.params || Promise.resolve({ id: '' }))
   const body = await readJsonBody(request)
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const update = await db.update('users', id, { ...body, updatedAt: new Date() })
+  const update = await db().updateDoc('users', id, { ...body, updatedAt: new Date() })
   if (!update.success) return mcpError(update.error?.message || 'Update failed', 400)
-  const result = await db.findById('users', id)
-  const data = (result.data as any)?.data || result.data
-  return mcpOk({ id, ...data })
+  const result = await db().findDocById('users', id)
+  if (!result.success || !result.data) return mcpError('User not found', 404)
+  return mcpOk(result.data)
 })
 
 export const DELETE = withMcpGuard(async (request, _actor, context?: Ctx) => {

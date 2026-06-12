@@ -5,15 +5,14 @@
  * DatabaseService for persistence + Tunnel for real-time updates
  */
 
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { Opportunity } from '@/features/opportunities/types'
-import { invalidateOpportunitiesCache } from '@/lib/cached-data'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { revalidatePath } from 'next/cache'
-import { publishToChannel } from '@/lib/tunnel/publisher'
+import { canOwnerDeleteOpportunity } from '@/features/opportunities/lib/lifecycle-status'
+import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
 
 /**
  * Deletes an opportunity by its ID from the Firestore collection and removes any associated data from Realtime Database.
@@ -86,10 +85,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
     // Step 2: Get the opportunity using db.command()
     let opportunity;
     try {
-      const result = await db().execute('findById', {
-        collection: 'opportunities',
-        id: id
-      });
+      const result = await db().findDocById<Opportunity & { id: string }>('opportunities', id)
 
       if (!result.success || !result.data) {
         throw new OpportunityQueryError(`Opportunity with ID ${id} not found`, undefined, {
@@ -99,7 +95,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
         });
       }
 
-      opportunity = result.data.data as Opportunity;
+      opportunity = result.data
     } catch (error) {
       throw new OpportunityDatabaseError(
         'Failed to retrieve opportunity document',
@@ -112,7 +108,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
       );
     }
 
-    // Step 3: Check user's permission to delete the opportunity
+    // Step 3: Ownership check
     if (currentUserRole !== UserRole.ADMIN && opportunity.createdBy !== currentUserId) {
       throw new OpportunityPermissionError(
         'You do not have permission to delete this opportunity',
@@ -128,7 +124,26 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
       );
     }
 
-    // Step 4: If the opportunity is confidential, ensure the user has appropriate permissions
+    // Step 4: Owners may delete only archived listings (admins may delete any)
+    if (
+      currentUserRole !== UserRole.ADMIN &&
+      opportunity.createdBy === currentUserId &&
+      !canOwnerDeleteOpportunity(opportunity.status)
+    ) {
+      throw new OpportunityPermissionError(
+        'Only archived opportunities can be deleted. Archive the listing first.',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userId: currentUserId,
+          opportunityId: id,
+          status: opportunity.status,
+          operation: 'archived_delete_guard',
+        },
+      )
+    }
+
+    // Step 5: If the opportunity is confidential, ensure the user has appropriate permissions
     if (opportunity.isConfidential && currentUserRole !== UserRole.ADMIN && currentUserRole !== UserRole.CONFIDENTIAL) {
       throw new OpportunityPermissionError(
         'You do not have permission to delete confidential opportunities',
@@ -146,10 +161,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
 
     // Step 5: Delete the opportunity using db.command()
     try {
-      const deleteResult = await db().execute('delete', {
-        collection: 'opportunities',
-        id: id
-      });
+      const deleteResult = await db().deleteDoc('opportunities', id)
 
       if (!deleteResult.success) {
         throw new Error(deleteResult.error?.message || 'Failed to delete opportunity');
@@ -168,24 +180,8 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
       );
     }
 
-    // Step 6: Trigger real-time update via Tunnel protocol (replaces Firebase RTDB)
-    try {
-      await publishToChannel('opportunities', 'opportunity:deleted', { id });
-      logger.info(`Services: deleteOpportunity - Real-time deletion notification sent for opportunity ${id}`);
-    } catch (error) {
-      logger.warn('Services: deleteOpportunity - Failed to send real-time update, continuing...', error);
-      // Don't throw here as the main deletion succeeded
-    }
-
-    // Step 7: Perform cache invalidation and revalidation (React 19 pattern)
-    try {
-      invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin']);
-      revalidatePath('/[locale]/opportunities');
-      revalidatePath(`/[locale]/opportunities/${id}`);
-    } catch (error) {
-      logger.warn('Services: deleteOpportunity - Failed to invalidate cache, continuing...', error);
-      // Don't throw here as the main deletion succeeded
-    }
+    // Step 6: Discovery sync (cache tags + revalidatePath + Tunnel — PG row delete is the index)
+    await syncOpportunityDiscovery({ opportunityId: id, event: 'deleted' })
 
     logger.info('Services: deleteOpportunity - Opportunity deleted successfully:', { id });
     return true;
@@ -211,28 +207,4 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
       }
     );
   }
-}
-
-/**
- * Helper function to delete associated files (if any)
- * This is a placeholder function and should be implemented based on your specific requirements
- * 
- * @param {string} opportunityId - The ID of the opportunity whose files need to be deleted
- */
-async function deleteAssociatedFiles(opportunityId: string): Promise<void> {
-  // Implementation for deleting associated files
-  logger.info(`Deleting associated files for opportunity ${opportunityId}`);
-  // Add your implementation here
-}
-
-/**
- * Helper function to update opportunity indexes after deletion
- * This is a placeholder function and should be implemented based on your specific requirements
- * 
- * @param {string} deletedOpportunityId - The ID of the deleted opportunity
- */
-async function updateOpportunityIndexes(deletedOpportunityId: string): Promise<void> {
-  // Implementation for updating indexes after opportunity deletion
-  logger.info(`Updating indexes after deleting opportunity ${deletedOpportunityId}`);
-  // Add your implementation here
 }

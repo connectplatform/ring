@@ -42,7 +42,7 @@ export interface Opportunity {
   dateUpdated: Timestamp | FieldValue;
   expirationDate: Timestamp | FieldValue;
   applicationDeadline?: Timestamp | FieldValue;
-  status: 'active' | 'closed' | 'expired';
+  status: 'draft' | 'pending' | 'active' | 'closed' | 'expired' | 'archived';
   category: string;
   tags: string[];
   location: string;
@@ -81,7 +81,7 @@ export interface SerializedOpportunity {
   dateUpdated: string;
   expirationDate: string;
   applicationDeadline?: string;
-  status: 'active' | 'closed' | 'expired';
+  status: 'draft' | 'pending' | 'active' | 'closed' | 'expired' | 'archived';
   category: string;
   tags: string[];
   location: string;
@@ -115,6 +115,10 @@ export interface OpportunitySubmenuCounts {
   posted: number
   drafts: number
   expired: number
+  /** Lifecycle tab counts (My Opportunities) */
+  pending?: number
+  active?: number
+  archived?: number
 }
 
 export interface OpportunityFormData {

@@ -105,12 +105,13 @@ export async function POST(
       locale,
     )
 
-    const llm = productAgentService.createStreamingClient()
     const stream = new ReadableStream({
       async start(controller) {
         let fullContent = ''
 
         try {
+          const llm = await productAgentService.createStreamingClient()
+
           controller.enqueue(
             encodeSse({
               type: 'userMessage',

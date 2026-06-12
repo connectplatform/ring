@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import MarketplaceClient from './marketplace-client'
 
 export async function generateMetadata({
@@ -19,8 +19,6 @@ export async function generateMetadata({
     locale,
     path: 'marketplace',
     pathname: '/marketplace',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

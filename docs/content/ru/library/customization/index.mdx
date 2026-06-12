@@ -1,14 +1,57 @@
 ---
-title: Index
-description: Index documentation for Ring Platform
+title: Кастомизация
+description: Каждый деплой Ring — брендированный клон; OSS self-host или Ringdom k8s, затем ring-config и локали (v1.6.0)
+last_modified: "2026-06-12"
 ---
 
-# Customization Overview
+# Кастомизация
 
-White-label Ring to match your brand and product needs.
+<Callout type="info">
+  **Что это за раздел:** Ring **всегда** white-label — один open-source код, ваш бренд, ваш домен. Эти доки для **операторов и разработчиков**, которые ведут клон (сами или с Ringdom). Это **не** процесс заказа на Ringdom.
+</Callout>
 
-- Branding: logo, colors, typography
-- Themes: Tailwind CSS v4 tokens and utilities
-- Feature toggles: enable/disable platform domains
-- Localization: add new languages
-- Component overrides: replace UI components safely
+## Два способа получить клон
+
+| Шаг | OSS (вы ведёте) | Ringdom (мы ведём) |
+|-----|-----------------|---------------------|
+| 1 | [Quick Start](/docs/customization/quick-start) — EN canonical | [ringdom.org](https://ringdom.org) — чат на главной |
+| 2 | [Customization guide](/docs/customization/customization-guide) — EN canonical | После handoff — тот же guide |
+| 3 | [Self-hosted](/docs/deployment/self-hosted) | Ringdom k8s (не Quick Start) |
+
+<Callout type="warning">
+  Для Ringdom-managed settlers **не** используйте Quick Start — заказ начинается на [ringdom.org](https://ringdom.org).
+</Callout>
+
+## Руководства оператора
+
+<Cards>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    RING, membership, treasury
+  </Card>
+</Cards>
+
+Остальные страницы раздела (Quick Start, payments, database) — **EN canonical** до следующего прохода локализации. См. [LOCALE-GAPS](/docs/content/LOCALE-GAPS.md).
+
+## UI-кастомизация
+
+<Cards>
+  <Card title="Branding" href="/docs/customization/branding">
+    Логотип, цвета, типографика
+  </Card>
+  <Card title="Themes" href="/docs/customization/themes">
+    Tailwind CSS v4
+  </Card>
+  <Card title="Features" href="/docs/customization/features">
+    Переключатели модулей
+  </Card>
+  <Card title="Localization" href="/docs/customization/localization">
+    Локали и `locales/`
+  </Card>
+  <Card title="Components" href="/docs/customization/components">
+    Безопасные override UI
+  </Card>
+</Cards>
+
+<Callout type="success">
+  **OSS:** [Quick Start](/docs/customization/quick-start) (EN). **Ringdom settlers:** сначала чат на [ringdom.org](https://ringdom.org), затем [Customization guide](/docs/customization/customization-guide) (EN).
+</Callout>

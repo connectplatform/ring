@@ -1,5 +1,6 @@
 import type { NewsAiScore } from '@/features/news/types'
 import { checkDuplicateNews } from '@/features/news/services/news-duplicate-check'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -84,7 +85,7 @@ export async function scoreNewsForMainPage(params: {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ringplatform.org',
+          'HTTP-Referer': getSiteBaseUrl(),
           'X-OpenRouter-Title': 'Ring News Promotion',
         },
         body: JSON.stringify(body),

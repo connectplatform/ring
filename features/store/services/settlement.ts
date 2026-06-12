@@ -8,7 +8,7 @@
  */
 
 import { cache } from 'react'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { Order, VendorOrder } from '@/features/store/types'
 import { 
   VendorProfile,
@@ -22,6 +22,25 @@ import {
   TIER_BENEFITS
 } from '@/constants/store'
 import { publishEvent } from '@/lib/events/event-bus.server'
+import {
+  computeWeightedReferralCommissionFromOrderItems,
+  normalizeProductReferralInput,
+  type ReferralCommissionProductInput,
+  type ReferralItemRate,
+} from '@/features/store/lib/referral-commission'
+import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
+
+function vendorProfileId(vendorId: string): string {
+  const entityId = vendorId.replace(/^vendor_/, '')
+  return `vendor_${entityId}`
+}
+
+function settlementCurrency(order: Order): string {
+  if (order.totals.RING) return 'RING'
+  if (order.totals.DAARION) return 'DAARION'
+  if (order.totals.DAAR) return 'DAAR'
+  return 'UAH'
+}
 
 // Settlement record for tracking payouts
 export interface Settlement {
@@ -57,6 +76,8 @@ export interface PayoutBatch {
 export interface CommissionBreakdown {
   platformCommission: number
   referralCommission: number
+  referralEffectivePercent?: number
+  referralByItem?: ReferralItemRate[]
   customSplits: Array<{
     recipientId: string
     amount: number
@@ -65,13 +86,36 @@ export interface CommissionBreakdown {
   totalCommission: number
 }
 
+async function loadProductsForOrderItems(
+  items: VendorOrder['items'],
+): Promise<Map<string, ReferralCommissionProductInput>> {
+  const productsById = new Map<string, ReferralCommissionProductInput>()
+
+  for (const item of items) {
+    if (!item.productId || productsById.has(item.productId)) continue
+    const result = await db().findDocById<Record<string, unknown>>(
+      'store_products',
+      item.productId
+    )
+    if (!result.success || !result.data) continue
+    const raw = result.data as Record<string, unknown>
+    const normalized = normalizeProductReferralInput(raw)
+    if (normalized) {
+      productsById.set(item.productId, normalized)
+    }
+  }
+
+  return productsById
+}
+
 /**
  * Calculate commission for a vendor order
  */
 export function calculateCommission(
   vendorOrder: VendorOrder,
   vendor: VendorProfile,
-  merchantConfig?: MerchantConfiguration
+  merchantConfig?: MerchantConfiguration,
+  productsById?: Map<string, ReferralCommissionProductInput>,
 ): CommissionBreakdown {
   const subtotal = vendorOrder.subtotal
   
@@ -82,11 +126,14 @@ export function calculateCommission(
   // Calculate platform commission
   const platformCommission = (subtotal * baseCommissionRate) / 100
   
-  // Calculate referral commission if applicable
-  let referralCommission = 0
-  if (vendorOrder.metadata?.referralCode) {
-    referralCommission = (subtotal * 5) / 100 // 5% referral commission
-  }
+  // Per-item weighted referral commission when a referral code is present
+  const referralResult = computeWeightedReferralCommissionFromOrderItems(
+    vendorOrder.items,
+    Boolean(vendorOrder.metadata?.referralCode),
+    merchantConfig,
+    productsById,
+  )
+  const referralCommission = referralResult.amount
   
   // Calculate custom splits if defined
   const customSplits: CommissionBreakdown['customSplits'] = []
@@ -106,6 +153,8 @@ export function calculateCommission(
   return {
     platformCommission,
     referralCommission,
+    referralEffectivePercent: referralResult.effectivePercent,
+    referralByItem: referralResult.itemRates,
     customSplits,
     totalCommission
   }
@@ -118,25 +167,31 @@ export async function createSettlement(
   order: Order,
   vendorOrder: VendorOrder
 ): Promise<Settlement> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const vendorResult = await db.findById('vendorProfiles', `vendor_${vendorOrder.vendorId}`)
+  const profileId = vendorProfileId(vendorOrder.vendorId)
+  const vendorResult = await db().findDocById<VendorProfile>(
+    STORE_COLLECTIONS.vendorProfiles,
+    profileId
+  )
   if (!vendorResult.success || !vendorResult.data) {
     throw new Error(`Vendor not found: ${vendorOrder.vendorId}`)
   }
-  const vendor = (vendorResult.data.data || vendorResult.data) as VendorProfile
+  const vendor = vendorResult.data as VendorProfile
   
   let merchantConfig: MerchantConfiguration | null = null
   if (vendor.storeMerchantConfigID) {
-    const configResult = await db.findById('merchantConfigs', vendor.storeMerchantConfigID)
+    const configResult = await db().findDocById<MerchantConfiguration>(
+      STORE_COLLECTIONS.merchantConfigs,
+      vendor.storeMerchantConfigID
+    )
     if (configResult.success && configResult.data) {
-      merchantConfig = (configResult.data.data || configResult.data) as MerchantConfiguration
+      merchantConfig = configResult.data as MerchantConfiguration
     }
   }
   
-  // Calculate commission
-  const commission = calculateCommission(vendorOrder, vendor, merchantConfig)
+  const productsById = await loadProductsForOrderItems(vendorOrder.items)
+
+  // Calculate commission (per-item referral rates when referral code present)
+  const commission = calculateCommission(vendorOrder, vendor, merchantConfig, productsById)
   
   // Calculate net payout
   const netPayout = vendorOrder.subtotal - commission.totalCommission
@@ -153,19 +208,21 @@ export async function createSettlement(
     vendorId: vendorOrder.vendorId,
     orderId: order.id,
     amount: vendorOrder.subtotal,
-    currency: order.totals.RING ? 'RING' : 'DAAR', // Determine currency
+    currency: settlementCurrency(order),
     commission: commission.totalCommission,
     netPayout,
     status: 'pending',
     scheduledFor,
     metadata: {
       commissionBreakdown: commission,
+      referralCommission: commission.referralCommission,
+      referralEffectivePercent: commission.referralEffectivePercent,
       vendorStoreId: vendorOrder.storeId,
       orderItems: vendorOrder.items.length
     }
   }
   
-  await db.create('settlements', settlement, { id: settlement.id })
+  await db().createDoc(STORE_COLLECTIONS.settlements, settlement, { id: settlement.id })
   
   return settlement
 }
@@ -212,14 +269,10 @@ function calculateSettlementDate(
  * Process due settlements for payout
  */
 export async function processDueSettlements(): Promise<PayoutBatch> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
   const now = new Date().toISOString()
-  
-  // Get all pending settlements that are due
-  const result = await db.query({
-    collection: 'settlements',
+
+  const result = await db().queryDocs({
+    collection: STORE_COLLECTIONS.settlements,
     filters: [
       { field: 'status', operator: '=', value: 'pending' },
       { field: 'scheduledFor', operator: '<=', value: now }
@@ -231,11 +284,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
     return null
   }
   
-  const settlements = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-  const dueSettlements = settlements.map(item => ({
-    id: item.id,
-    ...(item.data || item)
-  })) as Settlement[]
+  const dueSettlements = result.data as unknown as Settlement[]
   
   if (dueSettlements.length === 0) {
     return null
@@ -253,7 +302,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
     failedCount: 0
   }
   
-  await db.create('payoutBatches', batch, { id: batch.id })
+  await db().createDoc(STORE_COLLECTIONS.payoutBatches, batch, { id: batch.id })
   
   // Process each settlement
   for (const settlement of dueSettlements) {
@@ -265,7 +314,7 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
       batch.failedCount++
       
       // Mark settlement as failed
-      await db.update('settlements', settlement.id, {
+      await db().updateDoc(STORE_COLLECTIONS.settlements, settlement.id, {
         status: 'failed',
         failureReason: error.message
       })
@@ -276,14 +325,19 @@ export async function processDueSettlements(): Promise<PayoutBatch> {
   const batchStatus = batch.failedCount === 0 ? 'completed' : 
                       batch.completedCount === 0 ? 'failed' : 'partial'
   
-  await db.update('payoutBatches', batch.id, {
+  const processedAt = new Date().toISOString()
+  await db().updateDoc(STORE_COLLECTIONS.payoutBatches, batch.id, {
     status: batchStatus,
-    processedAt: new Date().toISOString(),
+    processedAt,
     completedCount: batch.completedCount,
     failedCount: batch.failedCount
   })
-  
-  return batch
+
+  return {
+    ...batch,
+    status: batchStatus,
+    processedAt,
+  }
 }
 
 /**
@@ -293,27 +347,29 @@ async function processSettlement(
   settlement: Settlement,
   batchId: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  // Update settlement status to processing
-  await db.update('settlements', settlement.id, {
+  await db().updateDoc(STORE_COLLECTIONS.settlements, settlement.id, {
     status: 'processing'
   })
   
   try {
     // Get vendor's merchant configuration
-    const vendorResult = await db.findById('vendorProfiles', `vendor_${settlement.vendorId}`)
+    const vendorResult = await db().findDocById<VendorProfile>(
+      STORE_COLLECTIONS.vendorProfiles,
+      vendorProfileId(settlement.vendorId)
+    )
     if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
-    const vendor = (vendorResult.data.data || vendorResult.data) as VendorProfile
+    const vendor = vendorResult.data as VendorProfile
     
     let merchantConfig: MerchantConfiguration | null = null
     if (vendor.storeMerchantConfigID) {
-      const configResult = await db.findById('merchantConfigs', vendor.storeMerchantConfigID)
+      const configResult = await db().findDocById<MerchantConfiguration>(
+        STORE_COLLECTIONS.merchantConfigs,
+        vendor.storeMerchantConfigID
+      )
       if (configResult.success && configResult.data) {
-        merchantConfig = (configResult.data.data || configResult.data) as MerchantConfiguration
+        merchantConfig = configResult.data as MerchantConfiguration
       }
     }
     
@@ -321,17 +377,22 @@ async function processSettlement(
       throw new Error('Merchant configuration or wallet not found')
     }
     
-    // Process payout based on currency
+    // Process payout based on configured mode and currency
+    const payoutMode = getSettlementPayoutMode()
     let transactionId: string
-    
-    if (settlement.currency === 'RING') {
-      // Process RING token payout
+
+    if (payoutMode === 'onchain') {
+      transactionId = await processOnchainPayout(
+        settlement.currency,
+        merchantConfig.walletId,
+        settlement.netPayout
+      )
+    } else if (settlement.currency === 'RING') {
       transactionId = await processRingPayout(
         merchantConfig.walletId,
         settlement.netPayout
       )
     } else {
-      // Process other crypto payouts (DAAR, DAARION)
       transactionId = await processCryptoPayout(
         settlement.currency,
         merchantConfig.walletId,
@@ -340,13 +401,15 @@ async function processSettlement(
     }
     
     // Update settlement as completed
-    await db.update('settlements', settlement.id, {
+    await db().updateDoc(STORE_COLLECTIONS.settlements, settlement.id, {
       status: 'completed',
       processedAt: new Date().toISOString(),
       transactionId,
       metadata: {
         ...settlement.metadata,
-        batchId
+        batchId,
+        payoutMode,
+        simulated: payoutMode !== 'onchain',
       }
     })
     
@@ -368,43 +431,90 @@ async function processSettlement(
   }
 }
 
+export type SettlementPayoutMode = 'simulated' | 'onchain'
+
 /**
- * Process RING token payout
+ * Payout rail selector. Defaults to `simulated` — settlements complete with a
+ * `sim_` transaction id and `metadata.simulated: true` so UIs can badge them.
+ * Set SETTLEMENT_PAYOUT_MODE=onchain only after the payout token, treasury
+ * wallet, and SETTLEMENT_PAYOUT_* env are production-verified.
+ */
+export function getSettlementPayoutMode(): SettlementPayoutMode {
+  return process.env.SETTLEMENT_PAYOUT_MODE === 'onchain' ? 'onchain' : 'simulated'
+}
+
+/**
+ * On-chain ERC20 payout via the server treasury wallet (viem), mirroring the
+ * refcodes reward-minter pattern. Requires:
+ * - SETTLEMENT_PAYOUT_PRIVATE_KEY  (treasury wallet holding the payout token)
+ * - SETTLEMENT_PAYOUT_TOKEN_ADDRESS (ERC20 used for vendor payouts)
+ * - POLYGON_RPC_URL
+ */
+async function processOnchainPayout(
+  currency: string,
+  walletAddress: string,
+  amount: number
+): Promise<string> {
+  const key = process.env.SETTLEMENT_PAYOUT_PRIVATE_KEY
+  const token = process.env.SETTLEMENT_PAYOUT_TOKEN_ADDRESS
+  if (!key || !token) {
+    throw new Error(
+      'SETTLEMENT_PAYOUT_MODE=onchain requires SETTLEMENT_PAYOUT_PRIVATE_KEY and SETTLEMENT_PAYOUT_TOKEN_ADDRESS'
+    )
+  }
+  if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+    throw new Error(`Vendor payout wallet is not a valid address: ${walletAddress}`)
+  }
+
+  const { createWalletClient, createPublicClient, http, parseUnits, erc20Abi } = await import('viem')
+  const { privateKeyToAccount } = await import('viem/accounts')
+  const { polygon } = await import('viem/chains')
+
+  const normalized = key.startsWith('0x') ? key : `0x${key}`
+  const account = privateKeyToAccount(normalized as `0x${string}`)
+  const rpcUrl = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'
+  const walletClient = createWalletClient({ account, chain: polygon, transport: http(rpcUrl) })
+  const publicClient = createPublicClient({ chain: polygon, transport: http(rpcUrl) })
+
+  const { request } = await publicClient.simulateContract({
+    address: token as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [walletAddress as `0x${string}`, parseUnits(amount.toFixed(6), 18)],
+    account,
+  })
+  const hash = await walletClient.writeContract(request)
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  if (receipt.status !== 'success') {
+    throw new Error(`Payout transaction reverted: ${hash}`)
+  }
+
+  console.log(`On-chain payout: ${amount} ${currency} → ${walletAddress} (${hash})`)
+  return hash
+}
+
+/**
+ * Simulated RING payout (SETTLEMENT_PAYOUT_MODE=simulated).
  */
 async function processRingPayout(
   walletId: string,
   amount: number
 ): Promise<string> {
-  // Integration with RING token smart contract
-  // This would call the actual blockchain transaction
-  
-  // For now, simulate the payout
-  const transactionId = `ring_tx_${Date.now()}`
-  
-  // In production, this would:
-  // 1. Get wallet address from walletId
-  // 2. Call smart contract transfer function
-  // 3. Wait for transaction confirmation
-  // 4. Return transaction hash
-  
-  console.log(`Processing RING payout: ${amount} RING to wallet ${walletId}`)
-  
+  const transactionId = `sim_ring_${Date.now()}`
+  console.log(`[SIMULATED] RING payout: ${amount} RING to wallet ${walletId}`)
   return transactionId
 }
 
 /**
- * Process other crypto payouts (DAAR, DAARION)
+ * Simulated payout for other currencies (SETTLEMENT_PAYOUT_MODE=simulated).
  */
 async function processCryptoPayout(
   currency: string,
   walletId: string,
   amount: number
 ): Promise<string> {
-  // Integration with respective blockchain
-  const transactionId = `${currency.toLowerCase()}_tx_${Date.now()}`
-  
-  console.log(`Processing ${currency} payout: ${amount} to wallet ${walletId}`)
-  
+  const transactionId = `sim_${currency.toLowerCase()}_${Date.now()}`
+  console.log(`[SIMULATED] ${currency} payout: ${amount} to wallet ${walletId}`)
   return transactionId
 }
 
@@ -415,10 +525,7 @@ export async function holdSettlement(
   settlementId: string,
   reason: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  await db.update('settlements', settlementId, {
+  await db().updateDoc(STORE_COLLECTIONS.settlements, settlementId, {
     status: 'held',
     metadata: {
       holdReason: reason,
@@ -433,15 +540,15 @@ export async function holdSettlement(
 export async function releaseHeldSettlement(
   settlementId: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const settlementResult = await db.findById('settlements', settlementId)
+  const settlementResult = await db().findDocById<Settlement>(
+    STORE_COLLECTIONS.settlements,
+    settlementId
+  )
   if (!settlementResult.success || !settlementResult.data) {
     throw new Error('Settlement not found or not held')
   }
   
-  const settlement = (settlementResult.data.data || settlementResult.data) as Settlement
+  const settlement = settlementResult.data as Settlement
   if (settlement.status !== 'held') {
     throw new Error('Settlement not held')
   }
@@ -452,7 +559,7 @@ export async function releaseHeldSettlement(
     0 // No additional hold period
   )
   
-  await db.update('settlements', settlementId, {
+  await db().updateDoc(STORE_COLLECTIONS.settlements, settlementId, {
     status: 'pending',
     scheduledFor: newScheduledDate,
     metadata: {
@@ -470,11 +577,8 @@ export const getVendorPayoutHistory = cache(async (
   vendorId: string,
   limit: number = 50
 ): Promise<Settlement[]> => {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const result = await db.query({
-    collection: 'settlements',
+  const result = await db().queryDocs({
+    collection: STORE_COLLECTIONS.settlements,
     filters: [
       { field: 'vendorId', operator: '=', value: vendorId },
       { field: 'status', operator: '=', value: 'completed' }
@@ -487,11 +591,7 @@ export const getVendorPayoutHistory = cache(async (
     return []
   }
   
-  const settlements = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-  return settlements.map(item => ({
-    id: item.id,
-    ...(item.data || item)
-  })) as Settlement[]
+  return result.data as unknown as Settlement[]
 })
 
 /**
@@ -501,11 +601,8 @@ export const getVendorPayoutHistory = cache(async (
 export const getVendorPendingPayouts = cache(async (
   vendorId: string
 ): Promise<{ settlements: Settlement[], total: number }> => {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const result = await db.query({
-    collection: 'settlements',
+  const result = await db().queryDocs({
+    collection: STORE_COLLECTIONS.settlements,
     filters: [
       { field: 'vendorId', operator: '=', value: vendorId },
       { field: 'status', operator: '=', value: 'pending' }
@@ -517,11 +614,7 @@ export const getVendorPendingPayouts = cache(async (
     return { settlements: [], total: 0 }
   }
   
-  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-  const settlements = data.map(item => ({
-    id: item.id,
-    ...(item.data || item)
-  })) as Settlement[]
+  const settlements = result.data as unknown as Settlement[]
   
   const total = settlements.reduce((sum, s) => sum + s.netPayout, 0)
   
@@ -539,11 +632,8 @@ export const calculatePlatformRevenue = cache(async (
   startDate: string,
   endDate: string
 ): Promise<{ total: number, breakdown: Record<string, number> }> => {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const result = await db.query({
-    collection: 'settlements',
+  const result = await db().queryDocs({
+    collection: STORE_COLLECTIONS.settlements,
     filters: [
       { field: 'status', operator: '=', value: 'completed' },
       { field: 'processedAt', operator: '>=', value: startDate },
@@ -555,11 +645,7 @@ export const calculatePlatformRevenue = cache(async (
     return { total: 0, breakdown: {} }
   }
   
-  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-  const settlements = data.map(item => ({
-    id: item.id,
-    ...(item.data || item)
-  })) as Settlement[]
+  const settlements = result.data as unknown as Settlement[]
   
   const breakdown: Record<string, number> = {}
   let total = 0

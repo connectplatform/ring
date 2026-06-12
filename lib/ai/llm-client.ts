@@ -76,7 +76,7 @@ export class LLMClient {
   private getApiKey(): string {
     if (this.config.apiKey) return this.config.apiKey
 
-    if (this.config.baseUrl?.includes('openrouter.ai') || this.config.baseUrl?.includes('api.x.ai')) {
+    if (this.config.baseUrl?.includes('openrouter.ai')) {
       const key = process.env.OPENROUTER_API_KEY
       if (!key) {
         throw new LLMError('Missing OPENROUTER_API_KEY', {
@@ -88,12 +88,22 @@ export class LLMClient {
       return key
     }
 
+    if (this.config.baseUrl?.includes('api.x.ai')) {
+      const key = process.env.XAI_API_KEY
+      if (!key) {
+        throw new LLMError('Missing XAI_API_KEY', {
+          provider: this.config.provider,
+          model: this.config.model,
+          retryable: false,
+        })
+      }
+      return key
+    }
+
     const envKey =
-      this.config.baseUrl?.includes('api.x.ai')
-        ? process.env.XAI_API_KEY
-        : this.config.provider === 'openai'
-          ? process.env.OPENAI_API_KEY
-          : process.env.ANTHROPIC_API_KEY
+      this.config.provider === 'openai'
+        ? process.env.OPENAI_API_KEY
+        : process.env.ANTHROPIC_API_KEY
 
     if (!envKey) {
       throw new LLMError(`Missing API key for ${this.config.provider}`, {
@@ -458,6 +468,7 @@ export class LLMClient {
   }
 }
 
+/** @deprecated Env-only check — prefer getResolvedAIConfig + createLLMClientAsync */
 export function isStreamingCompatibleEnvProvider(): boolean {
   const explicit = (process.env.LLM_PROVIDER || '').trim().toLowerCase()
 
@@ -488,9 +499,68 @@ export function isStreamingCompatibleEnvProvider(): boolean {
   return false
 }
 
-/**
- * Prefer env LLM when it supports chat-completions SSE; otherwise xAI Grok (OpenAI-compatible).
- */
+export async function createLLMClientAsync(fallback: boolean = true): Promise<LLMClient> {
+  const {
+    getResolvedAIConfig,
+    buildLLMClientConfigFromResolved,
+  } = await import('@/features/admin/platform-settings/resolved-ai-config')
+  const resolved = await getResolvedAIConfig()
+  const primary = buildLLMClientConfigFromResolved(resolved)
+  let fallbackConfig: LLMConfig | undefined
+
+  if (fallback && resolved.provider === 'openai' && resolved.apiKeys.anthropic) {
+    fallbackConfig = {
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022',
+      apiKey: resolved.apiKeys.anthropic,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+    }
+  } else if (fallback && resolved.provider === 'anthropic' && resolved.apiKeys.openai) {
+    fallbackConfig = {
+      provider: 'openai',
+      model: 'gpt-4o',
+      apiKey: resolved.apiKeys.openai,
+      temperature: resolved.temperature,
+      maxTokens: resolved.maxTokens,
+    }
+  }
+
+  return new LLMClient(primary, fallbackConfig)
+}
+
+export async function createStreamingLLMClientAsync(fallback: boolean = true): Promise<LLMClient> {
+  const {
+    resolveStreamingLLMTarget,
+    buildLLMClientConfigFromResolved,
+  } = await import('@/features/admin/platform-settings/resolved-ai-config')
+
+  const { useGrokFallback, config } = await resolveStreamingLLMTarget()
+
+  if (!useGrokFallback) {
+    return createLLMClientAsync(fallback)
+  }
+
+  const xai = getXaiTextConfig({
+    maxTokens: config.productAgent.maxTokens,
+    model: config.apiKeys.xai ? config.model : undefined,
+  })
+  const apiKey = config.apiKeys.xai || xai.apiKey
+  if (apiKey) {
+    return new LLMClient({
+      provider: 'openai',
+      model: config.model || xai.model,
+      baseUrl: xai.baseUrl,
+      apiKey,
+      temperature: config.productAgent.temperature,
+      maxTokens: config.productAgent.maxTokens,
+    })
+  }
+
+  return createLLMClientAsync(fallback)
+}
+
+/** Env-only synchronous factory (legacy callers). */
 export function createStreamingLLMClient(fallback: boolean = true): LLMClient {
   if (isStreamingCompatibleEnvProvider()) {
     return createLLMClient(fallback)
@@ -583,6 +653,18 @@ export function isLLMAvailable(): boolean {
     process.env.OPENROUTER_API_KEY ||
     process.env.XAI_API_KEY
   )
+}
+
+export async function isLLMAvailableAsync(): Promise<boolean> {
+  try {
+    const { getResolvedAIConfig } = await import(
+      '@/features/admin/platform-settings/resolved-ai-config'
+    )
+    const resolved = await getResolvedAIConfig()
+    return Object.values(resolved.apiKeys).some(Boolean)
+  } catch {
+    return isLLMAvailable()
+  }
 }
 
 export function normalizeStreamMessages(messages: LLMStreamMessage[]): LLMStreamMessage[] {

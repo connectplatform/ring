@@ -5,6 +5,7 @@
   "clone": {
     "name": "my-ring-clone",
     "displayName": "My Ring Clone",
+    "shortName": "Ring",
     "description": "A Ring Platform clone for [your use case]",
     "version": "1.0.0",
     "organization": "Your Organization Name",
@@ -118,7 +119,76 @@
       "webVitals": true,
       "googleAnalytics": false,
       "mixpanel": false
+    },
+    "expertServicesMarketplace": false
+  },
+
+  "theme": {
+    "default": "system"
+  },
+
+  "navigation": {
+    "links": [
+      { "label": "Home", "href": "/" },
+      { "label": "Entities", "href": "/entities" },
+      { "label": "Opportunities", "href": "/opportunities" }
+    ]
+  },
+
+  "hero": {
+    "title": "Connect talent and opportunity",
+    "subtitle": "A modular, open, white‑label platform.",
+    "ctaText": "Get started",
+    "ctaHref": "/login",
+    "showOnHome": true
+  },
+
+  "platform": {
+    "baseUrl": "https://your-domain.com"
+  },
+
+  "tokens": {
+    "ring": {
+      "symbol": "RING",
+      "name": "RING Governance Token",
+      "decimals": 18
     }
+  },
+
+  "sidebar": {
+    "quickLinks": [
+      { "labelKey": "about.sidebar.aboutUs", "href": "/about", "icon": "Info" },
+      { "labelKey": "about.sidebar.tokenEconomy", "href": "/token-economy", "icon": "Globe" },
+      { "labelKey": "about.sidebar.globalImpact", "href": "/global-impact", "icon": "Users" },
+      { "labelKey": "about.sidebar.contact", "href": "/contact", "icon": "Mail" }
+    ],
+    "community": [
+      { "labelKey": "about.sidebar.github", "urlKey": "social.github" },
+      { "labelKey": "about.sidebar.discord", "urlKey": "social.discord" }
+    ],
+    "stats": [
+      { "labelKey": "about.sidebar.version", "valueKey": "clone.version" },
+      { "labelKey": "about.sidebar.license", "valueKey": "legal.licenseSpdx" }
+    ]
+  },
+
+  "calculator": {
+    "enabled": true,
+    "presetId": "deployment"
+  },
+
+  "productFields": {
+    "preset": "platform"
+  },
+
+  "productBadges": {
+    "preset": "platform"
+  },
+
+  "contact": {
+    "address": "123 Main Street, City, Country",
+    "phone": "+1 000 000 0000",
+    "email": "contact@your-domain.com"
   },
 
   "localization": {
@@ -152,6 +222,7 @@
     "companyName": "Your Company Name",
     "companyAddress": "123 Main Street, City, Country",
     "companyRegistration": "REG-12345678",
+    "licenseSpdx": "MIT",
     "privacyPolicyUrl": "/legal/privacy",
     "termsOfServiceUrl": "/legal/terms",
     "cookiePolicyUrl": "/legal/cookies",
@@ -219,7 +290,16 @@
     }
   },
 
+  "matcher": {
+    "scoreThreshold": 0.7,
+    "maxMatches": 10,
+    "autoApprove": false,
+    "autoApproveMinScore": 0.7,
+    "llmConfidenceGate": 0.8
+  },
+
   "integrations": {
+    "demoUserEmail": "vendor@your-domain.com",
     "wayforpay": {
       "enabled": true,
       "testMode": true

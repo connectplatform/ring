@@ -6,7 +6,12 @@
   "messages": "Messages",
   "selectConversation": "Select a conversation to start messaging",
   "conversationHint": "Choose from your conversations or start a new one",
-  "reconnecting": "Reconnecting to chat server..."
+  "reconnecting": "Reconnecting to chat server...",
+  "newConversationTitle": "New conversation",
+  "searchUsersPlaceholder": "Search by username or name…",
+  "searchingUsers": "Searching…",
+  "noUsersFound": "No users found",
+  "messageUser": "Message {name}",
+  "messageUserFallback": "user",
+  "entityChatEmpty": "No conversation yet. Visitors can start a chat about this entity."
 }
-
-

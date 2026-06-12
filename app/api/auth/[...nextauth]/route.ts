@@ -3,7 +3,7 @@ import { connection } from 'next/server'
 
 /**
  * Auth.js v5 — database + cookies require a dynamic request context on Next.js 16+
- * (same pattern as other `/api/*` routes using `initializeDatabase()`).
+ * (`db().*Doc` methods auto-initialize on first use).
  */
 export async function GET(
   ...args: Parameters<typeof handlers.GET>

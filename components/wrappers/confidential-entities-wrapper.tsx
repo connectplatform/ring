@@ -83,6 +83,7 @@ export default function ConfidentialEntitiesWrapper({
   )
 
   return (
+    <div className="ring-content-panel min-w-0 min-h-full">
     <ConfidentialEntitiesProvider 
       initialEntities={initialEntities} 
       initialError={initialError}
@@ -101,5 +102,6 @@ export default function ConfidentialEntitiesWrapper({
         />
       </React.Suspense>
     </ConfidentialEntitiesProvider>
+    </div>
   )
 }

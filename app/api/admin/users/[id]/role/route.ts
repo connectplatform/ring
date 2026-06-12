@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 import { UserRole } from '@/features/auth/types';
+
+type UserRow = Record<string, unknown> & { id: string };
 
 export async function PUT(
   request: NextRequest,
@@ -31,19 +33,7 @@ export async function PUT(
       );
     }
 
-    // Initialize database service
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      return NextResponse.json(
-        { error: 'Database initialization failed' },
-        { status: 500 }
-      );
-    }
-
-    const dbService = getDatabaseService();
-
-    // Read current user data
-    const userResult = await dbService.read('users', id);
+    const userResult = await db().readDoc<UserRow>('users', id);
     if (!userResult.success || !userResult.data) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -51,16 +41,15 @@ export async function PUT(
       );
     }
 
-    const userData = userResult.data.data || userResult.data;
+    const userData = userResult.data;
 
-    // Update user role
     const updatedUserData = {
       ...userData,
       role,
       updated_at: new Date()
     };
 
-    const updateResult = await dbService.update('users', id, updatedUserData);
+    const updateResult = await db().updateDoc('users', id, updatedUserData);
     if (!updateResult.success) {
       return NextResponse.json(
         { error: 'Failed to update user role' },
@@ -80,4 +69,4 @@ export async function PUT(
       { status: 500 }
     );
   }
-} 
+}

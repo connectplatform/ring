@@ -7,7 +7,7 @@
 
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 
 /**
  * Update a user's role in Firestore and Firebase Auth, with authentication and admin-only access.
@@ -40,12 +40,7 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
 
     console.log(`updateUserRole: Admin authenticated with ID ${session.user.id}`)
 
-    // Step 2: Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Step 3: Update role in PostgreSQL
-    const updateResult = await db.update('users', userId, {
+    const updateResult = await db().updateDoc('users', userId, {
       role: newRole,
       updatedAt: new Date()
     })

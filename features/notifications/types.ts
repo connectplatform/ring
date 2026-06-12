@@ -50,7 +50,10 @@ export enum NotificationType {
   KYC_REQUIRED = 'kyc_required',
   KYC_APPROVED = 'kyc_approved',
   KYC_REJECTED = 'kyc_rejected',
-  KYC_EXPIRING = 'kyc_expiring'
+  KYC_EXPIRING = 'kyc_expiring',
+
+  // Referrals
+  REFERRAL_REWARD_MINTED = 'referral_reward_minted',
 }
 
 /**

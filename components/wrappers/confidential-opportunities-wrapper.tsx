@@ -87,6 +87,7 @@ export default function ConfidentialOpportunitiesWrapper({
   )
 
   return (
+    <div className="ring-content-panel min-w-0 min-h-full">
     <ConfidentialOpportunitiesProvider 
       initialOpportunities={initialOpportunities} 
       initialError={initialError}
@@ -105,5 +106,6 @@ export default function ConfidentialOpportunitiesWrapper({
         />
       </React.Suspense>
     </ConfidentialOpportunitiesProvider>
+    </div>
   )
 }

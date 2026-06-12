@@ -1,0 +1,10 @@
+{
+  "title": "Ring ERP",
+  "description": "AI-driven inventory, vendor management, and commission settlement",
+  "pages": [
+    "index",
+    "inventory",
+    "vendor-management",
+    "commissions"
+  ]
+}

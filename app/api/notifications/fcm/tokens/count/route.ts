@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+
+type FcmTokenRow = Record<string, unknown> & { id: string }
+
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof (value as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate()
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return new Date(value)
+  }
+  return new Date()
+}
 
 export async function GET(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -15,18 +33,15 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Get count of active tokens for the user
-    const result = await db.query({
+    const result = await db().queryDocs<FcmTokenRow>({
       collection: 'fcm_tokens',
       filters: [
         { field: 'userId', operator: '==', value: session.user.id },
         { field: 'isActive', operator: '==', value: true }
       ]
     })
-    
+
     if (!result.success) {
       throw result.error || new Error('Failed to fetch fcm_tokens')
     }
@@ -34,13 +49,13 @@ export async function GET(req: NextRequest) {
     const count = result.data.length
 
     // Get device breakdown
-    const devices = result.data.map(doc => {
-      const data = doc as any
+    const devices = result.data.map((doc) => {
+      const deviceInfo = doc.deviceInfo as Record<string, unknown> | undefined
       return {
-        platform: data.deviceInfo?.platform || 'Unknown',
-        browser: data.deviceInfo?.browser || 'Unknown',
-        lastSeen: data.deviceInfo?.lastSeen?.toDate() || new Date(),
-        createdAt: data.createdAt?.toDate() || new Date()
+        platform: (deviceInfo?.platform as string) || 'Unknown',
+        browser: (deviceInfo?.browser as string) || 'Unknown',
+        lastSeen: toDate(deviceInfo?.lastSeen),
+        createdAt: toDate(doc.createdAt)
       }
     })
 

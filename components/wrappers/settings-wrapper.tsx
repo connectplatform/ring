@@ -22,7 +22,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import type { Locale } from '@/i18n/shared'
 
@@ -169,15 +168,13 @@ export default function SettingsWrapper({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex gap-6 min-h-screen">
+    <div className="min-h-full">
+      <div className="flex min-h-full gap-3">
         {/* Desktop Sidebar - hidden md:block */}
-        <div className="hidden md:block w-[280px]">
-          <DesktopSidebar />
-        </div>
+
 
         {/* Main Content */}
-        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {children}
         </div>
 

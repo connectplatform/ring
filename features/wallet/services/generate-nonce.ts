@@ -1,63 +1,60 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+import crypto from 'crypto'
 
-import crypto from 'crypto';
+import { UserRole } from '@/features/auth/user-role'
+import { db } from '@/lib/database'
+import {
+  normalizeWalletStorageId,
+  toChecksumAddress,
+} from '@/features/wallet/services/verify-wallet-signature'
 
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
-
-export async function generateNonce(publicAddress: string): Promise<{ nonce: string, expires: number }> {
-  console.log('Services: generateNonce - Starting nonce generation process');
-
+export async function generateNonce(publicAddress: string): Promise<{ nonce: string; expires: number }> {
   if (!publicAddress) {
-    console.error('Services: generateNonce - Public address not provided');
-    throw new Error('Public address is required');
+    throw new Error('Public address is required')
   }
 
-  try {
-    // Generate a random nonce
-    const nonce = crypto.randomBytes(32).toString('hex');
-    console.log('Services: generateNonce - Nonce generated');
+  const storageId = normalizeWalletStorageId(publicAddress)
+  const checksumAddress = toChecksumAddress(publicAddress)
 
-    // Calculate nonce expiration time (1 hour from now)
-    const expires = Date.now() + 3600000; // 1 hour in milliseconds
+  const nonce = crypto.randomBytes(32).toString('hex')
+  const expires = Date.now() + 3600000
 
-    // Store the nonce in database
-    console.log('Services: generateNonce - Initializing database service');
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      console.error('Services: generateNonce - Database initialization failed:', initResult.error);
-      throw new Error('Database initialization failed');
-    }
+  const userResult = await db().findDocById<Record<string, unknown>>('users', storageId)
+  if (!userResult.success && userResult.metadata?.operation === 'initialize') {
+    throw new Error('Database initialization failed')
+  }
 
-    const dbService = getDatabaseService();
+  const existing = userResult.success && userResult.data ? userResult.data : null
 
-    // First read the current user data
-    const userResult = await dbService.read('users', publicAddress);
-    const userData = userResult.success && userResult.data ? (userResult.data.data || userResult.data) : {};
+  const noncePayload = {
+    nonce,
+    nonceExpires: expires,
+    walletAddress: checksumAddress,
+  }
 
-    // Update with nonce information
-    const updatedUserData = {
-      ...userData,
-      nonce,
-      nonceExpires: expires,
-    };
-
-    const updateResult = await dbService.update('users', publicAddress, updatedUserData);
+  if (existing) {
+    const updateResult = await db().updateDoc('users', storageId, noncePayload)
     if (!updateResult.success) {
-      throw new Error('Failed to store nonce in database');
+      throw new Error('Failed to store nonce in database')
     }
-
-    console.log('Services: generateNonce - Nonce stored in database');
-
-    return { nonce, expires };
-  } catch (error) {
-    console.error('Services: generateNonce - Error:', error);
-    throw error instanceof Error ? error : new Error('Unknown error occurred while generating nonce');
+  } else {
+    const now = new Date().toISOString()
+    const createResult = await db().createDoc(
+      'users',
+      {
+        role: UserRole.SUBSCRIBER,
+        email: '',
+        name: null,
+        isVerified: false,
+        createdAt: now,
+        lastLogin: now,
+        ...noncePayload,
+      },
+      { id: storageId }
+    )
+    if (!createResult.success) {
+      throw new Error('Failed to create wallet user for nonce')
+    }
   }
-}
 
+  return { nonce, expires }
+}

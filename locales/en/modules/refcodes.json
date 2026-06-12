@@ -1,0 +1,86 @@
+{
+  "title": "Share & Earn",
+  "explainer": "Share your personal link. When someone makes their first purchase through it, you earn project tokens automatically — no wallet math, just share.",
+  "yourLinks": "Your share links",
+  "noWallets": "Connect a wallet to get your share link.",
+  "connectWallet": "Connect wallet",
+  "copyLink": "Copy link",
+  "copied": "Copied!",
+  "share": "Share",
+  "shareTitle": "Join Ring Platform",
+  "shareText": "Check this out — use my link for your first purchase.",
+  "history": "Recent rewards",
+  "viewTx": "View transaction",
+  "loadError": "Could not load your referral dashboard. Try again shortly.",
+  "retry": "Try again",
+  "visitsTitle": "Link visits",
+  "linkVisits": "{count, plural, one {# visit} other {# visits}}",
+  "linkVisitsToday": "{count, plural, one {# today} other {# today}}",
+  "stats": {
+    "earned": "Tokens earned ({token})",
+    "minted": "Rewards paid",
+    "pending": "Awaiting approval",
+    "processing": "Mint in progress",
+    "visitsTotal": "All-time visits",
+    "visitsToday": "Today",
+    "visits7d": "Last 7 days",
+    "visits28d": "Last 28 days"
+  },
+  "notifications": {
+    "minted": {
+      "title": "Referral reward minted",
+      "body": "Your referral reward of {amount} {token} has been minted."
+    }
+  },
+  "status": {
+    "pending_approval": "Awaiting approval",
+    "approved": "Approved",
+    "minting": "Minting",
+    "minted": "Paid",
+    "failed": "Failed",
+    "rejected": "Rejected"
+  },
+  "admin": {
+    "title": "Referral rewards",
+    "description": "Review fiat-tagged referral payouts, mint on-chain rewards, and monitor program health.",
+    "empty": "No rewards awaiting approval.",
+    "pendingTitle": "Pending approval",
+    "failedTitle": "Failed mints",
+    "recentTitle": "Recent activity",
+    "recentEmpty": "No referral rewards yet.",
+    "order": "Order",
+    "refCode": "Ref code",
+    "amount": "Reward",
+    "referrer": "Referrer wallet",
+    "approve": "Approve & mint",
+    "reject": "Reject",
+    "retryMint": "Retry mint",
+    "batchMint": "Mint approved queue",
+    "viewTx": "View transaction",
+    "approveSuccess": "Reward approved and mint submitted.",
+    "approveFailed": "Approval or mint failed.",
+    "rejectSuccess": "Reward rejected.",
+    "rejectFailed": "Could not reject reward.",
+    "mintSuccess": "Mint transaction submitted.",
+    "mintFailed": "Mint failed — check contract env and operator wallet.",
+    "batchMintSuccess": "Processed {processed} rewards, {succeeded} minted.",
+    "stats": {
+      "codes": "Active codes",
+      "rewards": "Total rewards",
+      "pending": "Pending approval",
+      "minted": "Minted",
+      "visitsTotal": "Visits (all time)",
+      "visitsToday": "Visits today",
+      "visits7d": "Visits (7 days)",
+      "visits28d": "Visits (28 days)"
+    },
+    "status": {
+      "pending_approval": "Pending approval",
+      "approved": "Approved",
+      "minting": "Minting",
+      "minted": "Minted",
+      "failed": "Failed",
+      "rejected": "Rejected"
+    }
+  }
+}

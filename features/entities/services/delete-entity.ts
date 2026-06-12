@@ -9,8 +9,8 @@ import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { Entity } from '@/features/entities/types'
 import { checkEntityOwnership } from '@/features/entities/utils/entity-utils'
-import { invalidateEntitiesCache } from '@/lib/cached-data'
-import { db } from '@/lib/database/DatabaseService'
+import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
+import { db } from '@/lib/database'
 
 /**
  * Deletes an entity by its ID from the Firestore collection and removes its presence data from Realtime Database.
@@ -51,10 +51,7 @@ export async function deleteEntity(id: string): Promise<boolean> {
     console.log(`Services: deleteEntity - User authenticated with ID ${userId} and role ${userRole}`);
 
     // Step 2: Get the entity using db.command()
-    const entityResult = await db().execute('findById', {
-      collection: 'entities',
-      id: id
-    });
+    const entityResult = await db().findDocById<Entity & { id: string }>('entities', id)
 
     // Step 3: Check if the entity exists
     if (!entityResult.success || !entityResult.data) {
@@ -62,7 +59,7 @@ export async function deleteEntity(id: string): Promise<boolean> {
       throw new Error(`Entity with ID ${id} not found.`);
     }
 
-    const entity = entityResult.data.data as Entity;
+    const entity = entityResult.data as Entity
 
     // Step 4: Check user's permission to delete the entity
     const isOwner = await checkEntityOwnership(userId, id);
@@ -78,10 +75,7 @@ export async function deleteEntity(id: string): Promise<boolean> {
     }
 
     // Step 6: Delete the entity using db.command()
-    const deleteResult = await db().execute('delete', {
-      collection: 'entities',
-      id: id
-    });
+    const deleteResult = await db().deleteDoc('entities', id)
 
     if (!deleteResult.success) {
       throw new Error(deleteResult.error?.message || 'Failed to delete entity');
@@ -89,7 +83,7 @@ export async function deleteEntity(id: string): Promise<boolean> {
 
     // Step 7: Entity deleted successfully
     console.log('Services: deleteEntity - Entity deleted successfully:', id);
-    invalidateEntitiesCache(['public','subscriber','member','confidential','admin'])
+    await syncEntityDiscovery({ entityId: id, event: 'deleted' })
     return true;
   } catch (error) {
     console.error('Services: deleteEntity - Error deleting entity:', error);

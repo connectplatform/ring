@@ -3,8 +3,6 @@ title: Локальне налаштування
 description: Документація локального налаштування для платформи Ring
 ---
 
-import { Tabs, Tab } from '@/components/docs/tabs'
-
 # Налаштування локальної розробки
 
 Повний посібник з налаштування платформи Ring для локальної розробки.
@@ -48,8 +46,8 @@ cd ring
 </Code>
   </Tab>
   <Tab value="yarn">
-    <Code language="bash" title="yarn install">
-{``}
+    <Code language="bash" title="terminal">
+{`yarn install`}
 </Code>
   </Tab>
 </Tabs>
@@ -58,7 +56,7 @@ cd ring
 Скопіюйте шаблон середовища:
 
 <Code language="bash" title="terminal">
-{`# cp .env.local.template .env.local`}
+{`# cp env.local.template .env.local`}
 </Code>
 
 Configure your `.env.local` file:

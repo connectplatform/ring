@@ -1,5 +1,5 @@
 /**
- * Rehype: turn ```mermaid fenced blocks into MDX `<Mermaid>` flow elements *before* Shiki runs,
+ * Rehype: turn ```mermaid fenced blocks into MDX `<Mermaid>` flow elements before code fences
  * so diagram source is not tokenized as a random language.
  */
 import { visit } from 'unist-util-visit'
@@ -20,7 +20,7 @@ function codeIsMermaid(code: { type?: string; tagName?: string; properties?: { c
 }
 
 /**
- * Must run **before** `@shikijs/rehype` in `rehypePlugins`.
+ * Must run **before** `rehypeCodeFenceToMdx` in `rehypePlugins`.
  */
 export function rehypeMermaidFenceToMdx() {
   return (tree: unknown) => {

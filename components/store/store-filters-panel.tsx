@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { ROUTES } from '@/constants/routes'
+import { STORE_VENDOR_CATEGORY_IDS } from '@/constants/store-vendor-categories'
 import type { Locale } from '@/i18n/shared'
 import { useOptionalStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
@@ -30,17 +31,16 @@ import {
   ShoppingCart,
   CreditCard,
   Store,
-  Carrot,
-  Apple,
-  Leaf,
-  Milk,
-  Drumstick,
-  Wheat,
-  Cookie,
-  Droplet,
-  Croissant,
-  Coffee,
-  Tractor
+  Layers,
+  Cpu,
+  Bot,
+  Wrench,
+  FileCode2,
+  BookOpen,
+  Users,
+  Sparkles,
+  LayoutTemplate,
+  Briefcase,
 } from 'lucide-react'
 
 interface StoreFiltersPanelProps {
@@ -51,23 +51,7 @@ interface StoreFiltersPanelProps {
   onFiltersApplied?: (filters: StoreFilterState) => void
 }
 
-// Agricultural Product Categories - GreenFood.live taxonomy
-const productCategories = [
-  'fresh-vegetables',
-  'fresh-fruits',
-  'herbs-greens',
-  'dairy-eggs',
-  'meat-poultry',
-  'grains-cereals',
-  'legumes-beans',
-  'nuts-seeds',
-  'honey-sweeteners',
-  'preserves-pickles',
-  'baked-goods',
-  'beverages',
-  'farm-supplies',
-  'other'
-]
+const productCategories = [...STORE_VENDOR_CATEGORY_IDS]
 
 const currencies = ['USD', 'UAH', 'DAAR', 'DAARION']
 
@@ -233,24 +217,17 @@ export default function StoreFiltersPanel({
 
   const displayRecords = filteredRecords !== undefined ? filteredRecords : totalRecords
 
-  // Dummy implementation
   function getCategoryIcon(category: string) {
     switch (category) {
-      case 'fresh-vegetables': return <Carrot className="w-4 h-4" />
-      case 'fresh-fruits': return <Apple className="w-4 h-4" />
-      case 'herbs-greens': return <Leaf className="w-4 h-4" />
-      case 'dairy-eggs': return <Milk className="w-4 h-4" />
-      case 'meat-poultry': return <Drumstick className="w-4 h-4" />
-      case 'grains-cereals': return <Wheat className="w-4 h-4" />
-      case 'legumes-beans': return <Cookie className="w-4 h-4" />
-      case 'nuts-seeds': return <Droplet className="w-4 h-4" />
-      case 'honey-sweeteners': return <Croissant className="w-4 h-4" />
-      case 'preserves-pickles': return <Wheat className="w-4 h-4" />
-      case 'baked-goods': return <Croissant className="w-4 h-4" />
-      case 'beverages': return <Coffee className="w-4 h-4" />
-      case 'farm-supplies': return <Tractor className="w-4 h-4" />
-      case 'other': return <Store className="w-4 h-4" />
-      default: return null
+      case 'ring-platform':     return <Layers className="w-4 h-4" />
+      case 'dev-kits':          return <Cpu className="w-4 h-4" />
+      case 'ai-tools':          return <Bot className="w-4 h-4" />
+      case 'expert-services':   return <Briefcase className="w-4 h-4" />
+      case 'digital-templates': return <LayoutTemplate className="w-4 h-4" />
+      case 'learn':             return <BookOpen className="w-4 h-4" />
+      case 'community':         return <Users className="w-4 h-4" />
+      case 'saas-assets':       return <Sparkles className="w-4 h-4" />
+      default:                  return <Store className="w-4 h-4" />
     }
   }
 

@@ -1,239 +1,198 @@
 ---
-title: Index
-description: Index documentation for Ring Platform
+title: Архітектура
+description: Системна схема Ring Platform — Postgres-primary деплої, Auth.js, PaymentConductor, realtime та white-label (v1.6.0)
+last_modified: "2026-06-10"
 ---
 
-import { Callout } from '@/components/docs/callout'
+# Архітектура
 
-# Архітектура Ring Platform
+<Callout type="info">
+  **Для керівників:** Ring — **white-label платформа**: один код, багато брендованих деплоїв. Продакшен-кільця працюють на **PostgreSQL-primary** у Kubernetes, Firebase лише для **push**, платежі через **PaymentConductor**, локалізація без циклів редіректів авторизації.
+</Callout>
 
-Комплексна архітектура професійної платформи нетворкінгу з Web3 інтеграцією, побудована на Next.js 16, React 19, та Kubernetes.
+Ring Platform v1.6.0 — **багатотенантний Next.js застосунок** з єдиним контрактом `DatabaseService`, конфігурованими платежами та опційним Web3/токенним шаром на клон. Ця сторінка — **хаб архітектури**; кожна тема має окрему глибоку статтю.
 
-## Загальна Архітектура
+## Платформа одним поглядом
+
+| Вимір | Підхід Ring |
+|-------|-------------|
+| **Застосунок** | Next.js 16 App Router, React 19 Server Components, Tailwind 4 |
+| **Дані (продакшен)** | `DB_BACKEND_MODE=k8s-postgres-fcm` — Postgres + PostGIS, JSONB-first |
+| **Автентифікація** | Auth.js v5 — `auth()` на рівні layout, тонкий `proxy.ts` лише для локалі |
+| **Платежі** | PaymentConductor — WayForPay, Stripe, ledger + webhooks |
+| **Realtime** | Tunnel protocol — WebSocket / SSE / опційний канал Supabase |
+| **Файли** | Vercel Blob або сховище клону |
+| **Деплой** | k3s (кільця ringdom.org) — не Vercel Postgres |
+| **Розширення** | White-label env, portal config, токен-контракти на клон |
+
+## Системна карта
+
+<Mermaid title="Ring Platform — логічні шари">
+{`flowchart TB
+  subgraph Client
+    Web[Браузер / PWA]
+    Admin[Адмін-консоль]
+  end
+
+  subgraph Edge["Next.js (proxy + RSC)"]
+    Proxy[proxy.ts — лише локаль]
+    Layouts[Route layouts — auth gates]
+    SA[Server Actions + Route Handlers]
+  end
+
+  subgraph Core["Доменні сервіси"]
+    DBsvc[DatabaseService / BackendSelector]
+    Pay[PaymentConductor]
+    Sub[Membership + credit ledger]
+    RT[Tunnel transports]
+    AI[AI matcher + Email CRM]
+  end
+
+  subgraph Data
+    PG[(PostgreSQL)]
+    FCM[Firebase FCM — лише push]
+    Blob[Blob storage]
+    Chain[Polygon — опційно Web3]
+  end
+
+  Web --> Proxy --> Layouts --> SA
+  Admin --> Layouts
+  SA --> DBsvc --> PG
+  SA --> Pay
+  SA --> Sub
+  SA --> RT
+  SA --> AI
+  DBsvc -.-> FCM
+  SA --> Blob
+  Sub -.-> Chain`}
+</Mermaid>
+
+<Tabs items={['Розробники', 'Оператори']}>
+
+<Tab value="Розробники">
+
+### Шлях запиту
 
 <Mermaid>
-{`flowchart TD
-    subgraph "Клієнтський Шар"
-        U[👤 Користувач] --> W[🌐 Веб-додаток]
-        W --> M[📱 Мобільний додаток]
-    end
+{`sequenceDiagram
+    participant B as Браузер
+    participant P as proxy.ts
+    participant L as authenticated layout
+    participant A as auth()
+    participant S as Server Action / API
+    participant D as DatabaseService
 
-    subgraph "Edge Layer (Vercel/K8s)"
-        W --> E[⚡ Next.js 16 Edge Runtime]
-        M --> E
-        E --> C[🔐 Auth.js v5]
-        E --> T[🌐 Tunnel Transport]
-    end
-
-    subgraph "Сервісний Шар"
-        T --> WS[🔌 WebSocket Server]
-        T --> SSE[📡 SSE Fallback]
-        C --> DB[(🗄️ PostgreSQL)]
-        E --> AI[🤖 AI Matcher]
-        E --> API[📡 REST API 80+ endpoints]
-    end
-
-    subgraph "Інтеграції"
-        API --> PF[💳 WayForPay]
-        API --> BC[⛓️ Polygon RPC]
-        API --> ST[☁️ Vercel Blob]
-        API --> EM[📧 Resend]
-    end
-
-    subgraph "Моніторинг"
-        WS --> P[📊 Prometheus]
-        DB --> P
-        API --> G[📈 Grafana]
-        P --> G
+    B->>P: GET /dashboard
+    P->>P: Locale rewrite (next-intl)
+    P->>L: Forward
+    L->>A: Перевірка сесії
+    alt немає сесії
+      A-->>B: Redirect /login
+    else ok
+      L->>S: Mutation або loader
+      S->>D: query / create / update
+      D-->>B: RSC stream + client islands
     end`}
 </Mermaid>
 
-## Детальна Архітектура Компонентів
+**Орієнтири в коді**
 
-### Фронтенд Архітектура
-<Mermaid>
-{`mindmap
-  root((🎨 Фронтенд Шар))
-    Next.js 16 App Router
-      Server Components
-        Data Fetching
-        SEO Optimization
-        Streaming SSR
-      Client Components
-        Interactive UI
-        State Management
-        Real-time Updates
-    React 19 Features
-      Server Components
-      Streaming
-      Suspense
-      useOptimistic
-      useActionState
-    UI Framework
-      Tailwind CSS v4
-        CSS Variables
-        Theme System
-        Dark/Light Mode
-      Radix UI Primitives
-        Accessible Components
-        Headless Design
-      Custom Components
-        Brand Components
-        Feature Components`}
-</Mermaid>
+| Тема | Де читати |
+|------|-----------|
+| Locale proxy | `proxy.ts`, `lib/proxy-intl.ts` |
+| Auth enforcement | `(authenticated)/[locale]/layout.tsx`, `auth.config.ts` |
+| Режим БД | `lib/database/backend-mode-config.ts` |
+| Платежі | `features/store/services/payment-conductor*` |
+| Схема SSOT | `data/schema.sql` |
 
-### Бекенд та API Архітектура
-<Mermaid>
-{`mindmap
-  root((⚙️ Бекенд Шар))
-    Authentication Layer
-      Auth.js v5
-        NextAuth.js
-        Multiple Providers
-        Session Management
-      JWT Tokens
-        Secure Sessions
-        Role-based Access
-    API Layer
-      RESTful Endpoints
-        80+ API Routes
-        CRUD Operations
-        File Uploads
-      GraphQL Support
-        Future Implementation
-        Schema Stitching
-    Database Layer
-      PostgreSQL Primary
-        ACID Compliance
-        JSONB Support
-        Full-text Search
-      Connection Pooling
-        PgBouncer
-        20 Connection Limit
-      Migration System
-        Automated Schema Updates
-        Rollback Support`}
-</Mermaid>
+**Шари компонентів**
 
-### AI та Інтелектуальні Сервіси
-<Mermaid>
-{`mindmap
-  root((🤖 AI Шар))
-    LLM Integration
-      OpenAI GPT-4
-      Anthropic Claude
-      Provider Fallback
-      Cost Optimization
-    Opportunity Matcher
-      8-Factor Scoring
-      Auto-fill Service
-      Personalized Explanations
-      Real-time Notifications
-    Search Intelligence
-      Full-text Search
-      Semantic Matching
-      Filter Optimization
-      Performance Caching
-    Content Enrichment
-      Auto-tagging
-      Skill Extraction
-      Trust Scoring
-      Quality Assessment`}
-</Mermaid>
+- **Hooks** — дані, кредит гаманця, realtime підписки
+- **Feature components** — store, messages, wallet (повторне використання)
+- **Pages** — композиція features; без прямих викликів адаптерів у UI
 
-### Інфраструктурна Архітектура
-<Mermaid>
-{`mindmap
-  root((🏗️ Інфраструктура))
-    Kubernetes Cluster
-      3-Node Cluster
-        k8s-control-01
-        k8s-worker-01
-        k8s-worker-02
-      Namespace Isolation
-        ring-platform-org
-        monitoring
-    Container Orchestration
-      Docker Images
-        Multi-stage Builds
-        AMD64 Architecture
-        Security Scanning
-      Pod Management
-        Health Checks
-        Resource Limits
-        Auto-scaling
-    Networking
-      Ingress Controller
-        nginx-ingress
-        SSL Termination
-        Load Balancing
-      Service Mesh
-        Internal Communication
-        Service Discovery`}
-</Mermaid>
+</Tab>
 
-### Моніторинг та Спостереження
-<Mermaid>
-{`mindmap
-  root((📊 Моніторинг))
-    Application Metrics
-      Web Vitals Collection
-        Core Web Vitals
-        Performance Scores
-        User Experience
-      Error Tracking
-        Sentry Integration
-        Error Boundaries
-        User Feedback
-    Infrastructure Monitoring
-      Prometheus Metrics
-        Pod Resources
-        Database Connections
-        API Response Times
-      Grafana Dashboards
-        Real-time Monitoring
-        Alert Management
-        Performance Trends
-    Logging System
-      Structured Logging
-        Request/Response Logs
-        Error Context
-        User Actions
-      Log Aggregation
-        ELK Stack
-        Query Analysis`}
-</Mermaid>
+<Tab value="Оператори">
 
-## Архітектурні Принципи
+### Чеклист деплою
 
-### 🎯 **Масштабованість**
-- **Horizontal Scaling**: Kubernetes pods можуть масштабуватися автоматично
-- **Database Sharding**: PostgreSQL підтримує future sharding для великих обсягів даних
-- **CDN Integration**: Vercel Blob для глобального розподілу медіа-контенту
+1. **`DB_BACKEND_MODE`** — `k8s-postgres-fcm` для self-hosted Postgres (канонічне ім’я enum).
+2. **Postgres** + міграції (`getting-started/migrations`).
+3. **FCM** — якщо потрібен push; Firebase **не** основна БД у Postgres-режимі.
+4. **PaymentConductor** — WayForPay / Stripe, webhook URLs.
+5. **Ingress** на Next.js; секрети в k8s.
+6. Опційно: контракти **RING** / **ReferralRewards**; `NEXT_PUBLIC_RING_TOKEN_ADDRESS`.
 
-### 🔒 **Безпека**
-- **Zero Trust Architecture**: Кожен запит аутентифікується та авторизується
-- **Secrets Management**: Kubernetes secrets для всіх sensitive даних
-- **SSL/TLS**: End-to-end encryption для всіх з'єднань
+### Чого ми *не* використовуємо
 
-### ⚡ **Продуктивність**
-- **Edge Runtime**: Next.js Edge функції для швидкого cold start
-- **Caching Layers**: React cache, Redis, PostgreSQL query caching
-- **Database Optimization**: Connection pooling, query optimization, indexing
+- `@vercel/postgres` як основний SQL драйвер
+- Auth у `proxy.ts` (цикли редіректів — zero-loop proxy)
+- Firestore як source of truth при `k8s-postgres-fcm`
 
-### 🔄 **Надійність**
-- **Health Checks**: Автоматичне відновлення unhealthy pods
-- **Circuit Breakers**: Захист від cascade failures
-- **Backup & Recovery**: Automated database backups та disaster recovery
+### Сигнали моніторингу
 
-## Режими бекенду та бази даних
+- API p95, невдалі payment webhooks, помилки продовження підписок
+- Насичення пулу з’єднань БД, drift версій міграцій
+- Помилки FCM токенів, відключення Tunnel
 
-Деплой вимагає **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full` або `supabase-fcm`). У продакшені з пріоритетом Postgres Firebase зазвичай використовується для **FCM**, а не Firestore як основне сховище. Повна матриця, різниця **`DB_HYBRID_MODE`** / режим бекенду, Tunnel Supabase проти `supabase-fcm`: див. **[Режими бекенду та бази даних](/uk/library/architecture/backend-modes-and-databases)**.
+</Tab>
+
+</Tabs>
+
+## Глибокі розділи
+
+<Cards>
+  <Card title="Режими бекенду та БД" href="/docs/architecture/backend-modes-and-databases">
+    Матриця `DB_BACKEND_MODE` — Postgres vs Firebase vs Supabase, FCM-only Firebase
+  </Card>
+  <Card title="Модель даних" href="/docs/architecture/data-model">
+    JSONB-first схема, PostGIS, контракт collections, міграції
+  </Card>
+  <Card title="Аутентифікація" href="/docs/architecture/authentication">
+    Auth.js v5, JWT сесії, Postgres adapter, ролі
+  </Card>
+  <Card title="Proxy та i18n" href="/docs/architecture/proxy-and-intl">
+    Тонкий proxy, auth у layout, `localePrefix: as-needed`
+  </Card>
+  <Card title="PaymentConductor" href="/docs/architecture/payment-conductor">
+    Процесори, ledger `payment_transactions`, єдині webhooks
+  </Card>
+  <Card title="Email AI-CRM" href="/docs/architecture/email-ai-crm">
+    IMAP ingest, JSONB таблиці, cron poll, адмін-рев’ю
+  </Card>
+  <Card title="News Kingdom" href="/docs/architecture/news-kingdom">
+    Редакційний pipeline, generative newsroom, публікації
+  </Card>
+  <Card title="Refcodes" href="/docs/architecture/refcodes">
+    Реферальний граф, on-chain винагороди, idempotent minter
+  </Card>
+  <Card title="Real-time" href="/docs/architecture/real-time">
+    Tunnel transports, WebSocket/SSE, pooling
+  </Card>
+  <Card title="Безпека" href="/docs/architecture/security">
+    Defense in depth, секрети, верифікація webhooks, адмін-межі
+  </Card>
+</Cards>
+
+## Сквозні потоки
+
+### Комерція + членство
+
+Checkout через **PaymentConductor** (fiat) або **RING credit / on-chain** підписку. Settlement і комісії — у [PaymentConductor](/docs/architecture/payment-conductor) та store guides.
+
+### Контент + локаль
+
+Публічні сторінки — **next-intl**. Документація та новини — файли `docs/content/{locale}/library/`. EN канонічний, якщо LOCALE-GAPS не позначає стислий UK/RU summary.
+
+### White-label клони
+
+Форк репо, portal branding, режим БД, опційна токеноміка — [White-label quick start](/docs/customization/quick-start), [Token economics](/docs/customization/token-economics).
 
 <Callout type="success">
-**Production-Ready Architecture**: Ring Platform побудована з використанням сучасних технологій та best practices для enterprise-grade надійності та масштабованості.
+  **Базис v1.6.0:** Postgres-primary + PaymentConductor + slim proxy + locale system. Почніть з [Режимів бекенду](/docs/architecture/backend-modes-and-databases), потім [Environment](/docs/deployment/environment).
 </Callout>
 
-<Callout type="info">
-Дивіться розділи нижче для детального розгляду окремих компонентів: **Режими бекенду та БД**, Аутентифікація, Real-time комунікація, Безпека, Data Model та Deployment.
+<Callout type="warning">
+  **`DB_HYBRID_MODE` ≠ `DB_BACKEND_MODE`.** Для нових деплоїв використовуйте `DB_BACKEND_MODE`; legacy hybrid — на сторінці backend-modes.
 </Callout>

@@ -13,70 +13,39 @@
  * @see AI-CONTEXT/ring-greenfood-live/concepts/ai-erp-stock-management.json
  */
 
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import 'server-only'
+
+import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { StoreProduct, CartItem } from '@/features/store/types'
 import { publishEvent } from '@/lib/events/event-bus.server'
 import { StoreEvent } from '@/constants/store'
+import { STORE_COLLECTIONS } from '@/features/store/constants/collections'
+import {
+  DEFAULT_WAREHOUSE_NAME,
+  STOCK_THRESHOLDS,
+  ZERO_WAREHOUSE_ID,
+} from '@/features/store/constants/stock'
+import type {
+  BatchAddStockResult,
+  StockLevel,
+  StockMovement,
+  StockUpdate,
+} from '@/features/store/types/erp-stock'
 
-// Default warehouse for GreenFood (zero-warehouse means main/default warehouse)
-export const ZERO_WAREHOUSE_ID = 'zero-warehouse'
-export const DEFAULT_WAREHOUSE_NAME = 'GreenFood Main Warehouse'
+export {
+  DEFAULT_WAREHOUSE_NAME,
+  STOCK_THRESHOLDS,
+  ZERO_WAREHOUSE_ID,
+} from '@/features/store/constants/stock'
+export type {
+  BatchAddStockResult,
+  StockLevel,
+  StockMovement,
+  StockUpdate,
+} from '@/features/store/types/erp-stock'
 
-// Stock level thresholds
-export const STOCK_THRESHOLDS = {
-  LOW_STOCK: 10,
-  CRITICAL_STOCK: 5,
-  OUT_OF_STOCK: 0,
-  DEFAULT_REORDER_POINT: 15
-}
-
-export interface StockUpdate {
-  productId: string
-  warehouseId: string
-  quantityChange: number
-  operation: 'add' | 'subtract' | 'set'
-  reason: string
-  orderId?: string
-  userId?: string
-  timestamp?: string
-}
-
-export interface StockLevel {
-  productId: string
-  warehouseId: string
-  availableQuantity: number
-  reservedQuantity: number
-  totalQuantity: number
-  lastUpdated: string
-  lastOrderId?: string
-  reorderPoint: number
-  isLowStock: boolean
-  isCriticalStock: boolean
-  isOutOfStock: boolean
-}
-
-export interface StockMovement {
-  id: string
-  productId: string
-  warehouseId: string
-  movementType: 'sale' | 'restock' | 'adjustment' | 'transfer' | 'return' | 'damaged'
-  quantityBefore: number
-  quantityChange: number
-  quantityAfter: number
-  orderId?: string
-  userId?: string
-  reason: string
-  timestamp: string
-}
-
-export interface BatchAddStockResult {
-  success: boolean
-  totalProducts: number
-  successfulUpdates: number
-  failedUpdates: number
-  errors: Array<{ productId: string; error: string }>
-}
+type StoreProductRow = StoreProduct & Record<string, unknown>
 
 /**
  * AI-ERP Stock Service - Warehouse Manager AI Agent
@@ -87,15 +56,12 @@ export const ERPStockService = {
    */
   async getStockLevel(productId: string, warehouseId: string = ZERO_WAREHOUSE_ID): Promise<StockLevel | null> {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      const result = await db.findById('store_products', productId)
+      const result = await db().findDocById<StoreProductRow>('store_products', productId)
       if (!result.success || !result.data) {
         return null
       }
-      
-      const productData = result.data.data || result.data
+
+      const productData = result.data
       const stock = productData.stock ?? 0
       const reorderPoint = productData.reorderPoint ?? STOCK_THRESHOLDS.DEFAULT_REORDER_POINT
       
@@ -105,7 +71,7 @@ export const ERPStockService = {
         availableQuantity: stock,
         reservedQuantity: 0, // Reserved items are tracked separately
         totalQuantity: stock,
-        lastUpdated: productData.updatedAt || new Date().toISOString(),
+        lastUpdated: String(productData.updatedAt ?? new Date().toISOString()),
         reorderPoint,
         isLowStock: stock <= STOCK_THRESHOLDS.LOW_STOCK && stock > STOCK_THRESHOLDS.CRITICAL_STOCK,
         isCriticalStock: stock <= STOCK_THRESHOLDS.CRITICAL_STOCK && stock > STOCK_THRESHOLDS.OUT_OF_STOCK,
@@ -122,16 +88,12 @@ export const ERPStockService = {
    */
   async updateStock(update: StockUpdate): Promise<{ success: boolean; newQuantity: number; error?: string }> {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      // Get current product
-      const result = await db.findById('store_products', update.productId)
+      const result = await db().findDocById<StoreProductRow>('store_products', update.productId)
       if (!result.success || !result.data) {
         return { success: false, newQuantity: 0, error: 'Product not found' }
       }
-      
-      const productData = result.data.data || result.data
+
+      const productData = result.data
       const currentStock = productData.stock ?? 0
       
       // Calculate new stock based on operation
@@ -152,8 +114,7 @@ export const ERPStockService = {
       
       const now = new Date().toISOString()
       
-      // Update product stock in database
-      const updateResult = await db.update('store_products', update.productId, {
+      const updateResult = await db().updateDoc('store_products', update.productId, {
         stock: newStock,
         inStock: newStock > 0,
         updatedAt: now
@@ -175,7 +136,9 @@ export const ERPStockService = {
         orderId: update.orderId,
         userId: update.userId,
         reason: update.reason,
-        timestamp: now
+        timestamp: now,
+        referralCode: update.referralCode,
+        assisted: update.assisted,
       })
       
       logger.info('[ERPStockService] Stock updated', {
@@ -220,7 +183,8 @@ export const ERPStockService = {
   async deductStockForOrder(
     orderId: string,
     items: CartItem[],
-    userId?: string
+    userId?: string,
+    referralMeta?: { referralCode?: string; assisted?: boolean },
   ): Promise<{ success: boolean; deductedProducts: string[]; failedProducts: string[] }> {
     const deductedProducts: string[] = []
     const failedProducts: string[] = []
@@ -249,7 +213,9 @@ export const ERPStockService = {
         operation: 'subtract',
         reason: `Order #${orderId} - ${item.product.name} x${item.quantity}`,
         orderId,
-        userId
+        userId,
+        referralCode: referralMeta?.referralCode,
+        assisted: referralMeta?.assisted,
       })
       
       if (result.success) {
@@ -286,16 +252,12 @@ export const ERPStockService = {
     warehouseId: string = ZERO_WAREHOUSE_ID
   ): Promise<BatchAddStockResult> {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
       logger.info('[ERPStockService] Adding initial stock to all products', {
         quantity,
         warehouseId
       })
       
-      // Get all products
-      const result = await db.query({
+      const result = await db().queryDocs<StoreProductRow>({
         collection: 'store_products',
         filters: [],
         pagination: { limit: 1000 }
@@ -310,12 +272,8 @@ export const ERPStockService = {
           errors: [{ productId: 'all', error: 'Failed to fetch products' }]
         }
       }
-      
-      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      const products = data.map((item: any) => ({
-        id: item.id,
-        ...(item.data || item)
-      })) as StoreProduct[]
+
+      const products = result.data
       
       const errors: Array<{ productId: string; error: string }> = []
       let successfulUpdates = 0
@@ -371,10 +329,7 @@ export const ERPStockService = {
     threshold: number = STOCK_THRESHOLDS.LOW_STOCK
   ): Promise<StoreProduct[]> {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      const result = await db.query({
+      const result = await db().queryDocs<StoreProductRow>({
         collection: 'store_products',
         filters: [
           { field: 'stock', operator: '<=', value: threshold }
@@ -386,12 +341,8 @@ export const ERPStockService = {
       if (!result.success || !result.data) {
         return []
       }
-      
-      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      return data.map((item: any) => ({
-        id: item.id,
-        ...(item.data || item)
-      })) as StoreProduct[]
+
+      return result.data as StoreProduct[]
     } catch (error) {
       logger.error('[ERPStockService] Error getting low stock products:', error)
       return []
@@ -403,10 +354,7 @@ export const ERPStockService = {
    */
   async logStockMovement(movement: StockMovement): Promise<void> {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.create('stock_movements', movement, { id: movement.id })
+      await db().createDoc(STORE_COLLECTIONS.stockMovements, movement, { id: movement.id })
       
       logger.debug('[ERPStockService] Stock movement logged', {
         movementId: movement.id,
@@ -467,10 +415,7 @@ export const ERPStockService = {
     totalStockValue: number
   }> {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      const result = await db.query({
+      const result = await db().queryDocs<StoreProductRow>({
         collection: 'store_products',
         filters: [],
         pagination: { limit: 1000 }
@@ -486,13 +431,8 @@ export const ERPStockService = {
           totalStockValue: 0
         }
       }
-      
-      const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      const products = data.map((item: any) => ({
-        ...(item.data || item),
-        stock: (item.data || item).stock ?? 0,
-        price: parseFloat((item.data || item).price) || 0
-      }))
+
+      const products = result.data
       
       let inStock = 0
       let lowStock = 0
@@ -501,8 +441,9 @@ export const ERPStockService = {
       let totalValue = 0
       
       for (const product of products) {
-        const stock = product.stock
-        totalValue += stock * product.price
+        const stock = product.stock ?? 0
+        const price = parseFloat(String(product.price)) || 0
+        totalValue += stock * price
         
         if (stock <= 0) {
           outOfStock++
@@ -534,8 +475,46 @@ export const ERPStockService = {
         totalStockValue: 0
       }
     }
-  }
+  },
+
+  async getRecentStockMovements(limit: number = 25): Promise<StockMovement[]> {
+    try {
+      const result = await db().queryDocs<StockMovement & Record<string, unknown>>({
+        collection: STORE_COLLECTIONS.stockMovements,
+        orderBy: [{ field: 'timestamp', direction: 'desc' }],
+        pagination: { limit: Math.min(limit, 100) },
+      })
+
+      if (!result.success || !result.data) {
+        return []
+      }
+
+      return result.data as StockMovement[]
+    } catch (error) {
+      logger.error('[ERPStockService] Error getting recent movements:', error)
+      return []
+    }
+  },
+
+  async listProductsForVendor(vendorEntityId: string): Promise<StoreProduct[]> {
+    try {
+      const result = await db().queryDocs<StoreProductRow>({
+        collection: 'store_products',
+        filters: [{ field: 'productOwner', operator: '=', value: vendorEntityId }],
+        orderBy: [{ field: 'name', direction: 'asc' }],
+        pagination: { limit: 200 },
+      })
+
+      if (!result.success || !result.data) {
+        return []
+      }
+
+      return result.data as StoreProduct[]
+    } catch (error) {
+      logger.error('[ERPStockService] Error listing vendor products:', error)
+      return []
+    }
+  },
 }
 
 export default ERPStockService
-

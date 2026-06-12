@@ -1,0 +1,93 @@
+---
+title: Reference Ring deployments
+description: Named Ringdom-managed and OSS clones — verticals, enabled modules, and public links (no fabricated KPIs)
+last_modified: "2026-06-12"
+---
+
+# Reference Ring deployments
+
+<Callout type="warning">
+  **Live deployments.** This page lists **actual Ring clones** in the Ringdom empire. Visit each clone to evaluate for yourself if Ring is a good fit for your live product.
+</Callout>
+
+Ring Platform is a **white-label codebase**: each row below is a real fork with its own branding, domain, and feature toggles. Use these as reference patterns when planning your clone (ask agent to "make a clone of ring-platform.org for your project, which is similar to ring-greenfood-live, but for auto-parts sales").
+
+> **Hub:** Same roster on the [Customization index](/docs/customization). **Start yours:** [Quick Start](/docs/customization/quick-start) (OSS) or [ringdom.org](https://ringdom.org) (managed).
+
+## Clone reference table
+
+| Clone | Vertical | Key modules (verified in repo) | Public link |
+|-------|----------|--------------------------------|-------------|
+| **ring-greenfood-live** | Ag marketplace — Reggie propagation source | Multi-vendor **store**, vendor ERP fields, **PaymentConductor** / WayForPay | [app.greenfood.live](https://app.greenfood.live) |
+| **ring-vikka-ua** | Regional newsroom (Cherkasy, UA) | **News** module, UA locales, Ring app on k8s (`app.vikka.ua`) | [vikka.ua](https://vikka.ua) · [app.vikka.ua](https://app.vikka.ua) |
+| **ring-zemna-ai** | Scientific publishing + agent chat | **Scientific editor** (Tiptap), **publications API**, live **AI agent** chat | [zemna.ai](https://zemna.ai) · [GitHub](https://github.com/connectplatform/ring-zemna-ai) |
+| **ring-petfriend-app** | Pet-friendly map marketplace | **PostGIS** places map, multi-vendor **store**, **EN/UA** locales, place **subscriptions** | [petfriend.app](https://petfriend.app) |
+| **ring-ring-ck-ua** | Cherkasy regional IT opportunities | **Entities**, **opportunities** matcher, confidential access tiers | [ring.ck.ua](https://ring.ck.ua) |
+| **ring-wellness-gov-ua** | Healthcare / civic (UA) | Postgres-primary k8s clone, **opportunities** + portal surface (gov wellness vertical) | [wellness.gov.ua](https://wellness.gov.ua) |
+| **ring-subiworx-com** | Local services SMB (Subaru, Tempe AZ) | Shop **store**, service booking patterns, US-local deployment | [subiworx.com](https://subiworx.com) |
+| **ring-ringdom-org** | Empire hub + settler funnel | **Ringdom Maps** (`features/maps`), **work opportunities** marketplace | [ringdom.org](https://ringdom.org) |
+
+## Per-clone notes
+
+### ring-greenfood-live
+
+- **Propagation:** Active dev source for Reggie `ring-greenfood-live` → other rings.
+- **Payments:** Store checkout via PaymentConductor; agricultural vendor lifecycle in codebase.
+- **OSS base:** Built on [connectplatform/ring](https://github.com/connectplatform/ring) (community edition).
+
+### ring-vikka-ua
+
+- **News:** Editorial workflow on Ring (`features/news`); [Production app] (https://app.vikka.ua).
+- **AI**: AI Journalist subsystem uses Telegram as a bot, reading, processing and writing news per admin request in chat.  
+- **Locale:** Ukrainian-first regional news product.
+
+### ring-zemna-ai
+
+- **Editor:** Fullscreen scientific editor, publication persistence, version history.
+- **Open source:** Public repo [connectplatform/ring-zemna-ai](https://github.com/connectplatform/ring-zemna-ai).
+
+### ring-petfriend-app
+
+- **Maps:** PostGIS spatial queries + Google Maps discovery.
+- **Commerce:** Entity-as-vendor model, Stripe subscriptions for place listings.
+
+### ring-ring-ck-ua
+
+- **Network:** Cherkasy Oblast IT companies, startups, innovators and prominent people of the region.
+- **Core Ring:** Entities showcase pages + dual-nature opportunities (offers/requests).
+
+### ring-wellness-gov-ua
+
+- **Scope:** Civic/public-health vertical (Ukraine).
+- **Features**: 
+
+### ring-subiworx-com
+
+- **Vertical:** Independent Subaru mechanic shop + enthusiast marketplace (Tempe, AZ).
+- **Deploy:** `ring-subiworx-com` namespace; schema `ring_subiworx_com`.
+
+### ring-ringdom-org
+
+- **Maps:** Interactive Ringdom ecosystem visualizations (React Flow).
+- **Marketplace:** Work opportunities for builders, vendors, and entrepreneurs.
+
+## What we removed from this page
+
+Prior versions listed **fictional regional vignettes** (Kenya artisan marketplace, five-country hospital networks, invented KPIs such as €2.3M or $50K/month). Those narratives are **not** Ringdom reference clones and have been deleted per [Customization hub](/docs/customization) policy: **named clones only**.
+
+## Next steps
+
+<Cards>
+  <Card title="Quick Start (OSS)" href="/docs/customization/quick-start">
+    Clone and smoke-test locally
+  </Card>
+  <Card title="Customization guide" href="/docs/customization/customization-guide">
+    ring-config, locales, HomeWrapper
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    PaymentConductor operator setup
+  </Card>
+  <Card title="Ring customization opportunities" href="/opportunities?type=ring_customization">
+    Find implementation help
+  </Card>
+</Cards>

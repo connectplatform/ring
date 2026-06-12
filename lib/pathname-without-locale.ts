@@ -16,6 +16,7 @@ export function pathNeedsWeb3(pathWithoutLocale: string): boolean {
   const p = pathWithoutLocale === '' ? '/' : pathWithoutLocale
   return (
     p === '/login' ||
+    p.startsWith('/auth/wallet-connect') ||
     p.startsWith('/wallet') ||
     p.startsWith('/store/checkout') ||
     p.startsWith('/nft') ||

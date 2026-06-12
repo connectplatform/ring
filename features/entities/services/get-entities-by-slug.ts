@@ -1,6 +1,6 @@
 // 🚀 Entity Retrieval Service - Ring-native with React 19 cache()
 import { Entity } from '@/features/entities/types'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { logger } from '@/lib/logger'
@@ -59,16 +59,11 @@ export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]
 
     logger.info('Services: getEntitiesBySlug - Executing query with DatabaseService')
 
-    // Step 3: Initialize database and execute query
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // For array-contains-any, we need to handle this differently in PostgreSQL
-    // Simplified: fetch all and filter in-memory for now
-    const result = await db.query({
+    // Step 3: Execute query
+    const result = await db().queryDocs({
       collection: 'entities',
       orderBy: [{ field: 'dateAdded', direction: 'desc' }],
-      pagination: { limit: 200 } // Fetch more for filtering
+      pagination: { limit: 200 },
     })
 
     if (!result.success || !result.data) {
@@ -77,7 +72,7 @@ export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]
     }
 
     // Step 4: Map results and apply filtering
-    let entities = (Array.isArray(result.data) ? result.data : (result.data as any).data || []) as Entity[]
+    let entities = result.data as Entity[]
 
     // Filter by slug (array-contains-any equivalent)
     if (slugs.length > 0) {

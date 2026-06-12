@@ -23,7 +23,7 @@ import { executeCommand } from '@/lib/telegram/admin-bot/ring-api-executor'
 import { formatResponse } from '@/lib/telegram/admin-bot/response-formatter'
 import { logInteraction, logFailedRequest } from '@/lib/telegram/admin-bot/audit-logger'
 import { UserRole } from '@/features/auth/types'
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { handleNewsCallback } from '@/lib/telegram/admin-bot/news-callback-handler'
 
 interface TelegramUpdate {
@@ -134,11 +134,9 @@ async function processAdminCommand(
     // Get user role for permission checks
     let userRole = UserRole.ADMIN // Default to ADMIN
     if (userId) {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      const userResult = await db.findById('users', userId)
-      if (userResult.success && userResult.data?.data?.role) {
-        userRole = userResult.data.data.role as UserRole
+      const userResult = await db().findDocById<{ role?: string; name?: string }>('users', userId)
+      if (userResult.success && userResult.data?.role) {
+        userRole = userResult.data.role as UserRole
       }
     }
 
@@ -156,8 +154,20 @@ async function processAdminCommand(
       return
     }
 
+    let authorName = 'Telegram Admin'
+    if (userId) {
+      const userResult = await db().findDocById<{ name?: string }>('users', userId)
+      if (userResult.success && userResult.data?.name) {
+        authorName = String(userResult.data.name)
+      }
+    }
+
     // Execute command
-    executionResult = await executeCommand(parsedCommand, userRole)
+    executionResult = await executeCommand(parsedCommand, userRole, {
+      chatId,
+      userId,
+      authorName,
+    })
 
     // Format and send response
     const responseMessage = formatResponse(executionResult, parsedCommand)

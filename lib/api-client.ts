@@ -8,17 +8,51 @@
 import { hasOwnProperty } from '@/lib/utils';
 
 /**
+ * Cursor pagination returned by list routes (`/api/conversations`, thread messages, etc.)
+ */
+export interface ApiPagination {
+  hasMore: boolean;
+  cursor?: string | null;
+}
+
+/**
  * Standard API response structure
  */
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
+  pagination?: ApiPagination;
+  metadata?: Record<string, unknown>;
   error?: string;
   message?: string;
   context?: {
     timestamp: number;
     [key: string]: any;
   };
+}
+
+/** Unwrap Ring route JSON `{ success, data, pagination?, metadata? }` without falsy coercions. */
+function extractSuccessPayload<T>(responseData: unknown): Pick<ApiResponse<T>, 'data' | 'pagination' | 'metadata' | 'message'> {
+  if (responseData === null || responseData === undefined) {
+    return { data: undefined };
+  }
+
+  if (typeof responseData !== 'object' || Array.isArray(responseData)) {
+    return { data: responseData as T };
+  }
+
+  const body = responseData as Record<string, unknown>;
+
+  if (Object.hasOwn(body, 'data')) {
+    return {
+      data: body.data as T,
+      pagination: body.pagination as ApiPagination | undefined,
+      metadata: body.metadata as Record<string, unknown> | undefined,
+      message: typeof body.message === 'string' ? body.message : undefined,
+    };
+  }
+
+  return { data: responseData as T };
 }
 
 /**
@@ -189,11 +223,14 @@ export class RingApiClient {
           );
         }
 
-        // ES2022 logical assignment for success response
+        const extracted = extractSuccessPayload<T>(responseData);
+
         const successResponse: ApiResponse<T> = {
           success: true,
-          data: responseData?.data || responseData,
-          message: responseData?.message,
+          data: extracted.data,
+          pagination: extracted.pagination,
+          metadata: extracted.metadata,
+          message: extracted.message,
           context: {
             timestamp: requestContext.timestamp,
             endpoint,

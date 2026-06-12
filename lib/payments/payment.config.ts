@@ -1,5 +1,5 @@
 import type { PaymentPurpose, PaymentProcessorId, PaymentRail } from '@/lib/payments/conductor/types'
-import { PORTAL_CONFIG } from '@/lib/portal-config'
+import { getRingTokenSymbol, getSiteBaseUrl } from '@/lib/ring-config'
 import { RING_TOKEN_ADDRESS } from '@/constants/web3'
 
 function envProcessor(key: string): PaymentProcessorId | null {
@@ -60,11 +60,7 @@ export function isRailEnabled(purpose: PaymentPurpose, rail: PaymentRail): boole
 }
 
 export function getSiteUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    PORTAL_CONFIG.platform.baseUrl
-  ).replace(/\/$/, '')
+  return getSiteBaseUrl()
 }
 
 export function getWebhookUrl(provider: 'wayforpay' | 'stripe'): string {
@@ -77,7 +73,7 @@ export function getNativeTokenConfig() {
       process.env.NEXT_PUBLIC_RING_TOKEN_ADDRESS ||
       process.env.RING_CONTRACT_ADDRESS ||
       RING_TOKEN_ADDRESS,
-    symbol: process.env.PAYMENT_TOKEN_SYMBOL || PORTAL_CONFIG.tokens.ring.symbol || 'RING',
+    symbol: getRingTokenSymbol(),
     decimals: Number(process.env.PAYMENT_TOKEN_DECIMALS || 18),
   }
 }

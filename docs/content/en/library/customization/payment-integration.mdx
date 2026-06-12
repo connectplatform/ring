@@ -1,0 +1,159 @@
+---
+title: Payment Gateway Integration
+description: Operator guide — PaymentConductor, WayForPay, Stripe, and internal credit for store, membership, and news promotion
+last_modified: "2026-06-12"
+---
+
+# Payment Gateway Integration
+
+<Callout type="info">
+  **Ring's payment philosophy:** Monetization should enhance value, not create barriers. Ring Platform **v1.6.0** routes card and credit flows through **PaymentConductor** — one ledger, one webhook dispatcher, config-driven processors.
+</Callout>
+
+> **Deep dive:** [PaymentConductor feature](/docs/library/features/payment-conductor) · [PaymentConductor architecture](/docs/library/architecture/payment-conductor)
+
+<Callout type="warning">
+  **Deep API, ledger, and handler detail** → [PaymentConductor architecture](/docs/library/architecture/payment-conductor). This page is the operator setup summary only.
+</Callout>
+
+## PaymentConductor overview
+
+PaymentConductor (`lib/payments/conductor/`) orchestrates checkout and settlement for:
+
+| Purpose | Typical use | Handler |
+|---------|-------------|---------|
+| `store_order` | Multi-vendor store checkout | `handlers/store-order.ts` |
+| `membership_upgrade` | SUBSCRIBER → MEMBER (and higher tiers) | `handlers/membership-upgrade.ts` |
+| `news_promotion` | News Kingdom paid promotion | `handlers/news-promotion.ts` |
+| `wallet_topup` | Wallet credit top-up (when enabled) | conductor + wallet services |
+
+**Processors:** WayForPay (default), Stripe, internal credit. PayPal is **not** in the OSS tree.
+
+**Rails:** `merchant_redirect` (hosted checkout), `internal_credit` (wallet; `PAYMENT_STORE_ALLOW_CREDIT`), `native_token` (`PAYMENT_STORE_ALLOW_TOKEN=true`).
+
+Apply `data/migrations/004_payment_transactions.sql` before production payments.
+
+## Environment variables
+
+Set in `.env.local` (production: your secrets manager). Full block:
+
+[Environment configuration — PaymentConductor](/docs/library/deployment/environment#payment-conductor)
+
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay   # or stripe
+PAYMENT_STORE_PROCESSOR=wayforpay     # optional per-purpose override
+PAYMENT_MEMBERSHIP_PROCESSOR=wayforpay
+PAYMENT_NEWS_PROCESSOR=wayforpay
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+WAYFORPAY_DOMAIN=yourdomain.com       # merchant domain registered with WayForPay
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_FIAT_CURRENCY=UAH
+PAYMENT_STORE_ALLOW_CREDIT=true       # set false to disable store credit rail
+PAYMENT_STORE_ALLOW_TOKEN=false       # set true to enable RING token checkout
+```
+
+## Webhook endpoints (configure in PSP dashboards)
+
+Register **canonical** URLs on your public domain (`NEXT_PUBLIC_APP_URL` / site base URL):
+
+| Provider | Canonical webhook URL | Route file |
+|----------|----------------------|------------|
+| WayForPay | `https://yourdomain.com/api/payments/wayforpay/webhook` | `app/api/payments/wayforpay/webhook/route.ts` |
+| Stripe | `https://yourdomain.com/api/payments/stripe/webhook` | `app/api/payments/stripe/webhook/route.ts` |
+
+WayForPay dispatches by `orderReference` prefix (`store_`, `membership_`, `news-promo-…`) via `webhook-dispatcher.ts`.
+
+**Deprecated aliases** (still delegate to the canonical dispatcher — migrate dashboards when convenient):
+
+| Legacy URL | Notes |
+|------------|-------|
+| `/api/store/payments/wayforpay/webhook` | Store alias |
+| `/api/news/promotion/wayforpay-webhook` | News promotion alias |
+
+**Internal credit** (no PSP webhook — authenticated API):
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/store/payments/credit` | Pay store order from wallet credit |
+| `POST /api/membership/payment/ring` | RING token membership payment |
+
+Store checkout initiation: `POST /api/store/payments/wayforpay` (redirect flow). Order status: `GET /api/store/payments/[orderId]/status`.
+
+## WayForPay merchant setup
+
+<Callout type="success">
+  **Recommended for:** Ukrainian businesses, European card rails, Apple Pay / Google Pay via hosted checkout.
+</Callout>
+
+<Steps>
+  <Step>
+    **Create a WayForPay merchant account**
+
+    1. Register at [wayforpay.com](https://wayforpay.com)
+    2. Complete KYC / merchant verification
+    3. Note **merchant account**, **secret key**, and approved **domain**
+  </Step>
+
+  <Step>
+    **Configure Ring environment**
+
+    Set `WAYFORPAY_MERCHANT_ACCOUNT`, `WAYFORPAY_SECRET_KEY`, and `WAYFORPAY_DOMAIN` in `.env.local`. Use sandbox credentials in staging; switch to live keys for production.
+  </Step>
+
+  <Step>
+    **Register the service URL (callback webhook)**
+
+    In the WayForPay merchant cabinet, set the **service URL** (callback) to:
+
+    ```
+    https://yourdomain.com/api/payments/wayforpay/webhook
+    ```
+
+    Do **not** use legacy paths (`/api/payments/wayforpay/callback`, `/success`, `/failure`) — those routes do not exist in v1.6.
+  </Step>
+
+  <Step>
+    **Verify end-to-end**
+
+    1. Apply migration `004_payment_transactions.sql`
+    2. Run a test membership upgrade or store checkout in staging
+    3. Confirm a `payment_transactions` row and domain-side fulfillment (order paid / role upgraded / promotion activated)
+  </Step>
+</Steps>
+
+## Stripe setup (international)
+
+<Steps>
+  <Step>
+    **Create a Stripe account** at [stripe.com](https://stripe.com) and obtain live or test API keys.
+  </Step>
+
+  <Step>
+    **Set environment variables:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and set `PAYMENT_DEFAULT_PROCESSOR=stripe` (or per-purpose overrides).
+  </Step>
+
+  <Step>
+    **Add webhook endpoint** in Stripe Dashboard:
+
+    ```
+    https://yourdomain.com/api/payments/stripe/webhook
+    ```
+
+    Subscribe to events used by PaymentConductor (e.g. `checkout.session.completed`). Signing secret → `STRIPE_WEBHOOK_SECRET`.
+  </Step>
+</Steps>
+
+## Pre-launch checklist
+
+- [ ] Migration `004_payment_transactions.sql` applied
+- [ ] `PAYMENT_*` and PSP credentials set in production secrets
+- [ ] Canonical webhook URLs registered (WayForPay service URL + Stripe endpoint)
+- [ ] `WAYFORPAY_DOMAIN` matches the domain WayForPay approved
+- [ ] Test store checkout, membership upgrade, and (if used) news promotion in staging
+- [ ] Monitor `payment_transactions` for stuck `pending` / `redirected` rows after go-live
+
+<Callout type="info">
+  **Related:** [Payments](/docs/library/features/payments) · [Store API](/docs/library/api/store) · [Migrations](/docs/library/getting-started/migrations) · [Customization opportunities](/opportunities?type=ring_customization)
+</Callout>

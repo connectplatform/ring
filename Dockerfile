@@ -329,7 +329,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Copy environment template and create build-time env
-COPY env.local.template .env.local.template
+COPY env.local.template env.local.template
 
 # Build the application (reuse .next/cache across builds when BuildKit cache mount is enabled)
 RUN --mount=type=cache,target=/app/.next/cache \

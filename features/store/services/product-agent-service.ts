@@ -1,6 +1,5 @@
 import {
-  createLLMClient,
-  createStreamingLLMClient,
+  createStreamingLLMClientAsync,
   normalizeStreamMessages,
   type LLMStreamMessage,
 } from '@/lib/ai/llm-client'
@@ -194,8 +193,8 @@ export class ProductAgentService {
     )
   }
 
-  createStreamingClient() {
-    return createStreamingLLMClient(true)
+  async createStreamingClient() {
+    return createStreamingLLMClientAsync(true)
   }
 
   async sendMessage(
@@ -206,7 +205,7 @@ export class ProductAgentService {
     locale: Locale,
   ): Promise<{ conversation: Conversation; userMessage: Message; agentMessage: Message }> {
     const context = await this.beginSendMessage(userId, userName, productId, content, locale)
-    const llm = this.createStreamingClient()
+    const llm = await this.createStreamingClient()
     const prompt = buildAgentPrompt(context.product, await this.messageService.getMessages(context.conversation.id, userId, { limit: 20 }), content)
     const llmResponse = await llm.complete(prompt, { maxTokens: 600, temperature: 0.35 })
 

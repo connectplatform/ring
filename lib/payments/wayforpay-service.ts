@@ -6,6 +6,7 @@
  */
 
 import { UserRole } from '@/features/auth/types';
+import { upgradeUserRole } from '@/features/auth/services/upgrade-user-role';
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
 
@@ -264,8 +265,6 @@ export async function processSuccessfulPayment(payload: WebhookPayload): Promise
       orderReference: payload.orderReference
     });
 
-    // Import and call the role upgrade service
-    const { upgradeUserRole } = await import('@/features/auth/services/upgrade-user-role');
     const upgradeResult = await upgradeUserRole(userId, targetRole, {
       paymentReference: payload.orderReference,
       paymentAmount: payload.amount,

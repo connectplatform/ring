@@ -1,14 +1,156 @@
 ---
-title: Index
-description: Index documentation for Ring Platform
+title: Customization
+description: Every Ring deployment is a branded clone — choose OSS self-host or Ringdom-managed hosting, then customize with ring-config and locales.
+last_modified: "2026-06-12"
 ---
 
-# Customization Overview
+# Customization
 
-White-label Ring to match your brand and product needs.
+<Callout type="info">
+  **What this section is:** Ring is a white-label platform — one open-source codebase, your brand, your domain. These docs are for **operators and builders** who run a clone (yourself or with Ringdom). They are **not** the Ringdom order flow.
+</Callout>
 
-- Branding: logo, colors, typography
-- Themes: Tailwind CSS v4 tokens and utilities
-- Feature toggles: enable/disable platform domains
-- Localization: add new languages
-- Component overrides: replace UI components safely
+## Two ways to get a clone
+
+<Mermaid title="How you get your Ring">
+{`flowchart TD
+  Start([I want my own Ring])
+  Start --> Choice{Who runs production?}
+
+  Choice -->|I build / self-host| OSS[OSS on GitHub]
+  Choice -->|Ringdom operates for me| RD[ringdom.org]
+
+  OSS --> A1[./install.sh]
+  OSS --> A2[Manual clone + agent help]
+  A1 --> Docs[These docs — Quick Start onward]
+  A2 --> Docs
+
+  RD --> Chat[Homepage chat:\\nDescribe your next\\nRing-powered platform]
+  Chat --> Ops[Ringdom provisions k8s, DNS, handoff]
+  Ops --> Customize[Same codebase — then Customization guide]`}
+</Mermaid>
+
+<Tabs items={['OSS — you operate', 'Ringdom — we operate']}>
+
+<Tab value="OSS — you operate">
+
+### Free forever on GitHub
+
+Use when you control infrastructure (laptop, VPS, your k3s) and want the full source tree.
+
+| Step | Action |
+|------|--------|
+| 1 | [Quick Start](/docs/customization/quick-start) — `install.sh` **or** manual clone + `.env.local` + Postgres |
+| 2 | [Customization guide](/docs/customization/customization-guide) — `ring-config.json`, locales, `HomeWrapper` |
+| 3 | [Self-hosted deployment](/docs/deployment/self-hosted) — Docker / production process |
+| 4 | Deep guides below — database, payments, tokens, AI |
+
+**Agentic setup:** Manual clone pairs well with Cursor + LegioX — describe your vertical; the agent walks `env.local.template`, migrations, and `ring-config.json`. The bash installer automates the same baseline.
+
+</Tab>
+
+<Tab value="Ringdom — we operate">
+
+### Managed hosting — start on the website, not in these docs
+
+1. Go to **[ringdom.org](https://ringdom.org)**.
+2. On the **main page**, use the chat prompt: **describe your next Ring-powered platform** (vertical, locale, payments, domain).
+3. Ringdom streams a **ringize plan**, saves your brief when you sign in, and provisions managed k8s + Postgres + handoff.
+4. After go-live, use **[Customization guide](/docs/customization/customization-guide)** and linked ops pages for ongoing changes — same `ring-config` / locale model as OSS.
+
+<Callout type="warning">
+  Do **not** follow Quick Start for Ringdom-managed settlers — that path is for cloning and running the repo yourself. Ordering starts at [ringdom.org](https://ringdom.org).
+</Callout>
+
+</Tab>
+
+</Tabs>
+
+## What belongs in this section vs elsewhere
+
+| Doc | Purpose |
+|-----|---------|
+| **This hub** | Choose OSS vs Ringdom; map of child guides |
+| **[Quick Start](/docs/customization/quick-start)** | **OSS only** — local smoke test |
+| **[Customization guide](/docs/customization/customization-guide)** | **After you have a clone** (OSS or Ringdom) — brand, features, home, propagation |
+| **[Architecture](/docs/architecture)** | How Ring works internally |
+| **[Localization](/docs/customization/localization)** | Locale env + `locales/` SSOT |
+| **Child pages below** | Database mode, payments, tokens, multi-tenant, AI, case studies |
+
+Quick Start gets OSS developers running; the guides below are where every operator makes the platform theirs.
+
+## Why customize Ring?
+
+| Advantage | What it means |
+|-----------|---------------|
+| **Full product surface** | Opportunities, entities, store, messaging, news, wallet, admin — per-clone toggles |
+| **Postgres-primary** | `DB_BACKEND_MODE=k8s-postgres-fcm`; Firebase for **FCM push**, not primary SQL |
+| **Config-first** | `ring-config.json` + env + `locales/` before forking components |
+| **PaymentConductor** | WayForPay, Stripe, ledger + webhooks |
+| **Safe upgrades** | Reggie propagate from `ring-greenfood-live` + `.reggie-propagate-exclude.json` |
+
+## Operator guides
+
+<Cards>
+  <Card title="Quick Start (OSS)" href="/docs/customization/quick-start">
+    `install.sh` or manual clone — localhost smoke test
+  </Card>
+  <Card title="Customization guide" href="/docs/customization/customization-guide">
+    ring-config, HomeWrapper, locales, feature flags
+  </Card>
+  <Card title="Database selection" href="/docs/customization/database-selection">
+    `DB_BACKEND_MODE` matrix — links to architecture SSOT
+  </Card>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    RING contracts, membership, treasury
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    WayForPay, Stripe, PaymentConductor
+  </Card>
+  <Card title="Multi-tenant" href="/docs/customization/multi-tenant">
+    Multiple orgs on one deployment
+  </Card>
+  <Card title="AI customization" href="/docs/customization/ai-customization">
+    Matcher tuning, agent costs
+  </Card>
+  <Card title="Reference deployments" href="/docs/customization/success-stories">
+    Named Ringdom clones — verticals and live links (no fabricated KPIs)
+  </Card>
+</Cards>
+
+## UI customization
+
+<Cards>
+  <Card title="Branding" href="/docs/customization/branding">
+    Logo, colors, typography
+  </Card>
+  <Card title="Themes" href="/docs/customization/themes">
+    Tailwind CSS v4 tokens
+  </Card>
+  <Card title="Feature toggles" href="/docs/customization/features">
+    Enable/disable platform domains
+  </Card>
+  <Card title="Localization" href="/docs/customization/localization">
+    Add languages and locale SSOT
+  </Card>
+  <Card title="Components" href="/docs/customization/components">
+    Safe UI overrides
+  </Card>
+</Cards>
+
+## Reference deployments
+
+| Clone | Vertical |
+|-------|----------|
+| **ring-greenfood-live** | Ag marketplace — Reggie propagation source |
+| **ring-vikka-ua** | Regional newsroom |
+| **ring-zemna-ai** | Scientific publishing + agent chat |
+| **ring-petfriend-app** | Map marketplace, EN/UA |
+| **ring-ring-ck-ua** | Regional IT opportunities |
+| **ring-wellness-gov-ua** | Healthcare / civic |
+| **ring-subiworx-com** | Local services SMB |
+| **ring-ringdom-org** | Empire hub + settler funnel |
+
+<Callout type="success">
+  **OSS builders:** [Quick Start](/docs/customization/quick-start). **Ringdom settlers:** [ringdom.org](https://ringdom.org) chat first, then [Customization guide](/docs/customization/customization-guide) after handoff.
+</Callout>

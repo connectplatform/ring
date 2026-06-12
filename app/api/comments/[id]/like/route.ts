@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
+
+type CommentRow = Record<string, unknown> & { id: string }
+type LikeRow = Record<string, unknown> & { id: string }
 
 /**
  * POST /api/comments/[id]/like
@@ -10,128 +13,91 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
     const session = await auth()
     
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     const commentId = params.id
     const userId = session.user.id
 
     if (!commentId) {
-      return NextResponse.json(
-        { error: 'Comment ID is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Comment ID is required' }, { status: 400 })
     }
 
-    // Initialize database service
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      return NextResponse.json(
-        { error: 'Database initialization failed' },
-        { status: 500 }
-      );
-    }
-
-    const dbService = getDatabaseService();
-
-    // Check if comment exists
-    const commentResult = await dbService.read('comments', commentId);
+    const commentResult = await db().readDoc<CommentRow>('comments', commentId)
 
     if (!commentResult.success || !commentResult.data) {
-      return NextResponse.json(
-        { error: 'Comment not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
     }
 
-    const commentData = commentResult.data.data || commentResult.data;
+    const commentData = commentResult.data
 
-    // Check if comment is active
-    if (commentData?.status !== 'active') {
-      return NextResponse.json(
-        { error: 'Cannot like inactive comment' },
-        { status: 400 }
-      );
+    if (commentData.status !== 'active') {
+      return NextResponse.json({ error: 'Cannot like inactive comment' }, { status: 400 })
     }
 
-    // Check if user has already liked this comment
-    const likeQueryResult = await dbService.query({
+    const likeQueryResult = await db().queryDocs<LikeRow>({
       collection: 'comment_likes',
       filters: [
-        { field: 'comment_id', operator: '==' as const, value: commentId },
-        { field: 'user_id', operator: '==' as const, value: userId }
+        { field: 'comment_id', operator: '==', value: commentId },
+        { field: 'user_id', operator: '==', value: userId }
       ],
       pagination: { limit: 1 }
-    });
+    })
 
-    const isCurrentlyLiked = likeQueryResult.success && likeQueryResult.data.length > 0;
-    const action = isCurrentlyLiked ? 'unlike' : 'like';
+    const isCurrentlyLiked = likeQueryResult.success && likeQueryResult.data.length > 0
+    const action = isCurrentlyLiked ? 'unlike' : 'like'
 
     if (isCurrentlyLiked) {
-      // Unlike: Remove like document and decrement counter
-      const likeId = likeQueryResult.data[0].id;
-      await dbService.delete('comment_likes', likeId);
+      const likeId = likeQueryResult.data[0].id
+      await db().deleteDoc('comment_likes', likeId)
 
-      // Update comment likes count
-      const updatedCommentData = {
+      await db().updateDoc('comments', commentId, {
         ...commentData,
-        likes: Math.max(0, (commentData?.likes || 0) - 1),
+        likes: Math.max(0, ((commentData.likes as number) || 0) - 1),
         updated_at: new Date()
-      };
-      await dbService.update('comments', commentId, updatedCommentData);
+      })
     } else {
-      // Like: Create like document and increment counter
-      const likeData = {
+      await db().createDoc('comment_likes', {
         comment_id: commentId,
         user_id: userId,
         user_name: session.user.name || 'Anonymous',
         user_avatar: session.user.image || null,
         created_at: new Date()
-      };
-      await dbService.create('comment_likes', likeData);
+      })
 
-      // Update comment likes count
-      const updatedCommentData = {
+      await db().updateDoc('comments', commentId, {
         ...commentData,
-        likes: (commentData?.likes || 0) + 1,
+        likes: ((commentData.likes as number) || 0) + 1,
         updated_at: new Date()
-      };
-      await dbService.update('comments', commentId, updatedCommentData);
+      })
     }
 
-    // Get updated comment data
-    const updatedCommentResult = await dbService.read('comments', commentId);
+    const updatedCommentResult = await db().readDoc<CommentRow>('comments', commentId)
     const updatedComment = updatedCommentResult.success && updatedCommentResult.data
-      ? (updatedCommentResult.data.data || updatedCommentResult.data)
-      : commentData;
+      ? updatedCommentResult.data
+      : commentData
     
     return NextResponse.json({
       success: true,
       data: {
-        commentId: commentId,
-        action: action,
+        commentId,
+        action,
         liked: !isCurrentlyLiked,
-        likes: updatedComment?.likes || 0,
-        userId: userId
+        likes: (updatedComment.likes as number) || 0,
+        userId
       },
       message: `Comment ${action}d successfully`
     })
 
   } catch (error) {
     console.error('Error liking/unliking comment:', error)
-    return NextResponse.json(
-      { error: 'Failed to process like action' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to process like action' }, { status: 500 })
   }
 }
 
@@ -143,78 +109,53 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
     const session = await auth()
     
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     const commentId = params.id
     const userId = session.user.id
 
     if (!commentId) {
-      return NextResponse.json(
-        { error: 'Comment ID is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Comment ID is required' }, { status: 400 })
     }
 
-    // Initialize database service
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      return NextResponse.json(
-        { error: 'Database initialization failed' },
-        { status: 500 }
-      );
-    }
-
-    const dbService = getDatabaseService();
-
-    // Check if comment exists
-    const commentResult = await dbService.read('comments', commentId);
+    const commentResult = await db().readDoc<CommentRow>('comments', commentId)
 
     if (!commentResult.success || !commentResult.data) {
-      return NextResponse.json(
-        { error: 'Comment not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
     }
 
-    const commentData = commentResult.data.data || commentResult.data;
+    const commentData = commentResult.data
 
-    // Check if user has liked this comment
-    const likeQueryResult = await dbService.query({
+    const likeQueryResult = await db().queryDocs({
       collection: 'comment_likes',
       filters: [
-        { field: 'comment_id', operator: '==' as const, value: commentId },
-        { field: 'user_id', operator: '==' as const, value: userId }
+        { field: 'comment_id', operator: '==', value: commentId },
+        { field: 'user_id', operator: '==', value: userId }
       ],
       pagination: { limit: 1 }
-    });
+    })
 
-    const isLiked = likeQueryResult.success && likeQueryResult.data.length > 0;
+    const isLiked = likeQueryResult.success && likeQueryResult.data.length > 0
 
     return NextResponse.json({
       success: true,
       data: {
-        commentId: commentId,
+        commentId,
         liked: isLiked,
-        likes: commentData?.likes || 0,
-        userId: userId
+        likes: (commentData.likes as number) || 0,
+        userId
       }
     })
 
   } catch (error) {
     console.error('Error getting like status:', error)
-    return NextResponse.json(
-      { error: 'Failed to get like status' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to get like status' }, { status: 500 })
   }
-} 
+}

@@ -5,7 +5,7 @@
 
 import { cache } from 'react';
 import { PrivacyConsent } from '@/features/auth/types';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 import { auth } from '@/auth';
 
 /**
@@ -31,20 +31,14 @@ export class PrivacyConsentService {
     console.log(`🔒 PrivacyConsentService - Getting consent for user ${userId}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-      const result = await dbService.read('users', userId);
+      const result = await db().readDoc<Record<string, unknown>>('users', userId);
 
       if (!result.success || !result.data) {
         console.log(`PrivacyConsentService - No user data found for ${userId}`);
         return null;
       }
 
-      const userData = result.data.data || result.data;
+      const userData = result.data;
 
       // Extract privacy consent from user data
       if (!userData.data_sharing_consent) {
@@ -83,13 +77,6 @@ export class PrivacyConsentService {
         throw new Error('Unauthorized: Users can only update their own consent');
       }
 
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
       const updateData = {
         data_sharing_consent: consent.dataSharingConsent,
         anonymized_research_consent: consent.anonymizedResearchConsent,
@@ -97,7 +84,7 @@ export class PrivacyConsentService {
         last_profile_update: new Date().toISOString()
       };
 
-      const result = await dbService.update('users', userId, { data: updateData });
+      const result = await db().updateDoc('users', userId, updateData);
 
       if (!result.success) {
         throw new Error(`Failed to update consent: ${result.error}`);

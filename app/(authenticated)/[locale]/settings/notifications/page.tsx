@@ -5,7 +5,7 @@
 
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import React from 'react';
 import { NotificationPreferences } from '@/features/notifications/components/notification-preferences';
 import { Button } from '@/components/ui/button';
@@ -39,8 +39,6 @@ export async function generateMetadata({
     path: 'settings.notifications',
     pathname: '/settings/notifications',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

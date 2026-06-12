@@ -5,7 +5,7 @@
 
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { NotificationList } from '@/features/notifications/components/notification-list';
 import { Button } from '@/components/ui/button';
 import { Settings, ArrowLeft } from 'lucide-react';
@@ -36,8 +36,6 @@ export async function generateMetadata({ params }: NotificationsPageProps): Prom
     locale,
     path: 'notifications',
     pathname: '/notifications',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: { index: false, follow: false },
   })
 }

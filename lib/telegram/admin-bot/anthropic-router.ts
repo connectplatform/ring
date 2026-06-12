@@ -131,8 +131,24 @@ export function validateToolInput(toolName: string, toolInput: any): boolean {
     return false
   }
 
+  const crudTool = toolName === 'ring_crud' || toolName === 'entity_crud'
+  const reportTool = toolName === 'ring_report' || toolName === 'entity_report'
+
+  if (toolName === 'generate_news_article') {
+    const validSources = ['url', 'search', 'text']
+    if (!toolInput.source || !validSources.includes(toolInput.source)) {
+      console.warn('[ANTHROPIC ROUTER] generate_news_article invalid source')
+      return false
+    }
+    if (!toolInput.value || typeof toolInput.value !== 'string' || !toolInput.value.trim()) {
+      console.warn('[ANTHROPIC ROUTER] generate_news_article missing value')
+      return false
+    }
+    return true
+  }
+
   // Validate ring_crud operations
-  if (toolName === 'ring_crud') {
+  if (crudTool) {
     if (!toolInput.operation || !toolInput.entity) {
       console.warn('[ANTHROPIC ROUTER] ring_crud missing required fields')
       return false
@@ -179,8 +195,16 @@ export function validateToolInput(toolName: string, toolInput: any): boolean {
   }
 
   // Validate ring_report operations
-  if (toolName === 'ring_report') {
-    const validReports = ['users_summary', 'orders_today', 'stock_low', 'revenue']
+  if (reportTool) {
+    const validReports = [
+      'users_summary',
+      'orders_today',
+      'stock_low',
+      'revenue',
+      'subscriptions_active',
+      'places_verified',
+      'pets_by_type',
+    ]
     if (!toolInput.report_type || !validReports.includes(toolInput.report_type)) {
       console.warn('[ANTHROPIC ROUTER] Invalid report type:', toolInput.report_type)
       return false

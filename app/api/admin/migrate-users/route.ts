@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { auth } from '@/auth'
+
+type UserRow = Record<string, unknown> & { id: string }
 
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -14,20 +16,12 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting user migration from Firebase to PostgreSQL')
 
-    // Initialize database
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      return NextResponse.json({ error: 'Database initialization failed' }, { status: 500 })
-    }
-
-    const dbService = getDatabaseService()
-
     // Get all users from database
-    const result = await dbService.query({ collection: 'users' })
+    const result = await db().queryDocs<UserRow>({ collection: 'users' })
     if (!result.success) {
       throw result.error || new Error('Failed to fetch users')
     }
-    const snapshot = result.data
+    const snapshot = result.data ?? []
     const totalUsers = snapshot.length
 
     console.log(`Found ${totalUsers} users in Firebase`)
@@ -38,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     for (const doc of snapshot) {
       const userId = doc.id
-      const userData = doc as any
+      const userData = doc
 
       try {
         // Make automart@gmail.com a superadmin
@@ -49,13 +43,12 @@ export async function POST(request: NextRequest) {
 
         // Create user document for database
         const userDoc = {
-          id: userId,
           ...userData,
           migrated_at: new Date().toISOString()
         }
 
         // Save to database
-        const createResult = await dbService.create('users', userDoc)
+        const createResult = await db().createDoc('users', userDoc, { id: userId })
         if (!createResult.success) {
           throw createResult.error || new Error('Failed to create user')
         }
@@ -65,8 +58,9 @@ export async function POST(request: NextRequest) {
         migrated++
 
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
         console.error(`❌ Error migrating user ${userData.email || userId}:`, error)
-        results.push({ id: userId, email: userData.email, status: 'error', error: error.message })
+        results.push({ id: userId, email: userData.email, status: 'error', error: message })
         errors++
       }
     }
@@ -82,10 +76,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     console.error('Migration failed:', error)
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: message
     }, { status: 500 })
   }
 }

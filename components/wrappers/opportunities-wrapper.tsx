@@ -6,12 +6,15 @@ import { useSearchParams, usePathname } from 'next/navigation'
 import { SerializedOpportunity, OpportunityVisibility, Attachment, type OpportunitySubmenuTab } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 import { useAppContext } from '@/contexts/app-context'
-import { Locale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import type { Locale } from '@/i18n/shared'
 import { OpportunitySuspenseBoundary } from '@/components/suspense/enhanced-suspense-boundary'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Plus, User, Briefcase } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
+import { routing } from '@/i18n/routing'
+import { isValidLocale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
 import OpportunitiesSubmenu from '@/components/navigation/opportunities-submenu'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
@@ -63,8 +66,11 @@ export default function OpportunitiesWrapper({
   // Restore useTranslations hook
   const t = useTranslations('modules.opportunities')
 
-  const locale = pathname.split('/')[1] || 'en'
-  const isMyOpportunitiesPage = pathname.includes('/my-opportunities')
+  const localeSegment = pathname.split('/')[1] || routing.defaultLocale
+  const locale: Locale = isValidLocale(localeSegment)
+    ? localeSegment
+    : (routing.defaultLocale as Locale)
+  const isMyOpportunitiesPage = pathname.endsWith('/opportunities/my')
 
   const limit = parseInt(searchParams.get('limit') || (initialLimit || 20).toString(), 10)
 
@@ -106,7 +112,7 @@ export default function OpportunitiesWrapper({
 
   // Otherwise, render the opportunities list with navigation
   return (
-    <div>
+    <div className="ring-content-panel min-w-0 min-h-full">
       {/* Main Navigation Bar for Opportunities */}
       <div className="bg-background border-b border-border mb-6">
         <div className="container mx-auto px-4 py-4">
@@ -118,7 +124,7 @@ export default function OpportunitiesWrapper({
             <div className="flex flex-wrap gap-3">
               {session?.user && (
                 <>
-                  <Link href={`/${locale}/my-opportunities`}>
+                  <Link href={ROUTES.MY_OPPORTUNITIES(locale)}>
                     <Button variant="outline" className="flex items-center gap-2">
                       <User size={20} />
                       {t('myOpportunities', { defaultValue: 'My Opportunities' })}

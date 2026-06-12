@@ -23,6 +23,7 @@ export function mapNewsDocument(
     category: d.category as NewsArticle['category'],
     tags: Array.isArray(d.tags) ? (d.tags as string[]) : [],
     featuredImage: d.featuredImage as string | undefined,
+    audioUrl: d.audioUrl as string | undefined,
     gallery: d.gallery as string[] | undefined,
     status: d.status as NewsArticle['status'],
     visibility: d.visibility as NewsArticle['visibility'],

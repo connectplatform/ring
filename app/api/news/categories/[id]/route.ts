@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
 import { NewsCategory } from '@/features/news/types'
+
+type CategoryRow = Record<string, unknown> & { id: string }
 
 /**
  * GET /api/news/categories/[id]
@@ -17,11 +19,8 @@ export async function GET(
   try {
     const { id } = params
 
-    await initializeDatabase()
-    const db = getDatabaseService()
+    const categoryResult = await db().readDoc<CategoryRow>('newsCategories', id)
 
-    const categoryResult = await db.read('newsCategories', id)
-    
     if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
@@ -29,11 +28,9 @@ export async function GET(
       )
     }
 
-    const category = categoryResult.data as any
-
     return NextResponse.json({
       success: true,
-      data: { id, ...category },
+      data: categoryResult.data,
     })
 
   } catch (error) {
@@ -57,7 +54,7 @@ export async function PUT(
 
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -84,11 +81,6 @@ export async function PUT(
       )
     }
 
-    // Category existence will be checked by update operation
-
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     const updateData = {
       name: name.trim(),
       description: description?.trim() || '',
@@ -97,7 +89,7 @@ export async function PUT(
       updatedAt: new Date(),
     }
 
-    const updateResult = await db.update('newsCategories', id, updateData)
+    const updateResult = await db().updateDoc('newsCategories', id, updateData)
     if (!updateResult.success) {
       return NextResponse.json(
         { success: false, error: 'Failed to update category' },
@@ -111,7 +103,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: { id, ...updateResult.data },
+      data: updateResult.data,
       message: 'Category updated successfully',
     })
 
@@ -136,7 +128,7 @@ export async function DELETE(
 
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -154,11 +146,8 @@ export async function DELETE(
 
     const { id } = params
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Check if category exists
-    const categoryResult = await db.read('newsCategories', id)
+    const categoryResult = await db().readDoc<CategoryRow>('newsCategories', id)
     if (!categoryResult.success || !categoryResult.data) {
       return NextResponse.json(
         { success: false, error: 'Category not found' },
@@ -167,7 +156,7 @@ export async function DELETE(
     }
 
     // Check if any articles are using this category
-    const articlesResult = await db.query({
+    const articlesResult = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'category', operator: '==', value: id as NewsCategory }],
       pagination: { limit: 1 }
@@ -175,16 +164,16 @@ export async function DELETE(
 
     if (articlesResult.success && articlesResult.data.length > 0) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Cannot delete category that is being used by articles. Please reassign or delete those articles first.' 
+        {
+          success: false,
+          error: 'Cannot delete category that is being used by articles. Please reassign or delete those articles first.'
         },
         { status: 400 }
       )
     }
 
     // Delete the category (MUTATION - NO CACHE!)
-    const deleteResult = await db.delete('newsCategories', id)
+    const deleteResult = await db().deleteDoc('newsCategories', id)
     if (!deleteResult.success) {
       throw deleteResult.error || new Error('Failed to delete category')
     }
@@ -204,4 +193,4 @@ export async function DELETE(
       { status: 500 }
     )
   }
-} 
+}

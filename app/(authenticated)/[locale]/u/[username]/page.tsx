@@ -4,9 +4,10 @@ import type { LocalePageProps } from '@/utils/page-props'
 import { setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { getUserByUsername } from '@/features/auth/services/get-user-by-username'
 import UserProfileWrapper from '@/components/wrappers/user-profile-wrapper'
+import { MessageUserButton } from '@/features/auth/components/message-user-button'
 import ProfileListings from '@/features/nft-market/components/profile-listings'
 import CreateListingForm from './create-listing-form'
 import Image from 'next/image'
@@ -38,8 +39,6 @@ export async function generateMetadata({
       title: `${displayName} | Profile`,
       description,
     },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 
@@ -67,7 +66,14 @@ export default async function PublicProfilePage(props: LocalePageProps<PublicPro
             />
           )}
           <div>
-            <h1 className="text-2xl font-semibold">{user.name || user.username || username}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold">{user.name || user.username || username}</h1>
+              <MessageUserButton
+                targetUserId={user.id}
+                targetUserName={user.name || user.username}
+                locale={validLocale}
+              />
+            </div>
             {user.username && <p className="text-muted-foreground">@{user.username}</p>}
             {user.bio && <p className="mt-2 max-w-2xl">{user.bio}</p>}
           </div>

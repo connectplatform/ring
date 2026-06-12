@@ -1,5 +1,6 @@
 /**
- * Opportunity Serialization Utilities
+ * Opportunity serialization for **Firestore `Timestamp` ↔ ISO string** round-trips (legacy `firebase-full` path).
+ * PostgreSQL / `DatabaseService` reads and writes should use `features/opportunities/lib/opportunity-db-mapper.ts` instead.
  */
 
 import { Timestamp } from 'firebase-admin/firestore'

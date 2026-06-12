@@ -133,7 +133,9 @@
     "agentChatSignIn": "Sign in to ask product questions and save chat history.",
     "agentChatSignInAction": "Sign in",
     "agentChatPlaceholder": "Ask about this product…",
-    "openInMessenger": "Open in Ring Messenger"
+    "openInMessenger": "Open in Ring Messenger",
+    "agentWelcome": "Hi! I can help with questions about {name}. Ask about features, sizing, shipping, or how to order.",
+    "agentChatFallback": "I am here to help with this product. Could you rephrase your question?"
   },
   "favorites": {
     "button": "Favorites",
@@ -201,10 +203,6 @@
         "description": "Recently joined marketplace"
       }
     }
-  },
-  "aiConsultant": {
-    "title": "AI Product Consultant",
-    "ask": "Ask anything about this product."
   },
   "checkout": {
     "title": "Checkout",

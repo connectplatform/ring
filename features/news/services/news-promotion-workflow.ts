@@ -1,7 +1,8 @@
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import type { MainPageStatus, NewsAiScore } from '@/features/news/types'
 import { scoreNewsForMainPage } from '@/features/news/services/news-scoring-service'
 import { translitSlug } from '@/lib/news/translit-slug'
+import { logger } from '@/lib/logger'
 
 export async function appendStatusHistory(
   articleId: string,
@@ -9,19 +10,18 @@ export async function appendStatusHistory(
   by?: string,
   note?: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) return
 
-  const data = (found.data.data ?? found.data) as Record<string, unknown>
+  const data = found.data
   const history = Array.isArray(data.mainPageStatusHistory)
     ? [...(data.mainPageStatusHistory as object[])]
     : []
   history.push({ status, at: new Date().toISOString(), by, note })
 
-  await db.update('news', articleId, {
-    data: { ...data, mainPageStatus: status, mainPageStatusHistory: history },
+  await db().updateDoc('news', articleId, {
+    mainPageStatus: status,
+    mainPageStatusHistory: history,
   })
 }
 
@@ -34,25 +34,22 @@ export async function writeSubmissionAudit(entry: {
   telegramChatId?: string
   payload?: Record<string, unknown>
 }): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
   const id = `audit-${entry.newsId}-${Date.now()}`
-  await db.create('news_submission_audit', {
-    id,
-    data: { ...entry, createdAt: new Date().toISOString() },
-  })
+  await db().createDoc(
+    'news_submission_audit',
+    { ...entry, createdAt: new Date().toISOString() },
+    { id }
+  )
 }
 
 export async function runAiScoringForArticle(articleId: string): Promise<{
   status: MainPageStatus
   aiScore: NewsAiScore
 }> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) throw new Error('Article not found')
 
-  const data = (found.data.data ?? found.data) as Record<string, unknown>
+  const data = found.data
   const siteWideSlug =
     (data.siteWideSlug as string) ||
     translitSlug(String(data.slug ?? data.title ?? 'post'))
@@ -75,14 +72,11 @@ export async function runAiScoringForArticle(articleId: string): Promise<{
     next = 'payment_pending'
   }
 
-  await db.update('news', articleId, {
-    data: {
-      ...data,
-      aiScore,
-      siteWideSlug,
-      siteWideCategory: data.siteWideCategory ?? 'blogs',
-      mainPageStatus: next,
-    },
+  await db().updateDoc('news', articleId, {
+    aiScore,
+    siteWideSlug,
+    siteWideCategory: data.siteWideCategory ?? 'blogs',
+    mainPageStatus: next,
   })
   await appendStatusHistory(articleId, 'ai_scored', 'system', 'OpenRouter/heuristic score')
   if (next === 'payment_pending') {
@@ -106,18 +100,13 @@ export async function markPaymentReceived(
   articleId: string,
   payment: Record<string, unknown>
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) return
-  const data = (found.data.data ?? found.data) as Record<string, unknown>
+  const data = found.data
 
-  await db.update('news', articleId, {
-    data: {
-      ...data,
-      payment: { ...(data.payment as object), ...payment, paidAt: new Date().toISOString() },
-      mainPageStatus: 'awaiting_admin_approval',
-    },
+  await db().updateDoc('news', articleId, {
+    payment: { ...(data.payment as object), ...payment, paidAt: new Date().toISOString() },
+    mainPageStatus: 'awaiting_admin_approval',
   })
   await appendStatusHistory(articleId, 'awaiting_admin_approval', 'payment', 'paid')
   await writeSubmissionAudit({
@@ -132,20 +121,15 @@ export async function approveMainPagePublication(
   articleId: string,
   actorId?: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) return
-  const data = (found.data.data ?? found.data) as Record<string, unknown>
+  const data = found.data
 
-  await db.update('news', articleId, {
-    data: {
-      ...data,
-      mainPageStatus: 'published_main',
-      status: 'published',
-      visibility: 'site-wide',
-      featured: Boolean(data.featured ?? false),
-    },
+  await db().updateDoc('news', articleId, {
+    mainPageStatus: 'published_main',
+    status: 'published',
+    visibility: 'site-wide',
+    featured: Boolean(data.featured ?? false),
   })
   await appendStatusHistory(articleId, 'published_main', actorId, 'approved')
   await writeSubmissionAudit({
@@ -154,6 +138,12 @@ export async function approveMainPagePublication(
     toStatus: 'published_main',
     actorId,
   })
+
+  void import('@/features/news/services/article-translation')
+    .then(({ generateArticleTranslations }) => generateArticleTranslations(articleId, actorId))
+    .catch((error) => {
+      logger.error('[news-promotion] translation fan-out failed:', error)
+    })
 }
 
 export async function rejectMainPagePublication(
@@ -161,18 +151,11 @@ export async function rejectMainPagePublication(
   actorId?: string,
   note?: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) return
-  const data = (found.data.data ?? found.data) as Record<string, unknown>
-
-  await db.update('news', articleId, {
-    data: {
-      ...data,
-      mainPageStatus: 'rejected',
-      promoteToMainPage: false,
-    },
+  await db().updateDoc('news', articleId, {
+    mainPageStatus: 'rejected',
+    promoteToMainPage: false,
   })
   await appendStatusHistory(articleId, 'rejected', actorId, note)
   await writeSubmissionAudit({

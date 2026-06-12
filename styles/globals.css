@@ -131,9 +131,22 @@
 }
 
 @import "tailwindcss";
+@import "./davinci.css";
  
 @layer base {
   :root {
+    --sidebar-rail-w: 64px;
+    --sidebar-aside-w: 270px;
+    --sidebar-total-w: calc(var(--sidebar-rail-w) + clamp(0px, var(--sidebar-aside-w), 320px));
+    /* Lab01 app shell — canvas / frame / content panel */
+    --app-canvas: 210 16% 88%;
+    --app-frame: 210 22% 94%;
+    --app-panel: 0 0% 100%;
+    --app-rail-to: 210 32% 99%;
+    --color-contrast-high: hsl(var(--foreground));
+    --color-contrast-medium: hsl(var(--muted-foreground));
+    --color-contrast-low: hsl(var(--muted-foreground) / 0.65);
+
     --background: 0 0% 100%;
     --foreground: 217 33% 12%;
  
@@ -197,10 +210,30 @@
     --ring: 217.2 32.6% 17.5%;
 
     --page-background: 220 20% 10%;
+    --app-canvas: 220 16% 11%;
+    --app-frame: 220 14% 15%;
+    --app-panel: 222 22% 9%;
+    --app-rail-to: 220 12% 18%;
   }
 
   body {
     @apply bg-background text-foreground transition-colors duration-300 font-inter;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      background: linear-gradient(
+        135deg,
+        hsl(var(--primary) / 0.035) 0%,
+        transparent 38%
+      ),
+      linear-gradient(
+        90deg,
+        hsl(var(--app-canvas)) 0%,
+        hsl(var(--app-frame)) 45%,
+        hsl(var(--app-rail-to)) 100%
+      );
+    }
   }
   
   * {
@@ -211,6 +244,129 @@
 @layer components {
   .page-content {
     @apply min-h-screen bg-background text-foreground transition-colors duration-300;
+  }
+
+  .ring-app-canvas {
+    background:
+      linear-gradient(
+        135deg,
+        hsl(var(--primary) / 0.045) 0%,
+        transparent 42%
+      ),
+      linear-gradient(
+        90deg,
+        hsl(var(--app-canvas)) 0%,
+        hsl(var(--app-frame)) 45%,
+        hsl(var(--app-rail-to)) 100%
+      );
+    @apply text-foreground transition-colors duration-300;
+  }
+
+  .dark .ring-app-canvas {
+    background:
+      linear-gradient(
+        135deg,
+        hsl(var(--primary) / 0.06) 0%,
+        transparent 40%
+      ),
+      linear-gradient(
+        90deg,
+        hsl(var(--app-canvas)) 0%,
+        hsl(var(--app-frame)) 50%,
+        hsl(var(--app-rail-to)) 100%
+      );
+  }
+
+  .ring-app-frame {
+    background: transparent;
+    border-radius: 15px;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .dark .ring-app-frame {
+    box-shadow: none;
+  }
+
+  .ring-content-panel {
+    @apply isolate relative z-[1] min-h-full rounded-xl text-foreground px-4 py-6 md:px-8 md:py-7 lg:px-11 lg:py-[26px];
+    background-color: hsl(var(--app-panel));
+    box-shadow:
+      0 0 0 1px rgba(9, 9, 9, 0.07),
+      0 26px 15px rgba(0, 0, 0, 0.02),
+      0 11px 11px rgba(0, 0, 0, 0.03),
+      0 3px 6px rgba(0, 0, 0, 0.03);
+  }
+
+  .dark .ring-content-panel {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 12px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  /** Edge-to-edge content inside panel (hero bleed, etc.) */
+  .ring-content-panel-flush {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /** Right rail column — layout only; canvas gradient shows through */
+  .ring-right-rail {
+    background: transparent;
+  }
+
+  .ring-rail-slot {
+    background-color: hsl(var(--app-frame));
+    border-radius: 15px;
+    padding: 3px;
+    box-shadow:
+      0 259px 103px rgba(0, 0, 0, 0.03),
+      0 146px 87px rgba(0, 0, 0, 0.09),
+      0 65px 65px rgba(0, 0, 0, 0.12),
+      0 16px 36px rgba(0, 0, 0, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+
+  @keyframes sidebar-selected-pulse {
+    0%,
+    100% {
+      opacity: 0.45;
+      transform: scale(0.98);
+    }
+    50% {
+      opacity: 0.85;
+      transform: scale(1.02);
+    }
+  }
+
+  .sidebar-nav-item[data-current],
+  .sidebar-rail-link[data-current] {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .sidebar-nav-item[data-current]::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.35), rgba(147, 51, 234, 0.35));
+    filter: blur(6px);
+    animation: sidebar-selected-pulse 2s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .sidebar-rail-link[data-current]::before {
+    content: '';
+    position: absolute;
+    inset: 2px 0;
+    z-index: -1;
+    border-radius: 0;
+    background: linear-gradient(90deg, rgba(96, 165, 250, 0.45), rgba(167, 139, 250, 0.45));
+    filter: blur(8px);
+    animation: sidebar-selected-pulse 2s ease-in-out infinite;
+    pointer-events: none;
   }
 }
 
@@ -271,5 +427,9 @@
   /* Ensure proper styling for code blocks */
   pre.shiki {
     @apply rounded-lg border border-gray-200 dark:border-gray-700 p-4 overflow-x-auto my-6;
+  }
+
+  html[data-sidebar-anim] main {
+    transition: padding-left 500ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 } 

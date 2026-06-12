@@ -8,8 +8,9 @@
 import { Opportunity } from '@/features/opportunities/types'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
-import { invalidateOpportunitiesCache } from '@/lib/cached-data'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { mapDbDocumentToOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
+import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
 
 /**
  * Updates an opportunity by its ID in Firestore, enforcing role-based access control.
@@ -50,11 +51,8 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
 
     console.log(`Services: updateOpportunity - User authenticated with role ${userRole} and ID ${userId}`);
 
-    // Step 2: Get the current opportunity using db.command()
-    const currentResult = await db().execute('findById', {
-      collection: 'opportunities',
-      id: id
-    });
+    // Step 2: Get the current opportunity
+    const currentResult = await db().findDocById<Opportunity & { id: string }>('opportunities', id)
 
     // Step 3: Check if the opportunity exists
     if (!currentResult.success || !currentResult.data) {
@@ -63,7 +61,7 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
     }
 
     // Step 4: Get the current opportunity data and check permissions
-    const currentOpportunity = currentResult.data.data as Opportunity;
+    const currentOpportunity = currentResult.data
     if (currentOpportunity) {
       if (userRole !== UserRole.ADMIN && userId !== currentOpportunity.createdBy) {
         if (currentOpportunity.isConfidential && userRole !== UserRole.CONFIDENTIAL) {
@@ -82,13 +80,8 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
         dateUpdated: new Date(),
       };
 
-      // Step 6: Update the opportunity using db.command()
-      const updateResult = await db().execute('update', {
-        collection: 'opportunities',
-        id: id,
-        data: updateData,
-        options: { merge: true }
-      });
+      // Step 6: Update the opportunity
+      const updateResult = await db().updateDoc('opportunities', id, updateData, { merge: true })
 
       if (!updateResult.success) {
         throw new Error(updateResult.error?.message || 'Failed to update opportunity');
@@ -96,27 +89,19 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
 
       console.log('Services: updateOpportunity - Opportunity updated successfully');
 
-      invalidateOpportunitiesCache(['public','subscriber','member','confidential','admin'])
+      await syncOpportunityDiscovery({
+        opportunityId: id,
+        event: 'updated',
+      })
 
       // Step 7: Fetch and return the updated opportunity
-      const updatedResult = await db().execute('findById', {
-        collection: 'opportunities',
-        id: id
-      });
+      const updatedResult = await db().findDocById<Opportunity & { id: string }>('opportunities', id)
 
       if (!updatedResult.success || !updatedResult.data) {
         throw new Error('Failed to retrieve updated opportunity');
       }
 
-      const updatedOpportunity = updatedResult.data.data as Opportunity;
-      if (!updatedOpportunity) {
-        throw new Error('Updated opportunity has no data');
-      }
-
-      return {
-        ...updatedOpportunity,
-        id: id,
-      } as Opportunity;
+      return mapDbDocumentToOpportunity(updatedResult.data)
     }
 
     console.warn('Services: updateOpportunity - Opportunity data is null');

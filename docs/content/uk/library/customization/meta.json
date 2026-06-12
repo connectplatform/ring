@@ -1,7 +1,16 @@
 {
   "title": "Кастомізація",
+  "description": "Розгортання, брендинг і експлуатація власного клону Ring Platform",
   "pages": [
     "index",
+    "quick-start",
+    "customization-guide",
+    "database-selection",
+    "token-economics",
+    "payment-integration",
+    "multi-tenant",
+    "ai-customization",
+    "success-stories",
     "branding",
     "features",
     "localization",

@@ -4,7 +4,6 @@ description: Полная система управления контентом
 icon: Newspaper
 ---
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -33,8 +32,9 @@ import { CheckCircle, Users, Globe, Zap, Share2, Rss, Eye, Heart } from 'lucide-
 | Промоция | WayForPay/Stripe + Telegram-одобрение |
 | Скоринг | OpenRouter |
 | Блоги | [Блоги участников](/docs/library/features/member-blog) |
+| **Автономная редакция (2026-06)** | Grok `web_search`, ImageConductor, TTS `audioUrl`, Telegram approve → переводы |
 
-См. [Архитектура News Kingdom](/docs/library/architecture/news-kingdom).
+См. [Архитектура News Kingdom](/docs/library/architecture/news-kingdom) · [Автономная редакция](/docs/library/development/generative-newsroom)
 
 ## 🏗️ Архитектура
 
@@ -134,13 +134,10 @@ interface NewsArticle {
 
 ### Поток Статуса Контента
 
-```
-Черновик → Опубликовано → Архив
-  ↓       ↓          ↓
-Автор   Публичная   Скрыто
-редактирует видимость из
-         списков     списков
-```
+<Mermaid title="Жизненный цикл статьи">
+{`flowchart LR
+  Draft["Черновик<br/>Редактирует автор"] --> Published["Опубликовано<br/>Публичная видимость"] --> Archived["Архив<br/>Скрыто из списков"]`}
+</Mermaid>
 
 ## 🎨 Пользовательский Интерфейс
 
@@ -148,14 +145,14 @@ interface NewsArticle {
 
 Интерфейс новостей использует профессиональный 3-колоночный макет:
 
-```
-┌─────────────┬─────────────────────┬─────────────┐
-│ 280px       │ Основной Контент    │ 320px       │
-│ Категории   │                     │ Популярное  │
-│ и RSS       │                     │ и Тренды    │
-│ Навигация   │                     │ Виджеты     │
-└─────────────┴─────────────────────┴─────────────┘
-```
+<Mermaid title="Десктопный макет новостей">
+{`flowchart LR
+  Nav["280px<br/>Категории и RSS<br/>Навигация"]
+  Main["Основной контент"]
+  Widgets["320px<br/>Популярное и тренды<br/>Виджеты"]
+
+  Nav --- Main --- Widgets`}
+</Mermaid>
 
 **Десктоп**: Полный 3-колоночный макет с фиксированными боковыми панелями
 **Планшет**: Контент заполняет оставшуюся ширину, боковые панели скрыты

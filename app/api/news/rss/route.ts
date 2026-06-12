@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { NewsArticle, NewsCategory } from '@/features/news/types'
+import { mapNewsDocument } from '@/lib/news/map-news-document'
+
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof (value as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate()
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return new Date(value)
+  }
+  return new Date()
+}
 
 function generateRSSXML(articles: NewsArticle[], category?: NewsCategory): string {
   const baseUrl = 'https://ring.ck.ua'
@@ -10,7 +27,7 @@ function generateRSSXML(articles: NewsArticle[], category?: NewsCategory): strin
   const rssUrl = category ? `${baseUrl}/api/news/rss?category=${category}` : `${baseUrl}/api/news/rss`
 
   const rssItems = articles.map(article => {
-    const pubDate = article.publishedAt?.toDate() || article.createdAt.toDate()
+    const pubDate = toDate(article.publishedAt ?? article.createdAt)
     const articleUrl = `${baseUrl}/en/news/${article.slug}` // Default to English
 
     return `    <item>
@@ -52,11 +69,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category') as NewsCategory | null
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Build query filters
-    const filters: any[] = [
+    const filters: Array<{ field: string; operator: string; value: unknown }> = [
       { field: 'status', operator: '==', value: 'published' },
       { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
     ]
@@ -65,7 +79,7 @@ export async function GET(request: NextRequest) {
       filters.push({ field: 'category', operator: '==', value: category })
     }
 
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       filters,
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
@@ -76,10 +90,10 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Failed to fetch articles', { status: 500 })
     }
 
-    const articles = result.data as any[] as NewsArticle[]
+    const articles = result.data.map((row) => mapNewsDocument(row))
 
     // Generate RSS XML
-    const rssXML = generateRSSXML(articles, category)
+    const rssXML = generateRSSXML(articles, category ?? undefined)
 
     return new NextResponse(rssXML, {
       status: 200,

@@ -2,8 +2,8 @@
 
 ## CURRENT STATUS OVERVIEW
 
-**Last Updated**: June 6, 2026
-**Ring Platform Version**: 1.6.0
+**Last Updated**: June 8, 2026
+**Ring Platform Version**: 1.6.1
 **Ringdom Ecosystem**: Ring Platform is the open-source core of [Ringdom](https://ringdom.org) -- the First Digital Kingdom for global abundance
 **Major Achievements**: **PaymentConductor v1**, **News Kingdom**, **Scientific Editor**, **Locale SSOT**, **Member Blogs**, **DaVinci Mobile UX**, **OSS Security Boundary**, **Next.js 16**, **ALL React 19 Features**, **DAGI AI Agent System**, **Ringdom Settler System**, **Legiox-Access NFT**, **Interactive Maps**, **Email CRM**, **PIN Security**, **Slim Proxy Auth**, **6+ Active K8s Clones**, **147+ Legiox AI Agents**, **23 MCP Tools**, Database Abstraction Layer, Multi-Vendor E-Commerce, White-Label Clone System, RING Token Economy
 
@@ -55,6 +55,7 @@
 - **NFT Token Gate Implementation** - Production deployment of Legiox-Access NFT download system
 
 #### PLANNED NEXT PRIORITIES
+- **Serialization Logic Hardening — Phase 2** — Adapter-boundary `toIsoDate`, opportunity-serializer consolidation, `SerializedX` type detox, news/tunnel wire fixes, Connect DTO (plan: `.cursor/plans/serialization_logic_hardening_d3010b0f.plan.md`)
 - **Reggie AI Assistant** - Conversational project ringization at ringdom.org with `api.sonoratek.com/ringize`
 - **Ring Academy** - Developer certification program, white-label cloning tutorials
 - **NFT Marketplace** - Digital asset creation, trading, and Legiox-Access NFT minting
@@ -97,6 +98,30 @@
 ---
 
 ## 🏆 **RECENT MAJOR ACHIEVEMENTS**
+
+### **✅ Serialization Logic Hardening — Phase A/B (COMPLETE - June 8, 2026)**
+**Status**: 🟢 **BUILD GREEN** (ring-platform.org v1.6.1)
+**Plan**: `.cursor/plans/serialization_logic_hardening_d3010b0f.plan.md`
+
+**Problem**: `SerializedX` types and per-route `timestampToISO` closures were a legitimate Firebase+RSC fix, but with default `k8s-postgres-fcm` the adapter already emits ISO/`Date` while types still declare `Timestamp | FieldValue` — normalization duplicated at every egress.
+
+**Phase A (build unblock)**:
+- Kept `cacheComponents: true`; removed `force-dynamic` from `app/api/store/price-range/route.ts` and both blog index/slug pages
+- Added `await connection()` before dynamic reads
+- Fixed `AppShellStaticFallback` to use static instance config (no `fs.readFileSync` during prerender)
+
+**Phase B (minimal consolidation)**:
+- Added `lib/serialization/to-iso-date.ts` (`toIsoDate`, `toIsoDateOrUndefined`)
+- Wired **only** `app/api/mcp/v1/_lib/serialize-opportunity.ts` through the helper
+- Left `opportunity-serializer.ts` and 3 inline opportunity service closures untouched
+
+**Phase 2 (deferred, documented in plan)**:
+1. Consolidate opportunity serializers + `safeToTimestamp` dedupe
+2. Adapter-boundary normalization in Firebase/Postgres adapters
+3. Domain-type detox (`Timestamp | FieldValue` → `string`)
+4. News `SerializedNewsArticle` / `map-news-document.ts`
+5. Tunnel `JSON.stringify` payload sanitization
+6. Connect Platform DTO promotion once wire shapes are neutral
 
 ### **✅ Database Abstraction Layer (COMPLETE - November 2025)**
 **Status**: 🟢 **PRODUCTION READY**

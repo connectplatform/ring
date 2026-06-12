@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+
+type FcmTokenRow = Record<string, unknown> & { id: string }
 
 export async function POST(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -31,15 +33,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Check if token already exists
-    const existingTokensResult = await db.query({
+    const existingTokensResult = await db().queryDocs<FcmTokenRow>({
       collection: 'fcm_tokens',
       filters: [{ field: 'token', operator: '==', value: token }]
     })
-    
+
     if (!existingTokensResult.success) {
       throw existingTokensResult.error || new Error('Failed to check existing tokens')
     }
@@ -47,8 +46,8 @@ export async function POST(req: NextRequest) {
     if (existingTokensResult.data.length > 0) {
       // Update existing token
       const existingToken = existingTokensResult.data[0]
-      
-      const updateResult = await db.update('fcm_tokens', existingToken.id, {
+
+      const updateResult = await db().updateDoc('fcm_tokens', existingToken.id, {
         userId: session.user.id,
         deviceInfo: {
           ...deviceInfo,
@@ -57,7 +56,7 @@ export async function POST(req: NextRequest) {
         isActive: true,
         updatedAt: new Date()
       })
-      
+
       if (!updateResult.success) {
         throw updateResult.error || new Error('Failed to update FCM token')
       }
@@ -65,7 +64,7 @@ export async function POST(req: NextRequest) {
       console.log(`FCM token updated for user ${session.user.id}`)
     } else {
       // Create new token
-      const createResult = await db.create('fcm_tokens', {
+      const createResult = await db().createDoc('fcm_tokens', {
         userId: session.user.id,
         token,
         deviceInfo: {
@@ -76,7 +75,7 @@ export async function POST(req: NextRequest) {
         createdAt: new Date(),
         updatedAt: new Date()
       })
-      
+
       if (!createResult.success) {
         throw createResult.error || new Error('Failed to create FCM token')
       }
@@ -117,30 +116,27 @@ export async function DELETE(req: NextRequest) {
       )
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Find and deactivate token
-    const tokenResult = await db.query({
+    const tokenResult = await db().queryDocs<FcmTokenRow>({
       collection: 'fcm_tokens',
       filters: [
         { field: 'token', operator: '==', value: token },
         { field: 'userId', operator: '==', value: session.user.id }
       ]
     })
-    
+
     if (!tokenResult.success) {
       throw tokenResult.error || new Error('Failed to find FCM token')
     }
 
     if (tokenResult.data.length > 0) {
       const foundToken = tokenResult.data[0]
-      
-      const updateResult = await db.update('fcm_tokens', foundToken.id, {
+
+      const updateResult = await db().updateDoc('fcm_tokens', foundToken.id, {
         isActive: false,
         updatedAt: new Date()
       })
-      
+
       if (!updateResult.success) {
         throw updateResult.error || new Error('Failed to deactivate FCM token')
       }

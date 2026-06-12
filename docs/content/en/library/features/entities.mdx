@@ -221,33 +221,39 @@ In today's digital economy, your organization's professional identity is your mo
 
 ## 🚀 Implementation & Integration
 
-### Quick Entity Setup (3 Minutes)
-// Create your professional entity
+Production clones use **PostgreSQL via `DatabaseService`**. Server reads return **`SerializedEntity`** (ISO date strings). Post-mutation freshness uses **`syncEntityDiscovery()`** — cache tags, `revalidatePath`, and Tunnel `entity:*` events (see [Discovery mutation sync](../architecture/discovery-mutation-sync)).
 
-<Code language="typescript" title="TypeScript">
-{`const entity = await createEntity({
+### Data layer
+
+| Path | Module |
+|------|--------|
+| PostgreSQL read/write | `features/entities/lib/entity-db-mapper.ts` |
+| Post-mutation sync | `features/entities/lib/entity-mutation-sync.ts` |
+| Shared Tunnel publish | `lib/discovery/sync-discovery.ts` |
+| My Entities route | `/[locale]/entities/my` — `getMyEntities()` with owned / store / member tabs |
+| Firestore legacy | `lib/converters/entity-converter.ts` (`firebase-full` only) |
+
+### Quick entity setup (server service)
+
+<Code language="typescript" title="createEntity via DatabaseService">
+{`import { createEntity } from '@/features/entities/services/create-entity'
+
+const entity = await createEntity({
   name: 'Innovative Solutions Inc',
-  description: 'Leading provider of enterprise software solutions',
-  industry: 'TECHNOLOGY_SOFTWARE',
-  website: 'https://innovativesolutions.com',
+  type: 'softwareDevelopment',
+  shortDescription: 'Enterprise software and Ring Platform integrations',
+  fullDescription: 'Full-service dev shop…',
+  addedBy: userId,
+  locale: 'en',
   location: 'San Francisco, CA',
-  size: '51-200',
-  founded: '2018'
+  visibility: 'public',
+  isConfidential: false,
+  members: [userId],
+  opportunities: [],
 })
 
-// Request verification for enhanced credibility
-await requestVerification(entity.id, {
-  verificationLevel: 'PREMIUM',
-  documents: [
-    'business-license.pdf',
-    'tax-documents.pdf',
-    'financial-statements.pdf',
-    'professional-certifications.pdf'
-  ],
-  contactPerson: 'Sarah Johnson',
-  contactEmail: 'sarah@innovativesolutions.com',
-  contactPhone: '+1-555-0123'
-})`}
+// Triggers syncEntityDiscovery({ event: 'created' })
+// Returns Entity-shaped object; list/detail UIs consume SerializedEntity from read services`}
 </Code>
 
 ### Advanced Entity Management
@@ -276,20 +282,17 @@ await updateEntitySettings(entity.id, {
   partnerMatching: true
 })
 
-// Post opportunities as a verified entity
 const opportunity = await createOpportunity({
-  entityId: entity.id,
+  organizationId: entity.id,
+  type: 'offer',
   title: 'Senior Software Architect',
-  type: 'JOB',
-  nature: 'OFFER',
-  isConfidential: false,
-  requirements: ['10+ years experience', 'AWS certification', 'Team leadership'],
-  compensation: {
-    type: 'SALARY_RANGE',
-    min: 180000,
-    max: 220000,
-    currency: 'USD'
-  }
+  briefDescription: 'Lead architecture for Ring-powered products',
+  status: 'pending',
+  category: 'engineering',
+  tags: ['architecture', 'react', 'postgresql'],
+  location: 'Remote',
+  requiredSkills: ['10+ years experience', 'AWS', 'team leadership'],
+  // …see Opportunities feature docs
 })`}
 </Code>
 

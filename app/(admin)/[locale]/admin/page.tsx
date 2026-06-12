@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
+import { getRingSeoBranding } from '@/lib/ring-config'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 const adminRobots: Metadata['robots'] = {
   index: false,
@@ -53,11 +54,9 @@ export async function generateMetadata({
     path: 'admin',
     pathname: '/admin',
     fallback: {
-      title: `${t('title')} | ${RING_PLATFORM_SEO.siteName}`,
+      title: `${t('title')} | ${getRingSeoBranding().siteName}`,
       description: t('userManagementDescription'),
     },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: adminRobots,
   })
 }

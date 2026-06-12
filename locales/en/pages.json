@@ -4,6 +4,11 @@
     "subtitle": "Sign in to continue to Ring",
     "description": "Sign in to your Ring account. Access your professional network, opportunities, and blockchain features."
   },
+  "walletConnect": {
+    "title": "Connect your wallet",
+    "subtitle": "Sign in with MetaMask, WalletConnect, or Coinbase Wallet",
+    "description": "Authenticate with your Web3 wallet to access Ring Platform."
+  },
   "marketplace": {
     "title": "MV Marketplace",
     "subtitle": "Marketplace for Ring-powered site development and services. Become a MEMBER-level vendor and offer your expertise.",
@@ -52,20 +57,24 @@
   },
   "home": {
     "hero": {
-      "title": "The World's First Free Self-Modifying AI-Orchestrated Platform",
-      "subtitle": "Deploy a custom platform to solve any collective need in days. No developers required.",
+      "title": "Your platform. Live on your domain.",
+      "subtitle": "From a team meeting to a running service—without hiring a dev shop first.",
+      "pitch": "Deploy and operate your own platform autonomously on Ringdom.org global S3 cloud infrastructure. Send our AI an audio recording from your project meeting where you discuss needs with your team. In under 20 minutes, witness a running service on your domain.",
+      "ringdomCta": "Start on Ringdom",
+      "ringdomUrl": "https://ringdom.org",
       "appPublisher": "Published by Sonoratek LLC (Ringdom, Arizona) 🇺🇦 — our gift to the world, with gratitude for everyone who helped Ukraine prove its right to independence",
       "description": "",
       "features": [
-        "Open-source Ring Platform — clone free, customize for your organization",
-        "Post Ring customization requests; contractors browse /opportunities and apply",
-        "AI matcher notifies registered builders when a listing fits their profile",
-        "20+ modules: entities, store, wallet, NFT, messaging, memberships…",
-        "LegioX operators + Connect.Software skillsets & MCP servers for agent tooling",
-        "Ringdom turn-key ringization when you want hosted delivery, not DIY ops"
+        "Meeting audio in → LegioX ringizes your clone on Ringdom cloud",
+        "Under 20 minutes from brief to HTTPS on your domain",
+        "Autonomous ops on global S3—no k8s archaeology required",
+        "OSS path: clone free forever, self-host, or let Ringdom operate",
+        "20+ modules: entities, store, wallet, messaging, memberships…",
+        "Builders on /opportunities when you want humans in the loop"
       ],
       "gitClone": "git clone https://github.com/connectplatform/ring",
-      "gitCloneText": "Clone Ring now, it's free forever:",
+      "gitCloneText": "Or clone the open-source baseline yourself:",
+      "featuresLabel": "What teams ship on Ring",
       "marketplaceBand": {
         "title": "Ship your Ring clone with the right talent",
         "subtitle": "CEOs and product owners publish briefs. Developers and agencies discover work, respond, and get AI-matched alerts—without enterprise agency overhead.",

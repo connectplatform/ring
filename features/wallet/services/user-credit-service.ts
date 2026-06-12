@@ -7,13 +7,19 @@ import {
   CreditHistoryRequest,
   CreditHistoryResponse,
 } from '@/lib/zod/credit-schemas';
-import {
-  getDatabaseService,
-  initializeDatabase
-} from '@/lib/database';
-import { auth } from '@/auth';
+import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
 import { publishToTunnel } from '@/lib/tunnel/publisher';
+
+interface UserCreditRow extends Record<string, unknown> {
+  credit_balance?: UserCreditBalance;
+  credit_transactions?: CreditTransaction[];
+  updated_at?: Date;
+}
+
+function isDbInitFailure(metadata?: { operation?: string }): boolean {
+  return metadata?.operation === 'initialize';
+}
 
 /**
  * Service for managing user credit balances and transactions
@@ -35,35 +41,40 @@ export class UserCreditService {
    */
   async getUserCreditBalance(userId: string): Promise<UserCreditBalance | null> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        logger.error('Database initialization failed, returning null for graceful degradation', {
-          userId,
-          error: initResult.error
-        });
-        return null; // Graceful degradation - don't throw, let system work without credits
+      const userResult = await db().readDoc<UserCreditRow>('users', userId);
+
+      if (!userResult.success) {
+        if (isDbInitFailure(userResult.metadata)) {
+          logger.error('Database initialization failed, returning null for graceful degradation', {
+            userId,
+            error: userResult.error
+          });
+        } else {
+          logger.warn('User document not found, returning null for credit balance', {
+            userId,
+            success: userResult.success,
+            error: userResult.error
+          });
+        }
+        return null;
       }
 
-      const dbService = getDatabaseService();
-      const userResult = await dbService.read('users', userId);
-
-      if (!userResult.success || !userResult.data) {
+      if (!userResult.data) {
         logger.warn('User document not found, returning null for credit balance', {
           userId,
-          success: userResult.success,
-          error: userResult.error
+          success: true,
+          error: undefined
         });
-        return null; // Return null instead of throwing error - let API layer handle migration
+        return null;
       }
 
-      const userData = userResult.data.data || userResult.data;
+      const userData = userResult.data;
       logger.info('User data retrieved for credit balance', {
         userId,
-        hasCreditBalance: !!userData?.credit_balance,
-        creditBalanceKeys: userData?.credit_balance ? Object.keys(userData.credit_balance) : null
+        hasCreditBalance: !!userData.credit_balance,
+        creditBalanceKeys: userData.credit_balance ? Object.keys(userData.credit_balance) : null
       });
-      return userData?.credit_balance || null;
+      return userData.credit_balance ?? null;
     } catch (error) {
       logger.error('Failed to get user credit balance, returning null for graceful degradation', { 
         userId, 
@@ -86,18 +97,8 @@ export class UserCreditService {
         subscription_active: false,
       };
 
-      // Initialize database service
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        logger.error('Database initialization failed', { userId, error: initResult.error });
-        throw new Error('Database initialization failed');
-      }
-
-      const dbService = getDatabaseService();
-
-      // First read the current user data
       logger.info('Credit balance initialization: Reading user data', { userId });
-      const userResult = await dbService.read('users', userId);
+      const userResult = await db().readDoc<UserCreditRow>('users', userId);
       logger.info('Credit balance initialization: User read result', {
         userId,
         success: userResult.success,
@@ -105,7 +106,11 @@ export class UserCreditService {
         error: userResult.error
       });
 
-      if (!userResult.success || !userResult.data) {
+      if (!userResult.success) {
+        if (isDbInitFailure(userResult.metadata)) {
+          logger.error('Database initialization failed', { userId, error: userResult.error });
+          throw new Error('Database initialization failed');
+        }
         logger.error('Credit balance initialization: User not found in database', {
           userId,
           success: userResult.success,
@@ -114,7 +119,12 @@ export class UserCreditService {
         throw new Error('User not found');
       }
 
-      const userData = userResult.data.data || userResult.data;
+      if (!userResult.data) {
+        logger.error('Credit balance initialization: User not found in database', { userId });
+        throw new Error('User not found');
+      }
+
+      const userData = userResult.data;
 
       logger.info('Initializing credit balance for existing user', {
         userId,
@@ -134,7 +144,7 @@ export class UserCreditService {
       });
 
       // Update the user document
-      const updateResult = await dbService.update('users', userId, updatedData);
+      const updateResult = await db().updateDoc('users', userId, updatedData);
       if (!updateResult.success) {
         logger.error('Failed to update user document with credit balance', {
           userId,
@@ -166,22 +176,19 @@ export class UserCreditService {
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error('Database initialization failed');
+      const userResult = await db().readDoc<UserCreditRow>('users', userId);
+      if (!userResult.success) {
+        if (isDbInitFailure(userResult.metadata)) {
+          throw new Error('Database initialization failed');
+        }
+        throw new Error('User not found');
       }
-
-      const dbService = getDatabaseService();
-
-      // Get current user data
-      const userResult = await dbService.read('users', userId);
-      if (!userResult.success || !userResult.data) {
+      if (!userResult.data) {
         throw new Error('User not found');
       }
 
-      const userData = userResult.data.data || userResult.data;
-      const currentBalance = userData?.credit_balance || {
+      const userData = userResult.data;
+      const currentBalance = userData.credit_balance || {
         amount: '0',
         usd_equivalent: '0',
         last_updated: Date.now(),
@@ -226,19 +233,17 @@ export class UserCreditService {
         updated_at: new Date()
       };
 
-      const updateResult = await dbService.update('users', userId, updatedUserData);
+      const updateResult = await db().updateDoc('users', userId, updatedUserData);
       if (!updateResult.success) {
         throw new Error('Failed to update user balance');
       }
 
-      // For now, store credit transactions in the user data as an array
-      // TODO: Create a separate credit_transactions table in the future
-      const existingTransactions = userData?.credit_transactions || [];
+      const existingTransactions = userData.credit_transactions || [];
       const updatedTransactions = [...existingTransactions, creditTransaction];
 
-      const transactionUpdateResult = await dbService.update('users', userId, {
+      const transactionUpdateResult = await db().updateDoc('users', userId, {
         ...updatedUserData,
-        credit_transactions: updatedTransactions
+        credit_transactions: updatedTransactions,
       });
 
       if (!transactionUpdateResult.success) {
@@ -272,22 +277,19 @@ export class UserCreditService {
     usdRate: string
   ): Promise<{ success: true; transaction: CreditTransaction; newBalance: string }> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error('Database initialization failed');
+      const userResult = await db().readDoc<UserCreditRow>('users', userId);
+      if (!userResult.success) {
+        if (isDbInitFailure(userResult.metadata)) {
+          throw new Error('Database initialization failed');
+        }
+        throw new Error('User not found');
       }
-
-      const dbService = getDatabaseService();
-
-      // Get current user data
-      const userResult = await dbService.read('users', userId);
-      if (!userResult.success || !userResult.data) {
+      if (!userResult.data) {
         throw new Error('User not found');
       }
 
-      const userData = userResult.data.data || userResult.data;
-      const currentBalance = userData?.credit_balance;
+      const userData = userResult.data;
+      const currentBalance = userData.credit_balance;
 
       if (!currentBalance) {
         throw new Error('No credit balance found');
@@ -338,19 +340,17 @@ export class UserCreditService {
         updated_at: new Date()
       };
 
-      const updateResult = await dbService.update('users', userId, updatedUserData);
+      const updateResult = await db().updateDoc('users', userId, updatedUserData);
       if (!updateResult.success) {
         throw new Error('Failed to update user balance');
       }
 
-      // For now, store credit transactions in the user data as an array
-      // TODO: Create a separate credit_transactions table in the future
-      const existingTransactions = userData?.credit_transactions || [];
+      const existingTransactions = userData.credit_transactions || [];
       const updatedTransactions = [...existingTransactions, creditTransaction];
 
-      const transactionUpdateResult = await dbService.update('users', userId, {
+      const transactionUpdateResult = await db().updateDoc('users', userId, {
         ...updatedUserData,
-        credit_transactions: updatedTransactions
+        credit_transactions: updatedTransactions,
       });
 
       if (!transactionUpdateResult.success) {
@@ -382,22 +382,19 @@ export class UserCreditService {
     request: CreditHistoryRequest
   ): Promise<CreditHistoryResponse> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error('Database initialization failed');
+      const userResult = await db().readDoc<UserCreditRow>('users', userId);
+      if (!userResult.success) {
+        if (isDbInitFailure(userResult.metadata)) {
+          throw new Error('Database initialization failed');
+        }
+        throw new Error('User not found');
       }
-
-      const dbService = getDatabaseService();
-
-      // Get user data
-      const userResult = await dbService.read('users', userId);
-      if (!userResult.success || !userResult.data) {
+      if (!userResult.data) {
         throw new Error('User not found');
       }
 
-      const userData = userResult.data.data || userResult.data;
-      const allTransactions: CreditTransaction[] = userData?.credit_transactions || [];
+      const userData = userResult.data;
+      const allTransactions: CreditTransaction[] = userData.credit_transactions || [];
 
       // Filter transactions based on request criteria
       let filteredTransactions = allTransactions;
@@ -479,6 +476,9 @@ export class UserCreditService {
    * Get current authenticated user's credit balance
    */
   async getCurrentUserCreditBalance(): Promise<UserCreditBalance | null> {
+    // Lazy import: @/auth pulls next-intl/client React context — keeps this
+    // service importable in server-only scripts and lighter route bundles.
+    const { auth } = await import('@/auth');
     const session = await auth();
     if (!session?.user?.id) {
       throw new Error('User not authenticated');

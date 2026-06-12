@@ -1,13 +1,11 @@
 import { UserRole } from '@/features/auth/types'
 import { createUser } from '@/features/auth/services/create-user'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
 import { queryInt, queryString, readJsonBody } from '@/app/api/mcp/v1/_lib/query'
 
 export const GET = withMcpGuard(async (request) => {
-  await initializeDatabase()
-  const db = getDatabaseService()
   const role = queryString(request, 'role')
   const limit = queryInt(request, 'limit', 50) || 50
 
@@ -15,7 +13,7 @@ export const GET = withMcpGuard(async (request) => {
     ? [{ field: 'role', operator: '==' as const, value: role }]
     : []
 
-  const result = await db.query({
+  const result = await db().queryDocs({
     collection: 'users',
     filters,
     pagination: { limit },
@@ -24,10 +22,7 @@ export const GET = withMcpGuard(async (request) => {
 
   if (!result.success) return mcpError(result.error?.message || 'Failed to list users', 500)
 
-  const items = (result.data as any[]).map((row) => ({
-    id: row.id,
-    ...(row.data || row),
-  }))
+  const items = result.data ?? []
 
   return mcpOk({ items, total: items.length })
 })

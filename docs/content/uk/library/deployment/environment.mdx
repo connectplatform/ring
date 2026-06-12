@@ -1,7 +1,7 @@
 ---
 title: Environment
 description: Environment documentation for Ring Platform
-last_modified: "2026-06-06"
+last_modified: "2026-06-10"
 ---
 
 # Environment Variables (Production)
@@ -28,6 +28,27 @@ STRIPE_WEBHOOK_SECRET=
 
 Див. [PaymentConductor](/docs/library/features/payment-conductor).
 
+## Email AI-CRM {#email-ai-crm}
+
+У **`.env.local`** (повний блок — `env.local.template`):
+
+```bash
+IMAP_HOST=mail.example.com
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+SMTP_HOST=mail.example.com
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+ANTHROPIC_API_KEY=
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_CRM_PERSISTENCE=memory
+```
+
+Міграції `009` + `010` для Postgres; cron `POST /api/cron/email-processor` з `{"action":"poll"}`.
+
+> **EN canonical:** [Environment — Email AI-CRM (EN)](/docs/library/deployment/environment#email-ai-crm) · [Гайд розробника](/docs/library/examples/email-ai-crm)
+
 ## Основні змінні
 
 <Code language="dotenv" title="AUTH_SECRET=">
@@ -43,6 +64,5 @@ WAYFORPAY_MERCHANT_ACCOUNT=
 WAYFORPAY_SECRET_KEY=`}
 </Code>
 
-import { Callout } from '@/components/docs/callout'
 
 <Callout type="warning">Never commit secrets to Git.</Callout>

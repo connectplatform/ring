@@ -94,6 +94,7 @@ export interface StoreProduct {
   reorderPoint?: number // Auto-reorder trigger level
   vendorTier?: VendorTier // Vendor trust tier
   commissionRate?: number // Platform commission % (12-20)
+  referralCommission?: number // Per-product referral reward % (vendor override)
   approvalStatus?: ApprovalStatus // Main Store moderation status
   approvedBy?: string // Admin who approved
   approvedAt?: string // Approval timestamp
@@ -210,6 +211,9 @@ export interface StoreOrder {
   payment?: StorePayment
   shippingInfo: CheckoutInfo
   vendorSettlements?: VendorSettlement[]
+  referralCode?: string
+  referrerUserId?: string
+  referrerWallet?: string
   createdAt: string
   updatedAt?: string
   completedAt?: string

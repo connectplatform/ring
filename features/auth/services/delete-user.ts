@@ -7,7 +7,7 @@
 
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 
 /**
  * Delete a user from PostgreSQL database
@@ -40,12 +40,8 @@ export async function deleteUser(userIdToDelete: string): Promise<boolean> {
 
     console.log(`deleteUser: Admin authenticated with ID ${currentUserId}`)
 
-    // Step 2: Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Step 3: Delete user from PostgreSQL
-    const deleteResult = await db.delete('users', userIdToDelete)
+    const deleteResult = await db().deleteDoc('users', userIdToDelete)
     
     if (!deleteResult.success) {
       console.error(`deleteUser: Failed to delete user ${userIdToDelete}:`, deleteResult.error)

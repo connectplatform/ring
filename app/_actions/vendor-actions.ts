@@ -3,7 +3,7 @@
 /**
  * Vendor Server Actions
  * 
- * All vendor-related server actions for GreenFood.live multi-vendor marketplace:
+ * Vendor server actions for Ring Platform multi-vendor marketplace:
  * - Vendor onboarding (create vendor entity and profile)
  * - Product CRUD operations
  * - Vercel Blob uploads for store logos and product media
@@ -18,9 +18,9 @@
  */
 
 import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
+import { localizedRedirect } from '@/lib/i18n-server-redirect'
 import { file } from '@/lib/file'
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { createVendorProfile } from '@/features/store/services/vendor-lifecycle'
 import type { Locale } from '@/i18n/shared'
@@ -116,10 +116,6 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       logoUrl = result.url
     }
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Create vendor Entity
     const entityId = `entity_vendor_${Date.now()}`
     
@@ -184,7 +180,7 @@ export async function createVendorStore(prevState: any, formData: FormData) {
       verification_status: 'pending'
     }
 
-    const entityResult = await db.create('entities', entityDataWithProfile)
+    const entityResult = await db().createDoc('entities', entityDataWithProfile, { id: entityId })
 
     if (!entityResult.success) {
       // Clean up uploaded logo if entity creation fails
@@ -199,27 +195,36 @@ export async function createVendorStore(prevState: any, formData: FormData) {
     }
 
     // Update user role to include 'vendor' (if not already)
-    const userResult = await db.read('users', session.user.id)
+    const userResult = await db().readDoc<Record<string, unknown> & { id: string }>('users', session.user.id)
     if (userResult.success && userResult.data) {
-      const userData = userResult.data.data || userResult.data
-      const currentRole = userData.role || 'user'
+      const userData = userResult.data
+      const currentRole = (userData.role as string) || 'user'
       const roles = currentRole.split(',').map((r: string) => r.trim())
       
       if (!roles.includes('vendor')) {
         roles.push('vendor')
-        await db.update('users', session.user.id, {
+        await db().updateDoc('users', session.user.id, {
           role: roles.join(','),
           updatedAt: new Date()
         })
       }
     }
 
+    try {
+      localizedRedirect({ locale, href: '/vendor/dashboard' })
+    } catch (redirectError) {
+      if (!(redirectError instanceof Error && redirectError.message.includes('NEXT_REDIRECT'))) {
+        console.error('Unexpected redirect error:', redirectError)
+      }
+      throw redirectError
+    }
+
   } catch (error) {
-    console.error('Error creating vendor store:', error)
+    if (!(error instanceof Error && error.message.includes('NEXT_REDIRECT'))) {
+      console.error('Error creating vendor store:', error)
+    }
     return { error: error instanceof Error ? error.message : 'Failed to create vendor store' }
   }
-
-  redirect(`/${locale}/vendor/dashboard` as any)
 }
 
 // ============================================================================
@@ -273,6 +278,14 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
     const locale = (formData.get('locale') as Locale) || defaultLocale as Locale
+    const referralCommissionRaw = (formData.get('referralCommission') as string)?.trim()
+    let referralCommission: number | undefined
+    if (referralCommissionRaw) {
+      referralCommission = parseFloat(referralCommissionRaw)
+      if (Number.isNaN(referralCommission) || referralCommission < 0 || referralCommission > 50) {
+        return { error: 'Referral commission must be between 0 and 50 percent' }
+      }
+    }
 
     // Validation
     if (!name || name.length < 3 || name.length > 100) {
@@ -333,10 +346,6 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
         return { error: 'Video must be MP4 or WebM' }
       }
     }
-
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
 
     // Create product ID
     const productId = `product_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
@@ -482,6 +491,7 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
         sustainabilityMetrics: sustainabilityMetrics,
         freshness: freshness,
         tokenEconomy: tokenEconomy,
+        referralCommission,
         
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -490,8 +500,12 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       updated_at: new Date()
     }
 
+    if (referralCommission !== undefined) {
+      ;(productData as { referralCommission?: number }).referralCommission = referralCommission
+    }
+
     // Create product in database
-    const result = await db.create('store_products', productData)
+    const result = await db().createDoc('store_products', productData, { id: productId })
     
     if (!result.success) {
       // Clean up uploaded files on failure
@@ -504,13 +518,14 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       return { error: result.error || 'Failed to create product' }
     }
 
-    // Success - redirect to products list
-    redirect(`/${locale as Locale}/vendor/products`)
+    localizedRedirect({ locale, href: '/vendor/products' })
     
   } catch (error) {
-    console.error('Error creating product:', error)
+    if (!(error instanceof Error && error.message.includes('NEXT_REDIRECT'))) {
+      console.error('Error creating product:', error)
+    }
     if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
-      throw error // Re-throw redirect errors
+      throw error
     }
     return { error: error instanceof Error ? error.message : 'Failed to create product' }
   }
@@ -532,17 +547,13 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       return { error: 'Product ID is required' }
     }
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Get existing product
-    const productResult = await db.read('store_products', productId)
+    const productResult = await db().readDoc<Record<string, unknown> & { id: string }>('store_products', productId)
     if (!productResult.success || !productResult.data) {
       return { error: 'Product not found' }
     }
 
-    const existingProduct = productResult.data.data || productResult.data
+    const existingProduct = productResult.data as Record<string, any>
 
     // Verify ownership
     const vendorEntity = await getVendorEntity(session.user.id)
@@ -559,6 +570,14 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
     const description = (formData.get('description') as string)?.trim() || ''
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
+    const referralCommissionRaw = (formData.get('referralCommission') as string)?.trim()
+    let referralCommission: number | undefined
+    if (referralCommissionRaw) {
+      referralCommission = parseFloat(referralCommissionRaw)
+      if (Number.isNaN(referralCommission) || referralCommission < 0 || referralCommission > 50) {
+        return { error: 'Referral commission must be between 0 and 50 percent' }
+      }
+    }
 
     // Validation
     if (!name || name.length < 3 || name.length > 100) {
@@ -728,23 +747,35 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
         sustainabilityMetrics: sustainabilityMetrics,
         freshness: freshness,
         tokenEconomy: tokenEconomy,
+        referralCommission:
+          referralCommissionRaw === ''
+            ? undefined
+            : referralCommission ?? existingProduct.data?.referralCommission,
         
         updatedAt: new Date().toISOString()
       },
       updated_at: new Date()
     }
 
-    const updateResult = await db.update('store_products', productId, updatedData)
+    if (referralCommissionRaw === '') {
+      delete (updatedData.data as { referralCommission?: number }).referralCommission
+      delete (updatedData as { referralCommission?: number }).referralCommission
+    } else if (referralCommission !== undefined) {
+      ;(updatedData as { referralCommission?: number }).referralCommission = referralCommission
+    }
+
+    const updateResult = await db().updateDoc('store_products', productId, updatedData)
     
     if (!updateResult.success) {
       return { error: updateResult.error || 'Failed to update product' }
     }
 
-    // Success - redirect to products list
-    redirect(`/${locale}/vendor/products`)
+    localizedRedirect({ locale, href: '/vendor/products' })
     
   } catch (error) {
-    console.error('Error updating product:', error)
+    if (!(error instanceof Error && error.message.includes('NEXT_REDIRECT'))) {
+      console.error('Error updating product:', error)
+    }
     if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
       throw error
     }
@@ -761,17 +792,13 @@ export async function deleteVendorProduct(productId: string, locale: Locale = de
       return { error: 'Unauthorized: Please sign in' }
     }
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Get product
-    const productResult = await db.read('store_products', productId)
+    const productResult = await db().readDoc<Record<string, unknown> & { id: string }>('store_products', productId)
     if (!productResult.success || !productResult.data) {
       return { error: 'Product not found' }
     }
 
-    const product = productResult.data.data || productResult.data
+    const product = productResult.data as Record<string, any>
 
     // Verify ownership
     const vendorEntity = await getVendorEntity(session.user.id)
@@ -780,7 +807,7 @@ export async function deleteVendorProduct(productId: string, locale: Locale = de
     }
 
     // Soft delete - set status to 'discontinued'
-    const updateResult = await db.update('store_products', productId, {
+    const updateResult = await db().updateDoc('store_products', productId, {
       status: 'discontinued',
       data: {
         ...product.data,
@@ -823,16 +850,13 @@ export async function deleteVendorProduct(productId: string, locale: Locale = de
       return { error: 'Unauthorized: Please sign in' }
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Get original product
-    const productResult = await db.read('store_products', productId)
+    const productResult = await db().readDoc<Record<string, unknown> & { id: string }>('store_products', productId)
     if (!productResult.success || !productResult.data) {
       return { error: 'Product not found' }
     }
 
-    const originalProduct = productResult.data.data || productResult.data
+    const originalProduct = productResult.data as Record<string, any>
 
     // Verify ownership
     const vendorEntity = await getVendorEntity(session.user.id)
@@ -859,7 +883,7 @@ export async function deleteVendorProduct(productId: string, locale: Locale = de
       updated_at: new Date()
     }
 
-    const result = await db.create('store_products', duplicateData)
+    const result = await db().createDoc('store_products', duplicateData, { id: newProductId })
     
     if (!result.success) {
       return { error: 'Failed to duplicate product' }
@@ -882,16 +906,13 @@ export async function toggleProductActive(productId: string) {
       return { error: 'Unauthorized' }
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Get product
-    const productResult = await db.read('store_products', productId)
+    const productResult = await db().readDoc<Record<string, unknown> & { id: string }>('store_products', productId)
     if (!productResult.success || !productResult.data) {
       return { error: 'Product not found' }
     }
 
-    const product = productResult.data.data || productResult.data
+    const product = productResult.data as Record<string, any>
 
     // Verify ownership
     const vendorEntity = await getVendorEntity(session.user.id)
@@ -902,7 +923,7 @@ export async function toggleProductActive(productId: string) {
     // Toggle status
     const newStatus = product.status === 'active' ? 'inactive' : 'active'
     
-    const updateResult = await db.update('store_products', productId, {
+    const updateResult = await db().updateDoc('store_products', productId, {
       status: newStatus,
       data: {
         ...product.data,

@@ -57,7 +57,6 @@ export function MyEntityCard({ entity, showCustomBadge = false, ...props }: MyEn
 {`'use client'
 
 import { OpportunityForm } from '@/features/opportunities/components/opportunity-form'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 
 export function EnhancedOpportunityForm({ ...props }) {
@@ -65,16 +64,16 @@ export function EnhancedOpportunityForm({ ...props }) {
   const totalSteps = 4
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Створити можливість</CardTitle>
+    <UiCard className="max-w-2xl mx-auto">
+      <UiCardHeader>
+        <UiCardTitle>Створити можливість</UiCardTitle>
         <Progress value={(currentStep / totalSteps) * 100} className="mt-2" />
         <p className="text-sm text-muted-foreground">
           Крок {currentStep} з {totalSteps}
         </p>
-      </CardHeader>
+      </UiCardHeader>
 
-      <CardContent>
+      <UiCardContent>
         <OpportunityForm
           {...props}
           onStepChange={setCurrentStep}
@@ -83,8 +82,8 @@ export function EnhancedOpportunityForm({ ...props }) {
             return validateCustomFields(data)
           }}
         />
-      </CardContent>
-    </Card>
+      </UiCardContent>
+    </UiCard>
   )
 }`}
 </Code>

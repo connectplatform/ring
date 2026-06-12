@@ -1,19 +1,12 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
+import { collectDiagramSource } from '@/components/docs/diagram-source'
 
 export interface MermaidProps {
   children: React.ReactNode
   title?: string
-  type?: 'diagram' | 'mindmap' // Support both diagram types
-}
-
-function diagramSource(children: React.ReactNode): string {
-  if (typeof children === 'string') return children
-  if (children == null) return ''
-  return React.Children.toArray(children)
-    .map((c) => (typeof c === 'string' || typeof c === 'number' ? String(c) : ''))
-    .join('')
+  type?: 'diagram' | 'mindmap'
 }
 
 export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
@@ -23,13 +16,13 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
   const [isClient, setIsClient] = React.useState(false)
   const [currentTheme, setCurrentTheme] = React.useState<'light' | 'dark'>('light')
 
+  const source = React.useMemo(() => collectDiagramSource(children).trim(), [children])
+
   useEffect(() => {
     setIsClient(true)
-    // Set initial theme
     setCurrentTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light')
   }, [])
 
-  // Observe theme changes with MutationObserver
   useEffect(() => {
     if (!isClient) return
 
@@ -42,25 +35,26 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
       })
     })
 
-    observer.observe(document.documentElement, { 
+    observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['class']
+      attributeFilter: ['class'],
     })
 
     return () => observer.disconnect()
   }, [isClient])
 
-  // Re-render diagram when theme or content changes
   useEffect(() => {
-    if (!isClient) return
+    if (!isClient || !source) {
+      setSvg('')
+      setError('')
+      return
+    }
 
     const renderDiagram = async () => {
       try {
         const mermaid = (await import('mermaid')).default
-        
         const isDark = currentTheme === 'dark'
-        
-        // Enhanced theme configuration for both diagrams and mindmaps
+
         await mermaid.initialize({
           startOnLoad: false,
           theme: isDark ? 'dark' : 'neutral',
@@ -89,58 +83,63 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
             maxNodeWidth: 200,
             useMaxWidth: true,
           },
-          themeVariables: isDark ? {
-            background: '#1f2937',
-            primaryColor: '#3b82f6',
-            primaryTextColor: '#ffffff',
-            primaryBorderColor: '#4b5563',
-            lineColor: '#6b7280',
-            secondaryColor: '#374151',
-            tertiaryColor: '#1f2937',
-            mainBkg: '#374151',
-            secondBkg: '#1f2937',
-            border1: '#4b5563',
-            border2: '#6b7280',
-          } : {
-            background: '#ffffff',
-            primaryColor: '#3b82f6',
-            primaryTextColor: '#000000',
-            primaryBorderColor: '#d1d5db',
-            lineColor: '#6b7280',
-            secondaryColor: '#f3f4f6',
-            tertiaryColor: '#ffffff',
-            mainBkg: '#f3f4f6',
-            secondBkg: '#ffffff',
-            border1: '#d1d5db',
-            border2: '#9ca3af',
-          }
+          themeVariables: isDark
+            ? {
+                background: '#1f2937',
+                primaryColor: '#3b82f6',
+                primaryTextColor: '#ffffff',
+                primaryBorderColor: '#4b5563',
+                lineColor: '#6b7280',
+                secondaryColor: '#374151',
+                tertiaryColor: '#1f2937',
+                mainBkg: '#374151',
+                secondBkg: '#1f2937',
+                border1: '#4b5563',
+                border2: '#6b7280',
+              }
+            : {
+                background: '#ffffff',
+                primaryColor: '#3b82f6',
+                primaryTextColor: '#000000',
+                primaryBorderColor: '#d1d5db',
+                lineColor: '#6b7280',
+                secondaryColor: '#f3f4f6',
+                tertiaryColor: '#ffffff',
+                mainBkg: '#f3f4f6',
+                secondBkg: '#ffffff',
+                border1: '#d1d5db',
+                border2: '#9ca3af',
+              },
         })
 
         const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`
-        const src = diagramSource(children).trim()
-        const { svg } = await mermaid.render(id, src)
-        setSvg(svg)
+        const { svg: rendered } = await mermaid.render(id, source)
+        setSvg(rendered)
         setError('')
-      } catch (error: any) {
-        console.error('Mermaid render error:', error)
-        const errorMessage = error?.message || 'Failed to render diagram'
+      } catch (err: unknown) {
+        console.error('Mermaid render error:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to render diagram'
         setError(`Diagram syntax error: ${errorMessage}`)
         setSvg('')
       }
     }
 
-    renderDiagram()
-  }, [children, isClient, currentTheme, type])
+    void renderDiagram()
+  }, [source, isClient, currentTheme, type])
+
+  if (!source) {
+    return null
+  }
 
   if (error) {
     return (
-      <div className="my-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-        {title && <p className="font-semibold text-red-600 dark:text-red-400 mb-2">{title}</p>}
+      <div className="my-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+        {title && <p className="mb-2 font-semibold text-red-600 dark:text-red-400">{title}</p>}
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         <details className="mt-2">
           <summary className="cursor-pointer text-xs text-red-500 dark:text-red-400">Show source</summary>
-          <pre className="mt-2 text-xs overflow-x-auto bg-red-100 dark:bg-red-900/30 p-2 rounded">
-            {children}
+          <pre className="mt-2 overflow-x-auto rounded bg-red-100 p-2 text-xs dark:bg-red-900/30">
+            {source}
           </pre>
         </details>
       </div>
@@ -149,15 +148,12 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
 
   return (
     <div className="my-6">
-      {title && (
-          <div className="mb-2 font-semibold text-foreground">{title}</div>
-      )}
-      <div 
+      {title && <div className="mb-2 font-semibold text-foreground">{title}</div>}
+      <div
         ref={containerRef}
-        className="p-6 bg-background rounded-lg border border-border overflow-x-auto flex items-center justify-center"
+        className="flex items-center justify-center overflow-x-auto rounded-lg border border-border bg-background p-6"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
     </div>
   )
 }
-

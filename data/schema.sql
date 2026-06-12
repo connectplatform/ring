@@ -1,8 +1,8 @@
 -- ============================================================================
 -- PostgreSQL Schema for Ring Platform
 -- ============================================================================
--- Version: 4.0.1
--- Date: 2026-02-10
+-- Version: 4.0.2
+-- Date: 2026-06-10
 -- Database: ring_platform (or project-specific: ring_zemna_ai, ring_greenfood_live, etc.)
 -- Purpose: SINGLE SOURCE OF TRUTH for all Ring Platform database schemas
 -- Includes: Core, Auth.js adapter tables (accounts/sessions/verification_tokens), social, marketplace, store, content, FCM, reference data
@@ -22,6 +22,8 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS postgis_topology;
 -- ============================================================================
+-- Changes from v4.0.1:
+--   - Merged 008_inventory_schema.sql (inventory_levels, inventory_reservations)
 -- Changes from v3.0.0:
 --   - Added 10 core tables: entities, opportunities, messages, conversations,
 --     notifications, wallet_transactions, nft_listings, comments, likes, reviews
@@ -429,6 +431,148 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_data_gin ON orders USING GIN (data);
 
 COMMENT ON TABLE orders IS 'Customer purchase orders from marketplace';
+
+-- ERP settlements (canonical commission/payout ledger)
+CREATE TABLE IF NOT EXISTS settlements (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_settlements_vendor_id ON settlements ((data->>'vendorId'));
+CREATE INDEX IF NOT EXISTS idx_settlements_order_id ON settlements ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_settlements_status ON settlements ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_settlements_scheduled_for ON settlements ((data->>'scheduledFor'));
+CREATE INDEX IF NOT EXISTS idx_settlements_data_gin ON settlements USING GIN (data);
+
+CREATE TABLE IF NOT EXISTS payout_batches (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payout_batches_status ON payout_batches ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_payout_batches_data_gin ON payout_batches USING GIN (data);
+
+CREATE TABLE IF NOT EXISTS merchant_configs (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_merchant_configs_owner_entity_id ON merchant_configs ((data->>'ownerEntityId'));
+CREATE INDEX IF NOT EXISTS idx_merchant_configs_data_gin ON merchant_configs USING GIN (data);
+
+CREATE TABLE IF NOT EXISTS vendor_settlements (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_settlements_vendor_id ON vendor_settlements ((data->>'vendorId'));
+CREATE INDEX IF NOT EXISTS idx_vendor_settlements_order_id ON vendor_settlements ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_vendor_settlements_data_gin ON vendor_settlements USING GIN (data);
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements ((data->>'productId'));
+CREATE INDEX IF NOT EXISTS idx_stock_movements_order_id ON stock_movements ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_stock_movements_data_gin ON stock_movements USING GIN (data);
+
+-- Store inventory (inventory-sync service + cleanup-reservations cron)
+CREATE TABLE IF NOT EXISTS inventory_levels (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_levels_product_id ON inventory_levels ((data->>'productId'));
+CREATE INDEX IF NOT EXISTS idx_inventory_levels_store_id ON inventory_levels ((data->>'storeId'));
+CREATE INDEX IF NOT EXISTS idx_inventory_levels_data_gin ON inventory_levels USING GIN (data);
+
+COMMENT ON TABLE inventory_levels IS 'Per product+store inventory levels (id = productId_storeId)';
+
+CREATE TABLE IF NOT EXISTS inventory_reservations (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_order_id ON inventory_reservations ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_status ON inventory_reservations ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_expires_at ON inventory_reservations ((data->>'expiresAt'));
+CREATE INDEX IF NOT EXISTS idx_inventory_reservations_data_gin ON inventory_reservations USING GIN (data);
+
+COMMENT ON TABLE inventory_reservations IS 'Order inventory holds with TTL — released by cron cleanup-reservations';
+
+CREATE TABLE IF NOT EXISTS erp_sales_assists (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_erp_sales_assists_order_id ON erp_sales_assists ((data->>'orderId'));
+CREATE INDEX IF NOT EXISTS idx_erp_sales_assists_referral_code ON erp_sales_assists ((data->>'referralCode'));
+CREATE INDEX IF NOT EXISTS idx_erp_sales_assists_data_gin ON erp_sales_assists USING GIN (data);
+
+-- Referral codes (shareable codes mapped to referrer wallets)
+CREATE TABLE IF NOT EXISTS refcodes (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_refcodes_owner_user_id ON refcodes ((data->>'ownerUserId'));
+CREATE INDEX IF NOT EXISTS idx_refcodes_wallet_address ON refcodes ((data->>'walletAddress'));
+CREATE INDEX IF NOT EXISTS idx_refcodes_code ON refcodes ((data->>'code'));
+CREATE INDEX IF NOT EXISTS idx_refcodes_data_gin ON refcodes USING GIN (data);
+
+COMMENT ON TABLE refcodes IS 'Shareable referral codes — one per user wallet';
+
+-- Referral rewards ledger (off-chain state + on-chain mint tracking)
+CREATE TABLE IF NOT EXISTS referral_rewards (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_rewards_order_reference ON referral_rewards ((data->>'orderReference'));
+CREATE INDEX IF NOT EXISTS idx_referral_rewards_status ON referral_rewards ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_referral_rewards_referrer_user_id ON referral_rewards ((data->>'referrerUserId'));
+CREATE INDEX IF NOT EXISTS idx_referral_rewards_data_gin ON referral_rewards USING GIN (data);
+
+COMMENT ON TABLE referral_rewards IS 'Referral reward payouts — pending approval, minted on-chain';
+
+-- Generated images (ImageConductor — xAI Grok Imagine / Google Imagen)
+CREATE TABLE IF NOT EXISTS generated_images (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_images_actor_id ON generated_images ((data->>'actorId'));
+CREATE INDEX IF NOT EXISTS idx_generated_images_provider ON generated_images ((data->>'provider'));
+CREATE INDEX IF NOT EXISTS idx_generated_images_purpose ON generated_images ((data->>'purpose'));
+CREATE INDEX IF NOT EXISTS idx_generated_images_ref_code ON generated_images ((data->>'refCode'));
+CREATE INDEX IF NOT EXISTS idx_generated_images_created_at ON generated_images (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_generated_images_data_gin ON generated_images USING GIN (data);
+
+COMMENT ON TABLE generated_images IS 'AI-generated images stored in ring-filebase via ImageConductor';
 
 -- Certifications (Quality certifications, badges)
 CREATE TABLE IF NOT EXISTS certifications (
@@ -976,3 +1120,17 @@ COMMENT ON COLUMN telegram_admin_audit.parsed_intent IS 'Anthropic Claude parsed
 COMMENT ON COLUMN telegram_admin_audit.action_taken IS 'Ring API operations executed';
 COMMENT ON COLUMN telegram_admin_audit.result IS 'Operation results and response data';
 COMMENT ON COLUMN telegram_admin_audit.error IS 'Error message if operation failed';
+
+-- Platform Settings (SUPERADMIN — AI/LLM, branding, integrations)
+CREATE TABLE IF NOT EXISTS platform_settings (
+    id VARCHAR(64) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    secrets JSONB NOT NULL DEFAULT '{}',
+    updated_by VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_platform_settings_data_gin ON platform_settings USING GIN (data);
+
+COMMENT ON TABLE platform_settings IS 'SUPERADMIN platform settings by namespace id (ai, branding, …)';

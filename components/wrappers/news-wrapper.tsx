@@ -29,7 +29,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -161,10 +160,8 @@ export default function NewsWrapper({
   ]
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-full">
       {/* Desktop Sidebar */}
-      <DesktopSidebar />
-
       {/* Main Content Area */}
       <div className="lg:pl-64">
         <div className="flex min-h-screen">

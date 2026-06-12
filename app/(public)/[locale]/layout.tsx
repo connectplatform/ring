@@ -10,6 +10,8 @@ import { notFound } from 'next/navigation'
 import { getMessages } from 'next-intl/server'
 import { headers } from 'next/headers'
 import { HreflangLinks } from '@/components/seo/hreflang-links'
+import { AppContentShell } from '@/components/layout/ring-app-shell'
+import { ReferralAttributionEffect } from '@/components/refcodes/referral-attribution-effect'
 import { pathnameWithoutLocale } from '@/lib/seo-metadata'
 
 interface LocaleLayoutProps {
@@ -26,7 +28,7 @@ function PublicLocaleLayoutFallback() {
   return (
     <div className="flex flex-col min-h-screen">
       <div className="h-14 border-b bg-muted/30 animate-pulse" aria-hidden />
-      <main className="flex-grow">
+      <main className="flex-grow md:pl-(--sidebar-total-w)">
         <div className="container max-w-6xl mx-auto px-4 py-16 animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/3" />
           <div className="h-4 bg-muted rounded w-2/3" />
@@ -72,9 +74,12 @@ async function PublicLocaleLayoutInner({
     <I18nProvider locale={validLocale} messages={messages}>
       <HreflangLinks pathname={hreflangPath} />
       <NotificationProvider>
+        <ReferralAttributionEffect />
         <div className="flex flex-col min-h-screen">
           <Navigation key={`nav-${validLocale}`} />
-          <main className="flex-grow">{children}</main>
+          <main className="flex-grow md:pl-(--sidebar-total-w)">
+            <AppContentShell>{children}</AppContentShell>
+          </main>
         </div>
       </NotificationProvider>
     </I18nProvider>

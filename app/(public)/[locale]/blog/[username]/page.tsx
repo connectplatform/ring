@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import React from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
 import {
   blogArticleHref,
@@ -13,7 +13,7 @@ import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
 import { connection } from 'next/server'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type Params = { locale: string; username: string }
 
@@ -36,17 +36,14 @@ export async function generateMetadata({
     path: 'blog.index',
     pathname: blogIndexPathname(username),
     variables: { username: handle },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 
 async function getBlogPosts(username: string, locale: string) {
   await connection()
-  await initializeDatabase()
-  const db = getDatabaseService()
+
   const handle = normalizeBlogHandle(username)
-  const result = await db.query({
+  const result = await db().queryDocs({
     collection: 'news',
     filters: [
       { field: 'blogUsername', operator: '==', value: handle },
@@ -57,9 +54,7 @@ async function getBlogPosts(username: string, locale: string) {
     pagination: { limit: 50 },
   })
   if (!result.success) return []
-  return result.data.map((row) =>
-    mapNewsDocument(row as { id: string; data?: Record<string, unknown> })
-  )
+  return result.data.map((row) => mapNewsDocument(row))
 }
 
 export default async function BlogIndexPage({ params }: { params: Promise<Params> }) {

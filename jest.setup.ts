@@ -10,8 +10,12 @@ mockIntersectionObserver.mockReturnValue({
   disconnect: () => null
 })
 
-window.IntersectionObserver = mockIntersectionObserver
-window.HTMLElement.prototype.scrollIntoView = jest.fn()
+const isJsdom = typeof window !== 'undefined'
+
+if (isJsdom) {
+  window.IntersectionObserver = mockIntersectionObserver
+  window.HTMLElement.prototype.scrollIntoView = jest.fn()
+}
 
 // Mock localStorage for testing
 const mockLocalStorage = {
@@ -23,10 +27,12 @@ const mockLocalStorage = {
   key: jest.fn()
 }
 
-Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage,
-  writable: true
-})
+if (isJsdom) {
+  Object.defineProperty(window, 'localStorage', {
+    value: mockLocalStorage,
+    writable: true,
+  })
+}
 
 // Mock sessionStorage for testing
 const mockSessionStorage = {
@@ -38,25 +44,26 @@ const mockSessionStorage = {
   key: jest.fn()
 }
 
-Object.defineProperty(window, 'sessionStorage', {
-  value: mockSessionStorage,
-  writable: true
-})
+if (isJsdom) {
+  Object.defineProperty(window, 'sessionStorage', {
+    value: mockSessionStorage,
+    writable: true,
+  })
 
-// Mock matchMedia for responsive testing
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-})
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  })
+}
 
 // Mock ResizeObserver for responsive components
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
@@ -423,9 +430,10 @@ console.warn = (...args) => {
 beforeEach(() => {
   // Reset all mocks before each test
   global.testUtils.clearAllMocks()
-  
-  // Reset DOM
-  document.body.innerHTML = ''
+
+  if (typeof document !== 'undefined') {
+    document.body.innerHTML = ''
+  }
   
   // Reset timers
   jest.clearAllTimers()

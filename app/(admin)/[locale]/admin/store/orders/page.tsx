@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
@@ -16,6 +16,7 @@ import { type AdminOrdersSearchParams } from '@/features/store/types'
 import AdminWrapper from '@/components/wrappers/admin-wrapper'
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels'
 import { connection } from 'next/server'
+import StoreHubTabs from '@/components/admin/store-hub-tabs'
 
 const AdminOrdersClient = dynamicImport(() => import('./admin-orders-client'), {
   loading: () => (
@@ -64,8 +65,6 @@ export async function generateMetadata({
     path: 'store.orders.list',
     pathname: '/admin/store/orders',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 
@@ -119,17 +118,51 @@ export default async function AdminOrdersPage({
     locale: validLocale 
   });
 
+  const tabLabels = {
+    orders: t('storeHub.orders'),
+    stock: t('storeHub.stock'),
+    commissions: t('storeHub.commissions'),
+  }
+
+  const ordersLabels = {
+    title: t('storeHub.ordersPage.title'),
+    allStatuses: t('storeHub.ordersPage.allStatuses'),
+    refresh: t('storeHub.ordersPage.refresh'),
+    refreshing: t('storeHub.ordersPage.refreshing'),
+    errorPrefix: t('storeHub.ordersPage.errorPrefix'),
+    updateStatusError: t('storeHub.ordersPage.updateStatusError'),
+    noOrders: t('storeHub.ordersPage.noOrders'),
+    noOrdersWithStatus: t('storeHub.ordersPage.noOrdersWithStatus'),
+    orderNumber: t('storeHub.ordersPage.orderNumber'),
+    statusLabel: t('storeHub.ordersPage.statusLabel'),
+    userLabel: t('storeHub.ordersPage.userLabel'),
+    createdLabel: t('storeHub.ordersPage.createdLabel'),
+    itemsLabel: t('storeHub.ordersPage.itemsLabel'),
+    update: t('storeHub.ordersPage.update'),
+    updating: t('storeHub.ordersPage.updating'),
+    statusLabels: {
+      new: t('storeHub.ordersPage.statuses.new'),
+      paid: t('storeHub.ordersPage.statuses.paid'),
+      processing: t('storeHub.ordersPage.statuses.processing'),
+      shipped: t('storeHub.ordersPage.statuses.shipped'),
+      completed: t('storeHub.ordersPage.statuses.completed'),
+      canceled: t('storeHub.ordersPage.statuses.canceled'),
+    },
+  }
+
   return (
     <AdminWrapper locale={validLocale} pageContext="store" labels={adminLabels}>
+      <StoreHubTabs locale={validLocale} active="orders" labels={tabLabels} />
       <Suspense fallback={
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       }>
-        <AdminOrdersClient 
+        <AdminOrdersClient
           initialOrders={orders}
           currentStatusFilter={statusFilter}
           locale={validLocale}
+          labels={ordersLabels}
         />
       </Suspense>
     </AdminWrapper>

@@ -5,7 +5,6 @@ icon: Newspaper
 last_modified: "2026-06-06"
 ---
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -35,8 +34,9 @@ The News module provides a complete content management system that rivals profes
 | Scoring | OpenRouter-powered duplicate/score checks |
 | Member blogs | `lib/blog/blog-path.ts`, `blogUsername` field |
 | Favorites | `POST /api/user/favorites`, `useContentFavorite` |
+| **Autonomous newsroom (2026-06)** | Grok `web_search` drafts, ImageConductor featured image, TTS `audioUrl`, Telegram approve → locale fan-out |
 
-Architecture: [News Kingdom](/docs/library/architecture/news-kingdom) · Member blogs: [feature doc](/docs/library/features/member-blog)
+Architecture: [News Kingdom](/docs/library/architecture/news-kingdom) · Member blogs: [feature doc](/docs/library/features/member-blog) · **Autonomous newsroom:** [generative-newsroom](/en/library/development/generative-newsroom)
 
 ## 🏗️ Architecture
 
@@ -136,13 +136,10 @@ The module supports 9 predefined categories:
 
 ### Content Status Flow
 
-```
-Draft → Published → Archived
-  ↓       ↓         ↓
-Author   Public     Hidden
-edits   visibility  from
-         lists      lists
-```
+<Mermaid title="Article lifecycle">
+{`flowchart LR
+  Draft["Draft<br/>Author edits"] --> Published["Published<br/>Public visibility"] --> Archived["Archived<br/>Hidden from lists"]`}
+</Mermaid>
 
 ## 🎨 User Interface
 
@@ -150,14 +147,14 @@ edits   visibility  from
 
 The news interface uses a professional 3-column layout:
 
-```
-┌─────────────┬─────────────────────┬─────────────┐
-│ 280px       │ Main Content        │ 320px       │
-│ Categories  │                     │ Trending    │
-│ & RSS       │                     │ & Popular   │
-│ Navigation  │                     │ Widgets     │
-└─────────────┴─────────────────────┴─────────────┘
-```
+<Mermaid title="Desktop news layout">
+{`flowchart LR
+  Nav["280px<br/>Categories & RSS<br/>Navigation"]
+  Main["Main Content"]
+  Widgets["320px<br/>Trending & Popular<br/>Widgets"]
+
+  Nav --- Main --- Widgets`}
+</Mermaid>
 
 **Desktop**: Full 3-column layout with fixed sidebars
 **Tablet**: Content fills remaining width, sidebars hidden

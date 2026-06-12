@@ -30,13 +30,17 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle,
-  Loader2
+  Loader2,
+  Sparkles,
+  Newspaper,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { saveArticle, publishArticle, ArticleFormState } from '@/app/_actions/news';
 import { RichTextEditor } from '@/features/news/components/editor/rich-text-editor';
+import { GenerateImageDialog } from '@/components/media/generate-image-dialog';
+import { GenerateArticleDialog } from '@/components/media/generate-article-dialog';
 
 interface ArticleEditorProps {
   mode: 'create' | 'edit';
@@ -156,6 +160,9 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
   
   const [newTag, setNewTag] = useState('');
   const [previewMode, setPreviewMode] = useState(false);
+  const [generateFeaturedOpen, setGenerateFeaturedOpen] = useState(false);
+  const [generateGalleryOpen, setGenerateGalleryOpen] = useState(false);
+  const [generateArticleOpen, setGenerateArticleOpen] = useState(false);
 
   // React 19 useActionState for draft saving
   const [draftState, draftAction] = useActionState<ArticleFormState | null, FormData>(
@@ -337,6 +344,12 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
         </Link>
         
         <div className="flex items-center gap-2">
+          {mode === 'create' ? (
+            <Button type="button" variant="secondary" onClick={() => setGenerateArticleOpen(true)}>
+              <Newspaper className="h-4 w-4 mr-2" />
+              Generate with AI
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             onClick={() => setPreviewMode(!previewMode)}
@@ -705,6 +718,41 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
             </CardContent>
           </Card>
 
+          <GenerateArticleDialog
+            open={generateArticleOpen}
+            onOpenChange={setGenerateArticleOpen}
+            onArticleReady={({ articleId }) => {
+              router.push(`/${locale}/admin/news/edit/${articleId}`);
+            }}
+          />
+          <GenerateImageDialog
+            open={generateFeaturedOpen}
+            onOpenChange={setGenerateFeaturedOpen}
+            purpose={article?.id ? `news-featured-${article.id}` : 'news-featured'}
+            defaultAspectRatio="16:9"
+            title="Generate featured image"
+            onImageReady={(url) => {
+              setFormData((prev) => ({
+                ...prev,
+                featuredImage: url,
+                seo: { ...prev.seo, ogImage: url, twitterImage: url },
+              }));
+            }}
+          />
+          <GenerateImageDialog
+            open={generateGalleryOpen}
+            onOpenChange={setGenerateGalleryOpen}
+            purpose={article?.id ? `news-gallery-${article.id}` : 'news-gallery'}
+            defaultAspectRatio="4:3"
+            title="Generate gallery image"
+            onImageReady={(url) => {
+              setFormData((prev) => ({
+                ...prev,
+                gallery: [...prev.gallery, url],
+              }));
+            }}
+          />
+
           {/* Featured Image */}
           <Card>
             <CardHeader>
@@ -728,18 +776,23 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
                   </Button>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center space-y-3">
                   <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">Upload featured image</p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageUpload(file, 'featured');
-                    }}
-                    className="mt-2"
-                  />
+                  <p className="text-sm text-gray-500">Upload or generate featured image</p>
+                  <div className="flex flex-col gap-2 items-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file, 'featured');
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setGenerateFeaturedOpen(true)}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate image
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -771,9 +824,9 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
                 ))}
               </div>
               
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center space-y-2">
                 <Upload className="h-6 w-6 mx-auto text-gray-400 mb-2" />
-                <p className="text-xs text-gray-500">Add to gallery</p>
+                <p className="text-xs text-gray-500">Upload or generate gallery image</p>
                 <input
                   type="file"
                   accept="image/*"
@@ -784,6 +837,10 @@ export function ArticleEditor({ mode, article, locale }: ArticleEditorProps) {
                   }}
                   className="mt-1 text-xs"
                 />
+                <Button type="button" variant="outline" size="sm" onClick={() => setGenerateGalleryOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  Generate
+                </Button>
               </div>
             </CardContent>
           </Card>

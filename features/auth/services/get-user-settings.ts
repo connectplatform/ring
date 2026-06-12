@@ -8,7 +8,7 @@
 import { UserSettings } from '@/features/auth/types'
 import { cache } from 'react'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 /**
  * Retrieve user settings from PostgreSQL database
@@ -29,12 +29,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
     const userId = session.user.id
     console.log('getUserSettings: Fetching for user', userId)
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Read user document
-    const result = await db.findById('users', userId)
+    const result = await db().findDocById<Record<string, unknown>>('users', userId)
 
     if (!result.success || !result.data) {
       console.log('getUserSettings: User document not found')
@@ -51,8 +46,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
       }
     }
 
-    const userData = result.data as any
-    const userSettings: UserSettings = userData.data?.settings || {
+    const userSettings: UserSettings = (result.data.settings as UserSettings) || {
       language: 'en',
       theme: 'system',
       notifications: true,

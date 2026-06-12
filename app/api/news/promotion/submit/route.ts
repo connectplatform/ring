@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { runAiScoringForArticle, appendStatusHistory } from '@/features/news/services/news-promotion-workflow'
 import {
   createPromotionPayment,
@@ -22,25 +22,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'articleId required' }, { status: 400 })
   }
 
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const data = (found.data.data ?? found.data) as Record<string, unknown>
+  const data = found.data
   if (String(data.authorId) !== session.user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await db.update('news', articleId, {
-    data: {
-      ...data,
-      promoteToMainPage: true,
-      mainPageStatus: 'submitted',
-      contentType: 'blog',
-    },
+  await db().updateDoc('news', articleId, {
+    promoteToMainPage: true,
+    mainPageStatus: 'submitted',
+    contentType: 'blog',
   })
   await appendStatusHistory(articleId, 'submitted', session.user.id)
 
@@ -61,7 +56,8 @@ export async function POST(request: NextRequest) {
     Number(process.env.NEWS_PROMO_BASE_UAH ?? 50)
 
   const locale = String(data.locale ?? 'en')
-  const returnUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/${locale}/my-news?article=${articleId}`
+  const { getSiteBaseUrl } = await import('@/lib/ring-config')
+  const returnUrl = `${getSiteBaseUrl()}/${locale}/my-news?article=${articleId}`
 
   const pay = await createPromotionPayment({
     articleId,
@@ -76,13 +72,10 @@ export async function POST(request: NextRequest) {
   }
 
   const provider = getPaymentProvider('news_promotion') as 'wayforpay' | 'stripe'
-  await db.update('news', articleId, {
-    data: {
-      ...data,
-      aiScore,
-      mainPageStatus: 'payment_pending',
-      payment: buildPaymentRecord(provider, pay.orderReference!, amount),
-    },
+  await db().updateDoc('news', articleId, {
+    aiScore,
+    mainPageStatus: 'payment_pending',
+    payment: buildPaymentRecord(provider, pay.orderReference!, amount),
   })
 
   return NextResponse.json({

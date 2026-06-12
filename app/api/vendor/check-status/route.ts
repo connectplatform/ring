@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+
+type EntityRow = Record<string, unknown> & { id: string }
 
 export async function GET(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
   try {
-    // Check authentication
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -15,12 +16,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Check if user is already a vendor
-    const vendorResult = await db.query({
+    const vendorResult = await db().queryDocs<EntityRow>({
       collection: 'entities',
       filters: [
         { field: 'data.addedby', operator: '==', value: session.user.id },

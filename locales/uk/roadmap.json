@@ -1,0 +1,156 @@
+{
+  "title": "Дорожня карта Ring Platform",
+  "description": "Де Ring сьогодні і куди рухається — для засновників і CTO, які оцінюють white-label платформу та економіку RING.",
+  "hero": {
+    "badge": "Засновники та CTO",
+    "subtitle": "Що вже на флагманських кільцях, що з’явиться далі, і як RING поєднує будівельників із зростанням платформи.",
+    "mandate": "Клонуй. Керуй. Розширюй. Без vendor lock-in.",
+    "ringCta": "Економіка токена RING",
+    "walletCta": "Відкрити гаманець",
+    "cloneCta": "Клон на GitHub"
+  },
+  "timeline": {
+    "title": "Шлях платформи",
+    "subtitle": "Ключові етапи на production-кільцях."
+  },
+  "timelineItems": [
+    {
+      "title": "2025 H1",
+      "cardTitle": "Базовий OSS реліз",
+      "cardSubtitle": "Live на флагманах",
+      "cardDetailedText": "Next.js 16, React 19, Auth.js v5, PostgreSQL/PostGIS, i18n, маркетплейс, можливості, white-label propagation."
+    },
+    {
+      "title": "2025 H2",
+      "cardTitle": "Шар оператора LegioX",
+      "cardSubtitle": "MCP + AI-CONTEXT",
+      "cardDetailedText": "147+ truth lenses, ring-mcp (57 інструментів), NODUS-workflows, керована кастомізація."
+    },
+    {
+      "title": "Чер 2026",
+      "cardTitle": "Автономна редакція",
+      "cardSubtitle": "Shipped — Grok + Telegram",
+      "cardDetailedText": "URL/пошук → цитований HTML-чернетка, OG-зображення, TTS, категорії/теги, схвалення в Telegram, переклади en/uk/ru."
+    },
+    {
+      "title": "2026",
+      "cardTitle": "У розробці",
+      "cardSubtitle": "Активна інженерія",
+      "cardDetailedText": "ConnectPlatform/Firebase, Cache Components, Reggie ringization, serialization Phase 2."
+    },
+    {
+      "title": "Горизонт",
+      "cardTitle": "Збірка кільця з природної мови",
+      "cardSubtitle": "Людина в контурі",
+      "cardDetailedText": "Модулі з intent — мультитенантний аудит і стійка оркестрація."
+    }
+  ],
+  "shipped": {
+    "title": "Уже на production-кільцях",
+    "subtitle": "Можливості, які можна запустити сьогодні.",
+    "items": [
+      { "name": "Автономна редакція", "tag": "Чер 2026" },
+      { "name": "ImageConductor", "tag": "2026" },
+      { "name": "Ring MCP — 57 tools", "tag": "2026" },
+      { "name": "PaymentConductor v1", "tag": "2025" },
+      { "name": "News Kingdom", "tag": "2025" },
+      { "name": "LegioX MCP", "tag": "2025" }
+    ]
+  },
+  "demos": {
+    "title": "Інтерактивні компоненти документації",
+    "subtitle": "Фаза 1 візуалізації — live на цій сторінці.",
+    "timelineCaption": "Каденція релізів (react-chrono)",
+    "mathCaption": "Розподіл комісії (KaTeX)",
+    "mathFormula": "\\text{community\\_share} = \\text{platform\\_fee} \\times (1 - \\text{treasury\\_rate})",
+    "sandboxTitle": "Server action у стилі Ring (Sandpack)",
+    "sandboxCode": "'use server'\\n\\nexport async function publishDraft(formData: FormData) {\\n  const title = formData.get('title')\\n  if (!title) return { error: 'Потрібен заголовок' }\\n  return { success: true, title }\\n}"
+  },
+  "platform": {
+    "title": "Стратегічні фази",
+    "subtitle": "Три горизонти для покупців платформи.",
+    "phases": [
+      {
+        "title": "Базовий реліз",
+        "timeline": "Уже live",
+        "body": "Production stack: entities, store, wallet, messaging, memberships, docs, k8s."
+      },
+      {
+        "title": "У розробці",
+        "timeline": "Активно",
+        "body": "LegioX automation, generative modules, MCP gateway, ConnectPlatform."
+      },
+      {
+        "title": "Наступний горизонт",
+        "timeline": "Заплановано",
+        "body": "Intent-driven assembly, DAO hooks, mobile, нові локалі."
+      }
+    ]
+  },
+  "docs": {
+    "title": "Документація",
+    "subtitle": "Due diligence для технічних лідерів.",
+    "links": [
+      {
+        "title": "Технічна roadmap (docs)",
+        "description": "MDX-супровід з прикладами компонентів.",
+        "href": "/docs/roadmap"
+      },
+      {
+        "title": "Autonomous Newsroom",
+        "description": "Grok, цитати, TTS, Telegram.",
+        "href": "/docs/development/generative-newsroom"
+      },
+      {
+        "title": "Generative images",
+        "description": "ImageConductor → ring-filebase.",
+        "href": "/docs/development/generative-images"
+      },
+      {
+        "title": "Ring MCP",
+        "description": "57 ring-* інструментів.",
+        "href": "/docs/development/ring-mcp"
+      },
+      {
+        "title": "Getting started",
+        "description": "Клон, конфіг, перший деплой.",
+        "href": "/docs/getting-started"
+      },
+      {
+        "title": "Token economy",
+        "description": "RING utility та механіка участі.",
+        "href": "/token-economy"
+      }
+    ]
+  },
+  "visualization": {
+    "title": "Roadmap UX документації",
+    "subtitle": "Інтерактивність рівня Stripe/Vercel.",
+    "phases": {
+      "phase1": { "label": "Фаза 1", "timeline": "1–2 дні", "priority": "P0" },
+      "phase2": { "label": "Фаза 2", "timeline": "3–5 днів", "priority": "P1" },
+      "phase3": { "label": "Фаза 3", "timeline": "1–2 тижні", "priority": "P2" }
+    },
+    "statusImplemented": "Є",
+    "statusPlanned": "Заплановано",
+    "useCases": "Сценарії",
+    "effort": "Оцінка",
+    "library": "Бібліотека",
+    "orderTitle": "Порядок впровадження",
+    "implementedTitle": "Уже в docs",
+    "metricsTitle": "Метрики успіху",
+    "metrics": {
+      "documentation_quality": "Рівень Stripe/Vercel",
+      "developer_productivity": "−50% часу онбордингу",
+      "user_engagement": "3× час на docs",
+      "support_reduction": "−30% тікетів"
+    },
+    "effortSummary": "Загальні зусилля",
+    "exploreDocs": "Відкрити бібліотеку"
+  },
+  "labels": {
+    "version": "Специфікація v{version}",
+    "updated": "Оновлено {date}",
+    "components": "{count} компонентів"
+  }
+}

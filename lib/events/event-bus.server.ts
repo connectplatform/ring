@@ -7,7 +7,7 @@
  */
 
 import { StoreEvent } from '@/constants/store'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 export interface EventPayload {
   type: StoreEvent
@@ -34,9 +34,7 @@ export async function publishEvent(event: Omit<EventPayload, 'timestamp'>): Prom
   try {
     // Store event in DatabaseService
     // This can trigger background jobs or be processed by event handlers
-    await initializeDatabase()
-    const db = getDatabaseService()
-    await db.create('storeEvents', fullEvent, { id: `${event.type}_${Date.now()}` })
+    await db().createDoc('storeEvents', fullEvent, { id: `${event.type}_${Date.now()}` })
     
     // In production, you might also want to:
     // - Trigger Firebase Functions

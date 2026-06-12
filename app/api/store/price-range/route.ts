@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { shouldSkipDatabaseConnect } from '@/lib/build-cache/phase-detector'
 import { getDefaultStorePriceBounds, type StoreFilterState } from '@/lib/store-constants'
 import {
   applyCatalogFilters,
   computeCatalogPriceBounds,
 } from '@/lib/store-price-range'
+
+type ProductRow = Record<string, unknown> & { id: string }
 
 function parseCatalogFilters(searchParams: URLSearchParams): Pick<
   StoreFilterState,
@@ -40,22 +42,19 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
     const catalogFilters = parseCatalogFilters(request.nextUrl.searchParams)
 
-    const result = await db.query({ collection: 'store_products', filters: [] })
+    const result = await db().queryDocs<ProductRow>({
+      collection: 'store_products',
+      filters: []
+    })
     if (!result.success || !result.data) {
       const empty = computeCatalogPriceBounds([])
       return NextResponse.json({ ...empty, productCount: 0 })
     }
 
-    const products = Array.isArray(result.data)
-      ? result.data
-      : (result.data as { data?: unknown[] }).data || []
-
     const catalogProducts = applyCatalogFilters(
-      products as Parameters<typeof applyCatalogFilters>[0],
+      result.data as Parameters<typeof applyCatalogFilters>[0],
       catalogFilters,
     )
     const bounds = computeCatalogPriceBounds(catalogProducts)

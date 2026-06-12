@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
 import { NewsArticle } from '@/features/news/types';
 import { AdminNewsManager } from '@/features/news/components/admin-news-manager';
 import { NewsSubmissionsReady } from '@/features/news/components/news-submissions-ready';
@@ -14,35 +14,24 @@ import { getTranslations } from 'next-intl/server';
 import NewsWrapper from '@/components/wrappers/news-wrapper';
 import { connection } from 'next/server'
 
-
 /**
  * Get news articles for admin
  * Server Component - native async/await (React 19 pattern)
  */
 async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
-    // Initialize database service with proper error handling
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      console.error('Database initialization failed:', initResult.error)
-      return [] // Graceful degradation
-    }
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      pagination: { limit: 50 }
-    });
-    
+      pagination: { limit: 50 },
+    })
+
     if (!result.success) {
       console.error('Error fetching news:', result.error)
       return []
     }
-    
-    return result.data.map((doc) =>
-      mapNewsDocument(doc as { id: string; data?: Record<string, unknown> })
-    );
+
+    return result.data.map((doc) => mapNewsDocument(doc))
   } catch (error) {
     console.error('Error fetching news articles:', error);
     return [];

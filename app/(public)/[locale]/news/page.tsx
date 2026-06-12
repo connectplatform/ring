@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { NewsList } from '@/features/news/components/news-list';
 import { FeaturedCarousel } from '@/features/news/components/featured-carousel';
 import NewsPageWrapper from '@/components/wrappers/news-page-wrapper';
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
+import { mapNewsDocument, mapNewsCategoryDocument } from '@/lib/news/map-news-document';
 import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types';
 import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
 import { isValidLocale, defaultLocale } from '@/i18n/shared'
@@ -105,25 +106,22 @@ type NewsParams = {};
  */
 async function getInitialNews(): Promise<NewsArticle[]> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       filters: [
         { field: 'status', operator: '==', value: 'published' },
-        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
+        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
-      pagination: { limit: 12 }
-    });
-    
+      pagination: { limit: 12 },
+    })
+
     if (!result.success) {
       console.error('Error fetching news:', result.error)
       return []
     }
-    
-    return result.data as any[] as NewsArticle[];
+
+    return result.data.map((row) => mapNewsDocument(row))
   } catch (error) {
     console.error('Error fetching initial news:', error);
     return [];
@@ -136,26 +134,22 @@ async function getInitialNews(): Promise<NewsArticle[]> {
  */
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'newsCategories',
-      orderBy: [{ field: 'name', direction: 'asc' }]
-    });
-    
+      orderBy: [{ field: 'name', direction: 'asc' }],
+    })
+
     if (!result.success) {
       console.error('Error fetching categories:', result.error)
       return []
     }
-    
-    return result.data as any[] as NewsCategoryInfo[];
+
+    return result.data.map((row) => mapNewsCategoryDocument(row))
   } catch (error) {
     console.error('Error fetching news categories:', error);
     return [];
   }
 }
-
 
 export async function generateMetadata({
   params,

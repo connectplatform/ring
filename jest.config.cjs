@@ -37,38 +37,7 @@ const customJestConfig = {
     '**/*.(test|spec).(ts|tsx|js)',
   ],
   testTimeout: 10000,
-  // React 19 specific configurations with TypeScript lenient mode
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { 
-      presets: ['next/babel'],
-      // Disable TypeScript type checking during tests
-      env: {
-        test: {
-          presets: [
-            ['next/babel', { 'preset-typescript': { allowNamespaces: true } }]
-          ]
-        }
-      }
-    }],
-  },
-  transformIgnorePatterns: [
-    '/node_modules/(?!(react|react-dom)/)',
-  ],
-  // Mock Next.js server environment
   setupFiles: ['<rootDir>/jest.globals.ts'],
-  // TypeScript handling for tests
-  globals: {
-    'ts-jest': {
-      isolatedModules: true,
-      tsconfig: {
-        compilerOptions: {
-          strict: false,
-          noImplicitAny: false,
-          skipLibCheck: true,
-        }
-      }
-    }
-  }
 }
 
 // Export with Next.js integration for React 19 support

@@ -6,7 +6,7 @@ import matter from 'gray-matter'
 import { routing, type Locale } from '@/i18n/routing'
 import { setRequestLocale, getMessages } from 'next-intl/server'
 import { docsMdxComponents, getDocsMdxRemoteOptions } from '@/components/docs/mdx-docs-shared'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 export async function generateMetadata({
   params,
@@ -22,8 +22,6 @@ export async function generateMetadata({
     locale,
     path: 'docs',
     pathname: '/docs',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

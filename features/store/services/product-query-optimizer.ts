@@ -14,7 +14,8 @@
  * Tech: PostgreSQL JSONB + Index optimization + Smart caching
  */
 
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { getRingConfig } from '@/lib/ring-config'
 import type { AgriculturalProductFilters } from '@/features/store/types/agricultural-product'
 
 // ============================================================================
@@ -81,10 +82,13 @@ export function buildOptimizedQuery(options: QueryOptions = {}) {
   // Note: This would be added via additional filter conditions
 
   // ============================================================================
-  // CERTIFICATION FILTERS (Indexed GIN)
+  // CERTIFICATION FILTERS (Indexed GIN) — agricultural preset only
   // ============================================================================
 
-  if (filters.organic) {
+  const productFieldsPreset = getRingConfig().productFields?.preset ?? 'platform'
+  const agriFiltersEnabled = productFieldsPreset === 'agricultural'
+
+  if (agriFiltersEnabled && filters.organic) {
     // Uses idx_products_organic
     dbFilters.push({
       field: 'data',
@@ -93,7 +97,7 @@ export function buildOptimizedQuery(options: QueryOptions = {}) {
     })
   }
 
-  if (filters.regenerative) {
+  if (agriFiltersEnabled && filters.regenerative) {
     // Uses idx_products_regenerative
     dbFilters.push({
       field: 'data',
@@ -102,7 +106,7 @@ export function buildOptimizedQuery(options: QueryOptions = {}) {
     })
   }
 
-  if (filters.locallyGrown) {
+  if (agriFiltersEnabled && filters.locallyGrown) {
     // Uses idx_products_locally_grown
     dbFilters.push({
       field: 'data',
@@ -266,13 +270,9 @@ export async function getOptimizedProducts(options: QueryOptions = {}) {
   const startTime = Date.now()
   
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     const { filters: dbFilters, orderBy, limit, offset } = buildOptimizedQuery(options)
     
-    // Execute query
-    const result = await db.query<any>({
+    const result = await db().queryDocs<Record<string, unknown>>({
       collection: 'store_products',
       filters: dbFilters
     })
@@ -281,7 +281,7 @@ export async function getOptimizedProducts(options: QueryOptions = {}) {
       return { success: false, error: result.error }
     }
 
-    const products = Array.isArray(result.data) ? result.data : (result.data as any)?.data || []
+    const products = result.data
     
     // Manual sorting and pagination (if DB doesn't support it)
     const sorted = sortProducts(products, options.sortBy || 'newest')
@@ -315,26 +315,29 @@ export async function getOptimizedProducts(options: QueryOptions = {}) {
 /**
  * Sort products in memory (when DB doesn't support ORDER BY)
  */
-function sortProducts(products: any[], sortBy: string) {
+function sortProducts(products: Record<string, unknown>[], sortBy: string) {
   return [...products].sort((a, b) => {
-    const aData = a.data || {}
-    const bData = b.data || {}
+    const aReviews = a.reviews as { averageRating?: number } | undefined
+    const bReviews = b.reviews as { averageRating?: number } | undefined
+    const aQuality = a.quality as { grade?: string } | undefined
+    const bQuality = b.quality as { grade?: string } | undefined
     
     switch (sortBy) {
       case 'newest':
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        return new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime()
       case 'oldest':
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        return new Date(String(a.created_at)).getTime() - new Date(String(b.created_at)).getTime()
       case 'priceAsc':
-        return (aData.price || 0) - (bData.price || 0)
+        return (Number(a.price) || 0) - (Number(b.price) || 0)
       case 'priceDesc':
-        return (bData.price || 0) - (aData.price || 0)
+        return (Number(b.price) || 0) - (Number(a.price) || 0)
       case 'rating':
-        return (bData.reviews?.averageRating || 0) - (aData.reviews?.averageRating || 0)
-      case 'quality':
+        return (bReviews?.averageRating || 0) - (aReviews?.averageRating || 0)
+      case 'quality': {
         const gradeOrder = { 'Premium': 0, 'A': 1, 'B': 2, 'C': 3, 'Standard': 4 }
-        return (gradeOrder[aData.quality?.grade as keyof typeof gradeOrder] || 4) - 
-               (gradeOrder[bData.quality?.grade as keyof typeof gradeOrder] || 4)
+        return (gradeOrder[aQuality?.grade as keyof typeof gradeOrder] ?? 4) -
+               (gradeOrder[bQuality?.grade as keyof typeof gradeOrder] ?? 4)
+      }
       default:
         return 0
     }

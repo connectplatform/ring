@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
@@ -9,6 +9,7 @@ import { ROUTES } from '@/constants/routes'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { UserRole } from '@/features/auth/types'
+import { normalizeUserRole } from '@/features/auth/user-role'
 import type { LocalePageProps } from '@/utils/page-props'
 
 
@@ -27,8 +28,6 @@ export async function generateMetadata({
     path: 'entities.list',
     pathname: '/entities',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 
@@ -59,7 +58,7 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
 
   try {
     const { getEntitiesForRole } = await import('@/features/entities/services/get-entities')
-    const userRole = (session.user.role as UserRole) || UserRole.SUBSCRIBER
+    const userRole = normalizeUserRole(session.user.role) || UserRole.SUBSCRIBER
     const result = await getEntitiesForRole({
       userRole,
       limit,

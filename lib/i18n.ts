@@ -7,6 +7,7 @@ import {
   type LocaleFileId,
   type MessageScope,
 } from '@/lib/i18n/message-scopes'
+import { getPlatformIdentity } from '@/lib/ring-config-core'
 
 export type JsonRecord = Record<string, any>
 
@@ -51,8 +52,12 @@ async function importLocaleFile(
       return import(`@/locales/${targetLocale}/about-publisher.json`)
         .then((m) => m.default)
         .catch(() => ({}))
-    case 'deployment-calculator':
-      return import(`@/locales/${targetLocale}/deployment-calculator.json`)
+    case 'calculator':
+      return import(`@/locales/${targetLocale}/calculator.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
+    case 'roadmap':
+      return import(`@/locales/${targetLocale}/roadmap.json`)
         .then((m) => m.default)
         .catch(() => ({}))
     case 'terms':
@@ -133,6 +138,10 @@ async function importLocaleFile(
       return import(`@/locales/${targetLocale}/modules/notifications.json`)
         .then((m) => m.default)
         .catch(() => ({}))
+    case 'modRefcodes':
+      return import(`@/locales/${targetLocale}/modules/refcodes.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
     case 'vendor':
       return import(`@/locales/${targetLocale}/vendor.json`).then((m) => m.default).catch(() => ({}))
     case 'confidential':
@@ -157,6 +166,21 @@ function walletTopupFromSeo(seo: JsonRecord): { title?: string; description?: st
   }
 }
 
+function buildConfigMessages(loadedConfig?: JsonRecord): JsonRecord {
+  const identity = getPlatformIdentity()
+  const localeTagline =
+    (loadedConfig?.platform as Record<string, unknown> | undefined)?.tagline ?? ''
+  return {
+    platform: {
+      name: identity.name,
+      shortName: identity.shortName,
+      domain: identity.domain,
+      demoUserEmail: identity.demoUserEmail,
+      tagline: localeTagline,
+    },
+  }
+}
+
 function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): JsonRecord {
   const modNews = (loaded.modNews ?? {}) as JsonRecord & {
     myNews?: string
@@ -171,11 +195,11 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.editor) messages.editor = loaded.editor
   if (loaded.emails) messages.emails = loaded.emails
   if (loaded.seo) messages.seo = loaded.seo
-  if (loaded.config) messages.config = loaded.config
+  messages.config = buildConfigMessages(loaded.config)
   if (loaded.about) messages.about = loaded.about
   if (loaded['about-publisher']) messages['about-publisher'] = loaded['about-publisher']
-  if (loaded['deployment-calculator'])
-    messages['deployment-calculator'] = loaded['deployment-calculator']
+  if (loaded.calculator) messages.calculator = loaded.calculator
+  if (loaded.roadmap) messages.roadmap = loaded.roadmap
   if (loaded.terms) messages.terms = loaded.terms
   if (loaded.filters) messages.filters = loaded.filters
   if (loaded.search) messages.search = loaded.search
@@ -228,6 +252,7 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modMembership) modules.membership = loaded.modMembership
   if (loaded.modNft) modules.nft = loaded.modNft
   if (loaded.modNotifications) modules.notifications = loaded.modNotifications
+  if (loaded.modRefcodes) modules.refcodes = loaded.modRefcodes
   if (Object.keys(modules).length > 0) messages.modules = modules
 
   return messages

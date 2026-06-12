@@ -51,9 +51,7 @@ function safeToTimestamp(timestamp: any): Timestamp | undefined {
   return undefined;
 }
 
-/**
- * Firestore data converter for the Entity type.
- */
+/** @deprecated Firestore-only legacy — use `mapDbRowToSerializedEntity` (PostgreSQL / `DatabaseService` path) or `serializeEntity` for client transport; not used when `DB_BACKEND_MODE` is Postgres-primary. */
 export const entityConverter: FirestoreDataConverter<Entity> = {
   /**
    * Converts an `Entity` object to Firestore format.

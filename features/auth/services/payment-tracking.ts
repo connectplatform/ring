@@ -2,7 +2,7 @@
 
 import { UserRole } from '@/features/auth/types'
 import { logger } from '@/lib/logger'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
 
 export type PaymentStatus = 'initiated' | 'completed' | 'failed' | 'cancelled'
 
@@ -19,6 +19,8 @@ export interface PaymentAttempt {
   updatedAt: Date
 }
 
+type PaymentRow = PaymentAttempt & Record<string, unknown>
+
 /**
  * Records a payment attempt in the database
  */
@@ -32,17 +34,13 @@ export async function recordPaymentAttempt(data: {
   paymentUrl?: string
 }): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    const paymentAttempt: PaymentAttempt = {
+    const paymentAttempt: PaymentRow = {
       ...data,
       createdAt: new Date(),
       updatedAt: new Date()
     }
 
-    // Store in payments collection
-    await db.create('payments', paymentAttempt, { id: data.orderId })
+    await db().createDoc('payments', paymentAttempt, { id: data.orderId })
 
     logger.info('Payment tracking: Recorded payment attempt', {
       orderId: data.orderId,
@@ -68,10 +66,7 @@ export async function updatePaymentStatus(
   failureReason?: string
 ): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    await db.update('payments', orderId, {
+    await db().updateDoc('payments', orderId, {
       status,
       failureReason,
       updatedAt: new Date()
@@ -98,15 +93,13 @@ export async function updatePaymentStatus(
  */
 export async function getPaymentAttempt(orderId: string): Promise<PaymentAttempt | null> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    const result = await db.findById('payments', orderId)
+    const result = await db().findDocById<PaymentRow>('payments', orderId)
     
     if (!result.success || !result.data) {
       return null
     }
     
-    return result.data.data as PaymentAttempt
+    return result.data as PaymentAttempt
 
   } catch (error) {
     logger.error('Payment tracking: Error getting payment attempt', {
@@ -122,18 +115,17 @@ export async function getPaymentAttempt(orderId: string): Promise<PaymentAttempt
  */
 export async function getUserPaymentHistory(userId: string): Promise<PaymentAttempt[]> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.findByField('payments', 'userId', userId, {
-      orderBy: { field: 'createdAt', direction: 'desc' }
+    const result = await db().queryDocs<PaymentRow>({
+      collection: 'payments',
+      filters: [{ field: 'userId', operator: '=', value: userId }],
+      orderBy: [{ field: 'createdAt', direction: 'desc' }]
     })
 
-    if (!result.success || !result.data) {
+    if (!result.success) {
       return []
     }
 
-    return result.data.map(doc => doc.data as PaymentAttempt)
+    return result.data as PaymentAttempt[]
 
   } catch (error) {
     logger.error('Payment tracking: Error getting user payment history', {

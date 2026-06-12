@@ -9,7 +9,7 @@
  */
 
 import type { OpportunityInput, AutoFillAnalysis, EnrichedOpportunity } from '@/lib/ai/types';
-import { createLLMClient, isLLMAvailable } from '@/lib/ai/llm-client';
+import { createLLMClientAsync, isLLMAvailableAsync } from '@/lib/ai/llm-client';
 import { AIOperationError } from '@/lib/ai/types';
 import { logger } from '@/lib/logger';
 
@@ -29,7 +29,9 @@ export interface AutoFillResult {
  * Service for auto-filling opportunity fields using LLM analysis
  */
 export class OpportunityAutoFillService {
-  private llmClient = createLLMClient();
+  private async getLlmClient() {
+    return createLLMClientAsync();
+  }
 
   /**
    * Analyze and enrich an opportunity with auto-filled fields
@@ -44,7 +46,7 @@ export class OpportunityAutoFillService {
       });
 
       // Use LLM for intelligent analysis if available
-      if (isLLMAvailable()) {
+      if (await isLLMAvailableAsync()) {
         return await this.llmBasedEnrichment(opportunityInput, startTime);
       } else {
         logger.warn('AutoFillService: LLM unavailable, using baseline enrichment');
@@ -67,7 +69,8 @@ export class OpportunityAutoFillService {
     const prompt = this.createAutoFillPrompt(opportunityInput);
 
     try {
-      const response = await this.llmClient.complete(prompt, {
+      const llmClient = await this.getLlmClient();
+      const response = await llmClient.complete(prompt, {
         temperature: 0.4, // Moderate creativity for analysis
         maxTokens: 1500
       });

@@ -1,0 +1,103 @@
+{
+  "clone": {
+    "name": "ring-platform",
+    "displayName": "Ring Platform",
+    "shortName": "Ring",
+    "description": "Open-source community and marketplace platform",
+    "version": "2.0.0",
+    "organization": "ConnectPlatform",
+    "contactEmail": "contact@ring-platform.org",
+    "supportEmail": "support@ring-platform.org"
+  },
+  "domains": {
+    "production": "https://ring-platform.org",
+    "staging": "https://staging.ring-platform.org",
+    "development": "http://localhost:3000"
+  },
+  "platform": {
+    "baseUrl": "https://ring-platform.org"
+  },
+  "tokens": {
+    "ring": {
+      "symbol": "RING",
+      "name": "RING Governance Token",
+      "decimals": 18
+    }
+  },
+  "features": {
+    "expertServicesMarketplace": false
+  },
+  "theme": {
+    "default": "system"
+  },
+  "navigation": {
+    "links": [
+      { "label": "Home", "href": "/" },
+      { "label": "Entities", "href": "/entities" },
+      { "label": "Opportunities", "href": "/opportunities" }
+    ]
+  },
+  "hero": {
+    "title": "Connect talent and opportunity",
+    "subtitle": "A modular, open, white‑label platform.",
+    "ctaText": "Get started",
+    "ctaHref": "/login",
+    "showOnHome": true
+  },
+  "legal": {
+    "licenseSpdx": "MIT"
+  },
+  "sidebar": {
+    "quickLinks": [
+      { "labelKey": "about.sidebar.aboutUs", "href": "/about", "icon": "Info" },
+      { "labelKey": "about.sidebar.tokenEconomy", "href": "/token-economy", "icon": "Globe" },
+      { "labelKey": "about.sidebar.aiWeb3", "href": "/ai-web3", "icon": "BookOpen" },
+      { "labelKey": "about.sidebar.globalImpact", "href": "/global-impact", "icon": "Users" },
+      { "labelKey": "about.sidebar.contact", "href": "/contact", "icon": "Mail" }
+    ],
+    "community": [
+      { "labelKey": "about.sidebar.github", "urlKey": "social.github" },
+      { "labelKey": "about.sidebar.discord", "urlKey": "social.discord" }
+    ],
+    "stats": [
+      { "labelKey": "about.sidebar.version", "valueKey": "clone.version" },
+      { "labelKey": "about.sidebar.license", "valueKey": "legal.licenseSpdx" }
+    ]
+  },
+  "calculator": {
+    "enabled": true,
+    "presetId": "deployment"
+  },
+  "productFields": {
+    "preset": "platform"
+  },
+  "productBadges": {
+    "preset": "platform"
+  },
+  "contact": {
+    "address": "One Ringdom",
+    "phone": "+1",
+    "email": "contact@ring-platform.org"
+  },
+  "seo": {
+    "siteName": "Ring Platform",
+    "twitterHandle": "@RingPlatform",
+    "ogImage": "/images/og-image.png"
+  },
+  "social": {
+    "github": "https://github.com/connectplatform/ring-platform",
+    "twitter": "https://twitter.com/sonoratek",
+    "linkedin": "https://linkedin.com/company/connectedin",
+    "discord": "https://discord.gg/ring-platform"
+  },
+  "matcher": {
+    "scoreThreshold": 0.7,
+    "maxMatches": 10,
+    "autoApprove": false,
+    "autoApproveMinScore": 0.7,
+    "llmConfidenceGate": 0.8
+  },
+  "integrations": {
+    "demoUserEmail": "vendor@ring-platform.org"
+  }
+}

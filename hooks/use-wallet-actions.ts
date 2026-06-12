@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useWriteContract, useWaitForTransactionReceipt, useConnection, useSendTransaction } from 'wagmi'
+import { parseEther, parseUnits, erc20Abi } from 'viem'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import {
@@ -12,6 +13,7 @@ import {
   getPolygonscanUrl
 } from '@/constants/web3'
 import type { WalletTransaction } from '@/features/wallet/types'
+import { polygon } from 'viem/chains'
 
 /**
  * Hook for wallet actions like sending tokens, staking, etc.
@@ -39,6 +41,17 @@ export function useWalletActions() {
   const combinedHash = contractWrite.data || sendTx.data
   const combinedIsConfirmed = contractConfirmed || sendConfirmed
   const combinedError = contractWrite.error || sendTx.error
+
+  // Sync confirmed receipts into the wallet history ledger
+  useEffect(() => {
+    if (combinedIsConfirmed && combinedHash) {
+      updateTransactionStatus(combinedHash, 'success')
+      toast({
+        title: 'Transaction Confirmed',
+        description: 'Your transaction was confirmed on-chain.',
+      })
+    }
+  }, [combinedIsConfirmed, combinedHash]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Record transaction in database
@@ -117,28 +130,21 @@ export function useWalletActions() {
 
     setIsLoading(true)
     try {
-      // TODO: Implement with wagmi useSendTransaction
-      // For now, simulate a successful transaction
-      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`
+      // Wagmi v3: mutation object — mutateAsync resolves with the tx hash
+      const txHash = await sendTx.mutateAsync({
+        to: recipient as `0x${string}`,
+        value: parseEther(amount),
+      })
+      setPendingTx(txHash)
 
       toast({
-        title: 'Transaction Submitted (Mock)',
-        description: `Mock POL transaction submitted. Wagmi integration coming soon.`,
+        title: 'Transaction Submitted',
+        description: `POL transfer submitted. View on Polygonscan once confirmed.`,
       })
 
-      // Record transaction
-      await recordTransaction(mockTxHash, recipient, amount, 'POL', 'send', notes)
+      await recordTransaction(txHash, recipient, amount, 'POL', 'send', notes)
 
-      // Simulate confirmation
-      setTimeout(async () => {
-        await updateTransactionStatus(mockTxHash, 'success')
-        toast({
-          title: 'Transaction Successful (Mock)',
-          description: `Successfully sent ${amount} POL to ${recipient.slice(0, 8)}...${recipient.slice(-6)}`,
-        })
-      }, 2000)
-
-      return mockTxHash
+      return txHash
     } catch (error: any) {
       console.error('Send transaction error:', error)
 
@@ -157,9 +163,8 @@ export function useWalletActions() {
       return null
     } finally {
       setIsLoading(false)
-      setPendingTx(null)
     }
-  }, [address, isConnected, recordTransaction, updateTransactionStatus])
+  }, [address, isConnected, sendTx, recordTransaction])
 
   /**
    * Send ERC20 tokens (RING, USDT, etc.)
@@ -183,28 +188,25 @@ export function useWalletActions() {
 
     setIsLoading(true)
     try {
-      // TODO: Implement with wagmi writeContract
-      // For now, simulate a successful transaction
-      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`
+      // Wagmi v3: writeContract mutation with viem erc20Abi
+      const txHash = await contractWrite.mutateAsync({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [recipient as `0x${string}`, parseUnits(amount, decimals)],
+        chain: polygon,
+        account: address as `0x${string}`,
+      })
+      setPendingTx(txHash)
 
       toast({
-        title: 'Transaction Submitted (Mock)',
-        description: `Mock transaction submitted. Wagmi integration coming soon.`,
+        title: 'Transaction Submitted',
+        description: `${tokenSymbol} transfer submitted. View on Polygonscan once confirmed.`,
       })
 
-      // Record transaction
-      await recordTransaction(mockTxHash, recipient, amount, tokenSymbol, 'send', notes)
+      await recordTransaction(txHash, recipient, amount, tokenSymbol, 'send', notes)
 
-      // Simulate confirmation
-      setTimeout(async () => {
-        await updateTransactionStatus(mockTxHash, 'success')
-        toast({
-          title: 'Transaction Successful (Mock)',
-          description: `Successfully sent ${amount} ${tokenSymbol} to ${recipient.slice(0, 8)}...${recipient.slice(-6)}`,
-        })
-      }, 2000)
-
-      return mockTxHash
+      return txHash
     } catch (error: any) {
       console.error('Send token error:', error)
 
@@ -223,9 +225,8 @@ export function useWalletActions() {
       return null
     } finally {
       setIsLoading(false)
-      setPendingTx(null)
     }
-  }, [address, isConnected, recordTransaction, updateTransactionStatus])
+  }, [address, isConnected, contractWrite, recordTransaction])
 
   /**
    * Send transaction (wrapper for native or token)

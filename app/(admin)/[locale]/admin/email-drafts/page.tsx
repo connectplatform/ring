@@ -6,7 +6,7 @@
  * Review, edit, and approve AI-generated email responses
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FileText, Check, X, Edit, Send, Eye, Clock, Sparkles,
   AlertTriangle, ChevronDown, ChevronUp, Zap
@@ -15,127 +15,14 @@ import {
 interface Draft {
   id: string;
   threadId: string;
-  originalSubject: string;
-  originalFrom: string;
-  originalBody: string;
+  messageId: string;
   draftContent: string;
   confidenceScore: number;
   modelUsed: string;
   status: 'pending' | 'approved' | 'edited' | 'sent' | 'rejected' | 'auto_sent';
-  toolsUsed: string[];
-  securityPassed: boolean;
+  toolsUsed: { tool: string }[] | string[];
   createdAt: string;
-  intent: string;
-  canAutoSend: boolean;
 }
-
-// Mock data
-const MOCK_DRAFTS: Draft[] = [
-  {
-    id: 'draft_1',
-    threadId: 'thread_1',
-    originalSubject: 'Enterprise inquiry about Ring Platform deployment',
-    originalFrom: 'john@bigcorp.com',
-    originalBody: 'Hi, we are considering Ring Platform for our enterprise deployment. Can you tell us more about pricing and support options for 500+ users?',
-    draftContent: `Dear John,
-
-Thank you for your interest in Ring Platform for your enterprise deployment!
-
-Ring Platform is indeed well-suited for large-scale deployments like yours. For organizations with 500+ users, we offer:
-
-**Enterprise Features:**
-- Dedicated support with guaranteed response times
-- Custom SLA agreements
-- On-premise deployment options
-- Priority feature development
-- Training and onboarding assistance
-
-**Pricing:**
-Enterprise pricing is customized based on your specific needs. I'd love to schedule a call to discuss your requirements in detail and provide a tailored proposal.
-
-Would you be available for a 30-minute call this week? Please let me know your preferred times, and I'll send a calendar invite.
-
-Best regards,
-Ring Platform Team`,
-    confidenceScore: 0.87,
-    modelUsed: 'claude-sonnet-4-20250514',
-    status: 'pending',
-    toolsUsed: ['search_knowledge_base', 'create_task'],
-    securityPassed: true,
-    createdAt: new Date().toISOString(),
-    intent: 'enterprise_inquiry',
-    canAutoSend: false,
-  },
-  {
-    id: 'draft_2',
-    threadId: 'thread_2',
-    originalSubject: 'Help with authentication setup',
-    originalFrom: 'dev@startup.io',
-    originalBody: 'I\'ve been trying to set up Auth.js with Ring Platform but keep getting a callback URL error. Can you help?',
-    draftContent: `Hi Sarah,
-
-I'm sorry to hear you're running into issues with the Auth.js setup. The callback URL error is a common configuration issue that's usually quick to fix.
-
-**Here's what to check:**
-
-1. **Environment Variables:** Ensure your \`.env.local\` file has:
-\`\`\`
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-here
-\`\`\`
-
-2. **Auth Provider Config:** Your callback URL in your OAuth provider (Google, GitHub, etc.) should be:
-\`\`\`
-http://localhost:3000/api/auth/callback/[provider]
-\`\`\`
-
-3. **Production URLs:** If deploying, update both the environment variable and OAuth provider callback URL to your production domain.
-
-For detailed documentation, see: https://docs.ringdom.org/auth/setup
-
-If you're still having trouble, could you share the specific error message? That will help me pinpoint the issue.
-
-Best,
-Ring Platform Support`,
-    confidenceScore: 0.93,
-    modelUsed: 'claude-sonnet-4-20250514',
-    status: 'pending',
-    toolsUsed: ['search_knowledge_base'],
-    securityPassed: true,
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-    intent: 'technical_support',
-    canAutoSend: false,
-  },
-  {
-    id: 'draft_3',
-    threadId: 'thread_3',
-    originalSubject: 'Feature request: Dark mode support',
-    originalFrom: 'user@example.com',
-    originalBody: 'Would love to see dark mode added to the dashboard. Eyes hurt after long coding sessions!',
-    draftContent: `Hello!
-
-Thank you for the feature suggestion! Dark mode is definitely on our radar - your eyes will thank you soon!
-
-We're currently planning our Q2 roadmap, and UI themes including dark mode are being considered. Your feedback helps us prioritize!
-
-I've added your request to our feature tracking system. You can follow the progress on our public roadmap: https://ringdom.org/roadmap
-
-In the meantime, you might find browser extensions like Dark Reader helpful for reducing eye strain.
-
-Thanks for being part of the Ring Platform community!
-
-Cheers,
-Ring Platform Team`,
-    confidenceScore: 0.96,
-    modelUsed: 'claude-haiku-4-5-20250514',
-    status: 'pending',
-    toolsUsed: ['create_task'],
-    securityPassed: true,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    intent: 'feature_request',
-    canAutoSend: true,
-  },
-];
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
@@ -147,21 +34,54 @@ const statusColors = {
 };
 
 export default function EmailDraftsPage() {
-  const [drafts, setDrafts] = useState<Draft[]>(MOCK_DRAFTS);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  const handleApprove = (draftId: string) => {
-    setDrafts(prev => prev.map(d => 
-      d.id === draftId ? { ...d, status: 'approved' as const } : d
-    ));
+  const loadDrafts = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const res = await fetch('/api/admin/email/drafts', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Failed to load drafts (${res.status})`);
+      const json = await res.json();
+      const rows = Array.isArray(json.drafts) ? json.drafts : [];
+      setDrafts(
+        rows.map((d: Record<string, unknown>) => ({
+          id: String(d.id),
+          threadId: String(d.threadId),
+          messageId: String(d.messageId),
+          draftContent: String(d.draftContent),
+          confidenceScore: Number(d.confidenceScore ?? 0),
+          modelUsed: String(d.modelUsed ?? ''),
+          status: d.status as Draft['status'],
+          toolsUsed: (d.toolsUsed as Draft['toolsUsed']) ?? [],
+          createdAt: typeof d.createdAt === 'string' ? d.createdAt : new Date(String(d.createdAt)).toISOString(),
+        }))
+      );
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load drafts');
+      setDrafts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  const handleApprove = async (draftId: string) => {
+    await fetch(`/api/admin/email/drafts/${draftId}/approve`, { method: 'POST' });
+    await loadDrafts();
   };
 
-  const handleReject = (draftId: string) => {
-    setDrafts(prev => prev.map(d => 
-      d.id === draftId ? { ...d, status: 'rejected' as const } : d
-    ));
+  const handleReject = async (draftId: string) => {
+    await fetch(`/api/admin/email/drafts/${draftId}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'Rejected by admin' }),
+    });
+    await loadDrafts();
   };
 
   const handleEdit = (draft: Draft) => {
@@ -177,10 +97,9 @@ export default function EmailDraftsPage() {
     setEditContent('');
   };
 
-  const handleAutoSend = (draftId: string) => {
-    setDrafts(prev => prev.map(d => 
-      d.id === draftId ? { ...d, status: 'auto_sent' as const } : d
-    ));
+  const handleSend = async (draftId: string) => {
+    await fetch(`/api/admin/email/drafts/${draftId}/send`, { method: 'POST' });
+    await loadDrafts();
   };
 
   const getConfidenceColor = (score: number) => {
@@ -263,7 +182,7 @@ export default function EmailDraftsPage() {
                           </span>
                         </div>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Re: {draft.originalSubject}
+                          Thread: {draft.threadId.slice(0, 24)}…
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[draft.status]}`}>
                           {draft.status}
@@ -271,9 +190,9 @@ export default function EmailDraftsPage() {
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        {draft.canAutoSend && (
+                        {draft.status === 'approved' && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleAutoSend(draft.id); }}
+                            onClick={(e) => { e.stopPropagation(); handleSend(draft.id); }}
                             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                           >
                             <Zap className="h-4 w-4" />
@@ -310,10 +229,10 @@ export default function EmailDraftsPage() {
                     </div>
                     
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span>From: {draft.originalFrom}</span>
+                      <span>Message: {draft.messageId.slice(0, 32)}</span>
                       <span>Model: {draft.modelUsed.split('-').slice(1, 3).join(' ')}</span>
                       <span>Tools: {draft.toolsUsed.join(', ') || 'None'}</span>
-                      {!draft.securityPassed && (
+                      {false && (
                         <span className="flex items-center gap-1 text-orange-600">
                           <AlertTriangle className="h-3 w-3" />
                           Security flagged
@@ -332,7 +251,7 @@ export default function EmailDraftsPage() {
                             Original Email
                           </h4>
                           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-300">
-                            {draft.originalBody}
+                            {draft.draftContent}
                           </div>
                         </div>
                         
@@ -394,7 +313,7 @@ export default function EmailDraftsPage() {
                           {draft.status.replace('_', ' ')}
                         </span>
                         <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {draft.originalSubject}
+                          Thread: {draft.threadId.slice(0, 24)}…
                         </span>
                       </div>
                       <span className="text-xs text-gray-500 dark:text-gray-400">

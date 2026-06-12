@@ -1,33 +1,16 @@
+import { redirect } from 'next/navigation'
+import type { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import type { Metadata } from 'next'
-import type { LocalePageProps } from '@/utils/page-props'
-import { generateDocsMetadata, renderDocsPage } from '@/components/docs/docs-page-renderer'
 
-type ConfidentialRoadmapChildrenParams = {
-  locale: string
-  slug: string[]
-}
+type Params = { locale: string; slug: string[] }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<ConfidentialRoadmapChildrenParams>
-}): Promise<Metadata> {
+/** Legacy confidential child routes — redirect to public docs/roadmap */
+export default async function ConfidentialRoadmapChildRedirect({ params }: LocalePageProps<Params>) {
   const { locale: rawLocale, slug } = await params
-  const locale = (routing.locales.includes(rawLocale as Locale) ? (rawLocale as Locale) : routing.defaultLocale) as Locale
-  const segments = ['roadmap', ...(Array.isArray(slug) ? slug : [])]
-
-  return generateDocsMetadata({ locale, slug: segments, confidential: true })
+  const locale = (routing.locales.includes(rawLocale as Locale)
+    ? (rawLocale as Locale)
+    : routing.defaultLocale) as Locale
+  const rest = Array.isArray(slug) && slug.length > 0 ? `/${slug.join('/')}` : ''
+  redirect(`/${locale}/docs/roadmap${rest}`)
 }
-
-export default async function ConfidentialRoadmapChildrenPage({
-  params,
-}: LocalePageProps<ConfidentialRoadmapChildrenParams>) {
-  const { locale: rawLocale, slug } = await params
-  const locale = (routing.locales.includes(rawLocale as Locale) ? (rawLocale as Locale) : routing.defaultLocale) as Locale
-  const roadmapSegments = ['roadmap', ...(Array.isArray(slug) ? slug : [])]
-
-  return renderDocsPage({ locale, slug: roadmapSegments, confidential: true })
-}
-

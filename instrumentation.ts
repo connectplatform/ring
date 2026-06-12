@@ -1,21 +1,8 @@
-/**
- * Next.js instrumentation – runs once when the Node/edge runtime loads.
- * Replace broken localStorage proxy with a no-op object so build/static generation does not throw.
- */
-const noopStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
-  key: () => null,
-  length: 0,
-  clear: () => {},
-}
-
 export async function register() {
-  const g = globalThis as any
-  const storage = g.localStorage ?? g.window?.localStorage
-  if (storage && typeof storage.getItem !== 'function') {
-    g.localStorage = noopStorage
-    if (g.window) g.window.localStorage = noopStorage
+  if (process.env.NEXT_RUNTIME === 'nodejs' && process.env.EMAIL_PROCESSOR_AUTOSTART === 'true') {
+    const { getEmailProcessor } = await import('@/services/email/email-processor');
+    getEmailProcessor()
+      .start()
+      .catch((err) => console.error('[instrumentation] EmailProcessor start failed', err));
   }
 }

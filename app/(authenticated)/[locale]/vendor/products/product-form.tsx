@@ -39,13 +39,15 @@ import {
 import { createVendorProduct, updateVendorProduct } from '@/app/_actions/vendor-actions'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
-import AgriculturalFieldsSection from '@/components/vendor/agricultural-fields-section'
+import NicheProductFieldsSection from '@/components/vendor/niche-product-fields-section'
 
 interface ProductFormProps {
   mode: 'create' | 'edit'
   locale: Locale
   vendorEntity: any
   existingProduct?: any
+  /** Inherited merchant/platform referral % when product override is empty */
+  inheritedReferralPercent?: number
 }
 
 // Agricultural categories (same as onboarding)
@@ -64,7 +66,13 @@ const PRODUCT_CATEGORIES = [
   'handmade-crafts'
 ]
 
-export default function ProductForm({ mode, locale, vendorEntity, existingProduct }: ProductFormProps) {
+export default function ProductForm({
+  mode,
+  locale,
+  vendorEntity,
+  existingProduct,
+  inheritedReferralPercent = 5,
+}: ProductFormProps) {
   const t = useTranslations('vendor.products.form')
   const tCat = useTranslations('vendor.onboarding.categories')
   const router = useRouter()
@@ -287,6 +295,29 @@ export default function ProductForm({ mode, locale, vendorEntity, existingProduc
               </Select>
             </div>
 
+            {/* Referral commission (optional per-product override) */}
+            <div className="space-y-2">
+              <Label htmlFor="referralCommission">{t('referralCommission')}</Label>
+              <Input
+                id="referralCommission"
+                name="referralCommission"
+                type="number"
+                step="0.1"
+                min="0"
+                max="50"
+                defaultValue={
+                  existingProduct?.referralCommission ??
+                  existingProduct?.data?.referralCommission ??
+                  ''
+                }
+                placeholder={t('referralCommissionPlaceholder', {
+                  percent: inheritedReferralPercent,
+                })}
+                disabled={isPending}
+              />
+              <p className="text-xs text-muted-foreground">{t('referralCommissionHint')}</p>
+            </div>
+
             {/* Price and Stock */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -334,7 +365,7 @@ export default function ProductForm({ mode, locale, vendorEntity, existingProduc
 
             {/* Agricultural ERP Fields (Optional - Phase 2) */}
             <div className="pt-4 border-t">
-              <AgriculturalFieldsSection 
+              <NicheProductFieldsSection 
                 isPending={isPending}
                 existingData={existingProduct?.data}
               />

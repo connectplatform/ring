@@ -8,8 +8,7 @@
  * READS - Use React 19 cache() for performance
  */
 
-import { cache } from 'react'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { revalidatePath } from 'next/cache'
 import type {
   ExtendedVendorProfile,
@@ -25,14 +24,11 @@ import type {
  */
 export async function updateQualityProfile(vendorId: string, updates: Partial<VendorQualityProfile>): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const vendorResult = await db.read('vendorProfiles', vendorId)
+    const vendorResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', vendorId)
     if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
-    const vendor = vendorResult.data as any as ExtendedVendorProfile
+    const vendor = vendorResult.data
 
     const updatedQualityProfile = {
       ...vendor.qualityProfile,
@@ -40,13 +36,12 @@ export async function updateQualityProfile(vendorId: string, updates: Partial<Ve
       lastInspectionDate: new Date().toISOString()
     }
 
-    // Recalculate quality score
     const qualityScore = calculateQualityScore({
       ...vendor,
       qualityProfile: updatedQualityProfile
     })
 
-    const updateResult = await db.update('vendorProfiles', vendorId, {
+    const updateResult = await db().updateDoc('vendor_profiles', vendorId, {
       qualityProfile: {
         ...updatedQualityProfile,
         qualityScore
@@ -58,7 +53,6 @@ export async function updateQualityProfile(vendorId: string, updates: Partial<Ve
       throw updateResult.error || new Error('Failed to update quality profile')
     }
     
-    // Revalidate vendor pages (React 19 pattern)
     revalidatePath(`/[locale]/vendor/${vendorId}`)
     revalidatePath('/[locale]/vendors')
   } catch (error) {
@@ -76,14 +70,11 @@ export async function addCertification(
   certification: Omit<Certification, 'id'>
 ): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const vendorResult = await db.read('vendorProfiles', vendorId)
+    const vendorResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', vendorId)
     if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
-    const vendor = vendorResult.data as any as ExtendedVendorProfile
+    const vendor = vendorResult.data
 
     const newCertification: Certification = {
       ...certification,
@@ -110,24 +101,20 @@ export async function updateComplianceStatus(
   complianceUpdates: Partial<VendorCompliance>
 ): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const vendorResult = await db.read('vendorProfiles', vendorId)
+    const vendorResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', vendorId)
     if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
-    const vendor = vendorResult.data as any as ExtendedVendorProfile
+    const vendor = vendorResult.data
 
     const updatedCompliance = {
       ...vendor.compliance,
       ...complianceUpdates
     }
 
-    // Recalculate compliance rating
     const complianceRating = calculateComplianceScore(updatedCompliance)
 
-    const updateResult = await db.update('vendorProfiles', vendorId, {
+    const updateResult = await db().updateDoc('vendor_profiles', vendorId, {
       compliance: {
         ...updatedCompliance,
         complianceRating
@@ -139,7 +126,6 @@ export async function updateComplianceStatus(
       throw updateResult.error || new Error('Failed to update compliance status')
     }
     
-    // Revalidate vendor pages (React 19 pattern)
     revalidatePath(`/[locale]/vendor/${vendorId}`)
     revalidatePath('/[locale]/vendors')
   } catch (error) {
@@ -157,14 +143,11 @@ export async function recordComplianceViolation(
   violation: Omit<ComplianceViolation, 'id' | 'dateReported'>
 ): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const vendorResult = await db.read('vendorProfiles', vendorId)
+    const vendorResult = await db().readDoc<ExtendedVendorProfile>('vendor_profiles', vendorId)
     if (!vendorResult.success || !vendorResult.data) {
       throw new Error('Vendor not found')
     }
-    const vendor = vendorResult.data as any as ExtendedVendorProfile
+    const vendor = vendorResult.data
 
     const newViolation: ComplianceViolation = {
       ...violation,
@@ -194,16 +177,9 @@ function calculateQualityScore(vendorProfile: ExtendedVendorProfile): number {
     customerSatisfaction: 0.2
   }
 
-  // Certification score (0-100)
   const certScore = calculateCertificationScore(vendorProfile.qualityProfile.certifications)
-
-  // Compliance score (0-100)
   const complianceScore = calculateComplianceScore(vendorProfile.compliance)
-
-  // Performance score (0-100)
-  const performanceScore = vendorProfile.analytics.customerSatisfactionScore * 20 // Convert 1-5 to 0-100
-
-  // Customer satisfaction score (0-100)
+  const performanceScore = vendorProfile.analytics.customerSatisfactionScore * 20
   const customerScore = vendorProfile.analytics.customerSatisfactionScore * 20
 
   const totalScore =
@@ -245,7 +221,6 @@ function calculateComplianceScore(compliance: VendorCompliance): number {
   if (compliance.organicCertified) score += 25
   if (compliance.fairTradeCertified) score += 25
 
-  // Penalty for violations
   const recentViolations = compliance.complianceViolations.filter(
     violation => new Date(violation.dateReported) > new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
   )

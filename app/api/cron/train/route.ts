@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AITrainingPipeline } from '@/lib/ai/training-pipeline'
 
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
+  // Fail closed: same contract as /api/cron/refcodes-mint
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const pipeline = new AITrainingPipeline()
     const data = await pipeline.collectTrainingData()

@@ -1,0 +1,50 @@
+---
+title: Комиссии и расчёты
+description: Ledger settlements, реферальная комиссия, batch payout и режим simulated/onchain
+last_modified: "2026-06-10"
+---
+
+# Комиссии и расчёты
+
+`settlement.ts` считает комиссию платформы, реферальную часть (если есть `referralCode`) и custom splits из `merchant_configs`.
+
+> **EN canonical:** полные таблицы и env — [Commissions & Settlements (EN)](/docs/library/features/erp/commissions)
+
+## Единый ledger
+
+Оплаченные заказы (WayForPay или credit) → `VendorSettlementService` → `recordSettlementsForPaidOrder` → таблица **`settlements`**.
+
+| Коллекция | Роль |
+|-----------|------|
+| `settlements` | Канонический ledger — админ Commissions, `/vendor/earnings` |
+| `vendor_settlements` | Legacy (новые записи не пишутся) |
+| `payout_batches` | Batch **Process due payouts** |
+| `erp_sales_assists` | Реферальные продажи для аналитики |
+
+## Админ
+
+`/admin/store/commissions` — список расчётов и **Process due payouts** (`processDueSettlements`).
+
+## Иерархия referral %
+
+Общий resolver `resolveReferralCommissionPercent` (продукт → merchant → platform 5% → env). Смешанные корзины — взвешенный effective %.
+
+## Режим выплат
+
+| `SETTLEMENT_PAYOUT_MODE` | Поведение |
+|--------------------------|-----------|
+| `simulated` (default) | `metadata.simulated: true`, badge **Simulated** в UI |
+| `onchain` | ERC20 transfer через treasury wallet |
+
+## Миграции
+
+```bash
+./scripts/apply-erp-migrations-dev.sh   # 005 + 007
+```
+
+Таблицы 007: `settlements`, `payout_batches`, `merchant_configs`, `stock_movements`, `erp_sales_assists`.
+
+## Связанное
+
+- [Refcodes](/docs/library/features/refcodes)
+- [Ring ERP](/docs/library/features/erp/index)

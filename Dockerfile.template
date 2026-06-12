@@ -152,7 +152,7 @@ RUN if [ -f pnpm-lock.yaml ]; then \
 COPY . .
 
 # Copy environment template
-COPY env.local.template .env.local.template
+COPY env.local.template env.local.template
 
 # Build the application
 RUN npm run build

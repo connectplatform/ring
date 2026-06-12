@@ -1,10 +1,8 @@
 ---
 title: Local Setup
 description: Local development with install.sh, locale env, and PostgreSQL migrations (v1.6.0)
-last_modified: "2026-06-06"
+last_modified: "2026-06-10"
 ---
-
-import { Tabs, Tab } from '@/components/docs/tabs'
 
 # Local Development Setup
 
@@ -46,8 +44,8 @@ cd ring`}
 </Code>
   </Tab>
   <Tab value="yarn">
-    <Code language="bash" title="yarn install">
-{``}
+    <Code language="bash" title="terminal">
+{`yarn install`}
 </Code>
   </Tab>
 </Tabs>
@@ -57,7 +55,7 @@ cd ring`}
 Copy the environment template:
 
 <Code language="bash" title="terminal">
-{`# cp .env.local.template .env.local`}
+{`# cp env.local.template .env.local`}
 </Code>
 
 Configure your `.env.local` file:
@@ -136,6 +134,24 @@ ring/
 ├── @actions/          # Server actions
 └── public/            # Static assets
 ```
+
+## PostgreSQL (Homebrew — Ringdom monorepo)
+
+For multi-clone local dev without Docker Desktop:
+
+```bash
+brew install postgresql@18 postgis
+brew services start postgresql@18
+export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
+
+# Bootstrap all clone DBs from DEV-DATABASE-MANIFEST.json
+./infrastructure/postgres/bootstrap-brew-dev.sh --compare-prod
+
+# Or one project:
+./infrastructure/postgres/bootstrap-brew-dev.sh ring-platform.org
+```
+
+Point each clone `.env.local` `DATABASE_URL` at its database (`ring_platform`, `ring_zemna_ai`, `ring_ringdom_org`, …). See [Database migrations](/docs/library/getting-started/migrations) and `infrastructure/postgres/MIGRATION-KINGDOM-MATRIX.md`.
 
 ## 🧪 Testing Setup
 

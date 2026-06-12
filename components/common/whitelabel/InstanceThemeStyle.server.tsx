@@ -1,5 +1,5 @@
 // Server Component: injects CSS variables for brand colors at runtime
-import { getInstanceConfig } from '@/lib/instance-config'
+import { getInstanceConfig } from '@/lib/ring-config-core'
 
 function hexToRgb(hex: string) {
   const normalized = hex.replace('#', '')

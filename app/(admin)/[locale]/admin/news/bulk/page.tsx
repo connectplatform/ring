@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { ROUTES } from '@/constants/routes'
 import { auth } from '@/auth'
 import type { Locale } from '@/i18n/shared';
 import { BulkOperationsManager } from '@/features/news/components/bulk-operations-manager'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { mapNewsDocument } from '@/lib/news/map-news-document'
 import { NewsArticle } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
 import { connection } from 'next/server'
@@ -19,28 +20,19 @@ import { isPlatformAdmin } from '@/features/auth/user-role';
  */
 async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
-    // Initialize database service with proper error handling
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      console.error('Database initialization failed:', initResult.error)
-      return [] // Graceful degradation
-    }
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      pagination: { limit: 100 }
+      pagination: { limit: 100 },
     })
-    
+
     if (!result.success) return []
-    return result.data as any[] as NewsArticle[]
+    return result.data.map((row) => mapNewsDocument(row))
   } catch (error) {
     console.error('Error fetching articles for bulk operations:', error)
     return []
   }
 }
-
 
 export async function generateMetadata({
   params,
@@ -57,8 +49,6 @@ export async function generateMetadata({
     path: 'admin',
     pathname: '/admin/news/bulk',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

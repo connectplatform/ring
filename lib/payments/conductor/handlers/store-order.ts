@@ -8,6 +8,7 @@ import { VendorSettlementService } from '@/features/store/services/vendor-settle
 import { ERPStockService } from '@/features/store/services/erp-stock-service'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import type { StorePayment, StoreOrder } from '@/features/store/types'
+import { ReferralRewardService } from '@/features/refcodes/services/referral-reward-service'
 
 function mapTransactionStatus(wayforpayStatus: string): StorePayment['status'] {
   const statusMap: Record<string, StorePayment['status']> = {
@@ -59,7 +60,10 @@ export async function handleStoreWayForPayWebhook(
 
       if (order?.items?.length) {
         try {
-          await ERPStockService.deductStockForOrder(orderId, order.items, order.userId)
+          await ERPStockService.deductStockForOrder(orderId, order.items, order.userId, {
+            referralCode: order.referralCode,
+            assisted: Boolean(order.referralCode),
+          })
         } catch (stockError) {
           logger.error('Store webhook: stock deduction failed', { orderId, stockError })
         }
@@ -75,6 +79,18 @@ export async function handleStoreWayForPayWebhook(
           })
         } catch (settlementError) {
           logger.error('Store webhook: settlement failed', { orderId, settlementError })
+        }
+      }
+
+      if (order) {
+        try {
+          await ReferralRewardService.onOrderPaid({
+            order: order as StoreOrder,
+            orderReference,
+            rail: 'fiat',
+          })
+        } catch (referralError) {
+          logger.error('Store webhook: referral reward failed', { orderId, referralError })
         }
       }
     }

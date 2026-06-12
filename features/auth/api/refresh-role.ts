@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { auth } from '@/auth'
 
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -15,16 +15,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.findById('users', session.user.id)
-    if (!result.success) {
+    const result = await db().findDocById<Record<string, unknown>>('users', session.user.id)
+    if (!result.success || !result.data) {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const userData = result.data.data
-    return res.status(200).json({ role: userData.role })
+    return res.status(200).json({ role: result.data.role })
   } catch (error) {
     console.error('Error refreshing user role:', error)
     return res.status(500).json({ error: 'Internal server error' })

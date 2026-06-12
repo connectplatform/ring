@@ -7,12 +7,8 @@
  * - Used in API routes and server actions only
  */
 
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import type { StorePayment, VendorSettlement } from '@/features/store/types'
-
-// Payment orchestration service for Store domain
-// Currently supports WayForPay integration. 
-// Stripe and crypto are TODO/placeholder implementations.
 
 export interface CreateStripeSessionInput {
   orderId: string
@@ -29,7 +25,6 @@ export interface CreateWayForPaySessionInput {
 export const StorePaymentsService = {
   async createWayForPaySession(input: CreateWayForPaySessionInput) {
     try {
-      // Call the WayForPay API endpoint
       const response = await fetch('/api/store/payments/wayforpay', {
         method: 'POST',
         headers: {
@@ -56,16 +51,12 @@ export const StorePaymentsService = {
   },
 
   async createStripeTestSession(_input: CreateStripeSessionInput) {
-    // TODO: implement Stripe test session
     return { url: '/checkout/stripe/mock-session' }
   },
 
   async markOrderPaidStripe(orderId: string, stripeSessionId: string) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', orderId, {
+      await db().updateDoc('orders', orderId, {
         payment: { method: 'stripe', status: 'paid', stripeSessionId },
         status: 'paid',
         updatedAt: new Date().toISOString()
@@ -80,10 +71,7 @@ export const StorePaymentsService = {
 
   async markOrderFailedStripe(orderId: string, stripeSessionId: string) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', orderId, {
+      await db().updateDoc('orders', orderId, {
         payment: { method: 'stripe', status: 'failed', stripeSessionId },
         updatedAt: new Date().toISOString()
       })
@@ -97,10 +85,7 @@ export const StorePaymentsService = {
 
   async recordCryptoPayment(orderId: string, txHash: string) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', orderId, {
+      await db().updateDoc('orders', orderId, {
         payment: { method: 'crypto', status: 'paid', txHash },
         status: 'paid',
         updatedAt: new Date().toISOString()
@@ -115,10 +100,7 @@ export const StorePaymentsService = {
 
   async markOrderPaidWayForPay(orderId: string, wayforpayOrderId: string, paymentData: Partial<StorePayment>) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', orderId, {
+      await db().updateDoc('orders', orderId, {
         payment: {
           method: 'wayforpay',
           status: 'paid',
@@ -138,10 +120,7 @@ export const StorePaymentsService = {
 
   async markOrderFailedWayForPay(orderId: string, wayforpayOrderId: string, reason: string) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      await db.update('orders', orderId, {
+      await db().updateDoc('orders', orderId, {
         payment: {
           method: 'wayforpay',
           status: 'failed',
@@ -160,17 +139,10 @@ export const StorePaymentsService = {
 
   async processVendorSettlements(orderId: string, settlements: VendorSettlement[]) {
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      
-      // Update order with settlement data
-      await db.update('orders', orderId, {
+      await db().updateDoc('orders', orderId, {
         vendorSettlements: settlements,
         updatedAt: new Date().toISOString()
       })
-      
-      // TODO: Trigger actual vendor payout processing
-      // This will be implemented with the settlement service
       
       return { ok: true, orderId, settlementCount: settlements.length }
     } catch (error) {
@@ -179,4 +151,3 @@ export const StorePaymentsService = {
     }
   }
 }
-

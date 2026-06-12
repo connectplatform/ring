@@ -7,9 +7,12 @@
  */
 
 import { cache } from 'react'
-import { Opportunity } from '@/features/opportunities/types'
+import { SerializedOpportunity } from '@/features/opportunities/types'
+import {
+  mapDbDocumentToSerializedOpportunity,
+} from '@/features/opportunities/lib/opportunity-db-mapper'
 import { UserRole } from '@/features/auth/types'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 /**
  * Interface defining the parameters required to fetch confidential opportunities
@@ -41,7 +44,7 @@ interface getConfidentialOpportunitiesParams {
  * @property {number} totalOpportunities - Total count of matching opportunities
  */
 interface getConfidentialOpportunitiesResult {
-  opportunities: Opportunity[];
+  opportunities: SerializedOpportunity[];
   lastVisible: string | null;
   totalPages: number;
   totalOpportunities: number;
@@ -98,15 +101,11 @@ export const getConfidentialOpportunities = cache(async (
     const [sortField, sortDirection] = sort.split(':');
 
     // Step 3: Get total count for pagination
-    const countResult = await db().execute('count', {
-      collection: 'opportunities',
-      filters: filters
-    });
+    const countResult = await db().countDocs('opportunities', filters)
 
-    const totalOpportunities = countResult.success ? countResult.data : 0;
+    const totalOpportunities = countResult.success ? (countResult.data ?? 0) : 0;
     const totalPages = Math.ceil(totalOpportunities / limit);
 
-    // Step 4: Build query with pagination
     const dbQuery = {
       collection: 'opportunities',
       filters: filters,
@@ -120,10 +119,7 @@ export const getConfidentialOpportunities = cache(async (
     if (startAfter) {
       console.log(`Services: getconfidential-opportunities - Paginating after opportunity ID: ${startAfter}`);
       try {
-        const startAfterResult = await db().execute('findById', {
-          collection: 'opportunities',
-          id: startAfter
-        });
+        const startAfterResult = await db().findDocById('opportunities', startAfter)
 
         if (startAfterResult.success && startAfterResult.data) {
           // For now, use simple offset-based pagination
@@ -135,16 +131,13 @@ export const getConfidentialOpportunities = cache(async (
     }
 
     // Step 5: Execute query and process results
-    const queryResult = await db().execute('query', { querySpec: dbQuery });
+    const queryResult = await db().queryDocs(dbQuery);
 
-    const opportunities: Opportunity[] = [];
+    const opportunities: SerializedOpportunity[] = [];
     if (queryResult.success && queryResult.data) {
-      queryResult.data.forEach(item => {
-        opportunities.push({
-          ...item.data,
-          id: item.id,
-        } as Opportunity);
-      });
+      for (const item of queryResult.data) {
+        opportunities.push(mapDbDocumentToSerializedOpportunity(item));
+      }
     }
 
     // Get the ID of the last visible document for next page pagination

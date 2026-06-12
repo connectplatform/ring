@@ -2,18 +2,20 @@ import React, { Suspense } from 'react'
 import type { Metadata, Viewport } from 'next'
 import InstanceThemeStyle from '@/components/common/whitelabel/InstanceThemeStyle.server'
 import '@/styles/globals.css'
+import { SIDEBAR_COOKIE_NAME } from '@/lib/sidebar-pref'
 import { Inter } from 'next/font/google'
 import {
   AppClientShell,
   AppShellStaticFallback,
 } from '@/components/providers/app-client-shell'
-import { getPublicInstanceConfig } from '@/lib/instance-config'
+import { getPublicInstanceConfig } from '@/lib/ring-config'
 import {
   DEFAULT_LOCALE,
   getClientLocaleConfig,
   LEGACY_BROWSER_GATE,
   SUPPORTED_LOCALES,
 } from '@/lib/locale-config'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 
 const CLIENT_LOCALE_CONFIG = getClientLocaleConfig()
 const LEGACY_BROWSER_GATE_JSON = JSON.stringify(LEGACY_BROWSER_GATE)
@@ -35,6 +37,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteBaseUrl()),
   other: {
     'format-detection': 'telephone=no, date=no, address=no, email=no',
   },
@@ -74,6 +77,11 @@ export default async function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__RING_LOCALE_CONFIG__=${CLIENT_LOCALE_CONFIG_JSON};`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/${SIDEBAR_COOKIE_NAME}=([^;]+)/);if(!m)return;var s=JSON.parse(decodeURIComponent(m[1]));var w=s.collapsed?0:(typeof s.asideW==='number'?Math.min(320,Math.max(0,s.asideW)):270);document.documentElement.style.setProperty('--sidebar-aside-w',w+'px');}catch(e){}})();`,
           }}
         />
         <script

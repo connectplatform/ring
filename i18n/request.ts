@@ -11,8 +11,19 @@ export default getRequestConfig(async ({ requestLocale }) => {
     : routing.defaultLocale
 
   const headersList = await headers()
-  const pathname = headersList.get('x-pathname') ?? '/'
-  const scope = resolveMessageScope(pathname)
+  let pathname = headersList.get('x-pathname')
+  if (!pathname) {
+    const xUrl = headersList.get('x-url')
+    if (xUrl) {
+      try {
+        pathname = new URL(xUrl).pathname
+      } catch {
+        /* ignore malformed x-url */
+      }
+    }
+  }
+  // Missing path headers → avoid shrinking to public-home (drops route-specific namespaces).
+  const scope = pathname ? resolveMessageScope(pathname) : 'public'
 
   return {
     locale: finalLocale,

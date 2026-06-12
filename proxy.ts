@@ -8,8 +8,14 @@ import {
   isIntlSelfReferentialRedirect,
   stripLocaleFromPathname,
   finalizeIntlResponse,
+  nextWithPathHeaders,
   withUpstreamPathHeaders,
 } from '@/lib/proxy-intl'
+import {
+  REF_COOKIE_MAX_AGE_SECONDS,
+  REF_COOKIE_NAME,
+  REF_VISIBLE_COOKIE_NAME,
+} from '@/features/refcodes/constants'
 
 /**
  * next-intl + optimistic session-cookie gate for /profile and /settings only.
@@ -64,10 +70,28 @@ export default async function proxy(req: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    return finalizeIntlResponse(req, intlReq, i18nResponse)
+    const response = finalizeIntlResponse(req, intlReq, i18nResponse)
+    const refParam = intlReq.nextUrl.searchParams.get('ref')?.trim()
+    if (refParam && !intlReq.cookies.get(REF_COOKIE_NAME)?.value) {
+      response.cookies.set(REF_COOKIE_NAME, refParam, {
+        maxAge: REF_COOKIE_MAX_AGE_SECONDS,
+        path: '/',
+        sameSite: 'lax',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      })
+      response.cookies.set(REF_VISIBLE_COOKIE_NAME, refParam, {
+        maxAge: REF_COOKIE_MAX_AGE_SECONDS,
+        path: '/',
+        sameSite: 'lax',
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+      })
+    }
+    return response
   } catch (error) {
     console.error('Proxy error:', error)
-    return NextResponse.next()
+    return nextWithPathHeaders(req)
   }
 }
 

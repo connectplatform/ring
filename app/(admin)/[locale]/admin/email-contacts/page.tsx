@@ -6,7 +6,7 @@
  * Manage email contacts and view interaction history
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, Search, Filter, Plus, Eye, Edit, Trash2,
   Building, Mail, Clock, TrendingUp, TrendingDown, Minus,
@@ -117,10 +117,44 @@ const TrendIcon = ({ trend }: { trend: string }) => {
 };
 
 export default function EmailContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>(MOCK_CONTACTS);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  const loadContacts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/email/contacts', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows = Array.isArray(json.contacts) ? json.contacts : [];
+      setContacts(
+        rows.map((c: Record<string, unknown>) => ({
+          id: String(c.id),
+          email: String(c.email),
+          name: c.name != null ? String(c.name) : null,
+          company: c.company != null ? String(c.company) : null,
+          type: c.type as Contact['type'],
+          tags: Array.isArray(c.tags) ? (c.tags as string[]) : [],
+          ringUserId: c.ringUserId != null ? String(c.ringUserId) : null,
+          firstContact: String(c.firstContact),
+          lastContact: String(c.lastContact),
+          totalInteractions: Number(c.totalInteractions ?? 0),
+          sentimentTrend: 'unknown' as const,
+          recentSentiment:
+            Array.isArray(c.sentimentHistory) && c.sentimentHistory.length
+              ? String((c.sentimentHistory as { sentiment: string }[]).at(-1)?.sentiment)
+              : 'neutral',
+        }))
+      );
+    } catch {
+      setContacts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadContacts();
+  }, [loadContacts]);
 
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = 

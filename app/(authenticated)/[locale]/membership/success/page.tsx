@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { Suspense } from 'react'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
@@ -34,8 +34,6 @@ export async function generateMetadata({
     path: 'membership',
     pathname: '/membership/success',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

@@ -15,11 +15,7 @@ export default function Footer() {
   return (
     <footer className="bg-background text-foreground border-t">
       {/* Three-column layout to match page style - 280px navbar + content + 280px right */}
-      <div className="hidden lg:grid lg:grid-cols-[280px_1fr_280px] gap-6">
-        {/* Left sidebar space - empty (matches 280px left navbar) */}
-        <div></div>
-
-        {/* Main footer content */}
+      <div className="hidden lg:grid lg:grid-cols-[1fr_280px] gap-6">
         <div className="py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>

@@ -5,7 +5,7 @@
 
 import { getMessaging } from 'firebase-admin/messaging'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { revalidatePath } from 'next/cache'
 
 export interface FCMToken {
@@ -34,6 +34,8 @@ export interface FCMNotification {
   tag?: string
 }
 
+type FcmTokenRow = Record<string, unknown> & { id: string; token?: string }
+
 export class FCMService {
   private messaging: any = null
 
@@ -49,12 +51,6 @@ export class FCMService {
     return this.messaging
   }
 
-  // Database service for token storage (Ring-native!)
-  private async getDb() {
-    await initializeDatabase()
-    return getDatabaseService()
-  }
-
   /**
    * Register a new FCM token for a user
    */
@@ -64,10 +60,7 @@ export class FCMService {
     deviceInfo: FCMToken['deviceInfo']
   ): Promise<void> {
     try {
-      const db = await this.getDb()
-      
-      // Check if token already exists
-      const existingResult = await db.query({
+      const existingResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [{ field: 'token', operator: '==', value: token }],
         pagination: { limit: 1 }
@@ -76,17 +69,15 @@ export class FCMService {
       const now = new Date()
 
       if (existingResult.success && existingResult.data.length > 0) {
-        // Update existing token
         const tokenId = existingResult.data[0].id
-        await db.update('fcm_tokens', tokenId, {
+        await db().updateDoc('fcm_tokens', tokenId, {
           userId,
           deviceInfo,
           isActive: true,
           updatedAt: now
         })
       } else {
-        // Create new token (MUTATION - NO CACHE!)
-        await db.create('fcm_tokens', {
+        await db().createDoc('fcm_tokens', {
           userId,
           token,
           deviceInfo: {
@@ -111,10 +102,7 @@ export class FCMService {
    */
   async sendToUser(userId: string, notification: FCMNotification): Promise<void> {
     try {
-      const db = await this.getDb()
-      
-      // Get all active tokens for the user (READ - can cache)
-      const tokensResult = await db.query({
+      const tokensResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [
           { field: 'userId', operator: '==', value: userId },
@@ -127,7 +115,9 @@ export class FCMService {
         return
       }
 
-      const tokens = tokensResult.data.map((doc: any) => doc.token)
+      const tokens = tokensResult.data
+        .map((row) => row.token)
+        .filter((t): t is string => typeof t === 'string')
       await this.sendToTokens(tokens, notification)
 
     } catch (error) {
@@ -187,10 +177,7 @@ export class FCMService {
    */
   async sendToUsers(userIds: string[], notification: FCMNotification): Promise<void> {
     try {
-      const db = await this.getDb()
-      
-      // Get all active tokens for the users (batched query for multiple users)
-      const tokensResult = await db.query({
+      const tokensResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [
           { field: 'userId', operator: 'in', value: userIds },
@@ -203,7 +190,9 @@ export class FCMService {
         return
       }
 
-      const tokens = tokensResult.data.map((doc: any) => doc.token)
+      const tokens = tokensResult.data
+        .map((row) => row.token)
+        .filter((t): t is string => typeof t === 'string')
       await this.sendToTokens(tokens, notification)
 
     } catch (error) {
@@ -217,9 +206,7 @@ export class FCMService {
    */
   async sendToAllUsers(notification: FCMNotification): Promise<void> {
     try {
-      const db = await this.getDb()
-      
-      const tokensResult = await db.query({
+      const tokensResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [{ field: 'isActive', operator: '==', value: true }]
       })
@@ -229,7 +216,9 @@ export class FCMService {
         return
       }
 
-      const tokens = tokensResult.data.map((doc: any) => doc.token)
+      const tokens = tokensResult.data
+        .map((row) => row.token)
+        .filter((t): t is string => typeof t === 'string')
       
       // Send in batches of 500 (FCM limit)
       const batchSize = 500
@@ -249,9 +238,7 @@ export class FCMService {
    */
   async removeToken(token: string): Promise<void> {
     try {
-      const db = await this.getDb()
-      
-      const tokenResult = await db.query({
+      const tokenResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [{ field: 'token', operator: '==', value: token }],
         pagination: { limit: 1 }
@@ -259,7 +246,7 @@ export class FCMService {
 
       if (tokenResult.success && tokenResult.data.length > 0) {
         const tokenId = tokenResult.data[0].id
-        await db.update('fcm_tokens', tokenId, {
+        await db().updateDoc('fcm_tokens', tokenId, {
           isActive: false,
           updatedAt: new Date()
         })
@@ -277,11 +264,10 @@ export class FCMService {
    */
   async cleanupInactiveTokens(daysInactive: number = 30): Promise<void> {
     try {
-      const db = await this.getDb()
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - daysInactive)
 
-      const inactiveResult = await db.query({
+      const inactiveResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [{ field: 'deviceInfo.lastSeen', operator: '<', value: cutoffDate }]
       })
@@ -291,10 +277,9 @@ export class FCMService {
         return
       }
 
-      // Update each inactive token (batch operation)
       let cleanedCount = 0
-      for (const doc of inactiveResult.data) {
-        const updateResult = await db.update('fcm_tokens', doc.id, { isActive: false })
+      for (const row of inactiveResult.data) {
+        const updateResult = await db().updateDoc('fcm_tokens', row.id, { isActive: false })
         if (updateResult.success) cleanedCount++
       }
 
@@ -327,19 +312,16 @@ export class FCMService {
       }
     })
 
-    // Remove failed tokens (batch update)
     if (failedTokens.length > 0) {
-      const db = await this.getDb()
-      
       for (const token of failedTokens) {
-        const tokenResult = await db.query({
+        const tokenResult = await db().queryDocs<FcmTokenRow>({
           collection: 'fcm_tokens',
           filters: [{ field: 'token', operator: '==', value: token }],
           pagination: { limit: 1 }
         })
         
         if (tokenResult.success && tokenResult.data.length > 0) {
-          await db.update('fcm_tokens', tokenResult.data[0].id, { isActive: false })
+          await db().updateDoc('fcm_tokens', tokenResult.data[0].id, { isActive: false })
         }
       }
 
@@ -352,17 +334,12 @@ export class FCMService {
    */
   async getUserTokensCount(userId: string): Promise<number> {
     try {
-      const db = await this.getDb()
-      
-      const tokensResult = await db.query({
-        collection: 'fcm_tokens',
-        filters: [
-          { field: 'userId', operator: '==', value: userId },
-          { field: 'isActive', operator: '==', value: true }
-        ]
-      })
+      const countResult = await db().countDocs('fcm_tokens', [
+        { field: 'userId', operator: '==', value: userId },
+        { field: 'isActive', operator: '==', value: true }
+      ])
 
-      return tokensResult.success ? tokensResult.data.length : 0
+      return countResult.success ? (countResult.data ?? 0) : 0
     } catch (error) {
       console.error('Error getting user tokens count:', error)
       return 0
@@ -374,9 +351,7 @@ export class FCMService {
    */
   async updateTokenLastSeen(token: string): Promise<void> {
     try {
-      const db = await this.getDb()
-      
-      const tokenResult = await db.query({
+      const tokenResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [{ field: 'token', operator: '==', value: token }],
         pagination: { limit: 1 }
@@ -384,7 +359,7 @@ export class FCMService {
 
       if (tokenResult.success && tokenResult.data.length > 0) {
         const tokenId = tokenResult.data[0].id
-        await db.update('fcm_tokens', tokenId, {
+        await db().updateDoc('fcm_tokens', tokenId, {
           'deviceInfo.lastSeen': new Date(),
           updatedAt: new Date()
         })
@@ -396,4 +371,4 @@ export class FCMService {
 }
 
 // Export singleton instance
-export const fcmService = new FCMService() 
+export const fcmService = new FCMService()

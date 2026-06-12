@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from '@/i18n/routing'
 import { MessageCircle, ArrowLeft, Radio } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -11,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ConversationList } from '@/features/chat/components/conversation-list'
 import { ConversationHeader } from '@/features/chat/components/conversation-header'
 import { MessageThread } from '@/features/chat/components/message-thread'
+import { NewConversationDialog } from '@/features/chat/components/new-conversation-dialog'
 import { useConversation, useConversations } from '@/hooks/use-messaging'
 import { useTunnel } from '@/hooks/use-tunnel'
 import { signIn } from 'next-auth/react'
@@ -21,30 +23,83 @@ import { cn } from '@/lib/utils'
  */
 export default function MessagesContent() {
   const t = useTranslations('common')
+  const router = useRouter()
   const { data: session, status } = useSession()
   const { isConnected, connectionState, provider, latency, error: tunnelError } = useTunnel()
   const searchParams = useSearchParams()
   const paramC = searchParams.get('c')
+  const paramUser = searchParams.get('user')
 
   const [selectedId, setSelectedId] = useState<string | null>(paramC)
   const [showListMobile, setShowListMobile] = useState(true)
+  const [showNewConv, setShowNewConv] = useState(false)
+  const deepLinkHandledRef = useRef<string | null>(null)
 
-  const { refresh } = useConversations()
+  const inbox = useConversations()
+  const { refresh: refreshInbox, createConversation, conversations } = inbox
   const { conversation, loading: convLoad } = useConversation(selectedId || '', {
-    enabled: !!selectedId
+    enabled: !!selectedId,
   })
 
   useEffect(() => {
     if (paramC) setSelectedId(paramC)
   }, [paramC])
 
+  const openDirectConversation = useCallback(
+    async (targetUserId: string) => {
+      if (!session?.user?.id || targetUserId === session.user.id) return
+
+      const existing = conversations.find(
+        (conv) =>
+          conv.type === 'direct' &&
+          conv.participants.some((p) => p.userId === targetUserId),
+      )
+
+      if (existing) {
+        setSelectedId(existing.id)
+        setShowListMobile(false)
+        return
+      }
+
+      const created = await createConversation({
+        type: 'direct',
+        participantIds: [targetUserId],
+        metadata: { directUserId: targetUserId },
+      })
+
+      if (created) {
+        setSelectedId(created.id)
+        setShowListMobile(false)
+      }
+    },
+    [session?.user?.id, conversations, createConversation],
+  )
+
+  useEffect(() => {
+    if (!paramUser || !session?.user?.id) return
+    if (deepLinkHandledRef.current === paramUser) return
+    if (inbox.loading) return
+
+    deepLinkHandledRef.current = paramUser
+    void openDirectConversation(paramUser)
+  }, [paramUser, session?.user?.id, inbox.loading, openDirectConversation])
+
   const onSelect = useCallback(
     (id: string) => {
+      const conversation = conversations.find((conv) => conv.id === id)
+      if (conversation?.type === 'product' && conversation.metadata.productId) {
+        router.push({
+          pathname: '/store/[id]',
+          params: { id: conversation.metadata.productId },
+        })
+        return
+      }
+
       setSelectedId(id)
       setShowListMobile(false)
-      void refresh()
+      void refreshInbox()
     },
-    [refresh]
+    [conversations, refreshInbox, router],
   )
 
   const onBack = useCallback(() => {
@@ -119,8 +174,10 @@ export default function MessagesContent() {
         >
           <ConversationList
             userId={userId}
+            inbox={inbox}
             selectedConversationId={selectedId || undefined}
             onConversationSelectAction={onSelect}
+            onNewConversationAction={() => setShowNewConv(true)}
             className="h-full"
           />
         </div>
@@ -165,6 +222,13 @@ export default function MessagesContent() {
           )}
         </div>
       </div>
+
+      <NewConversationDialog
+        open={showNewConv}
+        onOpenChangeAction={setShowNewConv}
+        createConversation={createConversation}
+        onConversationCreatedAction={onSelect}
+      />
     </div>
   )
 }

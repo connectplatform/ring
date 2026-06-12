@@ -1,5 +1,6 @@
 /**
- * Entity Serialization Utilities
+ * Entity serialization for **Firestore `Timestamp` ↔ ISO string** round-trips (legacy `firebase-full` path).
+ * PostgreSQL / `DatabaseService` reads and writes should use `features/entities/lib/entity-db-mapper.ts` instead.
  */
 
 import { Timestamp } from 'firebase-admin/firestore'
@@ -62,6 +63,10 @@ export function deserializeEntity(serialized: SerializedEntity): Entity {
     lastUpdated: safeToTimestamp(serialized.lastUpdated) || Timestamp.now(),
     // Handle optional timestamp field
     memberSince: serialized.memberSince ? safeToTimestamp(serialized.memberSince) : undefined,
+    lastReportedAt: serialized.lastReportedAt
+      ? safeToTimestamp(serialized.lastReportedAt)
+      : undefined,
+    blockedAt: serialized.blockedAt ? safeToTimestamp(serialized.blockedAt) : undefined,
   }
 }
 
@@ -93,6 +98,18 @@ export function serializeEntity(entity: Entity): SerializedEntity {
       : typeof entity.memberSince === 'string' 
         ? entity.memberSince 
         : undefined,
+    lastReportedAt:
+      entity.lastReportedAt instanceof Timestamp
+        ? entity.lastReportedAt.toDate().toISOString()
+        : typeof entity.lastReportedAt === 'string'
+          ? entity.lastReportedAt
+          : undefined,
+    blockedAt:
+      entity.blockedAt instanceof Timestamp
+        ? entity.blockedAt.toDate().toISOString()
+        : typeof entity.blockedAt === 'string'
+          ? entity.blockedAt
+          : undefined,
   }
 }
 

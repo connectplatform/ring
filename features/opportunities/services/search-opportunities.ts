@@ -5,9 +5,12 @@
 
 import { cache } from 'react'
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
+import {
+  mapDbDocumentToSerializedOpportunity,
+} from '@/features/opportunities/lib/opportunity-db-mapper'
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
 
@@ -330,39 +333,17 @@ export const searchOpportunities = cache(async (
 
     try {
       // Get total count
-      const countResult = await db().execute('count', {
-        collection: 'opportunities',
-        filters: filters
-      })
+      const countResult = await db().countDocs('opportunities', filters)
 
-      totalCount = countResult.success ? countResult.data : 0
+      totalCount = countResult.success ? (countResult.data ?? 0) : 0
 
       // Execute main query
-      const queryResult = await db().execute('query', { querySpec: dbQuery })
+      const queryResult = await db().queryDocs(dbQuery)
 
       if (queryResult.success && queryResult.data) {
-        // Convert to serialized format
-        const timestampToISO = (timestamp: any): string => {
-          if (timestamp && typeof timestamp.toDate === 'function') {
-            return timestamp.toDate().toISOString()
-          }
-          if (timestamp instanceof Date) {
-            return timestamp.toISOString()
-          }
-          return new Date().toISOString()
-        }
-
-        opportunities = queryResult.data.map((item: any) => {
-          const data = item.data
-          return {
-            ...data,
-            id: item.id,
-            dateCreated: timestampToISO(data.dateCreated),
-            dateUpdated: timestampToISO(data.dateUpdated),
-            expirationDate: timestampToISO(data.expirationDate),
-            applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
-          } as SerializedOpportunity
-        })
+        opportunities = queryResult.data.map((item) =>
+          mapDbDocumentToSerializedOpportunity(item),
+        )
 
         lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null
       }
@@ -394,7 +375,7 @@ export const searchOpportunities = cache(async (
         filtersApplied,
         sortBy,
         searchTime,
-        backend: 'db.command()'
+        backend: 'db().queryDocs()'
       }
     }
 

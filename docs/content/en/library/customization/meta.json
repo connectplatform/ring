@@ -1,7 +1,16 @@
 {
   "title": "Customization",
+  "description": "Deploy, brand, and operate your own Ring platform instance",
   "pages": [
     "index",
+    "quick-start",
+    "customization-guide",
+    "database-selection",
+    "token-economics",
+    "payment-integration",
+    "multi-tenant",
+    "ai-customization",
+    "success-stories",
     "branding",
     "features",
     "localization",

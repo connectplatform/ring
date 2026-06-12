@@ -7,6 +7,7 @@ import {
 } from 'firebase-admin/firestore';
 import { Opportunity, OpportunityType, OpportunityVisibility, OpportunityPriority, Attachment } from '@/features/opportunities/types';
 
+/** @deprecated Firestore-only legacy — use `mapDbRowToSerializedOpportunity` (PostgreSQL / `DatabaseService` path) or `serializeOpportunity` for client transport; not used when `DB_BACKEND_MODE` is Postgres-primary. */
 export const opportunityConverter: FirestoreDataConverter<Opportunity> = {
   toFirestore(opportunity: Opportunity): DocumentData {
     const data: DocumentData = {

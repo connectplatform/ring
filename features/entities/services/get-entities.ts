@@ -5,13 +5,18 @@
  * Uses React 19 patterns and DatabaseService abstraction
  */
 
-import { Entity, SerializedEntity, EntityType } from '@/features/entities/types'
-import { serializeEntities } from '@/lib/converters/entity-serializer'
+import { SerializedEntity, EntityType } from '@/features/entities/types'
+import {
+  mapDbDocumentToSerializedEntity,
+} from '@/features/entities/lib/entity-db-mapper'
 import { UserRole } from '@/features/auth/types'
+import { normalizeUserRole } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
+import { filterEntitiesForDiscovery } from '@/features/entities/lib/entity-visibility-filter'
+import { getUserBlockedEntityIds } from '@/features/entities/services/entity-moderation'
 import { cache } from 'react'
 
 /**
@@ -66,9 +71,10 @@ export const getEntitiesForRole = cache(async (
     filters?: EntityFilters;
   }
 ): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }> => {
-  const { userRole, limit = 20, startAfter, filters } = params
+  const { userRole: rawRole, limit = 20, startAfter, filters } = params
+  const userRole = normalizeUserRole(rawRole)
   try {
-    console.log('Services: getEntitiesForRole - Starting...', { userRole, limit, startAfter, filters })
+    console.log('Services: getEntitiesForRole - Starting...', { userRole, rawRole, limit, startAfter, filters })
 
     // Validate role before proceeding to ensure only authenticated users with valid roles can access entities
     const validRoles: UserRole[] = [
@@ -88,10 +94,6 @@ export const getEntitiesForRole = cache(async (
         operation: 'role_validation'
       });
     }
-
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
 
     // Step 2: Build optimized query configuration based on user role and filters
     const queryConfig: any = {
@@ -176,7 +178,7 @@ export const getEntitiesForRole = cache(async (
     // Note: Pagination with startAfter is handled via offset in DatabaseService query
 
     // Step 3: Execute database query
-    let entities: Entity[] = []
+    let entities: SerializedEntity[] = []
     try {
       // Convert queryConfig to DatabaseService format
       const dbFilters = whereConditions.map((condition: any) => ({
@@ -185,14 +187,14 @@ export const getEntitiesForRole = cache(async (
         value: condition.value
       }))
 
-      const result = await db.query({
+      const result = await db().queryDocs({
         collection: 'entities',
         filters: dbFilters,
         orderBy: queryConfig.orderBy?.map((order: any) => ({
           field: order.field,
-          direction: order.direction
+          direction: order.direction,
         })),
-        pagination: { limit: queryConfig.limit }
+        pagination: { limit: queryConfig.limit },
       })
 
       if (!result.success || !result.data) {
@@ -209,12 +211,7 @@ export const getEntitiesForRole = cache(async (
         )
       }
 
-      // Extract entities from result
-      const rawEntities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      entities = rawEntities.map((doc: any) => ({
-        ...(doc.data || doc),
-        id: doc.id
-      })) as Entity[]
+      entities = result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
 
     } catch (error) {
       throw new EntityQueryError(
@@ -230,9 +227,7 @@ export const getEntitiesForRole = cache(async (
       )
     }
 
-    // Step 4: Entity objects mapped from database
-
-    // Step 5: Apply client-side filtering for complex queries that can't be done in Firestore
+    // Step 4: Apply client-side filtering for complex queries that can't be done in SQL yet
     if (filters) {
       // Search filtering (client-side for complex text search)
       if (filters.search) {
@@ -291,22 +286,29 @@ export const getEntitiesForRole = cache(async (
       }
     }
 
-    // Step 6: Serialize entities for client component compatibility
-    const serializedEntities = serializeEntities(entities)
+    const session = await auth()
+    const blockedEntityIds = session?.user?.id
+      ? await getUserBlockedEntityIds(session.user.id)
+      : []
 
-    // Step 7: Get the ID of the last visible entity for pagination
+    entities = filterEntitiesForDiscovery(entities, {
+      userId: session?.user?.id,
+      userRole,
+      blockedEntityIds,
+    })
+
     const lastVisible = entities.length > 0 ? entities[entities.length - 1].id : null
 
     logger.info('Services: getEntitiesForRole - Total entities fetched:', { 
-      entities: serializedEntities.length, 
+      entities: entities.length, 
       lastVisible,
       filtersApplied: !!filters 
     })
 
     return { 
-      entities: serializedEntities, 
+      entities, 
       lastVisible,
-      totalCount: serializedEntities.length 
+      totalCount: entities.length 
     }
   } catch (error) {
     // Enhanced error logging with cause information using centralized logger
@@ -347,7 +349,7 @@ export const getEntities = cache(async (
       operation: 'getEntities'
     });
   }
-  const userRole = session.user.role as UserRole
+  const userRole = normalizeUserRole(session.user.role)
   return getEntitiesForRole({ userRole, limit, startAfter, filters })
 });
 
@@ -362,7 +364,7 @@ export const getEntities = cache(async (
  * @throws {EntityDatabaseError} If there's an error accessing the database
  * @throws {EntityQueryError} If there's an error executing the query
  */
-export const getConfidentialEntities = cache(async (): Promise<Entity[]> => {
+export const getConfidentialEntities = cache(async (): Promise<SerializedEntity[]> => {
   try {
     logger.info('Services: getConfidentialEntities - Starting...')
 
@@ -377,7 +379,7 @@ export const getConfidentialEntities = cache(async (): Promise<Entity[]> => {
       });
     }
 
-    const userRole = session.user.role as UserRole
+    const userRole = normalizeUserRole(session.user.role)
 
     // Step 2: Validate user role and permissions
     if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
@@ -395,16 +397,12 @@ export const getConfidentialEntities = cache(async (): Promise<Entity[]> => {
 
     logger.info(`Services: getConfidentialEntities - User authenticated with role ${userRole}`)
 
-    // Step 3: Initialize database and execute query for confidential entities
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    let confidentialEntities: Entity[] = []
+    let confidentialEntities: SerializedEntity[] = []
     try {
-      const result = await db.query({
+      const result = await db().queryDocs({
         collection: 'entities',
         filters: [{ field: 'isConfidential', operator: '=', value: true }],
-        orderBy: [{ field: 'dateAdded', direction: 'desc' }]
+        orderBy: [{ field: 'dateAdded', direction: 'desc' }],
       })
 
       if (!result.success || !result.data) {
@@ -419,12 +417,7 @@ export const getConfidentialEntities = cache(async (): Promise<Entity[]> => {
         )
       }
 
-      // Extract and map entities
-      const rawEntities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      confidentialEntities = rawEntities.map((doc: any) => ({
-        ...(doc.data || doc),
-        id: doc.id
-      })) as Entity[]
+      confidentialEntities = result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
 
     } catch (error) {
       throw new EntityQueryError(
@@ -485,7 +478,7 @@ export const getConfidentialEntities = cache(async (): Promise<Entity[]> => {
 export const getEntitiesByIds = cache(async (
   entityIds: string[],
   userRole?: UserRole
-): Promise<Entity[]> => {
+): Promise<SerializedEntity[]> => {
   try {
     logger.info('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole })
 
@@ -515,15 +508,11 @@ export const getEntitiesByIds = cache(async (
       entityIds = entityIds.slice(0, maxBatchSize);
     }
 
-    // Step 1 & 2: Execute batch retrieval using database query with 'in' operator
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    let documents: Entity[] = []
+    let documents: SerializedEntity[] = []
     try {
-      const result = await db.query({
+      const result = await db().queryDocs({
         collection: 'entities',
-        filters: [{ field: 'id', operator: 'in', value: entityIds }]
+        filters: [{ field: 'id', operator: 'in', value: entityIds }],
       })
 
       if (!result.success || !result.data) {
@@ -539,11 +528,7 @@ export const getEntitiesByIds = cache(async (
         )
       }
 
-      const rawEntities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      documents = rawEntities.map((doc: any) => ({
-        ...(doc.data || doc),
-        id: doc.id
-      }))
+      documents = result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
 
     } catch (error) {
       throw new EntityQueryError(
@@ -559,7 +544,7 @@ export const getEntitiesByIds = cache(async (
     }
 
     // Step 3: Apply role-based filtering
-    const entities: Entity[] = []
+    const entities: SerializedEntity[] = []
     
     documents.forEach((entity) => {
       const canView = canUserViewEntity(entity, role)
@@ -601,7 +586,7 @@ export const getEntitiesByIds = cache(async (
  * Helper function to determine if a user can view a specific entity
  * based on their role and the entity's visibility settings.
  */
-function canUserViewEntity(entity: Entity, userRole: UserRole): boolean {
+function canUserViewEntity(entity: SerializedEntity, userRole: UserRole): boolean {
   // ADMIN and CONFIDENTIAL users can see all entities
   if ([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.CONFIDENTIAL].includes(userRole)) {
     return true;

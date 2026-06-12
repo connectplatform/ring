@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
@@ -27,8 +27,6 @@ export async function generateMetadata({
     path: 'opportunities.list',
     pathname: '/opportunities',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

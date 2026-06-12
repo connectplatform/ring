@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import type { Session } from 'next-auth'
 import { auth } from '@/auth'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
 
 const SENSITIVE_USER_KEYS = [
   'password',
@@ -43,22 +43,21 @@ export async function GET(
     }
 
     const { id } = await params
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      return NextResponse.json(
-        { error: 'Database initialization failed' },
-        { status: 500 },
-      )
+    const userResult = await db().readDoc<Record<string, unknown>>('users', id)
+    if (!userResult.success) {
+      if (userResult.metadata?.operation === 'initialize') {
+        return NextResponse.json(
+          { error: 'Database initialization failed' },
+          { status: 500 },
+        )
+      }
+      return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
     }
-
-    const db = getDatabaseService()
-    const userResult = await db.read('users', id)
-    if (!userResult.success || !userResult.data) {
+    if (!userResult.data) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const raw = (userResult.data as { data?: Record<string, unknown> }).data ?? userResult.data
-    const data = stripSensitiveUserFields(raw as Record<string, unknown>)
+    const data = stripSensitiveUserFields(userResult.data)
 
     return NextResponse.json({ success: true, data })
   } catch (error) {
@@ -94,21 +93,21 @@ export async function DELETE(
       )
     }
 
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      return NextResponse.json(
-        { error: 'Database initialization failed' },
-        { status: 500 },
-      )
+    const userResult = await db().readDoc<Record<string, unknown>>('users', id)
+    if (!userResult.success) {
+      if (userResult.metadata?.operation === 'initialize') {
+        return NextResponse.json(
+          { error: 'Database initialization failed' },
+          { status: 500 },
+        )
+      }
+      return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
     }
-
-    const db = getDatabaseService()
-    const userResult = await db.read('users', id)
-    if (!userResult.success || !userResult.data) {
+    if (!userResult.data) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const del = await db.delete('users', id)
+    const del = await db().deleteDoc('users', id)
     if (!del.success) {
       return NextResponse.json(
         { error: 'Failed to delete user' },

@@ -9,6 +9,8 @@ import { PrebillingPage, type BillingData } from '@/features/store/components/ch
 import { ReviewStep } from '@/features/store/components/checkout/review-step'
 import type { Locale } from '@/i18n/shared'
 import { useTranslations } from 'next-intl'
+import { useToast } from '@/hooks/use-toast'
+import { stashReferralCheckoutFlash } from '@/features/refcodes/lib/checkout-referral-flash'
 import { SpecialOfferModal } from '@/features/store/components/special-offer-modal'
 
 export default function CheckoutClient({ locale }: { locale: Locale }) {
@@ -19,6 +21,7 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 	const [step, setStep] = useState<'prebilling' | 'review' | 'confirmation'>('prebilling')
 	const [billingData, setBillingData] = useState<BillingData | null>(null)
   const t = useTranslations('modules.store.checkout')
+  const { success: toastSuccess } = useToast()
   const [showOffer, setShowOffer] = useState(true)
 
 	const handleProceedToPayment = async (data: BillingData) => {
@@ -85,6 +88,20 @@ export default function CheckoutClient({ locale }: { locale: Locale }) {
 				(billingData.paymentMethod as string) === 'ring'
 					? 'credit'
 					: billingData.paymentMethod
+
+			if (orderData.referralApplied) {
+				if (method === 'wayforpay') {
+					// Toast on processing page — redirect to WayForPay is immediate.
+					stashReferralCheckoutFlash({ referralCode: orderData.referralCode })
+				} else {
+					toastSuccess({
+						title: t('referralApplied'),
+						description: orderData.referralCode
+							? t('referralAppliedToast', { code: orderData.referralCode })
+							: t('referralAppliedToastGeneric'),
+					})
+				}
+			}
 
 			if (method === 'wayforpay') {
 				const paymentRes = await fetch('/api/store/payments/wayforpay', {

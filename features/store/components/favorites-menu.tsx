@@ -61,7 +61,7 @@ export function FavoritesMenu({ locale }: { locale: Locale }) {
         <span className="inline-grid place-items-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">{mounted ? favorites.length : 0}</span>
       </button>
       {open && (
-        <div className="fixed left-0 top-[140px] w-[280px] bottom-[80px] bg-popover/95 backdrop-blur-sm border-r border-l border-border z-40 overflow-y-auto" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+        <div className="fixed left-(--sidebar-rail-w) top-[140px] w-[280px] bottom-[80px] bg-popover/95 backdrop-blur-sm border-r border-l border-border z-40 overflow-y-auto" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-4">
               <Heart className="h-5 w-5" />

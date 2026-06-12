@@ -3,7 +3,7 @@
 // "Server Actions should call services directly; avoid HTTP requests to own API routes"
 
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { revalidatePath } from 'next/cache'
 
 interface LikeResult {
@@ -14,13 +14,21 @@ interface LikeResult {
   error?: string
 }
 
+interface LikeRow {
+  id: string
+  userId: string
+  targetId: string
+  targetType: string
+}
+
+interface LikableTarget {
+  likes?: number
+}
+
 export async function toggleLike(targetId: string, targetType: string): Promise<LikeResult> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
@@ -43,8 +51,7 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
     }
 
     const userId = session.user.id
-    
-    // Determine the target collection
+
     const targetCollection = getTargetCollection(targetType)
     if (!targetCollection) {
       return {
@@ -53,17 +60,18 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
       }
     }
 
-    // Check if target exists
-    const targetDocResult = await db.findById(targetCollection, targetId)
-    if (!targetDocResult.success) {
+    const targetDocResult = await db().findDocById<LikableTarget & Record<string, unknown>>(
+      targetCollection,
+      targetId
+    )
+    if (!targetDocResult.success || !targetDocResult.data) {
       return {
         success: false,
         error: 'Target not found'
       }
     }
 
-    // Check if user has already liked this target
-    const likeQueryResult = await db.query({
+    const likeQueryResult = await db().queryDocs<LikeRow & Record<string, unknown>>({
       collection: 'likes',
       filters: [
         { field: 'userId', operator: '==', value: userId },
@@ -71,73 +79,63 @@ export async function toggleLike(targetId: string, targetType: string): Promise<
         { field: 'targetType', operator: '==', value: targetType }
       ]
     })
-    
-    if (!likeQueryResult.success) {
+
+    if (!likeQueryResult.success || !likeQueryResult.data) {
       return {
         success: false,
         error: 'Failed to check like status'
       }
     }
-    
+
     const isCurrentlyLiked = likeQueryResult.data.length > 0
-    
-    // Use transaction for atomic like/unlike operation (CRITICAL for data integrity!)
-    let finalLikeCount = 0;
-    let isLiked = false;
-    
-    await db.transaction(async (txn) => {
-    if (isCurrentlyLiked) {
-      // Unlike - remove the like document
-        const likeDocId = likeQueryResult.data[0].id;
-        await txn.delete('likes', likeDocId);
-      
-        // Read current target to get like count
-        const targetDoc = await txn.read(targetCollection, targetId);
-        const currentLikes = (targetDoc as any)?.likes || 0;
-        
-        // Decrement the like count (manual increment to replace FieldValue)
+
+    let finalLikeCount = 0
+    let isLiked = false
+
+    await db().transaction(async (txn) => {
+      if (isCurrentlyLiked) {
+        const likeDocId = likeQueryResult.data![0].id
+        await txn.delete('likes', likeDocId)
+
+        const targetDoc = await txn.read<LikableTarget>(targetCollection, targetId)
+        const currentLikes = targetDoc?.data?.likes ?? 0
+
         await txn.update(targetCollection, targetId, {
-          likes: Math.max(0, currentLikes - 1), // Prevent negative likes
+          likes: Math.max(0, currentLikes - 1),
           updatedAt: new Date()
-        });
-        
-        finalLikeCount = Math.max(0, currentLikes - 1);
-        isLiked = false;
-      
-    } else {
-      // Like - create a new like document
+        })
+
+        finalLikeCount = Math.max(0, currentLikes - 1)
+        isLiked = false
+      } else {
         await txn.create('likes', {
-        userId: userId,
-        targetId: targetId,
-        targetType: targetType,
+          userId,
+          targetId,
+          targetType,
           createdAt: new Date()
-        });
-        
-        // Read current target to get like count
-        const targetDoc = await txn.read(targetCollection, targetId);
-        const currentLikes = (targetDoc as any)?.likes || 0;
-        
-        // Increment the like count (manual increment to replace FieldValue)
+        })
+
+        const targetDoc = await txn.read<LikableTarget>(targetCollection, targetId)
+        const currentLikes = targetDoc?.data?.likes ?? 0
+
         await txn.update(targetCollection, targetId, {
           likes: currentLikes + 1,
           updatedAt: new Date()
-        });
-        
-        finalLikeCount = currentLikes + 1;
-        isLiked = true;
-      }
-    });
-    
-    // Revalidate after mutation (React 19 pattern)
-    revalidatePath(`/[locale]/${targetType}s/${targetId}`);
+        })
 
-      return {
-        success: true,
+        finalLikeCount = currentLikes + 1
+        isLiked = true
+      }
+    })
+
+    revalidatePath(`/[locale]/${targetType}s/${targetId}`)
+
+    return {
+      success: true,
       message: isLiked ? 'Liked successfully' : 'Unliked successfully',
       likeCount: finalLikeCount,
       liked: isLiked
     }
-
   } catch (error) {
     console.error('Error toggling like:', error)
     return {
@@ -153,11 +151,8 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
   error?: string
 }> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
@@ -167,8 +162,7 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
 
     const userId = session.user.id
 
-    // Check if user has liked this target
-    const likeQueryResult = await db.query({
+    const likeQueryResult = await db().queryDocs<LikeRow & Record<string, unknown>>({
       collection: 'likes',
       filters: [
         { field: 'userId', operator: '==', value: userId },
@@ -176,8 +170,8 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
         { field: 'targetType', operator: '==', value: targetType }
       ]
     })
-    
-    if (!likeQueryResult.success) {
+
+    if (!likeQueryResult.success || !likeQueryResult.data) {
       return {
         success: false,
         error: 'Failed to get like status'
@@ -188,7 +182,6 @@ export async function getUserLikeStatus(targetId: string, targetType: string): P
       success: true,
       liked: likeQueryResult.data.length > 0
     }
-
   } catch (error) {
     console.error('Error getting like status:', error)
     return {

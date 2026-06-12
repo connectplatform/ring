@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import { defaultLocale, type Locale } from '@/i18n/shared'
+import { getRingSeoBranding, getSiteBaseUrl } from '@/lib/ring-config'
 
 export interface SEOData {
   title?: string
@@ -133,19 +134,10 @@ export type BuildLocalizedMetadataOptions = {
   robots?: Metadata['robots']
 }
 
-/** Default branding for ring-platform.org (override per page when needed). */
-export const RING_PLATFORM_SEO = {
-  siteName: 'Ring Platform',
-  twitterSite: '@RingPlatform',
-} as const
+export { getRingSeoBranding, getSiteBaseUrl }
 
-export function getSeoSiteBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    'https://ring-platform.org'
-  ).replace(/\/$/, '')
-}
+/** @deprecated Use getSiteBaseUrl() from @/lib/ring-config */
+export { getSiteBaseUrl as getSeoSiteBaseUrl }
 
 /** Strip `/uk`, `/ru`, … prefix for hreflang path generation. */
 export function pathnameWithoutLocale(pathname: string): string {
@@ -175,6 +167,7 @@ export function generateHreflangAlternates(
 export async function buildLocalizedMetadata(
   options: BuildLocalizedMetadataOptions,
 ): Promise<Metadata> {
+  const branding = getRingSeoBranding()
   const {
     locale,
     path,
@@ -182,13 +175,13 @@ export async function buildLocalizedMetadata(
     pathname,
     canonicalUrl,
     fallback,
-    siteName = RING_PLATFORM_SEO.siteName,
-    twitterSite = RING_PLATFORM_SEO.twitterSite,
+    siteName = branding.siteName,
+    twitterSite = branding.twitterSite,
     robots = { index: true, follow: true },
   } = options
 
   const seoData = await resolveSeoData(locale, path, variables, fallback)
-  const baseUrl = getSeoSiteBaseUrl()
+  const baseUrl = getSiteBaseUrl()
   const canonical =
     canonicalUrl ??
     (seoData?.canonical
@@ -200,7 +193,7 @@ export async function buildLocalizedMetadata(
         : undefined)
 
   const ogLocale = locale === 'uk' ? 'uk_UA' : 'en_US'
-  const ogImage = seoData?.ogImage ?? '/images/og-default.jpg'
+  const ogImage = seoData?.ogImage ?? branding.ogImage
 
   return {
     title: seoData?.title,
@@ -239,17 +232,18 @@ export async function getSEOMetadata(
 }
 
 export function getDefaultSEOData(locale: Locale): SEOData {
+  const branding = getRingSeoBranding()
   return {
-    title: 'Ring Platform - Decentralized Opportunities & Professional Networking',
+    title: `${branding.siteName} - Decentralized Opportunities & Professional Networking`,
     description:
       'Connect, collaborate, and create value in the decentralized economy. Join Ring Platform for professional networking, opportunities, and blockchain-enabled collaboration.',
-    keywords: ['decentralized', 'opportunities', 'blockchain', 'collaboration', 'web3', 'Ring Platform'],
+    keywords: ['decentralized', 'opportunities', 'blockchain', 'collaboration', 'web3', branding.siteName],
     canonical: locale === defaultLocale ? '/' : `/${locale}`,
-    ogTitle: 'Ring Platform - Decentralized Professional Networking',
+    ogTitle: `${branding.siteName} - Decentralized Professional Networking`,
     ogDescription: 'Discover and create opportunities in the decentralized economy',
-    ogImage: '/og-ring-platform-1200x630.jpg',
-    twitterTitle: 'Ring Platform',
+    ogImage: branding.ogImage,
+    twitterTitle: branding.siteName,
     twitterDescription: 'Decentralized opportunities and collaboration platform',
-    twitterImage: '/og-ring-platform-1200x630.jpg',
+    twitterImage: branding.ogImage,
   }
 }

@@ -3,7 +3,7 @@ import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { auth } from '@/auth'
 import { redirectPostAuth } from '@/lib/auth/safe-post-auth-redirect'
@@ -31,8 +31,6 @@ export async function generateMetadata({
     locale,
     path: 'auth.login',
     pathname: '/login',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: { index: false, follow: false },
   })
 }
@@ -70,7 +68,7 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
   const authError = firstSearchParam(searchParams.error)
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 md:ml-[280px]">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">{tPages('login.title')}</h1>

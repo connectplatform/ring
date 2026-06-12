@@ -48,6 +48,7 @@ export class ImapListener extends EventEmitter {
   private maxReconnectAttempts = 10;
   private reconnectDelay = 5000; // Start with 5 seconds
   private isRunning = false;
+  private pollMode = false;
   private lastUid: number = 0;
   private mailbox = 'INBOX';
 
@@ -102,8 +103,10 @@ export class ImapListener extends EventEmitter {
           
           try {
             await this.openMailbox();
-            await this.fetchUnseenMessages();
-            this.startIdleMode();
+            if (!this.pollMode) {
+              await this.fetchUnseenMessages();
+              this.startIdleMode();
+            }
             this.emit('ready');
             resolve();
           } catch (err) {
@@ -371,6 +374,53 @@ export class ImapListener extends EventEmitter {
   // Get connection status
   isConnected(): boolean {
     return this.imap?.state === 'authenticated' || false;
+  }
+
+  /**
+   * One-shot poll: connect, fetch UNSEEN, await handler for each message, disconnect.
+   * Safe for cron — does not enter IDLE mode.
+   */
+  async pollBatch(
+    onEmail: (event: EmailReceivedEvent) => Promise<void>
+  ): Promise<{ queued: number; failed: number }> {
+    if (this.isRunning && this.imap?.state === 'authenticated') {
+      throw new Error('Cannot poll while IDLE listener is active');
+    }
+
+    const pending: Promise<void>[] = [];
+    let failed = 0;
+
+    const handler = (event: EmailReceivedEvent) => {
+      pending.push(
+        onEmail(event).catch((err) => {
+          failed++;
+          logger.error('[IMAP] pollBatch handler failed', {
+            messageId: event.messageId,
+            error: (err as Error).message,
+          });
+        })
+      );
+    };
+
+    this.on('email', handler);
+    const wasRunning = this.isRunning;
+    this.isRunning = true;
+    this.pollMode = true;
+
+    try {
+      await this.connect();
+      await this.fetchUnseenMessages();
+      await Promise.allSettled(pending);
+      return { queued: pending.length, failed };
+    } finally {
+      this.off('email', handler);
+      this.pollMode = false;
+      this.isRunning = wasRunning;
+      if (this.imap) {
+        this.imap.end();
+        this.imap = null;
+      }
+    }
   }
 }
 

@@ -1,66 +1,67 @@
 import { StoreAdapter, StoreProduct, CartItem, CheckoutInfo } from './types'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 
+type ProductRow = Record<string, unknown> & { id: string }
+
+function mapProductRow(row: ProductRow): StoreProduct {
+  return {
+    id: row.id,
+    name: (row.name as string) || '',
+    description: (row.description as string) || '',
+    price: row.price?.toString() || '0',
+    currency: (row.currency as StoreProduct['currency']) || 'USD',
+    inStock: ((row.stock as number) || (row.stock_quantity as number) || 0) > 0,
+    stock: typeof row.stock === 'number' ? row.stock : parseInt(String(row.stock ?? '0'), 10) || 0,
+    category: row.category as string | undefined,
+    tags: Array.isArray(row.tags)
+      ? row.tags as string[]
+      : typeof row.tags === 'string'
+        ? (() => { try { return JSON.parse(row.tags) } catch { return [] } })()
+        : [],
+    images: (row.pictures as string[]) || (row.images as string[]) || [],
+    sku: row.sku as string | undefined,
+    slug: row.slug as string | undefined,
+    longDescription: row.longDescription as string | undefined,
+    reorderPoint: row.reorderPoint as number | undefined,
+    vendorTier: row.vendorTier as StoreProduct['vendorTier'],
+    commissionRate: row.commissionRate as number | undefined,
+    approvalStatus: row.approvalStatus as StoreProduct['approvalStatus'],
+    approvedBy: row.approvedBy as string | undefined,
+    approvedAt: row.approvedAt as string | undefined,
+    rejectionReason: row.rejectionReason as string | undefined,
+    vendorName: (row.vendorName || row.vendor_name) as string | undefined,
+    productListedAt: ['1'],
+    productOwner: (row.vendorId || row.vendor_id) as string | undefined,
+    ownerEntityId: row.entity_id as string | undefined,
+    storeId: '1',
+    status: ((row.status as StoreProduct['status'] | undefined) ?? 'active') as StoreProduct['status'],
+    variants: row.variants as StoreProduct['variants'],
+  }
+}
+
 export class PostgreSQLStoreAdapter implements StoreAdapter {
-  /**
-   * Get a single product by ID - O(1) direct database lookup
-   * This is the FAST path for product details pages
-   */
   async getProductById(id: string): Promise<StoreProduct | null> {
     try {
-      const initResult = await initializeDatabase()
-      if (!initResult.success) {
-        logger.error('PostgreSQLStoreAdapter: Database initialization failed:', { error: initResult.error })
+      const result = await db().findDocById<ProductRow>('store_products', id)
+      
+      if (!result.success) {
+        if (result.metadata?.operation === 'initialize') {
+          logger.error('PostgreSQLStoreAdapter: Database initialization failed:', { error: result.error })
+        }
         return null
       }
 
-      const dbService = getDatabaseService()
-      
-      // Direct findById query - O(1) lookup using primary key
-      const result = await dbService.findById('store_products', id)
-      
-      if (!result.success || !result.data) {
+      if (!result.data) {
         logger.warn('PostgreSQLStoreAdapter: Product not found:', { id })
         return null
       }
 
-      const doc = result.data
-      const data = doc.data
-      
-      // Convert to StoreProduct format
-      return {
-        id: doc.id,
-        name: data?.name || '',
-        description: data?.description || '',
-        price: data?.price?.toString() || '0',
-        currency: (data?.currency as any) || 'USD',
-        inStock: (data?.stock || data?.stock_quantity || 0) > 0,
-        category: data?.category,
-        tags: data?.tags || [],
-        images: data?.pictures || [],
-        sku: data?.sku,
-        slug: data?.slug,
-        longDescription: data?.longDescription,
-        reorderPoint: data?.reorderPoint,
-        vendorTier: data?.vendorTier as any,
-        commissionRate: data?.commissionRate,
-        approvalStatus: data?.approvalStatus as any,
-        approvedBy: data?.approvedBy,
-        approvedAt: data?.approvedAt,
-        rejectionReason: data?.rejectionReason,
-        vendorName: data?.vendorName || data?.vendor_name,
-        productListedAt: ['1'],
-        productOwner: data?.vendorId || data?.vendor_id,
-        ownerEntityId: data?.entity_id,
-        storeId: '1',
-        status: (data?.status as any) || 'active',
-        variants: data?.variants || undefined
-      }
-    } catch (error: any) {
+      return mapProductRow(result.data)
+    } catch (error: unknown) {
       logger.error('PostgreSQLStoreAdapter: Error fetching product by ID:', {
         id,
-        error: error?.message || String(error)
+        error: error instanceof Error ? error.message : String(error)
       })
       return null
     }
@@ -68,19 +69,8 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
 
   async createProduct(productData: Partial<StoreProduct> & { vendorId: string }): Promise<StoreProduct> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase()
-      if (!initResult.success) {
-        logger.error('PostgreSQLStoreAdapter: Database initialization failed:', { error: initResult.error })
-        throw new Error('Database initialization failed')
-      }
-
-      const dbService = getDatabaseService()
-
-      // Generate product ID
       const productId = `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-      // Prepare product data for database
       const product = {
         id: productId,
         name: productData.name || '',
@@ -107,8 +97,7 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
         shipping: productData.shipping || null
       }
 
-      // Save to database
-      const result = await dbService.create('store_products', product)
+      const result = await db().createDoc('store_products', product)
 
       if (!result.success) {
         logger.error('PostgreSQLStoreAdapter: Failed to create product:', { error: result.error })
@@ -117,21 +106,20 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
 
       logger.info('PostgreSQLStoreAdapter: Product created successfully', { productId })
 
-      // Return the created product in StoreProduct format
       return {
         id: productId,
         name: product.name,
         description: product.description,
         price: product.price.toString(),
-        currency: product.currency as any,
+        currency: product.currency as StoreProduct['currency'],
         inStock: product.stock > 0,
         category: product.category,
         tags: product.tags,
-        productListedAt: ['1'], // Default store
+        productListedAt: ['1'],
         productOwner: product.vendorId,
         ownerEntityId: undefined,
-        storeId: '1', // Default store
-        status: product.status as any
+        storeId: '1',
+        status: product.status as StoreProduct['status']
       }
 
     } catch (error) {
@@ -142,24 +130,11 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
 
   async listProducts(): Promise<StoreProduct[]> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase()
-      if (!initResult.success) {
-        logger.error('PostgreSQLStoreAdapter: Database initialization failed:', { error: initResult.error })
-        return []
-      }
-
-      const dbService = getDatabaseService()
-
-      // Query store_products table
-      // Note: Don't use orderBy for 'created_at' - it's a table column, not JSONB field
-      // API route handles sorting via sortBy parameter
-      const queryResult = await dbService.query({
+      const queryResult = await db().queryDocs<ProductRow>({
         collection: 'store_products',
         filters: [
           { field: 'status', operator: '==', value: 'active' }
         ]
-        // Removed orderBy - API handles sorting
       })
 
       if (!queryResult.success) {
@@ -167,48 +142,11 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
         return []
       }
 
-      // Convert database documents to StoreProduct format
-      const products: StoreProduct[] = queryResult.data.map(doc => {
-        const data = doc.data
-        return {
-          id: doc.id,
-          name: data?.name || '',
-          description: data?.description || '',
-          price: data?.price?.toString() || '0',
-          currency: (data?.currency as any) || 'USD',
-          inStock: (data?.stock || data?.stock_quantity || 0) > 0,
-          category: data?.category,
-          tags: data?.tags || [],
-          images: data?.pictures || [], // Map pictures JSONB array to images property
-
-          // P0 Critical Fields (Phase 2: 2025-11-04)
-          sku: data?.sku,
-          slug: data?.slug,
-          longDescription: data?.longDescription,
-          reorderPoint: data?.reorderPoint,
-          vendorTier: data?.vendorTier as any,
-          commissionRate: data?.commissionRate,
-          approvalStatus: data?.approvalStatus as any,
-          approvedBy: data?.approvedBy,
-          approvedAt: data?.approvedAt,
-          rejectionReason: data?.rejectionReason,
-
-          vendorName: data?.vendorName || data?.vendor_name,
-          productListedAt: ['1'], // Default store
-          productOwner: data?.vendorId || data?.vendor_id,
-          ownerEntityId: data?.entity_id,
-          storeId: '1', // Default store
-          status: (data?.status as any) || 'active',
-          // Phase 1: Include variants from database
-          variants: data?.variants || undefined
-        }
-      })
-
-      return products
-    } catch (error: any) {
+      return queryResult.data.map(mapProductRow)
+    } catch (error: unknown) {
       logger.error('PostgreSQLStoreAdapter: Error listing products:', {
-        error: error?.message || String(error),
-        stack: error?.stack
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       })
       return []
     }
@@ -216,27 +154,15 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
 
   async checkout(items: CartItem[], info: CheckoutInfo): Promise<{ orderId: string }> {
     try {
-      // Initialize database service
-      const initResult = await initializeDatabase()
-      if (!initResult.success) {
-        logger.error('PostgreSQLStoreAdapter: Database initialization failed:', { error: initResult.error })
-        throw new Error('Database initialization failed')
-      }
-
-      const dbService = getDatabaseService()
-
-      // Generate order ID
       const orderId = this.generateOrderId()
 
-      // Calculate totals
       const subtotal = items.reduce((sum, item) => {
         return sum + (parseFloat(item.product.price) * item.quantity)
       }, 0)
 
-      // Create order data for store_orders table
       const orderData = {
         id: orderId,
-        buyer_id: null, // Will be set by the calling service
+        buyer_id: null,
         items: items.map(item => ({
           productId: item.product.id,
           name: item.product.name,
@@ -273,8 +199,7 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
         notes: info.notes
       }
 
-      // Create the order in database
-      const createResult = await dbService.create('store_orders', orderData)
+      const createResult = await db().createDoc('store_orders', orderData)
       if (!createResult.success) {
         logger.error('PostgreSQLStoreAdapter: Failed to create order:', { error: createResult.error })
         throw new Error('Failed to create order')

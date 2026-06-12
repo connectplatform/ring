@@ -1,3 +1,5 @@
+import { isFeatureEnabled } from '@/lib/ring-config-core'
+
 export type FeatureKey =
   | 'entities'
   | 'opportunities'
@@ -12,12 +14,14 @@ export const FEATURE_KEYS: FeatureKey[] = [
 ]
 
 export function isFeatureEnabledOnServer(key: FeatureKey) {
-  const { getInstanceConfig } = require('@/lib/instance-config')
-  const cfg = getInstanceConfig()
-  return cfg.features[key] ?? true
+  return isFeatureEnabled(key, true)
 }
 
-export function featureGuard<T>(key: FeatureKey, enabled: () => Promise<T> | T, disabled: () => Promise<T> | T) {
+export function featureGuard<T>(
+  key: FeatureKey,
+  enabled: () => Promise<T> | T,
+  disabled: () => Promise<T> | T,
+) {
   if (isFeatureEnabledOnServer(key)) return enabled()
   return disabled()
 }

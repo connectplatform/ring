@@ -1,5 +1,4 @@
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
-import type { DatabaseDocument } from '@/lib/database/interfaces/IDatabaseService';
+import { db } from '@/lib/database';
 import { publishToChannel } from '@/lib/tunnel/publisher';
 import {
   Conversation,
@@ -10,20 +9,9 @@ import {
   PaginationOptions,
 } from '@/features/chat/types';
 
-function unwrapConversation(doc: DatabaseDocument<Conversation>): Conversation {
-  const payload = doc.data as Conversation & { id?: string };
-  return {
-    ...payload,
-    id: doc.id,
-  };
-}
-
 export class ConversationService {
   async findDirectConversation(userIdA: string, userIdB: string): Promise<Conversation | null> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
-    const result = await db.query<Conversation>({
+    const result = await db().queryDocs<Conversation>({
       collection: 'conversations',
       filters: [
         { field: 'type', operator: '==', value: 'direct' },
@@ -38,14 +26,11 @@ export class ConversationService {
       return null;
     }
 
-    return unwrapConversation(result.data[0]);
+    return result.data[0];
   }
 
   async findProductConversation(userId: string, productId: string): Promise<Conversation | null> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
-    const result = await db.query<Conversation>({
+    const result = await db().queryDocs<Conversation>({
       collection: 'conversations',
       filters: [
         { field: 'type', operator: '==', value: 'product' },
@@ -60,12 +45,10 @@ export class ConversationService {
       return null;
     }
 
-    return unwrapConversation(result.data[0]);
+    return result.data[0];
   }
 
   async createConversation(data: CreateConversationRequest): Promise<Conversation> {
-    await initializeDatabase();
-    const db = getDatabaseService();
     const now = new Date();
 
     const participantIds = [...new Set(data.participantIds.filter(Boolean))];
@@ -106,12 +89,12 @@ export class ConversationService {
       updatedAt: now,
     };
 
-    const createResult = await db.create('conversations', conversationData);
+    const createResult = await db().createDoc('conversations', conversationData);
     if (!createResult.success || !createResult.data) {
       throw new Error(createResult.error?.message || 'Failed to create conversation');
     }
 
-    const conversation = unwrapConversation(createResult.data as DatabaseDocument<Conversation>);
+    const conversation = createResult.data;
 
     for (const participantId of participantIds) {
       try {
@@ -136,9 +119,6 @@ export class ConversationService {
     filters?: ConversationFilters,
     pagination?: PaginationOptions,
   ): Promise<Conversation[]> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
     const queryFilters: Array<{ field: string; operator: string; value: unknown }> = [
       { field: 'participants', operator: 'jsonb-contains', value: [{ userId }] },
     ];
@@ -172,19 +152,19 @@ export class ConversationService {
     }
 
     if (pagination?.cursor) {
-      const cursorRead = await db.read<Conversation>('conversations', pagination.cursor);
-      if (cursorRead.success && cursorRead.data?.metadata?.updatedAt) {
+      const cursorRead = await db().readDoc<Conversation>('conversations', pagination.cursor);
+      if (cursorRead.success && cursorRead.data?.updatedAt) {
         queryFilters.push({
           field: 'updated_at',
           operator: '<',
-          value: cursorRead.data.metadata.updatedAt,
+          value: cursorRead.data.updatedAt,
         });
       }
     }
 
     const limit = pagination?.limit ?? 20;
 
-    const result = await db.query<Conversation>({
+    const result = await db().queryDocs<Conversation>({
       collection: 'conversations',
       filters: queryFilters,
       orderBy: [{ field: 'updated_at', direction: 'desc' }],
@@ -197,8 +177,7 @@ export class ConversationService {
 
     const conversations: Conversation[] = [];
 
-    for (const doc of result.data) {
-      const conversation = unwrapConversation(doc);
+    for (const conversation of result.data) {
       const unreadCount = await this.getUnreadCount(conversation.id, userId);
       conversations.push({ ...conversation, unreadCount });
     }
@@ -207,15 +186,12 @@ export class ConversationService {
   }
 
   async getConversationById(id: string, userId: string): Promise<Conversation | null> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
-    const readResult = await db.read<Conversation>('conversations', id);
+    const readResult = await db().readDoc<Conversation>('conversations', id);
     if (!readResult.success || !readResult.data) {
       return null;
     }
 
-    const conversation = unwrapConversation(readResult.data);
+    const conversation = readResult.data;
     const isParticipant = conversation.participants.some((p) => p.userId === userId);
     if (!isParticipant) {
       throw new Error('Access denied: User is not a participant in this conversation');
@@ -231,15 +207,13 @@ export class ConversationService {
   ): Promise<void> {
     const now = new Date();
 
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const readResult = await db.read<Conversation>('conversations', conversationId);
+    const readResult = await db().readDoc<Conversation>('conversations', conversationId);
 
     if (!readResult.success || !readResult.data) {
       throw new Error('Conversation not found');
     }
 
-    const data = unwrapConversation(readResult.data);
+    const data = readResult.data;
     const existingParticipant = data.participants.find((p) => p.userId === userId);
 
     if (existingParticipant) {
@@ -254,7 +228,7 @@ export class ConversationService {
       isOnline: false,
     };
 
-    const updateResult = await db.update('conversations', conversationId, {
+    const updateResult = await db().updateDoc('conversations', conversationId, {
       participants: [...data.participants, newParticipant],
       updatedAt: now,
     });
@@ -269,22 +243,20 @@ export class ConversationService {
   async removeParticipant(conversationId: string, userId: string): Promise<void> {
     const now = new Date();
 
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const readResult = await db.read<Conversation>('conversations', conversationId);
+    const readResult = await db().readDoc<Conversation>('conversations', conversationId);
 
     if (!readResult.success || !readResult.data) {
       throw new Error('Conversation not found');
     }
 
-    const data = unwrapConversation(readResult.data);
+    const data = readResult.data;
     const updatedParticipants = data.participants.filter((p) => p.userId !== userId);
 
     if (updatedParticipants.length === data.participants.length) {
       throw new Error('User is not a participant');
     }
 
-    const updateResult = await db.update('conversations', conversationId, {
+    const updateResult = await db().updateDoc('conversations', conversationId, {
       participants: updatedParticipants,
       updatedAt: now,
     });
@@ -299,15 +271,13 @@ export class ConversationService {
   async updateLastRead(conversationId: string, userId: string): Promise<void> {
     const now = new Date();
 
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const readResult = await db.read<Conversation>('conversations', conversationId);
+    const readResult = await db().readDoc<Conversation>('conversations', conversationId);
 
     if (!readResult.success || !readResult.data) {
       throw new Error('Conversation not found');
     }
 
-    const data = unwrapConversation(readResult.data);
+    const data = readResult.data;
     const updatedParticipants = data.participants.map((p) =>
       p.userId === userId ? { ...p, lastReadAt: now } : p,
     );
@@ -323,21 +293,18 @@ export class ConversationService {
     userId: string,
     updates: Partial<Conversation>,
   ): Promise<void> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
-    const readResult = await db.read<Conversation>('conversations', conversationId);
+    const readResult = await db().readDoc<Conversation>('conversations', conversationId);
     if (!readResult.success || !readResult.data) {
       throw new Error('Conversation not found');
     }
 
-    const existing = unwrapConversation(readResult.data);
+    const existing = readResult.data;
     const isParticipant = existing.participants.some((p) => p.userId === userId);
     if (!isParticipant) {
       throw new Error('Access denied: User is not a participant in this conversation');
     }
 
-    const updateResult = await db.update('conversations', conversationId, {
+    const updateResult = await db().updateDoc('conversations', conversationId, {
       ...updates,
       updatedAt: new Date(),
     });
@@ -348,10 +315,7 @@ export class ConversationService {
   }
 
   async touchLastActivity(conversationId: string, lastMessage: Message): Promise<void> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
-    const updateResult = await db.update('conversations', conversationId, {
+    const updateResult = await db().updateDoc('conversations', conversationId, {
       lastMessage: {
         id: lastMessage.id,
         content: lastMessage.content,
@@ -370,15 +334,12 @@ export class ConversationService {
   }
 
   private async getUnreadCount(conversationId: string, userId: string): Promise<number> {
-    await initializeDatabase();
-    const db = getDatabaseService();
-
-    const readResult = await db.read<Conversation>('conversations', conversationId);
+    const readResult = await db().readDoc<Conversation>('conversations', conversationId);
     if (!readResult.success || !readResult.data) {
       return 0;
     }
 
-    const conversation = unwrapConversation(readResult.data);
+    const conversation = readResult.data;
     const participant = conversation.participants.find((p) => p.userId === userId);
     const lastReadAt = participant?.lastReadAt;
 
@@ -391,7 +352,7 @@ export class ConversationService {
       messageFilters.push({ field: 'timestamp', operator: '>', value: lastReadAt });
     }
 
-    const countResult = await db.count('messages', messageFilters);
+    const countResult = await db().countDocs('messages', messageFilters);
     if (!countResult.success) {
       return 0;
     }
@@ -400,8 +361,6 @@ export class ConversationService {
   }
 
   private async sendSystemMessage(conversationId: string, content: string): Promise<void> {
-    await initializeDatabase();
-    const db = getDatabaseService();
     const now = new Date();
 
     const message: Omit<Message, 'id'> = {
@@ -414,12 +373,9 @@ export class ConversationService {
       timestamp: now,
     };
 
-    const createResult = await db.create('messages', message);
+    const createResult = await db().createDoc('messages', message);
     if (createResult.success && createResult.data) {
-      await this.touchLastActivity(conversationId, {
-        ...message,
-        id: createResult.data.id,
-      });
+      await this.touchLastActivity(conversationId, createResult.data);
     }
   }
 }

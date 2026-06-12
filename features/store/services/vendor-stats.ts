@@ -6,7 +6,7 @@
  */
 
 import { cache } from 'react'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { VendorProfile, VendorDashboardStats } from '@/features/store/types/vendor'
 import { Order } from '@/features/store/types'
 import { StoreProduct } from '@/features/store/types'
@@ -18,31 +18,23 @@ import { getVendorPendingPayouts, getVendorPayoutHistory } from './settlement'
  */
 export const getVendorDashboardStats = cache(async (entityId: string): Promise<VendorDashboardStats> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     const vendorId = `vendor_${entityId}`
     
-    // Get vendor profile
-    const vendorResult = await db.findById('vendorProfiles', vendorId)
-    const vendor = vendorResult.success && vendorResult.data 
-      ? (vendorResult.data.data || vendorResult.data) as VendorProfile
+    const vendorResult = await db().findDocById<VendorProfile & Record<string, unknown>>(
+      'vendorProfiles',
+      vendorId
+    )
+    const vendor = vendorResult.success && vendorResult.data
+      ? (vendorResult.data as VendorProfile)
       : null
     
-    // Get orders for this vendor
     const orders = await getVendorOrders(entityId)
-    
-    // Get products for this vendor
     const products = await getVendorProducts(entityId)
     
-    // Get pending payouts
     const { total: pendingPayouts } = await getVendorPendingPayouts(vendorId)
-    
-    // Get payout history for commission calculation
     const payoutHistory = await getVendorPayoutHistory(vendorId, 100)
     const totalCommissionPaid = payoutHistory.reduce((sum, p) => sum + p.commission, 0)
     
-    // Calculate sales metrics
     const now = new Date()
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -60,11 +52,9 @@ export const getVendorDashboardStats = cache(async (entityId: string): Promise<V
     const salesLastMonth = calculateTotalSales(ordersLastMonth, entityId)
     const totalSales = calculateTotalSales(orders, entityId)
     
-    // Calculate product metrics
     const activeProducts = products.filter(p => p.status === 'active').length
     const outOfStockProducts = products.filter(p => !p.inStock).length
     
-    // Calculate performance metrics
     const totalOrders = orders.length
     const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0
     const conversionRate = calculateConversionRate(products.length, totalOrders)
@@ -73,28 +63,19 @@ export const getVendorDashboardStats = cache(async (entityId: string): Promise<V
       : 0
     
     return {
-      // Sales
       totalSales,
       totalOrders,
       averageOrderValue,
       conversionRate,
-      
-      // Performance
       trustScore: vendor?.trustScore || 50,
       fulfillmentRate: vendor?.performanceMetrics.orderFulfillmentRate || 100,
       customerSatisfaction: vendor?.performanceMetrics.customerSatisfactionScore || 5,
-      
-      // Financial
       pendingPayouts,
-      availableBalance: 0, // Would need wallet integration
+      availableBalance: 0,
       totalCommissionPaid,
-      
-      // Products
       totalProducts: products.length,
       activeProducts,
       outOfStockProducts,
-      
-      // Time-based metrics
       salesThisMonth,
       salesLastMonth,
       growthRate
@@ -102,7 +83,6 @@ export const getVendorDashboardStats = cache(async (entityId: string): Promise<V
   } catch (error) {
     console.error('Error calculating vendor stats:', error)
     
-    // Return default stats on error
     return {
       totalSales: 0,
       totalOrders: 0,
@@ -124,14 +104,9 @@ export const getVendorDashboardStats = cache(async (entityId: string): Promise<V
   }
 })
 
-/**
- * Get orders for a vendor
- * Cached for performance
- */
 const getVendorOrders = cache(async (entityId: string): Promise<Order[]> => {
   try {
-    const db = getDatabaseService()
-    const result = await db.query({
+    const result = await db().queryDocs<Order & { id: string }>({
       collection: 'orders',
       filters: [
         { field: 'vendorOrders', operator: 'array-contains', value: { vendorId: entityId } }
@@ -140,47 +115,37 @@ const getVendorOrders = cache(async (entityId: string): Promise<Order[]> => {
       pagination: { limit: 1000 }
     })
     
-    if (!result.success || !result.data) {
+    if (!result.success) {
       return []
     }
     
-    const orders = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-    return orders
+    return result.data as Order[]
   } catch (error) {
     console.error('Error fetching vendor orders:', error)
     return []
   }
 })
 
-/**
- * Get products for a vendor
- * Cached for performance
- */
 const getVendorProducts = cache(async (entityId: string): Promise<StoreProduct[]> => {
   try {
-    const db = getDatabaseService()
-    const result = await db.query({
+    const result = await db().queryDocs<StoreProduct & { id: string }>({
       collection: 'store_products',
       filters: [
         { field: 'ownerEntityId', operator: '=', value: entityId }
       ]
     })
     
-    if (!result.success || !result.data) {
+    if (!result.success) {
       return []
     }
     
-    const products = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-    return products
+    return result.data as StoreProduct[]
   } catch (error) {
     console.error('Error fetching vendor products:', error)
     return []
   }
 })
 
-/**
- * Calculate total sales from orders
- */
 function calculateTotalSales(orders: Order[], entityId: string): number {
   return orders.reduce((total, order) => {
     const vendorOrder = order.vendorOrders?.find(vo => vo.vendorId === entityId)
@@ -188,11 +153,7 @@ function calculateTotalSales(orders: Order[], entityId: string): number {
   }, 0)
 }
 
-/**
- * Calculate conversion rate
- */
 function calculateConversionRate(totalProducts: number, totalOrders: number): number {
   if (totalProducts === 0) return 0
-  // Simplified calculation - in reality would need view/click data
   return Math.min(100, (totalOrders / (totalProducts * 10)) * 100)
 }

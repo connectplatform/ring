@@ -493,9 +493,20 @@ export class InMemoryDraftRepository implements DraftRepository {
 // Singleton
 let serviceInstance: EmailDraftService | null = null;
 
+function createDraftRepository(): DraftRepository {
+  if (process.env.EMAIL_CRM_PERSISTENCE === 'memory') {
+    return new InMemoryDraftRepository();
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { JsonbDraftRepository } = require('@/features/email-crm/repositories/jsonb-draft-repository') as {
+    JsonbDraftRepository: new () => DraftRepository;
+  };
+  return new JsonbDraftRepository();
+}
+
 export function getEmailDraftService(): EmailDraftService {
   if (!serviceInstance) {
-    serviceInstance = new EmailDraftService(new InMemoryDraftRepository());
+    serviceInstance = new EmailDraftService(createDraftRepository());
   }
   return serviceInstance;
 }

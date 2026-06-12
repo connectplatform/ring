@@ -11,6 +11,7 @@ import { setupResourcePreloading } from '@/lib/preload/setup'
 import { getMessages } from 'next-intl/server'
 import { auth } from '@/auth'
 import { connection } from 'next/server'
+import { AppContentShell } from '@/components/layout/ring-app-shell'
 
 interface AuthenticatedLocaleLayoutProps {
   children: React.ReactNode
@@ -40,7 +41,7 @@ export default async function AuthenticatedLocaleLayout({ children, params }: Au
         <div className="flex flex-col min-h-screen">
           <Navigation />
           <Suspense fallback={
-            <main className="flex-grow">
+            <main className="flex-grow md:pl-(--sidebar-total-w)">
               <div className="animate-pulse p-6 space-y-4">
                 <div className="h-8 bg-muted rounded w-1/3"></div>
                 <div className="h-64 bg-muted rounded"></div>
@@ -66,5 +67,9 @@ async function AuthGuard({ children, locale }: { children: React.ReactNode; loca
     localizedRedirect({ locale, href: '/login' })
   }
   
-  return <main className="flex-grow">{children}</main>
+  return (
+    <main className="flex-grow md:pl-(--sidebar-total-w)">
+      <AppContentShell>{children}</AppContentShell>
+    </main>
+  )
 }

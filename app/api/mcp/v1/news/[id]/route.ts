@@ -1,4 +1,4 @@
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { updateNewsArticle, deleteNewsArticle } from '@/features/news/services/news-service'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError, mcpFromResult } from '@/app/api/mcp/v1/_lib/respond'
@@ -8,12 +8,9 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export const GET = withMcpGuard(async (_request, _actor, context?: Ctx) => {
   const { id } = await (context?.params || Promise.resolve({ id: '' }))
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const result = await db.findById('news', id)
+  const result = await db().findDocById('news', id)
   if (!result.success || !result.data) return mcpError('Article not found', 404)
-  const data = (result.data as any).data || result.data
-  return mcpOk({ id, ...data })
+  return mcpOk(result.data)
 })
 
 export const PATCH = withMcpGuard(async (request, _actor, context?: Ctx) => {

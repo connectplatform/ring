@@ -2,7 +2,7 @@ import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { MessageService } from '@/features/chat/services/message-service'
 import { z } from 'zod'
-import { Timestamp } from 'firebase-admin/firestore'
+import { getMessageTimeMs } from '@/features/chat/lib/message-time'
 
 // Schema for message update
 const updateMessageSchema = z.object({
@@ -58,7 +58,7 @@ export async function PUT(
     }
 
     // Check if message is too old to edit (e.g., 15 minutes)
-    const messageAge = Date.now() - originalMessage.timestamp.toMillis()
+    const messageAge = Date.now() - getMessageTimeMs(originalMessage.timestamp)
     const MAX_EDIT_TIME = 15 * 60 * 1000 // 15 minutes
     
     if (messageAge > MAX_EDIT_TIME) {
@@ -71,7 +71,7 @@ export async function PUT(
     // Update the message
     const updatedMessage = await messageService.updateMessage(messageId, {
       content: validatedData.content,
-      editedAt: Timestamp.now()
+      editedAt: new Date()
     })
 
     return NextResponse.json({

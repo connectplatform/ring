@@ -1,89 +1,114 @@
 ---
 title: Email AI-CRM
-description: AI-керування поштою з 4-шаровим захистом, CRM-контактами та чергою чернеток
-last_modified: "2026-06-06"
+description: AI-інбокс для публічних контактних скриньок — IMAP poll, JSONB, черга чернеток, задачі та адмін-панель
+last_modified: "2026-06-10"
 ---
 
 # Email AI-CRM
 
-**AI-керування поштою для операторів спільнот Ring Platform**
+**AI-керований CRM для публічних поштових скриньок** (наприклад `info@example.com`). Вхідна пошта класифікується, збирається в треди; Claude формує чернетки відповідей; адміни затверджують відправку та бачать витрати API.
 
-Модуль `services/email/` обробляє вхідну пошту через IMAP IDLE, класифікує намір і тон, генерує відповіді через Claude та інтегрується з CRM (контакти, задачі, чернетки).
+> **EN canonical:** повні діаграми, таблиці API та runbook — [Email AI-CRM (EN)](/docs/library/features/email-ai-crm) · [Архітектура](/docs/library/architecture/email-ai-crm) · [API](/docs/library/api/email-ai-crm) · [Гайд розробника](/docs/library/examples/email-ai-crm)
 
-## Архітектура
+## Огляд
 
-```text
-IMAP → Parser → 4-Layer Security → Intent + Sentiment → Context → Response Generator
-  → Contacts / Tasks / Drafts → Auto-send або human review → SMTP
-```
+| Шар | Відповідальність |
+|-----|------------------|
+| **Збір** | Cron `POST /api/cron/email-processor` (`action: poll`) або webhook |
+| **Процесор** | `services/email/email-processor.ts` — parse, security, AI, CRM |
+| **Зберігання** | PostgreSQL JSONB: `email_threads`, `email_contacts`, `email_messages`, `email_drafts`, `email_tasks`, `email_api_usage` |
+| **Вихід** | `EmailSenderService` (nodemailer), `In-Reply-To` / `References` |
+| **Адмін UI** | inbox, drafts, contacts, analytics, tasks |
 
-| Шар | Шлях | Роль |
-|-----|------|------|
-| Ingestion | `services/email/imap/` | IMAP IDLE + fallback polling |
-| Parser | `services/email/parser/` | RFC 5322, threads |
-| Security | `services/email/security/` | 4 шари anti-injection |
-| AI | `services/email/ai/` | Intent, sentiment, generation, cost |
-| CRM | `services/email/crm/` | Контакти, auto-tasks |
-| Drafts | `services/email/drafts/` | Review queue, auto-send |
-| Orchestrator | `services/email/email-processor.ts` | Координація подій |
+## Бізнес-правила
 
-## 4-шаровий захист
+- **Дедуп Message-ID** — один RFC `Message-ID` не обробляється двічі.
+- **Auto-send вимкнено** — `EMAIL_AUTO_SEND_ENABLED=false` до SMTP smoke test.
+- **Cron poll у продакшні** — кожні 1–5 хв; IDLE лише для довгоживучого Node (`EMAIL_PROCESSOR_AUTOSTART`).
+- **Admin API** — `auth()` + `isPlatformAdmin` на `/api/admin/email/*`.
 
-1. **Input sanitization** — приховані символи, delimiter attacks
-2. **Injection classifier** — Claude Haiku
-3. **Spotlighting** — datamarking ненадійного контенту (`>>>`)
-4. **Output validation** — витік промптів, PII, exfiltration
+## Шлях адміна
 
-## AI pipeline
+<Mermaid>
+{`sequenceDiagram
+    participant M as Контактна скринька
+    participant C as Cron poll
+    participant P as EmailProcessor
+    participant DB as PostgreSQL JSONB
+    participant A as Адмін UI
 
-- **16 категорій intent** (`pricing_inquiry`, `technical_support`, `enterprise_inquiry`, …)
-- **Sentiment** — urgency, `at_risk` / `satisfied`
-- **Model tiering** — Haiku (класифікація) → Sonnet/Opus (складні відповіді)
-- **Prompt caching** — до ~90% економії на system prompt
-- **5 tools** у генераторі: `search_knowledge_base`, `lookup_contact`, `create_task`, `escalate_to_human`, `check_account_status`
+    M->>C: UNSEEN
+    C->>P: pollInboundBatch
+    P->>P: Security + intent + sentiment
+    P->>DB: messages, threads, drafts, tasks
+    A->>DB: GET /api/admin/email/threads
+    A->>A: Approve draft, send SMTP`}
+</Mermaid>
 
-## CRM і чернетки
+## Маршрути адмін UI
 
-- Контакти з `sentiment_history`, зв’язок з `ring_user_id`
-- Auto-tasks: enterprise inquiry, demo, complaint, bug, frustrated sentiment
-- Auto-send при confidence ≥ 0.90 для безпечних intent (документація, feedback, …)
+| Маршрут | Призначення |
+|---------|-------------|
+| `/{locale}/admin/email-inbox` | Список тредів |
+| `/{locale}/admin/email-inbox/[id]` | Деталі треду + повідомлення |
+| `/{locale}/admin/email-drafts` | Чернетки AI — approve / reject / send |
+| `/{locale}/admin/email-contacts` | CRM-контакти |
+| `/{locale}/admin/email-analytics` | Обсяг, intent/sentiment, вартість API |
+| `/{locale}/admin/email-tasks` | Follow-up та ескалації |
+
+## Пайплайн
+
+1. Parse → 2. 4-шаровий security → 3. AI (Haiku + Sonnet) → 4. CRM + tasks → 5. Черга чернеток → 6. Сповіщення (in-app / Slack).
 
 ## База даних
 
-Міграція: `data/migrations/001_email_crm_schema.sql` — 9 таблиць (`email_contacts`, `email_threads`, `email_messages`, `email_drafts`, `email_tasks`, …).
+| Міграція | Таблиці |
+|----------|---------|
+| `009_email_crm_jsonb.sql` | `email_threads`, `email_contacts`, `email_messages`, `email_drafts` |
+| `010_email_crm_tasks_jsonb.sql` | `email_tasks`, `email_api_usage` |
 
-## Admin UI
+```bash
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+```
 
-- `/admin/email-inbox` — threads
-- `/admin/email-drafts` — approve / reject
-- `/admin/email-contacts` — CRM
-- `/admin/email-analytics` — volume, cost, cache hit rate
+## Локальна конфігурація
 
-## Швидкий старт
+Додайте в **`.env.local`** (див. `env.local.template`, блок **EMAIL CRM**):
 
 ```bash
 # .env.local
 IMAP_HOST=mail.example.com
 IMAP_USER=info@example.com
 IMAP_PASSWORD=
+
 SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
 SMTP_USER=info@example.com
 SMTP_PASSWORD=
+
 ANTHROPIC_API_KEY=
 
-psql "$DATABASE_URL" -f data/migrations/001_email_crm_schema.sql
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_CRM_PERSISTENCE=memory
 ```
 
-```typescript
-import { getEmailProcessor } from '@/services/email';
-const processor = getEmailProcessor();
-processor.on('draft:auto_sent', ({ messageId }) => console.log(messageId));
-await processor.start();
-```
+| Змінна | Опис |
+|--------|------|
+| `IMAP_*` / `SMTP_*` | Ваш community inbox (будь-який IMAP/SMTP) |
+| `ANTHROPIC_API_KEY` | Intent, sentiment, генерація чернеток |
+| `CRON_SECRET` | Bearer для `/api/cron/email-processor` |
+| `EMAIL_AUTO_SEND_ENABLED` | `false` до SMTP smoke test |
+| `EMAIL_CRM_PERSISTENCE` | `memory` для швидкого dev; omit + міграції `009`/`010` для Postgres |
+
+## Продакшн
+
+Ті самі змінні — у secret store (k8s/Vercel). Міграції `009`+`010`, cron `poll` кожні 1–5 хв. Див. [гайд розробника](/docs/library/examples/email-ai-crm).
 
 ## Пов’язане
 
-- [Архітектура](/docs/library/architecture/email-ai-crm)
-- [API](/docs/library/api/email-ai-crm)
-- [Туторіал](/docs/library/examples/email-ai-crm)
-- [Environment](/docs/library/deployment/environment)
+- [Міграції](/docs/library/getting-started/migrations)
+- [Environment — Email AI-CRM](/docs/library/deployment/environment#email-ai-crm)
+- [Backend modes](/docs/library/architecture/backend-modes-and-databases)

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { Suspense } from 'react'
-import dynamic from 'next/dynamic'
 import Script from 'next/script'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -9,17 +8,13 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { CONNECT_SOFTWARE_LINKS } from '@/lib/constants/connect-software-urls'
+import { BookOpen, Briefcase, Building2 } from 'lucide-react'
 import HomeContent from '@/components/common/pages/home'
 import RightSidebar from '@/features/layout/components/right-sidebar'
-import MembershipUpsellCard from '@/components/common/membership-upsell-card'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-
-const DesktopSidebar = dynamic(() => import('@/components/navigation/desktop-sidebar'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full min-h-[240px] w-[280px] animate-pulse rounded-lg bg-muted/40" aria-hidden />
-  ),
-})
+import { DavinciRailLink } from '@/lib/ui/davinci'
+import { davinciPanelSurface } from '@/lib/ui/davinci/glass-surface'
+import { cn } from '@/lib/utils'
 
 function LoadingFallback() {
   const t = useTranslations('common')
@@ -101,51 +96,31 @@ function HomeRightRail({ locale }: { locale: Locale }) {
         </ul>
       </div>
 
-      <MembershipUpsellCard />
-
       <div className="space-y-3">
         <h4 className="font-medium text-sm">{tNav('explorePlatform')}</h4>
         <div className="space-y-2">
-          <Link
+          <DavinciRailLink
             href={ROUTES.DOCS(locale)}
-            className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-slate-50/50 to-zinc-50/50 dark:from-slate-950/30 dark:to-zinc-950/30 hover:from-slate-100 hover:to-zinc-100 dark:hover:from-slate-950/50 dark:hover:to-zinc-950/50 border border-slate-200/30 dark:border-slate-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-600 to-zinc-700 flex items-center justify-center flex-shrink-0 text-base text-white">
-              &#128218;
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">{tRail('exploreClone.docsCta')}</div>
-              <div className="text-xs text-muted-foreground truncate">{tRail('exploreClone.docsHint')}</div>
-            </div>
-          </Link>
-          <Link
+            title={tRail('exploreClone.docsCta')}
+            hint={tRail('exploreClone.docsHint')}
+            icon={<BookOpen className="size-4" strokeWidth={1.5} />}
+          />
+          <DavinciRailLink
             href={ROUTES.ENTITIES(locale)}
-            className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-emerald-50/50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/30 hover:from-emerald-100 hover:to-green-100 dark:hover:from-emerald-950/50 dark:hover:to-green-950/50 border border-emerald-200/30 dark:border-emerald-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0 text-base">
-              &#127970;
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">{tNav('exploreEntities')}</div>
-              <div className="text-xs text-muted-foreground truncate">{tNav('browseDirectory')}</div>
-            </div>
-          </Link>
-          <Link
+            title={tNav('exploreEntities')}
+            hint={tNav('browseDirectory')}
+            icon={<Building2 className="size-4" strokeWidth={1.5} />}
+          />
+          <DavinciRailLink
             href={ROUTES.OPPORTUNITIES(locale)}
-            className="flex items-center gap-3 w-full p-3 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-950/50 dark:hover:to-indigo-950/50 border border-blue-200/30 dark:border-blue-800/50 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md hover:-translate-y-0.5"
-          >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-base">
-              &#128188;
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">{tNav('findOpportunities')}</div>
-              <div className="text-xs text-muted-foreground truncate">{tNav('jobsAndProjects')}</div>
-            </div>
-          </Link>
+            title={tNav('findOpportunities')}
+            hint={tNav('jobsAndProjects')}
+            icon={<Briefcase className="size-4" strokeWidth={1.5} />}
+          />
         </div>
       </div>
 
-      <div className="p-4 bg-gradient-to-br from-amber-50/60 to-yellow-50/60 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/40 dark:border-amber-800/40 rounded-xl">
+      <div className={cn(davinciPanelSurface, 'space-y-3 p-4')}>
         <h4 className="font-semibold text-sm mb-1">{tRail('ringdomSettler.title')}</h4>
         <p className="text-xs text-muted-foreground mb-3">{tRail('ringdomSettler.body')}</p>
         <a
@@ -158,7 +133,7 @@ function HomeRightRail({ locale }: { locale: Locale }) {
         </a>
       </div>
 
-      <div className="p-4 bg-gradient-to-br from-violet-50/60 to-purple-50/60 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200/40 dark:border-violet-800/40 rounded-xl space-y-3">
+      <div className={cn(davinciPanelSurface, 'space-y-3 p-4')}>
         <h4 className="font-semibold text-sm">{tRail('legiox.title')}</h4>
         <p className="text-xs text-muted-foreground">{tRail('legiox.body')}</p>
         <div className="flex flex-wrap gap-2">
@@ -208,33 +183,27 @@ export default function HomeWrapper() {
   const locale = currentLocale as Locale
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
         <Link href="/privacy">Privacy Policy</Link>
         <Link href="/terms">Terms of Service</Link>
       </div>
 
-      <div className="hidden lg:grid lg:grid-cols-[280px_1fr_320px] gap-6 min-h-screen" key={`desktop-${currentLocale}`}>
-        <div>
-          <DesktopSidebar key={`sidebar-${currentLocale}`} />
-        </div>
-        <div>
+      <div className="hidden min-h-full gap-0 lg:grid lg:grid-cols-[minmax(0,1fr)_320px]" key={`desktop-${currentLocale}`}>
+        <div className="ring-content-panel ring-content-panel-flush min-w-0">
           <Suspense fallback={<LoadingFallback />}>
             <HomeContent key={`home-content-${currentLocale}`} session={session} />
           </Suspense>
         </div>
-        <div>
-          <RightSidebar key={`right-sidebar-${currentLocale}`}>
+        <div className="ring-right-rail self-stretch min-h-0 pt-4 pr-3">
+          <RightSidebar key={`right-sidebar-${currentLocale}`} sticky={false} className="h-full max-h-none">
             <HomeRightRail locale={locale} />
           </RightSidebar>
         </div>
       </div>
 
-      <div className="hidden md:grid md:grid-cols-[280px_1fr] lg:hidden gap-6 min-h-screen" key={`ipad-${currentLocale}`}>
-        <div>
-          <DesktopSidebar key={`sidebar-ipad-${currentLocale}`} />
-        </div>
-        <div className="relative">
+      <div className="hidden min-h-full md:block lg:hidden" key={`ipad-${currentLocale}`}>
+        <div className="ring-content-panel ring-content-panel-flush relative min-h-full">
           <Suspense fallback={<LoadingFallback />}>
             <HomeContent key={`home-content-ipad-${currentLocale}`} session={session} />
           </Suspense>
@@ -244,10 +213,12 @@ export default function HomeWrapper() {
         </div>
       </div>
 
-      <div className="md:hidden px-4" key={`mobile-${currentLocale}`}>
-        <Suspense fallback={<LoadingFallback />}>
-          <HomeContent key={`home-content-mobile-${currentLocale}`} session={session} />
-        </Suspense>
+      <div className="px-1 pb-4 md:hidden" key={`mobile-${currentLocale}`}>
+        <div className="ring-content-panel ring-content-panel-flush min-h-full">
+          <Suspense fallback={<LoadingFallback />}>
+            <HomeContent key={`home-content-mobile-${currentLocale}`} session={session} />
+          </Suspense>
+        </div>
       </div>
 
       <Script src="/scripts/hero-animations.js" strategy="afterInteractive" />

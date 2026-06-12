@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 import React from "react"
 import { redirect, notFound } from "next/navigation"
 import { headers } from "next/headers"
@@ -9,7 +10,7 @@ import type { Opportunity } from "@/types"
 import ConfidentialOpportunitiesWrapper from "@/components/wrappers/confidential-opportunities-wrapper"
 import { LocalePageProps } from "@/utils/page-props"
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { connection } from 'next/server'
@@ -46,8 +47,6 @@ export async function generateMetadata({
       title: t('metadata.title'),
       description: t('metaDescription.description'),
     },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: confidentialRobots,
   })
 }
@@ -169,7 +168,7 @@ export default async function ConfidentialOpportunitiesPage(props: LocalePagePro
     logger.error('ConfidentialOpportunitiesPage: Failed to check/create user document:', migrationError);
   }
 
-  const siteOrigin = getSeoSiteBaseUrl()
+  const siteOrigin = getSiteBaseUrl()
   const title = t('metadata.title')
   const description = t('metaDescription.description')
   const canonicalUrl = `${siteOrigin}${ROUTES.CONFIDENTIAL_OPPORTUNITIES(validLocale)}`

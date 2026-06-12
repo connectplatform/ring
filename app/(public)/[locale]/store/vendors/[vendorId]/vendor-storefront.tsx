@@ -10,9 +10,9 @@
  * - Tabs (Products, About, Reviews, Contact)
  * - Products grid (vendor's active products)
  * - Vendor branding colors
- * - "Powered by GreenFood.live" footer
+ * - "Powered by" platform footer (locale-driven brand)
  * 
- * Tech: React 19 + Agricultural theme
+ * Tech: React 19 + Ring Platform theme
  */
 
 import React, { useState, useTransition, useCallback } from 'react'
@@ -44,6 +44,7 @@ interface VendorStorefrontProps {
 
 export default function VendorStorefront({ locale, vendorEntity, products }: VendorStorefrontProps) {
   const t = useTranslations('vendor.storefront')
+  const tConfig = useTranslations('config')
 
   // React 19 useTransition for non-blocking tab changes
   const [isPending, startTransition] = useTransition()
@@ -243,7 +244,7 @@ export default function VendorStorefront({ locale, vendorEntity, products }: Ven
       <footer className="border-t py-8 mt-16">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
-            {t('poweredBy')} <span className="font-semibold text-emerald-600">GreenFood.live</span>
+            {t('poweredBy')} <span className="font-semibold text-emerald-600">{tConfig('platform.name')}</span>
           </p>
         </div>
       </footer>

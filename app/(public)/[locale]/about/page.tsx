@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 import { Suspense } from 'react'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { connection } from 'next/server'
 
 type AboutParams = Record<string, never>
@@ -24,8 +25,6 @@ export async function generateMetadata({
     locale,
     path: 'about',
     pathname: '/about',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 
@@ -38,7 +37,7 @@ export default async function AboutPage(props: LocalePageProps<AboutParams>) {
     : routing.defaultLocale
 
   const t = await getTranslations('about')
-  const baseUrl = getSeoSiteBaseUrl()
+  const baseUrl = getSiteBaseUrl()
   const jsonLdData = {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',

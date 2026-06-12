@@ -158,21 +158,15 @@ const UnifiedLoginInline: React.FC<UnifiedLoginInlineProps> = ({
   /**
    * Handles sign-in with Crypto Wallet (MetaMask)
    */
-  const handleCryptoLogin = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error('Please install MetaMask to use this feature')
-      }
-
-      throw new Error('Web3 auth upgraded - please use the multi-chain wallet dashboard for connection')
-
-    } catch (error) {
-      handleSignInError(error as Error)
-    } finally {
-      setIsLoading(false)
+  const handleCryptoLogin = useCallback(() => {
+    const params = new URLSearchParams()
+    if (from) {
+      params.set('from', from)
     }
-  }, [from, locale, router, handleSignInError])
+    const query = params.toString()
+    const path = ROUTES.WALLET_CONNECT(locale)
+    router.push(query ? `${path}?${query}` : path)
+  }, [from, locale, router])
 
   const handleUseDifferentEmail = useCallback(() => {
     setEmailSent(false)

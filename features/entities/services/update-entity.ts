@@ -9,8 +9,8 @@ import { Entity } from '@/features/entities/types'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { checkEntityOwnership } from '../utils/entity-utils'
-import { invalidateEntitiesCache } from '@/lib/cached-data'
-import { db } from '@/lib/database/DatabaseService'
+import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
+import { db } from '@/lib/database'
 
 /**
  * Updates an entity by its ID in Firestore, enforcing role-based access control.
@@ -58,12 +58,7 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
     }
 
     // Step 3: Update entity using db.command() abstraction
-    const result = await db().execute('update', {
-      collection: 'entities',
-      id: id,
-      data: data,
-      options: { merge: true }
-    });
+    const result = await db().updateDoc('entities', id, data, { merge: true })
 
     if (!result.success) {
       throw new Error(result.error?.message || 'Failed to update entity');
@@ -71,7 +66,7 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
 
     console.log('Services: updateEntity - Entity updated successfully');
 
-    invalidateEntitiesCache(['public','subscriber','member','confidential','admin'])
+    await syncEntityDiscovery({ entityId: id, event: 'updated' })
 
     return true; // Indicate successful update
 

@@ -17,10 +17,10 @@ Ring eliminates the fundamental problem of missed opportunities through AI-power
 {`flowchart TD
     A[Human creates an ad] --> B["offer/request\n(+other Opportunities)"]
     B --> C[user adds brief desc]
-    C --> D{AI analyses and extends context,\nuser validates final text of the ad.}
+    C --> D{"AI analyses and extends context\nuser validates final text of the ad"}
     D --> E[The ad appears in the pool of Opportunities]
-    E --> F{ai-matcher generates a custom-tailored invitation,\nincluding reasons to view the Opportunity.}
-    F --> G[No more search - direct Connect.]`}
+    E --> F{"ai-matcher generates a custom-tailored invitation\nincluding reasons to view the Opportunity"}
+    F --> G[No more search - direct Connect]`}
 </Mermaid>
 
 **Traditional Platforms:** Post opportunity → Wait → Hope someone sees it → Maybe get response
@@ -47,7 +47,7 @@ Ring eliminates the fundamental problem of missed opportunities through AI-power
 
 ### AI Matcher Architecture
 
-<Mermaid>
+<Mermaid title="AI Matcher Architecture">
 {`mindmap
   root((AI Matcher))
     Input
@@ -89,7 +89,7 @@ Ring eliminates the fundamental problem of missed opportunities through AI-power
     Factor7 --> Score
     Factor8 --> Score
 
-    Score --> Threshold{Score > 70%?}
+    Score --> Threshold{"Score > 70%?"}
     Threshold -->|Yes| Priority[Priority Notification]
     Threshold -->|No| Standard[Standard Feed]
 
@@ -230,56 +230,72 @@ Access the exact resources and talent required for your success:
 
 ## 🚀 Implementation & Integration
 
-### Quick Start (5 Minutes)
-// Create your first opportunity
+Ring Platform v1.6+ stores opportunities in **PostgreSQL via `DatabaseService`** (default `DB_BACKEND_MODE=k8s-postgres-fcm`). Server services return **`SerializedOpportunity`** (ISO date strings) for App Router and client components. Legacy Firestore converters under `lib/converters/` apply only when `DB_BACKEND_MODE=firebase-full`.
 
-<Code language="typescript" title="TypeScript">
-{`const opportunity = await createOpportunity({
+### Data layer (read vs write)
+
+| Path | Module | When |
+|------|--------|------|
+| **PostgreSQL read/write** | `features/opportunities/lib/opportunity-db-mapper.ts` | Default production clones — maps JSONB rows to `SerializedOpportunity` |
+| **Post-mutation sync** | `features/opportunities/lib/opportunity-mutation-sync.ts` | After create/update/delete — `revalidateTag`, `revalidatePath`, Tunnel publish |
+| **My Opportunities** | `/[locale]/opportunities/my` | Canonical dashboard (`ROUTES.MY_OPPORTUNITIES`); legacy `/opportunities/my-opportunities` removed |
+| **Firestore legacy** | `lib/converters/opportunity-converter.ts` | `firebase-full` only — `FirestoreDataConverter` |
+| **Client transport** | `lib/converters/opportunity-serializer.ts` | `Timestamp` ↔ ISO when bridging Firestore-shaped objects |
+
+### Quick Start (server service)
+
+<Code language="typescript" title="Create an opportunity (DatabaseService)">
+{`import { createOpportunity } from '@/features/opportunities/services/create-opportunity'
+
+const opportunity = await createOpportunity({
+  type: 'offer',
   title: 'Senior Full-Stack Developer',
-  type: 'JOB',
-  nature: 'OFFER',
-  description: 'Join our innovative fintech startup',
-  requirements: ['React', 'Node.js', 'TypeScript', 'AWS'],
-  compensation: {
-    type: 'SALARY_RANGE',
-    min: 120000,
-    max: 160000,
-    currency: 'USD'
-  },
+  briefDescription: 'Join our fintech team building Ring-powered products',
+  fullDescription: 'React 19, Next.js 16, PostgreSQL, Auth.js v5',
+  createdBy: userId,
+  organizationId: entityId,
+  status: 'pending',
+  category: 'engineering',
+  tags: ['react', 'typescript', 'nextjs'],
   location: 'Remote',
-  isConfidential: false
-})`}
+  requiredSkills: ['React', 'TypeScript', 'PostgreSQL'],
+  requiredDocuments: [],
+  attachments: [],
+  visibility: 'public',
+  contactInfo: { linkedEntity: entityId, contactAccount: userId },
+  applicantCount: 0,
+  isConfidential: false,
+  expirationDate: new Date(Date.now() + 90 * 864e5),
+})
+
+// Returns SerializedOpportunity (date fields as ISO strings)
+// Triggers AI matching, optional auto-approve (admin toggle), and syncOpportunityDiscovery()`}
 </Code>
 
-### Advanced Integration
-// Bulk opportunity management
+### Search & list (cached reads)
 
-<Code language="typescript" title="TypeScript">
-{`const opportunities = await createBulkOpportunities([
-  {
-    title: 'Marketing Manager',
-    type: 'JOB',
-    nature: 'OFFER',
-    // ... additional configuration
-  },
-  {
-    title: 'Seeking UX Designer',
-    type: 'JOB',
-    nature: 'REQUEST',
-    // ... additional configuration
-  }
-])
+<Code language="typescript" title="Role-based list and search">
+{`import { getOpportunitiesForRole } from '@/features/opportunities/services/get-opportunities'
+import { searchOpportunities } from '@/features/opportunities/services/search-opportunities'
 
-// Advanced search and filtering
+const { opportunities } = await getOpportunitiesForRole({
+  userRole: UserRole.MEMBER,
+  limit: 20,
+})
+
 const searchResults = await searchOpportunities({
   query: 'React TypeScript',
-  types: ['JOB'],
+  types: ['offer'],
   location: 'Remote',
   budgetMin: 100000,
   sortBy: 'relevance',
-  limit: 20
+  limit: 20,
 })`}
 </Code>
+
+### Matcher auto-approval (admin)
+
+When **Platform Settings → AI → Matcher → Auto-approve** is enabled, new opportunities in `pending` status can be promoted to `active` after LLM matching passes score and confidence gates (`features/opportunities/services/auto-approval-service.ts`). Configure defaults in `ring-config.json` → `matcher` and override per tenant in `platform_settings`.
 
 ## 📊 Success Metrics & Benchmarks
 
@@ -321,9 +337,8 @@ const searchResults = await searchOpportunities({
 - **Analytics Dashboard**: Comprehensive reporting and insights
 
 ### API-First Architecture
-// RESTful API endpoints
 
-<Code language="typescript" title="TypeScript">
+<Code language="typescript" title="RESTful API endpoints">
 {`GET /api/opportunities          // List opportunities
 POST /api/opportunities         // Create opportunity
 GET /api/opportunities/:id      // Get specific opportunity

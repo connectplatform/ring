@@ -12,6 +12,8 @@
     "push-notifications-fcm",
     "wallet",
     "store",
+    "erp",
+    "refcodes",
     "payments",
     "payment-conductor",
     "wayforpay-integration",

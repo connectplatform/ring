@@ -28,7 +28,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -338,15 +337,13 @@ export default function CheckoutWrapper({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      <div className="flex gap-6 min-h-screen">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
+      <div className="flex min-h-full gap-3">
         {/* Left Sidebar - Main Navigation (Desktop only) */}
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
+
 
         {/* Center Content Area - Full width of middle column */}
-        <div className="flex-1 min-w-0 py-8 px-4 md:px-6 lg:px-8 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {children}
         </div>
 

@@ -1,7 +1,9 @@
 import { NextResponse, connection} from 'next/server'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/locale-config'
+
+type UserRow = Record<string, unknown> & { id: string }
 
 export async function GET() {
   await connection() // Next.js 16: opt out of prerendering
@@ -12,12 +14,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    const result = await db.findById('users', session.user.id)
+    const result = await db().findDocById<UserRow>('users', session.user.id)
     
-    if (!result.success || !result.data?.data) {
+    if (!result.success || !result.data) {
       return NextResponse.json({ 
         preferences: {
           locale: DEFAULT_LOCALE,
@@ -27,8 +26,8 @@ export async function GET() {
       })
     }
 
-    const userData = result.data.data
-    const preferences = userData.preferences || {
+    const userData = result.data
+    const preferences = (userData.preferences as Record<string, unknown>) || {
       locale: DEFAULT_LOCALE,
       currency: 'UAH',
       theme: 'system'
@@ -73,20 +72,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid theme' }, { status: 400 })
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Get current user data
-    const userResult = await db.findById('users', session.user.id)
+    const userResult = await db().findDocById<UserRow>('users', session.user.id)
     
-    if (!userResult.success || !userResult.data?.data) {
+    if (!userResult.success || !userResult.data) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const userData = userResult.data.data
-    const currentPreferences = userData.preferences || {}
+    const userData = userResult.data
+    const currentPreferences = (userData.preferences as Record<string, unknown>) || {}
 
-    // Merge new preferences with existing ones
     const updatedPreferences = {
       ...currentPreferences,
       ...(locale && { locale }),
@@ -95,8 +89,7 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString()
     }
 
-    // Update user document with new preferences
-    const updateResult = await db.update('users', session.user.id, {
+    const updateResult = await db().updateDoc('users', session.user.id, {
       ...userData,
       preferences: updatedPreferences,
       updated_at: new Date()
@@ -120,4 +113,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

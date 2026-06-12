@@ -1,4 +1,5 @@
-import { generateHreflangAlternates, getSeoSiteBaseUrl } from '@/lib/seo-metadata'
+import { generateHreflangAlternates } from '@/lib/seo-metadata'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 
 type HreflangLinksProps = {
   /** Path without locale prefix, e.g. `/` or `/about`. */
@@ -10,7 +11,7 @@ type HreflangLinksProps = {
  * `metadata.alternates.languages` (nginx proxy buffer limits on k3s-or).
  */
 export function HreflangLinks({ pathname }: HreflangLinksProps) {
-  const baseUrl = getSeoSiteBaseUrl()
+  const baseUrl = getSiteBaseUrl()
   const alternates = generateHreflangAlternates(pathname)
 
   return (

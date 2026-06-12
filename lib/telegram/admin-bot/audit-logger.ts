@@ -12,7 +12,7 @@
  * - Stores raw messages, parsed intents, actions, results, and errors
  */
 
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { ParsedCommand } from './anthropic-router'
 import { ExecutionResult } from './ring-api-executor'
 import { v4 as uuidv4 } from 'uuid'
@@ -46,9 +46,6 @@ export async function logInteraction(
   executionResult: ExecutionResult | null
 ): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     const auditEntry: AuditLogEntry = {
       id: uuidv4(),
       telegram_id: telegramId,
@@ -69,8 +66,7 @@ export async function logInteraction(
       created_at: new Date(),
     }
 
-    // Insert into telegram_admin_audit table
-    const result = await db.create('telegram_admin_audit', auditEntry)
+    const result = await db().createDoc('telegram_admin_audit', auditEntry, { id: auditEntry.id })
 
     if (!result.success) {
       console.error('[AUDIT LOGGER] Failed to log interaction:', result.error)
@@ -94,9 +90,6 @@ export async function logFailedRequest(
   errorReason: string
 ): Promise<void> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     const auditEntry: AuditLogEntry = {
       id: uuidv4(),
       telegram_id: telegramId || 'unknown',
@@ -109,7 +102,7 @@ export async function logFailedRequest(
       created_at: new Date(),
     }
 
-    const result = await db.create('telegram_admin_audit', auditEntry)
+    const result = await db().createDoc('telegram_admin_audit', auditEntry, { id: auditEntry.id })
 
     if (!result.success) {
       console.error('[AUDIT LOGGER] Failed to log failed request:', result.error)
@@ -128,16 +121,11 @@ export async function logFailedRequest(
  */
 export async function getAuditLogs(userId: string, limit: number = 10): Promise<AuditLogEntry[]> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // db.query() expects a DatabaseQuery object (see IDatabaseService.ts)
-    // Pagination settings must be passed via the 'pagination' property per interface
-    const result = await db.query({
+    const result = await db().queryDocs<AuditLogEntry>({
       collection: 'telegram_admin_audit',
       filters: [{ field: 'user_id', operator: '==', value: userId }],
       orderBy: [{ field: 'created_at', direction: 'desc' }],
-      pagination: { limit: Math.min(limit || 10, 100) }, // Max 100 records
+      pagination: { limit: Math.min(limit || 10, 100) },
     })
 
     if (!result.success) {
@@ -145,7 +133,7 @@ export async function getAuditLogs(userId: string, limit: number = 10): Promise<
       return []
     }
 
-    return result.data.map((log: any) => log as AuditLogEntry) || []
+    return result.data || []
   } catch (error) {
     console.error('[AUDIT LOGGER] Error fetching audit logs:', error)
     return []
@@ -164,12 +152,9 @@ export async function getAuditStats(): Promise<{
   by_user: Record<string, number>
 }> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    const result = await db.query({
+    const result = await db().queryDocs<AuditLogEntry>({
       collection: 'telegram_admin_audit',
-      filters: [] as any,
+      filters: [],
     })
 
     if (!result.success) {
@@ -177,15 +162,15 @@ export async function getAuditStats(): Promise<{
       return { total: 0, errors: 0, successful: 0, by_user: {} }
     }
 
-    const logs = result.data.map((log: any) => log as AuditLogEntry) || []
+    const logs = result.data || []
 
     const stats = {
       total: logs.length,
-      errors: logs.filter((log: any) => log.error).length,
-      successful: logs.filter((log: any) => !log.error).length,
-      by_user: logs.reduce((acc: Record<string, number>, log: any) => {
-        const userId = log.user_id || 'unknown'
-        acc[userId] = (acc[userId] || 0) + 1
+      errors: logs.filter((log) => log.error).length,
+      successful: logs.filter((log) => !log.error).length,
+      by_user: logs.reduce((acc: Record<string, number>, log) => {
+        const uid = log.user_id || 'unknown'
+        acc[uid] = (acc[uid] || 0) + 1
         return acc
       }, {}),
     }

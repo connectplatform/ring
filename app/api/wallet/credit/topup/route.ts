@@ -3,6 +3,14 @@ import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditTopUpRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
+import { isPlatformAdmin } from '@/features/auth/user-role';
+import {
+  isChainProofRequired,
+  reserveTopUpTxHash,
+  verifyTopUpTransaction,
+} from '@/features/wallet/services/topup-verification';
+import { getWalletAddressesForUser } from '@/features/refcodes/lib/user-wallets';
+import { priceOracleService } from '@/services/blockchain/price-oracle-service';
 
 /**
  * POST /api/wallet/credit/topup
@@ -67,17 +75,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Get current RING/USD rate from price oracle service
-    // For now, using a default rate
-    const usdRate = '1.00'; // $1 USD per RING (placeholder)
+    // RING/USD rate from the price oracle (multi-source with cached fallback)
+    let usdRate = '1.00';
+    try {
+      const price = await priceOracleService.getRingUsdPrice();
+      if (price?.price && parseFloat(price.price) > 0) {
+        usdRate = price.price;
+      }
+    } catch (oracleError) {
+      logger.warn('Credit top-up: price oracle unavailable, using fallback rate', { oracleError });
+    }
 
     // Determine transaction type based on metadata
     let transactionType: 'top_up' | 'airdrop' | 'bonus' = 'top_up';
-    
+
     if (validatedRequest.metadata?.type === 'airdrop') {
       transactionType = 'airdrop';
     } else if (validatedRequest.metadata?.type === 'bonus') {
       transactionType = 'bonus';
+    }
+
+    // Airdrop/bonus mint credits without chain proof — admin only.
+    if (transactionType !== 'top_up' && !isPlatformAdmin(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Airdrop and bonus credits require admin access' },
+        { status: 403 }
+      );
+    }
+
+    // Regular top-ups must be backed by an on-chain transfer to the treasury.
+    if (transactionType === 'top_up' && isChainProofRequired()) {
+      if (!validatedRequest.tx_hash) {
+        return NextResponse.json(
+          { error: 'tx_hash is required: top-ups must reference an on-chain transfer' },
+          { status: 400 }
+        );
+      }
+
+      const reserved = await reserveTopUpTxHash(validatedRequest.tx_hash, userId, validatedRequest.amount);
+      if (!reserved) {
+        return NextResponse.json(
+          { error: 'This transaction hash was already used for a top-up' },
+          { status: 409 }
+        );
+      }
+
+      const userWallets = await getWalletAddressesForUser(userId);
+      const verification = await verifyTopUpTransaction({
+        txHash: validatedRequest.tx_hash,
+        amount: validatedRequest.amount,
+        userWallets,
+      });
+
+      if (!verification.verified) {
+        logger.warn('Credit top-up: chain verification failed', {
+          userId,
+          txHash: validatedRequest.tx_hash,
+          reason: verification.reason,
+        });
+        return NextResponse.json(
+          { error: `Transaction verification failed: ${verification.reason}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Add credits to user balance

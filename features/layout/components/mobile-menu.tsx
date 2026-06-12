@@ -11,7 +11,7 @@ import {
   Moon, Sun, X, LogIn, User, Settings, Store, Briefcase, 
   Building2, Wallet, Shield, Crown, Heart, Bell, MessageCircle,
   Home, Info, Phone, FileText, HelpCircle, ChevronRight,
-  Sparkles, Zap, Globe
+  Sparkles, Zap, Globe, Share2
 } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
@@ -19,8 +19,11 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
-const authButtonLift =
-  'transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0'
+import {
+  BorderBeam,
+  davinciAuthButtonLift,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
 
 function MobileMenuGuestAuth({
   onClose,
@@ -37,7 +40,7 @@ function MobileMenuGuestAuth({
 
   const handleSignIn = async (provider: 'google' | 'apple' | 'metamask') => {
     if (provider === 'metamask') {
-      router.push(`/${locale}/auth/wallet-connect`)
+      router.push(ROUTES.WALLET_CONNECT(locale))
       onClose?.()
       return
     }
@@ -50,12 +53,10 @@ function MobileMenuGuestAuth({
   }
 
   return (
-    <div
-      className={cn(
-        'rounded-2xl bg-white/5 backdrop-blur-md border border-white/10',
-        'hover:border-white/20 hover:bg-white/10 transition-all duration-300 p-5',
-        className
-      )}
+    <BorderBeam
+      className={cn('rounded-2xl', className)}
+      innerClassName={cn('p-5', davinciGlassSurface, 'border-0')}
+      duration="5s"
     >
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
@@ -73,7 +74,7 @@ function MobileMenuGuestAuth({
           className={cn(
             'flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-xl',
             'bg-white text-gray-800 hover:bg-gray-50 font-semibold shadow-lg shadow-black/5',
-            authButtonLift
+            davinciAuthButtonLift
           )}
         >
           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
@@ -91,7 +92,7 @@ function MobileMenuGuestAuth({
             className={cn(
               'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
               'bg-black text-white hover:bg-gray-900 font-semibold shadow-lg',
-              authButtonLift
+              davinciAuthButtonLift
             )}
           >
             {tAuth('signIn.providers.apple')}
@@ -102,14 +103,14 @@ function MobileMenuGuestAuth({
             className={cn(
               'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
               'bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-lg',
-              authButtonLift
+              davinciAuthButtonLift
             )}
           >
             {tAuth('signIn.providers.metamask')}
           </button>
         </div>
       </div>
-    </div>
+    </BorderBeam>
   )
 }
 
@@ -224,6 +225,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         label: t('profile'),
         icon: User,
         gradient: 'from-indigo-500 to-blue-600'
+      },
+      {
+        href: ROUTES.WALLET(locale),
+        label: t('wallet'),
+        icon: Wallet,
+        gradient: 'from-amber-500 to-orange-600'
+      },
+      {
+        href: ROUTES.REFCODES(locale),
+        label: t('refcodes'),
+        icon: Share2,
+        gradient: 'from-pink-500 to-violet-600'
       },
       {
         href: ROUTES.SETTINGS(locale),

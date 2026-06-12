@@ -1,7 +1,27 @@
 'use server'
 
 import { logger } from '@/lib/logger'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
+
+type AccountDeletionStatus =
+  | 'pending'
+  | 'cancelled'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+
+interface AccountDeletionRecord extends Record<string, unknown> {
+  status: AccountDeletionStatus
+  scheduledDeletionDate: Date | string
+  canCancel?: boolean
+  requestDate?: Date | string
+  reason?: string
+  cancelledDate?: Date | string
+  processingStartDate?: Date | string
+  completedDate?: Date | string
+  failedDate?: Date | string
+  failureReason?: string
+}
 
 interface AccountDeletionRequest {
   userId: string
@@ -42,11 +62,7 @@ export async function requestAccountDeletion(
   try {
     const { userId, password, reason, userEmail, userName } = request
 
-    // Step 1: Initialize database and verify user exists
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const userResult = await db.findById('users', userId)
+    const userResult = await db().findDocById('users', userId)
     
     if (!userResult.success || !userResult.data) {
       return {
@@ -55,17 +71,10 @@ export async function requestAccountDeletion(
       }
     }
 
-    const userData = userResult.data.data || userResult.data
-    
-    // Note: In a real implementation, you would verify the password here
-    // For now, we'll assume password verification happens at the Auth.js level
-    
-    // Step 2: Check if deletion is already pending
-    const existingDeletionResult = await db.findById('account_deletions', userId)
+    const existingDeletionResult = await db().findDocById<AccountDeletionRecord>('account_deletions', userId)
     
     if (existingDeletionResult.success && existingDeletionResult.data) {
-      const existingData = existingDeletionResult.data.data || existingDeletionResult.data
-      if (existingData.status === 'pending') {
+      if (existingDeletionResult.data.status === 'pending') {
         return {
           success: false,
           error: 'DELETION_ALREADY_PENDING'
@@ -73,9 +82,8 @@ export async function requestAccountDeletion(
       }
     }
 
-    // Step 3: Create account deletion record with grace period
     const deletionDate = new Date()
-    deletionDate.setDate(deletionDate.getDate() + 30) // 30-day grace period
+    deletionDate.setDate(deletionDate.getDate() + 30)
 
     const deletionData = {
       userId,
@@ -83,14 +91,14 @@ export async function requestAccountDeletion(
       userName,
       requestDate: new Date(),
       scheduledDeletionDate: deletionDate,
-      status: 'pending',
+      status: 'pending' as const,
       reason: reason || '',
       canCancel: true,
       createdAt: new Date(),
       updatedAt: new Date()
     }
 
-    const createResult = await db.create('account_deletions', deletionData, { id: userId })
+    const createResult = await db().createDoc('account_deletions', deletionData, { id: userId })
     
     if (!createResult.success) {
       return {
@@ -99,8 +107,7 @@ export async function requestAccountDeletion(
       }
     }
 
-    // Step 4: Update user status to indicate pending deletion
-    const updateResult = await db.update('users', userId, {
+    const updateResult = await db().updateDoc('users', userId, {
       accountStatus: 'deletion_pending',
       deletionRequestDate: new Date(),
       scheduledDeletionDate: deletionDate,
@@ -114,16 +121,12 @@ export async function requestAccountDeletion(
       }
     }
 
-    // Step 5: Log the deletion request for audit trail
     logger.info('Account deletion requested', {
       userId,
       userEmail,
       scheduledDeletionDate: deletionDate,
       reason
     })
-
-    // Step 6: In a real implementation, send notification email here
-    // await sendDeletionRequestNotification(userEmail, userName, deletionDate)
 
     return {
       success: true,
@@ -145,20 +148,13 @@ export async function requestAccountDeletion(
   }
 }
 
-/**
- * Cancel pending account deletion during grace period
- */
 export async function cancelAccountDeletion(
   request: AccountDeletionCancel
 ): Promise<ServiceResult> {
   try {
     const { userId, userEmail } = request
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Step 1: Check if there's a pending deletion
-    const deletionResult = await db.findById('account_deletions', userId)
+    const deletionResult = await db().findDocById<AccountDeletionRecord>('account_deletions', userId)
     
     if (!deletionResult.success || !deletionResult.data) {
       return {
@@ -167,8 +163,8 @@ export async function cancelAccountDeletion(
       }
     }
 
-    const deletionData = deletionResult.data.data || deletionResult.data
-    
+    const deletionData = deletionResult.data
+
     if (deletionData.status !== 'pending') {
       return {
         success: false,
@@ -176,7 +172,6 @@ export async function cancelAccountDeletion(
       }
     }
 
-    // Step 2: Check if grace period has expired
     const scheduledDate = new Date(deletionData.scheduledDeletionDate)
     const now = new Date()
     
@@ -187,8 +182,7 @@ export async function cancelAccountDeletion(
       }
     }
 
-    // Step 3: Cancel the deletion
-    const updateDeletionResult = await db.update('account_deletions', userId, {
+    const updateDeletionResult = await db().updateDoc('account_deletions', userId, {
       status: 'cancelled',
       cancelledDate: new Date(),
       canCancel: false,
@@ -202,8 +196,7 @@ export async function cancelAccountDeletion(
       }
     }
 
-    // Step 4: Restore user account status
-    const updateUserResult = await db.update('users', userId, {
+    const updateUserResult = await db().updateDoc('users', userId, {
       accountStatus: 'active',
       deletionRequestDate: null,
       scheduledDeletionDate: null,
@@ -217,15 +210,11 @@ export async function cancelAccountDeletion(
       }
     }
 
-    // Step 5: Log the cancellation for audit trail
     logger.info('Account deletion cancelled', {
       userId,
       userEmail,
       cancelledDate: new Date()
     })
-
-    // Step 6: In a real implementation, send cancellation email here
-    // await sendDeletionCancelledNotification(userEmail)
 
     return {
       success: true
@@ -244,21 +233,13 @@ export async function cancelAccountDeletion(
   }
 }
 
-/**
- * Confirm and execute final account deletion
- * This should typically be called by a scheduled job after grace period
- */
 export async function confirmAccountDeletion(
   request: AccountDeletionConfirm
 ): Promise<ServiceResult> {
   try {
     const { userId, userEmail, userName } = request
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Step 1: Check if there's a pending deletion
-    const deletionResult = await db.findById('account_deletions', userId)
+    const deletionResult = await db().findDocById<AccountDeletionRecord>('account_deletions', userId)
     
     if (!deletionResult.success || !deletionResult.data) {
       return {
@@ -267,8 +248,8 @@ export async function confirmAccountDeletion(
       }
     }
 
-    const deletionData = deletionResult.data.data || deletionResult.data
-    
+    const deletionData = deletionResult.data
+
     if (deletionData.status !== 'pending') {
       return {
         success: false,
@@ -276,31 +257,15 @@ export async function confirmAccountDeletion(
       }
     }
 
-    // Step 2: Check if grace period has expired (optional safety check)
-    const scheduledDate = new Date(deletionData.scheduledDeletionDate)
-    const now = new Date()
-    
-    // For manual confirmation, we allow immediate deletion
-    // For automated deletion, you might want to enforce: if (now < scheduledDate)
-
-    // Step 3: Mark deletion as in progress
-    await db.update('account_deletions', userId, {
+    await db().updateDoc('account_deletions', userId, {
       status: 'processing',
       processingStartDate: new Date(),
       updatedAt: new Date()
     })
 
-    // Step 4: Delete user data (following data retention policies)
-    // Note: In production, you might want to:
-    // - Anonymize instead of delete (for legal/business requirements)
-    // - Move data to a deletion queue for batch processing
-    // - Retain certain data for compliance (e.g., transaction records)
-    
-    // For this implementation, we'll mark as deleted rather than hard delete
-    const deleteUserResult = await db.update('users', userId, {
+    const deleteUserResult = await db().updateDoc('users', userId, {
       accountStatus: 'deleted',
       deletedDate: new Date(),
-      // Optionally anonymize personal data
       name: '[DELETED USER]',
       email: `deleted-${userId}@anonymized.local`,
       updatedAt: new Date()
@@ -313,23 +278,18 @@ export async function confirmAccountDeletion(
       }
     }
 
-    // Step 5: Mark deletion as completed
-    await db.update('account_deletions', userId, {
+    await db().updateDoc('account_deletions', userId, {
       status: 'completed',
       completedDate: new Date(),
       updatedAt: new Date()
     })
 
-    // Step 6: Log the final deletion for audit trail
     logger.info('Account deletion completed', {
       userId,
       originalEmail: userEmail,
       originalName: userName,
       deletedDate: new Date()
     })
-
-    // Step 7: In a real implementation, send final deletion confirmation email
-    // await sendDeletionCompletedNotification(userEmail, userName)
 
     return {
       success: true
@@ -341,11 +301,8 @@ export async function confirmAccountDeletion(
       error: error instanceof Error ? error.message : error
     })
     
-    // Mark deletion as failed for retry
     try {
-      await initializeDatabase()
-      const db = getDatabaseService()
-      await db.update('account_deletions', request.userId, {
+      await db().updateDoc('account_deletions', request.userId, {
         status: 'failed',
         failedDate: new Date(),
         failureReason: error instanceof Error ? error.message : 'Unknown error',
@@ -362,20 +319,13 @@ export async function confirmAccountDeletion(
   }
 }
 
-/**
- * Get current account deletion status
- */
 export async function getAccountDeletionStatus(
   request: AccountDeletionStatusCheck
 ): Promise<ServiceResult> {
   try {
     const { userId } = request
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Check if there's a deletion record
-    const deletionResult = await db.findById('account_deletions', userId)
+    const deletionResult = await db().findDocById<AccountDeletionRecord>('account_deletions', userId)
     
     if (!deletionResult.success || !deletionResult.data) {
       return {
@@ -386,8 +336,8 @@ export async function getAccountDeletionStatus(
       }
     }
 
-    const deletionData = deletionResult.data.data || deletionResult.data
-    
+    const deletionData = deletionResult.data
+
     return {
       success: true,
       data: {
@@ -413,23 +363,9 @@ export async function getAccountDeletionStatus(
   }
 }
 
-/**
- * Scheduled job function to process expired deletion requests
- * This should be called by a cron job or scheduled function
- */
 export async function processExpiredDeletions(): Promise<ServiceResult> {
   try {
-    // This would typically use a query to find all pending deletions
-    // where scheduledDeletionDate <= now
-    // For now, this is a placeholder implementation
-    
     logger.info('Processing expired account deletions')
-    
-    // In production:
-    // 1. Query for expired pending deletions
-    // 2. Process each one via confirmAccountDeletion()
-    // 3. Handle failures and retries
-    // 4. Send notifications
     
     return {
       success: true,

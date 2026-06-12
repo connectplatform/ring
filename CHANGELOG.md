@@ -9,7 +9,7 @@ All notable changes to Ring Platform are documented in this file.
 - **Shared date serialization** — `lib/serialization/to-iso-date.ts` (`toIsoDate`, `toIsoDateOrUndefined`) for MCP and cross-boundary ISO 8601 output
 - **Docs library v1.6** — New EN/UK/RU pages: locale system, Ring MCP, PaymentConductor, member blog, scientific editor, proxy/intl, self-hosted deployment, community tooling, OSS vs enterprise, news kingdom architecture, migrations getting-started
 - **News seed scripts** — `scripts/seed-news-v1.6.0.sql` (+ `uk`, `ru` variants) for fresh clone content
-- **MCP env template** — `RING_MCP_SERVICE_TOKENS` and synthetic service-user vars in `.env.local.template`
+- **MCP env template** — `RING_MCP_SERVICE_TOKENS` and synthetic service-user vars in `env.local.template`
 
 ### Fixed
 - **`auth()` TypeScript contract** — Explicit `Promise<Session | null>` return; restores `tsc --noEmit` after broken `Parameters<typeof nextAuthBase>` overload resolution

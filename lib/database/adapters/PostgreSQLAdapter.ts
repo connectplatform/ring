@@ -47,6 +47,12 @@ export class PostgreSQLAdapter implements IDatabaseService {
     entities: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    entity_reports: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    matcher_moderation_events: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     // --- Fully-normalized tables (no 'data' column) ---
     // Note: include both snake_case (DB columns) and camelCase (app code) so
     // getFieldReference() recognises either form as a real column.
@@ -103,6 +109,10 @@ export class PostgreSQLAdapter implements IDatabaseService {
     ]),
     messages: new Set([
       'id', 'created_at', 'updated_at'
+    ]),
+    platform_settings: new Set([
+      'id', 'data', 'secrets', 'updated_by', 'created_at', 'updated_at',
+      'updatedBy', 'createdAt', 'updatedAt',
     ]),
   };
 

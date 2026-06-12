@@ -377,6 +377,13 @@ export class EmailTaskService {
   }
   
   /**
+   * Search tasks
+   */
+  async searchTasks(params: TaskSearchParams): Promise<EmailTask[]> {
+    return this.repository.search(params);
+  }
+
+  /**
    * Get tasks for a thread
    */
   async getThreadTasks(threadId: string): Promise<EmailTask[]> {
@@ -651,9 +658,20 @@ export class InMemoryTaskRepository implements TaskRepository {
 // Singleton
 let serviceInstance: EmailTaskService | null = null;
 
+function createTaskRepository(): TaskRepository {
+  if (process.env.EMAIL_CRM_PERSISTENCE === 'memory') {
+    return new InMemoryTaskRepository();
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { JsonbTaskRepository } = require('@/features/email-crm/repositories/jsonb-task-repository') as {
+    JsonbTaskRepository: new () => TaskRepository;
+  };
+  return new JsonbTaskRepository();
+}
+
 export function getEmailTaskService(): EmailTaskService {
   if (!serviceInstance) {
-    serviceInstance = new EmailTaskService(new InMemoryTaskRepository());
+    serviceInstance = new EmailTaskService(createTaskRepository());
   }
   return serviceInstance;
 }

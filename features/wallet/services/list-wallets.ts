@@ -9,7 +9,7 @@ import { UserRole } from '@/features/auth/types'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 /**
  * Interface for wallet information returned by the service
@@ -51,22 +51,27 @@ export async function listWallets(): Promise<WalletInfo[]> {
   console.log(`Services: listWallets - User authenticated with ID: ${userId} and role: ${userRole}`)
 
   // Step 2: Retrieve user data from database abstraction layer
-  console.log('Services: listWallets - Initializing database service');
-  const initResult = await initializeDatabase();
-  if (!initResult.success) {
-    console.error('Services: listWallets - Database initialization failed:', initResult.error);
-    throw new Error('Database initialization failed');
-  }
+  console.log('Services: listWallets - Fetching user document');
+  const userResult = await db().findDocById<{
+    walletAddress?: string
+    additionalWallets?: Array<{ address: string; label?: string; createdAt?: string; balance?: string }>
+  } & Record<string, unknown>>('users', userId);
 
-  const dbService = getDatabaseService();
-  const userResult = await dbService.read('users', userId);
-
-  if (!userResult.success || !userResult.data) {
+  if (!userResult.success) {
+    if (userResult.metadata?.operation === 'initialize') {
+      console.error('Services: listWallets - Database initialization failed:', userResult.error);
+      throw new Error('Database initialization failed');
+    }
     console.log(`Services: listWallets - User not found for ID: ${userId}`);
     throw new Error('User not found');
   }
 
-  const userData = userResult.data.data || userResult.data;
+  if (!userResult.data) {
+    console.log(`Services: listWallets - User not found for ID: ${userId}`);
+    throw new Error('User not found');
+  }
+
+  const userData = userResult.data;
 
   // Step 3: Format and return the list of wallets
   const wallets: WalletInfo[] = [

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import { getRingSeoBranding, getSiteBaseUrl } from '@/lib/ring-config'
 import { setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { LocalePageProps } from '@/utils/page-props'
 import HomeWrapper from '@/components/wrappers/home-wrapper'
 import { ROUTES } from '@/constants/routes'
@@ -23,10 +24,8 @@ export async function generateMetadata({
   return buildLocalizedMetadata({
     locale,
     path: 'home',
-    variables: { platform: RING_PLATFORM_SEO.siteName },
+    variables: { platform: getRingSeoBranding().siteName },
     pathname: '/',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 
@@ -42,11 +41,11 @@ export default async function HomePage({ params }: LocalePageProps<HomePageParam
 
   setRequestLocale(locale)
 
-  const baseUrl = getSeoSiteBaseUrl()
+  const baseUrl = getSiteBaseUrl()
   const websiteJsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: RING_PLATFORM_SEO.siteName,
+    name: getRingSeoBranding().siteName,
     description:
       'Connect, collaborate, and create value in the decentralized economy. Professional networking, opportunities, and blockchain-enabled collaboration.',
     url: `${baseUrl}${ROUTES.HOME(locale as Locale)}`,
@@ -60,7 +59,7 @@ export default async function HomePage({ params }: LocalePageProps<HomePageParam
     },
     publisher: {
       '@type': 'Organization',
-      name: RING_PLATFORM_SEO.siteName,
+      name: getRingSeoBranding().siteName,
       url: baseUrl,
       logo: {
         '@type': 'ImageObject',

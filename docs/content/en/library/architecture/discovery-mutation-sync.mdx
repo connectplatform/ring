@@ -1,0 +1,73 @@
+---
+title: Discovery Mutation Sync
+description: Post-mutation cache, path, and Tunnel sync for opportunities and entities (PostgreSQL-primary clones)
+---
+
+# Discovery Mutation Sync
+
+When opportunities or entities are created, updated, or deleted on a **PostgreSQL-primary** clone (`DB_BACKEND_MODE=k8s-postgres-fcm` or `supabase-fcm`), Ring Platform does **not** run a separate search reindex job. The database row **is** the index. Freshness for users comes from three coordinated steps:
+
+1. **`revalidateTag`** — bust `unstable_cache` list caches (`lib/cached-data.ts`)
+2. **`revalidatePath`** — refresh App Router SSR pages
+3. **Tunnel** — publish realtime events on topic channels
+
+## Shared Tunnel helper
+
+`lib/discovery/sync-discovery.ts` exports `syncDiscovery()` — the single entry point for Tunnel fan-out:
+
+| Channel | Events |
+|---------|--------|
+| `opportunities` | `opportunity:created`, `opportunity:updated`, `opportunity:deleted` |
+| `entities` | `entity:created`, `entity:updated`, `entity:deleted` |
+
+`status_changed` maps to `:updated` on the wire.
+
+## Domain wrappers
+
+| Resource | Module | Called from |
+|----------|--------|-------------|
+| Opportunities | `features/opportunities/lib/opportunity-mutation-sync.ts` → `syncOpportunityDiscovery()` | `create-opportunity`, `update-opportunity`, `delete-opportunity`, `auto-approval-service` |
+| Entities | `features/entities/lib/entity-mutation-sync.ts` → `syncEntityDiscovery()` | `create-entity`, `update-entity`, `delete-entity` |
+
+Each wrapper owns cache tags and `revalidatePath` targets for its routes, then delegates Tunnel publish to `syncDiscovery()`.
+
+### Revalidated paths
+
+**Opportunities**
+
+- `/[locale]/opportunities`
+- `/[locale]/opportunities/[id]`
+- `/[locale]/opportunities/my`
+- `/opportunities` (on create / status change)
+
+**Entities**
+
+- `/[locale]/entities`
+- `/[locale]/entities/[id]`
+- `/[locale]/entities/my`
+- `/entities` (on create / status change)
+
+### Paths intentionally omitted
+
+| Path | Reason |
+|------|--------|
+| `/[locale]/entities/add` | One-shot form; users redirect to detail/list after create |
+| `/[locale]/entities/status/...` | Payment/status callbacks; unrelated to CRUD discovery |
+| `/[locale]/confidential/entities` | Narrow CONFIDENTIAL audience; list uses same `entities-list` cache tags — tag invalidation is sufficient without extra path churn |
+| Ringdom Maps nodes | Separate graph store; not wired to entity list caches today |
+
+## PostgreSQL row mapping
+
+Reads map `DatabaseService` rows through domain mappers (ISO date strings → `Serialized*` types):
+
+- `features/opportunities/lib/opportunity-db-mapper.ts`
+- `features/entities/lib/entity-db-mapper.ts`
+
+Legacy Firestore converters under `lib/converters/*-converter.ts` apply only when `DB_BACKEND_MODE=firebase-full`.
+
+## Related
+
+- [Backend modes and databases](./backend-modes-and-databases)
+- [Realtime transport](./real-time)
+- [Opportunities API](../api/opportunities)
+- [Entities API](../api/entities)

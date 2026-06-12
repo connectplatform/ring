@@ -6,10 +6,7 @@
 
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
-import { getDatabaseService } from '@/lib/database'
-
-const db = getDatabaseService()
-
+import { db } from '@/lib/database'
 
 interface ErrorLogPayload {
   message: string
@@ -61,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log to database (analytics_errors collection)
-    const result = await db.create('analytics_errors', errorDoc)
+    const result = await db().createDoc('analytics_errors', errorDoc)
 
     // Also log to console in development
     if (process.env.NODE_ENV === 'development') {
@@ -103,7 +100,7 @@ export async function GET(request: NextRequest) {
   try {
     // Require authentication
     const session = await auth()
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -113,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     // Check admin role
     const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-    
+
     if (!isAdmin) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
@@ -128,7 +125,7 @@ export async function GET(request: NextRequest) {
     const component = searchParams.get('component')
 
     // Build filters
-    const filters: any[] = []
+    const filters: Array<{ field: string; operator: string; value: unknown }> = []
     if (severity) {
       filters.push({ field: 'severity', operator: '==', value: severity })
     }
@@ -137,7 +134,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch errors from database
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'analytics_errors',
       filters,
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
@@ -163,4 +160,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-

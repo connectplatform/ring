@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
@@ -8,37 +8,36 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { getTranslations } from 'next-intl/server'
 import { NewsAnalyticsDashboard } from '@/features/news/components/news-analytics-dashboard'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { mapNewsDocument } from '@/lib/news/map-news-document'
 import { NewsArticle, NewsAnalytics, NewsCategory } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
 import { connection } from 'next/server'
 import { isPlatformAdmin } from '@/features/auth/user-role'
+
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof (value as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate()
+  }
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value)
+  return new Date()
+}
 
 /**
  * Get news analytics - Server Component async/await (React 19)
  */
 async function getNewsAnalytics(): Promise<NewsAnalytics> {
   try {
-    // Initialize database service with proper error handling
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      console.error('Database initialization failed:', initResult.error)
-      return {
-        totalArticles: 0,
-        totalViews: 0,
-        totalLikes: 0,
-        totalComments: 0,
-        popularArticles: [],
-        topCategories: [],
-        recentActivity: []
-      } // Graceful degradation
-    }
-    const db = getDatabaseService()
-    
-    const result = await db.query({ collection: 'news' })
+    const result = await db().queryDocs({ collection: 'news' })
     if (!result.success) throw result.error || new Error('Query failed')
-    
-    const articles = result.data as any[] as NewsArticle[]
+
+    const articles = result.data.map((row) => mapNewsDocument(row)) as NewsArticle[]
 
     // Calculate analytics
     const totalArticles = articles.length
@@ -71,7 +70,7 @@ async function getNewsAnalytics(): Promise<NewsAnalytics> {
       date.setDate(date.getDate() - i)
       
       const dayArticles = articles.filter(article => {
-        const articleDate = article.createdAt.toDate()
+        const articleDate = toDate(article.createdAt)
         return articleDate.toDateString() === date.toDateString()
       })
 
@@ -106,7 +105,6 @@ async function getNewsAnalytics(): Promise<NewsAnalytics> {
   }
 }
 
-
 export async function generateMetadata({
   params,
 }: {
@@ -122,8 +120,6 @@ export async function generateMetadata({
     path: 'admin.analytics',
     pathname: '/admin/news/analytics',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

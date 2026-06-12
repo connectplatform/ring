@@ -1,0 +1,201 @@
+---
+title: Autonomous Newsroom (Grok)
+description: xAI Grok-powered article generation — web research, cited HTML drafts, OG images, TTS, Telegram approval, and locale fan-out
+last_modified: "2026-06-09"
+---
+
+# Autonomous Newsroom (xAI Grok)
+
+One-message **autonomous newsroom**: Grok researches the web (`web_search` + `x_search`), writes a cited HTML article, picks category and tags, generates a featured image (`ImageConductor`), optional narration (`AudioConductor`), and saves a **draft** for one-tap Telegram approval. On approval, linked translations spawn for other supported locales (`en`, `uk`, `ru`).
+
+## Architecture
+
+```text
+Telegram / MCP / Admin UI
+  → generateNewsArticle()  (features/news/services/article-generator.ts)
+    → TextConductor (Grok /v1/responses + web_search)
+    → ImageConductor (featured 16:9)
+    → AudioConductor (TTS mp3 → ring-filebase)
+    → createNewsArticleForAuthor() → db.create('news', draft)
+    → Telegram approval keyboard (optional)
+  → approveMainPagePublication
+    → generateArticleTranslations (other locales)
+```
+
+| Layer | Path |
+|-------|------|
+| Text | `lib/text/` — `TextConductor`, `providers/xai.provider.ts` |
+| Audio | `lib/audio/` — `AudioConductor`, Grok `/v1/tts` |
+| Orchestrator | `features/news/services/article-generator.ts` |
+| Translations | `features/news/services/article-translation.ts` |
+| Auth-free create | `createNewsArticleForAuthor()` in `news-service.ts` |
+| Approval UI | `features/news/services/news-telegram-approval.ts` |
+
+## Surfaces (universal)
+
+All surfaces call the same `generateNewsArticle()` service.
+
+| Surface | Entry |
+|---------|--------|
+| **Telegram admin bot** | Tool `generate_news_article` — `{ source, value, instruction? }` |
+| **MCP** | `ring-news-generate` → `POST /api/mcp/v1/news/generate` |
+| **Admin UI** | `GenerateArticleDialog` on news list + create editor |
+| **Session API** | `POST /api/news/generate` (Auth.js admin) |
+
+### Telegram flow
+
+1. Admin sends a URL or topic (e.g. “write article about https://…”).
+2. Claude routes to `generate_news_article`.
+3. Draft created with `mainPageStatus: awaiting_admin_approval`.
+4. Inline keyboard: **Approve** / **Reject** / **View** / **Counter**.
+5. **Approve** → `approveMainPagePublication` → publish + translation fan-out.
+
+`entity_crud` / `entity_report` in the decision tree alias to `ring_crud` / `ring_report` in the executor.
+
+### MCP example
+
+```
+ring-news-generate source url value https://example.com/press-release instruction "neutral tone, platform-updates angle"
+```
+
+### Admin UI
+
+- **News manager** → **Generate with AI**
+- **Create article** → **Generate with AI** → redirects to edit draft
+
+## Request body
+
+```json
+{
+  "source": "url",
+  "value": "https://example.com/article",
+  "instruction": "Focus on platform impact for developers",
+  "locale": "en",
+  "enableAudio": true,
+  "enableImage": true
+}
+```
+
+| Field | Required | Values |
+|-------|----------|--------|
+| `source` | Yes | `url` \| `search` \| `text` |
+| `value` | Yes | URL, search query, or raw source text |
+| `instruction` | No | Editorial angle / tone |
+| `locale` | No | Hint; Grok auto-detects `detectedLocale` |
+| `enableAudio` | No | Default `true` (`NEWS_AUTOGEN_ENABLE_AUDIO`) |
+| `enableImage` | No | Default `true` |
+
+**Response (201):**
+
+```json
+{
+  "success": true,
+  "articleId": "uuid",
+  "title": "…",
+  "locale": "en",
+  "featuredImage": "https://cdn…/generated/…",
+  "audioUrl": "https://cdn…/generated/audio/…"
+}
+```
+
+## Structured output schema
+
+Grok returns JSON via `/v1/responses` + `json_schema`:
+
+| Field | Description |
+|-------|-------------|
+| `title` | Article headline |
+| `content` | HTML body (citations appended as Sources footer) |
+| `excerpt` | Plain text, ≤300 chars |
+| `tags` | Semantic tag array |
+| `category` | One of 11 `NewsCategory` values (invalid → `other`) |
+| `detectedLocale` | `en`, `uk`, or `ru` |
+| `summary` | One paragraph — used as image prompt |
+
+Categories: `platform-updates`, `partnerships`, `community`, `industry-news`, `events`, `announcements`, `security`, `press-releases`, `tutorials`, `other`, `blogs`.
+
+## Translation on approval
+
+`generateArticleTranslations(articleId)` runs fire-and-forget after `approveMainPagePublication`:
+
+- Loads source article and `translationGroupId`.
+- For each locale in `SUPPORTED_LOCALES` except source: `TextConductor` translate (no web search).
+- Creates linked sibling articles; updates `availableTranslations` on all group members.
+
+## Environment
+
+Reuses `XAI_API_KEY` and `XAI_API_BASE_URL` from [Generative images](/en/library/development/generative-images).
+
+```bash
+# TextConductor (Grok /v1/responses)
+TEXT_GEN_PROVIDER=xai
+XAI_TEXT_MODEL=grok-4.3
+XAI_TEXT_MAX_TOKENS=8000
+XAI_TEXT_WEBSEARCH=true
+XAI_TEXT_XSEARCH=true
+TEXT_GEN_POLL_TIMEOUT_MS=180000
+
+# AudioConductor (TTS)
+TTS_PROVIDER=xai
+XAI_TTS_ENABLED=true
+XAI_TTS_VOICE=eve
+AUDIO_STORAGE_PREFIX=generated/audio
+
+# Article defaults
+NEWS_AUTOGEN_DEFAULT_VISIBILITY=public
+NEWS_AUTOGEN_ENABLE_AUDIO=true
+```
+
+Also requires [ImageConductor env](/en/library/development/generative-images#environment) for featured images and ring-filebase for uploads.
+
+## News article fields
+
+| Field | Autogen value |
+|-------|----------------|
+| `status` | `draft` |
+| `mainPageStatus` | `awaiting_admin_approval` |
+| `promoteToMainPage` | `true` |
+| `translationGroupId` | New UUID per generation |
+| `audioUrl` | CDN URL when TTS succeeds |
+| `featuredImage` / `seo.ogImage` | From ImageConductor |
+
+## Programmatic usage
+
+```typescript
+import { generateNewsArticle } from '@/features/news/services/article-generator'
+
+const result = await generateNewsArticle({
+  source: 'search',
+  value: 'Ring Platform open source release',
+  author: { id: actorId, name: 'Editor' },
+  enableAudio: true,
+  enableImage: true,
+})
+```
+
+## Verification
+
+```bash
+# MCP tool count (includes ring-news-generate)
+node AI-RING/ring-mcp/ring-mcp-server.js --test
+# → "tools": 57
+```
+
+Manual: Telegram URL → draft with Sources footer, category, tags, image, audio → Approve → published + `uk`/`ru` siblings share `translationGroupId`.
+
+## Out of scope (future)
+
+- `grok-build` code endpoint, streaming responses
+- X-thread auto-posting
+- Per-locale audio (source locale only today)
+- Translated audio tracks
+
+## Security
+
+- Store `XAI_API_KEY` only in `.env.local` / k8s secrets — never commit or paste in chat.
+- Rotate keys if exposed.
+- Telegram bot uses PALADIN layers (webhook secret, whitelist, output validation).
+
+---
+
+*See also: [News module](/en/library/features/news) · [Ring MCP](/en/library/development/ring-mcp) · [Generative images](/en/library/development/generative-images)*

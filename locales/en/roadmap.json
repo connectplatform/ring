@@ -1,0 +1,156 @@
+{
+  "title": "Ring Platform Roadmap",
+  "description": "Where Ring is today and where it is going — for founders and CTOs evaluating a white-label platform and the RING token economy.",
+  "hero": {
+    "badge": "Founders & CTOs",
+    "subtitle": "See what ships on flagship rings today, what is landing next, and how RING aligns builders with platform growth.",
+    "mandate": "Clone. Operate. Extend. No vendor lock-in.",
+    "ringCta": "Explore RING token economy",
+    "walletCta": "Open wallet",
+    "cloneCta": "Clone on GitHub"
+  },
+  "timeline": {
+    "title": "Platform journey",
+    "subtitle": "Major milestones on production rings — not vaporware slides."
+  },
+  "timelineItems": [
+    {
+      "title": "2025 H1",
+      "cardTitle": "OSS baseline shipped",
+      "cardSubtitle": "Live on flagship rings",
+      "cardDetailedText": "Next.js 16 + Turbopack, React 19, Auth.js v5, PostgreSQL/PostGIS, modular i18n (en/uk/ru), marketplace, opportunities, and white-label propagation."
+    },
+    {
+      "title": "2025 H2",
+      "cardTitle": "LegioX operator layer",
+      "cardSubtitle": "MCP + AI-CONTEXT",
+      "cardDetailedText": "147+ truth lenses, ring-mcp (57 tools), NODUS-aligned workflows, and governed prompt-driven customization paths."
+    },
+    {
+      "title": "Jun 2026",
+      "cardTitle": "Autonomous Newsroom",
+      "cardSubtitle": "Shipped — Grok + Telegram",
+      "cardDetailedText": "URL/search → cited HTML draft, OG image, TTS, category/tags, Telegram approve, locale fan-out (en/uk/ru). Surfaces: MCP ring-news-generate, admin UI, admin bot."
+    },
+    {
+      "title": "2026",
+      "cardTitle": "In development",
+      "cardSubtitle": "Active engineering",
+      "cardDetailedText": "ConnectPlatform/Firebase deployment paths, Cache Components hardening, richer Reggie ringization, and serialization Phase 2."
+    },
+    {
+      "title": "Horizon",
+      "cardTitle": "Natural-language ring assembly",
+      "cardSubtitle": "Human-in-the-loop",
+      "cardDetailedText": "Rings that progressively assemble vetted modules from intent — audit-friendly multi-tenant controls and durable orchestration."
+    }
+  ],
+  "shipped": {
+    "title": "Shipped on production rings",
+    "subtitle": "Capabilities you can run today — self-hosted or on Ringdom.",
+    "items": [
+      { "name": "Autonomous Newsroom", "tag": "Jun 2026" },
+      { "name": "ImageConductor (Grok / Imagen)", "tag": "2026" },
+      { "name": "Ring MCP — 57 tools", "tag": "2026" },
+      { "name": "PaymentConductor v1", "tag": "2025" },
+      { "name": "News Kingdom + member blogs", "tag": "2025" },
+      { "name": "LegioX MCP + AI-CONTEXT", "tag": "2025" }
+    ]
+  },
+  "demos": {
+    "title": "Live documentation components",
+    "subtitle": "Phase 1 visualization stack — interactive on this page.",
+    "timelineCaption": "Release cadence (react-chrono)",
+    "mathCaption": "Token fee allocation (KaTeX)",
+    "mathFormula": "\\text{community\\_share} = \\text{platform\\_fee} \\times (1 - \\text{treasury\\_rate})",
+    "sandboxTitle": "Ring-style server action (Sandpack)",
+    "sandboxCode": "'use server'\\n\\nexport async function publishDraft(formData: FormData) {\\n  const title = formData.get('title')\\n  if (!title) return { error: 'Title required' }\\n  // await db.create('news', { title, status: 'draft' })\\n  return { success: true, title }\\n}"
+  },
+  "platform": {
+    "title": "Strategic phases",
+    "subtitle": "Three horizons for platform buyers — baseline, active build, and next wave.",
+    "phases": [
+      {
+        "title": "Shipped baseline",
+        "timeline": "Live now",
+        "body": "Production stack on ring-platform.org and clones: entities, store, wallet, messaging, memberships, docs, and k8s deployment paths."
+      },
+      {
+        "title": "In development",
+        "timeline": "Active",
+        "body": "Operator automation (LegioX), generative modules (newsroom, images), MCP gateway hardening, and enterprise ConnectPlatform bridges."
+      },
+      {
+        "title": "Next horizon",
+        "timeline": "Planned",
+        "body": "Intent-driven module assembly, DAO governance hooks, mobile shell, and expanded locale coverage (ES, FR, DE, PT, SW)."
+      }
+    ]
+  },
+  "docs": {
+    "title": "Documentation",
+    "subtitle": "Deep dives for technical due diligence — architecture, APIs, and generative modules.",
+    "links": [
+      {
+        "title": "Technical roadmap (docs)",
+        "description": "Companion MDX with Timeline, Math, and CodeSandbox examples.",
+        "href": "/docs/roadmap"
+      },
+      {
+        "title": "Autonomous Newsroom",
+        "description": "Grok research, cited drafts, TTS, Telegram approval, translations.",
+        "href": "/docs/development/generative-newsroom"
+      },
+      {
+        "title": "Generative images",
+        "description": "ImageConductor — xAI / Google Imagen to ring-filebase.",
+        "href": "/docs/development/generative-images"
+      },
+      {
+        "title": "Ring MCP",
+        "description": "57 ring-* tools for operators and agents.",
+        "href": "/docs/development/ring-mcp"
+      },
+      {
+        "title": "Getting started",
+        "description": "Clone, configure, first deploy.",
+        "href": "/docs/getting-started"
+      },
+      {
+        "title": "Token economy",
+        "description": "RING utility, reserves, and participation mechanics.",
+        "href": "/token-economy"
+      }
+    ]
+  },
+  "visualization": {
+    "title": "Docs UX roadmap",
+    "subtitle": "How we level up library docs to Stripe/Vercel-grade interactivity.",
+    "phases": {
+      "phase1": { "label": "Phase 1", "timeline": "1–2 days", "priority": "P0" },
+      "phase2": { "label": "Phase 2", "timeline": "3–5 days", "priority": "P1" },
+      "phase3": { "label": "Phase 3", "timeline": "1–2 weeks", "priority": "P2" }
+    },
+    "statusImplemented": "Shipped",
+    "statusPlanned": "Planned",
+    "useCases": "Use cases",
+    "effort": "Estimate",
+    "library": "Library",
+    "orderTitle": "Implementation order",
+    "implementedTitle": "Already in docs",
+    "metricsTitle": "Success metrics",
+    "metrics": {
+      "documentation_quality": "Stripe/Vercel-grade guides",
+      "developer_productivity": "50% faster onboarding",
+      "user_engagement": "3× docs time-on-page",
+      "support_reduction": "30% fewer support tickets"
+    },
+    "effortSummary": "Total effort",
+    "exploreDocs": "Open documentation library"
+  },
+  "labels": {
+    "version": "Spec v{version}",
+    "updated": "Updated {date}",
+    "components": "{count} components"
+  }
+}

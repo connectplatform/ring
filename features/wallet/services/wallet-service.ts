@@ -10,7 +10,43 @@ import {
   WalletTransaction,
   ProjectWalletData
 } from '@/features/wallet/types';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
+
+type ProjectWalletRow = {
+  address?: string;
+  primary?: boolean;
+  label?: string;
+  created_at?: string;
+  createdAt?: string;
+};
+
+type WalletContactRow = {
+  id?: string;
+  name?: string;
+  address?: string;
+  notes?: string;
+  is_favorite?: boolean;
+  isFavorite?: boolean;
+  is_default?: boolean;
+  isDefault?: boolean;
+  added_at?: string;
+  addedAt?: string;
+  last_used?: string;
+  lastUsed?: string;
+};
+
+function mapWalletContactRow(row: WalletContactRow & { id: string }): WalletContact {
+  return {
+    id: row.id,
+    name: row.name ?? '',
+    address: row.address ?? '',
+    notes: row.notes,
+    isFavorite: row.isFavorite ?? row.is_favorite ?? false,
+    isDefault: row.isDefault ?? row.is_default ?? false,
+    addedAt: row.addedAt ?? row.added_at,
+    lastUsed: row.lastUsed ?? row.last_used,
+  };
+}
 
 /**
  * Project-specific wallet service implementation
@@ -34,31 +70,25 @@ class WalletServiceImpl {
     console.log(`🏦 WalletService - Ensuring wallet for user ${globalUserId} in project ${this.projectSlug}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
-      // Check if user already has a wallet in this project
-      const existingQuery = {
+      const existingResult = await db().queryDocs<ProjectWalletRow>({
         collection: 'project_wallets',
         filters: [
           { field: 'global_user_id', operator: '==', value: globalUserId },
           { field: 'project_slug', operator: '==', value: this.projectSlug }
         ]
-      };
+      });
 
-      const existingResult = await dbService.query(existingQuery);
+      if (!existingResult.success) {
+        throw new Error(`Failed to query project wallets: ${existingResult.error}`);
+      }
 
-      if (existingResult.success && existingResult.data && existingResult.data.length > 0) {
+      if (existingResult.data.length > 0) {
         const existingWallet = existingResult.data[0];
         return {
-          address: existingWallet.data.address,
-          primary: existingWallet.data.primary || false,
-          label: existingWallet.data.label || `${this.projectSlug} Wallet`,
-          createdAt: existingWallet.data.created_at
+          address: existingWallet.address ?? '',
+          primary: existingWallet.primary || false,
+          label: existingWallet.label || `${this.projectSlug} Wallet`,
+          createdAt: existingWallet.created_at ?? existingWallet.createdAt
         };
       }
 
@@ -79,7 +109,7 @@ class WalletServiceImpl {
         lastUsed: new Date()
       };
 
-      const result = await dbService.create('project_wallets', walletData);
+      const result = await db().createDoc('project_wallets', walletData as unknown as Record<string, unknown>);
       if (!result.success) {
         throw new Error(`Failed to create project wallet: ${result.error}`);
       }
@@ -104,33 +134,24 @@ class WalletServiceImpl {
     console.log(`🏦 WalletService - Getting wallets for user ${globalUserId} in project ${this.projectSlug}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
-      const query = {
+      const result = await db().queryDocs<ProjectWalletRow>({
         collection: 'project_wallets',
         filters: [
           { field: 'global_user_id', operator: '==', value: globalUserId },
           { field: 'project_slug', operator: '==', value: this.projectSlug }
         ],
         orderBy: [{ field: 'last_used', direction: 'desc' as const }]
-      };
-
-      const result = await dbService.query(query);
+      });
 
       if (!result.success) {
         throw new Error(`Failed to query project wallets: ${result.error}`);
       }
 
-      return (result.data || []).map(doc => ({
-        address: doc.data.address,
-        primary: doc.data.primary || false,
-        label: doc.data.label || 'Wallet',
-        createdAt: doc.data.created_at
+      return result.data.map(doc => ({
+        address: doc.address ?? '',
+        primary: doc.primary || false,
+        label: doc.label || 'Wallet',
+        createdAt: doc.created_at ?? doc.createdAt
       }));
 
     } catch (error) {
@@ -163,13 +184,6 @@ class WalletServiceImpl {
     console.log(`📇 WalletService - Adding contact for user ${globalUserId} in project ${this.projectSlug}: ${contactData.name}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
       const contact: WalletContact = {
         id: crypto.randomUUID(),
         ...contactData,
@@ -187,19 +201,22 @@ class WalletServiceImpl {
         ]
       };
 
-      const existingResult = await dbService.query(existingQuery);
+      const existingResult = await db().queryDocs<WalletContactRow>(existingQuery);
 
-      if (existingResult.success && existingResult.data && existingResult.data.length > 0) {
-        // Update existing contact
-        const updateResult = await dbService.update('project_wallet_contacts', existingResult.data[0].id, {
+      if (existingResult.success && existingResult.data.length > 0) {
+        const existingId = existingResult.data[0].id;
+        const updateResult = await db().updateDoc('project_wallet_contacts', existingId, {
           ...contact,
-          last_used: new Date().toISOString()
+          last_used: new Date().toISOString(),
         });
 
         if (updateResult.success && updateResult.data) {
+          const updated = updateResult.data;
           return {
-            ...updateResult.data.data,
-            id: updateResult.data.id
+            ...mapWalletContactRow(updated),
+            name: contact.name,
+            address: contact.address,
+            addedAt: contact.addedAt
           };
         }
       }
@@ -211,12 +228,19 @@ class WalletServiceImpl {
         projectSlug: this.projectSlug
       };
 
-      const result = await dbService.create('project_wallet_contacts', fullContact);
+      const result = await db().createDoc('project_wallet_contacts', fullContact);
       if (!result.success) {
         throw new Error(`Failed to add contact: ${result.error}`);
       }
 
-      return contact;
+      const created = result.data;
+      return {
+        ...contact,
+        id: created.id,
+        name: contact.name,
+        address: contact.address,
+        addedAt: created.addedAt ?? (created as WalletContactRow).added_at ?? contact.addedAt
+      };
 
     } catch (error) {
       console.error('WalletService - Error adding contact:', error);
@@ -231,14 +255,7 @@ class WalletServiceImpl {
     console.log(`📇 WalletService - Getting contacts for user ${globalUserId} in project ${this.projectSlug}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
-      const query = {
+      const result = await db().queryDocs<WalletContactRow>({
         collection: 'project_wallet_contacts',
         filters: [
           { field: 'global_user_id', operator: '==', value: globalUserId },
@@ -248,24 +265,13 @@ class WalletServiceImpl {
           { field: 'is_favorite', direction: 'desc' as const },
           { field: 'last_used', direction: 'desc' as const }
         ]
-      };
-
-      const result = await dbService.query(query);
+      });
 
       if (!result.success) {
         throw new Error(`Failed to query contacts: ${result.error}`);
       }
 
-      return (result.data || []).map(doc => ({
-        id: doc.data.id || doc.id,
-        name: doc.data.name,
-        address: doc.data.address,
-        notes: doc.data.notes,
-        isFavorite: doc.data.is_favorite || false,
-        isDefault: doc.data.is_default || false,
-        addedAt: doc.data.added_at,
-        lastUsed: doc.data.last_used
-      }));
+      return result.data.map(doc => mapWalletContactRow(doc));
 
     } catch (error) {
       console.error('WalletService - Error getting contacts:', error);
@@ -290,14 +296,7 @@ class WalletServiceImpl {
     console.log(`📇 WalletService - Removing contact ${contactId} for user ${globalUserId}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
-      const result = await dbService.delete('project_wallet_contacts', contactId);
+      const result = await db().deleteDoc('project_wallet_contacts', contactId);
       if (!result.success) {
         throw new Error(`Failed to remove contact: ${result.error}`);
       }
@@ -326,13 +325,6 @@ class WalletServiceImpl {
     console.log(`💸 WalletService - Sending ${params.amount} ${params.tokenSymbol} from ${params.fromAddress} to ${params.toAddress}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
       // Verify sender has wallet in this project
       const hasWallet = await this.hasProjectWallet(params.globalUserId);
       if (!hasWallet) {
@@ -368,7 +360,7 @@ class WalletServiceImpl {
         createdAt: new Date()
       };
 
-      const result = await dbService.create('project_wallet_transactions', transactionData);
+      const result = await db().createDoc('project_wallet_transactions', transactionData);
       if (!result.success) {
         throw new Error(`Failed to record transaction: ${result.error}`);
       }
@@ -391,14 +383,7 @@ class WalletServiceImpl {
     console.log(`📊 WalletService - Getting transaction history for user ${globalUserId} in project ${this.projectSlug}`);
 
     try {
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      const dbService = getDatabaseService();
-
-      const query = {
+      const result = await db().queryDocs<Record<string, unknown>>({
         collection: 'project_wallet_transactions',
         filters: [
           { field: 'global_user_id', operator: '==', value: globalUserId },
@@ -406,32 +391,30 @@ class WalletServiceImpl {
         ],
         orderBy: [{ field: 'timestamp', direction: 'desc' as const }],
         pagination: { limit }
-      };
-
-      const result = await dbService.query(query);
+      });
 
       if (!result.success) {
         throw new Error(`Failed to query transactions: ${result.error}`);
       }
 
-      return (result.data || []).map(doc => ({
-        id: doc.data.id || doc.id,
-        timestamp: doc.data.timestamp,
-        walletAddress: doc.data.wallet_address,
-        txHash: doc.data.tx_hash,
-        recipient: doc.data.recipient,
-        amount: doc.data.amount,
-        tokenSymbol: doc.data.token_symbol,
-        status: doc.data.status,
-        networkId: doc.data.network_id,
-        blockNumber: doc.data.block_number,
-        gasUsed: doc.data.gas_used,
-        gasPrice: doc.data.gas_price,
-        from: doc.data.from_address,
-        to: doc.data.to_address,
-        value: doc.data.value,
-        type: doc.data.transaction_type,
-        notes: doc.data.notes
+      return result.data.map(doc => ({
+        id: String(doc.id),
+        timestamp: doc.timestamp as string,
+        walletAddress: (doc.wallet_address ?? doc.walletAddress) as string,
+        txHash: (doc.tx_hash ?? doc.txHash) as string,
+        recipient: doc.recipient as string,
+        amount: doc.amount as string,
+        tokenSymbol: (doc.token_symbol ?? doc.tokenSymbol) as string,
+        status: doc.status as WalletTransaction['status'],
+        networkId: (doc.network_id ?? doc.networkId) as number,
+        blockNumber: (doc.block_number ?? doc.blockNumber) as number,
+        gasUsed: (doc.gas_used ?? doc.gasUsed) as string,
+        gasPrice: (doc.gas_price ?? doc.gasPrice) as string,
+        from: (doc.from_address ?? doc.from) as string,
+        to: (doc.to_address ?? doc.to) as string,
+        value: doc.value as string,
+        type: (doc.transaction_type ?? doc.type) as WalletTransaction['type'],
+        notes: doc.notes as string | undefined
       }));
 
     } catch (error) {
@@ -466,12 +449,8 @@ class WalletServiceImpl {
       const contact = contacts.find(c => c.address.toLowerCase() === address.toLowerCase());
 
       if (contact) {
-        const initResult = await initializeDatabase();
-        if (!initResult.success) return;
-
-        const dbService = getDatabaseService();
-        await dbService.update('project_wallet_contacts', contact.id, {
-          last_used: new Date().toISOString()
+        await db().updateDoc('project_wallet_contacts', contact.id, {
+          last_used: new Date().toISOString(),
         });
       }
     } catch (error) {

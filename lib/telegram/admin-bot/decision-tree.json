@@ -91,6 +91,37 @@
       }
     },
     {
+      "name": "generate_news_article",
+      "description": "Autonomous newsroom: research a URL or topic, write a cited draft article with category, tags, featured image, and optional TTS audio. Creates a draft awaiting Telegram approval.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["url", "search", "text"],
+            "description": "How to gather source material"
+          },
+          "value": {
+            "type": "string",
+            "description": "URL, search query, or raw source text"
+          },
+          "instruction": {
+            "type": "string",
+            "description": "Optional editorial angle or tone"
+          },
+          "enableAudio": {
+            "type": "boolean",
+            "description": "Generate TTS narration (default true)"
+          },
+          "enableImage": {
+            "type": "boolean",
+            "description": "Generate featured OG image (default true)"
+          }
+        },
+        "required": ["source", "value"]
+      }
+    },
+    {
       "name": "clarify",
       "description": "Ask the admin to clarify the request when command is ambiguous or requires confirmation.",
       "input_schema": {

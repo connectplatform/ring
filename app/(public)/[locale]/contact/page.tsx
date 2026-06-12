@@ -1,19 +1,17 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { redirect } from 'next/navigation'
-import { cookies, headers } from 'next/headers'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Typography } from '@/components/ui/typography'
 import Image from 'next/image'
 import { ContactForm } from '@/components/common/widgets/contact-form'
 import { auth } from '@/auth'
-import { ROUTES } from '@/constants/routes'
 import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import AboutWrapper from '@/components/wrappers/about-wrapper'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
+import { getRingConfig } from '@/lib/ring-config'
 import { connection } from 'next/server'
 
 type ContactPageParams = Record<string, never>
@@ -39,20 +37,15 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
   await connection()
 
   const params = await props.params
-  const searchParams = await props.searchParams
   const locale = routing.locales.includes(params.locale as Locale)
     ? (params.locale as Locale)
     : routing.defaultLocale
 
   const t = await getTranslations('contact')
+  const ringConfig = getRingConfig()
+  const contactInfo = ringConfig.contact
 
   const session = await auth()
-  if (!session) {
-    redirect(ROUTES.LOGIN(locale))
-  }
-
-  const cookieStore = await cookies()
-  const headersList = await headers()
 
   const partners = [
     { name: 'Partner 1', logo: '/placeholder.svg?height=100&width=200' },
@@ -82,8 +75,8 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
                 entityId="contact_page"
                 entityName="Contact Page"
                 initialUserInfo={{
-                  name: session.user.name || '',
-                  email: session.user.email || '',
+                  name: session?.user?.name || '',
+                  email: session?.user?.email || '',
                 }}
               />
             </Suspense>
@@ -95,15 +88,21 @@ export default async function ContactPage(props: LocalePageProps<ContactPagePara
             <Typography variant="h2" className="text-2xl font-semibold mb-6 text-primary">
               {t('contactInformation')}
             </Typography>
-            <Typography variant="p" className="mb-2 text-muted-foreground">
-              195 Shevhenko Blvd, Cherkasy, Ukraine
-            </Typography>
-            <Typography variant="p" className="mb-2 text-muted-foreground">
-              Phone: +38 097 5328801
-            </Typography>
-            <Typography variant="p" className="mb-6 text-muted-foreground">
-              Email: contact@ring.ck.ua
-            </Typography>
+            {contactInfo?.address && (
+              <Typography variant="p" className="mb-2 text-muted-foreground">
+                {contactInfo.address}
+              </Typography>
+            )}
+            {contactInfo?.phone && (
+              <Typography variant="p" className="mb-2 text-muted-foreground">
+                Phone: {contactInfo.phone}
+              </Typography>
+            )}
+            {contactInfo?.email && (
+              <Typography variant="p" className="mb-6 text-muted-foreground">
+                Email: {contactInfo.email}
+              </Typography>
+            )}
           </CardContent>
         </Card>
 

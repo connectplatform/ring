@@ -1,12 +1,17 @@
 {
-  "title": "Messages",
-  "loadingChat": "Loading chat...",
-  "signInToChat": "Please sign in to access the chat.",
-  "authError": "Authentication error. Please refresh the page.",
-  "messages": "Messages",
-  "selectConversation": "Select a conversation to start messaging",
-  "conversationHint": "Choose from your conversations or start a new one",
-  "reconnecting": "Reconnecting to chat server..."
+  "title": "Сообщения",
+  "loadingChat": "Загрузка чата...",
+  "signInToChat": "Войдите, чтобы открыть чат.",
+  "authError": "Ошибка авторизации. Обновите страницу.",
+  "messages": "Сообщения",
+  "selectConversation": "Выберите диалог, чтобы начать переписку",
+  "conversationHint": "Выберите из списка или создайте новый диалог",
+  "reconnecting": "Переподключение к серверу чата...",
+  "newConversationTitle": "Новый диалог",
+  "searchUsersPlaceholder": "Поиск по имени или @username…",
+  "searchingUsers": "Поиск…",
+  "noUsersFound": "Пользователи не найдены",
+  "messageUser": "Написать {name}",
+  "messageUserFallback": "пользователю",
+  "entityChatEmpty": "Диалога пока нет. Посетители могут начать чат об этом объекте."
 }
-
-

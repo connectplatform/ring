@@ -7,6 +7,20 @@ description: Code Style documentation for Ring Platform
 
 TypeScript, React, and Next.js conventions for Ring Platform development.
 
+## 📚 Documentation code blocks (MDX)
+
+Ring docs use **one server-side Shiki pass** — no client re-highlighting.
+
+| Authoring | Pipeline |
+|-----------|----------|
+| Fenced ` ```lang ` blocks | `rehypeCodeFenceToMdx` → async `<Code>` → `highlightCodeToHtml` |
+| JSX `<Code language="…">{\`…\`}</Code>` | Same server path; wrap body in `{\`…\`}` when it contains `{` braces |
+| Inline `` `code` `` | `<InlineCode>` (no Shiki) |
+
+Themes: **nord** (light) + **tokyo-night** (dark). Copy UI is client-only (`CodeBlockShell`).
+
+Do **not** use raw `<pre>` for examples — use fences or `<Code>`. Legacy `EnhanceSyntax` / `EnhanceCodeBlocks` / `@shikijs/rehype` were removed in v1.6.2.
+
 ## 📝 TypeScript Best Practices
 
 ### Type Definitions

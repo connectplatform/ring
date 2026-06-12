@@ -15,6 +15,12 @@ export const RING_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_RING_TOKEN_ADDRESS || 
 export const RING_STAKING_ADDRESS = process.env.NEXT_PUBLIC_RING_STAKING_ADDRESS || '0x0000000000000000000000000000000000000000'
 export const RING_SALES_ADDRESS = process.env.NEXT_PUBLIC_RING_SALES_ADDRESS || '0x0000000000000000000000000000000000000000'
 
+// Referral rewards (server-side minter; per-clone env)
+export const REFERRAL_REWARDS_ADDRESS =
+  process.env.REFERRAL_REWARDS_ADDRESS || '0x0000000000000000000000000000000000000000'
+export const REFERRAL_REWARD_TOKEN_ADDRESS =
+  process.env.REFERRAL_REWARD_TOKEN_ADDRESS || process.env.NEXT_PUBLIC_RING_TOKEN_ADDRESS || '0x0000000000000000000000000000000000000000'
+
 // Wrapped tokens and stablecoins (Polygon Mainnet)
 export const WPOL_ADDRESS = '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270' // Wrapped MATIC/POL
 export const USDT_ADDRESS = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F' // USDT on Polygon
@@ -69,6 +75,18 @@ export const TRANSACTION_TIMEOUT = 60000 // 60 seconds
 // Block Explorer URLs
 export const getPolygonscanUrl = (txHash: string) => 
   `https://polygonscan.com/tx/${txHash}`
+
+/** Display symbol for referral reward token (per-clone env). */
+export function getReferralRewardTokenSymbol(): string {
+  const addr = (REFERRAL_REWARD_TOKEN_ADDRESS || '').toLowerCase()
+  if (!addr || addr === '0x0000000000000000000000000000000000000000') {
+    return 'RING'
+  }
+  const entry = Object.entries(TOKEN_CONFIGS).find(
+    ([tokenAddr]) => tokenAddr.toLowerCase() === addr
+  )
+  return entry?.[1]?.symbol ?? 'TOKEN'
+}
 
 export const getPolygonscanAddressUrl = (address: string) => 
   `https://polygonscan.com/address/${address}`

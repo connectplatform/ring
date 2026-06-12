@@ -1,11 +1,11 @@
 /**
  * FCM token DB layer — server-only.
  * Single upsert implementation used by Server Action and API route.
- * Uses getDatabaseService() only; BackendSelector routes by DB_BACKEND_MODE.
+ * Uses db().*Doc methods; BackendSelector routes by DB_BACKEND_MODE.
  */
 
 import { z } from 'zod'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 const DEVICE_FINGERPRINT_MAX = 128
 const DEVICE_FINGERPRINT_REGEX = /^[a-zA-Z0-9\-_]+$/
@@ -25,6 +25,8 @@ export type UpsertFcmTokenParams = z.infer<typeof upsertFcmTokenParamsSchema>
 export type UpsertFcmTokenResult =
   | { success: true }
   | { error: string }
+
+type FcmTokenRow = Record<string, unknown> & { id: string }
 
 /**
  * Upsert FCM token for a user by (userId, deviceFingerprint).
@@ -49,10 +51,7 @@ export async function upsertFcmTokenForUser(
   const lastSeen = new Date()
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    const existingResult = await db.query({
+    const existingResult = await db().queryDocs<FcmTokenRow>({
       collection: 'fcm_tokens',
       filters: [
         { field: 'userId', operator: '==', value: userId },
@@ -82,12 +81,12 @@ export async function upsertFcmTokenForUser(
 
     if (existingResult.data.length > 0) {
       const existing = existingResult.data[0]
-      const updateResult = await db.update('fcm_tokens', existing.id, payload)
+      const updateResult = await db().updateDoc('fcm_tokens', existing.id, payload)
       if (!updateResult.success) {
         return { error: updateResult.error?.message ?? 'Failed to update FCM token' }
       }
     } else {
-      const createResult = await db.create('fcm_tokens', {
+      const createResult = await db().createDoc('fcm_tokens', {
         ...payload,
         createdAt: lastSeen,
       })

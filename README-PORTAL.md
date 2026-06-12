@@ -244,7 +244,7 @@ cd ring-platform-portal
 npm install
 
 # Set up environment
-cp .env.local.template .env.local
+cp env.local.template .env.local
 # Edit .env.local with your configuration
 
 # Start development server

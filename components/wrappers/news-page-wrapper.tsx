@@ -23,7 +23,6 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { 
   Rss, 
@@ -170,20 +169,18 @@ export default function NewsPageWrapper({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      <div className="flex gap-6 min-h-screen">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
+      <div className="flex min-h-full gap-3">
         {/* Left Sidebar - Main Navigation (Desktop only) */}
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
+
 
         {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {children}
         </div>
 
         {/* Right Sidebar - Quick Actions & RSS (Desktop only, 1024px+) */}
-        <div className="hidden lg:block w-[320px] flex-shrink-0 py-8 pr-6">
+        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
           <div className="sticky top-8">
             <RightSidebarContent />
           </div>

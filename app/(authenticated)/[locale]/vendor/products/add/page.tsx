@@ -4,6 +4,8 @@ import { headers } from 'next/headers'
 import { ROUTES } from '@/constants/routes'
 import { getTranslations } from 'next-intl/server'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
+import { getMerchantConfigByEntityId } from '@/features/store/lib/merchant-config'
+import { resolveReferralCommissionPercent } from '@/features/store/lib/referral-commission'
 import { routing } from '@/i18n/routing'
 import ProductFormWrapper from '@/components/wrappers/product-form-wrapper'
 import ProductForm from '../product-form'
@@ -65,6 +67,9 @@ export default async function AddProductPage({
       redirect(ROUTES.VENDOR_START(validLocale));
     }
 
+    const merchantConfig = await getMerchantConfigByEntityId(vendorEntity.id)
+    const inheritedReferralPercent = resolveReferralCommissionPercent(undefined, merchantConfig).percent
+
     const t = await getTranslations({ locale: validLocale, namespace: 'vendor.products' });
     const tStore = await getTranslations({ locale: validLocale, namespace: 'store' });
 
@@ -90,6 +95,7 @@ export default async function AddProductPage({
           mode="create"
           locale={validLocale}
           vendorEntity={vendorEntity}
+          inheritedReferralPercent={inheritedReferralPercent}
         />
       </div>
     </ProductFormWrapper>

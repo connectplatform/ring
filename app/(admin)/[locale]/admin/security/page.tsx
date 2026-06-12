@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import React from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
@@ -86,8 +86,6 @@ export async function generateMetadata({
       title: `${t('securityCenter')} | Connect.Software Admin`,
       description: 'Monitor Connect.Software security and logs.',
     },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: { index: false, follow: false, noarchive: true, nosnippet: true, noimageindex: true },
   })
 }

@@ -1,34 +1,18 @@
 {
-  "name": "ring-smart-contracts",
-  "version": "1.0.0",
-  "description": "Smart contracts for Ring Platform membership and token management",
+  "name": "ring-platform-contracts",
+  "private": true,
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:testnet": "hardhat run scripts/deploy-testnet.js --network mumbai",
-    "deploy:mainnet": "hardhat run scripts/deploy-mainnet.js --network polygon",
-    "verify": "hardhat verify",
     "coverage": "hardhat coverage",
-    "gas-report": "REPORT_GAS=true hardhat test"
+    "deploy:referral": "hardhat run scripts/deploy-referral-rewards.js"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
-    "@openzeppelin/hardhat-upgrades": "^1.28.0",
-    "hardhat": "^2.17.1",
-    "hardhat-gas-reporter": "^1.0.9",
-    "solidity-coverage": "^0.8.4"
-  },
-  "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.9.3",
-    "@chainlink/contracts": "^0.6.1"
-  },
-  "keywords": [
-    "solidity",
-    "ethereum",
-    "smart-contracts",
-    "polygon",
-    "ring-platform"
-  ],
-  "author": "Ring Platform Team",
-  "license": "MIT"
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "@openzeppelin/hardhat-upgrades": "^3.5.0",
+    "ethers": "^6.13.0",
+    "hardhat": "^2.22.17"
+  }
 }

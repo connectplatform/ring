@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import type { Locale } from '@/i18n/shared';
 import { CategoriesManager } from '@/features/news/components/categories-manager'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { mapNewsCategoryDocument } from '@/lib/news/map-news-document'
 import { NewsCategoryInfo } from '@/features/news/types'
 import NewsWrapper from '@/components/wrappers/news-wrapper'
 import { connection } from 'next/server'
@@ -19,27 +20,18 @@ import { isPlatformAdmin } from '@/features/auth/user-role';
  */
 async function getNewsCategories(): Promise<NewsCategoryInfo[]> {
   try {
-    // Initialize database service with proper error handling
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      console.error('Database initialization failed:', initResult.error)
-      return [] // Graceful degradation
-    }
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'newsCategories',
-      orderBy: [{ field: 'name', direction: 'asc' }]
+      orderBy: [{ field: 'name', direction: 'asc' }],
     })
-    
+
     if (!result.success) return []
-    return result.data as any[] as NewsCategoryInfo[]
+    return result.data.map((row) => mapNewsCategoryDocument(row))
   } catch (error) {
     console.error('Error fetching categories:', error)
     return []
   }
 }
-
 
 export async function generateMetadata({
   params,
@@ -56,8 +48,6 @@ export async function generateMetadata({
     path: 'news.category',
     pathname: '/admin/news/categories',
     robots: { index: false, follow: false },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

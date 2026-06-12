@@ -127,6 +127,33 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
       const items: NavItem[] = []
       for (const pageSlug of pageSlugs) {
+        const nestedDir = path.join(sectionDir, pageSlug)
+        const nestedMetaPath = path.join(nestedDir, 'meta.json')
+
+        if (fs.existsSync(nestedDir) && fs.statSync(nestedDir).isDirectory() && fs.existsSync(nestedMetaPath)) {
+          const nestedMeta = readMeta(nestedMetaPath)
+          const nestedPages = nestedMeta.pages ?? ['index']
+          for (const nestedPageSlug of nestedPages) {
+            const nestedFileName = nestedPageSlug === 'index' ? 'index.mdx' : `${nestedPageSlug}.mdx`
+            const nestedFilePath = path.join(nestedDir, nestedFileName)
+            if (!fs.existsSync(nestedFilePath)) continue
+            const nestedHref =
+              nestedPageSlug === 'index'
+                ? `/${validLocale}/docs/${entry}/${pageSlug}`
+                : `/${validLocale}/docs/${entry}/${pageSlug}/${nestedPageSlug}`
+            items.push({
+              href: nestedHref,
+              label: getTitleFromMdx(
+                nestedFilePath,
+                nestedPageSlug === 'index'
+                  ? (nestedMeta.title ?? slugToLabel(pageSlug))
+                  : slugToLabel(nestedPageSlug),
+              ),
+            })
+          }
+          continue
+        }
+
         const fileName = pageSlug === 'index' ? 'index.mdx' : `${pageSlug}.mdx`
         const filePath = path.join(sectionDir, fileName)
         if (!fs.existsSync(filePath)) continue

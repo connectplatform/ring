@@ -3,13 +3,14 @@
   "becomeVendor": "Стать продавцом",
 
   "onboarding": {
-    "title": "Станьте продавцом на GreenFood.live",
-    "subtitle": "Присоединяйтесь к нашему сельскохозяйственному рынку и достигните тысяч клиентов",
-    "success": "Добро пожаловать в GreenFood! Ваш магазин создан.",
+    "title": "Станьте продавцом на Ring Platform",
+    "subtitle": "Присоединяйтесь к Ring Marketplace и продавайте dev-киты, AI-инструменты, шаблоны и экспертные услуги",
+    "success": "Добро пожаловать в Ring Platform! Ваш магазин создан.",
     "redirecting": "Перенаправление на панель управления...",
     "form": {
       "storeSlug": "URL-слаг магазина",
-      "storeSlugHint": "Идентификатор для URL (например, 'zelenaya-dolina-ferma')",
+      "storeUrlPrefix": "ring-platform.org/store/vendors/",
+      "storeSlugHint": "Идентификатор для URL (например, 'my-dev-shop')",
       "storeSlugPlaceholder": "zelenaya-dolina-ferma",
       "storeName": "Название магазина",
       "storeNameHint": "Название вашей фермы или бизнеса",
@@ -62,7 +63,26 @@
     "welcome": "Добро пожаловать",
     "overview": "Обзор",
     "analytics": "Аналитика",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "quickActionsTitle": "Быстрые действия",
+    "quickActionsFab": "Быстрые действия",
+    "quickActions": {
+      "manageProducts": "Управление товарами",
+      "addProduct": "Добавить товар",
+      "viewOrders": "Просмотр заказов",
+      "stockLevels": "Остатки на складе",
+      "earnings": "Доходы",
+      "storeSettings": "Настройки магазина"
+    },
+    "boostSalesTitle": "Увеличьте продажи",
+    "boostSalesTips": {
+      "photos": "Добавляйте качественные фото товаров — до 3× больше просмотров",
+      "inventory": "Обновляйте остатки ежедневно для лучшего ранжирования",
+      "regenerative": "Подчёркивайте регенеративные практики для бонусов DAAR"
+    },
+    "resourcesTitle": "Ресурсы для продавцов",
+    "resourcesDescription": "Узнайте, как раскрыть потенциал вашего магазина",
+    "viewVendorGuide": "Руководство продавца →"
   },
 
   "products": {
@@ -152,7 +172,10 @@
       "update": "Обновить продукт",
       "submitting": "Создание...",
       "updating": "Обновление...",
-      "cancel": "Отменить"
+      "cancel": "Отменить",
+      "referralCommission": "Реферальная комиссия %",
+      "referralCommissionHint": "Необязательно. Оставьте пустым, чтобы унаследовать ставку продавца или платформы.",
+      "referralCommissionPlaceholder": "Унаследовать ({percent}%)"
     },
 
     "validation": {
@@ -190,6 +213,8 @@
     "rating": "Рейтинг",
     "responseTime": "Время ответа",
     "poweredBy": "На платформе",
+    "metadataTitle": "{name} - Ring Platform",
+    "metadataDescription": "Покупайте у {name} на Ring Platform",
     "tabs": {
       "products": "Продукты",
       "about": "О нас",
@@ -213,6 +238,61 @@
     }
   },
 
+  "orders": {
+    "title": "Заказы продавца",
+    "description": "Заказы с вашими товарами",
+    "empty": "Заказов для вашего магазина пока нет.",
+    "orderId": "Заказ",
+    "status": "Статус",
+    "total": "Сумма заказа",
+    "netAmount": "Ваш чистый доход",
+    "date": "Дата"
+  },
+  "earnings": {
+    "title": "Доходы и выплаты",
+    "description": "Ожидающие и завершённые расчёты с продавцом",
+    "pending": "Ожидает выплаты",
+    "history": "История выплат",
+    "amount": "Сумма",
+    "commission": "Комиссия",
+    "status": "Статус",
+    "scheduled": "Дата",
+    "empty": "Записей о выплатах пока нет.",
+    "simulatedBadge": "Симуляция"
+  },
+  "settings": {
+    "title": "Настройки магазина",
+    "description": "Конфигурация продавца и условия расчётов",
+    "readOnlyNote": "Частоту выплат и ставки комиссии определяет политика платформы. Обратитесь к админу для изменений.",
+    "storefront": "Витрина",
+    "storeName": "Название магазина",
+    "entityId": "ID сущности",
+    "settlement": "Расчёты",
+    "frequency": "Частота выплат",
+    "defaultFrequency": "Еженедельно",
+    "holdPeriod": "Период удержания",
+    "days": "дней",
+    "platformCommission": "Комиссия платформы",
+    "referralCommission": "Реферальная комиссия",
+    "referralSource": {
+      "product": "переопределение товара",
+      "merchant": "конфиг продавца",
+      "default": "дефолт платформы",
+      "env": "дефолт из env"
+    },
+    "noMerchantConfig": "Конфигурация продавца ещё не создана."
+  },
+  "stock": {
+    "title": "Склад",
+    "description": "Остатки товаров в вашем магазине",
+    "empty": "Нет товаров для отслеживания.",
+    "product": "Товары",
+    "stock": "Остаток",
+    "restock": "Пополнить",
+    "restocking": "Добавление…",
+    "quantity": "Количество"
+  },
+
   "navbar": {
     "myStore": "Мой магазин",
     "dashboard": "Панель управления",
@@ -221,6 +301,7 @@
     "orders": "Заказы",
     "earnings": "Доходы",
     "settings": "Настройки",
+    "stock": "Склад",
     "comingSoon": "Скоро"
   },
 
@@ -229,7 +310,7 @@
     "productUpdated": "Продукт '{name}' успешно обновлен",
     "productDeleted": "Продукт удален",
     "productSubmitted": "Продукт подан в главный магазин на рассмотрение",
-    "vendorCreated": "Магазин продавца успешно создан! Добро пожаловать в GreenFood.live",
+    "vendorCreated": "Магазин продавца успешно создан! Добро пожаловать в Ring Platform",
     "approvalPending": "Ваш продукт ожидает рассмотрения админом",
     "approvalApproved": "Поздравляем! '{name}' одобрен для главного магазина",
     "approvalRejected": "Продукт '{name}' не одобрен. Причина: {reason}"
@@ -239,7 +320,7 @@
     "setupProgress": "Прогресс настройки",
     "storeDetails": "Информация о магазине",
     "completeStoreInfo": "Заполните информацию о магазине и логотип, чтобы достичь 100%",
-    "whyChooseGreenFood": "Почему выбрать GreenFood?",
+    "whyChoosePlatform": "Почему выбрать Ring Platform?",
     "benefits": {
       "aiEnrichment": {
         "title": "AI обогащение продуктов",
@@ -249,9 +330,9 @@
         "title": "Автоматизированные расчеты",
         "description": "Продажи обрабатываются автоматически, комиссии рассчитываются, выплаты планируются"
       },
-      "daarRewards": {
-        "title": "Бонусы в токенах DAAR",
-        "description": "Получите до 25% бонусных токенов за регенеративные практики земледелия"
+      "ringRewards": {
+        "title": "Бонусы в токенах RING",
+        "description": "Получайте награды сообщества и токены RING за качественные объявления и подтверждённые продажи"
       },
       "trustTier": {
         "title": "Система уровней доверия",
@@ -274,14 +355,14 @@
 
   "startPage": {
     "title": "Регистрация продавца",
-    "subtitle": "Настройте свой магазин и начните продавать на GreenFood.live",
+    "subtitle": "Настройте свой магазин и начните продавать на Ring Platform",
     "progressSteps": {
       "account": "Аккаунт",
       "storeSetup": "Настройка магазина",
       "launch": "Запуск"
     },
     "trustIndicators": {
-      "farms": "50+ ферм",
+      "vendors": "50+ продавцов",
       "activation": "Мгновенная активация",
       "security": "Безопасная платформа"
     }

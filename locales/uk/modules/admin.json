@@ -12,6 +12,8 @@
   },
   "settings": {
     "title": "Налаштування платформи (СуперАдмін)",
+    "subtitle": "Налаштуйте AI-провайдерів, брендинг і глобальні параметри платформи.",
+    "navTitle": "Розділи",
     "projectName": "Назва проекту",
     "shortDescription": "Короткий опис",
     "extendedDescription": "Розширений опис",
@@ -33,7 +35,50 @@
     "customEntityCategories": "Користувацькі категорії сутностей",
     "customEntityPlaceholder": "По одній на рядок, наприклад: Стартап, НУО, МСП",
     "reset": "Скинути",
-    "save": "Зберегти налаштування"
+    "save": "Зберегти налаштування",
+    "sections": {
+      "ai": {
+        "nav": "AI та LLM",
+        "title": "Конфігурація AI та LLM",
+        "description": "Провайдер, моделі, API-ключі, matcher і параметри product agent.",
+        "provider": "Основний провайдер",
+        "model": "Модель",
+        "streamingStrategy": "Стратегія стрімінгу",
+        "streaming": {
+          "env_then_grok": "Env-провайдер, fallback Grok",
+          "env_only": "Лише env-провайдер",
+          "grok_only": "Лише xAI Grok"
+        },
+        "streamingHint": {
+          "env_then_grok": "Використовувати налаштований провайдер для SSE, якщо є ключі; інакше xAI Grok.",
+          "env_only": "Ніколи не використовувати Grok fallback для стрімінгу.",
+          "grok_only": "Примусово xAI Grok для всього стрімінгового чату."
+        },
+        "apiKeys": "API-ключі",
+        "keySet": "налаштовано",
+        "keyPlaceholder": "Вставте ключ для встановлення або заміни",
+        "matcher": {
+          "scoreThreshold": "Поріг оцінки збігу (0–1)",
+          "maxMatches": "Макс. збігів на можливість",
+          "autoApprove": "Авто-схвалення можливостей за LLM-збігом",
+          "autoApproveHelp": "Лише перевірені LLM збіги; базовий fallback ніколи не авто-схвалює.",
+          "autoApproveMinScore": "Мін. оцінка для авто-схвалення (0–1)"
+        },
+        "productAgent": {
+          "maxTokens": "Макс. токенів product agent",
+          "temperature": "Температура product agent"
+        },
+        "testConnection": "Перевірити з'єднання",
+        "testing": "Перевірка…",
+        "save": "Зберегти AI-налаштування",
+        "lastUpdated": "Останнє оновлення {at}"
+      },
+      "branding": {
+        "nav": "Брендинг",
+        "title": "Брендинг і функції",
+        "description": "Назва проекту, кольори теми, прапорці функцій і категорії сутностей."
+      }
+    }
   },
   "matcher": {
     "title": "Аналітика AI Matcher",
@@ -100,6 +145,7 @@
   "performance": "Продуктивність",
   "security": "Безпека",
   "store": "Магазин",
+  "refcodes": "Реферальні винагороди",
   "bulkImport": "Масовий імпорт",
   "exportData": "Експорт даних",
   "userReports": "Звіти користувачів",
@@ -168,7 +214,100 @@
   "typeII": "Тип II",
   "availableReports": "Доступні звіти",
   "download": "Завантажити",
-  "enable": "Увімкнути"
+  "enable": "Увімкнути",
+  "matcherModeration": {
+    "tab": "Модерація організацій",
+    "title": "Скарги на організації",
+    "subtitle": "Скарги користувачів згруповані за організацією. Глобальне блокування прибирає з пошуку та matcher.",
+    "refresh": "Оновити",
+    "empty": "Черга скарг порожня.",
+    "reportCount": "{count} скарг",
+    "reporter": "Автор: {id}",
+    "blockGlobally": "Заблокувати глобально",
+    "confirmBlock": "Заблокувати цю організацію для всіх користувачів і прибрати з пошуку?",
+    "adminBlockReason": "Заблоковано адміністратором з черги модерації matcher"
+  },
+  "storeHub": {
+    "orders": "Замовлення",
+    "stock": "Склад",
+    "commissions": "Комісії",
+    "stockTitle": "Складський облік",
+    "commissionsTitle": "Комісії та виплати продавцям",
+    "initializeStock": "Ініціалізувати склад (100 од.)",
+    "initializingStock": "Ініціалізація…",
+    "stockSummary": "Зведення по запасах",
+    "lowStock": "Низький залишок",
+    "movements": "Останні рухи",
+    "product": "Товар",
+    "stock": "Залишок",
+    "movementType": "Тип",
+    "quantityChange": "Зміна",
+    "timestamp": "Коли",
+    "processPayouts": "Обробити виплати",
+    "processingPayouts": "Обробка…",
+    "pendingSettlements": "Очікуючі розрахунки",
+    "vendor": "Продавець",
+    "netPayout": "До виплати",
+    "commission": "Комісія",
+    "status": "Статус",
+    "scheduledFor": "Заплановано",
+    "noSettlements": "Записів про розрахунки ще немає.",
+    "totalProductsLabel": "Усього товарів",
+    "inStockLabel": "В наявності",
+    "lowStockCountLabel": "Низький залишок",
+    "criticalLabel": "Критичний",
+    "outOfStockLabel": "Немає в наявності",
+    "inventoryValueLabel": "Вартість запасів",
+    "noLowStockAlerts": "Немає сповіщень про низький залишок.",
+    "noMovementsYet": "Рухів по складу ще не зафіксовано.",
+    "stockUnits": "{count} од.",
+    "initStockError": "Не вдалося ініціалізувати склад",
+    "settlementsTable": "Розрахунки",
+    "confirmProcessPayouts": "Обробити всі належні виплати продавцям зараз?",
+    "noSettlementsDueMessage": "Немає розрахунків, готових до обробки.",
+    "batchComplete": "Пакет {batchId}: {completed} виконано, {failed} з помилкою.",
+    "processSettlementsError": "Не вдалося обробити розрахунки",
+    "inclReferral": "вкл. реферал {amount}",
+    "effectiveReferralRate": "ефективно {percent}%",
+    "simulatedBadge": "Симуляція",
+    "referralRatesTitle": "Реферальні ставки товарів",
+    "referralRatesProduct": "Товар",
+    "referralRatesVendor": "Сутність продавця",
+    "referralRatesPercent": "Ефективна %",
+    "referralRatesSource": "Джерело",
+    "referralRatesEmpty": "Каталог товарів порожній.",
+    "referralSource": {
+      "product": "Перевизначення товару",
+      "merchant": "Конфіг продавця",
+      "default": "Платформний дефолт",
+      "env": "Дефолт з env"
+    },
+    "ordersPage": {
+      "title": "Замовлення",
+      "allStatuses": "Усі статуси",
+      "refresh": "Оновити",
+      "refreshing": "Оновлення…",
+      "errorPrefix": "Помилка",
+      "updateStatusError": "Не вдалося оновити статус замовлення",
+      "noOrders": "Замовлень немає.",
+      "noOrdersWithStatus": "Немає замовлень зі статусом «{status}».",
+      "orderNumber": "Замовлення #{id}",
+      "statusLabel": "Статус",
+      "userLabel": "Користувач",
+      "createdLabel": "Створено",
+      "itemsLabel": "Товари",
+      "update": "Оновити",
+      "updating": "Оновлення…",
+      "statuses": {
+        "new": "Нове",
+        "paid": "Оплачено",
+        "processing": "Обробка",
+        "shipped": "Відправлено",
+        "completed": "Завершено",
+        "canceled": "Скасовано"
+      }
+    }
+  }
 }
 
 

@@ -12,3 +12,15 @@ export {
   EntityAccessDeniedError 
 } from './get-entity-by-id';
 export { updateEntity } from './update-entity';
+export {
+  getMyEntities,
+  getUserCreatedEntities,
+  getUserMemberEntities,
+} from './get-user-entities';
+export {
+  reportEntity,
+  blockEntityForUser,
+  unblockEntityForUser,
+  adminBlockEntity,
+  getUserBlockedEntityIds,
+} from './entity-moderation';

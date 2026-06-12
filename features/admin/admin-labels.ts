@@ -23,6 +23,7 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     settings: safeLabel(t, 'settings'),
     matcher: safeLabel(t, 'matcher'),
     store: safeLabel(t, 'store'),
+    refcodes: safeLabel(t, 'refcodes'),
     quickNav: safeLabel(t, 'quickNav'),
     systemStats: safeLabel(t, 'systemStats'),
     totalUsers: safeLabel(t, 'totalUsers'),

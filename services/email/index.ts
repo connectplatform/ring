@@ -14,6 +14,10 @@
 
 // Main processor
 export { EmailProcessor, getEmailProcessor } from './email-processor';
+export { wireEmailNotifications } from './wire-email-notifications';
+
+// SMTP outbound
+export { EmailSenderService, getEmailSender } from './smtp';
 export type { ProcessedEmail, ProcessorEvents } from './email-processor';
 
 // IMAP

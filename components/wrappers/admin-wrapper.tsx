@@ -29,7 +29,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -54,7 +53,9 @@ import {
   Eye,
   Edit,
   Plus,
-  Archive
+  Archive,
+  Mail,
+  ListTodo
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 
@@ -70,6 +71,7 @@ export type ModulesAdminLabels = Partial<{
   settings: string
   matcher: string
   store: string
+  refcodes: string
   quickNav: string
   systemStats: string
   totalUsers: string
@@ -103,7 +105,7 @@ export type ModulesAdminLabels = Partial<{
 interface AdminWrapperProps {
   children: React.ReactNode
   locale: string
-  pageContext?: 'dashboard' | 'users' | 'news' | 'analytics' | 'moderation' | 'performance' | 'security' | 'settings' | 'matcher' | 'store'
+  pageContext?: 'dashboard' | 'users' | 'news' | 'analytics' | 'moderation' | 'performance' | 'security' | 'settings' | 'matcher' | 'store' | 'refcodes' | 'email-inbox' | 'email-drafts' | 'email-contacts' | 'email-analytics' | 'email-tasks'
   translations?: { modules?: { admin?: ModulesAdminLabels } }
   /** Flat admin labels (e.g. from `buildModulesAdminLabels`) — merged over `translations.modules.admin`. */
   labels?: ModulesAdminLabels
@@ -132,6 +134,7 @@ export default function AdminWrapper({
     settings: 'Settings',
     matcher: 'Matcher',
     store: 'Store',
+    refcodes: 'Referral Rewards',
     quickNav: 'Quick Navigation',
     systemStats: 'System Stats',
     totalUsers: 'Total Users',
@@ -223,6 +226,27 @@ export default function AdminWrapper({
       icon: Shield,
       href: `/${locale}/admin/security`,
       active: pageContext === 'security'
+    },
+    {
+      id: 'email-inbox',
+      label: 'Email Inbox',
+      icon: Mail,
+      href: `/${locale}/admin/email-inbox`,
+      active: pageContext === 'email-inbox'
+    },
+    {
+      id: 'email-drafts',
+      label: 'Email Drafts',
+      icon: Mail,
+      href: `/${locale}/admin/email-drafts`,
+      active: pageContext === 'email-drafts'
+    },
+    {
+      id: 'email-tasks',
+      label: 'Email Tasks',
+      icon: ListTodo,
+      href: `/${locale}/admin/email-tasks`,
+      active: pageContext === 'email-tasks'
     },
     {
       id: 'settings',
@@ -461,20 +485,18 @@ export default function AdminWrapper({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      <div className="flex gap-6 min-h-screen">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
+      <div className="flex min-h-full gap-3">
         {/* Left Sidebar - Main Navigation (Desktop only) */}
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
+
 
         {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-4 md:pr-6 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {children}
         </div>
 
         {/* Right Sidebar - Admin Tools & Stats (Desktop only, 1024px+) */}
-        <div className="hidden lg:block w-[320px] flex-shrink-0 py-8 pr-6">
+        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
           <div className="sticky top-8">
             <RightSidebarContent />
           </div>

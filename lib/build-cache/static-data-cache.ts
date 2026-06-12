@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
 
 /**
  * Build-Time Static Data Cache
@@ -177,10 +177,7 @@ export const getCachedDocument = cache(async (collection: string, docId: string)
   }
 
   try {
-    // Runtime: Use DatabaseService
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const result = await db.read(collection, docId);
+    const result = await db().readDoc(collection, docId);
 
     if (result.success && result.data) {
       const doc = {
@@ -220,13 +217,10 @@ export const getCachedCollection = cache(async (collection: string, options: any
   }
 
   try {
-    // Runtime: Use DatabaseService
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const result = await db.query({ collection });
+    const result = await db().queryDocs({ collection });
 
     if (result.success && result.data) {
-      const docs = result.data.slice(0, limit).map((doc: any) => ({
+      const docs = result.data.slice(0, limit).map((doc) => ({
         id: doc.id,
         data: () => doc,
         exists: true
@@ -406,13 +400,10 @@ export const getCachedEntities = cache(async (
   }
 
   try {
-    // Runtime: Use DatabaseService
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const result = await db.query({ collection: 'entities' });
+    const result = await db().queryDocs({ collection: 'entities' });
 
     if (result.success && result.data) {
-      let entities = result.data.filter((entity: any) =>
+      let entities = result.data.filter((entity) =>
         entity.isPublic === isPublic &&
         (!category || entity.category === category)
       );

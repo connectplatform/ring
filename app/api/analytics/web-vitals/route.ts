@@ -2,8 +2,7 @@ import { NextRequest, NextResponse, connection} from 'next/server'
 
 // Lazy load heavy dependencies only when needed
 const getAuth = async () => (await import('@/auth')).auth
-const getDatabaseService = async () => (await import('@/lib/database')).getDatabaseService
-const initializeDatabase = async () => (await import('@/lib/database')).initializeDatabase
+const getDb = async () => (await import('@/lib/database')).db
 
 export interface WebVitalsData {
   url: string
@@ -108,21 +107,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Store in PostgreSQL
-    const initResult = await (await initializeDatabase())()
-    if (!initResult.success) {
-      console.error('Web Vitals: Database initialization failed')
-      // Don't fail the request, just skip storage
-      const performanceScore = calculatePerformanceScore(data.metrics)
-      return NextResponse.json({
-        success: true,
-        message: 'Web Vitals metrics processed (storage skipped)',
-        performanceScore,
-        timestamp: Date.now()
-      })
-    }
-
-    const dbService = await (await getDatabaseService())()
     const performanceScore = calculatePerformanceScore(data.metrics)
     const webVitalsRecord = {
       user_id: session?.user?.id || null,
@@ -138,7 +122,16 @@ export async function POST(request: NextRequest) {
       react19_features: webVitalsDoc.react19Features
     }
 
-    await dbService.create('web_vitals', webVitalsRecord)
+    const createResult = await (await getDb())().createDoc('web_vitals', webVitalsRecord)
+    if (!createResult.success) {
+      console.error('Web Vitals: Failed to store metrics', createResult.error)
+      return NextResponse.json({
+        success: true,
+        message: 'Web Vitals metrics processed (storage skipped)',
+        performanceScore,
+        timestamp: Date.now()
+      })
+    }
 
     // Update user performance statistics if authenticated
     if (session?.user?.id) {
@@ -208,21 +201,15 @@ export async function GET(request: NextRequest) {
     const timeRange = timeRanges[timeframe as keyof typeof timeRanges] || timeRanges['7d']
     const startTime = new Date(Date.now() - timeRange)
 
-    // Query PostgreSQL
-    const dbService = await (await getDatabaseService())()
-
-    // Build query for web vitals data
-    const querySpec = {
+    const queryResult = await (await getDb())().queryDocs({
       collection: 'web_vitals',
       filters: [
-        { field: 'user_id', operator: '==' as const, value: userId },
-        { field: 'timestamp', operator: '>=' as const, value: startTime }
+        { field: 'user_id', operator: '==', value: userId },
+        { field: 'timestamp', operator: '>=', value: startTime }
       ],
-      orderBy: [{ field: 'timestamp', direction: 'desc' as const }],
+      orderBy: [{ field: 'timestamp', direction: 'desc' }],
       pagination: { limit: 100 }
-    }
-
-    const queryResult = await dbService.query(querySpec)
+    })
     if (!queryResult.success) {
       console.error('Web Vitals query failed:', queryResult.error)
       return NextResponse.json(
@@ -231,10 +218,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const documents = queryResult.data.map(doc => ({
-      id: doc.id,
-      ...doc.data
-    }))
+    const documents = queryResult.data
 
     // Process analytics
     const analytics = processWebVitalsAnalytics(documents, metric)
@@ -332,38 +316,32 @@ async function updateUserPerformanceStats(
   metrics: any[]
 ): Promise<void> {
   try {
-    const dbService = await (await getDatabaseService())()
-
-    // Read current user data
-    const userResult = await dbService.read('users', userId)
+    const userResult = await (await getDb())().readDoc<Record<string, unknown> & { id: string }>('users', userId)
     if (!userResult.success || !userResult.data) {
       console.error('User not found for performance stats update')
       return
     }
 
-    const userData = userResult.data.data || userResult.data
-    const currentStats = userData.performanceStats || {}
+    const userData = userResult.data
+    const currentStats = (userData.performanceStats as Record<string, unknown>) || {}
 
     const updatedStats = {
       lastPerformanceScore: performanceScore,
       averagePerformanceScore: calculateAverageScore(currentStats, performanceScore),
-      totalMeasurements: (currentStats.totalMeasurements || 0) + 1,
+      totalMeasurements: ((currentStats.totalMeasurements as number) || 0) + 1,
       lastMeasuredAt: new Date(),
       react19Benefits: {
         bundleSizeReduction: 55, // KB saved from React 19 migration
-        performanceImprovement: performanceScore > (currentStats.lastPerformanceScore || 0),
+        performanceImprovement: performanceScore > ((currentStats.lastPerformanceScore as number) || 0),
         featuresUsed: ['useTransition', 'useDeferredValue', 'useActionState', 'useFormStatus']
       }
     }
 
-    // Update user with new performance stats
-    const updatedUserData = {
+    await (await getDb())().updateDoc('users', userId, {
       ...userData,
       performanceStats: updatedStats,
       updated_at: new Date()
-    }
-
-    await dbService.update('users', userId, updatedUserData)
+    })
   } catch (error) {
     console.error('Error updating user performance stats:', error)
   }

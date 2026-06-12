@@ -1,5 +1,5 @@
 import React from 'react'
-import { getPublicInstanceConfig } from '@/lib/instance-config'
+import { getPublicInstanceConfig } from '@/lib/ring-config-core'
 import { InstanceConfigClientProvider } from '@/components/common/whitelabel/instance-config-client'
 
 /** Server-only provider for nested layouts that need instance config outside AppClientShell. */

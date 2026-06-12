@@ -12,6 +12,7 @@ import { getMessages } from 'next-intl/server'
 import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import { connection } from 'next/server'
+import { AppContentShell } from '@/components/layout/ring-app-shell'
 
 interface AdminLocaleLayoutProps {
   children: React.ReactNode
@@ -41,7 +42,7 @@ export default async function AdminLocaleLayout({ children, params }: AdminLocal
         <div className="flex flex-col min-h-screen">
           <Navigation />
           <Suspense fallback={
-            <main className="flex-grow pt-0">
+            <main className="flex-grow pt-0 md:pl-(--sidebar-total-w)">
               <div className="animate-pulse p-6 space-y-4">
                 <div className="h-8 bg-muted rounded w-1/3"></div>
                 <div className="h-64 bg-muted rounded"></div>
@@ -71,5 +72,9 @@ async function AdminAuthGuard({ children, locale }: { children: React.ReactNode;
     localizedRedirect({ locale, href: '/unauthorized' })
   }
   
-  return <main className="flex-grow pt-0">{children}</main>
+  return (
+    <main className="flex-grow pt-0 md:pl-(--sidebar-total-w)">
+      <AppContentShell>{children}</AppContentShell>
+    </main>
+  )
 }

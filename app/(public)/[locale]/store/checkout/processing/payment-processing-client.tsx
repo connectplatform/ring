@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import type { Locale } from '@/i18n/shared'
+import { useToast } from '@/hooks/use-toast'
+import { consumeReferralCheckoutFlash } from '@/features/refcodes/lib/checkout-referral-flash'
 
 interface PaymentProcessingClientProps {
   orderId: string
@@ -20,6 +22,8 @@ export default function PaymentProcessingClient({
   initialStatus
 }: PaymentProcessingClientProps) {
   const t = useTranslations('modules.store.checkout.processing')
+  const tCheckout = useTranslations('modules.store.checkout')
+  const { success: toastSuccess } = useToast()
   const router = useRouter()
   const [status, setStatus] = useState<PaymentStatus>('processing')
   const [error, setError] = useState<string | null>(null)
@@ -87,6 +91,19 @@ export default function PaymentProcessingClient({
       setAttempts(prev => prev + 1)
     }
   }, [orderId, locale, t, router])
+
+  useEffect(() => {
+    const flash = consumeReferralCheckoutFlash()
+    if (flash) {
+      toastSuccess({
+        title: tCheckout('referralApplied'),
+        description: flash.referralCode
+          ? tCheckout('referralAppliedToast', { code: flash.referralCode })
+          : tCheckout('referralAppliedToastGeneric'),
+        duration: 8000,
+      })
+    }
+  }, [toastSuccess, tCheckout])
 
   useEffect(() => {
     // Check status immediately

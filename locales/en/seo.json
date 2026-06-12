@@ -82,6 +82,10 @@
       "title": "Sign In - Ring Platform",
       "description": "Sign in to your Ring Platform account. Access your professional network, opportunities, and blockchain features."
     },
+    "walletConnect": {
+      "title": "Connect Wallet - Ring Platform",
+      "description": "Sign in with your Web3 wallet using MetaMask, WalletConnect, or Coinbase Wallet."
+    },
     "status": {
       "title": "{{action}} {{status}} - Ring Platform",
       "description": "Your {{action}} is {{status}}. Manage your authentication status and next steps."
@@ -116,6 +120,18 @@
     "add": {
       "title": "Add Your Entity - Ring Platform",
       "description": "Register your organization or business entity on Ring platform. Get verified and connect with the professional community."
+    },
+    "my": {
+      "title": "My Entities - Ring Platform",
+      "description": "Manage organizations you own, stores you operate, and entities where you are a member."
+    },
+    "edit": {
+      "title": "Edit Entity - Ring Platform",
+      "description": "Update your organization profile on Ring Platform."
+    },
+    "delete": {
+      "title": "Delete Entity - Ring Platform",
+      "description": "Permanently remove your organization from Ring Platform."
     },
     "status": {
       "title": "Entity {{action}} {{status}} - Ring Platform",
@@ -152,6 +168,10 @@
     "add": {
       "title": "Post Opportunity - Ring Platform",
       "description": "Create and post a new business opportunity or partnership request. Connect with the right professionals on Ring platform."
+    },
+    "my": {
+      "title": "My Opportunities - Ring Platform",
+      "description": "Manage opportunities you posted — drafts, pending review, and active listings."
     },
     "status": {
       "title": "Opportunity {{action}} {{status}} - Ring Platform",

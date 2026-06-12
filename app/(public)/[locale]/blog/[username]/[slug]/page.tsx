@@ -1,23 +1,22 @@
 import type { Metadata } from 'next'
 import React from 'react'
 import { notFound } from 'next/navigation'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
 import { blogArticlePathname, normalizeBlogHandle } from '@/lib/blog/blog-path'
 import { isValidLocale, defaultLocale, type Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
 import { connection } from 'next/server'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type Params = { locale: string; username: string; slug: string }
 
 async function getBlogPost(username: string, slug: string, locale: string) {
   await connection()
-  await initializeDatabase()
-  const db = getDatabaseService()
+
   const handle = normalizeBlogHandle(username)
-  const result = await db.query({
+  const result = await db().queryDocs({
     collection: 'news',
     filters: [
       { field: 'blogUsername', operator: '==', value: handle },
@@ -28,7 +27,7 @@ async function getBlogPost(username: string, slug: string, locale: string) {
     pagination: { limit: 1 },
   })
   if (!result.success || result.data.length === 0) return null
-  return mapNewsDocument(result.data[0] as { id: string; data?: Record<string, unknown> })
+  return mapNewsDocument(result.data[0])
 }
 
 export async function generateMetadata({
@@ -52,8 +51,6 @@ export async function generateMetadata({
       path: 'blog.article',
       pathname: blogArticlePathname(username, slug),
       variables: { title: slug, excerpt: '', username: handle },
-      siteName: RING_PLATFORM_SEO.siteName,
-      twitterSite: RING_PLATFORM_SEO.twitterSite,
       robots: { index: false, follow: false },
     })
   }
@@ -66,8 +63,6 @@ export async function generateMetadata({
       excerpt: article.excerpt || article.title,
       username: handle,
     },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

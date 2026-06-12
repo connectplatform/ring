@@ -3,14 +3,18 @@
 // - Industry and skill-based compatibility scoring
 // - Intelligent search result ranking
 
-import { Entity, SerializedEntity, EntityType } from '@/features/entities/types'
-import { serializeEntities } from '@/lib/converters/entity-serializer'
+import { SerializedEntity, EntityType } from '@/features/entities/types'
+import {
+  mapDbDocumentToSerializedEntity,
+} from '@/features/entities/lib/entity-db-mapper'
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityQueryError, logRingError } from '@/lib/errors'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { getEntityTypeConfig } from '@/components/entities/entity-type-icons'
+import { filterEntitiesForDiscovery } from '@/features/entities/lib/entity-visibility-filter'
+import { getUserBlockedEntityIds } from '@/features/entities/services/entity-moderation'
 import { cache } from 'react'
 /**
  * Entity search parameters interface
@@ -30,7 +34,7 @@ export interface EntitySearchParams {
  * Entity search result with relevance scoring
  */
 export interface EntitySearchResult {
-  entity: Entity
+  entity: SerializedEntity
   relevanceScore: number
   matchReasons: string[]
   industryCompatibility?: number
@@ -93,6 +97,9 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
 
     // Step 1: Authenticate user if role not provided
     let userRole = params.userRole
+    let userId: string | undefined
+    let blockedEntityIds: string[] = []
+
     if (!userRole) {
       const session = await auth()
       if (!session || !session.user) {
@@ -104,6 +111,8 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
         })
       }
       userRole = session.user.role as UserRole
+      userId = session.user.id
+      blockedEntityIds = await getUserBlockedEntityIds(session.user.id)
     }
 
     // Step 2: Validate search parameters
@@ -118,10 +127,6 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
 
     const maxResults = params.maxResults || 50
     const query = params.query.trim().toLowerCase()
-
-    // Step 3: Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
 
     // Build filters for role-based visibility
     const filters: any[] = []
@@ -140,11 +145,11 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
     }
 
     // Step 4: Execute base query
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'entities',
       filters,
       orderBy: [{ field: 'dateAdded', direction: 'desc' }],
-      pagination: { limit: Math.min(maxResults * 2, 200) }
+      pagination: { limit: Math.min(maxResults * 2, 200) },
     })
 
     if (!result.success || !result.data) {
@@ -156,18 +161,24 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
       }
     }
 
-    let entities = (Array.isArray(result.data) ? result.data : (result.data as any).data || []) as Entity[]
+    let entities: SerializedEntity[] = result.data.map((doc) =>
+      mapDbDocumentToSerializedEntity(doc),
+    )
 
-    // Apply in-memory filtering for complex visibility/type rules
-    entities = entities.filter(entity => {
-      // Visibility check
+    // Apply in-memory filtering for complex visibility/type/moderation rules
+    entities = filterEntitiesForDiscovery(entities, {
+      userId,
+      userRole,
+      blockedEntityIds,
+    }).filter((entity) => {
       if (userRole === UserRole.VISITOR && entity.visibility !== 'public') return false
-      if (userRole === UserRole.SUBSCRIBER && !['public', 'subscriber'].includes(entity.visibility || 'public')) return false
-      if (userRole === UserRole.MEMBER && !['public', 'subscriber', 'member'].includes(entity.visibility || 'public')) return false
-      
-      // Type check (if multiple types specified)
+      if (userRole === UserRole.SUBSCRIBER && !['public', 'subscriber'].includes(entity.visibility || 'public')) {
+        return false
+      }
+      if (userRole === UserRole.MEMBER && !['public', 'subscriber', 'member'].includes(entity.visibility || 'public')) {
+        return false
+      }
       if (params.types && params.types.length > 1 && !params.types.includes(entity.type)) return false
-      
       return true
     })
 
@@ -188,11 +199,11 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
     const finalResults = searchResults.slice(0, maxResults)
 
     // Step 7: Serialize entities for client compatibility
-    const serializedResults: SerializedEntitySearchResult[] = finalResults.map(result => ({
+    const serializedResults: SerializedEntitySearchResult[] = finalResults.map((result) => ({
       relevanceScore: result.relevanceScore,
       matchReasons: result.matchReasons,
       industryCompatibility: result.industryCompatibility,
-      entity: serializeEntities([result.entity])[0]
+      entity: result.entity,
     }))
 
     const searchTime = Date.now() - startTime
@@ -237,7 +248,7 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
  * Calculate entity relevance score based on search query and parameters
  */
 function calculateEntityRelevance(
-  entity: Entity, 
+  entity: SerializedEntity, 
   query: string, 
   queryTerms: string[], 
   params: EntitySearchParams
@@ -380,7 +391,7 @@ function calculateStringSimilarity(str1: string, str2: string): number {
 /**
  * Calculate industry compatibility score based on entity type and services
  */
-function calculateIndustryCompatibility(entity: Entity, query: string, queryTerms: string[]): number {
+function calculateIndustryCompatibility(entity: SerializedEntity, query: string, queryTerms: string[]): number {
   let compatibility = 0
   
   // Get entity type configuration for industry matching

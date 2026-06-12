@@ -7,7 +7,12 @@ const AnimatedLogoInner = dynamic(() => import('./animated-logo-content'), {
   ssr: false,
 })
 
-export default function AnimatedLogo() {
+export interface AnimatedLogoProps {
+  size?: number
+  className?: string
+}
+
+export default function AnimatedLogo({ size, className }: AnimatedLogoProps) {
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -15,10 +20,12 @@ export default function AnimatedLogo() {
   }, [])
 
   if (!isMounted) {
-    return null // Render nothing until the component is mounted
+    return null
   }
 
   return (
-      <AnimatedLogoInner />
+    <div className={className}>
+      <AnimatedLogoInner size={size} />
+    </div>
   )
 }

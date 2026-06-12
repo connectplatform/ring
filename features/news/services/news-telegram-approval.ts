@@ -1,26 +1,23 @@
 import { sendMessage } from '@/lib/telegram/admin-bot/bot-config'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { UserRole } from '@/features/auth/types'
 import { absoluteSiteUrl } from '@/lib/site-branding'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
 
 export async function getAdminTelegramChatIds(): Promise<string[]> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const result = await db.query({
+  const result = await db().queryDocs<Record<string, unknown>>({
     collection: 'users',
     filters: [
       { field: 'role', operator: 'in', value: [UserRole.ADMIN, UserRole.SUPERADMIN] },
     ],
     pagination: { limit: 100 },
   })
-  if (!result.success) return []
+  if (!result.success || !result.data) return []
 
   const ids: string[] = []
   for (const row of result.data) {
-    const d = (row.data ?? row) as Record<string, unknown>
-    const comm = d.communication as Record<string, unknown> | undefined
-    const tid = comm?.telegramId ?? d.telegramId
+    const comm = row.communication as Record<string, unknown> | undefined
+    const tid = comm?.telegramId ?? row.telegramId
     if (tid) ids.push(String(tid))
   }
   return [...new Set(ids)]
@@ -42,12 +39,10 @@ export function buildNewsApprovalInlineKeyboard(articleId: string) {
 }
 
 export async function notifyAdminsNewsAwaitingApproval(articleId: string): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  const found = await db.findById('news', articleId)
+  const found = await db().findDocById<Record<string, unknown>>('news', articleId)
   if (!found.success || !found.data) return
 
-  const article = mapNewsDocument(found.data as { id: string; data?: Record<string, unknown> })
+  const article = mapNewsDocument(found.data)
   const chatIds = await getAdminTelegramChatIds()
   const price = article.aiScore?.suggestedPriceUah ?? article.payment?.amount ?? '?'
   const text = [
@@ -69,6 +64,26 @@ export async function notifyAdminsNewsAwaitingApproval(articleId: string): Promi
       console.error('[news-telegram] notify failed', chatId, e)
     }
   }
+}
+
+export async function sendArticleDraftApprovalToChat(
+  chatId: string,
+  articleId: string,
+  summary: { title: string; locale: string; featuredImage?: string; audioUrl?: string }
+): Promise<void> {
+  const lines = [
+    '<b>AI news draft ready for approval</b>',
+    '',
+    `<b>${summary.title}</b>`,
+    `Locale: ${summary.locale}`,
+    summary.featuredImage ? 'Featured image: generated' : 'Featured image: none',
+    summary.audioUrl ? 'Audio narration: ready' : 'Audio narration: skipped',
+    '',
+    `ID: <code>${articleId}</code>`,
+  ]
+  await sendMessage(chatId, lines.join('\n'), {
+    reply_markup: buildNewsApprovalInlineKeyboard(articleId),
+  })
 }
 
 export async function answerCallbackQuery(

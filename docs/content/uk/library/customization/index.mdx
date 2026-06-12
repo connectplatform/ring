@@ -1,15 +1,94 @@
 ---
-title: Індекс
-description: Індекс документації для платформи Ring
-last_modified: 2025-10-16
+title: Кастомізація
+description: Кожен деплой Ring — брендований клон; OSS self-host або Ringdom k8s, потім ring-config і локалі (v1.6.0)
+last_modified: "2026-06-12"
 ---
 
-# Огляд налаштувань
+# Кастомізація
 
-White-label Ring для відповідності вашому бренду та потребам продукту.
+<Callout type="info">
+  **Що це за розділ:** Ring **завжди** white-label — один open-source код, ваш бренд, ваш домен. Ці доки для **операторів і розробників**, які ведуть клон (самостійно або з Ringdom). Це **не** процес замовлення на Ringdom.
+</Callout>
 
-- Брендування: логотип, кольори, типографіка
-- Теми: токени та утиліти Tailwind CSS v4
-- Перемикачі функцій: увімкнення/вимкнення доменів платформи
-- Локалізація: додавання нових мов
-- Перевизначення компонентів: безпечна заміна UI компонентів
+## Два способи отримати клон
+
+<Mermaid title="Як ви отримуєте свій Ring">
+{`flowchart TD
+  Start([Хочу свій Ring])
+  Start --> Choice{Хто веде продакшен?}
+
+  Choice -->|Будую / self-host| OSS[OSS на GitHub]
+  Choice -->|Ringdom веде за мене| RD[ringdom.org]
+
+  OSS --> A1[./install.sh]
+  OSS --> A2[Ручний клон + агент]
+  A1 --> Docs[Ці доки — Quick Start далі]
+  A2 --> Docs
+
+  RD --> Chat[Чат на головній:\\nОпишіть вашу\\nRing-платформу]
+  Chat --> Ops[Ringdom: k8s, DNS, handoff]
+  Ops --> Customize[Той самий код — потім Customization]`}
+</Mermaid>
+
+| Крок | OSS (ви ведете) | Ringdom (ми ведемо) |
+|------|-----------------|---------------------|
+| 1 | [Quick Start](/docs/customization/quick-start) | [ringdom.org](https://ringdom.org) — чат на головній |
+| 2 | [Customization guide](/docs/customization/customization-guide) | Після handoff — той самий guide |
+| 3 | [Self-hosted](/docs/deployment/self-hosted) | Ringdom k8s (не Quick Start) |
+
+<Callout type="warning">
+  Для Ringdom-managed settlers **не** використовуйте Quick Start — замовлення починається на [ringdom.org](https://ringdom.org).
+</Callout>
+
+## Посібники оператора
+
+<Cards>
+  <Card title="Quick Start (OSS)" href="/docs/customization/quick-start">
+    `install.sh` або ручний клон
+  </Card>
+  <Card title="Customization guide" href="/docs/customization/customization-guide">
+    ring-config, HomeWrapper, локалі
+  </Card>
+  <Card title="Database selection" href="/docs/customization/database-selection">
+    `DB_BACKEND_MODE`
+  </Card>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    RING, membership, treasury
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    WayForPay, Stripe, PaymentConductor
+  </Card>
+  <Card title="Multi-tenant" href="/docs/customization/multi-tenant">
+    Кілька організацій на одному деплої
+  </Card>
+  <Card title="AI customization" href="/docs/customization/ai-customization">
+    Matcher, витрати агентів
+  </Card>
+  <Card title="Reference deployments" href="/docs/customization/success-stories">
+    Клони Ringdom
+  </Card>
+</Cards>
+
+## UI-кастомізація
+
+<Cards>
+  <Card title="Branding" href="/docs/customization/branding">
+    Логотип, кольори, типографіка
+  </Card>
+  <Card title="Themes" href="/docs/customization/themes">
+    Tailwind CSS v4
+  </Card>
+  <Card title="Features" href="/docs/customization/features">
+    Перемикачі модулів
+  </Card>
+  <Card title="Localization" href="/docs/customization/localization">
+    Локалі та `locales/`
+  </Card>
+  <Card title="Components" href="/docs/customization/components">
+    Безпечні override UI
+  </Card>
+</Cards>
+
+<Callout type="success">
+  **OSS:** [Quick Start](/docs/customization/quick-start). **Ringdom settlers:** спочатку чат на [ringdom.org](https://ringdom.org), потім [Customization guide](/docs/customization/customization-guide).
+</Callout>

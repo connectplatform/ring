@@ -1,35 +1,92 @@
 ---
 title: Database migrations
-description: Apply PostgreSQL schema and kingdom migrations for news and payments
-last_modified: "2026-06-06"
+description: Apply PostgreSQL schema and kingdom migrations for news, payments, store inventory, and platform features
+last_modified: "2026-06-10"
 ---
 
 # Database migrations
 
-Ring Platform v1.6.0 requires PostgreSQL when using `DB_BACKEND_MODE=k8s-postgres-fcm` or `supabase-fcm`.
+Ring Platform requires PostgreSQL when using `DB_BACKEND_MODE=k8s-postgres-fcm` or `supabase-fcm`.
 
 ## Prerequisites
 
-- PostgreSQL 14+ with optional PostGIS
+- PostgreSQL 14+ (18 recommended for local dev) with optional PostGIS
 - `DATABASE_URL` or `DB_*` connection vars in `.env.local`
 
-## Apply order
+## Quick start — Homebrew (all Ring clones)
+
+From the Ringdom monorepo root:
 
 ```bash
-# 1. Base schema (v4)
-psql "$DATABASE_URL" -f data/schema.sql
-
-# 2. News content
-psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
-
-# 3. News Kingdom fields
-psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
-
-# 4. PaymentConductor ledger
-psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+brew install postgresql@18 postgis
+brew services start postgresql@18
+./infrastructure/postgres/bootstrap-brew-dev.sh --compare-prod
 ```
 
-Helper: `./scripts/run-migration.sh` (when configured).
+Manifest: `infrastructure/postgres/DEV-DATABASE-MANIFEST.json`  
+Cross-clone matrix: `infrastructure/postgres/MIGRATION-KINGDOM-MATRIX.md`
+
+## Apply order — ring-platform.org (`ring_platform`)
+
+`data/schema.sql` is **v4.0.1+** and already includes settlements, refcodes, generated images, platform settings, telegram audit, and **store inventory** (`inventory_levels`, `inventory_reservations`). Fresh installs need fewer incremental files.
+
+```bash
+# 1. Base schema (v4.0.1+ — includes inventory, refcodes, platform_settings, …)
+psql "$DATABASE_URL" -f data/schema.sql
+
+# 2. Ringdom core (copied to every Ring clone)
+psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
+psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+
+# 3. Incremental only if schema predates merge (idempotent)
+psql "$DATABASE_URL" -f data/migrations/005_refcodes_schema.sql
+psql "$DATABASE_URL" -f data/migrations/006_generated_images_schema.sql
+psql "$DATABASE_URL" -f data/migrations/007_settlements_schema.sql
+psql "$DATABASE_URL" -f data/migrations/008_inventory_schema.sql   # noop when already in schema.sql
+psql "$DATABASE_URL" -f data/migrations/011_platform_settings.sql
+
+# 4. Email AI-CRM (JSONB — skip deprecated 001 column schema)
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+```
+
+Helper scripts: `./scripts/run-migration.sh`, `./scripts/apply-refcodes-migrations-dev.sh`, `./scripts/apply-platform-settings-migrations-dev.sh`.
+
+<Callout type="warning" title="Do not apply 001_email_crm_schema.sql">
+`001_email_crm_schema.sql` is **obsolete** (column-model tables + invalid `global_users` FK). Use **009 + 010** JSONB migrations. On ring-ringdom-org the file lives under `data/migrations/_deprecated/`.
+</Callout>
+
+## Migration reference
+
+| File | Tables / purpose | In `schema.sql` v4.0.1+? |
+|------|------------------|---------------------------|
+| `002_news_content_schema.sql` | `news`, `news_categories`, `news_likes` | Partial — run for kingdom indexes/seeds |
+| `003_news_kingdom_upgrade.sql` | Kingdom fields, `news_submission_audit` | Partial |
+| `004_payment_transactions.sql` | PaymentConductor ledger | Partial |
+| `005_refcodes_schema.sql` | `refcodes`, `referral_rewards` | Yes |
+| `006_generated_images_schema.sql` | `generated_images` | Yes |
+| `007_settlements_schema.sql` | ERP settlement pipeline | Yes |
+| `008_inventory_schema.sql` | `inventory_levels`, `inventory_reservations` | **Yes** (merged 2026-06-10) |
+| `009` / `010` | Email CRM JSONB | No — opt-in feature |
+| `011_platform_settings.sql` | `platform_settings` | Yes |
+
+## Ring clone databases (unified baseline)
+
+Every Ring-backend clone uses **`ring-platform.org/data/schema.sql`** first (53 app tables), then optional **`data/schema-delta.sql`** for project-only tables. Bootstrap: `./infrastructure/postgres/bootstrap-brew-dev.sh` (add `--fresh` if a legacy v3 schema left column-model tables that block JSONB apply).
+
+| Clone | Database (dev) | Total tables | Beyond platform |
+|-------|----------------|--------------|-----------------|
+| ring-platform.org | `ring_platform` | **54** | — |
+| ring-greenfood-live, ring-vikka-ua, ring-ring-ck-ua | per manifest | **54** | — |
+| ring-zemna-ai | `ring_zemna_ai` | **56** | `publications`, `publication_versions` |
+| ring-ringdom-org | `ring_ringdom_org` | **56** | `global_users`, `settler_briefs` |
+| ring-subiworx-com | `ring_subiworx_com` | **58** | shop marketplace tables |
+| ring-connect-software | `ring_connect_software_dev` | **70** | PR Ops + cross-project user analytics |
+
+Do **not** bootstrap from per-clone forked `data/schema.sql` (obsolete v3 ~25-table snapshots). See `infrastructure/postgres/MIGRATION-KINGDOM-MATRIX.md`.
+
+See `ring-ringdom-org/data/README.md` for `global_users` and settler registry (Ringdom-only).
 
 ## Optional seeds
 
@@ -42,10 +99,20 @@ psql "$DATABASE_URL" -f scripts/seed-news-v1.6.0.sql
 ```bash
 psql "$DATABASE_URL" -c "\dt news*"
 psql "$DATABASE_URL" -c "\dt payment_transactions"
+psql "$DATABASE_URL" -c "\dt inventory_*"
+psql "$DATABASE_URL" -c "\dt ref*"
+psql "$DATABASE_URL" -c "\dt email_*"
+psql "$DATABASE_URL" -c "\dt platform_settings"
 ```
+
+**Dev database:** `ring_platform` on local Homebrew Postgres (`ring_user` / see manifest).
 
 ## Related
 
 - [Installation](/docs/library/getting-started/installation)
+- [Local setup](/docs/library/development/local-setup)
 - [Backend modes](/docs/library/architecture/backend-modes-and-databases)
+- [Referral Codes](/docs/library/features/refcodes)
+- [Email AI-CRM](/docs/library/features/email-ai-crm)
+- [ERP inventory](/docs/library/features/erp/inventory)
 - [data/migrations/README.md](https://github.com/connectplatform/ring/blob/main/data/migrations/README.md)

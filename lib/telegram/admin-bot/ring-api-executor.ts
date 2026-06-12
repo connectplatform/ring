@@ -12,9 +12,11 @@
  * - All operations logged to audit table
  */
 
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { UserRole } from '@/features/auth/types'
 import { ParsedCommand } from './anthropic-router'
+import { generateNewsArticle } from '@/features/news/services/article-generator'
+import { sendArticleDraftApprovalToChat } from '@/features/news/services/news-telegram-approval'
 
 export interface ExecutionResult {
   success: boolean
@@ -25,6 +27,12 @@ export interface ExecutionResult {
     entity: string
     recordsAffected?: number
   }
+}
+
+export interface ExecutionContext {
+  chatId?: string
+  userId?: string | null
+  authorName?: string
 }
 
 /**
@@ -41,7 +49,6 @@ async function executeRingCrud(
 ): Promise<ExecutionResult> {
   const { operation, entity, id, data, filters, limit } = toolInput
 
-  // Permission checks
   if (operation === 'delete' && entity === 'users' && userRole !== UserRole.SUPERADMIN) {
     return {
       success: false,
@@ -61,10 +68,6 @@ async function executeRingCrud(
   }
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Execute operation
     switch (operation) {
       case 'create': {
         if (!data) {
@@ -74,7 +77,7 @@ async function executeRingCrud(
           }
         }
 
-        const result = await db.create(entity, data)
+        const result = await db().createDoc(entity, data)
 
         if (!result.success) {
           return {
@@ -102,7 +105,7 @@ async function executeRingCrud(
           }
         }
 
-        const result = await db.findById(entity, id)
+        const result = await db().findDocById(entity, id)
 
         if (!result.success) {
           return {
@@ -129,7 +132,7 @@ async function executeRingCrud(
           }
         }
 
-        const result = await db.update(entity, id, data)
+        const result = await db().updateDoc(entity, id, data)
 
         if (!result.success) {
           return {
@@ -157,7 +160,7 @@ async function executeRingCrud(
           }
         }
 
-        const result = await db.delete(entity, id)
+        const result = await db().deleteDoc(entity, id)
 
         if (!result.success) {
           return {
@@ -186,11 +189,11 @@ async function executeRingCrud(
             }))
           : []
 
-        const result = await db.query({
+        const result = await db().queryDocs({
           collection: entity,
           filters: queryFilters,
           orderBy: [{ field: 'created_at', direction: 'desc' }],
-          pagination: { limit: Math.min(limit || 10, 100) }, // Max 100 records
+          pagination: { limit: Math.min(limit || 10, 100) },
         })
 
         if (!result.success) {
@@ -236,15 +239,15 @@ async function executeRingCrud(
  * @returns Execution result with report data
  */
 async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
-  const { report_type, date_range } = toolInput
+  const { report_type } = toolInput
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     switch (report_type) {
       case 'users_summary': {
-        const result = await db.query({
+        const result = await db().queryDocs<{
+          role?: string
+          accountStatus?: string
+        }>({
           collection: 'users',
           filters: [],
         })
@@ -256,12 +259,12 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
         const users = result.data || []
         const summary = {
           total: users.length,
-          by_role: users.reduce((acc: any, user: any) => {
-            const role = user.data?.role || 'visitor'
+          by_role: users.reduce((acc: Record<string, number>, user) => {
+            const role = user.role || 'visitor'
             acc[role] = (acc[role] || 0) + 1
             return acc
           }, {}),
-          active: users.filter((u: any) => u.data?.accountStatus === 'ACTIVE').length,
+          active: users.filter((u) => u.accountStatus === 'ACTIVE').length,
         }
 
         return {
@@ -273,7 +276,7 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
 
       case 'orders_today': {
         const today = new Date().toISOString().split('T')[0]
-        const result = await db.query({
+        const result = await db().queryDocs<{ created_at?: string }>({
           collection: 'orders',
           filters: [],
         })
@@ -283,8 +286,8 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
         }
 
         const orders = result.data || []
-        const todayOrders = orders.filter((order: any) => {
-          const createdDate = new Date(order.created_at).toISOString().split('T')[0]
+        const todayOrders = orders.filter((order) => {
+          const createdDate = new Date(order.created_at || '').toISOString().split('T')[0]
           return createdDate === today
         })
 
@@ -299,13 +302,11 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
       }
 
       case 'subscriptions_active': {
-        // db.query() expects a DatabaseQuery object (see IDatabaseService.ts)
-        // Pagination settings must be passed via the 'pagination' property per interface
-        const result = await db.query({
+        const result = await db().queryDocs({
           collection: 'subscriptions',
           filters: [
             { field: 'status', operator: '==', value: 'active' },
-          ]
+          ],
         })
 
         if (!result.success) {
@@ -339,6 +340,57 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
   }
 }
 
+async function executeArticleGeneration(
+  toolInput: {
+    source?: 'url' | 'search' | 'text'
+    value?: string
+    instruction?: string
+    enableAudio?: boolean
+    enableImage?: boolean
+  },
+  context?: ExecutionContext
+): Promise<ExecutionResult> {
+  const source = toolInput.source
+  const value = toolInput.value?.trim()
+  if (!source || !value) {
+    return { success: false, error: 'source and value are required for article generation' }
+  }
+  if (!context?.userId) {
+    return { success: false, error: 'Linked Ring user required for article author' }
+  }
+
+  const result = await generateNewsArticle({
+    source,
+    value,
+    instruction: toolInput.instruction,
+    author: {
+      id: context.userId,
+      name: context.authorName || 'Telegram Admin',
+    },
+    enableAudio: toolInput.enableAudio,
+    enableImage: toolInput.enableImage,
+  })
+
+  if (!result.success || !result.articleId) {
+    return { success: false, error: result.error || 'Article generation failed' }
+  }
+
+  if (context.chatId) {
+    await sendArticleDraftApprovalToChat(context.chatId, result.articleId, {
+      title: result.title || 'Untitled draft',
+      locale: result.locale || 'en',
+      featuredImage: result.featuredImage,
+      audioUrl: result.audioUrl,
+    })
+  }
+
+  return {
+    success: true,
+    data: result,
+    metadata: { operation: 'article_generation', entity: 'news', recordsAffected: 1 },
+  }
+}
+
 /**
  * Execute parsed command from Anthropic
  * Routes to appropriate executor based on tool name
@@ -349,19 +401,27 @@ async function executeRingReport(toolInput: any): Promise<ExecutionResult> {
  */
 export async function executeCommand(
   parsedCommand: ParsedCommand,
-  userRole: UserRole
+  userRole: UserRole,
+  context?: ExecutionContext
 ): Promise<ExecutionResult> {
   const { toolName, toolInput } = parsedCommand
+  const normalizedTool = toolName === 'entity_crud'
+    ? 'ring_crud'
+    : toolName === 'entity_report'
+      ? 'ring_report'
+      : toolName
 
-  switch (toolName) {
+  switch (normalizedTool) {
     case 'ring_crud':
       return executeRingCrud(toolInput, userRole)
 
     case 'ring_report':
       return executeRingReport(toolInput)
 
+    case 'generate_news_article':
+      return executeArticleGeneration(toolInput, context)
+
     case 'clarify':
-      // Clarification requests don't execute - they're just returned to user
       return {
         success: true,
         data: { clarification: toolInput.question, suggestions: toolInput.suggestions },

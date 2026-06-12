@@ -35,6 +35,7 @@ import {
   Globe
 } from 'lucide-react'
 import { EntityType } from '@/features/entities/types'
+import { entityTypeConfigs } from '@/components/entities/entity-type-icons'
 
 interface EntityFilterState {
   search: string
@@ -57,14 +58,26 @@ interface EntitiesFiltersPanelProps {
   onFiltersApplied?: (filters: EntityFilterState) => void
 }
 
-// Agricultural entity types for GreenFood platform
-const entityTypes = [
-  { id: 'farm' as EntityType, icon: Leaf, color: 'bg-emerald-500', label: 'Farm' },
-  { id: 'food_producer' as EntityType, icon: Factory, color: 'bg-blue-500', label: 'Food Producer' },
-  { id: 'farmers_market' as EntityType, icon: Building2, color: 'bg-orange-500', label: 'Farmers Market' },
-  { id: 'artisan_producer' as EntityType, icon: Palette, color: 'bg-purple-500', label: 'Artisan Producer' },
-  { id: 'cooperative' as EntityType, icon: Users, color: 'bg-green-500', label: 'Cooperative' },
+const FILTER_ENTITY_TYPE_IDS: EntityType[] = [
+  'softwareDevelopment',
+  'aiMachineLearning',
+  'cloudComputing',
+  'cybersecurity',
+  'blockchainDevelopment',
+  'iotDevelopment',
+  'robotics',
+  'technologyCenter',
 ]
+
+const entityTypes = FILTER_ENTITY_TYPE_IDS.map((id) => {
+  const config = entityTypeConfigs.find((c) => c.id === id)!
+  return {
+    id: config.id,
+    icon: config.icon,
+    color: config.bgColor,
+    label: config.label,
+  }
+})
 
 export default function EntitiesFiltersPanel({
   initialFilters,

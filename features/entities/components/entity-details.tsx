@@ -24,6 +24,10 @@ import { apiClient } from '@/lib/api-client'
 import OpportunityCard from '@/features/opportunities/components/opportunity-list'
 import { formatDateValue } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
+import Link from 'next/link'
+import { ROUTES } from '@/constants/routes'
+import EntityModerationActions from '@/features/entities/components/entity-moderation-actions'
+import { Pencil, Trash2 } from 'lucide-react'
 
 interface EntityDetailsProps {
   initialEntity: SerializedEntity | null
@@ -129,7 +133,12 @@ export default function EntityDetails({ initialEntity, initialError, chatCompone
       className="min-h-screen bg-background"
     >
       {/* Hero Section */}
-      <EntityHeroSection entity={entity} t={t} />
+      <EntityHeroSection
+        entity={entity}
+        t={t}
+        locale={locale}
+        isOwner={session?.user?.id === entity.addedBy}
+      />
 
       {/* Main Content */}
       <div className="container mx-auto px-0 py-0">
@@ -218,9 +227,11 @@ export default function EntityDetails({ initialEntity, initialError, chatCompone
 interface EntityHeroSectionProps {
   entity: SerializedEntity
   t: any
+  locale: Locale
+  isOwner?: boolean
 }
 
-const EntityHeroSection: React.FC<EntityHeroSectionProps> = ({ entity, t }) => (
+const EntityHeroSection: React.FC<EntityHeroSectionProps> = ({ entity, t, locale, isOwner }) => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -276,7 +287,7 @@ const EntityHeroSection: React.FC<EntityHeroSectionProps> = ({ entity, t }) => (
             )}
           </div>
 
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button size="sm" className="gap-2">
               <MessageCircle className="w-4 h-4" />
               {t('contactUs', { defaultValue: 'Contact' })}
@@ -287,6 +298,23 @@ const EntityHeroSection: React.FC<EntityHeroSectionProps> = ({ entity, t }) => (
                 {t('visitWebsite', { defaultValue: 'Visit Website' })}
               </Button>
             )}
+            {isOwner && (
+              <>
+                <Button asChild size="sm" variant="secondary" className="gap-2">
+                  <Link href={ROUTES.ENTITY_EDIT(entity.id, locale)}>
+                    <Pencil className="w-4 h-4" />
+                    {t('editEntity', { defaultValue: 'Edit' })}
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="destructive" className="gap-2">
+                  <Link href={ROUTES.ENTITY_DELETE(entity.id, locale)}>
+                    <Trash2 className="w-4 h-4" />
+                    {t('deleteEntity', { defaultValue: 'Delete' })}
+                  </Link>
+                </Button>
+              </>
+            )}
+            <EntityModerationActions entity={entity} isOwner={!!isOwner} />
             <Button variant="ghost" size="sm">
               <Share2 className="w-4 h-4" />
             </Button>

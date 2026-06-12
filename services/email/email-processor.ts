@@ -18,10 +18,17 @@ import {
 } from './ai';
 import { 
   EmailContactService, getEmailContactService, EmailContact,
-  EmailTaskService, getEmailTaskService
+  EmailTaskService, getEmailTaskService, EmailTask,
 } from './crm';
 import { EmailDraftService, getEmailDraftService, DraftApprovalResult } from './drafts';
+import { EmailThreadService } from '@/features/email-crm/services/email-thread-service';
+import { EmailMessageService } from '@/features/email-crm/services/email-message-service';
+import { EmailApiUsageService } from '@/features/email-crm/services/email-api-usage-service';
+import { sendDraftReply } from '@/features/email-crm/services/email-send-orchestrator';
+import { wireEmailNotifications } from './wire-email-notifications';
 import { logger } from '@/lib/logger';
+
+let pollInFlight = false;
 
 export interface ProcessedEmail {
   // Raw input
@@ -65,7 +72,7 @@ export interface ProcessorEvents {
   'email:processed': (result: ProcessedEmail) => void;
   'draft:created': (result: DraftApprovalResult) => void;
   'draft:auto_sent': (result: { draft: DraftApprovalResult; messageId: string }) => void;
-  'task:created': (task: { threadId: string; title: string; taskType: string }) => void;
+  'task:created': (task: EmailTask) => void;
   'error': (error: Error) => void;
 }
 
@@ -89,17 +96,16 @@ export class EmailProcessor extends EventEmitter {
   
   // Configuration
   private config = {
-    generateResponses: true, // Generate AI responses
-    autoSendEnabled: true, // Allow auto-sending
-    blockOnSecurityFail: true, // Block processing if security fails
-    createTasks: true, // Auto-create tasks
-    trackCosts: true, // Track API costs
+    generateResponses: true,
+    autoSendEnabled: process.env.EMAIL_AUTO_SEND_ENABLED === 'true',
+    blockOnSecurityFail: true,
+    createTasks: true,
+    trackCosts: true,
   };
   
   constructor() {
     super();
     
-    // Initialize services
     this.imapListener = getImapListener();
     this.parser = getEmailParser();
     this.securityPipeline = getSecurityPipeline();
@@ -111,6 +117,8 @@ export class EmailProcessor extends EventEmitter {
     this.contactService = getEmailContactService();
     this.taskService = getEmailTaskService();
     this.draftService = getEmailDraftService();
+
+    this.costTracker.setPersistenceCallback((record) => EmailApiUsageService.save(record));
   }
   
   /**
@@ -146,10 +154,40 @@ export class EmailProcessor extends EventEmitter {
     });
   }
   
+  /** Cron-safe one-shot IMAP poll (no IDLE). */
+  async pollInboundBatch(): Promise<{ processed: number; failed: number; skipped?: boolean }> {
+    if (pollInFlight) {
+      logger.warn('[EmailProcessor] Poll skipped — already in flight');
+      return { processed: 0, failed: 0, skipped: true };
+    }
+    if (this.isRunning) {
+      logger.warn('[EmailProcessor] Poll skipped — IDLE listener active');
+      return { processed: 0, failed: 0, skipped: true };
+    }
+
+    pollInFlight = true;
+    try {
+      const result = await this.imapListener.pollBatch((event) =>
+        this.handleEmail(event, { skipMarkSeen: false })
+      );
+      return { processed: result.queued - result.failed, failed: result.failed };
+    } finally {
+      pollInFlight = false;
+    }
+  }
+
+  /** Ingest a single event (webhook / manual). uid=0 skips IMAP mark-seen. */
+  async ingestEvent(event: EmailReceivedEvent): Promise<void> {
+    await this.handleEmail(event, { skipMarkSeen: event.uid === 0 });
+  }
+
   /**
    * Handle incoming email
    */
-  private async handleEmail(event: EmailReceivedEvent): Promise<void> {
+  private async handleEmail(
+    event: EmailReceivedEvent,
+    options: { skipMarkSeen?: boolean } = {}
+  ): Promise<void> {
     const startTime = Date.now();
     const timing = {
       total: 0,
@@ -174,6 +212,12 @@ export class EmailProcessor extends EventEmitter {
       timing.parsing = Date.now() - parseStart;
       
       this.emit('email:parsed', parsed);
+
+      if (await EmailMessageService.exists(parsed.messageId)) {
+        logger.info('[EmailProcessor] Skipping duplicate message', { messageId: parsed.messageId });
+        await this.markSeenIfImap(event.uid, options.skipMarkSeen);
+        return;
+      }
       
       // Step 2: Security check
       const securityStart = Date.now();
@@ -196,8 +240,7 @@ export class EmailProcessor extends EventEmitter {
         
         this.emit('email:blocked', { parsed, security });
         
-        // Mark as seen but don't process further
-        await this.imapListener.markAsSeen(event.uid);
+        await this.markSeenIfImap(event.uid, options.skipMarkSeen);
         return;
       }
       
@@ -265,6 +308,44 @@ export class EmailProcessor extends EventEmitter {
         sentiment.sentiment,
         sentiment.score
       );
+
+      const threadId = this.resolveThreadId(parsed);
+      const priority = this.sentimentAnalyzer.getPriorityFromSentiment(sentiment);
+
+      try {
+        await EmailMessageService.upsertInboundMessage(parsed, threadId, intent, sentiment);
+      } catch (err) {
+        logger.error('[EmailProcessor] Message persist failed', {
+          messageId: parsed.messageId,
+          error: (err as Error).message,
+        });
+      }
+
+      try {
+        await EmailThreadService.upsertThread(threadId, {
+          subject: parsed.subject,
+          fromEmail: parsed.from.email,
+          fromName: parsed.from.name,
+          status: parsed.isReply ? 'ongoing' : 'new',
+          priority,
+          intent: intent.intent,
+          sentiment: sentiment.sentiment,
+          messageCount: 1,
+          hasDraft: false,
+          lastMessageAt: parsed.date.toISOString(),
+          contact: {
+            type: contact.type,
+            company: contact.company ?? null,
+            interactions: contact.totalInteractions,
+          },
+        });
+      } catch (err) {
+        logger.error('[EmailProcessor] Thread persist failed', {
+          threadId,
+          messageId: event.messageId,
+          error: (err as Error).message,
+        });
+      }
       
       // Step 5: Build context
       const context = await this.contextBuilder.buildContext(
@@ -287,7 +368,7 @@ export class EmailProcessor extends EventEmitter {
       // Step 6: Create tasks if enabled
       if (this.config.createTasks) {
         const tasks = await this.taskService.autoCreateTasks({
-          threadId: event.messageId, // Using message ID as thread ID for now
+          threadId,
           messageId: event.messageId,
           senderEmail: parsed.from.email,
           senderName: parsed.from.name,
@@ -301,11 +382,7 @@ export class EmailProcessor extends EventEmitter {
         });
         
         for (const task of tasks) {
-          this.emit('task:created', {
-            threadId: task.threadId,
-            title: task.title,
-            taskType: task.taskType,
-          });
+          this.emit('task:created', task);
         }
       }
       
@@ -346,7 +423,7 @@ export class EmailProcessor extends EventEmitter {
         // Create draft
         draftResult = await this.draftService.createFromGeneration(
           event.messageId,
-          event.messageId, // Thread ID
+          threadId,
           generation,
           {
             intent: intent.intent,
@@ -357,27 +434,48 @@ export class EmailProcessor extends EventEmitter {
         );
         
         this.emit('draft:created', draftResult);
+
+        try {
+          await EmailThreadService.upsertThread(threadId, { subject: parsed.subject, fromEmail: parsed.from.email, hasDraft: true, messageCount: 0, lastMessageAt: parsed.date.toISOString() });
+        } catch (err) {
+          logger.error('[EmailProcessor] Thread draft flag persist failed', {
+            threadId,
+            error: (err as Error).message,
+          });
+        }
         
-        // Handle auto-send if enabled
         if (this.config.autoSendEnabled && draftResult.shouldAutoSend) {
-          // In production, this would send the email
-          const sentMessageId = `sent_${Date.now()}`;
-          await this.draftService.markSent(draftResult.draft.id, sentMessageId, true);
-          
-          logger.info('[EmailProcessor] Auto-sent response', {
-            draftId: draftResult.draft.id,
-            confidence: generation.confidenceScore,
-          });
-          
-          this.emit('draft:auto_sent', {
-            draft: draftResult,
-            messageId: sentMessageId,
-          });
+          try {
+            const { messageId: sentMessageId } = await sendDraftReply({
+              draftId: draftResult.draft.id,
+              toEmail: parsed.from.email,
+              subject: parsed.subject,
+              threadId,
+              inReplyTo: parsed.messageId,
+              references: parsed.references,
+              wasAutoSent: true,
+            });
+
+            logger.info('[EmailProcessor] Auto-sent response', {
+              draftId: draftResult.draft.id,
+              confidence: generation.confidenceScore,
+              sentMessageId,
+            });
+
+            this.emit('draft:auto_sent', {
+              draft: draftResult,
+              messageId: sentMessageId,
+            });
+          } catch (sendErr) {
+            logger.error('[EmailProcessor] Auto-send failed', {
+              draftId: draftResult.draft.id,
+              error: (sendErr as Error).message,
+            });
+          }
         }
       }
       
-      // Mark email as seen
-      await this.imapListener.markAsSeen(event.uid);
+      await this.markSeenIfImap(event.uid, options.skipMarkSeen);
       
       // Calculate total time
       timing.total = Date.now() - startTime;
@@ -446,6 +544,24 @@ export class EmailProcessor extends EventEmitter {
     });
   }
   
+  /** Stable thread key from parsed headers (References / In-Reply-To / Message-ID). */
+  private resolveThreadId(parsed: ParsedEmail): string {
+    return parsed.externalThreadId || parsed.inReplyTo || parsed.messageId;
+  }
+
+  private async markSeenIfImap(uid: number, skipMarkSeen?: boolean): Promise<void> {
+    if (skipMarkSeen || uid <= 0) return;
+    if (!this.imapListener.isConnected()) return;
+    try {
+      await this.imapListener.markAsSeen(uid);
+    } catch (err) {
+      logger.warn('[EmailProcessor] markAsSeen failed', {
+        uid,
+        error: (err as Error).message,
+      });
+    }
+  }
+
   /**
    * Get processing statistics
    */
@@ -477,6 +593,7 @@ let processorInstance: EmailProcessor | null = null;
 export function getEmailProcessor(): EmailProcessor {
   if (!processorInstance) {
     processorInstance = new EmailProcessor();
+    wireEmailNotifications(processorInstance);
   }
   return processorInstance;
 }

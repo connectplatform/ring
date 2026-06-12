@@ -31,7 +31,6 @@ import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { useStore } from '@/features/store/context'
 import { useOptionalCurrency } from '@/features/store/currency-context'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -411,16 +410,14 @@ export default function CartWrapper({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
       {/* Main Content Layout */}
-      <div className="flex gap-6 min-h-screen">
+      <div className="flex min-h-full gap-3">
         {/* Left Sidebar - Main Navigation (Desktop only) */}
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
+
 
         {/* Center Content Area */}
-        <div className="flex-1 min-w-0 py-8 px-4 md:px-6 lg:px-8 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {/* Cart Header with Back Link */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">

@@ -11,10 +11,7 @@
  */
 
 import { cache } from 'react';
-import {
-  getDatabaseService,
-  initializeDatabase
-} from '@/lib/database';
+import { db } from '@/lib/database';
 
 import {
   Notification,
@@ -50,14 +47,11 @@ async function publishUnreadCountUpdates(notifications: Notification[]): Promise
     for (const userId of userIds) {
       try {
         // Get current unread count for this user
-        const dbService = getDatabaseService();
-        const unreadCount = await dbService.count(
-          'notifications',
-          [
-            { field: 'user_id', operator: '==', value: userId },
-            { field: 'read_at', operator: '==', value: null }
-          ]
-        );
+        const countResult = await db().countDocs('notifications', [
+          { field: 'user_id', operator: '==', value: userId },
+          { field: 'read_at', operator: '==', value: null }
+        ]);
+        const unreadCount = countResult.success ? (countResult.data ?? 0) : 0;
 
         // Publish update via tunnel
         const { publishToTunnel } = await import('@/lib/tunnel/publisher');
@@ -90,14 +84,6 @@ export async function createNotification(
   console.log('NotificationService: Creating notification', { type: request.type });
 
   try {
-    // Initialize database service
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      throw new Error('Database initialization failed');
-    }
-
-    const dbService = getDatabaseService();
-
     // Handle single user or multiple users
     const userIds = request.userIds || (request.userId ? [request.userId] : []);
     if (userIds.length === 0) {
@@ -144,8 +130,8 @@ export async function createNotification(
       };
 
       // Create notification in PostgreSQL
-      const createResult = await dbService.create('notifications', notificationData);
-      if (!createResult.success) {
+      const createResult = await db().createDoc('notifications', notificationData);
+      if (!createResult.success || !createResult.data) {
         console.error('NotificationService: Failed to create notification:', createResult.error);
         throw new Error('Failed to create notification in database');
       }
@@ -205,17 +191,15 @@ export async function getUserNotifications(
   console.log('NotificationService: Getting user notifications', { userId, options });
 
   try {
-    // Ensure database is initialized once per request
-    await initializeDatabase();
-
     // Build database query
-    const filters: Array<{ field: string; operator: string; value: any }> = [{ field: 'userId', operator: '==', value: userId }];
+    // NOTE: rows are written with snake_case fields (user_id/read_at) — see createNotification.
+    const filters: Array<{ field: string; operator: string; value: any }> = [{ field: 'user_id', operator: '==', value: userId }];
     const orderBy = [{ field: 'created_at', direction: 'desc' as const }];
     const pagination: any = {};
 
     // Apply filters
     if (options.unreadOnly) {
-      filters.push({ field: 'readAt', operator: '==' as const, value: null });
+      filters.push({ field: 'read_at', operator: '==' as const, value: null });
     }
 
     if (options.types && options.types.length > 0) {
@@ -228,8 +212,7 @@ export async function getUserNotifications(
     }
 
     // Execute database query
-    const dbService = getDatabaseService();
-    const queryResult = await dbService.query({
+    const queryResult = await db().queryDocs({
       collection: 'notifications',
       filters,
       orderBy,
@@ -240,16 +223,12 @@ export async function getUserNotifications(
       throw new Error('Failed to query notifications');
     }
 
-    const notifications = queryResult.data.map(doc => {
-      const data = doc.data;
-      return {
-        ...data,
-        id: doc.id,
-        createdAt: data?.created_at || new Date(),
-        readAt: data?.read_at || null,
-        deliveredAt: data?.delivered_at || null
-      } as unknown as Notification;
-    });
+    const notifications = queryResult.data.map(row => ({
+      ...row,
+      createdAt: row.created_at || new Date(),
+      readAt: row.read_at || null,
+      deliveredAt: row.delivered_at || null
+    })) as unknown as Notification[];
 
     // Get the last document for pagination
     const lastDoc = queryResult.data[queryResult.data.length - 1];
@@ -304,16 +283,14 @@ export async function markNotificationAsRead(
   console.log('NotificationService: Marking notification as read', { notificationId, userId });
 
   try {
-    const dbService = getDatabaseService();
-
     // First read the notification to verify ownership
-    const readResult = await dbService.read('notifications', notificationId);
+    const readResult = await db().readDoc('notifications', notificationId);
 
     if (!readResult.success || !readResult.data) {
       throw new Error('Notification not found');
     }
 
-    const notification = readResult.data.data || readResult.data;
+    const notification = readResult.data;
     if (notification.user_id !== userId) {
       throw new Error('Unauthorized access to notification');
     }
@@ -326,7 +303,7 @@ export async function markNotificationAsRead(
       updated_at: new Date()
     };
 
-    const updateResult = await dbService.update('notifications', notificationId, updateData);
+    const updateResult = await db().updateDoc('notifications', notificationId, updateData);
     if (!updateResult.success) {
       throw new Error('Failed to update notification');
     }
@@ -347,28 +324,22 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
   console.log('NotificationService: Marking all notifications as read', { userId });
 
   try {
-    const dbService = getDatabaseService();
-
-    // Use raw SQL query to update all unread notifications for this user
-    // Since the database abstraction layer might not support bulk updates,
-    // we'll use the query method to find notifications and then update them individually
-    const queryResult = await dbService.query({
+    const queryResult = await db().queryDocs({
       collection: 'notifications',
       filters: [
         { field: 'user_id', operator: '==' as const, value: userId },
         { field: 'read_at', operator: '==' as const, value: null }
       ],
-      pagination: { limit: 1000 } // Reasonable limit for bulk operations
+      pagination: { limit: 1000 }
     });
 
     if (!queryResult.success || queryResult.data.length === 0) {
       return 0;
     }
 
-    // Update each notification individually
     const updatePromises = queryResult.data.map(notification =>
-      dbService.update('notifications', notification.id, {
-        ...notification.data,
+      db().updateDoc('notifications', notification.id, {
+        ...notification,
         read_at: new Date(),
         status: NotificationStatus.READ,
         updated_at: new Date()
@@ -400,22 +371,18 @@ export async function deleteNotification(
   console.log('NotificationService: Deleting notification', { notificationId, userId });
 
   try {
-    const dbService = getDatabaseService();
-
-    // First read the notification to verify ownership
-    const readResult = await dbService.read('notifications', notificationId);
+    const readResult = await db().readDoc('notifications', notificationId);
 
     if (!readResult.success || !readResult.data) {
       throw new Error('Notification not found');
     }
 
-    const notification = readResult.data.data || readResult.data;
+    const notification = readResult.data;
     if (notification.user_id !== userId) {
       throw new Error('Unauthorized access to notification');
     }
 
-    // Delete the notification
-    const deleteResult = await dbService.delete('notifications', notificationId);
+    const deleteResult = await db().deleteDoc('notifications', notificationId);
     if (!deleteResult.success) {
       throw new Error('Failed to delete notification');
     }
@@ -438,22 +405,20 @@ export async function getNotificationStats(
   console.log('NotificationService: Getting notification stats', { userId });
 
   try {
-    const dbService = getDatabaseService();
-
-    // Query all notifications for this user
-    const queryResult = await dbService.query({
+    const queryResult = await db().queryDocs({
       collection: 'notifications',
       filters: [{ field: 'user_id', operator: '==' as const, value: userId }],
-      pagination: { limit: 1000 } // Reasonable limit for stats
+      pagination: { limit: 1000 }
     });
 
     if (!queryResult.success) {
       throw new Error('Failed to query notifications');
     }
 
-    const notifications = queryResult.data.map(notification => ({
-      ...notification.data,
-      createdAt: notification.data?.created_at || new Date()
+    const notifications = queryResult.data.map(row => ({
+      ...row,
+      createdAt: row.created_at || new Date(),
+      readAt: row.read_at || null
     })) as Notification[];
 
     const now = new Date();
@@ -532,18 +497,16 @@ export async function getUserNotificationPreferences(
   userId: string
 ): Promise<DetailedNotificationPreferences | null> {
   try {
-    // Use database abstraction layer
-    const dbService = getDatabaseService();
-    const result = await dbService.read('notification_preferences', userId);
+    const result = await db().readDoc('notification_preferences', userId);
 
     if (!result.success || !result.data) {
       return null;
     }
 
-    const data = result.data.data || result.data;
+    const data = result.data;
     return {
       ...data,
-      updatedAt: data?.updated_at || new Date()
+      updatedAt: data.updated_at || new Date()
     } as DetailedNotificationPreferences;
 
   } catch (error) {
@@ -564,20 +527,16 @@ export async function updateUserNotificationPreferences(
   preferences: Partial<DetailedNotificationPreferences>
 ): Promise<void> {
   try {
-    const dbService = getDatabaseService();
+    const readResult = await db().readDoc('notification_preferences', userId);
+    const currentPrefs = readResult.success && readResult.data ? readResult.data : {};
 
-    // Read current preferences
-    const readResult = await dbService.read('notification_preferences', userId);
-    const currentPrefs = readResult.success && readResult.data ? (readResult.data.data || readResult.data) : {};
-
-    // Update preferences
     const updatedPrefs = {
       ...currentPrefs,
       ...preferences,
       updated_at: new Date()
     };
 
-    const updateResult = await dbService.update('notification_preferences', userId, updatedPrefs);
+    const updateResult = await db().updateDoc('notification_preferences', userId, updatedPrefs);
     if (!updateResult.success) {
       throw new Error('Failed to update notification preferences');
     }
@@ -696,8 +655,7 @@ async function processNotificationDelivery(notification: Notification): Promise<
     }
 
     // Update in database using abstraction layer
-    const dbService = getDatabaseService();
-    const updateResult = await dbService.update('notifications', notification.id, {
+    const updateResult = await db().updateDoc('notifications', notification.id, {
       ...notification,
       updated_at: new Date()
     });

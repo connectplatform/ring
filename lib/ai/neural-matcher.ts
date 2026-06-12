@@ -1,5 +1,5 @@
 import type { Opportunity } from '@/types'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { isVectorStoreEnabled, upsertVector, querySimilar } from '@/lib/ai/vector-store'
 
 export interface Match { id: string; score: number; reason?: string }
@@ -29,12 +29,10 @@ export class NeuralMatcher {
       const results = await querySimilar('opportunities', _embedding, 10)
       return results
     }
-    await initializeDatabase()
-    const db = getDatabaseService()
-    const result = await db.query({ collection: 'opportunities' })
-    return result.success && result.data ?
-      result.data.slice(0, 50).map((doc: any) => ({ id: doc.id, score: Math.random() })) :
-      []
+    const result = await db().queryDocs({ collection: 'opportunities' })
+    return result.success && result.data
+      ? result.data.slice(0, 50).map((doc) => ({ id: doc.id, score: Math.random() }))
+      : []
   }
 
   private async rankMatches(matches: Match[]): Promise<Match[]> {
@@ -52,5 +50,4 @@ export async function generateOpportunityEmbedding(opportunity: Opportunity): Pr
   const tags = (opportunity.tags || []).slice(0, 16)
   return tags.map(t => (t?.length || 0) % 7)
 }
-
 

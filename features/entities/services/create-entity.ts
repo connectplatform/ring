@@ -5,13 +5,13 @@
  * Uses DatabaseService abstraction layer
  */
 
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { Entity } from '@/features/entities/types'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors'
 import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils'
-import { invalidateEntitiesCache } from '@/lib/cached-data'
+import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
 
 /**
  * Type definition for the data required to create a new entity.
@@ -160,26 +160,15 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     newEntityData.visibility ||= 'public';
     newEntityData.isConfidential ||= false;
 
-    let docRef;
+    let createdEntity: Entity
     try {
-      // Use db.command() abstraction layer
-      const result = await db().execute('create', {
-        collection: 'entities',
-        data: newEntityData
-      });
+      const result = await db().createDoc('entities', newEntityData)
 
-      if (!result.success) {
-        throw new Error(result.error?.message || 'Failed to create entity');
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || 'Failed to create entity')
       }
 
-      // Create a mock document reference for compatibility
-      docRef = {
-        id: result.data?.id || 'unknown',
-        get: async () => ({
-          data: () => result.data?.data,
-          exists: true
-        })
-      };
+      createdEntity = result.data as Entity
     } catch (error) {
       throw new EntityQueryError(
         'Failed to create entity document',
@@ -194,41 +183,13 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
       );
     }
 
-    // Step 5: Retrieve the created entity
-    let docSnap;
-    try {
-      docSnap = await docRef.get();
-    } catch (error) {
-      throw new EntityQueryError(
-        'Failed to retrieve created entity',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userId,
-          userRole,
-          entityId: docRef.id,
-          operation: 'entity_retrieval'
-        }
-      );
-    }
-
-    const entityId = docRef.id;
-    const entityData = docSnap.data() as Omit<Entity, 'id'>;
-
-    // Construct the final Entity object, explicitly including the id
-    const createdEntity: Entity = {
-      id: entityId,
-      ...entityData,
-    };
+    const entityId = createdEntity.id
 
     // Step 6: Set up presence detection for eligible user roles
     if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
       try {
         // Use db.command() to get entity data for presence detection setup
-        const entityResult = await db().execute('findById', {
-          collection: 'entities',
-          id: entityId
-        });
+        await db().findDocById('entities', entityId)
       } catch (error) {
         // Log any post-creation errors but don't fail the entire operation
         logRingError(error, `Services: createEntity - Presence detection setup failed for entity ${entityId}`);
@@ -236,8 +197,7 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     }
 
     console.log(`Services: createEntity - Entity created successfully with ID: ${entityId}`);
-    // Invalidate cache for possible role keys
-    invalidateEntitiesCache(['public','subscriber','member','confidential','admin'])
+    await syncEntityDiscovery({ entityId, event: 'created' })
     return createdEntity;
 
   } catch (error) {

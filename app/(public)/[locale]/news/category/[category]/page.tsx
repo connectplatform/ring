@@ -2,7 +2,8 @@ import React from 'react'
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { mapNewsDocument } from '@/lib/news/map-news-document'
 import { NewsArticle, NewsCategory } from '@/features/news/types'
 import { NewsList } from '@/features/news/components/news-list'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +16,7 @@ import { routing } from '@/i18n/routing'
 import { setRequestLocale } from 'next-intl/server'
 import { loadTranslations } from '@/i18n/load-translations'
 import NewsPageWrapper from '@/components/wrappers/news-page-wrapper'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 interface CategoryPageParams {
   locale: string
@@ -119,41 +120,33 @@ async function getCategoryArticles(category: NewsCategory, limit: number = 20): 
   categoryInfo: CategoryInfo
 }> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Get articles for this category
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       filters: [
         { field: 'category', operator: '==', value: category },
         { field: 'status', operator: '==', value: 'published' },
-        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
+        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
-      pagination: { limit }
+      pagination: { limit },
     })
 
     if (!result.success) {
       return {
         articles: [],
         totalCount: 0,
-        categoryInfo: categoryInfo[category]
+        categoryInfo: categoryInfo[category],
       }
     }
 
-    const articles = result.data as any[] as NewsArticle[]
+    const articles = result.data.map((row) => mapNewsDocument(row))
 
-    // Get total count for this category
-    const countResult = await db.query({
-      collection: 'news',
-      filters: [
-        { field: 'category', operator: '==', value: category },
-        { field: 'status', operator: '==', value: 'published' }
-      ]
-    })
+    const countResult = await db().countDocs('news', [
+      { field: 'category', operator: '==', value: category },
+      { field: 'status', operator: '==', value: 'published' },
+    ])
 
-    const totalCount = countResult.success ? countResult.data.length : 0
+    const totalCount = countResult.success ? (countResult.data ?? 0) : 0
     const info = { ...categoryInfo[category], articleCount: totalCount }
 
     return {
@@ -201,8 +194,6 @@ export async function generateMetadata({
       categoryName: localizedCategoryName,
       description: categoryData.description,
     },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

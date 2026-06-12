@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 
 export interface UserSearchResult {
   id: string
@@ -10,17 +10,15 @@ export interface UserSearchResult {
   isVerified: boolean
 }
 
-function toSearchResult(doc: { id: string; data?: Record<string, unknown> }): UserSearchResult | null {
-  const data = (doc.data ?? doc) as Record<string, unknown>
-  const id = doc.id || (data.id as string)
-  if (!id) return null
+function toSearchResult(row: Record<string, unknown> & { id: string }): UserSearchResult | null {
+  if (!row.id) return null
 
   return {
-    id,
-    username: (data.username as string) ?? null,
-    name: (data.name as string) ?? null,
-    photoURL: (data.photoURL as string) ?? null,
-    isVerified: Boolean(data.isVerified),
+    id: row.id,
+    username: (row.username as string) ?? null,
+    name: (row.name as string) ?? null,
+    photoURL: (row.photoURL as string) ?? null,
+    isVerified: Boolean(row.isVerified),
   }
 }
 
@@ -35,18 +33,16 @@ export const searchUsers = cache(async (term: string, limit = 8): Promise<UserSe
     return []
   }
 
-  await initializeDatabase()
-  const db = getDatabaseService()
   const requesterId = session.user.id
   const cappedLimit = Math.min(Math.max(limit, 1), 20)
 
   const [usernameResult, nameResult] = await Promise.all([
-    db.query({
+    db().queryDocs<Record<string, unknown>>({
       collection: 'users',
       filters: [{ field: 'username', operator: 'ilike', value: `${normalized}%` }],
       pagination: { limit: cappedLimit },
     }),
-    db.query({
+    db().queryDocs<Record<string, unknown>>({
       collection: 'users',
       filters: [{ field: 'name', operator: 'ilike', value: `%${normalized}%` }],
       pagination: { limit: cappedLimit },
@@ -56,9 +52,9 @@ export const searchUsers = cache(async (term: string, limit = 8): Promise<UserSe
   const merged = new Map<string, UserSearchResult>()
 
   for (const result of [usernameResult, nameResult]) {
-    if (!result.success || !result.data) continue
-    for (const doc of result.data) {
-      const item = toSearchResult(doc)
+    if (!result.success) continue
+    for (const row of result.data) {
+      const item = toSearchResult(row)
       if (!item || item.id === requesterId) continue
       merged.set(item.id, item)
       if (merged.size >= cappedLimit) break

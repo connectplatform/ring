@@ -191,7 +191,7 @@ export async function createOpportunity(
       organizationId: requestTypes.includes(type) ? null : entityId?.trim() || null,
       expirationDate,
       ...(applicationDeadlineTimestamp ? { applicationDeadline: applicationDeadlineTimestamp } : {}),
-      status: 'active' as const,
+      status: (formData.get('intent') === 'draft' ? 'draft' : 'pending') as 'draft' | 'pending',
       category: category.trim(),
       tags,
       location: formData.get('location')?.toString().trim() || '',
@@ -517,6 +517,12 @@ export async function deleteOpportunity(
     if (!isOwner && !isAdmin && !isConfidentialUser) {
       return {
         error: 'You do not have permission to delete this opportunity'
+      }
+    }
+
+    if (isOwner && !isAdmin && existingOpportunity.status !== 'archived') {
+      return {
+        error: 'Only archived opportunities can be deleted. Archive the listing first.',
       }
     }
 

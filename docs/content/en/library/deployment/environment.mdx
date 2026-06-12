@@ -1,11 +1,9 @@
 ---
 title: Environment Configuration
 description: Complete production environment setup with secure configuration management, secrets handling, and deployment environments
-last_modified: "2026-05-15"
+last_modified: "2026-06-10"
 ---
 
-import { Callout } from '@/components/docs/callout'
-import { Steps, Step } from '@/components/docs/steps'
 
 # 🔧 Environment Configuration
 
@@ -42,7 +40,7 @@ NEXT_PUBLIC_DEFAULT_LOCALE=en
 
 See `lib/locale-config.ts` and [Locale system](/docs/library/features/locale-system).
 
-## PaymentConductor (v1.6.0)
+## PaymentConductor (v1.6.0) {#payment-conductor}
 
 ```bash
 PAYMENT_DEFAULT_PROCESSOR=wayforpay   # or stripe
@@ -58,7 +56,55 @@ PAYMENT_FIAT_CURRENCY=UAH
 
 Apply `data/migrations/004_payment_transactions.sql` before production payments.
 
+## Generative conductors (xAI Grok, 2026-06)
+
+Shared credential: `XAI_API_KEY` + `XAI_API_BASE_URL=https://api.x.ai/v1`.
+
+| Block | Purpose | Doc |
+|-------|---------|-----|
+| `IMAGE_GEN_*`, `XAI_IMAGE_*` | ImageConductor, `ring-image-create` | [generative-images](/en/library/development/generative-images) |
+| `TEXT_GEN_*`, `XAI_TEXT_*` | TextConductor, cited articles | [generative-newsroom](/en/library/development/generative-newsroom) |
+| `TTS_*`, `XAI_TTS_*` | AudioConductor narration | [generative-newsroom](/en/library/development/generative-newsroom) |
+| `NEWS_AUTOGEN_*` | Draft defaults (visibility, audio) | [generative-newsroom](/en/library/development/generative-newsroom) |
+
+Requires ring-filebase (`FILE_BACKEND=ringbase`, `RINGBASE_API_URL`, `RINGBASE_API_TOKEN`) for CDN uploads.
+
 **Never commit real secrets** — use `.env.local` (gitignored) and placeholders in docs only.
+
+## Email AI-CRM {#email-ai-crm}
+
+Configure in **`.env.local`** (full commented block in `env.local.template`):
+
+```bash
+# .env.local — community contact inbox
+IMAP_HOST=mail.example.com
+IMAP_PORT=993
+IMAP_TLS=true
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+
+ANTHROPIC_API_KEY=
+
+EMAIL_POLLING_INTERVAL=30000
+EMAIL_BATCH_SIZE=10
+EMAIL_CRM_PERSISTENCE=memory    # omit when using Postgres migrations 009/010
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_PROCESSOR_AUTOSTART=false # prefer cron poll in production
+
+CRON_SECRET=generate-a-long-random-string
+WEBHOOK_EMAIL_SECRET=           # POST /api/webhooks/email/inbound
+SLACK_WEBHOOK_URL=              # optional security/urgent alerts
+```
+
+Apply `009_email_crm_jsonb.sql` and `010_email_crm_tasks_jsonb.sql` before Postgres-backed ingest. Production: `POST /api/cron/email-processor` with `{"action":"poll"}` every 1–5 minutes.
+
+See [Email AI-CRM feature](/docs/library/features/email-ai-crm), [API](/docs/library/api/email-ai-crm), and [operator guide](/docs/library/examples/email-ai-crm).
 
 ## 🏗️ Environment Architecture
 

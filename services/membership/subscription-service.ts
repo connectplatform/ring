@@ -1,7 +1,7 @@
-import { SubscriptionStatusSchema, SubscriptionStatus } from '@/lib/zod/credit-schemas';
+import { SubscriptionStatus } from '@/lib/zod/credit-schemas';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { priceOracleService } from '@/services/blockchain/price-oracle-service';
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
 import { auth } from '@/auth';
 import { logger } from '@/lib/logger';
 import { revalidatePath } from 'next/cache';
@@ -27,6 +27,8 @@ interface PaymentResult {
   error?: string;
 }
 
+type SubscriptionRow = SubscriptionStatus & { id: string };
+
 /**
  * Service for managing RING token membership subscriptions
  */
@@ -47,37 +49,32 @@ export class SubscriptionService {
    */
   async createSubscription(userId: string): Promise<SubscriptionCreationResult> {
     try {
-      // Check if user already has an active subscription
       const existingSubscription = await this.getSubscriptionStatus(userId);
       if (existingSubscription && existingSubscription.status === 'ACTIVE') {
         throw new Error('User already has an active subscription');
       }
 
-      // Check if user has sufficient RING balance
       const membershipFee = '1.0';
       const hasSufficientBalance = await userCreditService.hasSufficientBalance(
-        userId, 
+        userId,
         membershipFee
       );
 
       if (!hasSufficientBalance) {
-        throw new Error('Insufficient RING balance for subscription');
+        throw new Error('Insufficient token balance for subscription');
       }
 
-      // Get current RING/USD rate for transaction recording
       const priceData = await priceOracleService.getRingUsdPrice();
 
-      // Process initial payment from credit balance
       const paymentResult = await userCreditService.processMembershipFee(
         userId,
         membershipFee,
         priceData.price
       );
 
-      // Create subscription record in database
       const subscriptionId = `sub_${Date.now()}_${userId.slice(-8)}`;
       const now = Date.now();
-      const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000); // 30 days from now
+      const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000);
 
       const subscription: SubscriptionStatus = {
         user_id: userId,
@@ -90,19 +87,13 @@ export class SubscriptionService {
         payments_count: 1,
       };
 
-      // Save to database using PostgreSQL transaction (FINANCIAL - NO CACHE!)
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      await db.transaction(async (txn) => {
-        // Create subscription record (transaction methods return directly, no .success check)
+      await db().transaction(async (txn) => {
         await txn.create('ring_subscriptions', {
           ...subscription,
           created_at: now,
           updated_at: now,
         }, { id: subscriptionId });
 
-        // Update user profile with subscription info
         await txn.update('users', userId, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
@@ -112,8 +103,7 @@ export class SubscriptionService {
           'membership.auto_renew': true,
         });
       });
-      
-      // Revalidate user profile and subscriptions (React 19 pattern)
+
       revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription created successfully', {
@@ -147,12 +137,7 @@ export class SubscriptionService {
 
       const now = Date.now();
 
-      // Update subscription status using PostgreSQL transaction (FINANCIAL - NO CACHE!)
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Query active subscription BEFORE transaction
-      const queryResult = await db.query({
+      const queryResult = await db().queryDocs<SubscriptionRow & Record<string, unknown>>({
         collection: 'ring_subscriptions',
         filters: [
           { field: 'user_id', operator: '==', value: userId },
@@ -160,30 +145,26 @@ export class SubscriptionService {
         ]
       });
 
-      if (!queryResult.success || queryResult.data.length === 0) {
+      if (!queryResult.success || !queryResult.data?.length) {
         throw new Error('Active subscription not found in database');
       }
-      
+
       const activeSubscriptionId = queryResult.data[0].id;
-      
-      // Update in transaction
-      await db.transaction(async (txn) => {
-        // Cancel subscription
+
+      await db().transaction(async (txn) => {
         await txn.update('ring_subscriptions', activeSubscriptionId, {
           status: 'CANCELLED',
           cancelled_at: now,
           updated_at: now,
         });
 
-        // Update user profile
         await txn.update('users', userId, {
           'credit_balance.subscription_active': false,
           'credit_balance.subscription_next_payment': null,
           'membership.auto_renew': false,
         });
       });
-      
-      // Revalidate after mutation (React 19 pattern)
+
       revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription cancelled', { userId });
@@ -210,7 +191,6 @@ export class SubscriptionService {
         throw new Error('Subscription is not due for renewal');
       }
 
-      // Check balance and process payment
       const membershipFee = '1.0';
       const hasSufficientBalance = await userCreditService.hasSufficientBalance(userId, membershipFee);
 
@@ -221,7 +201,6 @@ export class SubscriptionService {
         };
       }
 
-      // Get current rate and process payment
       const priceData = await priceOracleService.getRingUsdPrice();
       const paymentResult = await userCreditService.processMembershipFee(
         userId,
@@ -232,26 +211,19 @@ export class SubscriptionService {
       const now = Date.now();
       const nextPaymentDue = now + (30 * 24 * 60 * 60 * 1000);
 
-      // Update subscription using PostgreSQL transaction (FINANCIAL - NO CACHE!)
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Query BEFORE transaction
-      const queryResult = await db.query({
+      const queryResult = await db().queryDocs<SubscriptionRow & Record<string, unknown>>({
         collection: 'ring_subscriptions',
         filters: [{ field: 'user_id', operator: '==', value: userId }]
       });
 
-      if (!queryResult.success || queryResult.data.length === 0) {
+      if (!queryResult.success || !queryResult.data?.length) {
         throw new Error('Subscription not found');
       }
 
       const subscriptionDoc = queryResult.data[0];
-      const currentData = subscriptionDoc as any as SubscriptionStatus;
-      
-      // Update in transaction
-      await db.transaction(async (txn) => {
-        // Update subscription with new payment
+      const currentData = subscriptionDoc as SubscriptionStatus;
+
+      await db().transaction(async (txn) => {
         await txn.update('ring_subscriptions', subscriptionDoc.id, {
           status: 'ACTIVE',
           next_payment_due: nextPaymentDue,
@@ -261,14 +233,12 @@ export class SubscriptionService {
           updated_at: now,
         });
 
-        // Update user profile
         await txn.update('users', userId, {
           'credit_balance.subscription_active': true,
           'credit_balance.subscription_next_payment': nextPaymentDue,
         });
       });
-      
-      // Revalidate after financial mutation (React 19 pattern)
+
       revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription renewed', {
@@ -297,11 +267,7 @@ export class SubscriptionService {
    */
   async getSubscriptionStatus(userId: string): Promise<SubscriptionStatus | null> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Query for user's subscriptions with orderBy to get latest
-      const queryResult = await db.query({
+      const queryResult = await db().queryDocs<SubscriptionRow & Record<string, unknown>>({
         collection: 'ring_subscriptions',
         filters: [{ field: 'user_id', operator: '==', value: userId }],
         orderBy: [{ field: 'start_time', direction: 'desc' }],
@@ -312,17 +278,14 @@ export class SubscriptionService {
         throw queryResult.error || new Error('Failed to query subscriptions');
       }
 
-      if (queryResult.data.length === 0) {
+      if (!queryResult.data?.length) {
         return null;
       }
 
-      // Get the most recent subscription
-      const latestSubscription = queryResult.data[0] as any as SubscriptionStatus & { id: string };
+      const latestSubscription = queryResult.data[0] as SubscriptionRow;
 
-      // Check if subscription has expired
-      if (latestSubscription.status === 'ACTIVE' && 
-          latestSubscription.next_payment_due! < Date.now() - (7 * 24 * 60 * 60 * 1000)) { // 7 day grace period
-        // Mark as expired if payment is more than 7 days overdue
+      if (latestSubscription.status === 'ACTIVE' &&
+          latestSubscription.next_payment_due! < Date.now() - (7 * 24 * 60 * 60 * 1000)) {
         await this.markSubscriptionExpired(userId, latestSubscription.id);
         latestSubscription.status = 'EXPIRED';
       }
@@ -354,12 +317,11 @@ export class SubscriptionService {
     const subscription = await this.getSubscriptionStatus(userId);
     if (!subscription) return false;
 
-    // Check if subscription is active and within grace period
     if (subscription.status !== 'ACTIVE') return false;
 
-    const gracePeriod = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const gracePeriod = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
-    
+
     return subscription.next_payment_due! + gracePeriod > now;
   }
 
@@ -368,31 +330,25 @@ export class SubscriptionService {
    */
   private async markSubscriptionExpired(userId: string, subscriptionId: string): Promise<void> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Update subscription document (MUTATION - NO CACHE!)
-      const subResult = await db.update('ring_subscriptions', subscriptionId, {
+      const subResult = await db().updateDoc('ring_subscriptions', subscriptionId, {
         status: 'EXPIRED',
         expired_at: Date.now(),
         updated_at: Date.now(),
       });
-      
+
       if (!subResult.success) {
         throw subResult.error || new Error('Failed to update subscription');
       }
 
-      // Update user profile
-      const userResult = await db.update('users', userId, {
+      const userResult = await db().updateDoc('users', userId, {
         'credit_balance.subscription_active': false,
-        'membership.tier': 'SUBSCRIBER', // Downgrade to subscriber
+        'membership.tier': 'SUBSCRIBER',
       });
-      
+
       if (!userResult.success) {
         throw userResult.error || new Error('Failed to update user profile');
       }
-      
-      // Revalidate after mutation
+
       revalidatePath(`/[locale]/profile/${userId}`);
 
       logger.info('Subscription marked as expired', { userId, subscriptionId });
@@ -413,36 +369,32 @@ export class SubscriptionService {
     total_revenue: string;
   }> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Query all subscriptions (READ operation)
-      const allSubsResult = await db.query({ collection: 'ring_subscriptions' });
-      if (!allSubsResult.success) {
+      const allSubsResult = await db().queryDocs<SubscriptionRow & Record<string, unknown>>({
+        collection: 'ring_subscriptions',
+      });
+      if (!allSubsResult.success || !allSubsResult.data) {
         throw allSubsResult.error || new Error('Failed to fetch subscriptions');
       }
-      
-      // Query active subscriptions due for payment
-      const dueResult = await db.query({
+
+      const dueResult = await db().queryDocs<SubscriptionRow & Record<string, unknown>>({
         collection: 'ring_subscriptions',
         filters: [
           { field: 'status', operator: '==', value: 'ACTIVE' },
           { field: 'next_payment_due', operator: '<', value: Date.now() }
         ]
       });
-      if (!dueResult.success) {
+      if (!dueResult.success || !dueResult.data) {
         throw dueResult.error || new Error('Failed to fetch due subscriptions');
       }
-      
+
       let totalActive = 0;
       let totalExpired = 0;
       let totalCancelled = 0;
       let totalRevenue = 0;
 
-      // Count subscriptions by status
-      allSubsResult.data.forEach(doc => {
-        const data = doc as any as SubscriptionStatus;
-        
+      allSubsResult.data.forEach((doc) => {
+        const data = doc as SubscriptionStatus;
+
         switch (data.status) {
           case 'ACTIVE':
             totalActive++;
@@ -473,5 +425,4 @@ export class SubscriptionService {
   }
 }
 
-// Export singleton instance
 export const subscriptionService = SubscriptionService.getInstance();

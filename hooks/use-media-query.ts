@@ -1,24 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { subscribeMediaQueryChange } from '@/lib/dom/subscribe-media-query-change'
 
-export function useMediaQuery(query: string, defaultValue = false): boolean {
-  const [matches, setMatches] = useState(defaultValue)
+/**
+ * SSR-safe media query hook. Returns false during SSR/first paint,
+ * then syncs with the live media query on mount.
+ */
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return () => {}
-    }
-
-    try {
-      const mq = window.matchMedia(query)
-      return subscribeMediaQueryChange(mq, setMatches)
-    } catch {
-      setMatches(defaultValue)
-      return () => {}
-    }
-  }, [defaultValue, query])
+    const mq = window.matchMedia(query)
+    setMatches(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [query])
 
   return matches
 }

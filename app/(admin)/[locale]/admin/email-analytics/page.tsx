@@ -6,7 +6,7 @@
  * View email processing statistics and AI cost tracking
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   BarChart3, TrendingUp, DollarSign, Zap, Clock, 
   Mail, CheckCircle, AlertTriangle, Brain, Database
@@ -67,13 +67,49 @@ const MOCK_SENTIMENT_DISTRIBUTION = {
 
 export default function EmailAnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
+  const [analytics, setAnalytics] = useState<{
+    totalEmails: number
+    intentDistribution: Record<string, number>
+    sentimentDistribution: Record<string, number>
+    costStats: { totalCostUsd: number; cacheHitRate: number; requestCount: number }
+    dailyStats: { date: string; received: number; cost: number }[]
+    draftStats: { autoSendRate: number; todayAutoSends: number }
+  } | null>(null);
 
-  const totalEmails = MOCK_DAILY_STATS.reduce((acc, d) => acc + d.emailsReceived, 0);
-  const totalAutoResponses = MOCK_DAILY_STATS.reduce((acc, d) => acc + d.autoResponses, 0);
-  const autoResponseRate = Math.round((totalAutoResponses / totalEmails) * 100);
-  const avgResponseTime = Math.round(
-    MOCK_DAILY_STATS.reduce((acc, d) => acc + d.avgResponseTimeMinutes, 0) / MOCK_DAILY_STATS.length
-  );
+  const loadAnalytics = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/email/analytics?range=${timeRange}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      setAnalytics(await res.json());
+    } catch {
+      setAnalytics(null);
+    }
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
+
+  const totalEmails = analytics?.totalEmails ?? 0;
+  const totalAutoResponses = analytics?.draftStats?.todayAutoSends ?? 0;
+  const autoResponseRate = Math.round((analytics?.draftStats?.autoSendRate ?? 0) * 100);
+  const avgResponseTime = 0;
+  const intentDistribution = analytics?.intentDistribution ?? MOCK_INTENT_DISTRIBUTION;
+  const sentimentDistribution = analytics?.sentimentDistribution ?? MOCK_SENTIMENT_DISTRIBUTION;
+  const costStats = {
+    totalCost: analytics?.costStats?.totalCostUsd ?? MOCK_COST_STATS.totalCost,
+    cacheHitRate: analytics?.costStats?.cacheHitRate ?? MOCK_COST_STATS.cacheHitRate,
+    cacheSavings: 0,
+    byModel: MOCK_COST_STATS.byModel,
+  };
+  const dailyStats = analytics?.dailyStats?.map((d) => ({
+    date: d.date,
+    emailsReceived: d.received,
+    emailsSent: 0,
+    autoResponses: 0,
+    draftReviews: 0,
+    avgResponseTimeMinutes: 0,
+  })) ?? MOCK_DAILY_STATS;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -157,9 +193,9 @@ export default function EmailAnalyticsPage() {
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">API Cost (Week)</span>
             </div>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">${MOCK_COST_STATS.totalCost}</div>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">${costStats.totalCost.toFixed(2)}</div>
             <div className="text-sm text-green-600 dark:text-green-400 mt-1">
-              ${MOCK_COST_STATS.cacheSavings} saved via cache
+              ${costStats.cacheSavings.toFixed(2)} saved via cache
             </div>
           </div>
         </div>
@@ -172,7 +208,7 @@ export default function EmailAnalyticsPage() {
               Email Volume
             </h3>
             <div className="space-y-4">
-              {MOCK_DAILY_STATS.map((day) => (
+              {dailyStats.map((day) => (
                 <div key={day.date} className="flex items-center gap-4">
                   <span className="text-sm text-gray-500 dark:text-gray-400 w-20">
                     {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -195,7 +231,7 @@ export default function EmailAnalyticsPage() {
               Intent Distribution
             </h3>
             <div className="space-y-3">
-              {Object.entries(MOCK_INTENT_DISTRIBUTION).map(([intent, count]) => (
+              {Object.entries(intentDistribution).map(([intent, count]) => (
                 <div key={intent} className="flex items-center gap-4">
                   <span className="text-sm text-gray-600 dark:text-gray-300 w-36 capitalize">
                     {intent.replace('_', ' ')}
@@ -223,7 +259,7 @@ export default function EmailAnalyticsPage() {
               Sentiment Breakdown
             </h3>
             <div className="space-y-4">
-              {Object.entries(MOCK_SENTIMENT_DISTRIBUTION).map(([sentiment, percentage]) => (
+              {Object.entries(sentimentDistribution).map(([sentiment, percentage]) => (
                 <div key={sentiment} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${
@@ -246,7 +282,7 @@ export default function EmailAnalyticsPage() {
               AI Model Costs
             </h3>
             <div className="space-y-4">
-              {Object.entries(MOCK_COST_STATS.byModel).map(([model, cost]) => (
+              {Object.entries(costStats.byModel).map(([model, cost]) => (
                 <div key={model} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-300 capitalize">
                     {model.replace('claude-', 'Claude ')}
@@ -260,7 +296,7 @@ export default function EmailAnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total</span>
                   <span className="text-lg font-bold text-gray-900 dark:text-white">
-                    ${MOCK_COST_STATS.totalCost.toFixed(2)}
+                    ${costStats.totalCost.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -278,20 +314,20 @@ export default function EmailAnalyticsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-600 dark:text-gray-300">Hit Rate</span>
                   <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                    {Math.round(MOCK_COST_STATS.cacheHitRate * 100)}%
+                    {Math.round(costStats.cacheHitRate * 100)}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3">
                   <div 
                     className="h-3 bg-green-500 rounded-full"
-                    style={{ width: `${MOCK_COST_STATS.cacheHitRate * 100}%` }}
+                    style={{ width: `${costStats.cacheHitRate * 100}%` }}
                   />
                 </div>
               </div>
               
               <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  ${MOCK_COST_STATS.cacheSavings.toFixed(2)}
+                  ${costStats.cacheSavings.toFixed(2)}
                 </div>
                 <div className="text-sm text-green-700 dark:text-green-300">
                   Saved this week via prompt caching

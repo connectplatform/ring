@@ -1,8 +1,19 @@
 import { markPaymentReceived } from '@/features/news/services/news-promotion-workflow'
-import { notifyAdminsNewsAwaitingApproval } from '@/features/news/services/news-telegram-approval'
 import { decodeArticleIdFromOrderReference } from '@/lib/payments/order-reference'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
 import { logger } from '@/lib/logger'
+
+/** Lazy import — news-telegram-approval → site-branding → i18n/routing breaks tsx smokes. */
+async function notifyAdminsNewsAwaitingApprovalSafe(articleId: string): Promise<void> {
+  try {
+    const { notifyAdminsNewsAwaitingApproval } = await import(
+      '@/features/news/services/news-telegram-approval'
+    )
+    await notifyAdminsNewsAwaitingApproval(articleId)
+  } catch (error) {
+    logger.warn('News promotion: admin telegram notify skipped', { articleId, error })
+  }
+}
 
 export async function handleNewsWayForPayWebhook(
   payload: Record<string, unknown>
@@ -32,7 +43,7 @@ export async function handleNewsWayForPayWebhook(
     amount: payload.amount as number | undefined,
     currency: payload.currency as string | undefined,
   })
-  await notifyAdminsNewsAwaitingApproval(articleId)
+  await notifyAdminsNewsAwaitingApprovalSafe(articleId)
   return true
 }
 
@@ -63,6 +74,6 @@ export async function handleNewsStripeWebhook(event: {
     amount: typeof session.amount_total === 'number' ? session.amount_total / 100 : undefined,
     currency: String(session.currency ?? 'uah').toUpperCase(),
   })
-  await notifyAdminsNewsAwaitingApproval(articleId)
+  await notifyAdminsNewsAwaitingApprovalSafe(articleId)
   return true
 }

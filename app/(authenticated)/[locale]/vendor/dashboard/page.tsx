@@ -6,7 +6,7 @@
 
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
@@ -35,8 +35,6 @@ export async function generateMetadata({
     locale,
     path: 'vendor.dashboard',
     pathname: '/vendor/dashboard',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: { index: false, follow: false },
   })
 }

@@ -1,14 +1,16 @@
 /**
  * Vendor Entity Service
- * 
+ *
  * Efficient service for vendor-specific entity operations with database-level filtering
  * and caching to minimize data transfer and processing overhead.
  */
 
 import { cache } from 'react'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
-import { Entity, SerializedEntity } from '@/features/entities/types'
-import { serializeEntity } from '@/lib/converters/entity-serializer'
+import { db } from '@/lib/database'
+import { SerializedEntity } from '@/features/entities/types'
+import {
+  mapDbDocumentToSerializedEntity,
+} from '@/features/entities/lib/entity-db-mapper'
 
 /**
  * Get vendor entity for a user with database-level filtering
@@ -16,30 +18,21 @@ import { serializeEntity } from '@/lib/converters/entity-serializer'
  */
 export const getVendorEntity = cache(async (userId: string): Promise<SerializedEntity | null> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // Query for vendor entities
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'entities',
       filters: [
         { field: 'addedBy', operator: '=', value: userId },
-        { field: 'storeActivated', operator: '=', value: true }
+        { field: 'storeActivated', operator: '=', value: true },
       ],
       orderBy: [{ field: 'lastUpdated', direction: 'desc' }],
-      pagination: { limit: 1 }
+      pagination: { limit: 1 },
     })
 
-    if (!result.success || !result.data) {
+    if (!result.success || !result.data || result.data.length === 0) {
       return null
     }
 
-    const entities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-    if (entities.length === 0) {
-      return null
-    }
-
-    return serializeEntity(entities[0])
+    return mapDbDocumentToSerializedEntity(result.data[0])
   } catch (error) {
     console.error('Error fetching vendor entity:', error)
     return null
@@ -52,12 +45,9 @@ export const getVendorEntity = cache(async (userId: string): Promise<SerializedE
  */
 export const hasVendorEntity = cache(async (userId: string): Promise<boolean> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const countResult = await db.count('entities', [
+    const countResult = await db().countDocs('entities', [
       { field: 'addedBy', operator: '=', value: userId },
-      { field: 'storeActivated', operator: '=', value: true }
+      { field: 'storeActivated', operator: '=', value: true },
     ])
 
     return countResult.success && (countResult.data || 0) > 0
@@ -73,24 +63,20 @@ export const hasVendorEntity = cache(async (userId: string): Promise<boolean> =>
  */
 export const getVendorEntities = cache(async (userId: string): Promise<SerializedEntity[]> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'entities',
       filters: [
         { field: 'addedBy', operator: '=', value: userId },
-        { field: 'storeActivated', operator: '=', value: true }
+        { field: 'storeActivated', operator: '=', value: true },
       ],
-      orderBy: [{ field: 'lastUpdated', direction: 'desc' }]
+      orderBy: [{ field: 'lastUpdated', direction: 'desc' }],
     })
 
     if (!result.success || !result.data) {
       return []
     }
 
-    const entities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-    return entities.map(serializeEntity)
+    return result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
   } catch (error) {
     console.error('Error fetching vendor entities:', error)
     return []
@@ -103,23 +89,17 @@ export const getVendorEntities = cache(async (userId: string): Promise<Serialize
  */
 export const getVendorEntityById = cache(async (entityId: string): Promise<SerializedEntity | null> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.findById('entities', entityId)
+    const result = await db().findDocById('entities', entityId)
 
     if (!result.success || !result.data) {
       return null
     }
 
-    const entity = (result.data as any).data || result.data
-    
-    // Verify it's a vendor store
-    if (!entity.storeActivated) {
+    if (!result.data.storeActivated) {
       return null
     }
 
-    return serializeEntity(entity)
+    return mapDbDocumentToSerializedEntity(result.data)
   } catch (error) {
     console.error('Error fetching vendor entity by ID:', error)
     return null
@@ -132,28 +112,24 @@ export const getVendorEntityById = cache(async (entityId: string): Promise<Seria
  */
 export const getVendorEntitiesByStatus = cache(async (
   storeStatus: 'pending' | 'test' | 'open' | 'closed' | 'suspended',
-  limit: number = 50
+  limit: number = 50,
 ): Promise<SerializedEntity[]> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'entities',
       filters: [
         { field: 'storeActivated', operator: '=', value: true },
-        { field: 'storeStatus', operator: '=', value: storeStatus }
+        { field: 'storeStatus', operator: '=', value: storeStatus },
       ],
       orderBy: [{ field: 'lastUpdated', direction: 'desc' }],
-      pagination: { limit }
+      pagination: { limit },
     })
 
     if (!result.success || !result.data) {
       return []
     }
 
-    const entities = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-    return entities.map(serializeEntity)
+    return result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
   } catch (error) {
     console.error('Error fetching vendor entities by status:', error)
     return []
@@ -173,33 +149,27 @@ export interface VendorEntityStats {
 
 export const getVendorEntityStats = cache(async (): Promise<VendorEntityStats> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Run parallel count queries for different statuses
     const [total, active, pending, suspended] = await Promise.all([
-      db.count('entities', [
-        { field: 'storeActivated', operator: '=', value: true }
-      ]),
-      db.count('entities', [
+      db().countDocs('entities', [{ field: 'storeActivated', operator: '=', value: true }]),
+      db().countDocs('entities', [
         { field: 'storeActivated', operator: '=', value: true },
-        { field: 'storeStatus', operator: '=', value: 'open' }
+        { field: 'storeStatus', operator: '=', value: 'open' },
       ]),
-      db.count('entities', [
+      db().countDocs('entities', [
         { field: 'storeActivated', operator: '=', value: true },
-        { field: 'storeStatus', operator: '=', value: 'pending' }
+        { field: 'storeStatus', operator: '=', value: 'pending' },
       ]),
-      db.count('entities', [
+      db().countDocs('entities', [
         { field: 'storeActivated', operator: '=', value: true },
-        { field: 'storeStatus', operator: '=', value: 'suspended' }
-      ])
+        { field: 'storeStatus', operator: '=', value: 'suspended' },
+      ]),
     ])
 
     return {
       totalVendors: (total.success ? total.data : 0) || 0,
       activeVendors: (active.success ? active.data : 0) || 0,
       pendingVendors: (pending.success ? pending.data : 0) || 0,
-      suspendedVendors: (suspended.success ? suspended.data : 0) || 0
+      suspendedVendors: (suspended.success ? suspended.data : 0) || 0,
     }
   } catch (error) {
     console.error('Error fetching vendor entity stats:', error)
@@ -207,7 +177,7 @@ export const getVendorEntityStats = cache(async (): Promise<VendorEntityStats> =
       totalVendors: 0,
       activeVendors: 0,
       pendingVendors: 0,
-      suspendedVendors: 0
+      suspendedVendors: 0,
     }
   }
 })

@@ -1,26 +1,198 @@
 ---
-title: Обзор архитектуры
-description: Документация по архитектуре Ring Platform
+title: Архитектура
+description: Системная схема Ring Platform — Postgres-primary деплои, Auth.js, PaymentConductor, realtime и white-label (v1.6.0)
+last_modified: "2026-06-10"
 ---
 
-import { Callout } from '@/components/docs/callout'
+# Архитектура
 
-# Обзор архитектуры
+<Callout type="info">
+  **Для руководителей:** Ring — **white-label платформа**: один код, много брендированных деплоев. Продакшен-кольца работают на **PostgreSQL-primary** в Kubernetes, Firebase только для **push**, платежи через **PaymentConductor**, локализация без циклов редиректов авторизации.
+</Callout>
 
-Схема основных компонентов Ring и потоков данных. Режимы базы и push настраиваются через **`DB_BACKEND_MODE`** (см. отдельную страницу ниже).
+Ring Platform v1.6.0 — **мультитенантное Next.js приложение** с единым контрактом `DatabaseService`, конфигурируемыми платежами и опциональным Web3/токенным слоем на клон. Эта страница — **хаб архитектуры**; каждая тема имеет отдельную глубокую статью.
 
-<Mermaid>
-{`flowchart TD
-  U[User] --> A[Next.js App]
-  A --> B[Auth.js v5]
-  A --> C[(PostgreSQL)]
-  A --> FB[Firebase FCM / push]
-  A --> D[Vercel Blob]
-  A --> E[Realtime: WebSocket/SSE]`}
+## Платформа одним взглядом
+
+| Измерение | Подход Ring |
+|-----------|-------------|
+| **Приложение** | Next.js 16 App Router, React 19 Server Components, Tailwind 4 |
+| **Данные (продакшен)** | `DB_BACKEND_MODE=k8s-postgres-fcm` — Postgres + PostGIS, JSONB-first |
+| **Аутентификация** | Auth.js v5 — `auth()` на уровне layout, тонкий `proxy.ts` только для локали |
+| **Платежи** | PaymentConductor — WayForPay, Stripe, ledger + webhooks |
+| **Realtime** | Tunnel protocol — WebSocket / SSE / опциональный канал Supabase |
+| **Файлы** | Vercel Blob или хранилище клона |
+| **Деплой** | k3s (кольца ringdom.org) — не Vercel Postgres |
+| **Расширение** | White-label env, portal config, токен-контракты на клон |
+
+## Системная карта
+
+<Mermaid title="Ring Platform — логические слои">
+{`flowchart TB
+  subgraph Client
+    Web[Браузер / PWA]
+    Admin[Админ-консоль]
+  end
+
+  subgraph Edge["Next.js (proxy + RSC)"]
+    Proxy[proxy.ts — только локаль]
+    Layouts[Route layouts — auth gates]
+    SA[Server Actions + Route Handlers]
+  end
+
+  subgraph Core["Доменные сервисы"]
+    DBsvc[DatabaseService / BackendSelector]
+    Pay[PaymentConductor]
+    Sub[Membership + credit ledger]
+    RT[Tunnel transports]
+    AI[AI matcher + Email CRM]
+  end
+
+  subgraph Data
+    PG[(PostgreSQL)]
+    FCM[Firebase FCM — только push]
+    Blob[Blob storage]
+    Chain[Polygon — опционально Web3]
+  end
+
+  Web --> Proxy --> Layouts --> SA
+  Admin --> Layouts
+  SA --> DBsvc --> PG
+  SA --> Pay
+  SA --> Sub
+  SA --> RT
+  SA --> AI
+  DBsvc -.-> FCM
+  SA --> Blob
+  Sub -.-> Chain`}
 </Mermaid>
 
-## Режимы бэкенда и базы данных
+<Tabs items={['Разработчики', 'Операторы']}>
 
-Для работы приложения нужен **`DB_BACKEND_MODE`** (`k8s-postgres-fcm`, `firebase-full` или `supabase-fcm`). В продакшене с приоритетом Postgres Firebase обычно используется для **FCM**, а не как основное хранилище Firestore. Полная матрица, **`DB_HYBRID_MODE`**, Tunnel и Supabase: **[Режимы бэкенда и базы данных](/ru/library/architecture/backend-modes-and-databases)**.
+<Tab value="Разработчики">
 
-<Callout type="info">Подробнее см. разделы: аутентификация, real-time, безопасность, модель данных.</Callout>
+### Путь запроса
+
+<Mermaid>
+{`sequenceDiagram
+    participant B as Браузер
+    participant P as proxy.ts
+    participant L as authenticated layout
+    participant A as auth()
+    participant S as Server Action / API
+    participant D as DatabaseService
+
+    B->>P: GET /dashboard
+    P->>P: Locale rewrite (next-intl)
+    P->>L: Forward
+    L->>A: Проверка сессии
+    alt нет сессии
+      A-->>B: Redirect /login
+    else ok
+      L->>S: Mutation или loader
+      S->>D: query / create / update
+      D-->>B: RSC stream + client islands
+    end`}
+</Mermaid>
+
+**Ориентиры в коде**
+
+| Тема | Где читать |
+|------|------------|
+| Locale proxy | `proxy.ts`, `lib/proxy-intl.ts` |
+| Auth enforcement | `(authenticated)/[locale]/layout.tsx`, `auth.config.ts` |
+| Режим БД | `lib/database/backend-mode-config.ts` |
+| Платежи | `features/store/services/payment-conductor*` |
+| Схема SSOT | `data/schema.sql` |
+
+**Слои компонентов**
+
+- **Hooks** — данные, кредит кошелька, realtime подписки
+- **Feature components** — store, messages, wallet (повторное использование)
+- **Pages** — композиция features; без прямых вызовов адаптеров в UI
+
+</Tab>
+
+<Tab value="Операторы">
+
+### Чеклист деплоя
+
+1. **`DB_BACKEND_MODE`** — `k8s-postgres-fcm` для self-hosted Postgres (каноническое имя enum).
+2. **Postgres** + миграции (`getting-started/migrations`).
+3. **FCM** — если нужен push; Firebase **не** основная БД в Postgres-режиме.
+4. **PaymentConductor** — WayForPay / Stripe, webhook URLs.
+5. **Ingress** на Next.js; секреты в k8s.
+6. Опционально: контракты **RING** / **ReferralRewards**; `NEXT_PUBLIC_RING_TOKEN_ADDRESS`.
+
+### Чего мы *не* используем
+
+- `@vercel/postgres` как основной SQL драйвер
+- Auth в `proxy.ts` (циклы редиректов — zero-loop proxy)
+- Firestore как source of truth при `k8s-postgres-fcm`
+
+### Сигналы мониторинга
+
+- API p95, неудачные payment webhooks, ошибки продления подписок
+- Насыщение пула соединений БД, drift версий миграций
+- Ошибки FCM токенов, отключения Tunnel
+
+</Tab>
+
+</Tabs>
+
+## Глубокие разделы
+
+<Cards>
+  <Card title="Режимы бэкенда и БД" href="/docs/architecture/backend-modes-and-databases">
+    Матрица `DB_BACKEND_MODE` — Postgres vs Firebase vs Supabase, FCM-only Firebase
+  </Card>
+  <Card title="Модель данных" href="/docs/architecture/data-model">
+    JSONB-first схема, PostGIS, контракт collections, миграции
+  </Card>
+  <Card title="Аутентификация" href="/docs/architecture/authentication">
+    Auth.js v5, JWT сессии, Postgres adapter, роли
+  </Card>
+  <Card title="Proxy и i18n" href="/docs/architecture/proxy-and-intl">
+    Тонкий proxy, auth в layout, `localePrefix: as-needed`
+  </Card>
+  <Card title="PaymentConductor" href="/docs/architecture/payment-conductor">
+    Процессоры, ledger `payment_transactions`, единые webhooks
+  </Card>
+  <Card title="Email AI-CRM" href="/docs/architecture/email-ai-crm">
+    IMAP ingest, JSONB таблицы, cron poll, админ-ревью
+  </Card>
+  <Card title="News Kingdom" href="/docs/architecture/news-kingdom">
+    Редакционный pipeline, generative newsroom, публикации
+  </Card>
+  <Card title="Refcodes" href="/docs/architecture/refcodes">
+    Реферальный граф, on-chain награды, idempotent minter
+  </Card>
+  <Card title="Real-time" href="/docs/architecture/real-time">
+    Tunnel transports, WebSocket/SSE, pooling
+  </Card>
+  <Card title="Безопасность" href="/docs/architecture/security">
+    Defense in depth, секреты, верификация webhooks, админ-границы
+  </Card>
+</Cards>
+
+## Сквозные потоки
+
+### Коммерция + членство
+
+Checkout через **PaymentConductor** (fiat) или **RING credit / on-chain** подписку. Settlement и комиссии — в [PaymentConductor](/docs/architecture/payment-conductor) и store guides.
+
+### Контент + локаль
+
+Публичные страницы — **next-intl**. Документация и новости — файлы `docs/content/{locale}/library/`. EN каноничен, если LOCALE-GAPS не отмечает краткий UK/RU summary.
+
+### White-label клоны
+
+Форк репо, portal branding, режим БД, опциональная токеномика — [White-label quick start](/docs/customization/quick-start), [Token economics](/docs/customization/token-economics).
+
+<Callout type="success">
+  **Базис v1.6.0:** Postgres-primary + PaymentConductor + slim proxy + locale system. Начните с [Режимов бэкенда](/docs/architecture/backend-modes-and-databases), затем [Environment](/docs/deployment/environment).
+</Callout>
+
+<Callout type="warning">
+  **`DB_HYBRID_MODE` ≠ `DB_BACKEND_MODE`.** Для новых деплоев используйте `DB_BACKEND_MODE`; legacy hybrid — на странице backend-modes.
+</Callout>

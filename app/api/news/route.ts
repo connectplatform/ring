@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
 import { NewsFilters, NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
+
+type NewsRow = Record<string, unknown> & { id: string };
 
 /**
  * GET /api/news
@@ -13,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    
+
     // Parse query parameters
     const filters: NewsFilters = {
       category: searchParams.get('category') as any || undefined,
@@ -34,38 +36,35 @@ export async function GET(request: NextRequest) {
       filters.tags = tagsParam.split(',').map(tag => tag.trim());
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     // Build query filters
-    const queryFilters: any[] = [];
-    
+    const queryFilters: Array<{ field: string; operator: string; value: unknown }> = [];
+
     if (filters.category) {
       queryFilters.push({ field: 'category', operator: '==', value: filters.category });
     }
-    
+
     if (filters.status) {
       queryFilters.push({ field: 'status', operator: '==', value: filters.status });
     }
-    
+
     if (filters.visibility) {
       queryFilters.push({ field: 'visibility', operator: '==', value: filters.visibility });
     }
-    
+
     if (filters.featured !== undefined) {
       queryFilters.push({ field: 'featured', operator: '==', value: filters.featured });
     }
-    
+
     if (filters.authorId) {
       queryFilters.push({ field: 'authorId', operator: '==', value: filters.authorId });
     }
 
     // Query database (READ - Server Component can cache)
-    const result = await db.query({
+    const result = await db().queryDocs<NewsRow>({
       collection: 'news',
       filters: queryFilters,
       orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
-      pagination: { 
+      pagination: {
         limit: filters.limit || 10,
         offset: filters.offset || 0
       }
@@ -75,26 +74,24 @@ export async function GET(request: NextRequest) {
       throw result.error || new Error('Failed to fetch news articles')
     }
 
-    let articles: any[] = result.data.map(doc => {
-      return { ...doc, id: doc.id };
-    }).filter((article: any) => article.title);
+    let articles: NewsRow[] = (result.data ?? []).filter((article) => article.title);
 
     // Filter by search term if provided (client-side filtering for now)
     let filteredArticles = articles;
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      filteredArticles = articles.filter(article => 
-        (article.title || '').toLowerCase().includes(searchTerm) ||
-        (article.excerpt || '').toLowerCase().includes(searchTerm) ||
-        (article.content || '').toLowerCase().includes(searchTerm) ||
-        (article.tags || []).some((tag: string) => tag.toLowerCase().includes(searchTerm))
+      filteredArticles = articles.filter(article =>
+        (String(article.title || '')).toLowerCase().includes(searchTerm) ||
+        (String(article.excerpt || '')).toLowerCase().includes(searchTerm) ||
+        (String(article.content || '')).toLowerCase().includes(searchTerm) ||
+        ((article.tags as string[]) || []).some((tag: string) => tag.toLowerCase().includes(searchTerm))
       );
     }
 
     // Filter by tags if provided
     if (filters.tags && filters.tags.length > 0) {
       filteredArticles = filteredArticles.filter(article =>
-        filters.tags!.some(tag => (article.tags || []).includes(tag))
+        filters.tags!.some(tag => ((article.tags as string[]) || []).includes(tag))
       );
     }
 
@@ -127,7 +124,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const session = await auth();
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
@@ -163,16 +160,13 @@ export async function POST(request: NextRequest) {
       .replace(/-+/g, '-')
       .trim();
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
     // Check if slug already exists
-    const slugResult = await db.query({
+    const slugResult = await db().queryDocs<NewsRow>({
       collection: 'news',
       filters: [{ field: 'slug', operator: '==', value: slug }],
       pagination: { limit: 1 }
     });
-    
+
     if (slugResult.success && slugResult.data.length > 0) {
       return NextResponse.json(
         { success: false, error: 'Article with this slug already exists' },
@@ -204,7 +198,7 @@ export async function POST(request: NextRequest) {
       seo: formData.seo || null,
     };
 
-    const createResult = await db.create('news', newArticle);
+    const createResult = await db().createDoc('news', newArticle);
     if (!createResult.success) {
       throw createResult.error || new Error('Failed to create news article')
     }

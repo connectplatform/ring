@@ -423,13 +423,13 @@ Check for Mermaid.js errors in logs Verify dynamic imports are working
 kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "mermaid"`}
 </Code>
 
-#### Syntax Highlighting Timeouts
-Check for Shiki processing errors Verify client-side highlighting is active
+#### Syntax Highlighting / Docs Compile Slow
+Code blocks are highlighted **once on the server** (`highlightCodeToHtml` + cached Shiki highlighter). Fenced markdown is converted to `<Code>` via `rehypeCodeFenceToMdx` — there is no client-side Shiki pass.
+
+If docs pages are slow on first load, check server logs for highlight errors or missing language bundles:
 
 <Code language="bash" title="terminal">
-{`kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "shiki\|syntax"
-
-kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "enhance"`}
+{`kubectl logs -l app=ring-platform -n ring-platform-org --tail=100 | grep -i "shiki\\|syntax\\|highlight"`}
 </Code>
 
 ### Performance Monitoring
@@ -693,7 +693,7 @@ done`}
 
 ## Version History
 
-- **v0.9.18**: Fixed client-side syntax highlighting timeouts, removed server-side Shiki processing
+- **v1.6.2**: Unified server-only Shiki (`rehypeCodeFenceToMdx` → async `<Code>`); removed client re-highlight and `@shikijs/rehype`
 - **v0.9.17**: Fixed Mermaid dynamic imports, resolved server-side rendering timeouts
 - **v0.9.16**: Added Docker deployment guide, fixed Mermaid SSR issues
 - **v0.9.15**: Added docs directory to Docker image, fixed .dockerignore configuration

@@ -1,0 +1,231 @@
+---
+title: Компоненты документации
+description: Библиотека MDX Ring — Callout, Mermaid, Tabs, Cards, Steps, Code и правила оформления хабов и туториалов
+last_modified: "2026-06-10"
+---
+
+# Компоненты документации
+
+Документация Ring — **MDX-файлы**, рендеримые `next-mdx-remote/rsc` с общей картой компонентов в `components/docs/mdx-docs-shared.tsx`. Используйте эти блоки для страниц, понятных **разработчикам** (пути, код) и **руководителям** (результат, одна диаграмма, ясная навигация).
+
+<Callout type="info">
+  **Канонические пути:** контент в `docs/content/{locale}/library/{section}/{page}.mdx`. Публичные URL без `library` — например `/docs/architecture`, `/docs/development/docs-components`.
+</Callout>
+
+## Конвейер рендеринга
+
+<Mermaid title="Путь рендера доков">
+{`flowchart LR
+  MDX["MDX + frontmatter"]
+  RSC["next-mdx-remote/rsc"]
+  GFM["remark-gfm"]
+  Rehype["rehype: Code + Mermaid"]
+  Map["docsMdxComponents"]
+  Page["/{locale}/docs/..."]
+
+  MDX --> RSC
+  GFM --> RSC
+  Rehype --> RSC
+  RSC --> Map --> Page`}
+</Mermaid>
+
+| Этап | Расположение | Роль |
+|------|--------------|------|
+| Контент | `docs/content/{locale}/library/` | `title`, `description`, тело MDX |
+| Resolver | `lib/docs/resolve-doc-file-path.ts` | `/docs/foo` → `library/foo.mdx` |
+| Компоненты | `components/docs/mdx-docs-shared.tsx` | Регистрация JSX-тегов |
+| Подсветка | Shiki (`nord` / `tokyo-night`) | Серверный `<Code>` |
+
+## Быстрый справочник компонентов
+
+| Компонент | Лучше всего для | Client / server |
+|-----------|-----------------|-----------------|
+| **Callout** | Резюме для руководителей, предупреждения (`DB_BACKEND_MODE`, legal) | Client |
+| **Mermaid** | Одна системная карта + одна sequence на хаб (без разрастания) | Client |
+| **Tabs / Tab** | Разработчик vs Оператор (или CEO) на одной странице | Client |
+| **Cards / Card** | Навигация хаба к дочерним статьям | Server-friendly |
+| **Steps / Step** | Установка и деплой по шагам | Server-friendly |
+| **Code** | Конфиг с Shiki | Server (async) |
+| **MindMap** | Деревья понятий — осторожно на хабах | Client |
+| **Timeline** | История релизов / миграций | Client |
+| **RingAISynapseFlow** | Маркетинг / AI-демо — тяжёлый бандл | Client |
+| **CodeSandbox** | Живые примеры в `/examples` | Client |
+| **Math / MathBlock** | Научный редактор, токеномика | Client |
+
+Огороженные блоки \`\`\`typescript и \`\`\`mermaid преобразуются в `<Code>` и `<Mermaid>` через rehype.
+
+## Callout
+
+Типы: `info` | `warning` | `error` | `success`. Опционально `title`.
+
+<Callout type="success" title="Паттерн executive summary">
+  Начинайте хабы с одного абзаца результата для операторов и CEO, затем таблица и одна системная диаграмма.
+</Callout>
+
+## Mermaid
+
+На хабах — **одна** архитектурная карта и **одна** sequence. Остальное — на дочерних страницах.
+
+<Mermaid title="Пример sequence">
+{`sequenceDiagram
+  participant A as Автор
+  participant B as MDX
+  participant C as Браузер
+  A->>B: Mermaid в template literal
+  B->>C: Client hydrate + SVG`}
+</Mermaid>
+
+## Tabs и Tab
+
+<Tabs items={['Разработчики', 'Операторы']}>
+
+<Tab value="Разработчики">
+
+- Пути к файлам (`lib/database/DatabaseService.ts`)
+- Контракты Server Actions и API
+- Ссылки на каноничные EN deep dives
+
+</Tab>
+
+<Tab value="Операторы">
+
+- Чеклисты env и `DB_BACKEND_MODE`
+- Порядок деплоя, секреты, мониторинг
+- Минимум деталей реализации
+
+</Tab>
+
+</Tabs>
+
+## Cards и Card
+
+Обязательный паттерн для **хабов секций** (`index.mdx`). Каждая карточка — дочерняя страница из `meta.json`.
+
+<Cards>
+  <Card title="Хаб архитектуры" href="/docs/architecture">
+    Системная карта, Tabs, ссылки на все дочерние статьи
+  </Card>
+  <Card title="Режимы бэкенда" href="/docs/architecture/backend-modes-and-databases">
+    Канонический справочник `DB_BACKEND_MODE`
+  </Card>
+</Cards>
+
+Href: `/docs/...` без сегмента `library`.
+
+## Steps и Step
+
+<Callout type="warning" title="Синтаксис MDX">
+  **Нужны пустые строки** перед `<Steps>`, перед каждым `<Step>`, после `</Step>` и после `</Steps>`.
+</Callout>
+
+<Steps>
+
+<Step>
+
+Установите зависимости:
+
+<Code language="bash" title="terminal">
+{`cd ring-platform.org
+npm install`}
+</Code>
+
+</Step>
+
+<Step>
+
+Добавьте страницу в `meta.json` секции и синхронизируйте UK/RU по `LOCALE-GAPS.md`.
+
+</Step>
+
+<Step>
+
+Проверьте `http://localhost:3000/docs/{section}/{page}`.
+
+</Step>
+
+</Steps>
+
+## Code
+
+<Code language="typescript" title="пример env">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+POLYGON_RPC_URL=https://polygon-rpc.com`}
+</Code>
+
+Инлайн-код: `DatabaseService`, `auth()`.
+
+## MindMap
+
+<MindMap title="Форма хаба">
+{`mindmap
+  root((Хаб))
+    Callout резюме
+    Одна Mermaid карта
+    Tabs аудитории
+    Cards дети`}
+</MindMap>
+
+## Timeline, RingAISynapseFlow, CodeSandbox, Math
+
+| Компонент | Когда |
+|-----------|-------|
+| **Timeline** | Миграции, roadmap (`react-chrono`, client-only) |
+| **RingAISynapseFlow** | Только маркетинг — не на справочных страницах |
+| **CodeSandbox** | Раздел `/examples`, Sandpack |
+| **Math / MathBlock** | Формулы в научных / tokenomics статьях |
+
+## Чеклист хаб-страницы
+
+<Steps>
+
+<Step>
+
+**Callout** для руководителей — кому страница и дефолт деплоя.
+
+</Step>
+
+<Step>
+
+**Таблица возможностей** — данные, auth, платежи, realtime.
+
+</Step>
+
+<Step>
+
+**Одна системная Mermaid** — логические слои.
+
+</Step>
+
+<Step>
+
+**Tabs** — Разработчики vs Операторы.
+
+</Step>
+
+<Step>
+
+**Cards** — все `pages[]` из `meta.json`, кроме `index`.
+
+</Step>
+
+</Steps>
+
+## Правила авторинга
+
+| Правило | Почему |
+|---------|--------|
+| EN каноничен, UK/RU по LOCALE-GAPS | Без расхождений в env/API |
+| Frontmatter `title` + `description` | SEO и сайдбар |
+| Без `fumadocs-ui` | Только `components/docs/` |
+| `npm run dev` после нового MDX | Ловить ошибки Steps/Mermaid |
+
+## Связанное
+
+- [Contributing](/docs/development/contributing)
+- [Структура кода](/docs/development/code-structure)
+- [Хаб архитектуры](/docs/architecture)
+- Truth lens: `ring-docs-specialist.nodus.json`
+
+<Callout type="info">
+  После изменений обновляйте `docs/content/LOCALE-GAPS.md`.
+</Callout>

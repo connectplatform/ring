@@ -20,6 +20,10 @@ import {
   DatabaseSyncConfig
 } from './interfaces/IDatabaseService';
 import { BackendSelector, BackendRoute } from './BackendSelector';
+import { unwrapDbQueryRow } from './document';
+
+/** Flat domain row with guaranteed document id. */
+export type DbRow<T> = T & { id: string };
 
 export interface DatabaseConfig {
   backends: DatabaseBackendConfig[];
@@ -529,7 +533,14 @@ export class DatabaseService {
     if (!this.connected) {
       return { success: false, error: new Error('Database service not initialized'), metadata: { operation: 'transaction', duration: 0, backend: 'unconnected', timestamp: new Date(0) } };
     }
-    return await this.selector.runTransaction(operation);
+    const result = await this.selector.runTransaction(operation);
+    // Transactions THROW on failure (unlike CRUD result-contract): every caller relies on
+    // rollback errors propagating — silent {success:false} broke username uniqueness and
+    // inventory reservations.
+    if (!result.success) {
+      throw result.error || new Error('Transaction failed');
+    }
+    return result;
   }
 
   // ============================================================================
@@ -893,6 +904,23 @@ export class DatabaseCommand {
     command: T,
     params: DatabaseCommandParams[T]
   ): Promise<DatabaseCommandResult<T>> {
+    // Transaction must propagate throws (rollback / conflict errors). Do not wrap in execute's catch.
+    if (command === 'transaction') {
+      const data = await this.transaction(
+        (params as DatabaseCommandParams['transaction']).operation
+      );
+      return {
+        success: true,
+        data,
+        metadata: {
+          operation: 'transaction',
+          duration: 0,
+          backend: this.service.getCurrentBackend(),
+          timestamp: new Date(),
+        },
+      } as DatabaseCommandResult<T>;
+    }
+
     try {
       switch (command) {
         case 'create':
@@ -970,11 +998,6 @@ export class DatabaseCommand {
             (params as DatabaseCommandParams['batchDelete']).ids
           ) as DatabaseCommandResult<T>;
 
-        case 'transaction':
-          return await this.service.transaction(
-            (params as DatabaseCommandParams['transaction']).operation
-          ) as DatabaseCommandResult<T>;
-
         case 'subscribe':
           return await this.service.subscribe(
             (params as DatabaseCommandParams['subscribe']).collection,
@@ -1011,6 +1034,243 @@ export class DatabaseCommand {
       } as DatabaseCommandResult<T>;
     }
   }
+
+  private async ensureInitialized(): Promise<DatabaseResult<void>> {
+    const init = await initializeDatabase();
+    if (!init.success) {
+      return {
+        success: false,
+        error: init.error ?? new Error('Database initialization failed'),
+        metadata: {
+          operation: 'initialize',
+          duration: 0,
+          backend: init.metadata?.backend ?? 'uninitialized',
+          timestamp: init.metadata?.timestamp ?? new Date(),
+        },
+      };
+    }
+    return { success: true, data: undefined, metadata: init.metadata };
+  }
+
+  private normalizeQueryRows(raw: unknown): unknown[] {
+    if (Array.isArray(raw)) {
+      return raw;
+    }
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      'data' in raw &&
+      Array.isArray((raw as { data: unknown }).data)
+    ) {
+      return (raw as { data: unknown[] }).data;
+    }
+    return [];
+  }
+
+  private toDbRow<T extends object>(row: unknown): DbRow<T> {
+    return unwrapDbQueryRow<T>(row as Record<string, unknown>);
+  }
+
+  async readDoc<T extends object = Record<string, unknown>>(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<DbRow<T> | null>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('read', { collection, id });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    if (!r.data) {
+      return { success: true, data: null, metadata: r.metadata };
+    }
+    return {
+      success: true,
+      data: this.toDbRow<T>(r.data),
+      metadata: r.metadata,
+    };
+  }
+
+  async findDocById<T extends object = Record<string, unknown>>(
+    collection: string,
+    id: string
+  ): Promise<DatabaseResult<DbRow<T> | null>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('findById', { collection, id });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    if (!r.data) {
+      return { success: true, data: null, metadata: r.metadata };
+    }
+    return {
+      success: true,
+      data: this.toDbRow<T>(r.data),
+      metadata: r.metadata,
+    };
+  }
+
+  async queryDocs<T extends object = Record<string, unknown>>(
+    querySpec: DatabaseQuery
+  ): Promise<DatabaseResult<DbRow<T>[]>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('query', { querySpec });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    const rows = this.normalizeQueryRows(r.data);
+    return {
+      success: true,
+      data: rows.map((row) => this.toDbRow<T>(row)),
+      metadata: r.metadata,
+    };
+  }
+
+  async findOneDoc<T extends object = Record<string, unknown>>(
+    collection: string,
+    filters?: DatabaseFilter[]
+  ): Promise<DatabaseResult<DbRow<T> | null>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('findOne', { collection, filters });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    if (!r.data) {
+      return { success: true, data: null, metadata: r.metadata };
+    }
+    return {
+      success: true,
+      data: this.toDbRow<T>(r.data),
+      metadata: r.metadata,
+    };
+  }
+
+  async findDocs<T extends object = Record<string, unknown>>(
+    collection: string,
+    filters?: DatabaseFilter[],
+    options?: {
+      orderBy?: DatabaseOrderBy[];
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<DatabaseResult<DbRow<T>[]>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('find', { collection, filters, options });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    const rows = this.normalizeQueryRows(r.data);
+    return {
+      success: true,
+      data: rows.map((row) => this.toDbRow<T>(row)),
+      metadata: r.metadata,
+    };
+  }
+
+  async createDoc<T extends object = Record<string, unknown>>(
+    collection: string,
+    data: T,
+    options?: { id?: string; merge?: boolean }
+  ): Promise<DatabaseResult<DbRow<T>>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('create', { collection, data, options });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    if (!r.data) {
+      return {
+        success: false,
+        error: new Error('create returned no document'),
+        metadata: r.metadata,
+      };
+    }
+    return {
+      success: true,
+      data: this.toDbRow<T>(r.data),
+      metadata: r.metadata,
+    };
+  }
+
+  async updateDoc<T extends object = Record<string, unknown>>(
+    collection: string,
+    id: string,
+    data: Partial<T> | Record<string, unknown>,
+    options?: { merge?: boolean }
+  ): Promise<DatabaseResult<DbRow<T>>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    const r = await this.execute('update', { collection, id, data, options });
+    if (!r.success) {
+      return { success: false, error: r.error, metadata: r.metadata };
+    }
+    if (!r.data) {
+      return {
+        success: false,
+        error: new Error('update returned no document'),
+        metadata: r.metadata,
+      };
+    }
+    return {
+      success: true,
+      data: this.toDbRow<T>(r.data),
+      metadata: r.metadata,
+    };
+  }
+
+  async deleteDoc(collection: string, id: string): Promise<DatabaseResult<void>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    return this.execute('delete', { collection, id });
+  }
+
+  async countDocs(
+    collection: string,
+    filters?: DatabaseFilter[]
+  ): Promise<DatabaseResult<number>> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      return { success: false, error: gate.error, metadata: gate.metadata };
+    }
+    return this.execute('count', { collection, filters });
+  }
+
+  /**
+   * Run operations in a database transaction.
+   * Ensures initialization (like *Doc methods). Throws on init or transaction
+   * failure — callers rely on rollback errors propagating (username uniqueness,
+   * inventory reservations).
+   */
+  async transaction<T>(
+    operation: (transaction: IDatabaseTransaction) => Promise<T>
+  ): Promise<T> {
+    const gate = await this.ensureInitialized();
+    if (!gate.success) {
+      throw gate.error ?? new Error('Database initialization failed');
+    }
+    const result = await this.service.transaction(operation);
+    return result.data as T;
+  }
 }
 
 // ============================================================================
@@ -1023,7 +1283,9 @@ export class DatabaseCommand {
 let globalDbCommand: DatabaseCommand | null = null;
 
 /**
- * Get global database command instance
+ * Get global database command instance.
+ * Payload `*Doc` methods are the standard for domain code; `transaction()` for
+ * atomic multi-step writes; `execute()` for batches, subscribe, and advanced cases.
  */
 export function db(): DatabaseCommand {
   if (!globalDbCommand) {

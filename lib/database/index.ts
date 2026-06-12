@@ -6,6 +6,7 @@
 
 // Core interfaces
 export * from './interfaces/IDatabaseService';
+export { unwrapDbDocument, unwrapDbQueryRow } from './document';
 
 // Adapters
 export { PostgreSQLAdapter } from './adapters/PostgreSQLAdapter';
@@ -17,10 +18,13 @@ export { DatabaseService } from './DatabaseService';
 export {
   createDatabaseService,
   createHybridDatabaseService,
+  db,
   getDatabaseService,
   initializeDatabase,
+  initializeDbCommand,
   shutdownDatabase
 } from './DatabaseService';
+export type { DbRow } from './DatabaseService';
 
 // Synchronization
 export { BackendSyncService } from './sync/BackendSyncService';

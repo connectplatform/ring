@@ -122,6 +122,13 @@ export interface Entity {
   website?: string;
   members: string[];
   opportunities: string[];
+
+  /** Platform moderation — excluded from discovery when `blocked`. */
+  moderationStatus?: 'active' | 'reported' | 'under_review' | 'blocked';
+  reportCount?: number;
+  lastReportedAt?: Timestamp;
+  blockedAt?: Timestamp;
+  blockedReason?: string;
   
   // Multi-vendor Store Fields
   storeActivated?: boolean;
@@ -179,6 +186,13 @@ export interface SerializedEntity {
   website?: string;
   members: string[];
   opportunities: string[];
+
+  /** Platform moderation — excluded from discovery when `blocked`. */
+  moderationStatus?: 'active' | 'reported' | 'under_review' | 'blocked';
+  reportCount?: number;
+  lastReportedAt?: string;
+  blockedAt?: string;
+  blockedReason?: string;
   
   // Multi-vendor Store Fields (serialized)
   storeActivated?: boolean;

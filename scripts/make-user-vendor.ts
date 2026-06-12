@@ -1,82 +1,57 @@
 /**
  * Make User a Vendor Script
- * 
+ *
  * This script:
  * 1. Finds user by email
  * 2. Creates a vendor Entity for them (with storeActivated: true)
  * 3. Updates user role to include 'vendor'
- * 
+ *
  * Usage: npm run make-vendor automart@gmail.com "AutoMart Store"
  */
 
-import { initializeDatabase, getDatabaseService } from '../lib/database/DatabaseService'
+import { db } from '../lib/database'
 
 async function makeUserVendor(email: string, storeName: string) {
   console.log('🔥 Making user a VENDOR...')
   console.log(`Email: ${email}`)
   console.log(`Store Name: ${storeName}`)
-  
+
   try {
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // 1. Find user by email
-    console.log('\n📧 Finding user by email...')
-    const usersResult = await db.query({
+    const usersResult = await db().queryDocs({
       collection: 'users',
-      filters: [{
-        field: 'email',
-        operator: '=',
-        value: email
-      }]
+      filters: [{ field: 'email', operator: '=', value: email }],
     })
-    
-    if (!usersResult.success || !usersResult.data) {
+
+    if (!usersResult.success || !usersResult.data?.length) {
       console.error('❌ User not found with email:', email)
       console.log('\n💡 Create user first by logging in once, then run this script')
       process.exit(1)
     }
-    
-    const usersArray = Array.isArray(usersResult.data) ? usersResult.data : (usersResult.data as any).data || []
-    if (usersArray.length === 0) {
-      console.error('❌ User not found with email:', email)
-      process.exit(1)
-    }
-    
-    const user = usersArray[0]
+
+    const user = usersResult.data[0]
     console.log('✅ User found:', user.id, user.name || user.email)
-    
-    // 2. Check if user already has a vendor entity
+
     console.log('\n🏪 Checking for existing vendor entity...')
-    const entitiesResult = await db.query({
+    const entitiesResult = await db().queryDocs({
       collection: 'entities',
-      filters: [{
-        field: 'addedBy',
-        operator: '=',
-        value: user.id
-      }, {
-        field: 'storeActivated',
-        operator: '=',
-        value: true
-      }]
+      filters: [
+        { field: 'addedBy', operator: '=', value: user.id },
+        { field: 'storeActivated', operator: '=', value: true },
+      ],
     })
-    
-    const entitiesArray = Array.isArray(entitiesResult.data) ? entitiesResult.data : (entitiesResult.data as any)?.data || []
-    if (entitiesResult.success && entitiesArray.length > 0) {
+
+    if (entitiesResult.success && entitiesResult.data.length > 0) {
       console.log('⚠️  User already has a vendor entity!')
-      const existingEntity = entitiesArray[0]
+      const existingEntity = entitiesResult.data[0]
       console.log('Existing store:', existingEntity.name)
       console.log('Store ID:', existingEntity.id)
       console.log('Store Status:', existingEntity.storeStatus)
       return
     }
-    
-    // 3. Create vendor entity
+
     console.log('\n🏗️  Creating vendor entity...')
     const entityId = `entity_vendor_${Date.now()}`
     const entity = {
-      id: entityId,
       name: storeName,
       description: `${storeName} - Multi-vendor store powered by Ring Platform`,
       addedBy: user.id,
@@ -85,11 +60,11 @@ async function makeUserVendor(email: string, storeName: string) {
       type: 'vendor-store',
       storeActivated: true,
       storeStatus: 'open',
-      vendorTier: 'NEW', // Start as NEW vendor (20% commission)
+      vendorTier: 'NEW',
       vendorRating: 0,
       vendorTotalSales: 0,
       vendorTotalOrders: 0,
-      commission: 20, // 20% for NEW vendors
+      commission: 20,
       slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       avatar: '',
       banner: '',
@@ -97,55 +72,50 @@ async function makeUserVendor(email: string, storeName: string) {
       isVerified: false,
       status: 'active',
       createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     }
-    
-    const entityResult = await db.create('entities', entity)
-    
+
+    const entityResult = await db().createDoc('entities', entity, { id: entityId })
+
     if (!entityResult.success) {
       console.error('❌ Failed to create entity:', entityResult.error)
       process.exit(1)
     }
-    
+
     console.log('✅ Vendor entity created!')
     console.log('Entity ID:', entityId)
     console.log('Store Status: open')
     console.log('Vendor Tier: NEW (20% commission)')
-    
-    // 4. Update user role to include vendor
+
     console.log('\n👤 Updating user role...')
-    const currentRole = user.role || 'user'
+    const currentRole = String(user.role || 'user')
     const roles = currentRole.split(',').map((r: string) => r.trim())
-    
+
     if (!roles.includes('vendor')) {
       roles.push('vendor')
     }
-    
-    const updatedUser = {
-      ...user,
+
+    const updateResult = await db().updateDoc('users', user.id, {
       role: roles.join(','),
-      lastUpdated: new Date().toISOString()
-    }
-    
-    const updateResult = await db.update('users', user.id, updatedUser)
-    
+      lastUpdated: new Date().toISOString(),
+    })
+
     if (!updateResult.success) {
       console.error('❌ Failed to update user role:', updateResult.error)
       console.log('Entity created but user role not updated')
       process.exit(1)
     }
-    
+
     console.log('✅ User role updated!')
-    console.log('New role:', updatedUser.role)
-    
-    // 5. Summary
+    console.log('New role:', roles.join(','))
+
     console.log('\n════════════════════════════════════════════════════════════')
     console.log('🏆 VENDOR CREATION COMPLETE! 🏆')
     console.log('════════════════════════════════════════════════════════════')
     console.log('')
     console.log('User:', user.name || user.email)
     console.log('Email:', user.email)
-    console.log('Role:', updatedUser.role)
+    console.log('Role:', roles.join(','))
     console.log('')
     console.log('Vendor Store:', storeName)
     console.log('Entity ID:', entityId)
@@ -161,14 +131,12 @@ async function makeUserVendor(email: string, storeName: string) {
     console.log('3. Add products to your store')
     console.log('4. Start selling!')
     console.log('════════════════════════════════════════════════════════════')
-    
   } catch (error) {
     console.error('❌ Error:', error)
     process.exit(1)
   }
 }
 
-// Get args from command line
 const email = process.argv[2]
 const storeName = process.argv[3] || 'My Store'
 
@@ -179,4 +147,3 @@ if (!email) {
 }
 
 makeUserVendor(email, storeName)
-

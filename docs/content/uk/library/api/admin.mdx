@@ -4,8 +4,6 @@ description: Повна документація адміністративно�
 last_modified: "2025-10-16"
 ---
 
-import { Callout } from '@/components/docs/callout'
-import { Steps, Step } from '@/components/docs/steps'
 
 # API адміністратора
 
@@ -587,7 +585,6 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
 
 ```typescript
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface AdminStats {
   totalUsers: number
@@ -639,46 +636,46 @@ export function AdminDashboard() {
       <h1 className="text-2xl font-bold mb-6">Адмін дашборд</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Загалом користувачів</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <UiCard>
+          <UiCardHeader className="pb-2">
+            <UiCardTitle className="text-sm font-medium">Загалом користувачів</UiCardTitle>
+          </UiCardHeader>
+          <UiCardContent>
             <div className="text-2xl font-bold">{stats?.totalUsers.toLocaleString()}</div>
-          </CardContent>
-        </Card>
+          </UiCardContent>
+        </UiCard>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Активних сьогодні</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <UiCard>
+          <UiCardHeader className="pb-2">
+            <UiCardTitle className="text-sm font-medium">Активних сьогодні</UiCardTitle>
+          </UiCardHeader>
+          <UiCardContent>
             <div className="text-2xl font-bold">{stats?.activeUsers.toLocaleString()}</div>
-          </CardContent>
-        </Card>
+          </UiCardContent>
+        </UiCard>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Нових сьогодні</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <UiCard>
+          <UiCardHeader className="pb-2">
+            <UiCardTitle className="text-sm font-medium">Нових сьогодні</UiCardTitle>
+          </UiCardHeader>
+          <UiCardContent>
             <div className="text-2xl font-bold text-green-600">+{stats?.newUsersToday}</div>
-          </CardContent>
-        </Card>
+          </UiCardContent>
+        </UiCard>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Стан системи</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <UiCard>
+          <UiCardHeader className="pb-2">
+            <UiCardTitle className="text-sm font-medium">Стан системи</UiCardTitle>
+          </UiCardHeader>
+          <UiCardContent>
             <div className={`text-2xl font-bold ${
               stats?.systemHealth === 'healthy' ? 'text-green-600' :
               stats?.systemHealth === 'warning' ? 'text-yellow-600' : 'text-red-600'
             }`}>
               {stats?.systemHealth.toUpperCase()}
             </div>
-          </CardContent>
-        </Card>
+          </UiCardContent>
+        </UiCard>
       </div>
 
       {/* Додаткові адмін компоненти */}

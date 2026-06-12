@@ -10,6 +10,7 @@ import {
   InstanceConfigClientProvider,
   type PublicInstanceConfig,
 } from '@/components/common/whitelabel/instance-config-client'
+import { getPublicInstanceConfigFromSnapshot } from '@/lib/ring-config-core'
 import { AppProvider } from '@/contexts/app-context'
 import { FCMProvider, FCMPermissionPrompt } from '@/components/providers/fcm-provider'
 import { TunnelProvider } from '@/components/providers/tunnel-provider'
@@ -18,31 +19,9 @@ import { StoreProvider } from '@/features/store/context'
 import GoogleOneTap from '@/features/auth/components/google-one-tap'
 import { Toaster } from '@/components/ui/toaster'
 
-/** Static whitelabel defaults for Suspense fallback — no fs I/O (cacheComponents-safe). */
-const APP_SHELL_STATIC_INSTANCE_CONFIG: PublicInstanceConfig = {
-  name: 'Ring Platform',
-  brand: {
-    colors: {
-      primary: '#3b82f6',
-      background: '#0b0f1a',
-      foreground: '#e5e7eb',
-      accent: '#22c55e',
-    },
-    logoUrl: '/images/logo.svg',
-    faviconUrl: '/favicon.ico',
-    ogImageUrl: '/images/logo.svg',
-  },
-  seo: {
-    titleSuffix: ' · Ring Platform',
-    defaultDescription: 'Open white-label professional network.',
-  },
-  features: {
-    entities: true,
-    opportunities: true,
-    messaging: true,
-    admin: true,
-  },
-}
+/** Static whitelabel defaults for Suspense fallback — from ring-config snapshot. */
+const APP_SHELL_STATIC_INSTANCE_CONFIG: PublicInstanceConfig =
+  getPublicInstanceConfigFromSnapshot()
 
 /** Minimal shell for cacheComponents static prerender (root Suspense fallback). Must not render route children. */
 export function AppShellStaticFallback() {

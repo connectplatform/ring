@@ -1,15 +1,17 @@
 /**
  * Zemna.AI Publication Service – Phase 2
- * Uses Ring DatabaseService (findById, create, update, findByField).
+ * Uses ring-db *Doc methods (findDocById, createDoc, updateDoc, deleteDoc, findDocs).
  */
 
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
+import type { DbRow } from '@/lib/database'
 import type {
   Publication,
   PublicationVersion,
   CreatePublicationInput,
   UpdatePublicationInput,
-  PublicationVersionData
+  PublicationVersionData,
+  PublicationData,
 } from '@/features/publications/types'
 
 const COLLECTION_PUBLICATIONS = 'publications'
@@ -56,47 +58,96 @@ export interface CreateVersionResult {
   error?: string
 }
 
-async function ensureDb() {
-  const initResult = await initializeDatabase()
-  if (!initResult.success) {
-    throw new Error('Database initialization failed')
+type PublicationRow = DbRow<PublicationData & Record<string, unknown>>
+type VersionRow = DbRow<PublicationVersionData & Record<string, unknown>>
+
+function parseMetaDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value)
+  return new Date()
+}
+
+function rowToPublication(row: PublicationRow): Publication {
+  const { id, user_id, title, content, status, template_id, createdAt, updatedAt, version } = row
+  return {
+    id,
+    data: {
+      user_id: String(user_id),
+      title: String(title ?? ''),
+      content: (content as Record<string, unknown>) ?? {},
+      status: status as PublicationData['status'],
+      template_id: template_id as string | undefined,
+    },
+    metadata: {
+      createdAt: parseMetaDate(createdAt),
+      updatedAt: parseMetaDate(updatedAt),
+      version: Number(version ?? 1),
+    },
   }
-  return getDatabaseService()
+}
+
+function rowToVersion(row: VersionRow): PublicationVersion {
+  const {
+    id,
+    publication_id,
+    version_number,
+    content,
+    change_summary,
+    created_by,
+    createdAt,
+    updatedAt,
+    version,
+  } = row
+  return {
+    id,
+    data: {
+      publication_id: String(publication_id),
+      version_number: Number(version_number),
+      content: (content as Record<string, unknown>) ?? {},
+      change_summary: change_summary as string | undefined,
+      created_by: created_by as string | undefined,
+    },
+    metadata: {
+      createdAt: parseMetaDate(createdAt),
+      updatedAt: parseMetaDate(updatedAt),
+      version: Number(version ?? 1),
+    },
+  }
 }
 
 export async function listPublicationsByUserId(userId: string): Promise<ListPublicationsResult> {
   try {
-    const db = await ensureDb()
-    const result = await db.findByField<Publication['data']>(
+    const result = await db().findDocs<PublicationData>(
       COLLECTION_PUBLICATIONS,
-      'user_id',
-      userId,
-      { orderBy: { field: 'updated_at', direction: 'desc' }, limit: 100 }
+      [{ field: 'user_id', operator: '=', value: userId }],
+      { orderBy: [{ field: 'updated_at', direction: 'desc' }], limit: 100 }
     )
     if (!result.success) {
       return { success: false, error: result.error?.message }
     }
-    return { success: true, data: (result.data as Publication[]) || [] }
+    return { success: true, data: (result.data ?? []).map(rowToPublication) }
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to list publications'
+      error: e instanceof Error ? e.message : 'Failed to list publications',
     }
   }
 }
 
 export async function getPublicationById(id: string): Promise<GetPublicationResult> {
   try {
-    const db = await ensureDb()
-    const result = await db.findById<Publication['data']>(COLLECTION_PUBLICATIONS, id)
+    const result = await db().findDocById<PublicationData>(COLLECTION_PUBLICATIONS, id)
     if (!result.success) {
       return { success: false, error: result.error?.message }
     }
-    return { success: true, data: result.data as Publication | null }
+    return {
+      success: true,
+      data: result.data ? rowToPublication(result.data as PublicationRow) : null,
+    }
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to get publication'
+      error: e instanceof Error ? e.message : 'Failed to get publication',
     }
   }
 }
@@ -106,23 +157,22 @@ export async function createPublication(
   input: CreatePublicationInput = {}
 ): Promise<CreatePublicationResult> {
   try {
-    const db = await ensureDb()
-    const data: Publication['data'] = {
+    const data: PublicationData = {
       user_id: userId,
       title: input.title ?? 'Untitled Publication',
       content: input.content ?? {},
       status: input.status ?? 'draft',
-      template_id: input.template_id
+      template_id: input.template_id,
     }
-    const result = await db.create<Publication['data']>(COLLECTION_PUBLICATIONS, data)
+    const result = await db().createDoc(COLLECTION_PUBLICATIONS, data)
     if (!result.success || !result.data) {
       return { success: false, error: result.error?.message }
     }
-    return { success: true, data: result.data as Publication }
+    return { success: true, data: rowToPublication(result.data as PublicationRow) }
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to create publication'
+      error: e instanceof Error ? e.message : 'Failed to create publication',
     }
   }
 }
@@ -132,38 +182,32 @@ export async function updatePublication(
   input: UpdatePublicationInput
 ): Promise<UpdatePublicationResult> {
   try {
-    const db = await ensureDb()
-    const payload: Partial<Publication['data']> = {}
+    const payload: Partial<PublicationData> = {}
     if (input.title !== undefined) payload.title = input.title
     if (input.content !== undefined) payload.content = input.content
     if (input.status !== undefined) payload.status = input.status
     if (input.template_id !== undefined) payload.template_id = input.template_id
     if (Object.keys(payload).length === 0) {
-      const getResult = await db.findById<Publication['data']>(COLLECTION_PUBLICATIONS, id)
-      if (!getResult.success || !getResult.data) {
-        return { success: false, error: getResult.error?.message ?? 'Publication not found' }
-      }
-      return { success: true, data: getResult.data as Publication }
+      return getPublicationById(id) as Promise<UpdatePublicationResult>
     }
-    const result = await db.update<Publication['data']>(COLLECTION_PUBLICATIONS, id, payload, {
-      merge: true
+    const result = await db().updateDoc<PublicationData>(COLLECTION_PUBLICATIONS, id, payload, {
+      merge: true,
     })
     if (!result.success || !result.data) {
       return { success: false, error: result.error?.message }
     }
-    return { success: true, data: result.data as Publication }
+    return { success: true, data: rowToPublication(result.data as PublicationRow) }
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to update publication'
+      error: e instanceof Error ? e.message : 'Failed to update publication',
     }
   }
 }
 
 export async function deletePublication(id: string): Promise<DeletePublicationResult> {
   try {
-    const db = await ensureDb()
-    const result = await db.delete(COLLECTION_PUBLICATIONS, id)
+    const result = await db().deleteDoc(COLLECTION_PUBLICATIONS, id)
     if (!result.success) {
       return { success: false, error: result.error?.message }
     }
@@ -171,7 +215,7 @@ export async function deletePublication(id: string): Promise<DeletePublicationRe
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to delete publication'
+      error: e instanceof Error ? e.message : 'Failed to delete publication',
     }
   }
 }
@@ -180,21 +224,19 @@ export async function listVersionsByPublicationId(
   publicationId: string
 ): Promise<ListVersionsResult> {
   try {
-    const db = await ensureDb()
-    const result = await db.findByField<PublicationVersionData>(
+    const result = await db().findDocs<PublicationVersionData>(
       COLLECTION_VERSIONS,
-      'publication_id',
-      publicationId,
-      { orderBy: { field: 'created_at', direction: 'desc' }, limit: 50 }
+      [{ field: 'publication_id', operator: '=', value: publicationId }],
+      { orderBy: [{ field: 'created_at', direction: 'desc' }], limit: 50 }
     )
     if (!result.success) {
       return { success: false, error: result.error?.message }
     }
-    return { success: true, data: (result.data as PublicationVersion[]) || [] }
+    return { success: true, data: (result.data ?? []).map(rowToVersion) }
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to list versions'
+      error: e instanceof Error ? e.message : 'Failed to list versions',
     }
   }
 }
@@ -206,34 +248,31 @@ export async function createVersion(
   changeSummary?: string
 ): Promise<CreateVersionResult> {
   try {
-    const db = await ensureDb()
-    const listResult = await db.findByField<PublicationVersionData>(
+    const listResult = await db().findDocs<PublicationVersionData>(
       COLLECTION_VERSIONS,
-      'publication_id',
-      publicationId,
-      { limit: 1, orderBy: { field: 'created_at', direction: 'desc' } }
+      [{ field: 'publication_id', operator: '=', value: publicationId }],
+      { limit: 1, orderBy: [{ field: 'created_at', direction: 'desc' }] }
     )
     const latest = listResult.success && listResult.data?.length ? listResult.data[0] : null
-    const lastVersion = latest && typeof (latest as { data?: { version_number?: number } }).data?.version_number === 'number'
-      ? (latest as { data: { version_number: number } }).data.version_number
-      : 0
+    const lastVersion =
+      latest && typeof latest.version_number === 'number' ? latest.version_number : 0
     const nextVersion = lastVersion + 1
     const data: PublicationVersionData = {
       publication_id: publicationId,
       version_number: nextVersion,
       content,
       change_summary: changeSummary,
-      created_by: createdBy
+      created_by: createdBy,
     }
-    const result = await db.create<PublicationVersionData>(COLLECTION_VERSIONS, data)
+    const result = await db().createDoc(COLLECTION_VERSIONS, data)
     if (!result.success || !result.data) {
       return { success: false, error: result.error?.message }
     }
-    return { success: true, data: result.data as PublicationVersion }
+    return { success: true, data: rowToVersion(result.data as VersionRow) }
   } catch (e) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Failed to create version'
+      error: e instanceof Error ? e.message : 'Failed to create version',
     }
   }
 }

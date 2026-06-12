@@ -431,9 +431,20 @@ export class InMemoryContactRepository implements ContactRepository {
 // Singleton with in-memory repo for now
 let serviceInstance: EmailContactService | null = null;
 
+function createContactRepository(): ContactRepository {
+  if (process.env.EMAIL_CRM_PERSISTENCE === 'memory') {
+    return new InMemoryContactRepository();
+  }
+  const { JsonbContactRepository } =
+    // Dynamic import avoided at module load to keep client bundles clean
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/features/email-crm/repositories/jsonb-contact-repository') as typeof import('@/features/email-crm/repositories/jsonb-contact-repository');
+  return new JsonbContactRepository();
+}
+
 export function getEmailContactService(): EmailContactService {
   if (!serviceInstance) {
-    serviceInstance = new EmailContactService(new InMemoryContactRepository());
+    serviceInstance = new EmailContactService(createContactRepository());
   }
   return serviceInstance;
 }

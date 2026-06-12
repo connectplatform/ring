@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connection } from 'next/server';
-import { auth } from '@/auth';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering (uses request.url + auth)
 
   try {
-    // Get username from query parameters
     const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
 
@@ -30,22 +28,19 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Initialize database service
-      console.log(`API: check-username - Initializing database service`);
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        console.error(`API: check-username - Database initialization failed:`, initResult.error);
-        return NextResponse.json({ error: 'Database not available' }, { status: 500 });
-      }
-
-      const dbService = getDatabaseService();
-
-      // Check if username is already taken using efficient findByField query
-      console.log('API: check-username - About to call findByField with:', { collection: 'users', field: 'username', value: username });
-      const existingUsersResult = await dbService.findByField('users', 'username', username, { limit: 1 });
-      console.log('API: check-username - findByField result:', existingUsersResult);
+      console.log('API: check-username - About to query users by username:', { collection: 'users', field: 'username', value: username });
+      const existingUsersResult = await db().queryDocs({
+        collection: 'users',
+        filters: [{ field: 'username', operator: '=', value: username }],
+        pagination: { limit: 1 }
+      });
+      console.log('API: check-username - query result:', existingUsersResult);
 
       if (!existingUsersResult.success) {
+        if (existingUsersResult.metadata?.operation === 'initialize') {
+          console.error(`API: check-username - Database initialization failed:`, existingUsersResult.error);
+          return NextResponse.json({ error: 'Database not available' }, { status: 500 });
+        }
         console.error('Database error checking username:', existingUsersResult.error);
         return NextResponse.json({
           error: 'Database error',
@@ -53,12 +48,11 @@ export async function GET(request: NextRequest) {
         }, { status: 500 });
       }
 
-      const existingUsers = existingUsersResult.data || [];
-      const available = existingUsers.length === 0;
+      const available = existingUsersResult.data.length === 0;
 
       return NextResponse.json({
         available,
-        username: username.toLowerCase() // Return normalized username
+        username: username.toLowerCase()
       });
 
     } catch (dbError) {
@@ -71,4 +65,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

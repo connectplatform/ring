@@ -4,7 +4,7 @@
 // - React 19 patterns: NO cache() for mutations, revalidatePath()
 // - Multi-protocol support: WebSocket/SSE/Supabase/Long-polling based on backend mode
 
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
 import { 
   Message, 
   SendMessageRequest,
@@ -52,8 +52,6 @@ export class MessageService {
         });
       }
 
-      await initializeDatabase();
-      const db = getDatabaseService();
       const now = new Date();
       
       // Handle file attachments via Vercel Blob if any
@@ -89,8 +87,8 @@ export class MessageService {
       }
 
       // Save message to database (MUTATION - NO CACHE!)
-      const createResult = await db.create('messages', messageData);
-      if (!createResult.success) {
+      const createResult = await db().createDoc('messages', messageData);
+      if (!createResult.success || !createResult.data) {
         throw new EntityDatabaseError(
           'Failed to save message to database',
           createResult.error || new Error('Database create failed'),
@@ -103,10 +101,7 @@ export class MessageService {
         );
       }
 
-      const message: Message = {
-        ...messageData,
-        id: createResult.data.id
-      } as unknown as Message
+      const message = createResult.data as Message;
 
       // Update conversation last message
       try {
@@ -204,23 +199,17 @@ export class MessageService {
         );
       }
 
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Build query with DatabaseService API
-      const querySpec: any = {
+      const queryResult = await db().queryDocs<Message>({
         collection: 'messages',
         filters: [{ field: 'conversationId', operator: '==', value: conversationId }],
         orderBy: [{ field: 'timestamp', direction: 'desc' }],
         pagination: {
           limit: pagination?.limit || 50,
-          offset: (pagination as any)?.offset || 0
+          offset: (pagination as { offset?: number })?.offset || 0
         }
-      };
+      });
 
-      // Execute query (READ operation - can be cached with React 19 cache())
-      const queryResult = await db.query(querySpec);
-      if (!queryResult.success) {
+      if (!queryResult.success || !queryResult.data) {
         throw new EntityDatabaseError(
           'Failed to fetch messages',
           queryResult.error || new Error('Database query failed'),
@@ -233,10 +222,7 @@ export class MessageService {
         );
       }
 
-      const messages: Message[] = queryResult.data.map(doc => ({
-        id: doc.id,
-        ...(doc as any)
-      })) as Message[];
+      const messages = queryResult.data;
 
       // Mark messages as delivered
       try {
@@ -279,10 +265,10 @@ export class MessageService {
    */
   private async verifyConversationAccess(conversationId: string, userId: string): Promise<void> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      const readResult = await db.read('conversations', conversationId);
+      const readResult = await db().readDoc<{ participants?: Array<{ userId: string }> }>(
+        'conversations',
+        conversationId
+      );
       
       if (!readResult.success || !readResult.data) {
         throw new EntityDatabaseError('Conversation not found', undefined, {
@@ -293,8 +279,8 @@ export class MessageService {
         });
       }
 
-      const conversation = readResult.data as any;
-      const isParticipant = conversation?.participants?.some((p: any) => p.userId === userId);
+      const conversation = readResult.data;
+      const isParticipant = conversation.participants?.some((p) => p.userId === userId);
       
       if (!isParticipant) {
         throw new EntityDatabaseError('Access denied: User is not a participant in this conversation', undefined, {
@@ -329,13 +315,10 @@ export class MessageService {
    */
   private async markMessagesAsDelivered(messages: Message[], userId: string): Promise<void> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-
       // Update messages in batch (MUTATION - NO CACHE!)
       for (const message of messages) {
         if (message.senderId !== userId && message.status === 'sent') {
-          const updateResult = await db.update('messages', message.id, { status: 'delivered' });
+          const updateResult = await db().updateDoc('messages', message.id, { status: 'delivered' });
           // Don't throw on individual failures - best effort delivery receipts
           if (!updateResult.success) {
             console.warn(`Failed to mark message ${message.id} as delivered:`, updateResult.error);
@@ -362,7 +345,13 @@ export class MessageService {
    * @returns Promise<MessageAttachment[]> - Processed attachments
    * @throws {EntityDatabaseError} If attachment processing fails
    */
-  private async processAttachments(attachments: any[]): Promise<MessageAttachment[]> {
+  private async processAttachments(attachments: Array<{
+    url?: string;
+    name?: string;
+    size?: number;
+    type?: string;
+    mimeType?: string;
+  }>): Promise<MessageAttachment[]> {
     try {
       // Process each attachment
       const processedAttachments: MessageAttachment[] = []
@@ -376,14 +365,14 @@ export class MessageService {
           });
         }
 
-                 const processedAttachment: MessageAttachment = {
-           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-           url: attachment.url,
-           name: attachment.name || 'unknown',
-           size: attachment.size || 0,
-           type: attachment.type || 'unknown',
-           mimeType: attachment.mimeType || 'application/octet-stream'
-         }
+        const processedAttachment: MessageAttachment = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          url: attachment.url,
+          name: attachment.name || 'unknown',
+          size: attachment.size || 0,
+          type: attachment.type || 'unknown',
+          mimeType: attachment.mimeType || 'application/octet-stream'
+        }
         
         processedAttachments.push(processedAttachment)
       }
@@ -497,19 +486,13 @@ export class MessageService {
    */
   async getMessage(messageId: string): Promise<Message | null> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      const readResult = await db.read('messages', messageId);
+      const readResult = await db().readDoc<Message>('messages', messageId);
       
       if (!readResult.success || !readResult.data) {
         return null;
       }
       
-      return {
-        id: readResult.data.id,
-        ...(readResult.data as any)
-      } as Message;
+      return readResult.data;
       
     } catch (error) {
       throw new EntityDatabaseError(
@@ -533,11 +516,7 @@ export class MessageService {
    */
   async updateMessage(messageId: string, updates: Partial<Message>): Promise<Message> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Read to verify existence
-      const readResult = await db.read('messages', messageId);
+      const readResult = await db().readDoc<Message>('messages', messageId);
       if (!readResult.success || !readResult.data) {
         throw new ValidationError('Message not found', undefined, {
           timestamp: Date.now(),
@@ -546,13 +525,12 @@ export class MessageService {
         })
       }
       
-      // Update the message (MUTATION - NO CACHE!)
-      const updateResult = await db.update('messages', messageId, {
+      const updateResult = await db().updateDoc('messages', messageId, {
         ...updates,
         editedAt: new Date()
       });
       
-      if (!updateResult.success) {
+      if (!updateResult.success || !updateResult.data) {
         throw updateResult.error || new Error('Failed to update message');
       }
       
@@ -563,14 +541,11 @@ export class MessageService {
       });
       
       // Revalidate conversation (React 19 pattern)
-      if (readResult.data && (readResult.data as any).conversationId) {
-        revalidatePath(`/[locale]/chat/${(readResult.data as any).conversationId}`);
+      if (readResult.data.conversationId) {
+        revalidatePath(`/[locale]/chat/${readResult.data.conversationId}`);
       }
       
-      return {
-        id: updateResult.data.id,
-        ...(updateResult.data as any)
-      } as Message;
+      return updateResult.data as Message;
       
     } catch (error) {
       if (error instanceof ValidationError) {
@@ -597,11 +572,7 @@ export class MessageService {
    */
   async deleteMessage(messageId: string): Promise<void> {
     try {
-      await initializeDatabase();
-      const db = getDatabaseService();
-      
-      // Read to verify existence and get conversationId
-      const readResult = await db.read('messages', messageId);
+      const readResult = await db().readDoc<Message>('messages', messageId);
       if (!readResult.success || !readResult.data) {
         throw new ValidationError('Message not found', undefined, {
           timestamp: Date.now(),
@@ -610,14 +581,13 @@ export class MessageService {
         })
       }
       
-      const conversationId = (readResult.data as any).conversationId;
+      const conversationId = readResult.data.conversationId;
       
-      // Soft delete - update content and mark as deleted (MUTATION - NO CACHE!)
-      const updateResult = await db.update('messages', messageId, {
+      const updateResult = await db().updateDoc('messages', messageId, {
         content: '[Message deleted]',
         type: 'text',
         deletedAt: new Date(),
-        attachments: [] // Remove any attachments
+        attachments: []
       });
       
       if (!updateResult.success) {

@@ -1,43 +1,89 @@
 ---
-title: Email AI-CRM — туториал
-description: Настройка IMAP, миграции и запуск процессора
-last_modified: "2026-06-06"
+title: Email AI-CRM — гайд разработчика
+description: .env.local, миграции 009/010, cron poll и SMTP smoke test
+last_modified: "2026-06-10"
 ---
 
-# Email AI-CRM — туториал
+# Email AI-CRM — гайд разработчика
 
-## Предпосылки
+Настройка модуля на **локальном или self-hosted** клоне Ring: `.env.local`, миграции (при необходимости), проверка ingest и отправки черновика из админ UI.
 
-- PostgreSQL + `001_email_crm_schema.sql`
-- `ANTHROPIC_API_KEY`
-- IMAP/SMTP для community inbox
+> **EN canonical:** полный troubleshooting и webhook — [Email AI-CRM developer guide (EN)](/docs/library/examples/email-ai-crm)
 
-## Шаги
+## 1. Локальное окружение
 
-### 1. Миграция
+Блок **EMAIL CRM** из `env.local.template` → `.env.local`:
 
 ```bash
-psql "$DATABASE_URL" -f data/migrations/001_email_crm_schema.sql
-```
-
-### 2. Env
-
-```bash
+# .env.local
 IMAP_HOST=mail.example.com
 IMAP_USER=info@example.com
 IMAP_PASSWORD=
+
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+
 ANTHROPIC_API_KEY=
+
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_CRM_PERSISTENCE=memory
 ```
 
-### 3. Запуск
+## 2. Миграции
 
-```typescript
-import { getEmailProcessor } from '@/services/email';
-await getEmailProcessor().start();
+```bash
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
 ```
 
-### 4. Admin
+Уберите `EMAIL_CRM_PERSISTENCE=memory`, если нужна персистентность в Postgres.
 
-`/admin/email-inbox`, `/admin/email-drafts`, `/admin/email-contacts`.
+## 3. Ingest (локально)
 
-См. [Функция](/docs/library/features/email-ai-crm).
+```bash
+curl -sS -X POST "http://localhost:3000/api/cron/email-processor" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"poll"}'
+```
+
+## 4. SMTP smoke test
+
+<Mermaid>
+{`flowchart LR
+    A[Письмо на inbox] --> B[Cron poll]
+    B --> C[Admin Inbox]
+    C --> D[Approve draft]
+    D --> E[Send SMTP]
+    E --> F[Ответ отправителю]`}
+</Mermaid>
+
+1. Тест на `IMAP_USER`.
+2. `poll`.
+3. **Admin → Email Inbox** → **Email Drafts** → approve → send.
+4. После успеха: `EMAIL_AUTO_SEND_ENABLED=true`.
+
+## 5. Продакшн cron
+
+```bash
+curl -sS -X POST "$BASE_URL/api/cron/email-processor" \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  -d '{"action":"poll"}'
+```
+
+## Устранение неполадок
+
+| Симптом | Проверка |
+|---------|----------|
+| Пустой inbox | Миграции или `memory`? `ANTHROPIC_API_KEY`? |
+| 401 на cron | `CRON_SECRET` в Bearer |
+| Send fails | `SMTP_*`, порт 587 |
+
+## Связанное
+
+- [Email AI-CRM](/docs/library/features/email-ai-crm)
+- [Environment](/docs/library/deployment/environment#email-ai-crm)

@@ -3,10 +3,18 @@
 
 import { cache } from 'react'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
-import { NewsFilters, NewsFormData, NewsArticle } from '@/features/news/types'
+import { db } from '@/lib/database'
+import {
+  NewsFilters,
+  NewsFormData,
+  NewsArticle,
+  MainPageStatus,
+  NewsContentType,
+} from '@/features/news/types'
 import { UserRole } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
+import { translitSlug } from '@/lib/news/translit-slug'
+import { mapNewsDocument } from '@/lib/news/map-news-document'
 
 interface CreateNewsResult {
   success: boolean
@@ -39,70 +47,76 @@ function canDeleteArticle(userRole: UserRole, articleAuthorId: string, currentUs
   return isAdmin || isAuthor
 }
 
-export async function createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult> {
+export interface NewsArticleAuthor {
+  id: string
+  name: string
+}
+
+export interface CreateNewsArticleExtras {
+  locale?: string
+  translationGroupId?: string
+  availableTranslations?: string[]
+  audioUrl?: string
+  promoteToMainPage?: boolean
+  mainPageStatus?: MainPageStatus
+  contentType?: NewsContentType
+}
+
+function buildArticleSlug(title: string, explicitSlug?: string): string {
+  if (explicitSlug?.trim()) {
+    return explicitSlug.trim()
+  }
+  const asciiSlug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9 -]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+  if (asciiSlug) return asciiSlug
+  return translitSlug(title)
+}
+
+export async function createNewsArticleForAuthor(
+  formData: NewsFormData,
+  author: NewsArticleAuthor,
+  extras?: CreateNewsArticleExtras
+): Promise<CreateNewsResult> {
   try {
-    const session = await auth()
-    
-    if (!session?.user) {
-      return {
-        success: false,
-        error: 'Authentication required'
-      }
-    }
-
-    // Check if user can create articles (MEMBER+ roles)
-    const userRole = (session.user as any).role as UserRole
-    if (!canCreateArticles(userRole)) {
-      return {
-        success: false,
-        error: 'MEMBER status or higher required to create articles'
-      }
-    }
-
-    // Validate required fields
     if (!formData.title || !formData.content || !formData.excerpt) {
       return {
         success: false,
-        error: 'Title, content, and excerpt are required'
+        error: 'Title, content, and excerpt are required',
       }
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // Generate slug if not provided
-    const slug = formData.slug || formData.title
-      .toLowerCase()
-      .replace(/[^a-z0-9 -]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim()
+    const slug = buildArticleSlug(formData.title, formData.slug)
 
-    // Check if slug already exists
-    const slugResult = await db.query({
+    const slugResult = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'slug', operator: '==', value: slug }],
-      pagination: { limit: 1 }
+      pagination: { limit: 1 },
     })
-    
-    if (slugResult.success && slugResult.data.length > 0) {
+
+    if (slugResult.success && slugResult.data && slugResult.data.length > 0) {
       return {
         success: false,
-        error: 'Article with this slug already exists'
+        error: 'Article with this slug already exists',
       }
     }
 
     const now = new Date()
+    const locale = extras?.locale || formData.locale || 'en'
     const newArticle = {
       title: formData.title,
-      slug: slug,
+      slug,
       content: formData.content,
       excerpt: formData.excerpt,
-      authorId: session.user.id || session.user.email || '',
-      authorName: session.user.name || 'Unknown Author',
+      authorId: author.id,
+      authorName: author.name,
       category: formData.category || 'other',
       tags: formData.tags || [],
       featuredImage: formData.featuredImage || null,
+      audioUrl: formData.audioUrl || extras?.audioUrl || null,
       gallery: formData.gallery || [],
       status: formData.status || 'draft',
       visibility: formData.visibility || 'public',
@@ -114,27 +128,62 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       createdAt: now,
       updatedAt: now,
       seo: formData.seo || null,
-      locale: 'en', // Default to English, can be extended for multi-locale support
+      locale,
+      translationGroupId: extras?.translationGroupId,
+      availableTranslations: extras?.availableTranslations ?? [locale],
+      contentType: extras?.contentType ?? formData.contentType,
+      blogUsername: formData.blogUsername,
+      promoteToMainPage: extras?.promoteToMainPage ?? formData.promoteToMainPage ?? false,
+      mainPageStatus: extras?.mainPageStatus,
     }
 
-    const createResult = await db.create('news', newArticle)
-    if (!createResult.success) {
+    const createResult = await db().createDoc('news', newArticle)
+    if (!createResult.success || !createResult.data) {
       throw createResult.error || new Error('Failed to create news article')
     }
 
-    // Revalidate news pages (React 19 pattern - MUTATION!)
-
     return {
       success: true,
-      data: createResult.data as any as NewsArticle,
-      message: 'News article created successfully'
+      data: mapNewsDocument(createResult.data),
+      message: 'News article created successfully',
+    }
+  } catch (error) {
+    logger.error('Error creating news article for author:', error)
+    return {
+      success: false,
+      error: 'Failed to create news article',
+    }
+  }
+}
+
+export async function createNewsArticle(formData: NewsFormData): Promise<CreateNewsResult> {
+  try {
+    const session = await auth()
+
+    if (!session?.user) {
+      return {
+        success: false,
+        error: 'Authentication required',
+      }
     }
 
+    const userRole = (session.user as { role?: UserRole }).role as UserRole
+    if (!canCreateArticles(userRole)) {
+      return {
+        success: false,
+        error: 'MEMBER status or higher required to create articles',
+      }
+    }
+
+    return createNewsArticleForAuthor(formData, {
+      id: session.user.id || session.user.email || '',
+      name: session.user.name || 'Unknown Author',
+    })
   } catch (error) {
     logger.error('Error creating news article:', error)
     return {
       success: false,
-      error: 'Failed to create news article'
+      error: 'Failed to create news article',
     }
   }
 }
@@ -142,45 +191,39 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
 export async function updateNewsArticle(articleId: string, formData: NewsFormData): Promise<UpdateNewsResult> {
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return {
         success: false,
-        error: 'Authentication required'
+        error: 'Authentication required',
       }
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Check if user can edit this article
-    const userRole = (session.user as any).role as UserRole
-    const articleResult = await db.read('news', articleId)
+    const userRole = (session.user as { role?: UserRole }).role as UserRole
+    const articleResult = await db().readDoc<Record<string, unknown>>('news', articleId)
 
     if (!articleResult.success || !articleResult.data) {
       return {
         success: false,
-        error: 'Article not found'
+        error: 'Article not found',
       }
     }
 
-    const articleData = articleResult.data as any
-    if (!canEditArticle(userRole, articleData?.authorId, session.user.id)) {
+    const articleData = articleResult.data
+    if (!canEditArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
       return {
         success: false,
-        error: 'Not authorized to edit this article'
+        error: 'Not authorized to edit this article',
       }
     }
 
-    // Validate required fields
     if (!formData.title || !formData.content || !formData.excerpt) {
       return {
         success: false,
-        error: 'Title, content, and excerpt are required'
+        error: 'Title, content, and excerpt are required',
       }
     }
 
-    // Generate slug if changed
     const slug = formData.slug || formData.title
       .toLowerCase()
       .replace(/[^a-z0-9 -]/g, '')
@@ -188,18 +231,17 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       .replace(/-+/g, '-')
       .trim()
 
-    // Check if slug already exists (excluding current article)
-    if (slug !== articleData?.slug) {
-      const slugResult = await db.query({
+    if (slug !== articleData.slug) {
+      const slugResult = await db().queryDocs({
         collection: 'news',
         filters: [{ field: 'slug', operator: '==', value: slug }],
-        pagination: { limit: 1 }
+        pagination: { limit: 1 },
       })
-      
-      if (slugResult.success && slugResult.data.length > 0) {
+
+      if (slugResult.success && slugResult.data && slugResult.data.length > 0) {
         return {
           success: false,
-          error: 'Article with this slug already exists'
+          error: 'Article with this slug already exists',
         }
       }
     }
@@ -207,7 +249,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
     const now = new Date()
     const updateData = {
       title: formData.title,
-      slug: slug,
+      slug,
       content: formData.content,
       excerpt: formData.excerpt,
       category: formData.category || 'other',
@@ -217,31 +259,28 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       status: formData.status || 'draft',
       visibility: formData.visibility || 'public',
       featured: formData.featured || false,
-      publishedAt: formData.status === 'published' && !articleData?.publishedAt 
-        ? now 
-        : articleData?.publishedAt,
+      publishedAt: formData.status === 'published' && !articleData.publishedAt
+        ? now
+        : articleData.publishedAt,
       updatedAt: now,
       seo: formData.seo || null,
     }
 
-    const updateResult = await db.update('news', articleId, updateData)
-    if (!updateResult.success) {
+    const updateResult = await db().updateDoc('news', articleId, updateData)
+    if (!updateResult.success || !updateResult.data) {
       throw updateResult.error || new Error('Failed to update news article')
     }
 
-    // Revalidate news pages (React 19 pattern - MUTATION!)
-
     return {
       success: true,
-      data: updateResult.data as any as NewsArticle,
-      message: 'News article updated successfully'
+      data: mapNewsDocument(updateResult.data),
+      message: 'News article updated successfully',
     }
-
   } catch (error) {
     logger.error('Error updating news article:', error)
     return {
       success: false,
-      error: 'Failed to update news article'
+      error: 'Failed to update news article',
     }
   }
 }
@@ -253,18 +292,13 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
 export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<{
   success: boolean
   data?: NewsArticle[]
-  pagination?: any
+  pagination?: { limit?: number; offset?: number; total: number }
   filters?: NewsFilters
   error?: string
 }> => {
   try {
+    const queryFilters: { field: string; operator: string; value: unknown }[] = []
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    // Build query filters for DatabaseService
-    const queryFilters: any[] = []
-    
     if (filters.category) {
       queryFilters.push({ field: 'category', operator: '==', value: filters.category })
     }
@@ -281,23 +315,22 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
       queryFilters.push({ field: 'authorId', operator: '==', value: filters.authorId })
     }
 
-    const queryResult = await db.query({
+    const queryResult = await db().queryDocs({
       collection: 'news',
       filters: queryFilters,
       orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
-      pagination: { limit: filters.limit || 50, offset: (filters as any).offset || 0 }
+      pagination: { limit: filters.limit || 50, offset: filters.offset || 0 },
     })
 
-    if (!queryResult.success) {
+    if (!queryResult.success || !queryResult.data) {
       throw queryResult.error || new Error('Failed to fetch news articles')
     }
 
-    let articles = queryResult.data as any[] as NewsArticle[]
+    let articles = queryResult.data.map((row) => mapNewsDocument(row))
 
-    // Server-side search filtering
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase()
-      articles = articles.filter(article => 
+      articles = articles.filter(article =>
         article.title.toLowerCase().includes(searchTerm) ||
         article.excerpt.toLowerCase().includes(searchTerm) ||
         article.content.toLowerCase().includes(searchTerm) ||
@@ -305,7 +338,6 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
       )
     }
 
-    // Tag filtering
     if (filters.tags && filters.tags.length > 0) {
       articles = articles.filter(article =>
         filters.tags!.some(tag => article.tags.includes(tag))
@@ -320,14 +352,13 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
         offset: filters.offset,
         total: articles.length,
       },
-      filters: filters,
+      filters,
     }
-
   } catch (error) {
-      logger.error('Error fetching news:', error)
+    logger.error('Error fetching news:', error)
     return {
       success: false,
-      error: 'Failed to fetch news articles'
+      error: 'Failed to fetch news articles',
     }
   }
 })
@@ -339,7 +370,7 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
 export const getMyArticles = cache(async (authorId: string, filters: NewsFilters = {}): Promise<{
   success: boolean
   data?: NewsArticle[]
-  pagination?: any
+  pagination?: { limit?: number; offset?: number; total: number }
   stats?: {
     totalArticles: number
     publishedArticles: number
@@ -350,29 +381,23 @@ export const getMyArticles = cache(async (authorId: string, filters: NewsFilters
   error?: string
 }> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Get all articles by this author
-    const authorResult = await db.query({
+    const authorResult = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'authorId', operator: '==', value: authorId }],
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      pagination: { limit: filters.limit || 50, offset: filters.offset || 0 }
+      pagination: { limit: filters.limit || 50, offset: filters.offset || 0 },
     })
 
-    if (!authorResult.success) {
+    if (!authorResult.success || !authorResult.data) {
       throw authorResult.error || new Error('Failed to fetch articles')
     }
 
-    let articles = authorResult.data as any[] as NewsArticle[]
+    let articles = authorResult.data.map((row) => mapNewsDocument(row))
 
-    // Apply status filter if provided
     if (filters.status) {
       articles = articles.filter(article => article.status === filters.status)
     }
 
-    // Calculate stats
     const totalArticles = articles.length
     const publishedArticles = articles.filter(a => a.status === 'published').length
     const draftArticles = articles.filter(a => a.status === 'draft').length
@@ -392,15 +417,14 @@ export const getMyArticles = cache(async (authorId: string, filters: NewsFilters
         publishedArticles,
         draftArticles,
         totalViews,
-        totalLikes
-      }
+        totalLikes,
+      },
     }
-
   } catch (error) {
     logger.error('Error fetching my articles:', error)
     return {
       success: false,
-      error: 'Failed to fetch your articles'
+      error: 'Failed to fetch your articles',
     }
   }
 })
@@ -432,23 +456,18 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
   error?: string
 }> => {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Get all articles by this author
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'authorId', operator: '==', value: authorId }],
-      orderBy: [{ field: 'createdAt', direction: 'desc' }]
+      orderBy: [{ field: 'createdAt', direction: 'desc' }],
     })
 
-    if (!result.success) {
+    if (!result.success || !result.data) {
       throw result.error || new Error('Failed to fetch articles for stats')
     }
 
-    const articles = result.data as any[] as NewsArticle[]
+    const articles = result.data.map((row) => mapNewsDocument(row))
 
-    // Calculate comprehensive stats
     const totalArticles = articles.length
     const publishedArticles = articles.filter(a => a.status === 'published').length
     const draftArticles = articles.filter(a => a.status === 'draft').length
@@ -461,35 +480,38 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
     const averageViews = totalArticles > 0 ? Math.round(totalViews / totalArticles) : 0
     const averageLikes = totalArticles > 0 ? Math.round(totalLikes / totalArticles) : 0
 
-    // Find most viewed article
     const mostViewedArticle = articles.reduce((max, current) =>
       (current.views || 0) > (max.views || 0) ? current : max,
       articles[0] || null
     )
 
-    // Calculate recent activity (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+    const toDate = (value: NewsArticle['createdAt']): Date => {
+      if (!value) return new Date(0)
+      if (value instanceof Date) return value
+      if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+        return value.toDate()
+      }
+      return new Date(String(value))
+    }
+
     const recentArticles = articles.filter(a => {
       if (!a.createdAt) return false
-      const createdDate = a.createdAt instanceof Date ? a.createdAt :
-                         (a.createdAt as any).toDate ? (a.createdAt as any).toDate() : new Date(a.createdAt as any)
-      return createdDate >= thirtyDaysAgo
+      return toDate(a.createdAt) >= thirtyDaysAgo
     })
 
-    // Group by date for activity chart
-    const activityMap = new Map<string, { articles: number, views: number, likes: number }>()
+    const activityMap = new Map<string, { articles: number; views: number; likes: number }>()
 
     recentArticles.forEach(article => {
-      const createdDate = article.createdAt instanceof Date ? article.createdAt :
-                         (article.createdAt as any).toDate ? (article.createdAt as any).toDate() : new Date(article.createdAt as any)
+      const createdDate = toDate(article.createdAt)
       const date = createdDate.toISOString().split('T')[0]
       const existing = activityMap.get(date) || { articles: 0, views: 0, likes: 0 }
       activityMap.set(date, {
         articles: existing.articles + 1,
         views: existing.views + (article.views || 0),
-        likes: existing.likes + (article.likes || 0)
+        likes: existing.likes + (article.likes || 0),
       })
     })
 
@@ -510,15 +532,14 @@ export const getUserArticleStats = cache(async (authorId: string): Promise<{
         averageViews,
         averageLikes,
         mostViewedArticle,
-        recentActivity
-      }
+        recentActivity,
+      },
     }
-
   } catch (error) {
     logger.error('Error fetching user article stats:', error)
     return {
       success: false,
-      error: 'Failed to fetch article statistics'
+      error: 'Failed to fetch article statistics',
     }
   }
 })
@@ -538,50 +559,42 @@ export async function deleteNewsArticle(articleId: string): Promise<{
     if (!session?.user) {
       return {
         success: false,
-        error: 'Authentication required'
+        error: 'Authentication required',
       }
     }
 
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Check permissions
-    const userRole = (session.user as any).role as UserRole
-    const articleResult = await db.read('news', articleId)
+    const userRole = (session.user as { role?: UserRole }).role as UserRole
+    const articleResult = await db().readDoc<Record<string, unknown>>('news', articleId)
 
     if (!articleResult.success || !articleResult.data) {
       return {
         success: false,
-        error: 'Article not found'
+        error: 'Article not found',
       }
     }
 
-    const articleData = articleResult.data as any
-    if (!canDeleteArticle(userRole, articleData?.authorId, session.user.id)) {
+    const articleData = articleResult.data
+    if (!canDeleteArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
       return {
         success: false,
-        error: 'Not authorized to delete this article'
+        error: 'Not authorized to delete this article',
       }
     }
 
-    // Delete the article
-    const deleteResult = await db.delete('news', articleId)
+    const deleteResult = await db().deleteDoc('news', articleId)
     if (!deleteResult.success) {
       throw deleteResult.error || new Error('Failed to delete article')
     }
 
-    // Revalidate paths
-
     return {
       success: true,
-      message: 'Article deleted successfully'
+      message: 'Article deleted successfully',
     }
-
   } catch (error) {
     logger.error('Error deleting news article:', error)
     return {
       success: false,
-      error: 'Failed to delete article'
+      error: 'Failed to delete article',
     }
   }
 }

@@ -19,7 +19,7 @@ import {
   ExternalIntegrations
 } from '@/features/auth/types';
 import { cache } from 'react';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
 
@@ -230,29 +230,24 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     console.log(`🔍 getUserById - Using database abstraction layer for user: ${userId}`);
 
     try {
-      // Initialize database service if needed
-      console.log(`🔍 getUserById - Initializing database service`);
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        console.error(`❌ getUserById - Database initialization failed:`, initResult.error);
-        console.log(`⚠️ getUserById - Cannot proceed without database connection`);
-        return null;
-      }
-
-      console.log(`✅ getUserById - Database initialization successful`);
-
-      const dbService = getDatabaseService();
       console.log(`🔍 getUserById - Attempting to read user from database:`, userId);
-      const userResult = await dbService.read('users', userId);
+      const userResult = await db().readDoc<Record<string, unknown>>('users', userId);
       console.log(`🔍 getUserById - Database read result:`, {
         success: userResult.success,
         hasData: !!userResult.data,
         error: userResult.error
       });
 
-      if (!userResult.success || !userResult.data) {
+      if (!userResult.success) {
+        if (userResult.metadata?.operation === 'initialize') {
+          console.error(`❌ getUserById - Database initialization failed:`, userResult.error);
+        }
         console.log(`Services: getUserById - User document not found for ID: ${userId}`);
-        console.log(`Services: getUserById - Database result:`, userResult);
+        return null;
+      }
+
+      if (!userResult.data) {
+        console.log(`Services: getUserById - User document not found for ID: ${userId}`);
         return null;
       }
 
@@ -262,11 +257,6 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
         documentType: typeof dbDocument,
         documentKeys: dbDocument ? Object.keys(dbDocument) : []
       });
-
-      if (!dbDocument) {
-        console.log(`Services: getUserById - No document found in database result`);
-        return null;
-      }
 
     // Convert timestamps to Date objects consistently
     const convertTimestamp = (timestamp: any): Date => {
@@ -287,8 +277,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
       return new Date();
     };
 
-    // Extract the actual data from the database document
-    const userData = (dbDocument as any).data || dbDocument;
+    const userData = dbDocument;
     console.log(`Services: getUserById - Extracted user data:`, {
       hasData: !!userData,
       dataKeys: userData ? Object.keys(userData) : [],

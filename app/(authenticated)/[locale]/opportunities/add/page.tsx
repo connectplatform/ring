@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 import React, { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { cookies, headers } from 'next/headers'
@@ -13,7 +14,7 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { connection } from 'next/server'
-import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { logger } from '@/lib/logger'
 
 // Role hierarchy for access control
@@ -71,8 +72,6 @@ export async function generateMetadata({
     path: 'opportunities.add',
     pathname: '/opportunities/add',
     fallback: addOpportunitySeoFallback(opportunityType),
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: { index: false, follow: false },
   })
 }
@@ -116,7 +115,7 @@ export default async function AddOpportunityPage(props: PageProps) {
   const token = cookieStore.get("token");
   const userAgent = headersList.get('user-agent');
 
-  const baseUrl = getSeoSiteBaseUrl()
+  const baseUrl = getSiteBaseUrl()
   const description = addOpportunitySeoFallback(typeof type === 'string' ? type : undefined).description
   const canonicalUrl =
     validLocale === routing.defaultLocale

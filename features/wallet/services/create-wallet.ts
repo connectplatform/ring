@@ -10,7 +10,6 @@ import { UserRole, Wallet } from '@/features/auth/types';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
 
 /**
  * Legacy wallet creation service - DEPRECATED

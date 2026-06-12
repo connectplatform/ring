@@ -11,7 +11,7 @@ import WalletWrapper from '@/components/wrappers/wallet-wrapper'
 import WalletPageClient from './wallet-client'
 import { connection } from 'next/server'
 import { logger } from '@/lib/logger'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type WalletParams = Record<string, never>
 
@@ -31,8 +31,6 @@ export async function generateMetadata({
     locale,
     path: 'wallet',
     pathname: '/wallet',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: walletRobots,
   })
 }

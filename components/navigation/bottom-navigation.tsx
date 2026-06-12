@@ -43,6 +43,11 @@ import { ChevronRight, Languages, Moon, Sun, LogIn } from 'lucide-react'
 import { eventBus } from '@/lib/event-bus.client'
 import { cn } from '@/lib/utils'
 import { getBrandName } from '@/lib/site-branding'
+import {
+  BorderBeam,
+  davinciAuthButtonLift,
+  davinciGlassSurface,
+} from '@/lib/ui/davinci'
 
 const AnimatedLogo = dynamic(() => import('@/components/common/widgets/animated-logo'), {
   ssr: false,
@@ -107,9 +112,6 @@ function CenterAddButton({ onClick }: { onClick: () => void }) {
 }
 
 
-const authButtonLift =
-  'transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0'
-
 function BottomNavGuestAuth({
   onClose,
   className,
@@ -126,7 +128,7 @@ function BottomNavGuestAuth({
 
   const handleSignIn = async (provider: 'google' | 'apple' | 'metamask') => {
     if (provider === 'metamask') {
-      router.push(`/${locale}/auth/wallet-connect`)
+      router.push(ROUTES.WALLET_CONNECT(locale))
       onClose?.()
       return
     }
@@ -139,13 +141,11 @@ function BottomNavGuestAuth({
   }
 
   return (
-    <div
-      className={cn(
-        'rounded-2xl bg-white/5 backdrop-blur-md border border-white/10',
-        'hover:border-white/20 hover:bg-white/10 transition-all duration-300 mb-6 p-5',
-        className
-      )}
+    <BorderBeam
+      className={cn('rounded-2xl mb-6', className)}
+      innerClassName={cn('p-5', davinciGlassSurface, 'border-0')}
       style={style}
+      duration="5s"
     >
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
@@ -163,7 +163,7 @@ function BottomNavGuestAuth({
           className={cn(
             'flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-xl',
             'bg-white text-gray-800 hover:bg-gray-50 font-semibold shadow-lg shadow-black/5',
-            authButtonLift
+            davinciAuthButtonLift
           )}
         >
           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
@@ -181,7 +181,7 @@ function BottomNavGuestAuth({
             className={cn(
               'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
               'bg-black text-white hover:bg-gray-900 font-semibold shadow-lg',
-              authButtonLift
+              davinciAuthButtonLift
             )}
           >
             {tAuth('signIn.providers.apple')}
@@ -192,14 +192,14 @@ function BottomNavGuestAuth({
             className={cn(
               'flex flex-1 items-center justify-center gap-2 py-3.5 px-4 rounded-xl',
               'bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-lg',
-              authButtonLift
+              davinciAuthButtonLift
             )}
           >
             {tAuth('signIn.providers.metamask')}
           </button>
         </div>
       </div>
-    </div>
+    </BorderBeam>
   )
 }
 

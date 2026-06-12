@@ -22,7 +22,10 @@ const BASE_ROUTES = {
   ADMIN_PERFORMANCE: '/admin/performance',
   ADMIN_SECURITY: '/admin/security',
   ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_STORE: '/admin/store',
   ADMIN_STORE_ORDERS: '/admin/store/orders',
+  ADMIN_STORE_STOCK: '/admin/store/stock',
+  ADMIN_STORE_COMMISSIONS: '/admin/store/commissions',
   ADMIN_USERS: '/admin/users',
   AUTH_STATUS: '/auth/status/[action]/[status]',
   CART: '/store/cart',
@@ -40,6 +43,7 @@ const BASE_ROUTES = {
   DOCS: '/docs',
   EDITOR: '/editor',
   ENTITIES: '/entities',
+  MY_ENTITIES: '/entities/my',
   ENTITY: (id: string) => `/entities/${id}`,
   ENTITY_ADD: '/entities/add',
   ENTITY_EDIT: (id: string) => `/entities/${id}/edit`,
@@ -60,18 +64,29 @@ const BASE_ROUTES = {
   OPPORTUNITY_STATUS: '/opportunities/status/[action]/[status]',
   PRIVACY: '/privacy',
   PROFILE: '/profile',
+  PUBLIC_PROFILE: (username: string) => `/u/${encodeURIComponent(username)}`,
   PUBLICATIONS: '/publications',
   REF_MAGIC: '/refmagic',
   REFMAGIC: '/refmagic',
   REGISTER: '/register',
   SETTINGS: '/settings',
   STORE: '/store',
+  STORE_PRODUCT: (id: string) => `/store/${id}`,
   STORE_ORDERS: '/store/orders',
   STORE_ORDER_DETAILS: '/store/orders/[id]',
   TERMS: '/terms',
   UNAUTHORIZED: '/unauthorized',
   VERIFY_EMAIL: '/verify-email',
-  WALLET: '/wallet'
+  WALLET: '/wallet',
+  WALLET_CONNECT: '/auth/wallet-connect',
+  REFCODES: '/refcodes',
+  ADMIN_REFCODES: '/admin/refcodes',
+  ADMIN_EMAIL_INBOX: '/admin/email-inbox',
+  ADMIN_EMAIL_DRAFTS: '/admin/email-drafts',
+  ADMIN_EMAIL_CONTACTS: '/admin/email-contacts',
+  ADMIN_EMAIL_ANALYTICS: '/admin/email-analytics',
+  ADMIN_EMAIL_TASKS: '/admin/email-tasks',
+  ADMIN_EMAIL_THREAD: (id: string) => `/admin/email-inbox/${encodeURIComponent(id)}`,
 }
 
 // Localized routes
@@ -94,7 +109,12 @@ export const ROUTES = {
   DOCS: (locale: Locale = defaultLocale) => withLocale(locale, '/docs'),
   EDITOR: (locale: Locale = defaultLocale) => withLocale(locale, '/editor'),
   ENTITIES: (locale: Locale = defaultLocale) => withLocale(locale, '/entities'),
+  MY_ENTITIES: (locale: Locale = defaultLocale) => withLocale(locale, '/entities/my'),
   ENTITY: (id: string, locale: Locale = defaultLocale) => withLocale(locale, `/entities/${id}`),
+  ENTITY_EDIT: (id: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/entities/${id}/edit`),
+  ENTITY_DELETE: (id: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/entities/${id}/delete`),
   ENTITY_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => withLocale(locale, `/entities/status/${action}/${status}`),
   FORGOT_PASSWORD: (locale: Locale = defaultLocale) => withLocale(locale, '/forgot-password'),
   HELP: (locale: Locale = defaultLocale) => withLocale(locale, '/help'),
@@ -113,6 +133,8 @@ export const ROUTES = {
   OPPORTUNITY_STATUS: (action: string, status: string, locale: Locale = defaultLocale) => withLocale(locale, `/opportunities/status/${action}/${status}`),
   PRIVACY: (locale: Locale = defaultLocale) => withLocale(locale, '/privacy'),
   PROFILE: (locale: Locale = defaultLocale) => withLocale(locale, '/profile'),
+  PUBLIC_PROFILE: (username: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/u/${encodeURIComponent(username)}`),
   PUBLICATIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/publications'),
   REF_MAGIC: (locale: Locale = defaultLocale) => withLocale(locale, '/refmagic'),
   REFMAGIC: (locale: Locale = defaultLocale) => withLocale(locale, '/refmagic'),
@@ -120,12 +142,15 @@ export const ROUTES = {
   RESET_PASSWORD: (locale: Locale = defaultLocale) => withLocale(locale, '/reset-password'),
   SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/settings'),
   STORE: (locale: Locale = defaultLocale) => withLocale(locale, '/store'),
+  STORE_PRODUCT: (id: string, locale: Locale = defaultLocale) => withLocale(locale, `/store/${id}`),
   STORE_ORDERS: (locale: Locale = defaultLocale) => withLocale(locale, '/store/orders'),
   STORE_ORDER_DETAILS: (locale: Locale = defaultLocale, id: string) => withLocale(locale, `/store/orders/${id}`),
   TERMS: (locale: Locale = defaultLocale) => withLocale(locale, '/terms'),
   UNAUTHORIZED: (locale: Locale = defaultLocale) => withLocale(locale, '/unauthorized'),
   VERIFY_EMAIL: (locale: Locale = defaultLocale) => withLocale(locale, '/verify-email'),
   WALLET: (locale: Locale = defaultLocale) => withLocale(locale, '/wallet'),
+  WALLET_CONNECT: (locale: Locale = defaultLocale) => withLocale(locale, '/auth/wallet-connect'),
+  REFCODES: (locale: Locale = defaultLocale) => withLocale(locale, '/refcodes'),
   // Admin routes
   ADMIN: (locale: Locale = defaultLocale) => withLocale(locale, '/admin'),
   ADMIN_USERS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/users'),
@@ -140,7 +165,11 @@ export const ROUTES = {
   ADMIN_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/settings'),
   ADMIN_MATCHER: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/matcher'),
   ADMIN_PERFORMANCE: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/performance'),
+  ADMIN_STORE: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store'),
   ADMIN_STORE_ORDERS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/orders'),
+  ADMIN_STORE_STOCK: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/stock'),
+  ADMIN_STORE_COMMISSIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/commissions'),
+  ADMIN_REFCODES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/refcodes'),
   ADMIN_NEWS_COMMENTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/comments'),
   ADMIN_NEWS_TAGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/tags'),
   // Vendor Routes - Multi-Vendor Marketplace
@@ -152,6 +181,7 @@ export const ROUTES = {
   VENDOR_ORDERS: (locale: Locale = defaultLocale) => withLocale(locale, '/vendor/orders'),
   VENDOR_EARNINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/vendor/earnings'),
   VENDOR_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/vendor/settings'),
+  VENDOR_STOCK: (locale: Locale = defaultLocale) => withLocale(locale, '/vendor/stock'),
   VENDOR_STOREFRONT: (locale: Locale = defaultLocale, vendorId: string) => withLocale(locale, `/store/vendors/${vendorId}`)
 }
 
@@ -168,8 +198,4 @@ export const API_ROUTES = {
   SUBMIT_CONTACT_FORM: '/api/contact'
 }
 
-export const EXTERNAL_LINKS = {
-  GITHUB: 'https://github.com/connectplatform/ring',
-  TWITTER: 'https://twitter.com/sonoratek',
-  LINKEDIN: 'https://linkedin.com/company/connectedin',
-}
+export { getSocialLinks } from '@/lib/ring-config-core'

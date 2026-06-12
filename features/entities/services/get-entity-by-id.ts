@@ -8,7 +8,9 @@
 
 import { Entity, SerializedEntity } from '@/features/entities/types'
 import { cache } from 'react'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import { mapDbRowToSerializedEntity } from '@/features/entities/lib/entity-db-mapper'
+import { isEntityGloballyBlocked } from '@/features/entities/lib/entity-visibility-filter'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
 
@@ -79,21 +81,26 @@ export const getEntityById = cache(async (id: string): Promise<Entity | null> =>
     const userRole = (session?.user?.role as UserRole) || UserRole.VISITOR
 
     // Step 2: Fetch entity using DatabaseService
-    const result = await db().execute('findById', {
-      collection: 'entities',
-      id: id
-    });
+    const result = await db().findDocById<Entity & { id: string }>('entities', id)
 
     if (!result.success || !result.data) {
       return null
     }
 
-    const entity = result.data.data as Entity
+    const entity = result.data as Entity
 
     // Step 3: Apply Platform Philosophy access control
     // Confidential entities: CONFIDENTIAL or ADMIN only
     if (entity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
       throw new EntityAccessDeniedError('Confidential entity access requires CONFIDENTIAL or ADMIN role')
+    }
+
+    const serialized = mapDbRowToSerializedEntity(id, entity as unknown as Record<string, unknown>)
+    const isAdmin = userRole === UserRole.ADMIN || userRole === UserRole.SUPERADMIN
+    const isOwner = entity.addedBy === session.user.id
+
+    if (isEntityGloballyBlocked(serialized) && !isAdmin && !isOwner) {
+      throw new EntityAccessDeniedError('This entity is not available')
     }
 
     return entity
@@ -122,9 +129,10 @@ export const getSerializedEntityById = cache(async (id: string): Promise<Seriali
       return null
     }
 
-    // Use the centralized entity serializer
-    const { serializeEntity } = await import('@/lib/converters/entity-serializer')
-    return serializeEntity(entity)
+    return mapDbRowToSerializedEntity(
+      id,
+      entity as unknown as Record<string, unknown>,
+    )
   } catch (error) {
     if (error instanceof EntityNotFoundError || error instanceof EntityAccessDeniedError) {
       throw error
@@ -142,13 +150,10 @@ export const getSerializedEntityById = cache(async (id: string): Promise<Seriali
  */
 export const getEntity = cache(async (entityId: string): Promise<Entity | null> => {
   try {
-    const result = await db().execute('findById', {
-      collection: 'entities',
-      id: entityId
-    });
+    const result = await db().findDocById<Entity & { id: string }>('entities', entityId)
 
     if (result.success && result.data) {
-      const entity = result.data.data as Entity;
+      const entity = result.data as Entity
       // Only return public entities for unauthenticated access
       if (entity && entity.isConfidential) {
         return null
@@ -168,14 +173,14 @@ export const getEntity = cache(async (entityId: string): Promise<Entity | null> 
  * @param userId - The user ID to fetch entities for
  * @returns Promise that resolves to array of Entity objects
  */
-export const getUserEntities = cache(async (userId: string): Promise<Entity[]> => {
+/** @deprecated Prefer `getUserCreatedEntities` from `get-user-entities.ts` */
+export const getUserEntities = cache(async (userId: string): Promise<SerializedEntity[]> => {
   try {
     const session = await auth()
     if (!session?.user) {
       return []
     }
 
-    // Users can only see their own entities or admins can see all
     const userRole = session.user.role as UserRole
     const canViewAll = userRole === UserRole.ADMIN
     const isOwnEntities = session.user.id === userId
@@ -184,19 +189,9 @@ export const getUserEntities = cache(async (userId: string): Promise<Entity[]> =
       throw new EntityAccessDeniedError('Can only view own entities')
     }
 
-    const queryResult = await db().execute('find', {
-      collection: 'entities',
-      filters: [{ field: 'addedBy', operator: '==', value: userId }],
-      options: {
-        orderBy: [{ field: 'dateAdded', direction: 'desc' }]
-      }
-    });
-
-    if (queryResult.success && queryResult.data) {
-      return queryResult.data.map(item => item.data as Entity);
-    }
-
-    return [];
+    const { getUserCreatedEntities } = await import('@/features/entities/services/get-user-entities')
+    const result = await getUserCreatedEntities(userId)
+    return result.entities
   } catch (error) {
     return []
   }

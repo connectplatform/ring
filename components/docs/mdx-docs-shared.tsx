@@ -4,46 +4,58 @@
  * - remark-gfm: GFM tables, strikethrough, task lists, autolinks (not provided by remark-mdx alone).
  * - Mermaid / MindMap / RingAISynapseFlow: MDX JSX components — not remark plugins; expose them here so
  *   `library/index.mdx` can use the same blocks as deeper pages.
- * - @shikijs/rehype: fenced code highlighting (rehype, not remark).
+ * - Fenced code: `rehypeCodeFenceToMdx` → async `<Code>` → server Shiki (`highlightCodeToHtml`).
  */
 import React from 'react'
 import Image from 'next/image'
 import remarkGfm from 'remark-gfm'
-import rehypeShiki from '@shikijs/rehype'
 import { rehypeMermaidFenceToMdx } from '@/components/docs/rehype-mermaid-fence'
+import { rehypeCodeFenceToMdx } from '@/components/docs/rehype-code-fence-to-mdx'
 import { Callout } from '@/components/docs/callout'
 import { Steps, Step } from '@/components/docs/steps'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card as UiCard,
+  CardContent as UiCardContent,
+  CardDescription as UiCardDescription,
+  CardHeader as UiCardHeader,
+  CardTitle as UiCardTitle,
+} from '@/components/ui/card'
+import { Card, Cards } from '@/components/docs/card'
 import { Mermaid } from '@/components/docs/mermaid'
-import { MindMap } from '@/components/docs/mindmap'
 import { Code } from '@/components/docs/code'
 import { InlineCode } from '@/components/docs/inline-code'
-import { RingAISynapseFlow } from '@/components/docs/ring-ai-synapse-flow'
-
-function collectTextNodes(node: React.ReactNode): string {
-  if (node == null || typeof node === 'boolean') return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(collectTextNodes).join('')
-  if (React.isValidElement(node)) {
-    const p = node.props as { children?: React.ReactNode }
-    return collectTextNodes(p.children)
-  }
-  return ''
-}
+import { Tabs, Tab } from '@/components/docs/tabs'
+import {
+  CodeSandbox,
+  Math,
+  MathBlock,
+  MindMap,
+  RingAISynapseFlow,
+  Timeline,
+} from '@/components/docs/mdx-heavy-components'
+import { collectDiagramSource } from '@/components/docs/diagram-source'
 
 export const docsMdxComponents = {
   Callout,
   Steps,
   Step,
+  Tabs,
+  Tab,
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Cards,
+  UiCard,
+  UiCardHeader,
+  UiCardTitle,
+  UiCardDescription,
+  UiCardContent,
   Mermaid,
   MindMap,
   Code,
   RingAISynapseFlow,
+  Timeline,
+  Math,
+  MathBlock,
+  CodeSandbox,
   h1: ({ children, ...props }: React.ComponentProps<'h1'>) => (
     <h1
       className="text-4xl font-bold tracking-tight mb-6 mt-8 first:mt-0 text-foreground scroll-mt-20"
@@ -135,29 +147,18 @@ export const docsMdxComponents = {
   img: ({ alt, ...props }: React.ComponentProps<'img'>) => (
     <Image className="rounded-lg border border-border my-6" alt={alt || ''} width={100} height={100} src={props.src as string} />
   ),
-  pre: ({ children, ...props }: React.ComponentProps<'pre'>) => {
-    const arr = React.Children.toArray(children)
-    if (arr.length === 1 && React.isValidElement(arr[0])) {
-      const el = arr[0] as React.ReactElement<{ className?: string; children?: React.ReactNode }>
-      const cn = el.props?.className
-      if (typeof cn === 'string' && cn.includes('language-mermaid')) {
-        const text = collectTextNodes(el.props.children).trimEnd()
-        return <Mermaid title="Diagram">{text}</Mermaid>
-      }
-    }
-    return (
-      <pre
-        className="mb-4 mt-4 overflow-x-auto rounded-lg border border-border bg-muted p-4 font-mono text-sm"
-        {...props}
-      >
-        {children}
-      </pre>
-    )
-  },
+  pre: ({ children, ...props }: React.ComponentProps<'pre'>) => (
+    <pre
+      className="mb-4 mt-4 overflow-x-auto rounded-lg border border-border bg-muted p-4 font-mono text-sm"
+      {...props}
+    >
+      {children}
+    </pre>
+  ),
   code: ({ children, className, ...props }: React.ComponentProps<'code'>) => {
     const isInline = !className?.includes('language-')
     if (!isInline && typeof className === 'string' && className.includes('language-mermaid')) {
-      const text = collectTextNodes(children).trimEnd()
+      const text = collectDiagramSource(children).trimEnd()
       return <Mermaid title="Diagram">{text}</Mermaid>
     }
     return isInline ? (
@@ -196,19 +197,7 @@ export function getDocsMdxRemoteOptions() {
   return {
     mdxOptions: {
       remarkPlugins: [remarkGfm],
-      rehypePlugins: [
-        [rehypeMermaidFenceToMdx],
-        [
-          rehypeShiki,
-          {
-            themes: {
-              light: 'nord',
-              dark: 'tokyo-night',
-            },
-            defaultColor: false,
-          },
-        ],
-      ] as any,
+      rehypePlugins: [[rehypeMermaidFenceToMdx], [rehypeCodeFenceToMdx]] as any,
     },
   }
 }

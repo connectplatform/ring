@@ -8,7 +8,7 @@
 import { AuthUser, UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
 import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 
 /**
  * Create a new user in Firestore, with authentication and role-based access control.
@@ -88,20 +88,16 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       }
     }
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Step 3: Check if user already exists by email
     try {
-      const existingResult = await db.query({
+      const existingResult = await db().queryDocs({
         collection: 'users',
         filters: [{ field: 'email', operator: '=', value: userData.email }],
         pagination: { limit: 1 }
       })
       
-      if (existingResult.success && existingResult.data) {
-        const users = Array.isArray(existingResult.data) ? existingResult.data : (existingResult.data as any).data || []
+      if (existingResult.success && existingResult.data.length > 0) {
+        const users = existingResult.data
         if (users.length > 0) {
           throw new ValidationError(
             'User with this email already exists',
@@ -169,7 +165,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
 
     // Step 5: Create the user document using DatabaseService
     try {
-      const createResult = await db.create('users', newUser, { id: newUser.id })
+      const createResult = await db().createDoc('users', newUser as unknown as Record<string, unknown>, { id: newUser.id })
       
       if (!createResult.success) {
         throw new EntityDatabaseError(

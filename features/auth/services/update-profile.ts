@@ -7,7 +7,7 @@
 import { ProfileFormData, UserRole } from '@/features/auth/types';
 
 import { cache } from 'react';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 import { auth } from '@/auth'; // Use the Auth.js v5 handler to get the session
 
@@ -43,17 +43,7 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
 
     console.log(`Services: updateProfile - User authenticated with ID ${userId} and role ${userRole}`);
 
-    // Step 2: Database setup
-    console.log(`Services: updateProfile - Initializing database service`);
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      console.error(`Services: updateProfile - Database initialization failed:`, initResult.error);
-      throw new Error('Database initialization failed');
-    }
-
-    const dbService = getDatabaseService();
-
-    // Step 3: Apply role validation (if needed)
+    // Step 2: Apply role validation (if needed)
     if (data.role && userRole !== UserRole.ADMIN) {
       throw new Error('Only ADMIN users can update the role field.');
     }
@@ -141,7 +131,7 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
     };
 
     // Step 5: Update the PostgreSQL document
-    const updateResult = await dbService.update('users', userId, updateData);
+    const updateResult = await db().updateDoc('users', userId, updateData);
     if (!updateResult.success) {
       console.error(`Services: updateProfile - Failed to update user:`, updateResult.error);
       throw new Error('Failed to update profile in database');

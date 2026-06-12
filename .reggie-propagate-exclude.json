@@ -1,0 +1,28 @@
+{
+  "exclude_paths": [
+    ".env",
+    ".env.local",
+    ".env.production",
+    "contracts/deployments/",
+    "ring-config.json",
+    "locales/en/calculator.json",
+    "locales/uk/calculator.json",
+    "locales/ru/calculator.json",
+    "locales/en/config.json",
+    "locales/uk/config.json",
+    "locales/ru/config.json",
+    "locales/en/vendor.json",
+    "locales/uk/vendor.json",
+    "locales/ru/vendor.json"
+  ],
+  "exclude_env_keys": [
+    "REFERRAL_MINTER_PRIVATE_KEY",
+    "REFERRAL_MINTER_ADDRESS",
+    "REFERRAL_REWARDS_ADDRESS",
+    "REFERRAL_REWARD_TOKEN_ADDRESS",
+    "REFERRAL_REWARD_PERCENT",
+    "REFERRAL_CHAIN_ID",
+    "REFERRAL_UAH_PER_USD",
+    "REFERRAL_REWARD_MODE"
+  ]
+}

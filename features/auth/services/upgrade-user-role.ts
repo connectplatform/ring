@@ -2,7 +2,7 @@
 
 import { UserRole } from '@/features/auth/types'
 import { logger } from '@/lib/logger'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
 
 export interface UpgradePaymentMetadata {
   paymentReference: string
@@ -34,12 +34,7 @@ export async function upgradeUserRole(
       paymentReference: paymentMetadata.paymentReference
     })
 
-    // Initialize and get database service
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Fetch current user
-    const userResult = await db.findById('users', userId)
+    const userResult = await db().findDocById<Record<string, unknown>>('users', userId)
     if (!userResult.success || !userResult.data) {
       logger.error('Role upgrade: User not found', { userId })
       return {
@@ -48,7 +43,7 @@ export async function upgradeUserRole(
       }
     }
 
-    const user = userResult.data.data
+    const user = userResult.data
 
     // Validate upgrade is allowed
     const roleHierarchy = {
@@ -59,7 +54,7 @@ export async function upgradeUserRole(
       [UserRole.ADMIN]: 4
     }
 
-    const currentLevel = roleHierarchy[user.role as UserRole] || 0
+    const currentLevel = roleHierarchy[(user.role as UserRole)] || 0
     const targetLevel = roleHierarchy[targetRole] || 0
 
     if (targetLevel <= currentLevel) {
@@ -82,9 +77,9 @@ export async function upgradeUserRole(
     }
 
     // Update user role and payment history
-    await db.update('users', userId, {
+    await db().updateDoc('users', userId, {
       role: targetRole,
-      paymentHistory: [...(user.paymentHistory || []), paymentHistory],
+      paymentHistory: [...((user.paymentHistory as unknown[]) || []), paymentHistory],
       updatedAt: new Date()
     })
 

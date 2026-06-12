@@ -82,6 +82,10 @@
       "title": "Увійти - Ring Platform",
       "description": "Увійдіть до свого аккаунта Ring Platform. Отримайте доступ до професійної мережі, можливостей та функцій блокчейну."
     },
+    "walletConnect": {
+      "title": "Підключити гаманець - Ring Platform",
+      "description": "Увійдіть через Web3-гаманець: MetaMask, WalletConnect або Coinbase Wallet."
+    },
     "status": {
       "title": "{{action}} {{status}} - Ring Platform",
       "description": "Стан вашої операції {{action}}: {{status}}. Керуйте своїм статусом авторизації та наступними кроками."

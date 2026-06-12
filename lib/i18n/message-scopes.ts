@@ -23,7 +23,8 @@ export type LocaleFileId =
   | 'config'
   | 'about'
   | 'about-publisher'
-  | 'deployment-calculator'
+  | 'calculator'
+  | 'roadmap'
   | 'terms'
   | 'filters'
   | 'search'
@@ -54,6 +55,7 @@ export type LocaleFileId =
   | 'modNft'
   | 'modNews'
   | 'modNotifications'
+  | 'modRefcodes'
   | 'vendor'
   | 'confidential'
 
@@ -81,7 +83,8 @@ const PUBLIC_CONTENT: LocaleFileId[] = [
   'search',
   'comments',
   'about-publisher',
-  'deployment-calculator',
+  'calculator',
+  'roadmap',
   'global-impact',
   'tokenomics',
   'ai-web3',
@@ -97,6 +100,7 @@ const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'modProfile',
   'modSettings',
   'modWallet',
+  'modRefcodes',
   'modMessenger',
   'modNft',
   'modNotifications',
@@ -109,7 +113,7 @@ const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'reviews',
 ]
 
-const ADMIN_EXTRA: LocaleFileId[] = ['modAdmin', 'emails', 'editor', 'modNews']
+const ADMIN_EXTRA: LocaleFileId[] = ['modAdmin', 'modRefcodes', 'emails', 'editor', 'modNews']
 
 const CONFIDENTIAL_EXTRA: LocaleFileId[] = ['confidential']
 
@@ -122,7 +126,8 @@ const ALL_FILES: LocaleFileId[] = [
   'emails',
   'about',
   'about-publisher',
-  'deployment-calculator',
+  'calculator',
+  'roadmap',
   'terms',
   'filters',
   'search',
@@ -152,6 +157,7 @@ const ALL_FILES: LocaleFileId[] = [
   'modNft',
   'modNews',
   'modNotifications',
+  'modRefcodes',
   'vendor',
   'confidential',
 ]
@@ -199,7 +205,7 @@ export function resolveMessageScope(pathname: string): MessageScope {
   if (normalized.startsWith('/confidential')) return 'confidential'
   if (normalized.startsWith('/intro')) return 'presentation'
   if (
-    /^\/(profile|settings|wallet|vendor|entities|opportunities|contacts|notifications|meetups|pets|places|editor|publications)(\/|$)/.test(
+    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|meetups|pets|places|editor|publications)(\/|$)/.test(
       normalized,
     ) ||
     normalized.startsWith('/u/')

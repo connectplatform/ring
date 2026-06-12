@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { useActionState, useOptimistic } from 'react'
 import { useFormStatus } from 'react-dom'
 import dynamic from 'next/dynamic'
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Save, CheckCircle } from 'lucide-react'
+import { GenerateImageDialog } from '@/components/media/generate-image-dialog'
 
 // Dynamic import for TinyMCE to avoid SSR issues
 const TinyMCEEditor = dynamic(
@@ -105,6 +106,8 @@ export function RichTextEditor({
   disabled = false
 }: RichTextEditorProps) {
   const [optimisticContent, setOptimisticContent] = useOptimistic(content)
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false)
+  const editorRef = useRef<any>(null)
   
   // Fix: Move useActionState declaration before using the action
   const [autoSaveState, autoSaveDispatch] = useActionState(autoSaveAction, null)
@@ -150,7 +153,7 @@ export function RichTextEditor({
     ],
     toolbar: [
       'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough',
-      'link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography',
+      'link image generativeimage media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography',
       'align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat'
     ].join(' | '),
     content_style: `
@@ -199,6 +202,14 @@ export function RichTextEditor({
     automatic_uploads: true,
     file_picker_types: 'image',
     setup: (editor: any) => {
+      editorRef.current = editor
+
+      editor.ui.registry.addButton('generativeimage', {
+        text: 'Generate',
+        tooltip: 'Generate image with AI',
+        onAction: () => setGenerateDialogOpen(true),
+      })
+
       // Custom save button
       editor.addButton('customsave', {
         text: 'Save Draft',
@@ -219,8 +230,27 @@ export function RichTextEditor({
     }
   }
 
+  const insertGeneratedImage = useCallback((url: string) => {
+    const editor = editorRef.current
+    if (editor) {
+      editor.insertContent(`<img src="${url}" alt="Generated image" />`)
+      handleEditorChange(editor.getContent())
+      return
+    }
+    handleEditorChange(`${optimisticContent}<p><img src="${url}" alt="Generated image" /></p>`)
+  }, [handleEditorChange, optimisticContent])
+
   return (
     <div className="space-y-3">
+      <GenerateImageDialog
+        open={generateDialogOpen}
+        onOpenChange={setGenerateDialogOpen}
+        purpose={articleId ? `news-inline-${articleId}` : 'news-inline'}
+        defaultAspectRatio="16:9"
+        title="Generate inline image"
+        onImageReady={insertGeneratedImage}
+      />
+
       {/* Auto-save status */}
       {articleId && (
         <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">

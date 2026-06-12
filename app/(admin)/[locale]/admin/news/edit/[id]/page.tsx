@@ -1,15 +1,17 @@
 import React from 'react';
+import { getRingSeoBranding } from '@/lib/ring-config'
 import { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes' 
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
+import { mapNewsDocument } from '@/lib/news/map-news-document';
 import { NewsArticle } from '@/features/news/types';
 import { ArticleEditor } from '@/features/news/components/article-editor';
 import type { Locale } from '@/i18n/shared';
 import { routing } from '@/i18n/routing';
 import { getTranslations } from 'next-intl/server';
-import { RING_PLATFORM_SEO } from '@/lib/seo-metadata';
+;
 import NewsWrapper from '@/components/wrappers/news-wrapper';
 import { connection } from 'next/server'
 
@@ -18,24 +20,13 @@ import { connection } from 'next/server'
  */
 async function getArticle(id: string): Promise<NewsArticle | null> {
   try {
-    // Initialize database service with proper error handling
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      console.error('Database initialization failed:', initResult.error)
-      return null // Graceful degradation
-    }
-    const db = getDatabaseService()
-    
-    const result = await db.read('news', id);
-    
+    const result = await db().readDoc('news', id)
+
     if (!result.success || !result.data) {
-      return null;
+      return null
     }
-    
-    return {
-      id: result.data.id,
-      ...result.data
-    } as any as NewsArticle;
+
+    return mapNewsDocument(result.data)
   } catch (error) {
     console.error('Error fetching article:', error);
     return null;
@@ -56,7 +47,7 @@ export async function generateMetadata({
   const article = await getArticle(id);
 
   return {
-    title: `${t('createArticle')} | ${RING_PLATFORM_SEO.siteName}`,
+    title: `${t('createArticle')} | ${getRingSeoBranding().siteName}`,
     description: article?.title ? `Edit article: ${article.title}` : 'Edit article'
   };
 }

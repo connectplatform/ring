@@ -1,0 +1,34 @@
+---
+title: Склад і залишки
+description: ERPStockService, рухи, пороги та метадані реферальних продажів
+last_modified: "2026-06-10"
+---
+
+# Склад і залишки
+
+**Warehouse Manager** (`ERPStockService`) веде залишки на складі `zero-warehouse`, списує товар після оплати та логує рухи в `stock_movements`.
+
+> **EN canonical:** [Inventory & Stock (EN)](/docs/library/features/erp/inventory)
+
+## Можливості
+
+- `getStockSummary()` — дашборд (в наявності, low/critical/out, вартість).
+- `updateStock()` — add / subtract / set з причиною.
+- `getRecentStockMovements()` — аудит з `stock_movements`.
+- **Реферальні продажі** — рухи містять `referralCode` і `assisted: true`, коли на замовленні є атрибуція.
+
+## UI
+
+| Поверхня | Маршрут |
+|----------|---------|
+| Адмін | `/admin/store/stock` |
+| Вендор | `/vendor/stock` |
+
+## API
+
+`POST /api/erp/stock/initialize` — масова ініціалізація (admin).
+
+## Пов’язане
+
+- [Ring ERP](/docs/library/features/erp/index)
+- [Комісії](/docs/library/features/erp/commissions)

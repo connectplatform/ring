@@ -59,6 +59,7 @@ export interface NewsArticle {
   category: NewsCategory;
   tags: string[];
   featuredImage?: string;
+  audioUrl?: string;
   gallery?: string[];
   status: NewsStatus;
   visibility: NewsVisibility;
@@ -155,6 +156,7 @@ export interface NewsFormData {
   category: NewsCategory;
   tags: string[];
   featuredImage?: string;
+  audioUrl?: string;
   gallery?: string[];
   status: NewsStatus;
   visibility: NewsVisibility;

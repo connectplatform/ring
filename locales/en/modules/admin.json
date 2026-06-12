@@ -12,6 +12,8 @@
   },
   "settings": {
     "title": "Platform Settings (SuperAdmin)",
+    "subtitle": "Configure AI providers, branding, and platform-wide defaults.",
+    "navTitle": "Sections",
     "projectName": "Project Name",
     "shortDescription": "Short Description",
     "extendedDescription": "Extended Description",
@@ -33,7 +35,50 @@
     "customEntityCategories": "Custom Entity Categories",
     "customEntityPlaceholder": "One per line, e.g. Startup, NGO, SME",
     "reset": "Reset",
-    "save": "Save Settings"
+    "save": "Save Settings",
+    "sections": {
+      "ai": {
+        "nav": "AI & LLM",
+        "title": "AI & LLM Configuration",
+        "description": "Provider, models, API keys, matcher, and product agent defaults.",
+        "provider": "Primary provider",
+        "model": "Model",
+        "streamingStrategy": "Streaming strategy",
+        "streaming": {
+          "env_then_grok": "Env provider, Grok fallback",
+          "env_only": "Env provider only",
+          "grok_only": "xAI Grok only"
+        },
+        "streamingHint": {
+          "env_then_grok": "Use the configured provider for SSE when keys exist; otherwise fall back to xAI Grok.",
+          "env_only": "Never use Grok fallback for streaming.",
+          "grok_only": "Force xAI Grok for all streaming chat."
+        },
+        "apiKeys": "API keys",
+        "keySet": "configured",
+        "keyPlaceholder": "Paste key to set or replace",
+        "matcher": {
+          "scoreThreshold": "Match score threshold (0–1)",
+          "maxMatches": "Max matches per opportunity",
+          "autoApprove": "Auto-approve opportunities on LLM match",
+          "autoApproveHelp": "LLM-verified matches only; baseline fallback never auto-approves.",
+          "autoApproveMinScore": "Auto-approve minimum score (0–1)"
+        },
+        "productAgent": {
+          "maxTokens": "Product agent max tokens",
+          "temperature": "Product agent temperature"
+        },
+        "testConnection": "Test connection",
+        "testing": "Testing…",
+        "save": "Save AI settings",
+        "lastUpdated": "Last updated {at}"
+      },
+      "branding": {
+        "nav": "Branding",
+        "title": "Branding & Features",
+        "description": "Project name, theme colors, feature flags, and entity categories."
+      }
+    }
   },
   "matcher": {
     "title": "AI Matcher Analytics",
@@ -170,7 +215,101 @@
   "moderation": "Moderation",
   "performance": "Performance",
   "security": "Security",
-  "store": "Store"
+  "store": "Store",
+  "refcodes": "Referral rewards",
+  "matcherModeration": {
+    "tab": "Entity moderation",
+    "title": "Reported entities",
+    "subtitle": "User reports grouped by entity. Block globally to remove from discovery and matcher.",
+    "refresh": "Refresh",
+    "empty": "No entity reports in the queue.",
+    "reportCount": "{count} reports",
+    "reporter": "Reporter: {id}",
+    "blockGlobally": "Block globally",
+    "confirmBlock": "Block this entity for all users and remove it from search?",
+    "adminBlockReason": "Blocked by administrator from matcher moderation queue"
+  },
+  "storeHub": {
+    "orders": "Orders",
+    "stock": "Stock",
+    "commissions": "Commissions",
+    "stockTitle": "Warehouse Stock",
+    "commissionsTitle": "Vendor Commissions & Payouts",
+    "initializeStock": "Initialize stock (100 units)",
+    "initializingStock": "Initializing…",
+    "stockSummary": "Inventory summary",
+    "lowStock": "Low stock alerts",
+    "movements": "Recent stock movements",
+    "product": "Product",
+    "stock": "Stock",
+    "movementType": "Type",
+    "quantityChange": "Change",
+    "timestamp": "When",
+    "processPayouts": "Process due payouts",
+    "processingPayouts": "Processing…",
+    "pendingSettlements": "Pending settlements",
+    "vendor": "Vendor",
+    "netPayout": "Net payout",
+    "commission": "Commission",
+    "status": "Status",
+    "scheduledFor": "Scheduled",
+    "noSettlements": "No settlement records yet.",
+    "totalProductsLabel": "Total products",
+    "inStockLabel": "In stock",
+    "lowStockCountLabel": "Low stock",
+    "criticalLabel": "Critical",
+    "outOfStockLabel": "Out of stock",
+    "inventoryValueLabel": "Inventory value",
+    "noLowStockAlerts": "No low-stock alerts.",
+    "noMovementsYet": "No stock movements recorded yet.",
+    "stockUnits": "{count} units",
+    "initStockError": "Failed to initialize stock",
+    "settlementsTable": "Settlements",
+    "confirmProcessPayouts": "Process all due vendor settlements now?",
+    "noSettlementsDueMessage": "No settlements were due for processing.",
+    "batchComplete": "Batch {batchId}: {completed} completed, {failed} failed.",
+    "processSettlementsError": "Failed to process settlements",
+    "inclReferral": "incl. referral {amount}",
+    "effectiveReferralRate": "effective {percent}%",
+    "simulatedBadge": "Simulated",
+    "referralRatesTitle": "Product referral rates",
+    "referralRatesProduct": "Product",
+    "referralRatesVendor": "Vendor entity",
+    "referralRatesPercent": "Effective %",
+    "referralRatesSource": "Source",
+    "referralRatesEmpty": "No products in catalog.",
+    "referralSource": {
+      "product": "Product override",
+      "merchant": "Merchant config",
+      "default": "Platform default",
+      "env": "Environment default"
+    },
+    "ordersPage": {
+      "title": "Orders",
+      "allStatuses": "All statuses",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "errorPrefix": "Error",
+      "updateStatusError": "Failed to update order status",
+      "noOrders": "No orders.",
+      "noOrdersWithStatus": "No orders with status \"{status}\".",
+      "orderNumber": "Order #{id}",
+      "statusLabel": "Status",
+      "userLabel": "User",
+      "createdLabel": "Created",
+      "itemsLabel": "Items",
+      "update": "Update",
+      "updating": "Updating…",
+      "statuses": {
+        "new": "New",
+        "paid": "Paid",
+        "processing": "Processing",
+        "shipped": "Shipped",
+        "completed": "Completed",
+        "canceled": "Canceled"
+      }
+    }
+  }
 }
 
 

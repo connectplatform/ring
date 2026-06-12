@@ -6,7 +6,9 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { getTranslations } from 'next-intl/server'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
-import { getDatabaseService, initializeDatabase } from '@/lib/database/DatabaseService'
+import { getMerchantConfigByEntityId } from '@/features/store/lib/merchant-config'
+import { resolveReferralCommissionPercent } from '@/features/store/lib/referral-commission'
+import { db } from '@/lib/database'
 import ProductFormWrapper from '@/components/wrappers/product-form-wrapper'
 import ProductForm from '../../product-form'
 import { connection } from 'next/server'
@@ -66,19 +68,20 @@ export default async function EditProductPage({
       redirect(ROUTES.VENDOR_START(validLocale));
     }
 
-    await initializeDatabase();
-    const db = getDatabaseService();
-    const productResult = await db.read('store_products', resolvedParams.id);
+    const productResult = await db().readDoc('store_products', resolvedParams.id)
 
     if (!productResult.success || !productResult.data) {
-      notFound();
+      notFound()
     }
 
-    const product = productResult.data.data || productResult.data;
+    const product = productResult.data as Record<string, unknown>
 
     if (product.entity_id !== vendorEntity.id) {
       redirect(ROUTES.VENDOR_PRODUCTS(validLocale));
     }
+
+    const merchantConfig = await getMerchantConfigByEntityId(vendorEntity.id)
+    const inheritedReferralPercent = resolveReferralCommissionPercent(undefined, merchantConfig).percent
 
     return (
     <ProductFormWrapper locale={validLocale} mode="edit">
@@ -101,6 +104,7 @@ export default async function EditProductPage({
           locale={validLocale}
           vendorEntity={vendorEntity}
           existingProduct={product}
+          inheritedReferralPercent={inheritedReferralPercent}
         />
       </div>
     </ProductFormWrapper>

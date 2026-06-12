@@ -82,6 +82,10 @@
       "title": "Sign In - Ring Platform",
       "description": "Sign in to your Ring Platform account. Access your professional network, opportunities, and blockchain features."
     },
+    "walletConnect": {
+      "title": "Подключить кошелёк - Ring Platform",
+      "description": "Войдите через Web3-кошелёк: MetaMask, WalletConnect или Coinbase Wallet."
+    },
     "status": {
       "title": "{{action}} {{status}} - Ring Platform",
       "description": "Your {{action}} is {{status}}. Manage your authentication status and next steps."

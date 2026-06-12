@@ -57,7 +57,6 @@ import WalletSection from '@/features/wallet/components/wallet-section'
 import { useAuth } from '@/hooks/use-auth'
 import { useSession, signOut } from 'next-auth/react'
 import { ROUTES } from '@/constants/routes'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import {
   User,
@@ -674,13 +673,8 @@ export default function ProfileContent({
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden relative transition-colors duration-300">
       <div className="flex gap-6 min-h-screen">
-        {/* Left Sidebar - Main Navigation (Desktop only) */}
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
-
         {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {/* Success/Error Message Display */}
           {saveMessage && (
             <div className="mb-4">
@@ -1858,8 +1852,7 @@ export default function ProfileContent({
           isOpen={rightSidebarOpen}
           onToggle={setRightSidebarOpen}
           mobileWidth="90%"
-          tabletWidth="280px"
-        >
+                  >
           <div className="space-y-2">
             {/* Profile Completion & RING Rewards Widget */}
             <div className="mb-6 p-4 bg-gradient-to-br from-yellow-500/10 via-primary/10 to-purple-500/10 rounded-lg border border-yellow-500/30">

@@ -12,7 +12,7 @@ import { selectDefaultWallet } from './utils'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 
 /**
  * Fetches the wallet balance for the authenticated user.
@@ -41,22 +41,24 @@ export async function getWalletBalance(): Promise<string> {
     console.log(`Services: getWalletBalance - User authenticated with ID ${userId}`);
 
     // Step 2: Retrieve user document from database abstraction layer
-    console.log(`Services: getWalletBalance - Initializing database service`);
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      console.error(`Services: getWalletBalance - Database initialization failed:`, initResult.error);
-      throw new Error('Database initialization failed');
-    }
+    console.log(`Services: getWalletBalance - Fetching user document`);
+    const userResult = await db().findDocById<{ wallets?: Wallet[] } & Record<string, unknown>>('users', userId);
 
-    const dbService = getDatabaseService();
-    const userResult = await dbService.read('users', userId);
-
-    if (!userResult.success || !userResult.data) {
+    if (!userResult.success) {
+      if (userResult.metadata?.operation === 'initialize') {
+        console.error(`Services: getWalletBalance - Database initialization failed:`, userResult.error);
+        throw new Error('Database initialization failed');
+      }
       console.error(`Services: getWalletBalance - User document not found for ID: ${userId}`);
       throw new Error('User document not found in database');
     }
 
-    const userData = userResult.data.data || userResult.data;
+    if (!userResult.data) {
+      console.error(`Services: getWalletBalance - User document not found for ID: ${userId}`);
+      throw new Error('User document not found in database');
+    }
+
+    const userData = userResult.data;
     console.log(`Services: getWalletBalance - Retrieved userData:`, {
       hasWallets: !!userData?.wallets,
       walletsCount: userData?.wallets?.length || 0,

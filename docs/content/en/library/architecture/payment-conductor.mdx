@@ -1,41 +1,207 @@
 ---
 title: PaymentConductor architecture
-description: Types, webhook dispatcher, order references, and processor adapters
-last_modified: "2026-06-06"
+description: Types, webhook dispatcher, order references, ledger, processors, and API routes
+last_modified: "2026-06-12"
 ---
 
 # PaymentConductor architecture
 
+PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer. One PostgreSQL ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, news promotion, and optional wallet top-up.
+
+**Operator setup:** [Payment integration](/docs/library/customization/payment-integration) · [Environment — PaymentConductor](/docs/library/deployment/environment#payment-conductor)
+
+## Request flow
+
+<Mermaid>
+{`sequenceDiagram
+    participant UI as Checkout / upgrade UI
+    participant API as App API route
+    participant PC as PaymentConductor
+    participant PSP as WayForPay / Stripe
+    participant WH as webhook-dispatcher
+    participant DB as payment_transactions
+
+    UI->>API: create checkout (purpose, amount)
+    API->>PC: createCheckout(ctx)
+    PC->>DB: createPending (idempotent orderReference)
+    PC->>PSP: redirect URL or session
+    PSP-->>UI: hosted payment
+    PSP->>WH: POST webhook
+    WH->>WH: verify signature + parse orderReference
+    WH->>DB: mark paid / failed
+    WH->>WH: purpose handler (store / membership / news)`}
+</Mermaid>
+
 ## Core modules
 
-| Module | Responsibility |
-|--------|----------------|
-| `payment-conductor.ts` | Orchestrates create → redirect / credit / token flows |
-| `webhook-dispatcher.ts` | Verifies and routes PSP webhooks to handlers |
-| `types.ts` | `PaymentPurpose`, `PaymentProcessorId`, `PaymentRail` |
-| `order-reference.ts` | Idempotent `orderReference` generation |
-| `payment-transaction-service.ts` | Persists ledger rows |
+| Module | Path | Responsibility |
+|--------|------|----------------|
+| Conductor | `lib/payments/conductor/payment-conductor.ts` | `createCheckout`, `handleWebhook`, transaction lookup |
+| Dispatcher | `lib/payments/conductor/webhook-dispatcher.ts` | Verify PSP payloads; route to purpose handlers |
+| Types | `lib/payments/conductor/types.ts` | `PaymentPurpose`, `PaymentRail`, `PaymentProcessorId`, statuses |
+| Order references | `lib/payments/order-reference.ts` | Build / parse idempotent `orderReference` strings |
+| Ledger service | `lib/payments/payment-transaction-service.ts` | CRUD on `payment_transactions` |
+| Config | `lib/payments/payment.config.ts` | `getPaymentProvider`, `isRailEnabled`, webhook URL helpers |
 
-## Processors
+### Purpose handlers
 
-- `processors/wayforpay.processor.ts` + `wayforpay-verify.ts`
-- `processors/stripe.processor.ts`
-- `processors/internal-credit.processor.ts`
+| Purpose | Handler file |
+|---------|----------------|
+| `store_order` | `conductor/handlers/store-order.ts` |
+| `membership_upgrade` | `conductor/handlers/membership-upgrade.ts` |
+| `news_promotion` | `conductor/handlers/news-promotion.ts` |
 
-Config surface: `lib/payments/payment.config.ts` — `getPaymentProvider(purpose)`, `isRailEnabled(purpose, rail)`.
+### Processors
+
+| Processor | File | Rail |
+|-----------|------|------|
+| WayForPay | `processors/wayforpay.processor.ts` | `merchant_redirect` |
+| Stripe | `processors/stripe.processor.ts` | `merchant_redirect` |
+| Internal credit | `processors/internal-credit.processor.ts` | `internal_credit` |
+
+Signature verification: `processors/wayforpay-verify.ts` (store vs generic membership/news), `stripe.processor.ts` (`verifyStripeWebhook`).
+
+Legacy services (`lib/payments/wayforpay-service.ts`, `wayforpay-store-service.ts`) remain for specialized store/membership helpers; new flows go through the conductor.
+
+## Types
+
+```typescript
+// lib/payments/conductor/types.ts (summary)
+type PaymentPurpose =
+  | 'store_order'
+  | 'membership_upgrade'
+  | 'news_promotion'
+  | 'wallet_topup'
+
+type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
+type PaymentProcessorId = 'wayforpay' | 'stripe' | 'internal-credit'
+
+type PaymentTransactionStatus =
+  | 'created' | 'redirected' | 'pending' | 'paid'
+  | 'failed' | 'cancelled' | 'refunded'
+```
+
+`CreateCheckoutContext` carries `purpose`, optional `rail`, `userId`, `amount`, `currency`, `returnUrl`, and purpose-specific fields (`orderId`, `articleId`, `targetRole`, etc.).
+
+## Configuration surface
+
+`lib/payments/payment.config.ts`:
+
+- `getPaymentProvider(purpose)` — resolves WayForPay vs Stripe from env overrides
+- `getProcessorForPurpose(purpose)` — alias of above
+- `isRailEnabled(purpose, rail)` — credit / token gates
+- `getFiatCurrency()` — `PAYMENT_FIAT_CURRENCY` (default `USD`)
+- `canSpendCreditForOrderCurrency(orderCurrency)` — `PAYMENT_CREDIT_ACCEPT_ORDER_CURRENCY`
+- `getWebhookUrl(provider)` — `${site}/api/payments/${provider}/webhook`
+
+Env keys per purpose: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`, `PAYMENT_WALLET_TOPUP_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` | `stripe`).
+
+## Order reference prefixes
+
+Stable `orderReference` values tie PSP callbacks to domain entities. Webhook dispatcher parses prefix before invoking handlers.
+
+| Purpose | Pattern | Example |
+|---------|---------|---------|
+| `store_order` | `store_{orderId}_{timestamp}` | `store_ord_abc_1717000000000` |
+| `membership_upgrade` | `membership_{userId}_{timestamp}` | `membership_user123_1717000000000` |
+| `membership_upgrade` (legacy) | `ring_{userId}_{timestamp}` | still accepted |
+| `news_promotion` | `news-promo-{base64url(articleId)}-{timestamp}` | `news-promo-YWJj-1717000000000` |
+
+`buildOrderReference` / `parseOrderReference` in `order-reference.ts`. Duplicate webhook delivery is safe: ledger enforces unique `order_reference`.
+
+## Ledger (`payment_transactions`)
+
+Migration: `data/migrations/004_payment_transactions.sql`
+
+```sql
+CREATE TABLE payment_transactions (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_payment_transactions_order_reference
+    ON payment_transactions ((data->>'order_reference'));
+```
+
+JSON `data` fields (via `payment-transaction-service.ts`):
+
+- `purpose`, `processor`, `rail`, `order_reference`
+- `entity_type`, `entity_id`, `user_id`
+- `amount_minor`, `currency`, `status`, `status_history`
+- `processor_payload`, `paid_at`, timestamps
+
+`createPending` returns existing row if `order_reference` already exists — idempotent checkout creation.
+
+## Webhook dispatcher
+
+`dispatchWayForPayWebhook(payload)`:
+
+1. Read `orderReference` from payload
+2. `parseOrderReference` → purpose
+3. **Store:** `verifyWayForPayStoreWebhook` → `handleStoreWayForPayWebhook`
+4. **Membership / news:** `verifyWayForPayGenericWebhook` → respective handler
+5. Membership success returns WayForPay ACK (`buildMembershipWebhookAck`)
+
+`dispatchStripeWebhook(rawBody, signature)`:
+
+1. `verifyStripeWebhook`
+2. Read `metadata.purpose` (default `news_promotion`)
+3. `handleNewsStripeWebhook` on `checkout.session.completed` / news purpose
+
+Canonical routes call the dispatcher directly:
+
+- `app/api/payments/wayforpay/webhook/route.ts`
+- `app/api/payments/stripe/webhook/route.ts`
 
 ## API routes
 
-- `app/api/payments/stripe/webhook/route.ts`
-- Store credit: `app/api/store/payments/credit/route.ts`
-- Membership credit: `app/api/membership/payment/credit/route.ts`
-- News promotion webhooks: `app/api/news/promotion/wayforpay-webhook/route.ts`
+### Canonical (register these in PSP dashboards)
 
-## Idempotency
+| Method | Path | Role |
+|--------|------|------|
+| `POST` | `/api/payments/wayforpay/webhook` | Unified WayForPay callback |
+| `POST` | `/api/payments/stripe/webhook` | Stripe signed events |
+| `POST` | `/api/store/payments/wayforpay` | Initiate store WayForPay redirect |
+| `GET` | `/api/store/payments/[orderId]/status` | Poll order payment status |
+| `POST` | `/api/store/payments/credit` | Store checkout via internal credit |
+| `POST` | `/api/membership/payment/ring` | RING token membership payment |
+| `POST` | `/api/news/promotion/submit` | Start news promotion checkout |
 
-All card flows use stable `orderReference` values stored in `payment_transactions` to prevent double-settlement on webhook retries.
+### Deprecated aliases (delegate to dispatcher)
+
+| Path | Canonical target |
+|------|------------------|
+| `app/api/store/payments/wayforpay/webhook/route.ts` | `/api/payments/wayforpay/webhook` |
+| `app/api/news/promotion/wayforpay-webhook/route.ts` | `/api/payments/wayforpay/webhook` |
+
+`app/api/membership/payment/credit/route.ts` re-exports `membership/payment/ring` — credit rail for membership uses RING/wallet paths, not a separate credit endpoint.
+
+## PaymentConductor API
+
+```typescript
+// lib/payments/conductor/payment-conductor.ts
+export const PaymentConductor = {
+  createCheckout(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult>
+  handleWebhook(provider: 'wayforpay' | 'stripe', request: Request): Promise<WebhookHandleResult>
+  getTransactionByReference(orderReference: string)
+}
+```
+
+`createCheckout` resolves processor from `ctx.rail` (internal credit) or `getPaymentProvider(ctx.purpose)`, then delegates to the matching processor. Processors write ledger rows before returning redirect URLs.
+
+## Security notes
+
+- **Never** store raw card numbers — hosted PSP checkout only
+- WayForPay: HMAC / merchant signature verification per flow (store vs generic)
+- Stripe: `stripe-signature` header + `STRIPE_WEBHOOK_SECRET`
+- Webhook handlers return PSP-expected ACK bodies (WayForPay `accept` JSON for membership)
+- Internal credit routes require authenticated session + order ownership checks
 
 ## Related
 
 - [Feature: PaymentConductor](/docs/library/features/payment-conductor)
+- [Payments feature overview](/docs/library/features/payments)
+- [Payment integration (operator)](/docs/library/customization/payment-integration)
 - [Migrations](/docs/library/getting-started/migrations)

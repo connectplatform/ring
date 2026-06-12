@@ -77,16 +77,16 @@ export default function RightSidebar({
   return (
     <div 
       className={cn(
-        "w-80 bg-background border-l border-border",
-        "hidden lg:flex lg:flex-col",
-        sticky && "sticky top-0 h-screen",
+        'w-full bg-transparent',
+        'hidden lg:flex lg:flex-col',
+        sticky && 'sticky top-0 max-h-[calc(100dvh-2.5rem)]',
         className
       )}
       data-right-sidebar="true"
     >
       {/* Header */}
       {(title || actions) && (
-        <div className="p-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="border-b border-border/40 bg-transparent p-4">
           <div className="flex items-center justify-between">
             {title && (
               <h3 className="font-semibold text-lg">{title}</h3>
@@ -109,7 +109,7 @@ export default function RightSidebar({
 
       {/* Bottom Controls (Theme & Language Toggle) - Only show on docs pages */}
       {showControls && pathname.includes('/docs') && (
-        <div className="p-4 border-t border-border bg-background/95">
+        <div className="border-t border-border/40 bg-transparent p-4">
           <div className="flex items-center justify-center gap-2">
             <Button
               variant="outline"

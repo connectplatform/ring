@@ -55,6 +55,7 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
   const tForm = useTranslations('vendor.onboarding.form')
   const tValidation = useTranslations('vendor.onboarding.validation')
   const tStartPage = useTranslations('vendor.startPage')
+  const tBenefits = useTranslations('vendor.startWrapper.benefits')
 
   const [state, formAction, isPending] = useActionState(createVendorStore, null)
 
@@ -180,7 +181,7 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
                   {tForm('storeSlug')} <span className="text-destructive">*</span>
                 </Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">greenfood.live/store/vendors/</span>
+                  <span className="text-sm text-muted-foreground">{tForm('storeUrlPrefix')}</span>
                   <Input
                     id="storeSlug"
                     name="storeSlug"
@@ -301,8 +302,8 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
               <div className="pt-4 border-t border-border">
                 <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <span>🌾</span>
-                    <span>{tStartPage('trustIndicators.farms') || '50+ Farms'}</span>
+                    <span>🏪</span>
+                    <span>{tStartPage('trustIndicators.vendors') || '50+ Vendors'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span>⚡</span>
@@ -333,9 +334,9 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
                 <span className="text-2xl">🤖</span>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">AI Product Enrichment</h3>
+                <h3 className="font-semibold mb-1">{tBenefits('aiEnrichment.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Upload photo + basic info, AI generates descriptions, tags, and recommendations
+                  {tBenefits('aiEnrichment.description')}
                 </p>
               </div>
             </div>
@@ -349,9 +350,9 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
                 <span className="text-2xl">💰</span>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Automated Settlements</h3>
+                <h3 className="font-semibold mb-1">{tBenefits('automatedSettlements.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Sales automatically processed, commissions calculated, payouts scheduled
+                  {tBenefits('automatedSettlements.description')}
                 </p>
               </div>
             </div>
@@ -365,9 +366,9 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
                 <span className="text-2xl">🍃</span>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">DAAR Token Rewards</h3>
+                <h3 className="font-semibold mb-1">{tBenefits('ringRewards.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Earn up to 25% bonus tokens for regenerative agriculture practices
+                  {tBenefits('ringRewards.description')}
                 </p>
               </div>
             </div>
@@ -381,9 +382,9 @@ export default function VendorOnboardingForm({ locale }: VendorOnboardingFormPro
                 <span className="text-2xl">📊</span>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Trust Tier System</h3>
+                <h3 className="font-semibold mb-1">{tBenefits('trustTier.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Start at 20% commission, earn your way to 12% through quality and sales
+                  {tBenefits('trustTier.description')}
                 </p>
               </div>
             </div>

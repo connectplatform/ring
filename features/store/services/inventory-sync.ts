@@ -7,10 +7,16 @@
  * Uses PostgreSQL transactions for atomic inventory operations
  */
 
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 import { StoreProduct } from '@/features/store/types'
 import { InventorySyncStrategy, StoreEvent } from '@/constants/store'
 import { publishEvent } from '@/lib/events/event-bus.server'
+
+/** PostgreSQL tables (snake_case — see data/migrations/008_inventory_schema.sql). */
+export const INVENTORY_COLLECTIONS = {
+  levels: 'inventory_levels',
+  reservations: 'inventory_reservations',
+} as const
 
 // Inventory reservation for pending orders
 export interface InventoryReservation {
@@ -57,17 +63,13 @@ export async function updateInventoryLevels(
   quantityChange: number,
   operation: 'add' | 'subtract' | 'set'
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  await db.transaction(async (transaction) => {
-    // Get current inventory level
+  await db().transaction(async (transaction) => {
     const inventoryId = `${productId}_${storeId}`
-    const currentLevelDoc = await transaction.read('inventoryLevels', inventoryId)
+    const currentLevelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
     const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
     let newAvailable: number
-    
+
     if (operation === 'set') {
       newAvailable = quantityChange
     } else if (operation === 'add') {
@@ -86,14 +88,12 @@ export async function updateInventoryLevels(
       syncVersion: (currentLevel?.syncVersion || 0) + 1
     }
 
-    // Update inventory level
     if (currentLevel) {
-      await transaction.update('inventoryLevels', inventoryId, newLevel)
+      await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, newLevel)
     } else {
-      await transaction.create('inventoryLevels', newLevel, { id: inventoryId })
+      await transaction.create(INVENTORY_COLLECTIONS.levels, newLevel, { id: inventoryId })
     }
 
-    // Update product stock status
     const productDoc = await transaction.read('store_products', productId)
     if (productDoc) {
       await transaction.update('store_products', productId, { inStock: newAvailable > 0 })
@@ -117,9 +117,6 @@ export async function reserveInventory(
   quantity: number,
   reservationMinutes: number = 15
 ): Promise<InventoryReservation> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
   const reservationId = `res_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   const now = new Date()
   const expiresAt = new Date(now.getTime() + reservationMinutes * 60000)
@@ -135,17 +132,15 @@ export async function reserveInventory(
     status: 'active'
   }
 
-  await db.transaction(async (transaction) => {
-    // Get current inventory level
+  await db().transaction(async (transaction) => {
     const inventoryId = `${productId}_${storeId}`
-    const currentLevelDoc = await transaction.read('inventoryLevels', inventoryId)
+    const currentLevelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
     const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
     if (!currentLevel || currentLevel.available < quantity) {
       throw new Error(`Insufficient inventory for product ${productId}`)
     }
 
-    // Update inventory levels
     const updatedLevel: Partial<InventoryLevel> = {
       available: currentLevel.available - quantity,
       reserved: currentLevel.reserved + quantity,
@@ -153,13 +148,41 @@ export async function reserveInventory(
       syncVersion: currentLevel.syncVersion + 1
     }
 
-    await transaction.update('inventoryLevels', inventoryId, updatedLevel)
-
-    // Create reservation
-    await transaction.create('inventoryReservations', reservation, { id: reservationId })
+    await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, updatedLevel)
+    await transaction.create(INVENTORY_COLLECTIONS.reservations, reservation, { id: reservationId })
   })
 
   return reservation
+}
+
+/**
+ * Reserve stock for each order item that has a configured inventory level row.
+ * Products without inventory_levels rows are skipped (stock tracked via ERPStockService).
+ * Throws when a configured product has insufficient availability.
+ */
+export async function reserveInventoryForOrder(
+  orderId: string,
+  items: Array<{ productId: string; quantity: number; storeId?: string }>,
+  reservationMinutes: number = 15
+): Promise<{ reserved: InventoryReservation[]; skipped: string[] }> {
+  const reserved: InventoryReservation[] = []
+  const skipped: string[] = []
+
+  for (const item of items) {
+    const storeId = item.storeId || '1'
+    const levelRow = await db().readDoc<InventoryLevel & Record<string, unknown>>(
+      INVENTORY_COLLECTIONS.levels,
+      `${item.productId}_${storeId}`
+    )
+    if (!levelRow.success || !levelRow.data) {
+      skipped.push(item.productId)
+      continue
+    }
+    const reservation = await reserveInventory(item.productId, storeId, orderId, item.quantity, reservationMinutes)
+    reserved.push(reservation)
+  }
+
+  return { reserved, skipped }
 }
 
 /**
@@ -169,37 +192,33 @@ export async function releaseReservation(
   reservationId: string,
   fulfilled: boolean = false
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  // Get reservation first
-  const reservationResult = await db.findById('inventoryReservations', reservationId)
+  const reservationResult = await db().findDocById<InventoryReservation & Record<string, unknown>>(
+    INVENTORY_COLLECTIONS.reservations,
+    reservationId
+  )
   if (!reservationResult.success || !reservationResult.data) {
     return // Already processed or doesn't exist
   }
-  
-  const reservationData = reservationResult.data.data || reservationResult.data
-  const reservation = { id: reservationId, ...reservationData } as InventoryReservation
+
+  const reservation = reservationResult.data as InventoryReservation
 
   if (reservation.status !== 'active') {
     return // Already processed
   }
 
-  await db.transaction(async (transaction) => {
-    // Update reservation status
+  await db().transaction(async (transaction) => {
     await transaction.update(
-      'inventoryReservations',
+      INVENTORY_COLLECTIONS.reservations,
       reservationId,
-      { 
+      {
         status: fulfilled ? 'fulfilled' : 'cancelled',
         updatedAt: new Date().toISOString()
       }
     )
 
     if (!fulfilled) {
-      // Return reserved inventory to available pool
       const inventoryId = `${reservation.productId}_${reservation.storeId}`
-      const currentLevelDoc = await transaction.read('inventoryLevels', inventoryId)
+      const currentLevelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, inventoryId)
       const currentLevel = currentLevelDoc?.data as InventoryLevel | undefined
 
       if (currentLevel) {
@@ -210,7 +229,7 @@ export async function releaseReservation(
           syncVersion: currentLevel.syncVersion + 1
         }
 
-        await transaction.update('inventoryLevels', inventoryId, updatedLevel)
+        await transaction.update(INVENTORY_COLLECTIONS.levels, inventoryId, updatedLevel)
       }
     }
   })
@@ -223,16 +242,15 @@ export async function syncInventoryAcrossStores(
   productId: string,
   strategy: InventorySyncStrategy = InventorySyncStrategy.MASTER
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const productResult = await db.findById('store_products', productId)
+  const productResult = await db().findDocById<StoreProduct & Record<string, unknown>>(
+    'store_products',
+    productId
+  )
   if (!productResult.success || !productResult.data) {
     return
   }
-  
-  const productData = productResult.data.data || productResult.data
-  const product = { id: productId, ...productData } as StoreProduct
+
+  const product = productResult.data as StoreProduct
   if (!product.productListedAt) {
     return
   }
@@ -265,13 +283,14 @@ async function syncFromMasterStore(
   masterStoreId: string,
   storeIds: string[]
 ): Promise<void> {
-  const db = getDatabaseService()
-  
-  const masterResult = await db.findById('inventoryLevels', `${productId}_${masterStoreId}`)
+  const masterResult = await db().findDocById<InventoryLevel & Record<string, unknown>>(
+    INVENTORY_COLLECTIONS.levels,
+    `${productId}_${masterStoreId}`
+  )
   if (!masterResult.success || !masterResult.data) {
     return
   }
-  const masterInventory = (masterResult.data.data || masterResult.data) as InventoryLevel
+  const masterInventory = masterResult.data as InventoryLevel
 
   if (!masterInventory) {
     return
@@ -294,14 +313,14 @@ async function distributeInventoryEvenly(
   productId: string,
   storeIds: string[]
 ): Promise<void> {
-  const db = getDatabaseService()
-  
-  // Get total inventory across all stores
   const inventoryLevels = await Promise.all(
     storeIds.map(async storeId => {
-      const result = await db.findById('inventoryLevels', `${productId}_${storeId}`)
-      return result.success && result.data 
-        ? (result.data.data || result.data) as InventoryLevel
+      const result = await db().findDocById<InventoryLevel & Record<string, unknown>>(
+        INVENTORY_COLLECTIONS.levels,
+        `${productId}_${storeId}`
+      )
+      return result.success && result.data
+        ? (result.data as InventoryLevel)
         : null
     })
   )
@@ -330,16 +349,15 @@ async function maintainReservedLevels(
   productId: string,
   storeIds: string[]
 ): Promise<void> {
-  const db = getDatabaseService()
-  
-  // This strategy maintains a minimum reserved level at each store
-  // and redistributes excess inventory as needed
-  const MIN_RESERVED = 5 // Configurable minimum per store
+  const MIN_RESERVED = 5
 
   for (const storeId of storeIds) {
-    const inventoryResult = await db.findById('inventoryLevels', `${productId}_${storeId}`)
+    const inventoryResult = await db().findDocById<InventoryLevel & Record<string, unknown>>(
+      INVENTORY_COLLECTIONS.levels,
+      `${productId}_${storeId}`
+    )
     const inventory = inventoryResult.success && inventoryResult.data
-      ? (inventoryResult.data.data || inventoryResult.data) as InventoryLevel
+      ? (inventoryResult.data as InventoryLevel)
       : null
 
     if (!inventory || inventory.available < MIN_RESERVED) {
@@ -357,11 +375,8 @@ async function requestInventoryTransfer(
   toStoreId: string,
   quantity: number
 ): Promise<void> {
-  const db = getDatabaseService()
-  
-  // Find stores with excess inventory
-  const result = await db.query({
-    collection: 'inventoryLevels',
+  const result = await db().queryDocs<InventoryLevel & Record<string, unknown>>({
+    collection: INVENTORY_COLLECTIONS.levels,
     filters: [
       { field: 'productId', operator: '=', value: productId },
       { field: 'available', operator: '>', value: quantity }
@@ -370,17 +385,11 @@ async function requestInventoryTransfer(
     pagination: { limit: 1 }
   })
 
-  if (!result.success || !result.data) {
+  if (!result.success || !result.data || result.data.length === 0) {
     return // No stores with sufficient excess
   }
 
-  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-  if (data.length === 0) {
-    return
-  }
-
-  const sourceStoreItem = data[0]
-  const sourceStore = { id: sourceStoreItem.id, ...(sourceStoreItem.data || sourceStoreItem) } as InventoryLevel
+  const sourceStore = result.data[0] as InventoryLevel
   
   // Create transfer record
   const transfer: InventoryTransfer = {
@@ -393,7 +402,9 @@ async function requestInventoryTransfer(
     initiatedAt: new Date().toISOString()
   }
 
-  await db.create('inventoryTransfers', transfer, { id: transfer.id })
+  await db().createDoc('inventoryTransfers', transfer as InventoryTransfer & Record<string, unknown>, {
+    id: transfer.id
+  })
   
   // In a real system, this would trigger a fulfillment workflow
   // For now, we'll just update the inventory levels
@@ -406,50 +417,45 @@ async function requestInventoryTransfer(
 export async function processInventoryTransfer(
   transferId: string
 ): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  // Get transfer first
-  const transferResult = await db.findById('inventoryTransfers', transferId)
+  const transferResult = await db().findDocById<InventoryTransfer & Record<string, unknown>>(
+    'inventoryTransfers',
+    transferId
+  )
   if (!transferResult.success || !transferResult.data) {
     return
   }
-  
-  const transferData = transferResult.data.data || transferResult.data
-  const transfer = { id: transferId, ...transferData } as InventoryTransfer
+
+  const transfer = transferResult.data as InventoryTransfer
 
   if (transfer.status !== 'pending') {
     return
   }
 
-  await db.transaction(async (transaction) => {
-    // Subtract from source store
+  await db().transaction(async (transaction) => {
     const sourceId = `${transfer.productId}_${transfer.fromStoreId}`
-    const sourceLevelDoc = await transaction.read('inventoryLevels', sourceId)
+    const sourceLevelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, sourceId)
     const sourceLevel = sourceLevelDoc?.data as InventoryLevel | undefined
-    
+
     if (sourceLevel) {
-      await transaction.update('inventoryLevels', sourceId, {
+      await transaction.update(INVENTORY_COLLECTIONS.levels, sourceId, {
         available: Math.max(0, sourceLevel.available - transfer.quantity),
         syncVersion: sourceLevel.syncVersion + 1,
         lastUpdated: new Date().toISOString()
       })
     }
 
-    // Add to destination store
     const destId = `${transfer.productId}_${transfer.toStoreId}`
-    const destLevelDoc = await transaction.read('inventoryLevels', destId)
+    const destLevelDoc = await transaction.read(INVENTORY_COLLECTIONS.levels, destId)
     const destLevel = destLevelDoc?.data as InventoryLevel | undefined
-    
+
     if (destLevel) {
-      await transaction.update('inventoryLevels', destId, {
+      await transaction.update(INVENTORY_COLLECTIONS.levels, destId, {
         available: destLevel.available + transfer.quantity,
         syncVersion: destLevel.syncVersion + 1,
         lastUpdated: new Date().toISOString()
       })
     }
 
-    // Update transfer status
     await transaction.update('inventoryTransfers', transferId, {
       status: 'completed',
       completedAt: new Date().toISOString()
@@ -461,13 +467,10 @@ export async function processInventoryTransfer(
  * Clean up expired reservations
  */
 export async function cleanupExpiredReservations(): Promise<void> {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
   const now = new Date().toISOString()
-  
-  const result = await db.query({
-    collection: 'inventoryReservations',
+
+  const result = await db().queryDocs<InventoryReservation & Record<string, unknown>>({
+    collection: INVENTORY_COLLECTIONS.reservations,
     filters: [
       { field: 'status', operator: '=', value: 'active' },
       { field: 'expiresAt', operator: '<', value: now }
@@ -478,11 +481,7 @@ export async function cleanupExpiredReservations(): Promise<void> {
     return
   }
 
-  const data = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-  const expiredReservations = data.map(item => ({
-    id: item.id,
-    ...(item.data || item)
-  })) as InventoryReservation[]
+  const expiredReservations = result.data as InventoryReservation[]
 
   for (const reservation of expiredReservations) {
     await releaseReservation(reservation.id, false)

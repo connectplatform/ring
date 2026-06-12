@@ -1,0 +1,311 @@
+---
+title: Настройка токеномики
+description: Проектируйте и запускайте токенную экономику Ring — эталонные контракты RING, подписки, казначейство и white-label кастомизация
+---
+
+# Настройка токеномики
+
+<Callout type="info">
+  **Философия Ring:** «Ваша платформа должна работать на вашей экономике». Каждый клон Ring может поставляться с эталонным стеком **RING** или форкнуть его под собственный utility-токен.
+</Callout>
+
+Платформы Ring выравнивают стимулы через on-chain utility: членские взносы, потоки маркетплейса, реферальные награды и опциональный стейкинг. В этом руководстве:
+
+- **Эталонная токеномика RING** в `contracts/RingToken.sol` и `contracts/RingMembership.sol`
+- **Интеграция в Next.js** — кредитные балансы, подписки и price oracle
+- **Собственный токен** для white-label развёртывания
+
+## Зачем нужна токеномика
+
+**Традиционные платформы** централизуют захват ценности — пользователи создают контент и транзакции, а контроль остаётся у основателей и инвесторов.
+
+**Токенные платформы Ring** направляют комиссии в прозрачное казначейство, открывают премиум-функции через utility-балансы и со временем позволяют сообществу расширять экономику через governance и стейкинг.
+
+| Поток | Поведение эталона RING |
+|-------|------------------------|
+| Членство | 1 RING / месяц → казначейство |
+| Минимальный буфер | 12 RING (год) рекомендуется до подписки |
+| Эмиссия | 1 000 000 000 RING минтится в казначейство при деплое |
+| Сеть по умолчанию | Polygon (настраивается в клоне) |
+
+## Эталонная архитектура RING
+
+Ring поставляет два upgradeable (UUPS) контракта, работающих вместе:
+
+<Mermaid>
+{`flowchart LR
+  User["Кошелёк участника"]
+  RT["RingToken\\nERC-20"]
+  RM["RingMembership\\nПодписки"]
+  Treasury["Казначейство"]
+
+  User -->|"createSubscription()"| RM
+  RM -->|"deductMembershipFee()"| RT
+  RT -->|"1 RING / месяц"| Treasury
+  Owner["Owner"] -->|"creditTokens() airdrop"| RT
+  RT --> Treasury
+`}
+</Mermaid>
+
+### RingToken (`contracts/RingToken.sol`)
+
+Upgradeable ERC-20 с burn, pause и распределением через казначейство.
+
+| Параметр | Значение | Примечание |
+|----------|----------|------------|
+| `INITIAL_SUPPLY` | 1 000 000 000 RING | Минт в казначейство при `initialize` |
+| `MEMBERSHIP_FEE` | 1 RING / месяц | Только `RingMembership` вызывает `deductMembershipFee` |
+| `MIN_SUBSCRIPTION_BALANCE` | 12 RING | View-хелпер — год взносов |
+| Decimals | 18 | Стандартная точность ERC-20 |
+
+**Ключевые функции:**
+
+- `deductMembershipFee(member)` — переводит 1 RING участнику → казначейству; только связанный membership-контракт
+- `creditTokens(recipient, amount, reason)` — owner переводит из казначейства (airdrop, компенсации)
+- `hasSubscriptionBalance(user)` / `getRemainingMembershipMonths(user)` — хелперы для UI и ops
+- `pause()` / `unpause()` — экстренная остановка трансферов
+- `setTreasury` / `setMembershipContract` — конфигурация owner после деплоя
+
+<Callout type="warning">
+  RING спроектирован как **utility-токен** для доступа к платформе, а не инвестиционный продукт. Проконсультируйтесь с юристами перед обещаниями доходности, прибыли или ликвидности на вторичном рынке.
+</Callout>
+
+### RingMembership (`contracts/RingMembership.sol`)
+
+Управляет рекуррентной оплатой членства on-chain.
+
+| Параметр | Значение |
+|----------|----------|
+| `SUBSCRIPTION_PERIOD` | 30 дней |
+| `GRACE_PERIOD` | 7 дней после срока оплаты |
+| `MAX_FAILED_ATTEMPTS` | 3 до истечения подписки |
+
+**Жизненный цикл подписки:**
+
+1. `createSubscription()` — нужен баланс ≥ 1 RING; первый месяц списывается сразу
+2. `processBatchPayments(batchSize)` — owner/cron обрабатывает продления
+3. Неудачные попытки увеличивают `failedAttempts`; после трёх — статус `EXPIRED`
+4. `cancelSubscription()` — отмена пользователем; `suspendSubscription` / `reactivateSubscription` — админ
+5. `hasActiveMembership(user)` — true пока `ACTIVE` и в пределах grace period
+
+**Статусы:** `INACTIVE`, `ACTIVE`, `EXPIRED`, `CANCELLED`, `SUSPENDED`
+
+### ReferralRewards (`contracts/contracts-src/ReferralRewards.sol`)
+
+Опциональный контракт для **gasless реферальных выплат**. Роль operator платит реферерам в токене проекта в режиме `MINT` или `TRANSFER`, с идемпотентным `orderRef` против двойных выплат.
+
+Деплой отдельно при включении store referral commissions:
+
+```bash
+cd contracts && npm run deploy:referral
+```
+
+Укажите `REFERRAL_REWARDS_ADDRESS` и `REFERRAL_REWARD_TOKEN_ADDRESS` в env клона (on-chain ops — EN canonical в [Refcodes](/docs/features/refcodes)).
+
+## Интеграция с платформой
+
+On-chain контракты работают вместе с серверными сервисами — пользователю не нужна подпись на каждое ежемесячное продление.
+
+### Переменные окружения
+
+```env
+# Смарт-контракты (Polygon)
+NEXT_PUBLIC_RING_TOKEN_ADDRESS=0x...
+RING_MEMBERSHIP_CONTRACT_ADDRESS=0x...
+RING_TREASURY_WALLET_ADDRESS=0x...
+POLYGON_RPC_URL=https://polygon-rpc.com
+
+# Ценообразование (опционально)
+CHAINLINK_RING_USD_FEED=0x...
+COINMARKETCAP_API_KEY=...
+
+# Реферальные награды (опционально)
+REFERRAL_REWARDS_ADDRESS=0x...
+REFERRAL_REWARD_TOKEN_ADDRESS=0x...
+```
+
+Клиентские константы — в `constants/web3.ts`: метаданные токена, заготовки staking pool и хелперы Polygonscan.
+
+### Кредитный баланс и подписки
+
+Приложение ведёт off-chain **кредитный ledger**, синхронизированный со статусом членства:
+
+| Сервис | Путь | Роль |
+|--------|------|------|
+| Кредиты | `features/wallet/services/user-credit-service.ts` | Баланс, списания, членский взнос |
+| Подписки | `services/membership/subscription-service.ts` | Создание, отмена, продление, batch |
+| Oracle | `services/blockchain/price-oracle-service.ts` | RING/USD с fallback-источниками |
+
+**Типичный апгрейд:**
+
+1. Роль SUBSCRIBER и достаточный RING-кредит (≥ 1 токена)
+2. `subscriptionService.createSubscription` списывает кредит и ставит next due (+30 дней)
+3. Cron или admin batch обрабатывает продления; grace period до даунгрейда
+4. При успехе роль повышается до MEMBER
+
+**API (представительно):**
+
+- `GET /api/wallet/credit/balance` — баланс и снимок подписки
+- `POST /api/membership/subscription/create` — старт подписки
+- `POST /api/membership/payment/ring` — оплата RING
+- `GET /api/prices/ring-usd` — конвертация для UI и чеков
+
+### Стейкинг (опционально)
+
+`constants/web3.ts` задаёт заготовку **RING staking pool** (`RING_STAKING_ADDRESS`, 20% APR placeholder, минимум 100 RING). Агро/кооперативные клоны могут подключить пулы DAAR/DAARION через `features/staking/staking.config.ts`. Параметры стейкинга — **конфигурация клона**, не глобальные правила протокола RING.
+
+## Деплой контрактов
+
+Hardhat-проект: `ring-platform.org/contracts/`.
+
+<Steps>
+  <Step>
+    **Установка и компиляция:**
+
+    ```bash
+    cd contracts
+    npm install
+    npx hardhat compile
+    ```
+  </Step>
+
+  <Step>
+    **Testnet (скрипт Polygon Mumbai):**
+
+    ```bash
+  RING_TREASURY_TESTNET=0xYourTreasury \
+  npx hardhat run scripts/deploy-testnet.js --network polygon
+    ```
+
+    Порядок: `RingToken` → `RingMembership` → `setMembershipContract`. JSON деплоя — `deployments/mumbai-deployment.json`.
+  </Step>
+
+  <Step>
+    **Mainnet:**
+
+    Нужны `RING_TREASURY_MAINNET` и достаточно MATIC на deployer. `scripts/deploy-mainnet.js` — только после аудита и multisig казначейства.
+  </Step>
+
+  <Step>
+    **Пропишите адреса** в `.env` клона, передеплойте приложение, верифицируйте контракты на Polygonscan.
+  </Step>
+</Steps>
+
+<Callout type="warning">
+  Проведите профессиональный аудит смарт-контрактов перед mainnet. Используйте multisig для казначейства и owner-ключей.
+</Callout>
+
+## Собственный white-label токен
+
+Используйте RING как шаблон для брендированной экономики.
+
+### Шаг 1 — Классификация токена
+
+<Steps>
+  <Step>
+    **Utility-токен (рекомендуется):** Листинги, членство, комиссии маркетплейса. Без обещаний прибыли.
+  </Step>
+  <Step>
+    **Security-токен:** Доля или revenue share — регулирование ценных бумаг; обязателен legal review.
+  </Step>
+  <Step>
+    **Один vs несколько токенов:** Один проще; разделяйте governance и utility только при реальной необходимости.
+  </Step>
+</Steps>
+
+### Шаг 2 — Параметры
+
+<Code language="typescript" title="Пример конфига токена клона">
+{`export const cloneToken = {
+  name: 'GreenFood Token',
+  symbol: 'GFT',
+  totalSupply: 100_000_000,
+  decimals: 18,
+  membershipFee: 1,
+  minSubscriptionBalance: 12,
+  treasuryShare: 1.0,
+}`}
+</Code>
+
+**Паттерны распределения:**
+
+- **Community-first:** 40–50% награды и airdrop, 20% стейкинг, 20% разработка (vesting), 10% казначейство
+- **Enterprise:** Больше казначейству и партнёрам; ограниченный on-chain governance
+
+**Политика supply:** Фиксированная (модель RING), контролируемая инфляция (staking rewards) или дефляция через burn комиссий.
+
+### Шаг 3 — Комиссии и функции
+
+<Code language="typescript" title="Пример структуры комиссий">
+{`export const feeStructure = {
+  opportunityListing: 10,
+  marketplaceTransactionBps: 100,
+  premiumFeaturesPerMonth: 100,
+  vendorMinStake: 50,
+}`}
+</Code>
+
+Собирайте комиссии в казначейство; часть направляйте на staking rewards или burn согласно tokenomics paper.
+
+### Шаг 4 — Интеграция с Ring
+
+1. Форкните `RingToken.sol` / `RingMembership.sol` или деплойте как есть со своим казначейством
+2. Обновите `constants/web3.ts` и env-адреса
+3. Настройте fee constants в `user-credit-service` и `subscription-service`
+4. Включите wallet UI и гейты членства в portal config
+
+## Экономическая модель
+
+<Mermaid title="Поток токенных комиссий">
+{`flowchart LR
+  Fees["Комиссии<br/>• Членство<br/>• Листинги<br/>• Маркетплейс"]
+  Treasury["Казначейство<br/>(on-chain)"]
+  Ops["Операции<br/>• Разработка<br/>• Пул наград<br/>• Рефералы"]
+  Gov["Governance<br/>(будущее / клон)"]
+
+  Fees --> Treasury --> Ops
+  Treasury --> Gov`}
+</Mermaid>
+
+**Метрики здоровья:**
+
+- Активные подписки и доля неудачных платежей
+- Баланс казначейства и сверка с credit ledger
+- Скорость обращения токена и концентрация у китов
+- Задержка RING/USD oracle и использование fallback
+
+## Юридические аспекты и документация
+
+<Callout type="warning">
+  Запуск токена имеет последствия в зависимости от юрисдикции. Привлеките юристов до публичной продажи, листинга на бирже или маркетинга доходности.
+</Callout>
+
+- Публикуйте понятный **tokenomics paper** — utility, комиссии, казначейство, без инвестиционных заявлений
+- Храните **отчёты аудита** и процедуры для upgrade admin keys
+- Раскрывайте волатильность и налоговые обязательства пользователям
+- Рассмотрите KYC/AML для крупных fiat on-ramp
+
+## Следующие шаги
+
+<Callout type="success">
+  **Готовы к запуску?** Пройдите чеклист для своего клона.
+</Callout>
+
+### Сразу
+- [ ] Решить: эталон RING vs форк под бренд
+- [ ] Назначить multisig казначейства и owner контрактов
+- [ ] Подготовить tokenomics paper и legal review
+
+### Разработка
+- [ ] Деплой в testnet; прогон `contracts/test`
+- [ ] Прописать env и credit/subscription сервисы
+- [ ] Smoke-test апгрейда членства и cron продлений
+
+### Запуск
+- [ ] Mainnet после аудита
+- [ ] Верификация на Polygonscan
+- [ ] Мониторинг подписок и алертов казначейства
+
+<Callout type="info">
+  **Нужна помощь с внедрением?** Смотрите [возможности кастомизации Ring](/opportunities?type=ring_customization) или [интеграцию платежей](/docs/library/customization/payment-integration) для fiat + token checkout.
+</Callout>

@@ -41,7 +41,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { updateOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 
-type OpportunityStatus = 'active' | 'closed' | 'expired' | 'draft' | 'archived'
+type OpportunityStatus = 'active' | 'closed' | 'expired' | 'draft' | 'pending' | 'archived'
 type OpportunityVisibility = 'public' | 'confidential' | 'private'
 
 interface OpportunityStatusData {
@@ -187,6 +187,14 @@ export default function OpportunityStatusToggle({
           variant: 'secondary' as const,
           color: 'text-muted-foreground',
           bgColor: 'bg-gray-100'
+        }
+      case 'pending':
+        return {
+          label: t('pending'),
+          icon: Clock,
+          variant: 'secondary' as const,
+          color: 'text-amber-600',
+          bgColor: 'bg-amber-100'
         }
       case 'closed':
         return {

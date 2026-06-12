@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+
+type CitationRow = Record<string, unknown> & { id: string }
 
 /**
  * POST /api/citations/lookup
@@ -33,12 +35,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
     // Query citations table: data->>'doi' = ANY($1)
     // The PostgreSQL adapter maps field 'doi' → data->>'doi' for JSONB tables.
-    const result = await db.find<{ doi: string }>('citations', [
+    const result = await db().findDocs<CitationRow>('citations', [
       { field: 'doi', operator: 'in', value: dois }
     ])
 
@@ -48,11 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const matchedDois = (result.data ?? [])
-      .map((doc) => {
-        // doc.data is the JSONB object from the citations table
-        const data = doc.data as Record<string, unknown>
-        return (data?.doi as string) ?? null
-      })
+      .map((doc) => (doc.doi as string) ?? null)
       .filter(Boolean) as string[]
 
     return NextResponse.json({ matchedDois }, {

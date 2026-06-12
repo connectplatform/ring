@@ -4,8 +4,6 @@ description: Multi-vendor marketplace API with PaymentConductor checkout and int
 last_modified: "2026-06-06"
 ---
 
-import { Callout } from '@/components/docs/callout'
-import { Steps, Step } from '@/components/docs/steps'
 
 # Store API
 
@@ -701,7 +699,6 @@ For cryptocurrency payments using RING tokens.
 
 <Code language="typescript" title="TypeScript">
 {`import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface Product {
   id: string
@@ -763,12 +760,12 @@ export function ProductCatalog() {
 
       <div className="products-grid">
         {products.map(product => (
-          <Card key={product.id} className="product-card">
-            <CardHeader>
+          <UiCard key={product.id} className="product-card">
+            <UiCardHeader>
               <img src={product.images[0]} alt={product.name} />
-              <CardTitle>{product.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
+              <UiCardTitle>{product.name}</UiCardTitle>
+            </UiCardHeader>
+            <UiCardContent>
               <div className="price">
                 {product.currency} {product.price}
               </div>
@@ -784,8 +781,8 @@ export function ProductCatalog() {
               >
                 Add to Cart
               </button>
-            </CardContent>
-          </Card>
+            </UiCardContent>
+          </UiCard>
         ))}
       </div>
     </div>

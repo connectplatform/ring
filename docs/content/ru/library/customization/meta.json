@@ -1,7 +1,9 @@
 {
   "title": "Кастомизация",
+  "description": "Развёртывание, брендинг и эксплуатация собственного клона Ring Platform",
   "pages": [
     "index",
+    "token-economics",
     "branding",
     "features",
     "localization",

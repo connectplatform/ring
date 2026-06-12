@@ -1,4 +1,4 @@
-import { getDatabaseService, initializeDatabase } from '@/lib/database';
+import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
 import type { AuthUser } from '@/features/auth/types';
 import type { DefaultSession } from 'next-auth';
@@ -28,16 +28,6 @@ export class UserMigrationService {
     try {
       console.log(`UserMigration: Creating initial document for user ${authUser.id}`);
 
-      // Initialize database service
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        logger.error('UserMigration: Database initialization failed', { error: initResult.error });
-        throw new Error('Database initialization failed');
-      }
-
-      const dbService = getDatabaseService();
-
-      // Create initial user document
       const initialUserData = {
         id: authUser.id || (authUser as any).globalUserId,
         email: authUser.email || '',
@@ -49,7 +39,6 @@ export class UserMigrationService {
         createdAt: new Date(),
         updatedAt: new Date(),
 
-        // Initialize empty arrays for features that might be used later
         wallets: [],
         credit_balance: {
           amount: '0',
@@ -112,14 +101,13 @@ export class UserMigrationService {
         }
       };
 
-      // Create the user document
       logger.info('UserMigration: About to create user document', {
         userId: authUser.id,
         firebaseUid: initialUserData.id,
         email: authUser.email
       });
 
-      const createResult = await dbService.create('users', initialUserData);
+      const createResult = await db().createDoc('users', initialUserData);
 
       logger.info('UserMigration: Create result', {
         userId: authUser.id,
@@ -160,14 +148,7 @@ export class UserMigrationService {
     }
     try {
       console.log('UserMigration: Checking database for user document', userId);
-      const initResult = await initializeDatabase();
-      if (!initResult.success) {
-        console.error('UserMigration: Database initialization failed', initResult.error);
-        throw new Error('Database initialization failed');
-      }
-
-      const dbService = getDatabaseService();
-      const result = await dbService.read('users', userId);
+      const result = await db().readDoc('users', userId);
       const exists = result.success && !!result.data;
       UserMigrationService.userCache.set(userId, { exists, timestamp: Date.now() });
       return exists;
@@ -209,10 +190,8 @@ export class UserMigrationService {
   }
 }
 
-// Export singleton instance
 export const userMigrationService = UserMigrationService.getInstance();
 
-// Export convenience function
 export async function createInitialUserDocument(authUser: AuthUser | DefaultSession['user']): Promise<void> {
   return userMigrationService.createInitialUserDocument(authUser);
 }

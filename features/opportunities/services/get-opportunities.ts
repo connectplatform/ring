@@ -7,11 +7,14 @@
 
 import { cache } from 'react'
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
+import {
+  mapDbDocumentToSerializedOpportunity,
+} from '@/features/opportunities/lib/opportunity-db-mapper'
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 
 /**
@@ -181,10 +184,7 @@ export const getOpportunitiesForRole = cache(async (
     // Apply pagination if provided
     if (startAfter) {
       try {
-        const result = await db().execute('findById', {
-          collection: 'opportunities',
-          id: startAfter
-        });
+        const result = await db().findDocById('opportunities', startAfter)
 
         if (result.success && result.data) {
           queryConfig.startAfter = result.data;
@@ -216,7 +216,7 @@ export const getOpportunitiesForRole = cache(async (
         }
       };
 
-      queryResult = await db().execute('query', { querySpec: dbQuery });
+      queryResult = await db().queryDocs(dbQuery);
     } catch (error) {
       throw new OpportunityQueryError(
         'Failed to execute opportunities query',
@@ -234,31 +234,9 @@ export const getOpportunitiesForRole = cache(async (
     // Step 4: Map query results to SerializedOpportunity objects
     const opportunities: SerializedOpportunity[] = [];
     if (queryResult.success && queryResult.data) {
-      // Helper function to safely convert Timestamp to ISO string
-      const timestampToISO = (timestamp: any): string => {
-        if (timestamp && typeof timestamp.toDate === 'function') {
-          return timestamp.toDate().toISOString();
-        }
-        if (timestamp instanceof Date) {
-          return timestamp.toISOString();
-        }
-        // Fallback to current time if timestamp is invalid
-        return new Date().toISOString();
-      };
-
-      queryResult.data.forEach(item => {
-        const data = item.data;
-        opportunities.push({
-          ...data,
-          id: item.id,
-          // Convert Firestore Timestamps to ISO strings for client component serialization
-          dateCreated: timestampToISO(data.dateCreated),
-          dateUpdated: timestampToISO(data.dateUpdated),
-          expirationDate: timestampToISO(data.expirationDate),
-          // Handle optional applicationDeadline field
-          applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
-        } as SerializedOpportunity);
-      });
+      for (const item of queryResult.data) {
+        opportunities.push(mapDbDocumentToSerializedOpportunity(item));
+      }
     }
 
     // Get the ID of the last visible document for pagination

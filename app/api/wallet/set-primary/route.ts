@@ -2,7 +2,7 @@ import { NextRequest, NextResponse, connection} from 'next/server'
 import { createWalletClient, createPublicClient, http, formatEther, parseEther, isAddress } from 'viem'
 import { polygon } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { auth } from "@/auth"
 import { decryptPrivateKey } from '@/lib/crypto'
 
@@ -76,10 +76,7 @@ export async function POST(request: NextRequest) {
     console.log(`📋 API: /api/wallet/transfer - Processing transfer: ${amount} ${tokenSymbol} to ${toAddress}`)
 
     // 3. Retrieve and validate user wallet
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const userResult = await db.read('users', session.user.id)
+    const userResult = await db().readDoc<Record<string, unknown> & { id: string }>('users', session.user.id)
 
     if (!userResult.success || !userResult.data) {
       console.log('❌ API: /api/wallet/transfer - User document not found')
@@ -89,7 +86,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userData = userResult.data as any
+    const userData = userResult.data as Record<string, unknown>
     const wallets = userData?.wallets || []
 
     if (!wallets.length) {

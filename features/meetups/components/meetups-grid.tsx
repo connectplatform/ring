@@ -2,7 +2,7 @@
  * Meetups Grid - Server Component
  */
 
-import { getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, MapPin, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,9 +13,8 @@ interface MeetupsGridProps {
 }
 
 export async function MeetupsGrid({ userId, locale }: MeetupsGridProps) {
-  const db = getDatabaseService()
-  
-  const result = await db.query({
+
+  const result = await db().queryDocs({
     collection: 'meetups',
     orderBy: [{ field: 'created_at', direction: 'desc' }],
     pagination: { limit: 20 },
@@ -25,7 +24,7 @@ export async function MeetupsGrid({ userId, locale }: MeetupsGridProps) {
     return <Card><CardContent className="pt-6"><p className="text-destructive">Failed to load meetups</p></CardContent></Card>
   }
 
-  const meetups = result.data || []
+  const meetups = result.data
 
   if (meetups.length === 0) {
     return (
@@ -42,22 +41,22 @@ export async function MeetupsGrid({ userId, locale }: MeetupsGridProps) {
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {meetups.map((meetup: any) => (
+      {meetups.map((meetup) => (
         <Card key={meetup.id}>
           <CardContent className="p-4">
-            <h3 className="font-semibold">{meetup.data.title}</h3>
+            <h3 className="font-semibold">{String(meetup.title ?? '')}</h3>
             <div className="mt-2 space-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{new Date(meetup.data.date_time).toLocaleDateString()}</span>
+                <span>{new Date(String(meetup.date_time ?? '')).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                <span>{meetup.data.location_name}</span>
+                <span>{String(meetup.location_name ?? '')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                <span>{meetup.data.participants?.length || 0} attending</span>
+                <span>{Array.isArray(meetup.participants) ? meetup.participants.length : 0} attending</span>
               </div>
             </div>
           </CardContent>

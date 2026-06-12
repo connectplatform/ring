@@ -2,13 +2,16 @@ import NextAuth from "next-auth"
 import type { Session } from "next-auth"
 import { getAuthAdapter } from "@/lib/auth-adapter-singleton"
 import { getAdminDb } from "@/lib/firebase-admin.server"
-import { getDatabaseService, initializeDatabase } from "@/lib/database/DatabaseService"
+import { db } from "@/lib/database"
 import authConfig from "./auth.config"
 import GoogleProvider from "next-auth/providers/google"
 import AppleProvider from "next-auth/providers/apple"
 import CredentialsProvider from "next-auth/providers/credentials"
 import Resend from "next-auth/providers/resend"
-import { verifyMessage } from "viem"
+import {
+  normalizeWalletStorageId,
+  verifyWalletNonceSignature,
+} from "@/features/wallet/services/verify-wallet-signature"
 import { OAuth2Client } from 'google-auth-library'
 import { generateInternalJWT } from "@/lib/auth/generate-jwt"
 import {
@@ -18,6 +21,7 @@ import {
   type UserSettings,
   type NotificationPreferences,
 } from "@/features/auth/types"
+import { normalizeUserRole } from "@/features/auth/user-role"
 import { ensureWallet } from "@/features/wallet/services/ensure-wallet"
 import { userMigrationService } from "@/features/auth/services/user-migration"
 import { shouldSkipDatabaseConnect } from "@/lib/build-cache/phase-detector"
@@ -177,50 +181,78 @@ const nextAuthApp = NextAuth({
         signedNonce: { label: "Signed Nonce", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials) return null
+        if (!credentials?.walletAddress || !credentials?.signedNonce) return null
 
-        const { walletAddress, signedNonce } = credentials
+        const walletAddress = String(credentials.walletAddress)
+        const signedNonce = String(credentials.signedNonce)
 
         try {
-          const db = getAdminDb()
-          if (!db) {
-            throw new Error("Firestore instance is not available")
+          const storageId = normalizeWalletStorageId(walletAddress)
+          let userData: Record<string, unknown> | null = null
+
+          if (usePostgreSQL) {
+            const userResult = await db().readDoc<Record<string, unknown>>('users', storageId)
+            if (!userResult.success) {
+              if (userResult.metadata?.operation === 'initialize') {
+                authLog("Crypto wallet auth: database init failed", userResult.error)
+              }
+              return null
+            }
+            if (userResult.data) {
+              userData = userResult.data
+            }
+          } else if (useFirebase) {
+            const db = getAdminDb()
+            if (!db) {
+              throw new Error("Firestore instance is not available")
+            }
+            const userDoc = await db.collection("users").doc(storageId).get()
+            userData = userDoc.exists ? (userDoc.data() as Record<string, unknown>) : null
           }
 
-          const userDoc = await db
-            .collection("users")
-            .doc(walletAddress as string)
-            .get()
-          const userData = userDoc.data()
+          const nonce = userData?.nonce
+          if (!nonce || typeof nonce !== "string") return null
 
-          if (!userData || !userData.nonce) return null
+          const nonceExpires = userData?.nonceExpires
+          if (typeof nonceExpires === "number" && nonceExpires < Date.now()) return null
 
-          // Verify the signature against the expected address
-          const signerAddress = verifyMessage({
-            address: walletAddress as `0x${string}`,
-            message: userData.nonce,
-            signature: signedNonce as `0x${string}`,
+          const valid = await verifyWalletNonceSignature({
+            walletAddress,
+            nonce,
+            signature: signedNonce,
           })
+          if (!valid) return null
 
-          if (signerAddress !== walletAddress) return null
-
-          if (userData.nonceExpires && userData.nonceExpires < Date.now()) return null
-
-          await userDoc.ref.update({
+          const clearedNonce = {
+            ...userData,
             nonce: null,
             nonceExpires: null,
-          })
+            lastLogin: new Date(),
+          }
+
+          if (usePostgreSQL) {
+            await db().updateDoc('users', storageId, clearedNonce)
+          } else if (useFirebase) {
+            const db = getAdminDb()
+            if (db) {
+              await db.collection("users").doc(storageId).update({
+                nonce: null,
+                nonceExpires: null,
+                lastLogin: new Date(),
+              })
+            }
+          }
 
           const now = new Date()
 
           return {
-            id: String(walletAddress),
-            email: String(userData.email || ""),
-            name: userData.name || null,
-            image: userData.photoURL || null,
-            role: userData.role || UserRole.SUBSCRIBER,
-            isVerified: !!userData.isVerified,
-            createdAt: userData.createdAt || now,
+            id: storageId,
+            email: String(userData?.email || ""),
+            name: (userData?.name as string | null) || null,
+            image: (userData?.photoURL as string | null) || (userData?.image as string | null) || null,
+            role: (userData?.role as UserRole) || UserRole.SUBSCRIBER,
+            isVerified: !!userData?.isVerified,
+            createdAt: (userData?.createdAt as Date) || now,
             lastLogin: now,
           }
         } catch (error) {
@@ -253,24 +285,23 @@ const nextAuthApp = NextAuth({
         
         try {
           if (usePostgreSQL) {
-            // Fetch from PostgreSQL via database abstraction
-            // Initialize database service with proper error handling
-            const initResult = await initializeDatabase()
-            if (!initResult.success) {
-              authLog('Database initialization failed in JWT callback:', initResult.error)
-              return token // Return token without user data if DB fails
-            }
-            const db = getDatabaseService()
             const userId = (token.userId as string) || user?.id
             
             if (userId) {
               if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
                 authLog('Looking up user in PostgreSQL via BackendSelector:', userId)
               }
-              const result = await db.read('users', userId)
+              const result = await db().readDoc<Record<string, unknown>>('users', userId)
 
-              if (result.success && result.data) {
-                const userData = result.data.data
+              if (!result.success) {
+                if (result.metadata?.operation === 'initialize') {
+                  authLog('Database initialization failed in JWT callback:', result.error)
+                }
+                return token
+              }
+
+              if (result.data) {
+                const userData = result.data
                 if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
                   authLog('Found user data in PostgreSQL:', { name: userData?.name, email: userData?.email, role: userData?.role })
                 }
@@ -334,7 +365,7 @@ const nextAuthApp = NextAuth({
             const internalJWT = await generateInternalJWT(
               user.id,
               user.email || undefined,
-              (user as any).role || UserRole.SUBSCRIBER
+              normalizeUserRole((user as any).role || (token.role as string))
             )
             token.accessToken = internalJWT
           } catch (error) {
@@ -352,13 +383,16 @@ const nextAuthApp = NextAuth({
         }
       }
       
+      // Coerce DB/OAuth uppercase roles (e.g. SUBSCRIBER) to canonical lowercase UserRole
+      token.role = normalizeUserRole(token.role as string | undefined)
+
       // Regenerate accessToken if it's missing or expired
       if (!token.accessToken && token.userId) {
         try {
           const internalJWT = await generateInternalJWT(
             token.userId as string,
             token.email as string || undefined,
-            token.role as string || UserRole.SUBSCRIBER
+            token.role as string
           )
           token.accessToken = internalJWT
         } catch (error) {
@@ -373,7 +407,7 @@ const nextAuthApp = NextAuth({
       // Reduced logging - only log if there's an issue
       if (token) {
         session.user.id = token.userId as string
-        session.user.role = token.role as UserRole
+        session.user.role = normalizeUserRole(token.role as string | undefined)
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
@@ -473,21 +507,9 @@ const nextAuthApp = NextAuth({
           if (account?.provider === "google-one-tap") {
             try {
               console.log('🔵 Google One Tap condition met - ensuring user exists in PostgreSQL:', user.id)
-              const db = getDatabaseService()
-
-              // First, try to initialize the database
-              try {
-                await db.initialize()
-                console.log('🔵 Database initialized successfully')
-              } catch (initError) {
-                console.error('🔵 Database initialization failed:', initError)
-                // Continue anyway - the database might still work
-              }
-
-              // Check if user already exists
               let existingUser = null
               try {
-                const readResult = await db.read('users', user.id)
+                const readResult = await db().readDoc('users', user.id)
                 if (readResult.success && readResult.data) {
                   existingUser = readResult.data
                   console.log('🔵 Google One Tap user already exists in PostgreSQL:', user.id)
@@ -533,7 +555,7 @@ const nextAuthApp = NextAuth({
                 }
 
                 try {
-                  const createResult = await db.create('users', userData, { id: user.id })
+                  const createResult = await db().createDoc('users', userData, { id: user.id })
                   if (createResult.success) {
                     console.log('✅ Google One Tap user created successfully in PostgreSQL:', user.id)
                   } else {
@@ -578,6 +600,22 @@ const nextAuthApp = NextAuth({
   events: {
     async signIn({ user, account, profile, isNewUser }) {
       console.log(`User ${user.email} signed in with ${account?.provider}`)
+
+      if (isNewUser && user.id) {
+        try {
+          const { cookies } = await import('next/headers')
+          const { REF_COOKIE_NAME } = await import('@/features/refcodes/constants')
+          const { persistSignupReferralAttribution } = await import(
+            '@/features/refcodes/services/attribution-service'
+          )
+          const refCode = (await cookies()).get(REF_COOKIE_NAME)?.value
+          if (refCode) {
+            await persistSignupReferralAttribution(user.id, refCode)
+          }
+        } catch (referralPersistError) {
+          console.warn('Signup referral attribution skipped:', referralPersistError)
+        }
+      }
 
       // Ensure user document exists in database (migration for existing Auth.js users)
       try {

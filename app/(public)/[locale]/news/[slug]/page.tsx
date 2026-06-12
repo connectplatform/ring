@@ -1,9 +1,11 @@
 import React from 'react';
+import { getRingSeoBranding, getSiteBaseUrl } from '@/lib/ring-config'
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
+import { mapNewsDocument } from '@/lib/news/map-news-document';
 import { NewsArticle } from '@/features/news/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +17,7 @@ import type { Locale } from '@/i18n/shared';
 import { routing } from '@/i18n/routing';
 import { defaultLocale } from '@/i18n/shared';
 import { getTranslations } from 'next-intl/server';
-import { getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata';
+;
 import NewsArticleWrapper from '@/components/wrappers/news-article-wrapper';
 import { NewsLikeButton } from '@/features/interactions/components/like-button';
 import { AuthorBioCard } from '@/features/news/components/author-bio-card';
@@ -32,10 +34,24 @@ interface NewsArticlePageParams {
 }
 
 function newsArticleCanonicalUrl(locale: Locale, slug: string): string {
-  const base = getSeoSiteBaseUrl()
+  const base = getSiteBaseUrl()
   const path =
     locale === defaultLocale ? `/news/${slug}` : `/${locale}/news/${slug}`
   return `${base}${path}`
+}
+
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toDate' in value &&
+    typeof (value as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (value as { toDate: () => Date }).toDate()
+  }
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value)
+  return new Date()
 }
 
 /**
@@ -44,20 +60,17 @@ function newsArticleCanonicalUrl(locale: Locale, slug: string): string {
  */
 async function getArticleBySlug(slug: string): Promise<NewsArticle | null> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       filters: [{ field: 'slug', operator: '==', value: slug }],
-      pagination: { limit: 1 }
-    });
-    
+      pagination: { limit: 1 },
+    })
+
     if (!result.success || result.data.length === 0) {
-      return null;
+      return null
     }
-    
-    return result.data[0] as any as NewsArticle;
+
+    return mapNewsDocument(result.data[0])
   } catch (error) {
     console.error('Error fetching article:', error);
     return null;
@@ -70,27 +83,25 @@ async function getArticleBySlug(slug: string): Promise<NewsArticle | null> {
  */
 async function getRelatedArticles(currentArticle: NewsArticle): Promise<NewsArticle[]> {
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'news',
       filters: [
         { field: 'status', operator: '==', value: 'published' },
         { field: 'category', operator: '==', value: currentArticle.category },
-        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] }
+        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
-      pagination: { limit: 4 }
-    });
-    
+      pagination: { limit: 4 },
+    })
+
     if (!result.success) {
       return []
     }
-    
-    return (result.data as any[] as NewsArticle[])
-      .filter(article => article.id !== currentArticle.id)
-      .slice(0, 3);
+
+    return result.data
+      .map((row) => mapNewsDocument(row))
+      .filter((article) => article.id !== currentArticle.id)
+      .slice(0, 3)
   } catch (error) {
     console.error('Error fetching related articles:', error);
     return [];
@@ -110,7 +121,7 @@ export async function generateMetadata({
     : routing.defaultLocale;
 
   const article = await getArticleBySlug(slug);
-  const newsBrand = `${RING_PLATFORM_SEO.siteName} News`;
+  const newsBrand = `${getRingSeoBranding().siteName} News`;
 
   if (!article) {
     return {
@@ -130,7 +141,7 @@ export async function generateMetadata({
       article.category.replace('-', ' '),
       'news',
       'articles',
-      RING_PLATFORM_SEO.siteName,
+      getRingSeoBranding().siteName,
     ],
     authors: [{ name: article.authorName }],
     alternates: { canonical: canonicalUrl },
@@ -141,8 +152,8 @@ export async function generateMetadata({
       type: 'article',
       locale: validLocale === 'uk' ? 'uk_UA' : 'en_US',
       images: article.featuredImage ? [{ url: article.featuredImage, alt: article.title }] : [],
-      publishedTime: article.publishedAt?.toDate().toISOString(),
-      modifiedTime: article.updatedAt?.toDate().toISOString() || article.publishedAt?.toDate().toISOString(),
+      publishedTime: toDate(article.publishedAt).toISOString(),
+      modifiedTime: toDate(article.updatedAt ?? article.publishedAt).toISOString(),
       authors: [article.authorName],
       section: article.category,
       tags: article.tags
@@ -154,8 +165,8 @@ export async function generateMetadata({
       images: article.featuredImage ? [article.featuredImage] : []
     },
     other: {
-      'article:published_time': article.publishedAt?.toDate().toISOString(),
-      'article:modified_time': article.updatedAt?.toDate().toISOString() || article.publishedAt?.toDate().toISOString(),
+      'article:published_time': toDate(article.publishedAt).toISOString(),
+      'article:modified_time': toDate(article.updatedAt ?? article.publishedAt).toISOString(),
       'article:author': article.authorName,
       'article:section': article.category,
       'news_keywords': article.tags.join(', ')
@@ -196,12 +207,12 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
   }
 
   // React 19 metadata preparation
-  const newsBrand = `${RING_PLATFORM_SEO.siteName} News`;
+  const newsBrand = `${getRingSeoBranding().siteName} News`;
   const title = article.seo?.metaTitle || `${article.title} | ${newsBrand}`;
   const description = article.seo?.metaDescription || article.excerpt;
   const canonicalUrl = newsArticleCanonicalUrl(locale as Locale, slug);
-  const siteBase = getSeoSiteBaseUrl();
-  const publishedDate = article.publishedAt?.toDate() || article.createdAt.toDate();
+  const siteBase = getSiteBaseUrl();
+  const publishedDate = toDate(article.publishedAt ?? article.createdAt)
 
   // Calculate reading time
   const readingTime = calculateReadingTimeWithImages(article.content);
@@ -257,14 +268,14 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
             },
             "publisher": {
               "@type": "Organization",
-              "name": RING_PLATFORM_SEO.siteName,
+              "name": getRingSeoBranding().siteName,
               "logo": {
                 "@type": "ImageObject",
                 "url": `${siteBase}/images/logo.png`,
               }
             },
             "datePublished": publishedDate.toISOString(),
-            "dateModified": article.updatedAt?.toDate().toISOString() || publishedDate.toISOString(),
+            "dateModified": toDate(article.updatedAt ?? article.publishedAt ?? article.createdAt).toISOString(),
             "mainEntityOfPage": {
               "@type": "WebPage",
               "@id": canonicalUrl
@@ -478,7 +489,7 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
                       </p>
 
                       <div className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(relatedArticle.publishedAt?.toDate() || relatedArticle.createdAt.toDate(), { addSuffix: true })}
+                        {formatDistanceToNow(toDate(relatedArticle.publishedAt ?? relatedArticle.createdAt), { addSuffix: true })}
                       </div>
                     </CardContent>
                   </Card>

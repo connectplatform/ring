@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 import { redirect, notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import { connection } from 'next/server'
@@ -16,13 +17,28 @@ import { LocalePageProps } from '@/utils/page-props'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { logger } from '@/lib/logger'
 
 // Allow caching for opportunity details with moderate revalidation for content updates
 
 // Define the type for the route params
 type OpportunityParams = { id: string };
+
+const RESERVED_OPPORTUNITY_SLUGS = new Set([
+  'my',
+  'my',
+  'add',
+  'status',
+])
+
+function isNextNavigationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('digest' in error)) {
+    return false
+  }
+  const digest = String((error as { digest?: string }).digest ?? '')
+  return digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_NOT_FOUND')
+}
 
 /**
  * Fetches opportunity data using unified services with proper error handling.
@@ -99,8 +115,6 @@ export async function generateMetadata({
         title: `${opportunity.title} | Ring Platform`,
         description,
       },
-      siteName: RING_PLATFORM_SEO.siteName,
-      twitterSite: RING_PLATFORM_SEO.twitterSite,
     })
   } catch {
     return buildLocalizedMetadata({
@@ -111,8 +125,6 @@ export async function generateMetadata({
         title: t('opportunityDetails.title'),
         description: t('opportunityDetails.description'),
       },
-      siteName: RING_PLATFORM_SEO.siteName,
-      twitterSite: RING_PLATFORM_SEO.twitterSite,
     })
   }
 }
@@ -145,6 +157,10 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
 
   const { id } = params
   logger.info('OpportunityPage: Opportunity ID', { id })
+
+  if (RESERVED_OPPORTUNITY_SLUGS.has(id)) {
+    return notFound()
+  }
 
   const headersList = await headers()
   logger.info('OpportunityPage: Request details', {
@@ -209,7 +225,7 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
     }
 
     logger.info('OpportunityPage: Rendering page')
-    const baseUrl = getSeoSiteBaseUrl()
+    const baseUrl = getSiteBaseUrl()
 
     return (
     <>
@@ -272,6 +288,9 @@ export default async function OpportunityPage(props: LocalePageProps<Opportunity
   )
 
   } catch (e) {
+    if (isNextNavigationError(e)) {
+      throw e
+    }
     logger.error('OpportunityPage: Error:', e)
 
     return (

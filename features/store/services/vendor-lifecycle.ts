@@ -5,15 +5,13 @@
  * trust scoring, tier progression, and suspension/reinstatement workflows.
  */
 
-import {
-  getDatabaseService,
-  initializeDatabase
-} from '@/lib/database'
+import { db } from '@/lib/database'
 import { 
   VendorProfile,
   VendorApplication,
   VendorPerformanceMetrics,
-  TierProgressionEntry
+  TierProgressionEntry,
+  SuspensionHistoryEntry
 } from '@/features/store/types/vendor'
 import { 
   VendorOnboardingStatus,
@@ -22,8 +20,16 @@ import {
   TRUST_SCORE_WEIGHTS,
   StoreEvent
 } from '@/constants/store'
-import { Entity } from '@/features/entities/types'
 import { publishEvent } from '@/lib/events/event-bus.server'
+
+/** Entity table rows use snake_case top-level columns; nested vendor_profile is camelCase. */
+type EntityRow = Record<string, unknown> & {
+  vendor_profile?: VendorProfile
+  store_status?: string
+  store_activated?: boolean
+  trust_score?: number
+  verification_status?: string
+}
 
 /**
  * Calculate trust score based on performance metrics
@@ -117,21 +123,15 @@ export async function createVendorProfile(
     updatedAt: now
   }
 
-  // Since vendor data is stored in entities table, update the entity
-  const dbService = getDatabaseService();
-
-  // Read the current entity
-  const entityResult = await dbService.read('entities', entityId);
+  const entityResult = await db().readDoc<EntityRow>('entities', entityId);
   if (!entityResult.success || !entityResult.data) {
     throw new Error('Entity not found');
   }
 
-  const entityData = entityResult.data.data || entityResult.data;
+  const entityData = entityResult.data;
 
-  // Update entity with vendor profile data
   const updatedEntityData = {
     ...entityData,
-    // Store vendor profile data in the JSONB data field or as additional entity fields
     vendor_profile: profile,
     store_activated: true,
     store_status: 'test', // Start in test mode
@@ -140,12 +140,16 @@ export async function createVendorProfile(
     updated_at: new Date()
   };
 
-  const updateResult = await dbService.update('entities', entityId, updatedEntityData);
+  const updateResult = await db().updateDoc('entities', entityId, updatedEntityData);
   if (!updateResult.success) {
     throw new Error('Failed to create vendor profile');
   }
 
-  // Publish event
+  const profileRow = await db().createDoc('vendor_profiles', profile, { id: profile.id });
+  if (!profileRow.success) {
+    console.warn('createVendorProfile: vendor_profiles write-through failed', profileRow.error);
+  }
+
   await publishEvent({
     type: StoreEvent.STORE_CREATED,
     payload: { vendorId: profile.id, entityId }
@@ -175,22 +179,17 @@ export async function updateOnboardingStatus(
     updates.notes = notes
   }
 
-  // Update entity with vendor profile changes
-  const dbService = getDatabaseService();
-
-  // Read current entity
-  const entityResult = await dbService.read('entities', vendorId);
+  const entityResult = await db().readDoc<EntityRow>('entities', vendorId);
   if (!entityResult.success || !entityResult.data) {
     throw new Error('Vendor entity not found');
   }
 
-  const entityData = entityResult.data.data || entityResult.data;
-  const currentVendorProfile = entityData.vendor_profile || {};
+  const entityData = entityResult.data;
+  const currentVendorProfile = entityData.vendor_profile ?? ({} as VendorProfile);
 
-  // Update vendor profile within entity
-  const updatedVendorProfile = {
+  const updatedVendorProfile: VendorProfile = {
     ...currentVendorProfile,
-    ...updates
+    ...updates,
   };
 
   const updatedEntityData = {
@@ -200,9 +199,18 @@ export async function updateOnboardingStatus(
     updated_at: new Date()
   };
 
-  const updateResult = await dbService.update('entities', vendorId, updatedEntityData);
+  const updateResult = await db().updateDoc('entities', vendorId, updatedEntityData);
   if (!updateResult.success) {
     throw new Error('Failed to update vendor onboarding status');
+  }
+
+  const profileRowId = vendorId.startsWith('vendor_') ? vendorId : `vendor_${vendorId}`;
+  const mirror = await db().readDoc<VendorProfile>('vendor_profiles', profileRowId);
+  if (mirror.success && mirror.data) {
+    await db().updateDoc('vendor_profiles', profileRowId, {
+      ...mirror.data,
+      ...updates,
+    });
   }
 }
 
@@ -213,55 +221,46 @@ export async function updateVendorPerformance(
   vendorId: string,
   metrics: Partial<VendorPerformanceMetrics>
 ): Promise<void> {
-  const dbService = getDatabaseService();
-
-  // Read current vendor profile
-  const vendorResult = await dbService.read('vendor_profiles', vendorId);
+  const vendorResult = await db().readDoc<VendorProfile>('vendor_profiles', vendorId);
   if (!vendorResult.success || !vendorResult.data) {
     throw new Error('Vendor not found');
   }
 
-  const vendor = vendorResult.data.data || vendorResult.data;
+  const vendor = vendorResult.data;
 
-  // Merge new metrics with existing
-  const updatedMetrics = {
-    ...vendor.performance_metrics,
-    ...metrics
+  const updatedMetrics: VendorPerformanceMetrics = {
+    ...vendor.performanceMetrics,
+    ...metrics,
   };
 
-  // Calculate new trust score
   const newTrustScore = calculateTrustScore(updatedMetrics);
 
-  // Determine new trust level
   const newTrustLevel = determineTrustLevel(
     newTrustScore,
     updatedMetrics.totalOrders || 0,
-    (vendor.suspension_history || []).length
+    vendor.suspensionHistory.length
   );
 
-  // Check for tier progression
-  const tierChanged = newTrustLevel !== vendor.trust_level;
+  const tierChanged = newTrustLevel !== vendor.trustLevel;
 
-  // Update vendor profile
-  const updatedVendorData = {
+  const updatedVendorData: VendorProfile = {
     ...vendor,
-    performance_metrics: updatedMetrics,
-    trust_score: newTrustScore,
-    trust_level: newTrustLevel,
-    updated_at: new Date(),
-    last_active_at: new Date()
+    performanceMetrics: updatedMetrics,
+    trustScore: newTrustScore,
+    trustLevel: newTrustLevel,
+    updatedAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
   };
 
-  const updateResult = await dbService.update('vendor_profiles', vendorId, updatedVendorData);
+  const updateResult = await db().updateDoc('vendor_profiles', vendorId, updatedVendorData);
   if (!updateResult.success) {
     throw new Error('Failed to update vendor performance');
   }
 
-  // Record tier progression if changed
   if (tierChanged) {
     await recordTierProgression(
       vendorId,
-      vendor.trust_level,
+      vendor.trustLevel,
       newTrustLevel,
       'Performance-based progression'
     )
@@ -277,13 +276,10 @@ async function recordTierProgression(
   toTier: VendorTrustLevel,
   reason: string
 ): Promise<void> {
-  const dbService = getDatabaseService();
-
-  // Read current vendor profile
-  const vendorResult = await dbService.read('vendor_profiles', vendorId);
+  const vendorResult = await db().readDoc<VendorProfile>('vendor_profiles', vendorId);
   if (!vendorResult.success || !vendorResult.data) return;
 
-  const vendor = vendorResult.data.data || vendorResult.data;
+  const vendor = vendorResult.data;
 
   const progression: TierProgressionEntry = {
     fromTier,
@@ -293,19 +289,14 @@ async function recordTierProgression(
     automaticProgression: true
   };
 
-  const currentHistory = vendor.tier_progression_history || [];
-  const updatedHistory = [...currentHistory, progression];
-
-  // Update vendor profile with new history
-  const updatedVendorData = {
+  const updatedVendorData: VendorProfile = {
     ...vendor,
-    tier_progression_history: updatedHistory,
-    updated_at: new Date()
+    tierProgressionHistory: [...vendor.tierProgressionHistory, progression],
+    updatedAt: new Date().toISOString(),
   };
 
-  await dbService.update('vendor_profiles', vendorId, updatedVendorData);
+  await db().updateDoc('vendor_profiles', vendorId, updatedVendorData);
 
-  // Publish tier change event
   await publishEvent({
     type: StoreEvent.VENDOR_TIER_CHANGED,
     payload: { vendorId, fromTier, toTier, reason }
@@ -320,53 +311,44 @@ export async function suspendVendor(
   reason: string,
   durationDays: number
 ): Promise<void> {
-  const dbService = getDatabaseService();
-
-  // Read current vendor profile
-  const vendorResult = await dbService.read('vendor_profiles', vendorId);
+  const vendorResult = await db().readDoc<VendorProfile>('vendor_profiles', vendorId);
   if (!vendorResult.success || !vendorResult.data) {
     throw new Error('Vendor not found');
   }
 
-  const vendor = vendorResult.data.data || vendorResult.data;
+  const vendor = vendorResult.data;
 
-  const suspension = {
+  const suspension: SuspensionHistoryEntry = {
     reason,
     date: new Date().toISOString(),
     duration: durationDays,
     resolved: false
   };
 
-  const currentHistory = vendor.suspension_history || [];
-  const updatedHistory = [...currentHistory, suspension];
-
-  // Update vendor profile
-  const updatedVendorData = {
+  const updatedVendorData: VendorProfile = {
     ...vendor,
-    suspension_history: updatedHistory,
-    trust_level: VendorTrustLevel.NEW, // Reset to NEW on suspension
-    updated_at: new Date()
+    suspensionHistory: [...vendor.suspensionHistory, suspension],
+    trustLevel: VendorTrustLevel.NEW,
+    updatedAt: new Date().toISOString(),
   };
 
-  const updateResult = await dbService.update('vendor_profiles', vendorId, updatedVendorData);
+  const updateResult = await db().updateDoc('vendor_profiles', vendorId, updatedVendorData);
   if (!updateResult.success) {
     throw new Error('Failed to update vendor profile');
   }
 
-  // Update entity store status
-  const entityResult = await dbService.read('entities', vendor.entity_id);
-  if (entityResult.success && entityResult.data) {
-    const entityData = entityResult.data.data || entityResult.data;
-    const updatedEntityData = {
-      ...entityData,
-      store_status: 'suspended',
-      updated_at: new Date()
-    };
-
-    await dbService.update('entities', vendor.entity_id, updatedEntityData);
+  const entityId = vendor.entityId;
+  if (entityId) {
+    const entityResult = await db().readDoc<EntityRow>('entities', entityId);
+    if (entityResult.success && entityResult.data) {
+      await db().updateDoc('entities', entityId, {
+        ...entityResult.data,
+        store_status: 'suspended',
+        updated_at: new Date()
+      });
+    }
   }
 
-  // Publish suspension event
   await publishEvent({
     type: StoreEvent.STORE_SUSPENDED,
     payload: { vendorId, reason, duration: durationDays }
@@ -380,25 +362,19 @@ export async function reinstateVendor(
   vendorId: string,
   notes?: string
 ): Promise<void> {
-  const dbService = getDatabaseService();
-
-  // Read current vendor profile
-  const vendorResult = await dbService.read('vendor_profiles', vendorId);
+  const vendorResult = await db().readDoc<VendorProfile>('vendor_profiles', vendorId);
   if (!vendorResult.success || !vendorResult.data) {
     throw new Error('Vendor not found');
   }
 
-  const vendor = vendorResult.data.data || vendorResult.data;
+  const vendor = vendorResult.data;
 
-  // Find the latest unresolved suspension
-  const suspensionHistory = vendor.suspension_history || [];
-  const suspensionIndex = suspensionHistory.findIndex((s: any) => !s.resolved);
+  const suspensionIndex = vendor.suspensionHistory.findIndex((s) => !s.resolved);
   if (suspensionIndex === -1) {
     throw new Error('No active suspension found');
   }
 
-  // Mark suspension as resolved
-  const updatedHistory = [...suspensionHistory];
+  const updatedHistory = [...vendor.suspensionHistory];
   updatedHistory[suspensionIndex] = {
     ...updatedHistory[suspensionIndex],
     resolved: true,
@@ -406,32 +382,29 @@ export async function reinstateVendor(
     notes
   };
 
-  // Update vendor profile
-  const updatedVendorData = {
+  const updatedVendorData: VendorProfile = {
     ...vendor,
-    suspension_history: updatedHistory,
-    updated_at: new Date()
+    suspensionHistory: updatedHistory,
+    updatedAt: new Date().toISOString(),
   };
 
-  const updateResult = await dbService.update('vendor_profiles', vendorId, updatedVendorData);
+  const updateResult = await db().updateDoc('vendor_profiles', vendorId, updatedVendorData);
   if (!updateResult.success) {
     throw new Error('Failed to update vendor profile');
   }
 
-  // Update entity store status
-  const entityResult = await dbService.read('entities', vendor.entity_id);
-  if (entityResult.success && entityResult.data) {
-    const entityData = entityResult.data.data || entityResult.data;
-    const updatedEntityData = {
-      ...entityData,
-      store_status: 'open',
-      updated_at: new Date()
-    };
-
-    await dbService.update('entities', vendor.entity_id, updatedEntityData);
+  const entityId = vendor.entityId;
+  if (entityId) {
+    const entityResult = await db().readDoc<EntityRow>('entities', entityId);
+    if (entityResult.success && entityResult.data) {
+      await db().updateDoc('entities', entityId, {
+        ...entityResult.data,
+        store_status: 'open',
+        updated_at: new Date()
+      });
+    }
   }
 
-  // Publish reinstatement event
   await publishEvent({
     type: StoreEvent.STORE_VERIFIED,
     payload: { vendorId, notes }
@@ -444,14 +417,12 @@ export async function reinstateVendor(
 export async function getVendorsByTrustLevel(
   trustLevel: VendorTrustLevel
 ): Promise<VendorProfile[]> {
-  const dbService = getDatabaseService();
-
-  const queryResult = await dbService.query({
+  const queryResult = await db().queryDocs<VendorProfile>({
     collection: 'vendor_profiles',
     filters: [
-      { field: 'trust_level', operator: '==' as const, value: trustLevel }
+      { field: 'trustLevel', operator: '==' as const, value: trustLevel }
     ],
-    orderBy: [{ field: 'trust_score', direction: 'desc' as const }],
+    orderBy: [{ field: 'trustScore', direction: 'desc' as const }],
     pagination: { limit: 100 }
   });
 
@@ -459,21 +430,19 @@ export async function getVendorsByTrustLevel(
     return [];
   }
 
-  return queryResult.data.map(item => item.data as VendorProfile);
+  return queryResult.data;
 }
 
 /**
  * Get vendors requiring review
  */
 export async function getVendorsRequiringReview(): Promise<VendorProfile[]> {
-  const dbService = getDatabaseService();
-
-  const queryResult = await dbService.query({
+  const queryResult = await db().queryDocs<VendorProfile>({
     collection: 'vendor_profiles',
     filters: [
-      { field: 'trust_score', operator: '<' as const, value: VENDOR_PERFORMANCE_THRESHOLDS.customerSatisfactionScore * 20 }
+      { field: 'trustScore', operator: '<' as const, value: VENDOR_PERFORMANCE_THRESHOLDS.customerSatisfactionScore * 20 }
     ],
-    orderBy: [{ field: 'trust_score', direction: 'asc' as const }],
+    orderBy: [{ field: 'trustScore', direction: 'asc' as const }],
     pagination: { limit: 50 }
   });
 
@@ -481,7 +450,7 @@ export async function getVendorsRequiringReview(): Promise<VendorProfile[]> {
     return [];
   }
 
-  return queryResult.data.map(item => item.data as VendorProfile);
+  return queryResult.data;
 }
 
 /**
@@ -493,50 +462,47 @@ export async function processVendorApplication(
   reviewNotes?: string,
   reviewerId?: string
 ): Promise<void> {
-  const dbService = getDatabaseService();
-
-  // Read application
-  const applicationResult = await dbService.read('vendor_applications', applicationId);
+  const applicationResult = await db().readDoc<VendorApplication>(
+    'vendor_applications',
+    applicationId
+  );
   if (!applicationResult.success || !applicationResult.data) {
     throw new Error('Application not found');
   }
 
-  const application = applicationResult.data.data || applicationResult.data;
+  const application = applicationResult.data;
 
   const status = approved ? 'approved' : 'rejected';
-  const now = new Date();
+  const now = new Date().toISOString();
 
-  // Update application
-  const updatedApplicationData = {
+  const updatedApplication: VendorApplication = {
     ...application,
     status,
-    reviewed_at: now,
-    reviewed_by: reviewerId,
-    review_notes: reviewNotes,
-    updated_at: now
+    reviewedAt: now,
+    reviewedBy: reviewerId,
+    reviewNotes: reviewNotes,
+    updatedAt: now,
   };
 
-  const updateResult = await dbService.update('vendor_applications', applicationId, updatedApplicationData);
+  const updateResult = await db().updateDoc('vendor_applications', applicationId, updatedApplication);
   if (!updateResult.success) {
     throw new Error('Failed to update application');
   }
 
   if (approved) {
-    // Create vendor profile
-    await createVendorProfile(application.entity_id, application.user_id, application);
+    await createVendorProfile(application.entityId, application.userId, application);
 
-    // Update entity to activate store
-    const entityResult = await dbService.read('entities', application.entity_id);
-    if (entityResult.success && entityResult.data) {
-      const entityData = entityResult.data.data || entityResult.data;
-      const updatedEntityData = {
-        ...entityData,
-        store_activated: true,
-        store_status: 'test', // Start in test mode
-        updated_at: new Date()
-      };
-
-      await dbService.update('entities', application.entity_id, updatedEntityData);
+    const entityId = application.entityId;
+    if (entityId) {
+      const entityResult = await db().readDoc<EntityRow>('entities', entityId);
+      if (entityResult.success && entityResult.data) {
+        await db().updateDoc('entities', entityId, {
+          ...entityResult.data,
+          store_activated: true,
+          store_status: 'test',
+          updated_at: new Date()
+        });
+      }
     }
   }
 }
@@ -545,12 +511,10 @@ export async function processVendorApplication(
  * Run automated vendor performance review
  */
 export async function runAutomatedPerformanceReview(): Promise<void> {
-  const dbService = getDatabaseService();
-
-  const queryResult = await dbService.query({
+  const queryResult = await db().queryDocs<VendorProfile>({
     collection: 'vendor_profiles',
     filters: [
-      { field: 'onboarding_status', operator: '==' as const, value: VendorOnboardingStatus.APPROVED }
+      { field: 'onboardingStatus', operator: '==' as const, value: VendorOnboardingStatus.APPROVED }
     ],
     pagination: { limit: 1000 }
   });
@@ -559,25 +523,22 @@ export async function runAutomatedPerformanceReview(): Promise<void> {
     return;
   }
 
-  for (const item of queryResult.data) {
-    const vendor = item.data as VendorProfile;
-    const { performanceMetrics } = vendor;
+  for (const vendor of queryResult.data) {
+    const performanceMetrics = vendor.performanceMetrics;
 
-    // Check against thresholds
     const belowThresholds =
       performanceMetrics.orderFulfillmentRate < VENDOR_PERFORMANCE_THRESHOLDS.orderFulfillmentRate ||
       performanceMetrics.onTimeShipmentRate < VENDOR_PERFORMANCE_THRESHOLDS.onTimeShipmentRate ||
       performanceMetrics.customerSatisfactionScore < VENDOR_PERFORMANCE_THRESHOLDS.customerSatisfactionScore;
 
     if (belowThresholds) {
-      // Flag for manual review or automatic action
-      const updatedVendorData = {
+      const updatedVendorData: VendorProfile = {
         ...vendor,
         notes: `Performance below thresholds - Review required`,
-        updated_at: new Date()
+        updatedAt: new Date().toISOString(),
       };
 
-      await dbService.update('vendor_profiles', vendor.id, updatedVendorData);
+      await db().updateDoc('vendor_profiles', vendor.id, updatedVendorData);
     }
   }
 }

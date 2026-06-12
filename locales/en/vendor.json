@@ -3,20 +3,23 @@
   "becomeVendor": "Become a Vendor",
 
   "onboarding": {
-    "title": "Become a Vendor on GreenFood.live",
-    "subtitle": "Join our agricultural marketplace and reach thousands of customers",
-    "success": "Welcome to GreenFood Marketplace! Your vendor store has been created.",
+    "title": "Become a Vendor on Ring Platform",
+    "subtitle": "Join the Ring Marketplace and sell dev kits, AI tools, templates, and expert services",
+    "success": "Welcome to Ring Platform! Your vendor store has been created.",
     "redirecting": "Redirecting to your dashboard...",
     "form": {
       "storeSlug": "Store URL Slug",
-      "storeSlugHint": "URL-friendly identifier (e.g., 'green-valley-farm')",
-      "storeSlugPlaceholder": "green-valley-farm",
+      "storeUrlPrefix": "ring-platform.org/store/vendors/",
+      "storeSlugHint": "URL-friendly identifier (e.g., 'my-dev-shop')",
+      "storeSlugPlaceholder": "my-dev-shop",
       "storeName": "Store Name",
-      "storeNameHint": "Your farm or business name",
-      "storeNamePlaceholder": "Green Valley Organic Farm",
+      "storeNameHint": "Your business or brand name",
+      "storeNamePlaceholder": "Acme Dev Tools",
       "storeDescription": "Store Description",
-      "storeDescriptionHint": "Brief description of your farm and products (max 500 characters)",
-      "storeDescriptionPlaceholder": "We are a family-owned organic farm specializing in fresh vegetables and herbs...",
+      "storeDescriptionHint": "Brief description of what you sell (max 500 characters)",
+      "storeDescriptionPlaceholder": "We ship Ring modules, AI prompt packs, and expert integration services for founders and CTOs...",
+      "categoriesSelected": "{count, plural, one {# category selected} other {# categories selected}}",
+      "categoriesSelectHint": "Select at least one category",
       "storeCategories": "Store Categories",
       "storeCategoriesHint": "Select all categories that apply to your products",
       "storeLogo": "Store Logo",
@@ -26,20 +29,6 @@
       "removeLogo": "Remove Logo",
       "submit": "Create My Vendor Store",
       "submitting": "Creating your store..."
-    },
-    "categories": {
-      "organic-produce": "Organic Produce",
-      "honey-sweets": "Honey & Sweets",
-      "essential-oils": "Essential Oils",
-      "dairy-eggs": "Dairy & Eggs",
-      "meat-poultry": "Meat & Poultry",
-      "herbs-spices": "Herbs & Spices",
-      "grains-legumes": "Grains & Legumes",
-      "baked-goods": "Baked Goods",
-      "preserves-pickles": "Preserves & Pickles",
-      "beverages": "Beverages",
-      "nuts-seeds": "Nuts & Seeds",
-      "handmade-crafts": "Handmade Crafts"
     },
     "validation": {
       "slugRequired": "Store slug is required",
@@ -62,7 +51,26 @@
     "welcome": "Welcome back",
     "overview": "Overview",
     "analytics": "Analytics",
-    "settings": "Settings"
+    "settings": "Settings",
+    "quickActionsTitle": "Quick Actions",
+    "quickActionsFab": "Quick Actions",
+    "quickActions": {
+      "manageProducts": "Manage Products",
+      "addProduct": "Add Product",
+      "viewOrders": "View Orders",
+      "stockLevels": "Stock Levels",
+      "earnings": "Earnings",
+      "storeSettings": "Store Settings"
+    },
+    "boostSalesTitle": "Boost Your Sales",
+    "boostSalesTips": {
+      "photos": "Add high-quality product photos for 3x more views",
+      "inventory": "Update inventory daily for better search ranking",
+      "quality": "Highlight verified listings and clear docs for better discovery"
+    },
+    "resourcesTitle": "Vendor Resources",
+    "resourcesDescription": "Learn how to maximize your store's potential",
+    "viewVendorGuide": "View Vendor Guide →"
   },
 
   "products": {
@@ -152,7 +160,10 @@
       "update": "Update Product",
       "submitting": "Creating...",
       "updating": "Updating...",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "referralCommission": "Referral commission %",
+      "referralCommissionHint": "Optional. Leave empty to inherit your merchant or platform rate.",
+      "referralCommissionPlaceholder": "Inherit ({percent}%)"
     },
 
     "validation": {
@@ -190,6 +201,8 @@
     "rating": "Rating",
     "responseTime": "Response time",
     "poweredBy": "Powered by",
+    "metadataTitle": "{name} - Ring Platform",
+    "metadataDescription": "Shop from {name} on Ring Platform",
     "tabs": {
       "products": "Products",
       "about": "About",
@@ -213,6 +226,60 @@
     }
   },
 
+  "orders": {
+    "title": "Vendor Orders",
+    "description": "Orders containing your products",
+    "empty": "No orders yet for your store.",
+    "orderId": "Order",
+    "status": "Status",
+    "total": "Order total",
+    "netAmount": "Your net",
+    "date": "Date"
+  },
+  "earnings": {
+    "title": "Earnings & Payouts",
+    "description": "Pending and completed vendor settlements",
+    "pending": "Pending payout",
+    "history": "Payout history",
+    "amount": "Amount",
+    "commission": "Commission",
+    "status": "Status",
+    "scheduled": "Date",
+    "empty": "No payout records yet.",
+    "simulatedBadge": "Simulated"
+  },
+  "settings": {
+    "title": "Store Settings",
+    "description": "Merchant configuration and settlement preferences",
+    "readOnlyNote": "Settlement frequency and commission rates are managed by platform policy. Contact admin to request changes.",
+    "storefront": "Storefront",
+    "storeName": "Store name",
+    "entityId": "Entity ID",
+    "settlement": "Settlement",
+    "frequency": "Payout frequency",
+    "defaultFrequency": "Weekly",
+    "holdPeriod": "Hold period",
+    "days": "days",
+    "platformCommission": "Platform commission",
+    "referralCommission": "Referral commission",
+    "referralSource": {
+      "product": "product override",
+      "merchant": "merchant config",
+      "default": "platform default",
+      "env": "environment default"
+    },
+    "noMerchantConfig": "Merchant configuration not yet provisioned."
+  },
+  "stock": {
+    "title": "Inventory",
+    "description": "Stock levels for your products",
+    "empty": "No products to track.",
+    "product": "Products",
+    "stock": "Stock",
+    "restock": "Restock",
+    "restocking": "Adding…",
+    "quantity": "Quantity"
+  },
   "navbar": {
     "myStore": "My Store",
     "dashboard": "Dashboard",
@@ -221,6 +288,7 @@
     "orders": "Orders",
     "earnings": "Earnings",
     "settings": "Settings",
+    "stock": "Stock",
     "comingSoon": "Coming Soon"
   },
 
@@ -229,7 +297,7 @@
     "productUpdated": "Product '{name}' updated successfully",
     "productDeleted": "Product deleted",
     "productSubmitted": "Product submitted to Main Store for review",
-    "vendorCreated": "Vendor store created successfully! Welcome to GreenFood.live",
+    "vendorCreated": "Vendor store created successfully! Welcome to Ring Platform",
     "approvalPending": "Your product is pending admin review",
     "approvalApproved": "Congratulations! '{name}' has been approved for Main Store",
     "approvalRejected": "Product '{name}' was not approved. Reason: {reason}"
@@ -239,7 +307,7 @@
     "setupProgress": "Setup Progress",
     "storeDetails": "Store Details",
     "completeStoreInfo": "Complete store information and logo to reach 100%",
-    "whyChooseGreenFood": "Why Choose GreenFood?",
+    "whyChoosePlatform": "Why Choose Ring Platform?",
     "benefits": {
       "aiEnrichment": {
         "title": "AI Product Enrichment",
@@ -249,9 +317,9 @@
         "title": "Automated Settlements",
         "description": "Sales automatically processed, commissions calculated, payouts scheduled"
       },
-      "daarRewards": {
-        "title": "DAAR Token Rewards",
-        "description": "Earn up to 25% bonus tokens for regenerative agriculture practices"
+      "ringRewards": {
+        "title": "RING Token Rewards",
+        "description": "Earn community rewards and RING tokens for quality listings and verified sales"
       },
       "trustTier": {
         "title": "Trust Tier System",
@@ -274,14 +342,14 @@
 
   "startPage": {
     "title": "Vendor Onboarding",
-    "subtitle": "Set up your store and start selling on GreenFood.live",
+    "subtitle": "Set up your store and start selling on Ring Platform",
     "progressSteps": {
       "account": "Account",
       "storeSetup": "Store Setup",
       "launch": "Launch"
     },
     "trustIndicators": {
-      "farms": "50+ Farms",
+      "vendors": "50+ Vendors",
       "activation": "Instant Activation",
       "security": "Secure Platform"
     }

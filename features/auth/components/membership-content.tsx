@@ -80,14 +80,8 @@ export default function MembershipContent({ user, locale }: MembershipContentPro
   return (
     <div className="min-h-screen bg-background">
       {/* Three-column layout for desktop - Membership page spans feed + options columns */}
-      <div className="grid grid-cols-[320px_1fr] gap-6 min-h-screen">
-        {/* Left Sidebar - Navigation */}
-        <div className="hidden lg:block">
-          {/* We can add a minimal sidebar or leave it empty for now */}
-        </div>
-
-        {/* Main Content - Spans across feed and options columns */}
-        <div className="lg:ml-0 lg:mr-0 mr-4 ml-4 py-12">
+      <div className="min-h-screen">
+        <div className="mr-4 ml-4 py-12">
         {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

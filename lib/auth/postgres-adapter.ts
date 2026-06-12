@@ -10,7 +10,8 @@
 
 import type { Adapter, AdapterUser, AdapterAccount, AdapterSession, VerificationToken } from "next-auth/adapters"
 import { cookies } from "next/headers"
-import { getDatabaseService, initializeDatabase } from "@/lib/database/DatabaseService"
+import { db } from "@/lib/database"
+import type { DatabaseResult } from "@/lib/database/interfaces/IDatabaseService"
 import {
   DEFAULT_USER_ROLE,
   OAUTH_INTENT_COOKIE_NAME,
@@ -18,29 +19,42 @@ import {
   normalizeUserRole,
 } from "@/features/auth/role-intent"
 
+type UserRow = Record<string, unknown> & {
+  id: string
+  email?: string
+  emailVerified?: Date | null
+  name?: string | null
+  image?: string | null
+}
+
+function throwOnDbFailure<T>(result: DatabaseResult<T>, context: string): asserts result is { success: true; data: T } {
+  if (!result.success) {
+    const detail = result.error?.message ?? String(result.error ?? 'unknown error')
+    if (result.metadata?.operation === 'initialize') {
+      console.error('PostgreSQLAdapter: Database initialization failed:', result.error)
+      throw new Error(`Database initialization failed: ${detail}`)
+    }
+    console.error(`PostgreSQLAdapter: ${context}:`, result.error)
+    throw new Error(`${context}: ${detail}`)
+  }
+}
+
+function toAdapterUser(row: UserRow): AdapterUser {
+  return {
+    id: row.id,
+    email: row.email ?? '',
+    emailVerified: row.emailVerified ?? null,
+    name: row.name ?? null,
+    image: row.image ?? null,
+  }
+}
+
 /**
  * Create a PostgreSQL adapter that uses Ring Platform's database abstraction
  * This adapter will route all operations through BackendSelector which
  * respects the configured backend (PostgreSQL/Firebase/Hybrid)
  */
 export function PostgreSQLAdapter(): Adapter {
-  // Get database service and ensure it's initialized
-  const db = getDatabaseService()
-
-  /**
-   * Same entry point as {@link auth.ts} JWT callback and ring-zemna-ai adapters:
-   * `initializeDatabase()` sets the global connected flag and respects build-skip semantics.
-   */
-  const ensureInitialized = async () => {
-    const result = await initializeDatabase()
-    if (result.success) {
-      return
-    }
-    const detail = result.error?.message ?? String(result.error ?? 'unknown error')
-    console.error('PostgreSQLAdapter: Database initialization failed:', result.error)
-    throw new Error(`Database initialization failed: ${detail}`)
-  }
-
   const readRequestedRole = async (user: AdapterUser) => {
     const explicitRole = normalizeUserRole((user as AdapterUser & { role?: string }).role)
     if (explicitRole) return explicitRole
@@ -53,7 +67,6 @@ export function PostgreSQLAdapter(): Adapter {
     async createUser(user) {
       console.log('PostgreSQLAdapter: Creating user via database abstraction:', user.email)
       
-      await ensureInitialized()
       try {
         const requestedRole = await readRequestedRole(user)
         const now = new Date()
@@ -84,25 +97,17 @@ export function PostgreSQLAdapter(): Adapter {
         },
       }
 
-        const result = await db.create('users', userData, { id: user.id })
-
-        if (!result.success || !result.data) {
-          console.error('PostgreSQLAdapter: Failed to create user:', result.error)
-          throw new Error(`Failed to create user: ${result.error?.message}`)
+        const result = await db().createDoc('users', userData, { id: user.id })
+        throwOnDbFailure(result, 'Failed to create user')
+        if (!result.data) {
+          throw new Error('Failed to create user: no document returned')
         }
 
         console.log('PostgreSQLAdapter: User created successfully:', result.data.id)
 
-        return {
-          id: result.data.id,
-          email: result.data.data.email,
-          emailVerified: result.data.data.emailVerified,
-          name: result.data.data.name,
-          image: result.data.data.image,
-        }
+        return toAdapterUser(result.data as UserRow)
       } catch (error) {
         console.error('PostgreSQLAdapter: Error creating user:', error)
-        // Re-throw to let Auth.js handle it
         throw error
       }
     },
@@ -110,23 +115,15 @@ export function PostgreSQLAdapter(): Adapter {
     async getUser(id) {
       console.log('PostgreSQLAdapter: Getting user by id:', id)
       
-      await ensureInitialized()
       try {
-        const result = await db.read('users', id)
+        const result = await db().readDoc<UserRow>('users', id)
 
         if (!result.success || !result.data) {
           console.log('PostgreSQLAdapter: User not found:', id)
           return null
         }
 
-        const user = result.data.data
-        return {
-          id: result.data.id,
-          email: user.email,
-          emailVerified: user.emailVerified,
-          name: user.name,
-          image: user.image,
-        }
+        return toAdapterUser(result.data)
       } catch (error) {
         console.error('PostgreSQLAdapter: Error getting user:', error)
         return null
@@ -136,27 +133,19 @@ export function PostgreSQLAdapter(): Adapter {
     async getUserByEmail(email) {
       console.log('PostgreSQLAdapter: Getting user by email:', email)
       
-      await ensureInitialized()
       try {
-        const result = await db.query({
+        const result = await db().queryDocs<UserRow>({
           collection: 'users',
           filters: [{ field: 'email', operator: '==', value: email }],
           pagination: { limit: 1 },
         })
 
-        if (!result.success || !result.data || result.data.length === 0) {
+        if (!result.success || result.data.length === 0) {
           console.log('PostgreSQLAdapter: User not found by email:', email)
           return null
         }
 
-        const userData = result.data[0]
-        return {
-          id: userData.id,
-          email: userData.data.email,
-          emailVerified: userData.data.emailVerified,
-          name: userData.data.name,
-          image: userData.data.image,
-        }
+        return toAdapterUser(result.data[0])
       } catch (error) {
         console.error('PostgreSQLAdapter: Error getting user by email:', error)
         return null
@@ -166,9 +155,7 @@ export function PostgreSQLAdapter(): Adapter {
     async getUserByAccount({ providerAccountId, provider }) {
       console.log('PostgreSQLAdapter: Getting user by account:', { provider, providerAccountId })
       
-      await ensureInitialized()
-
-      const accountResult = await db.query({
+      const accountResult = await db().queryDocs<Record<string, unknown> & { id: string }>({
         collection: 'accounts',
         filters: [
           { field: 'provider', operator: '==', value: provider },
@@ -182,69 +169,47 @@ export function PostgreSQLAdapter(): Adapter {
         return null
       }
 
-      if (!accountResult.data || accountResult.data.length === 0) {
+      if (accountResult.data.length === 0) {
         console.log('PostgreSQLAdapter: Account not found')
         return null
       }
 
       const account = accountResult.data[0]
-      const userId = account.data.userId
+      const userId = account.userId as string
 
-      // Get the user
-      const userResult = await db.read('users', userId)
+      const userResult = await db().readDoc<UserRow>('users', userId)
 
       if (!userResult.success || !userResult.data) {
         console.log('PostgreSQLAdapter: User not found for account')
         return null
       }
 
-      const user = userResult.data.data
-      return {
-        id: userResult.data.id,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        name: user.name,
-        image: user.image,
-      }
+      return toAdapterUser(userResult.data)
     },
 
     async updateUser(user) {
       console.log('PostgreSQLAdapter: Updating user:', user.id)
       
-      await ensureInitialized()
-      const updateData: any = {}
+      const updateData: Record<string, unknown> = {}
       if (user.email !== undefined) updateData.email = user.email
       if (user.emailVerified !== undefined) updateData.emailVerified = user.emailVerified
       if (user.name !== undefined) updateData.name = user.name
       if (user.image !== undefined) updateData.image = user.image
 
-      const result = await db.update('users', user.id, updateData)
-
-      if (!result.success || !result.data) {
-        console.error('PostgreSQLAdapter: Failed to update user:', result.error)
-        throw new Error(`Failed to update user: ${result.error?.message}`)
+      const result = await db().updateDoc<UserRow>('users', user.id, updateData)
+      throwOnDbFailure(result, 'Failed to update user')
+      if (!result.data) {
+        throw new Error('Failed to update user: no document returned')
       }
 
-      const userData = result.data.data
-      return {
-        id: result.data.id,
-        email: userData.email,
-        emailVerified: userData.emailVerified,
-        name: userData.name,
-        image: userData.image,
-      }
+      return toAdapterUser(result.data)
     },
 
     async deleteUser(userId) {
       console.log('PostgreSQLAdapter: Deleting user:', userId)
       
-      await ensureInitialized()
-      const result = await db.delete('users', userId)
-
-      if (!result.success) {
-        console.error('PostgreSQLAdapter: Failed to delete user:', result.error)
-        throw new Error(`Failed to delete user: ${result.error?.message}`)
-      }
+      const result = await db().deleteDoc('users', userId)
+      throwOnDbFailure(result, 'Failed to delete user')
 
       console.log('PostgreSQLAdapter: User deleted successfully:', userId)
     },
@@ -252,7 +217,6 @@ export function PostgreSQLAdapter(): Adapter {
     async linkAccount(account) {
       console.log('PostgreSQLAdapter: Linking account:', { provider: account.provider, userId: account.userId })
       
-      await ensureInitialized()
       const accountData = {
         userId: account.userId,
         type: account.type,
@@ -267,12 +231,8 @@ export function PostgreSQLAdapter(): Adapter {
         session_state: account.session_state,
       }
 
-      const result = await db.create('accounts', accountData)
-
-      if (!result.success || !result.data) {
-        console.error('PostgreSQLAdapter: Failed to link account:', result.error)
-        throw new Error(`Failed to link account: ${result.error?.message}`)
-      }
+      const result = await db().createDoc('accounts', accountData)
+      throwOnDbFailure(result, 'Failed to link account')
 
       console.log('PostgreSQLAdapter: Account linked successfully')
       return accountData as AdapterAccount
@@ -281,10 +241,7 @@ export function PostgreSQLAdapter(): Adapter {
     async unlinkAccount({ providerAccountId, provider }) {
       console.log('PostgreSQLAdapter: Unlinking account:', { provider, providerAccountId })
       
-      await ensureInitialized()
-
-      // Find the account first
-      const accountResult = await db.query({
+      const accountResult = await db().queryDocs<Record<string, unknown> & { id: string }>({
         collection: 'accounts',
         filters: [
           { field: 'provider', operator: '==', value: provider },
@@ -298,32 +255,27 @@ export function PostgreSQLAdapter(): Adapter {
         return
       }
 
-      if (!accountResult.data || accountResult.data.length === 0) {
+      if (accountResult.data.length === 0) {
         console.log('PostgreSQLAdapter: Account not found for unlinking')
         return
       }
 
       const account = accountResult.data[0]
-      await db.delete('accounts', account.id)
+      await db().deleteDoc('accounts', account.id)
       console.log('PostgreSQLAdapter: Account unlinked successfully')
     },
 
     async createSession({ sessionToken, userId, expires }) {
       console.log('PostgreSQLAdapter: Creating session for user:', userId)
       
-      await ensureInitialized()
       const sessionData = {
         sessionToken,
         userId,
         expires,
       }
 
-      const result = await db.create('sessions', sessionData)
-
-      if (!result.success || !result.data) {
-        console.error('PostgreSQLAdapter: Failed to create session:', result.error)
-        throw new Error(`Failed to create session: ${result.error?.message}`)
-      }
+      const result = await db().createDoc('sessions', sessionData)
+      throwOnDbFailure(result, 'Failed to create session')
 
       return sessionData as AdapterSession
     },
@@ -331,9 +283,7 @@ export function PostgreSQLAdapter(): Adapter {
     async getSessionAndUser(sessionToken) {
       console.log('PostgreSQLAdapter: Getting session and user by token')
       
-      await ensureInitialized()
-
-      const sessionResult = await db.query({
+      const sessionResult = await db().queryDocs<Record<string, unknown> & { id: string }>({
         collection: 'sessions',
         filters: [{ field: 'sessionToken', operator: '==', value: sessionToken }],
         pagination: { limit: 1 },
@@ -344,107 +294,86 @@ export function PostgreSQLAdapter(): Adapter {
         return null
       }
 
-      if (!sessionResult.data || sessionResult.data.length === 0) {
+      if (sessionResult.data.length === 0) {
         console.log('PostgreSQLAdapter: Session not found')
         return null
       }
 
-      const session = sessionResult.data[0].data
-      const userId = session.userId
+      const session = sessionResult.data[0]
+      const userId = session.userId as string
 
-      const userResult = await db.read('users', userId)
+      const userResult = await db().readDoc<UserRow>('users', userId)
 
       if (!userResult.success || !userResult.data) {
         console.log('PostgreSQLAdapter: User not found for session')
         return null
       }
 
-      const user = userResult.data.data
-
       return {
         session: {
-          sessionToken: session.sessionToken,
-          userId: session.userId,
-          expires: session.expires,
+          sessionToken: session.sessionToken as string,
+          userId: session.userId as string,
+          expires: session.expires as Date,
         } as AdapterSession,
-        user: {
-          id: userResult.data.id,
-          email: user.email,
-          emailVerified: user.emailVerified,
-          name: user.name,
-          image: user.image,
-        } as AdapterUser,
+        user: toAdapterUser(userResult.data),
       }
     },
 
     async updateSession({ sessionToken, ...session }) {
       console.log('PostgreSQLAdapter: Updating session')
       
-      await ensureInitialized()
-
-      const sessionResult = await db.query({
+      const sessionResult = await db().queryDocs<Record<string, unknown> & { id: string }>({
         collection: 'sessions',
         filters: [{ field: 'sessionToken', operator: '==', value: sessionToken }],
         pagination: { limit: 1 },
       })
 
-      if (!sessionResult.success) {
-        return null
-      }
-
-      if (!sessionResult.data || sessionResult.data.length === 0) {
+      if (!sessionResult.success || sessionResult.data.length === 0) {
         return null
       }
 
       const existingSession = sessionResult.data[0]
-      const result = await db.update('sessions', existingSession.id, session)
+      const result = await db().updateDoc('sessions', existingSession.id, session)
 
       if (!result.success || !result.data) {
         return null
       }
 
-      return result.data.data as AdapterSession
+      return {
+        sessionToken: result.data.sessionToken as string,
+        userId: result.data.userId as string,
+        expires: result.data.expires as Date,
+      } as AdapterSession
     },
 
     async deleteSession(sessionToken) {
       console.log('PostgreSQLAdapter: Deleting session')
       
-      await ensureInitialized()
-
-      const sessionResult = await db.query({
+      const sessionResult = await db().queryDocs<Record<string, unknown> & { id: string }>({
         collection: 'sessions',
         filters: [{ field: 'sessionToken', operator: '==', value: sessionToken }],
         pagination: { limit: 1 },
       })
 
-      if (!sessionResult.success) {
-        return
-      }
-
-      if (!sessionResult.data || sessionResult.data.length === 0) {
+      if (!sessionResult.success || sessionResult.data.length === 0) {
         return
       }
 
       const session = sessionResult.data[0]
-      await db.delete('sessions', session.id)
+      await db().deleteDoc('sessions', session.id)
     },
 
     async createVerificationToken({ identifier, expires, token }) {
       console.log('PostgreSQLAdapter: Creating verification token')
       
-      await ensureInitialized()
       const tokenData = {
         identifier,
         token,
         expires,
       }
 
-      const result = await db.create('verification_tokens', tokenData)
-
-      if (!result.success || !result.data) {
-        console.error('PostgreSQLAdapter: Failed to create verification token:', result.error)
-        throw new Error(`Failed to create verification token: ${result.error?.message}`)
-      }
+      const result = await db().createDoc('verification_tokens', tokenData)
+      throwOnDbFailure(result, 'Failed to create verification token')
 
       return tokenData as VerificationToken
     },
@@ -452,9 +381,7 @@ export function PostgreSQLAdapter(): Adapter {
     async useVerificationToken({ identifier, token }) {
       console.log('PostgreSQLAdapter: Using verification token')
       
-      await ensureInitialized()
-
-      const tokenResult = await db.query({
+      const tokenResult = await db().queryDocs<Record<string, unknown> & { id: string }>({
         collection: 'verification_tokens',
         filters: [
           { field: 'identifier', operator: '==', value: identifier },
@@ -463,22 +390,22 @@ export function PostgreSQLAdapter(): Adapter {
         pagination: { limit: 1 },
       })
 
-      if (!tokenResult.success) {
-        console.error('PostgreSQLAdapter: useVerificationToken query failed:', tokenResult.error?.message)
-        return null
-      }
-
-      if (!tokenResult.data || tokenResult.data.length === 0) {
+      if (!tokenResult.success || tokenResult.data.length === 0) {
+        if (!tokenResult.success) {
+          console.error('PostgreSQLAdapter: useVerificationToken query failed:', tokenResult.error?.message)
+        }
         return null
       }
 
       const verificationToken = tokenResult.data[0]
       
-      // Delete the token after use
-      await db.delete('verification_tokens', verificationToken.id)
+      await db().deleteDoc('verification_tokens', verificationToken.id)
 
-      return verificationToken.data as VerificationToken
+      return {
+        identifier: verificationToken.identifier as string,
+        token: verificationToken.token as string,
+        expires: verificationToken.expires as Date,
+      } as VerificationToken
     },
   }
 }
-

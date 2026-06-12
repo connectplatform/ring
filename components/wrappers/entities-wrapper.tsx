@@ -10,6 +10,7 @@ import { deserializeEntities } from "@/lib/converters/entity-serializer"
 import { EntitySuspenseBoundary } from "@/components/suspense/enhanced-suspense-boundary"
 import { Button } from '@/components/ui/button'
 import { Building2, User, Plus } from 'lucide-react'
+import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { AddEntityButton } from '@/components/entities/add-entity-button'
 import Link from 'next/link'
@@ -110,7 +111,7 @@ export default function EntitiesWrapper({
   }
 
   return (
-    <div>
+    <div className="ring-content-panel min-w-0 min-h-full">
       {/* Main Navigation Bar for GreenFood Agricultural Entities */}
       <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border-b border-emerald-200 dark:border-emerald-800 mb-6">
         <div className="container mx-auto px-4 py-6">
@@ -132,7 +133,12 @@ export default function EntitiesWrapper({
             <div className="flex flex-wrap gap-3">
               {session?.user && (
                 <>
-                  {/* Add Agricultural Entity Button */}
+                  <Button asChild variant="outline" className="flex items-center gap-2">
+                    <Link href={ROUTES.MY_ENTITIES(locale as Locale)}>
+                      <User className="w-4 h-4" />
+                      {t('myEntities')}
+                    </Link>
+                  </Button>
                   <AddEntityButton
                     locale={locale as any}
                     className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"

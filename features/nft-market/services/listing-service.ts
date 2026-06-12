@@ -1,8 +1,8 @@
 // NFT Market Listing Service - Database abstraction layer
-// Migrated to use PostgreSQL for NFT listings storage
+// Uses ring-db *Doc methods (createDoc, queryDocs, readDoc, updateDoc)
 
 import { auth } from '@/auth'
-import { getDatabaseService, initializeDatabase } from '@/lib/database'
+import { db } from '@/lib/database'
 
 interface CreateListingData {
   sellerUsername: string
@@ -26,167 +26,115 @@ interface CreateListingResult {
 
 interface GetListingsResult {
   success: boolean
-  data?: any[]
+  data?: Record<string, unknown>[]
   error?: string
 }
 
 export async function createListingDraft(data: CreateListingData): Promise<CreateListingResult> {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
-        error: 'Authentication required'
+        error: 'Authentication required',
       }
     }
 
-    // Validate required fields
-    const { item, price, sellerUsername } = data
-    
+    const { item, price } = data
+
     if (!item?.address || !item?.tokenId || !item?.standard) {
       return {
         success: false,
-        error: 'Invalid item - address, tokenId, and standard are required'
+        error: 'Invalid item - address, tokenId, and standard are required',
       }
     }
-    
+
     if (!price?.amount || !price?.currency) {
       return {
         success: false,
-        error: 'Invalid price - amount and currency are required'
+        error: 'Invalid price - amount and currency are required',
       }
     }
 
-    // Initialize database service
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      return {
-        success: false,
-        error: 'Database initialization failed'
-      }
-    }
-
-    const dbService = getDatabaseService()
     const now = new Date()
 
-    // Create draft listing data for nft_listings table
     const listingData = {
       seller_id: session.user.id,
       token_id: item.tokenId,
       contract_address: item.address,
       token_standard: item.standard,
-      name: null, // Will be filled later
-      description: null, // Will be filled later
+      name: null,
+      description: null,
       price: price.amount,
       currency: price.currency,
       status: 'draft',
       created_at: now,
-      updated_at: now
+      updated_at: now,
     }
 
-    // Create the listing in database
-    const createResult = await dbService.create('nft_listings', listingData)
-    if (!createResult.success) {
+    const createResult = await db().createDoc('nft_listings', listingData)
+    if (!createResult.success || !createResult.data) {
       return {
         success: false,
-        error: 'Failed to create NFT listing'
+        error: 'Failed to create NFT listing',
       }
     }
 
     return {
       success: true,
-      id: createResult.data.id
+      id: createResult.data.id,
     }
-
   } catch (error) {
     console.error('Error creating listing draft:', error)
     return {
       success: false,
-      error: 'Failed to create listing draft'
+      error: 'Failed to create listing draft',
     }
   }
 }
 
-export async function getListings(filters: {
-  username?: string
-  status?: string
-  limit?: number
-} = {}): Promise<GetListingsResult> {
+export async function getListings(
+  filters: {
+    username?: string
+    status?: string
+    limit?: number
+  } = {}
+): Promise<GetListingsResult> {
   try {
-    const {
-      username,
-      status = 'active',
-      limit = 12
-    } = filters
+    const { username, status = 'active', limit = 12 } = filters
 
-    // Initialize database service
-    const initResult = await initializeDatabase()
-    if (!initResult.success) {
-      return {
-        success: false,
-        error: 'Database initialization failed'
-      }
-    }
-
-    const dbService = getDatabaseService()
-
-    // Build query filters
     const queryFilters = [{ field: 'status', operator: '==' as const, value: status }]
 
-    // Note: For PostgreSQL, username filtering would require joining with users table
-    // For now, we'll skip username filtering or implement it differently
     if (username) {
-      // This would need a more complex query joining users and nft_listings tables
-      // For simplicity, we'll skip username filtering for now
       console.warn('Username filtering for NFT listings not yet implemented in PostgreSQL migration')
     }
 
     const clampedLimit = Math.max(1, Math.min(100, limit))
 
-    // Query NFT listings
-    const queryResult = await dbService.query({
+    const queryResult = await db().queryDocs({
       collection: 'nft_listings',
       filters: queryFilters,
       orderBy: [{ field: 'created_at', direction: 'desc' }],
-      pagination: { limit: clampedLimit }
+      pagination: { limit: clampedLimit },
     })
 
     if (!queryResult.success) {
       return {
         success: false,
-        error: 'Failed to query NFT listings'
+        error: 'Failed to query NFT listings',
       }
     }
 
-    // Convert database documents to expected format
-    const data = queryResult.data.map(doc => ({
-      id: doc.id,
-      seller_id: doc.data?.seller_id,
-      token_id: doc.data?.token_id,
-      contract_address: doc.data?.contract_address,
-      token_standard: doc.data?.token_standard,
-      name: doc.data?.name,
-      description: doc.data?.description,
-      image_url: doc.data?.image_url,
-      price: doc.data?.price,
-      currency: doc.data?.currency,
-      status: doc.data?.status,
-      created_at: doc.data?.created_at,
-      updated_at: doc.data?.updated_at,
-      ...doc.data
-    }))
-
     return {
       success: true,
-      data
+      data: queryResult.data as Record<string, unknown>[],
     }
-
   } catch (error) {
     console.error('Error fetching listings:', error)
     return {
       success: false,
-      error: 'Failed to fetch listings'
+      error: 'Failed to fetch listings',
     }
   }
 }
@@ -198,72 +146,55 @@ export async function getUserActiveListings(username: string, limit = 12): Promi
 export async function activateListing(listingId: string, txHash: string): Promise<CreateListingResult> {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return {
         success: false,
-        error: 'Authentication required'
+        error: 'Authentication required',
       }
     }
 
-    // Initialize database service
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      return {
-        success: false,
-        error: 'Database initialization failed'
-      };
-    }
-
-    const dbService = getDatabaseService();
-
-    // Read the listing
-    const listingResult = await dbService.read('nft_listings', listingId);
+    const listingResult = await db().readDoc('nft_listings', listingId)
 
     if (!listingResult.success || !listingResult.data) {
       return {
         success: false,
-        error: 'Listing not found'
-      };
+        error: 'Listing not found',
+      }
     }
 
-    const listingData = listingResult.data.data || listingResult.data;
+    const listingData = listingResult.data
 
-    // Check if user owns the listing
-    if (listingData?.seller_user_id !== session.user.id) {
+    if (listingData.seller_user_id !== session.user.id && listingData.seller_id !== session.user.id) {
       return {
         success: false,
-        error: 'Not authorized to activate this listing'
-      };
+        error: 'Not authorized to activate this listing',
+      }
     }
 
-    // Activate the listing
-    const updatedListingData = {
-      ...listingData,
+    const updateResult = await db().updateDoc('nft_listings', listingId, {
       status: 'active',
       tx_hash: txHash,
       activated_at: new Date(),
-      updated_at: new Date()
-    };
+      updated_at: new Date(),
+    })
 
-    const updateResult = await dbService.update('nft_listings', listingId, updatedListingData);
     if (!updateResult.success) {
       return {
         success: false,
-        error: 'Failed to update listing'
-      };
+        error: 'Failed to update listing',
+      }
     }
 
     return {
       success: true,
-      id: listingId
+      id: listingId,
     }
-
   } catch (error) {
     console.error('Error activating listing:', error)
     return {
       success: false,
-      error: 'Failed to activate listing'
+      error: 'Failed to activate listing',
     }
   }
 }

@@ -27,7 +27,18 @@ export enum UserRole {
   SUPERADMIN = 'superadmin'
 }
 
+const USER_ROLE_VALUES = new Set<string>(Object.values(UserRole))
+
+/** Coerce session/DB role strings (e.g. `SUBSCRIBER`) to canonical lowercase `UserRole`. */
+export function normalizeUserRole(role: string | undefined | null): UserRole {
+  if (!role) return UserRole.VISITOR
+  const lower = role.toLowerCase().trim()
+  if (USER_ROLE_VALUES.has(lower)) return lower as UserRole
+  return UserRole.VISITOR
+}
+
 /** Admin UI + most admin APIs: both roles; use strict SUPERADMIN-only where required (e.g. settings). */
 export function isPlatformAdmin(role: string | undefined | null): boolean {
-  return role === UserRole.ADMIN || role === UserRole.SUPERADMIN
+  const normalized = normalizeUserRole(role)
+  return normalized === UserRole.ADMIN || normalized === UserRole.SUPERADMIN
 }

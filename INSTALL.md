@@ -69,7 +69,7 @@ This single command will:
 git clone https://github.com/connectplatform/ring.git
 cd ring
 npm install
-cp .env.local.template .env.local   # Edit locales, DB, auth keys
+cp env.local.template .env.local   # Edit locales, DB, auth keys
 npm run setup:env                   # Interactive env wizard (optional)
 ./scripts/run-migration.sh          # PostgreSQL: apply schema + migrations
 npm run dev

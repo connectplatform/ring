@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion, Variants } from 'framer-motion'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -9,6 +9,17 @@ import { Session } from 'next-auth'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { CONNECT_SOFTWARE_LINKS } from '@/lib/constants/connect-software-urls'
+import {
+  BorderBeam,
+  DavinciCtaLink,
+  HeroAmbient,
+  HeroFeatureRotator,
+  HeroMobileLogo,
+  TerminalCommandBlock,
+  davinciBeamInnerSurface,
+  davinciPanelSurface,
+} from '@/lib/ui/davinci'
+import { cn } from '@/lib/utils'
 
 /**
  * @interface HomeContentProps
@@ -39,61 +50,19 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
   const currentLocale = useLocale() as Locale
   const { theme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const [currentFeature, setCurrentFeature] = useState(0)
-  const [displayText, setDisplayText] = useState('')
-  const [isTyping, setIsTyping] = useState(true)
+
+  const heroFeatures = useMemo(
+    () => (tPages.raw('hero.features') as string[]) ?? [],
+    [tPages]
+  )
 
   // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Self-typing animation effect
-  useEffect(() => {
-    if (!mounted) return
-
-    const features = tPages.raw('hero.features') as string[]
-    const currentFeatureText = features[currentFeature]
-
-    if (isTyping) {
-      // Typing effect
-      if (displayText.length < currentFeatureText.length) {
-        const timeout = setTimeout(() => {
-          setDisplayText(currentFeatureText.slice(0, displayText.length + 1))
-        }, 50) // Typing speed
-        return () => clearTimeout(timeout)
-      } else {
-        // Finished typing, wait before deleting
-        const timeout = setTimeout(() => {
-          setIsTyping(false)
-        }, 2000) // Pause before deleting
-        return () => clearTimeout(timeout)
-      }
-    } else {
-      // Deleting effect
-      if (displayText.length > 0) {
-        const timeout = setTimeout(() => {
-          setDisplayText(displayText.slice(0, -1))
-        }, 30) // Deleting speed
-        return () => clearTimeout(timeout)
-      } else {
-        // Finished deleting, move to next feature
-        setCurrentFeature((prev) => (prev + 1) % features.length)
-        setIsTyping(true)
-      }
-    }
-  }, [displayText, isTyping, currentFeature, mounted, tPages])
-
   // Determine the current theme (dark or light)
   const currentTheme = theme === 'system' ? resolvedTheme : theme
-
-  // Add blinking cursor animation
-  const cursorKeyframes = `
-    @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
-    }
-  `
 
   // Define animation variants for different elements
   const titleVariants: Variants = {
@@ -195,10 +164,12 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: cursorKeyframes }} />
-      <div style={containerStyle}>
-      {/* Hero content - Visible on all screen sizes */}
-      <div>
+      {/* Full-viewport hero on mobile — ambient bleeds edge-to-edge */}
+      <section className="relative flex min-h-[100dvh] w-full flex-col justify-center overflow-hidden bg-gradient-to-br from-primary/[0.045] via-[hsl(var(--app-panel))] to-[hsl(var(--app-panel))] px-4 py-8 text-center md:min-h-[520px] md:px-8 md:py-12 lg:px-11 lg:py-[26px]">
+        <HeroAmbient />
+        <div className="relative z-10 mx-auto w-full max-w-[1200px]">
+        {mounted && <HeroMobileLogo />}
+
         <motion.h1
           style={titleStyle}
           variants={mounted ? titleVariants : undefined}
@@ -209,69 +180,51 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           {tPages('hero.title')}
         </motion.h1>
 
-        {/* Subtitle */}
-        <motion.div
+        {/* Hook */}
+        <motion.p
           style={{
-            ...subtitleStyle,
-            fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
-            marginBottom: '1.5rem',
-            fontWeight: '600'
+            fontSize: 'clamp(1.1rem, 2vw, 1.35rem)',
+            marginBottom: '1.25rem',
+            fontWeight: 600,
+            color: 'hsl(var(--primary))',
           }}
           variants={mounted ? subtitleVariants : undefined}
-          initial={mounted ? "hidden" : false}
-          animate={mounted ? "visible" : false}
+          initial={mounted ? 'hidden' : false}
+          animate={mounted ? 'visible' : false}
           className="motion-safe motion-element"
         >
           {tPages('hero.subtitle')}
-        </motion.div>
+        </motion.p>
 
-        {/* App publisher origin story */}
-        <motion.div
-          style={{
-            fontSize: 'clamp(0.9rem, 1.8vw, 1.1rem)',
-            marginBottom: '2rem',
-            color: 'hsl(var(--primary))',
-            fontWeight: '500',
-            textAlign: 'center'
-          }}
+        {/* Ringdom conversion pitch */}
+        <motion.p
+          className="motion-safe motion-element mx-auto mb-8 max-w-2xl text-pretty text-base sm:text-lg leading-relaxed text-muted-foreground"
           variants={mounted ? textVariants : undefined}
-          initial={mounted ? "hidden" : false}
-          animate={mounted ? "visible" : false}
-          className="motion-safe motion-element"
+          initial={mounted ? 'hidden' : false}
+          animate={mounted ? 'visible' : false}
         >
-          {tPages('hero.appPublisher')}
+          {tPages('hero.pitch')}
+        </motion.p>
+
+        {/* Primary funnel — Ringdom with Grok-style traveling border beam */}
+        <motion.div
+          variants={mounted ? linksVariants : undefined}
+          initial={mounted ? 'hidden' : false}
+          animate={mounted ? 'visible' : false}
+          className="motion-safe motion-element relative z-10 mb-10 mx-auto w-full max-w-md"
+        >
+          <BorderBeam
+            className="mx-auto w-full max-w-md rounded-xl"
+            innerClassName={cn(davinciBeamInnerSurface, 'border-0')}
+            duration="4s"
+          >
+            <DavinciCtaLink href={tPages('hero.ringdomUrl')} className="w-full">
+              {tPages('hero.ringdomCta')}
+            </DavinciCtaLink>
+          </BorderBeam>
         </motion.div>
 
-      {/* Self-typing features animation */}
-      <motion.div
-        style={{
-          ...subtitleStyle,
-          fontSize: 'clamp(1rem, 2vw, 1.4rem)',
-          minHeight: '3rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: '2rem'
-        }}
-        variants={mounted ? subtitleVariants : undefined}
-        initial={mounted ? "hidden" : false}
-        animate={mounted ? "visible" : false}
-        className="motion-safe motion-element"
-      >
-        <span style={{ color: 'hsl(var(--primary))' }}>
-          {displayText}
-          <span
-            style={{
-              opacity: isTyping ? 1 : 0,
-              animation: isTyping ? 'blink 1s infinite' : 'none'
-            }}
-          >
-            |
-          </span>
-        </span>
-      </motion.div>
-
-      {/* Git clone instruction */}
+      {/* OSS path — git clone */}
       <motion.div
         style={{
           ...descriptionStyle,
@@ -283,69 +236,34 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
         animate={mounted ? "visible" : false}
         className="motion-safe motion-element"
       >
-        <div style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: '500' }}>
+        <p className="mb-4 text-[1.1rem] font-medium">
           {tPages('hero.gitCloneText')}
-        </div>
-        <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: '600px' }}>
-          <div
-            style={{
-              background: 'hsl(var(--muted))',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              fontFamily: 'monospace',
-              fontSize: '0.9rem',
-              color: 'hsl(var(--foreground))',
-              border: '1px solid hsl(var(--border))',
-              paddingRight: '3rem'
-            }}
-          >
-            {tPages('hero.gitClone')}
-          </div>
-          <button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(tPages('hero.gitClone'))
-                // Simple feedback - you could enhance this with a toast
-                alert('Copied to clipboard!')
-              } catch (err) {
-                console.error('Failed to copy:', err)
-              }
-            }}
-            style={{
-              position: 'absolute',
-              right: '0.5rem',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'hsl(var(--primary))',
-              color: 'hsl(var(--primary-foreground))',
-              border: 'none',
-              borderRadius: '0.25rem',
-              padding: '0.25rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Copy to clipboard"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
-              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-            </svg>
-          </button>
-        </div>
+        </p>
+        <TerminalCommandBlock
+          className="mx-auto max-w-[600px]"
+          command={tPages('hero.gitClone')}
+          copyLabel={tCommon('contact.copyToClipboard')}
+        />
       </motion.div>
 
+      {/* Feature rotator — blur crossfade + dot indicators */}
+      <motion.div
+        className="motion-safe motion-element mt-8"
+        variants={mounted ? textVariants : undefined}
+        initial={mounted ? 'hidden' : false}
+        animate={mounted ? 'visible' : false}
+      >
+        <p className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground/80">
+          {tPages('hero.featuresLabel')}
+        </p>
+        {mounted && heroFeatures.length > 0 && (
+          <HeroFeatureRotator features={heroFeatures} intervalMs={4500} />
+        )}
+      </motion.div>
+        </div>
+      </section>
+
+      <div style={containerStyle}>
       {/* Marketplace — primary CTAs */}
       <motion.div
         style={{
@@ -359,10 +277,13 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           marginRight: 'auto',
           textAlign: 'center',
         }}
+        className={cn(
+          davinciPanelSurface,
+          'motion-safe motion-element relative z-10 mx-auto mt-8 max-w-[640px] p-6 text-center'
+        )}
         variants={mounted ? linksVariants : undefined}
         initial={mounted ? 'hidden' : false}
         animate={mounted ? 'visible' : false}
-        className="motion-safe motion-element"
       >
         <h3
           style={{
@@ -419,7 +340,6 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
           </Link>
         </div>
       </motion.div>
-      </div>
 
       {/* Path cards */}
       <motion.div

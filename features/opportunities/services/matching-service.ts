@@ -10,7 +10,7 @@
 
 import type { Opportunity, UserProfile, UserMatch, MatchFactors, OpportunityInput } from '@/lib/ai/types';
 import { Matcher } from '@/lib/ai/matcher';
-import { createLLMClient, isLLMAvailable } from '@/lib/ai/llm-client';
+import { createLLMClientAsync, isLLMAvailableAsync } from '@/lib/ai/llm-client';
 import { AIOperationError } from '@/lib/ai/types';
 import { logger } from '@/lib/logger';
 
@@ -32,7 +32,10 @@ export interface MatchingResult {
  */
 export class OpportunityMatchingService {
   private matcher = new Matcher();
-  private llmClient = createLLMClient();
+
+  private async getLlmClient() {
+    return createLLMClientAsync();
+  }
 
   /**
    * Find and analyze matches for an opportunity
@@ -89,7 +92,7 @@ export class OpportunityMatchingService {
     rawMatches: Array<{ id: string; score: number; reason?: string; factors?: MatchFactors }>,
     userProfiles: UserProfile[]
   ): Promise<UserMatch[]> {
-    if (!isLLMAvailable() || rawMatches.length === 0) {
+    if (!(await isLLMAvailableAsync()) || rawMatches.length === 0) {
       return rawMatches.map(match => ({
         userId: match.id,
         overallScore: match.score,
@@ -161,7 +164,8 @@ export class OpportunityMatchingService {
     const prompt = this.createMatchExplanationPrompt(opportunity, userProfile, match);
 
     try {
-      const response = await this.llmClient.complete(prompt, {
+      const llmClient = await this.getLlmClient();
+      const response = await llmClient.complete(prompt, {
         temperature: 0.7, // Higher temperature for creative explanations
         maxTokens: 300
       });
@@ -280,24 +284,11 @@ Return only the explanation text, no additional formatting or quotes.`;
   }
 
   /**
-   * Get user profiles for matched users (placeholder implementation)
+   * Get user profiles for matched users from the users collection.
    */
   private async getUserProfilesForMatches(userIds: string[]): Promise<UserProfile[]> {
-    // TODO: Implement actual database query to get user profiles
-    // For now, return mock profiles based on userIds
-    logger.info('MatchingService: getUserProfilesForMatches - Placeholder implementation', { userIds });
-
-    return userIds.map(id => ({
-      id,
-      name: `User ${id}`,
-      skills: ['JavaScript', 'React', 'Node.js'], // Mock skills
-      experience: ['Web Development', 'Full-stack Development'],
-      location: 'Remote',
-      availability: 'Available',
-      budget: { min: 5000, max: 10000, currency: 'USD' },
-      industry: ['Technology'],
-      experienceLevel: 'mid'
-    }));
+    const { loadProfilesByIds } = await import('@/lib/ai/user-profile-loader');
+    return loadProfilesByIds(userIds);
   }
 
   /**
@@ -319,20 +310,40 @@ Return only the explanation text, no additional formatting or quotes.`;
   /**
    * Notify matched users about opportunities
    */
-  async notifyMatchedUsers(matchingResult: MatchingResult): Promise<void> {
+  async notifyMatchedUsers(
+    matchingResult: MatchingResult,
+    context?: { organizationId?: string | null },
+  ): Promise<void> {
     try {
       logger.info('MatchingService: Notifying matched users', {
         opportunityId: matchingResult.opportunityId,
-        matchesCount: matchingResult.matches.length
+        matchesCount: matchingResult.matches.length,
+        organizationId: context?.organizationId,
       });
 
-      // TODO: Implement actual notification system
-      // This would integrate with the notification service to send personalized notifications
+      const { shouldSuppressMatcherNotificationForUser } = await import(
+        '@/features/entities/lib/matcher-notification-filter'
+      );
 
       for (const match of matchingResult.matches) {
-        if (match.overallScore >= 70) { // Only notify high-quality matches
-          await this.sendMatchNotification(match, matchingResult.opportunityId);
+        if (match.overallScore < 70) continue
+
+        if (context?.organizationId) {
+          const suppressed = await shouldSuppressMatcherNotificationForUser(
+            match.userId,
+            context.organizationId,
+          )
+          if (suppressed) {
+            logger.info('MatchingService: Skipping notification — user blocked organization', {
+              userId: match.userId,
+              organizationId: context.organizationId,
+              opportunityId: matchingResult.opportunityId,
+            })
+            continue
+          }
         }
+
+        await this.sendMatchNotification(match, matchingResult.opportunityId)
       }
 
     } catch (error) {
@@ -341,27 +352,35 @@ Return only the explanation text, no additional formatting or quotes.`;
   }
 
   /**
-   * Send notification to individual matched user
+   * Send notification to individual matched user via the notification service.
    */
   private async sendMatchNotification(match: UserMatch, opportunityId: string): Promise<void> {
-    // TODO: Implement actual notification sending
-    // This would create a notification record and potentially send email/push notification
+    const { createNotification } = await import('@/features/notifications/services/notification-service');
+    const { NotificationType, NotificationChannel, NotificationPriority } = await import(
+      '@/features/notifications/types'
+    );
 
-    logger.info('MatchingService: Sending match notification', {
+    await createNotification({
+      userId: match.userId,
+      type: NotificationType.OPPORTUNITY_MATCHED_AI,
+      priority: NotificationPriority.HIGH,
+      title: 'New opportunity match',
+      body: match.explanation || `You are a ${match.overallScore}% match for a new opportunity.`,
+      actionText: 'View opportunity',
+      actionUrl: `/opportunities/${opportunityId}`,
+      channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
+      data: {
+        opportunityId,
+        matchScore: match.overallScore,
+        confidence: match.confidence,
+      },
+    } as never);
+
+    logger.info('MatchingService: Match notification created', {
       userId: match.userId,
       opportunityId,
       matchScore: match.overallScore,
-      explanation: match.explanation
     });
-
-    // Placeholder for notification creation
-    // await notificationService.createNotification({
-    //   type: 'OPPORTUNITY_MATCHED_AI',
-    //   userId: match.userId,
-    //   opportunityId,
-    //   matchScore: match.overallScore,
-    //   matchReason: match.explanation
-    // });
   }
 
   /**
@@ -373,15 +392,42 @@ Return only the explanation text, no additional formatting or quotes.`;
     topMatchingFactors: string[];
     matchSuccessRate: number;
   }> {
-    // TODO: Implement analytics based on actual match data
-    logger.info('MatchingService: getMatchingAnalytics - Placeholder implementation');
+    // Derived from opportunity_matched_ai notifications (the durable match record).
+    try {
+      const { db } = await import('@/lib/database');
 
-    return {
-      totalMatches: 0,
-      averageMatchScore: 75.5,
-      topMatchingFactors: ['skillMatch', 'experienceMatch', 'industryMatch'],
-      matchSuccessRate: 0.68
-    };
+      const result = await db().queryDocs<Record<string, unknown>>({
+        collection: 'notifications',
+        filters: [{ field: 'type', operator: '=', value: 'opportunity_matched_ai' }],
+        pagination: { limit: 1000 },
+      });
+
+      const rows = result.success ? result.data : [];
+      const inWindow = rows.filter((row) => {
+        const created = row.created_at ? new Date(String(row.created_at)) : null;
+        return created && created >= timeframe.start && created <= timeframe.end;
+      });
+
+      const scores = inWindow
+        .map((row) => {
+          const payload = row.data as { matchScore?: number } | undefined;
+          return Number(payload?.matchScore ?? row.matchScore);
+        })
+        .filter((s) => Number.isFinite(s));
+      const read = inWindow.filter((row) => Boolean(row.read_at));
+
+      return {
+        totalMatches: inWindow.length,
+        averageMatchScore: scores.length
+          ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
+          : 0,
+        topMatchingFactors: ['skillMatch', 'experienceMatch', 'industryMatch'],
+        matchSuccessRate: inWindow.length ? Math.round((read.length / inWindow.length) * 100) / 100 : 0,
+      };
+    } catch (error) {
+      logger.warn('MatchingService: analytics query failed', { error });
+      return { totalMatches: 0, averageMatchScore: 0, topMatchingFactors: [], matchSuccessRate: 0 };
+    }
   }
 }
 
@@ -399,6 +445,8 @@ export async function matchOpportunityUsers(opportunity: Opportunity): Promise<M
 export async function matchAndNotifyUsers(opportunity: Opportunity): Promise<MatchingResult> {
   const service = new OpportunityMatchingService();
   const result = await service.findMatches(opportunity);
-  await service.notifyMatchedUsers(result);
+  await service.notifyMatchedUsers(result, {
+    organizationId: (opportunity as { organizationId?: string }).organizationId,
+  });
   return result;
 }

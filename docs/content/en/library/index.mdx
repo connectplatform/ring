@@ -111,22 +111,18 @@ When Ring finds a perfect match (>85% confidence), you receive a **personalized 
 - **One-click action** to view, apply, or connect
 - **Smart timing** (notifications sent when you're most responsive)
 
-```typescript
-// Example DM Notification
-{
+<Code language="typescript" title="Example DM Notification payload">
+{`{
   title: "🎯 Perfect Match: Senior React Developer",
-  explanation: "Your React19 expertise + Next.js mastery + Ukrainian focus + remote preference = ideal fit for Trinity Ukraine's new AI platform (95% match)",
+  explanation:
+    "Your React19 expertise + Next.js mastery + Ukrainian focus + remote preference = " +
+    "ideal fit for Trinity Ukraine's new AI platform (95% match)",
   confidence: 0.95,
-  factors: {
-    skills: 0.98,
-    interests: 0.94,
-    availability: 0.92,
-    culture: 0.96
-  },
+  factors: { skills: 0.98, interests: 0.94, availability: 0.92, culture: 0.96 },
   action: "View Opportunity",
   smartTiming: true
-}
-```
+}`}
+</Code>
 
 <Callout type="success" title="✨ The Magic of Smart Notifications">
 Ring's DM notifications are NOT spam - they're **intelligence delivered**. Each notification represents Ring's AI saying: "I found something genuinely perfect for you that you would never have discovered on your own."
@@ -213,23 +209,11 @@ Ring Platform is designed as a **white-label solution** that can be deployed ins
 
 Perfect for developers, experimenters, and those who love getting hands dirty.
 
-```bash
-# Clone Ring Platform
-git clone https://github.com/connectplatform/ring.git
-cd ring
+<Code language="bash" title="One-line install">
+{`git clone https://github.com/connectplatform/ring && ./install.sh`}
+</Code>
 
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.local.template .env.local
-# Edit .env.local with your settings
-
-# Launch development server
-npm run dev
-```
-
-Visit **http://localhost:3000** - your Ring Platform is live! 🎉
+That's it — `install.sh` handles dependencies, environment scaffold, and launches the dev server. Visit **http://localhost:3000** — your Ring Platform is live! 🎉
 
 <Callout type="info" title="What You Get Out of the Box">
 - Complete Ring Platform with all 20+ modules
@@ -251,28 +235,13 @@ Perfect for non-developers who want customized Ring without writing code.
 
 **Coming Soon: Conversational customization with Legiox AI**
 
-```typescript
-// Future: Chat with Legiox to customize Ring
-You: "I want Ring for Ukrainian farmers marketplace"
+<Callout type="info" title="💬 What Legiox AI Customization will look like">
+**You:** "I want Ring for a Ukrainian farmers marketplace"
 
-Legiox: "Understood! I'll customize Ring for agricultural focus:
-         - Enable multi-vendor store for produce sales
-         - Activate traceability features for food safety  
-         - Configure Ukrainian localization
-         - Set up WayForPay payment integration
-         - Customize branding for agricultural theme
-         
-         Deploying your customized Ring instance now..."
+**Legiox:** "Got it — customizing Ring for agriculture: enabling multi-vendor store, FSMA-204 traceability, WayForPay integration, and Ukrainian localization. Deploying now..."
 
-// 10 minutes later
-Legiox: "✅ Your Ring instance is ready at ring-farm-market.vercel.app
-        - 15 customizations applied
-        - Ukrainian language active
-        - Agricultural features enabled
-        - Payment gateway configured
-        
-        What would you like to adjust?"
-```
+**10 minutes later — Legiox:** "✅ Your Ring is live at `ring-farm-market.vercel.app`. 15 customizations applied. What would you like to adjust?"
+</Callout>
 
 <Callout type="warning" title="🚧 Legiox AI Customization - In Development">
 Full conversational AI customization is coming in Q1 2026. Currently available through Legiox-Promptor human experts (Path 3).
@@ -295,19 +264,16 @@ A **Legiox-Promptor** is a certified human expert who:
 - Orchestrates AI-human collaboration perfectly
 - Delivers production-ready customizations with zero flaws
 
-**Human-Attention-Contract Model:**
+**How the partnership works:**
 
-```typescript
-// Your relationship with Legiox-Promptor
-const contract = {
-  commitment: 'Legiox-Promptor dedicates focused attention to YOUR vision',
-  collaboration: 'You describe goals → Promptor orchestrates Legiox AI → Review together',
-  iterations: 'Unlimited refinements until vision achieved',
-  knowledge_transfer: 'You learn to command Legiox yourself',
-  ongoing_support: 'Continued partnership as your Ring evolves',
-  investment: 'Fair compensation for human expertise + AI orchestration'
-}
-```
+<Callout type="success" title="Your relationship with a Legiox-Promptor">
+- **Focused dedication** — your Promptor gives undivided attention to YOUR vision, not a queue of clients
+- **Collaborative flow** — you describe goals → Promptor orchestrates Legiox AI → you review together
+- **Unlimited refinements** — iterations continue until your vision is fully realized
+- **Knowledge transfer** — you learn to command Legiox yourself as work progresses
+- **Ongoing partnership** — continued support as your Ring platform evolves
+- **Fair investment** — compensation reflects human expertise combined with AI orchestration
+</Callout>
 
 **What You Get:**
 
@@ -443,6 +409,7 @@ Every feature has comprehensive documentation with API references, code examples
 
 **Business Features:**
 - [🏪 Multi-vendor Store](/docs/features/store) - Complete e-commerce
+- [🔗 Referral Codes](/docs/library/features/refcodes) - Share links, attribution, on-chain rewards
 - [💰 Wallet & Payments](/docs/features/wallet) - RING tokens + traditional payments
 - [🎨 NFT Marketplace](/docs/features/nft-market) - White-label NFT platform
 - [💎 Token Staking](/docs/features/staking) - DeFi staking pools
@@ -600,6 +567,7 @@ Ring Platform features are production-ready and battle-tested:
 | **[Opportunities + AI Matching](/docs/features/opportunities)** | ✅ Production | 100% | [Complete](/docs/features/opportunities) | GreenFood, Wellness |
 | **[Organizations](/docs/features/entities)** | ✅ Production | 100% | [Complete](/docs/features/entities) | All Ring clones |
 | **[Multi-vendor Store](/docs/features/store)** | ✅ Production | 95% | [Complete](/docs/features/store) | GreenFood |
+| **[Referral Codes](/docs/library/features/refcodes)** | ✅ Production | 90% | [Complete](/docs/library/features/refcodes) | ring-platform.org |
 | **[Wallet & Payments](/docs/features/wallet)** | ✅ Production | 90% | [Complete](/docs/features/wallet) | GreenFood |
 | **[Authentication](/docs/features/authentication)** | ✅ Production | 100% | [Complete](/docs/features/authentication) | All Ring clones |
 | **[Messaging](/docs/features/messaging)** | ✅ Production | 95% | [Complete](/docs/features/messaging) | Wellness, Ring.org |
@@ -628,9 +596,10 @@ All ✅ Production features are:
 ### 1. Choose Your Deployment Path
 
 **Instant Deploy** (5 min)
-```bash
-git clone https://github.com/connectplatform/ring.git && cd ring && npm install && npm run dev
-```
+
+<Code language="bash">
+{`git clone https://github.com/connectplatform/ring && ./install.sh`}
+</Code>
 
 **Legiox AI Customization** (coming Q1 2026)
 - Wait for conversational AI customization launch

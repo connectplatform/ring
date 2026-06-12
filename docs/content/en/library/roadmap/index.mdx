@@ -1,0 +1,63 @@
+---
+title: Platform Roadmap (Technical)
+description: Companion to the public /roadmap page — milestones, visualization phases, and module references for founders and operators
+last_modified: "2026-06-09"
+---
+
+# Platform Roadmap (Technical)
+
+The **canonical public visualization** for founders and CTOs lives at **[ring-platform.org/en/roadmap](/en/roadmap)** (localized: `/uk/roadmap`, `/ru/roadmap`). This doc is the technical companion with deeper links into the library.
+
+<Callout type="info" title="Audience">
+  Solo founders and technical leaders evaluating Ring before participating in the **RING token economy** — clone, operate, and extend without vendor lock-in.
+</Callout>
+
+## Shipped highlights
+
+| Capability | Doc |
+|------------|-----|
+| Autonomous Newsroom (Grok) | [Generative newsroom](/en/docs/development/generative-newsroom) |
+| ImageConductor (OG / editor) | [Generative images](/en/docs/development/generative-images) |
+| Ring MCP (57 tools) | [Ring MCP](/en/docs/development/ring-mcp) |
+| Auth.js v5 + PostgreSQL | [Architecture](/en/docs/architecture) |
+| White-label clone | [Getting started](/en/docs/getting-started) |
+
+## Documentation visualization phases
+
+Ring docs use **Mermaid**, **Callout**, and **Steps** today. **Code** blocks use unified server Shiki (`highlightCodeToHtml`) — fences and `<Code>` share one path (no client Shiki). Phase 1 adds **Timeline** (react-chrono), **Math** (KaTeX), and **CodeSandbox** (Sandpack) — live on the public roadmap page.
+
+### Timeline example
+
+Platform release cadence (illustrative):
+
+```mdx
+<Timeline items={[{ title: '2025', cardTitle: 'Baseline', cardDetailedText: 'Next.js 16, React 19, Auth.js v5' }]} />
+```
+
+### Math example (token economics)
+
+Fee allocation can be expressed for docs:
+
+```mdx
+<Math display>{`\\text{community\\_share} = \\text{fee} \\times (1 - \\text{treasury\\_rate})`}</Math>
+```
+
+See [Token economy](/en/docs/customization/token-economics) for full mechanics.
+
+### CodeSandbox example
+
+Interactive Server Action pattern (simplified):
+
+```mdx
+<CodeSandbox title="Ring-style action handler" code={`'use server'\nexport async function createItem(formData: FormData) {\n  // validate → db.create → revalidatePath\n  return { success: true }\n}`} showPreview={false} template="vanilla-ts" />
+```
+
+## Related library sections
+
+- [Development](/en/docs/development) — MCP, generative modules, OSS vs enterprise
+- [Deployment](/en/docs/deployment) — Docker, k8s, Ringdom turn-key
+- [White-label / token economics](/en/docs/customization/token-economics) — RING utility and governance
+
+## Source spec
+
+Visualization component backlog is defined in `docs/VISUALIZATION-ROADMAP.json` at the repository root (phase 1–3 component matrix).

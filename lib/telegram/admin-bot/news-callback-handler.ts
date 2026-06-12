@@ -9,7 +9,7 @@ import {
 } from '@/features/news/services/news-telegram-approval'
 import { getUserIdFromTelegramId } from '@/lib/telegram/admin-bot/whitelist'
 import { sendMessage } from '@/lib/telegram/admin-bot/bot-config'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 export async function handleNewsCallback(
   chatId: string,
@@ -39,25 +39,20 @@ export async function handleNewsCallback(
   }
 
   if (action === 'news_counter') {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    const found = await db.findById('news', articleId)
+    const found = await db().findDocById<Record<string, unknown>>('news', articleId)
     if (!found.success || !found.data) {
       await answerCallbackQuery(callbackQueryId, 'Article not found')
       return
     }
-    const doc = (found.data.data ?? found.data) as Record<string, unknown>
+    const doc = found.data
     const current = (doc.aiScore as { suggestedPriceUah?: number })?.suggestedPriceUah ?? 500
     const counter = Math.round(current * 1.25)
-    await db.update('news', articleId, {
-      data: {
-        ...doc,
-        mainPageStatus: 'payment_pending',
-        payment: {
-          ...(doc.payment as object),
-          counterOfferAmount: counter,
-          amount: counter,
-        },
+    await db().updateDoc('news', articleId, {
+      mainPageStatus: 'payment_pending',
+      payment: {
+        ...(doc.payment as object),
+        counterOfferAmount: counter,
+        amount: counter,
       },
     })
     await appendStatusHistory(articleId, 'payment_pending', userId ?? chatId, `counter ${counter}`)

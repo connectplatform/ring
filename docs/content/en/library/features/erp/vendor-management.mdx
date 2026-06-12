@@ -1,0 +1,23 @@
+---
+title: Vendor Management
+description: Vendor lifecycle, tiers, trust scoring, and merchant configuration
+---
+
+# Vendor Management
+
+Ring's multi-vendor marketplace ties **entities** (`storeActivated: true`) to vendor profiles, product ownership (`productOwner`), and merchant payout configuration.
+
+## Lifecycle
+
+1. **Onboarding** — `/vendor/start` creates store slug, branding, and categories.
+2. **Products** — `/vendor/products` with optional main-store submission for admin review.
+3. **Orders** — `/vendor/orders` lists orders where `vendorSettlements` includes the vendor entity id.
+4. **Earnings** — `/vendor/earnings` reads `settlements` collection via `getVendorPayoutHistory` / `getVendorPendingPayouts`.
+
+## Trust tiers & commission
+
+Platform commission defaults come from vendor **store tier** (`TIER_BENEFITS` in `constants/store.ts`). Merchants may receive a `merchantConfigs` document with `commissionStructure` overrides (admin-managed).
+
+## Navigation
+
+Approved vendors see a **VENDOR** block in the desktop sidebar (Dashboard, Products, Orders, Stock, Earnings, Settings).

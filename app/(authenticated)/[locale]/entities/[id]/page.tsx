@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getSiteBaseUrl } from '@/lib/ring-config'
 import React, { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
 import { auth } from "@/auth"
@@ -9,7 +10,7 @@ import { LocalePageProps } from '@/utils/page-props'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import { buildLocalizedMetadata, getSeoSiteBaseUrl, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import BackBar from '@/components/common/back-bar'
 
 // Allow caching for entity details with moderate revalidation for content updates
@@ -75,8 +76,6 @@ export async function generateMetadata({
         description,
         ogImage: entity.logo,
       },
-      siteName: RING_PLATFORM_SEO.siteName,
-      twitterSite: RING_PLATFORM_SEO.twitterSite,
     })
   } catch {
     return buildLocalizedMetadata({
@@ -87,8 +86,6 @@ export async function generateMetadata({
         title: t('metadata.title'),
         description: t('metaDescription.description'),
       },
-      siteName: RING_PLATFORM_SEO.siteName,
-      twitterSite: RING_PLATFORM_SEO.twitterSite,
     })
   }
 }
@@ -139,7 +136,7 @@ export default async function EntityPage(props: LocalePageProps<EntityParams>): 
 
   // Ready to render
 
-  const baseUrl = getSeoSiteBaseUrl()
+  const baseUrl = getSiteBaseUrl()
 
   return (
     <>

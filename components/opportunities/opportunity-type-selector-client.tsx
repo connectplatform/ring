@@ -551,7 +551,7 @@ export function OpportunityTypeSelectorClient({ onClose, userRole, locale }: Opp
       >
         {/* Left space indent (280px for sidebar) */}
         <div className="flex h-full">
-          <div className="w-[280px] shrink-0" onClick={onClose} />
+          <div className="w-(--sidebar-total-w) shrink-0" onClick={onClose} />
           
           {/* Sliding panel */}
           <div className="flex-1 bg-background border-l h-full overflow-y-auto">

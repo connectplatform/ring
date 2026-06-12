@@ -3,6 +3,7 @@
 // This service provides legacy database read access only
 
 import { cache } from 'react';
+import { db } from '@/lib/database';
 
 // Wallet history service - now uses wagmi hooks in components
 // Legacy ethers-based functionality removed
@@ -32,18 +33,12 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
  * READ operation - uses React 19 cache() for performance
  */
 export const getUserWalletAddress = cache(async (userId: string): Promise<string | null> => {
-  const { initializeDatabase, getDatabaseService } = await import('@/lib/database/DatabaseService')
-  
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  const result = await db.read('users', userId)
+  const result = await db().findDocById<{ walletAddress?: string } & Record<string, unknown>>('users', userId)
   if (!result.success || !result.data) {
     return null
   }
-  
-  const userData = result.data as any
-  return userData?.walletAddress || null
+
+  return result.data.walletAddress || null
 })
 
 // Legacy ethers-based transaction processing functions removed

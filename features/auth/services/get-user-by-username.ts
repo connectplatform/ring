@@ -7,7 +7,7 @@
 
 import type { AuthUser } from '@/features/auth/types'
 import { cache } from 'react'
-import { initializeDatabase, getDatabaseService } from '@/lib/database'
+import { db } from '@/lib/database'
 
 /**
  * Resolve user profile by username
@@ -17,51 +17,42 @@ export const getUserByUsername = cache(async (username: string): Promise<AuthUse
   if (!usernameKey) return null
 
   try {
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Query users by username field
-    const result = await db.query({
+    const result = await db().queryDocs<Record<string, unknown>>({
       collection: 'users',
       filters: [{ field: 'username', operator: '=', value: usernameKey }],
       pagination: { limit: 1 }
     })
 
-    if (!result.success || !result.data) return null
+    if (!result.success || result.data.length === 0) return null
 
-    const users = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-    if (users.length === 0) return null
-
-    const userData = users[0]
-    const data = userData.data || userData
+    const row = result.data[0]
 
     return {
-      id: userData.id,
-      email: data.email,
-      emailVerified: data.emailVerified ? new Date(data.emailVerified) : null,
-      name: data.name ?? null,
-      username: data.username,
-      role: data.role,
-      photoURL: data.photoURL ?? null,
-      wallets: data.wallets ?? [],
-      authProvider: data.authProvider,
-      authProviderId: data.authProviderId,
-      isVerified: data.isVerified ?? false,
-      createdAt: new Date(data.createdAt),
-    lastLogin: new Date(data.lastLogin),
-    bio: data.bio,
-    canPostconfidentialOpportunities: data.canPostconfidentialOpportunities ?? false,
-    canViewconfidentialOpportunities: data.canViewconfidentialOpportunities ?? false,
-    postedopportunities: data.postedopportunities ?? [],
-    savedopportunities: data.savedopportunities ?? [],
-    nonce: data.nonce,
-    nonceExpires: data.nonceExpires,
-      notificationPreferences: data.notificationPreferences ?? { email: true, inApp: true, sms: false },
-      settings: data.settings ?? { language: 'en', theme: 'system', notifications: true, notificationPreferences: { email: true, inApp: true, sms: false } }
+      id: row.id,
+      email: row.email as string,
+      emailVerified: row.emailVerified ? new Date(row.emailVerified as string) : null,
+      name: (row.name as string) ?? null,
+      username: row.username as string,
+      role: row.role as AuthUser['role'],
+      photoURL: (row.photoURL as string) ?? null,
+      wallets: (row.wallets as AuthUser['wallets']) ?? [],
+      authProvider: row.authProvider as string,
+      authProviderId: row.authProviderId as string,
+      isVerified: (row.isVerified as boolean) ?? false,
+      createdAt: new Date(row.createdAt as string),
+      lastLogin: new Date(row.lastLogin as string),
+      bio: row.bio as string | undefined,
+      canPostconfidentialOpportunities: (row.canPostconfidentialOpportunities as boolean) ?? false,
+      canViewconfidentialOpportunities: (row.canViewconfidentialOpportunities as boolean) ?? false,
+      postedopportunities: (row.postedopportunities as string[]) ?? [],
+      savedopportunities: (row.savedopportunities as string[]) ?? [],
+      nonce: row.nonce as string | undefined,
+      nonceExpires: row.nonceExpires as number | undefined,
+      notificationPreferences: (row.notificationPreferences as AuthUser['notificationPreferences']) ?? { email: true, inApp: true, sms: false },
+      settings: (row.settings as AuthUser['settings']) ?? { language: 'en', theme: 'system', notifications: true, notificationPreferences: { email: true, inApp: true, sms: false } }
     } as AuthUser
   } catch (error) {
     console.error('getUserByUsername: Error:', error)
     return null
   }
 })
-

@@ -1,6 +1,6 @@
 /**
  * Get User Opportunities Service
- * 
+ *
  * React 19 cache() wrapper for user-specific opportunity queries
  * PostgreSQL via DatabaseService abstraction
  */
@@ -8,217 +8,148 @@
 import { cache } from 'react'
 import { OpportunitySubmenuCounts, SerializedOpportunity } from '@/features/opportunities/types'
 import { auth } from '@/auth'
-import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
+import { OpportunityAuthError, OpportunityQueryError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
+import {
+  type MyOpportunitiesView,
+  type MyOpportunitiesCounts,
+  computeMyOpportunitiesCounts,
+  matchesMyOpportunitiesView,
+} from '@/features/opportunities/lib/lifecycle-status'
+import {
+  mapDbDocumentToSerializedOpportunity,
+} from '@/features/opportunities/lib/opportunity-db-mapper'
+
+const MY_OPPORTUNITIES_FETCH_CAP = 200
 
 const parseCountResult = (value: unknown): number => {
-  if (typeof value === 'number') {
-    return value
-  }
-
+  if (typeof value === 'number') return value
   if (typeof value === 'string') {
     const parsed = Number(value)
     return Number.isNaN(parsed) ? 0 : parsed
   }
-
   return 0
 }
+
+/**
+ * Fetches all opportunities created by a user (capped for dashboard filtering).
+ */
+export const getUserCreatedOpportunities = cache(async (
+  userId: string,
+  limit: number = MY_OPPORTUNITIES_FETCH_CAP,
+  startAfter?: string,
+): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
+  try {
+    logger.info('Services: getUserCreatedOpportunities', { userId, limit, startAfter })
+
+    const dbQuery = {
+      collection: 'opportunities',
+      filters: [{ field: 'createdBy', operator: '=', value: userId }],
+      orderBy: [{ field: 'dateCreated', direction: 'desc' as const }],
+      pagination: {
+        limit,
+        offset: startAfter ? 1 : 0,
+      },
+    }
+
+    const queryResult = await db().queryDocs(dbQuery)
+
+    const opportunities: SerializedOpportunity[] = []
+    if (queryResult.success && queryResult.data) {
+      for (const item of queryResult.data) {
+        opportunities.push(mapDbDocumentToSerializedOpportunity(item))
+      }
+    }
+
+    const lastVisible =
+      opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null
+
+    return { opportunities, lastVisible }
+  } catch (error) {
+    logRingError(error, 'getUserCreatedOpportunities: Error')
+    throw new OpportunityQueryError(
+      'Failed to fetch user opportunities',
+      error instanceof Error ? error : new Error(String(error)),
+      { timestamp: Date.now(), userId, operation: 'getUserCreatedOpportunities' },
+    )
+  }
+})
 
 const getMyOpportunitySubmenuCounts = cache(async (userId: string): Promise<OpportunitySubmenuCounts> => {
   const postedFilter = { field: 'createdBy', operator: '=', value: userId }
   const expiredFilter = { field: 'expirationDate', operator: '<=', value: new Date() }
 
-  const [postedCountResult, expiredCountResult] = await Promise.all([
-    db().execute('count', {
-      collection: 'opportunities',
-      filters: [postedFilter]
-    }),
-    db().execute('count', {
-      collection: 'opportunities',
-      filters: [postedFilter, expiredFilter]
-    })
+  const [postedCountResult, expiredCountResult, created] = await Promise.all([
+    db().countDocs('opportunities', [postedFilter]),
+    db().countDocs('opportunities', [postedFilter, expiredFilter]),
+    getUserCreatedOpportunities(userId, MY_OPPORTUNITIES_FETCH_CAP),
   ])
 
   const posted = postedCountResult.success ? parseCountResult(postedCountResult.data) : 0
   const expired = expiredCountResult.success ? parseCountResult(expiredCountResult.data) : 0
+  const lifecycle = computeMyOpportunitiesCounts(created.opportunities)
 
   return {
-    all: posted,
-    // NOTE: saved favorites are intentionally set to 0 until explicit
-    // opportunity favorites writes are confirmed in Zemna flows.
+    all: lifecycle.all,
     saved: 0,
     applied: 0,
     posted,
-    drafts: 0,
-    expired
+    drafts: lifecycle.drafts,
+    expired,
+    pending: lifecycle.pending,
+    active: lifecycle.active,
+    archived: lifecycle.archived,
   }
 })
 
 /**
- * Fetches opportunities created by a specific user
- * Following the dual-nature opportunity system from PLATFORM-PHILOSOPHY.md
- * 
- * @param userId - The ID of the user whose opportunities to fetch
- * @param limit - Maximum number of opportunities to return
- * @param startAfter - Document ID for pagination
- * @returns Promise with user's opportunities and pagination info
- */
-export const getUserCreatedOpportunities = cache(async (
-  userId: string,
-  limit: number = 20,
-  startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
-  try {
-    logger.info('Services: getUserCreatedOpportunities - Starting...', { userId, limit, startAfter });
-
-    // Build query for opportunities created by this user
-    const queryConfig: any = {
-      where: [{ field: 'createdBy', operator: '=', value: userId }],
-      orderBy: [{ field: 'dateCreated', direction: 'desc' }],
-      limit
-    };
-
-    // Apply pagination if provided
-    if (startAfter) {
-      try {
-        const result = await db().execute('findById', {
-          collection: 'opportunities',
-          id: startAfter
-        });
-
-        if (result.success && result.data) {
-          queryConfig.startAfter = result.data;
-        }
-      } catch (error) {
-        logger.warn('Pagination document not found, starting from beginning');
-      }
-    }
-
-    // Execute query using db.command()
-    const dbQuery = {
-      collection: 'opportunities',
-      filters: queryConfig.where || [],
-      orderBy: queryConfig.orderBy || [{ field: 'dateCreated', direction: 'desc' }],
-      pagination: {
-        limit: queryConfig.limit || 20,
-        offset: startAfter ? 1 : 0
-      }
-    };
-
-    const queryResult = await db().execute('query', { querySpec: dbQuery });
-
-    // Map and serialize opportunities
-    const opportunities: SerializedOpportunity[] = [];
-    if (queryResult.success && queryResult.data) {
-      const timestampToISO = (timestamp: any): string => {
-        if (timestamp && typeof timestamp.toDate === 'function') {
-          return timestamp.toDate().toISOString();
-        }
-        if (timestamp instanceof Date) {
-          return timestamp.toISOString();
-        }
-        return new Date().toISOString();
-      };
-
-      queryResult.data.forEach(item => {
-        const data = item.data;
-        opportunities.push({
-          ...data,
-          id: item.id,
-          dateCreated: timestampToISO(data.dateCreated),
-          dateUpdated: timestampToISO(data.dateUpdated),
-          expirationDate: timestampToISO(data.expirationDate),
-          applicationDeadline: data.applicationDeadline ? timestampToISO(data.applicationDeadline) : undefined,
-        } as SerializedOpportunity);
-      });
-    }
-
-    const lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null;
-
-    logger.info('Services: getUserCreatedOpportunities - Fetched', { count: opportunities.length, lastVisible });
-
-    return { opportunities, lastVisible };
-  } catch (error) {
-    logRingError(error, 'getUserCreatedOpportunities: Error');
-    throw new OpportunityQueryError(
-      'Failed to fetch user opportunities',
-      error instanceof Error ? error : new Error(String(error)),
-      {
-        timestamp: Date.now(),
-        userId,
-        operation: 'getUserCreatedOpportunities'
-      }
-    );
-  }
-});
-
-/**
- * Fetches opportunities the user has applied to
- * React 19 cache() wrapper for applied opportunities
- */
-export const getUserAppliedOpportunities = cache(async (
-  userId: string,
-  limit: number = 20,
-  startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null }> => {
-  // TODO: Implement when applications tracking is added
-  logger.info('getUserAppliedOpportunities: Not yet implemented');
-  return { opportunities: [], lastVisible: null };
-});
-
-/**
- * Combined function to get all user's opportunities (created + applied)
- * React 19 cache() wrapper for combined queries
+ * Fetches the current user's created opportunities filtered by lifecycle view.
  */
 export const getMyOpportunities = cache(async (
-  filterType: 'all' | 'created' | 'applied' = 'all',
-  limit: number = 20,
-  startAfter?: string
-): Promise<{ opportunities: SerializedOpportunity[]; lastVisible: string | null; counts: OpportunitySubmenuCounts }> => {
-  const session = await auth();
-  
-  if (!session || !session.user) {
+  view: MyOpportunitiesView = 'all',
+  limit: number = 50,
+  _startAfter?: string,
+): Promise<{
+  opportunities: SerializedOpportunity[]
+  lastVisible: string | null
+  counts: OpportunitySubmenuCounts
+  lifecycleCounts: MyOpportunitiesCounts
+}> => {
+  const session = await auth()
+
+  if (!session?.user) {
     throw new OpportunityAuthError('Authentication required', undefined, {
       timestamp: Date.now(),
-      operation: 'getMyOpportunities'
-    });
+      operation: 'getMyOpportunities',
+    })
   }
 
-  const userId = session.user.id;
+  const userId = session.user.id
 
   try {
-    let opportunities: SerializedOpportunity[] = [];
-    let lastVisible: string | null = null;
-
-    if (filterType === 'all' || filterType === 'created') {
-      const created = await getUserCreatedOpportunities(userId, limit, startAfter);
-      opportunities = created.opportunities;
-      lastVisible = created.lastVisible;
-    }
-
-    if (filterType === 'applied') {
-      const applied = await getUserAppliedOpportunities(userId, limit, startAfter);
-      opportunities = applied.opportunities;
-      lastVisible = applied.lastVisible;
-    }
-
+    const created = await getUserCreatedOpportunities(userId, MY_OPPORTUNITIES_FETCH_CAP)
+    const lifecycleCounts = computeMyOpportunitiesCounts(created.opportunities)
+    const filtered = created.opportunities.filter((opp) =>
+      matchesMyOpportunitiesView(opp.status, view),
+    )
+    const opportunities = filtered.slice(0, limit)
     const counts = await getMyOpportunitySubmenuCounts(userId)
 
-    return { 
-      opportunities, 
-      lastVisible,
-      counts: {
-        all: counts.all,
-        saved: counts.saved,
-        applied: counts.applied,
-        posted: counts.posted,
-        drafts: counts.drafts,
-        expired: counts.expired,
-      }
-    };
+    return {
+      opportunities,
+      lastVisible: opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null,
+      counts,
+      lifecycleCounts,
+    }
   } catch (error) {
-    logRingError(error, 'getMyOpportunities: Error');
-    throw error;
+    logRingError(error, 'getMyOpportunities: Error')
+    throw error
   }
-});
+})
+
+/** @deprecated Applied opportunities tracking not yet implemented */
+export const getUserAppliedOpportunities = cache(async () => ({
+  opportunities: [] as SerializedOpportunity[],
+  lastVisible: null as string | null,
+}))

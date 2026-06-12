@@ -10,10 +10,10 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { 
   Settings,
@@ -37,6 +37,7 @@ export default function VendorDashboardWrapper({
   locale 
 }: VendorDashboardWrapperProps) {
   const router = useRouter()
+  const t = useTranslations('vendor.dashboard')
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
@@ -45,10 +46,12 @@ export default function VendorDashboardWrapper({
   }, [])
 
   const quickActions = [
-    { id: 'products', label: 'Manage Products', icon: Package, href: `/${locale}/vendor/products` },
-    { id: 'add-product', label: 'Add Product', icon: ShoppingBag, href: `/${locale}/vendor/products/add` },
-    { id: 'orders', label: 'View Orders', icon: Users, href: `/${locale}/vendor/orders` },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, href: `/${locale}/vendor/analytics` },
+    { id: 'products', label: t('quickActions.manageProducts'), icon: Package, href: `/${locale}/vendor/products` },
+    { id: 'add-product', label: t('quickActions.addProduct'), icon: ShoppingBag, href: `/${locale}/vendor/products/add` },
+    { id: 'orders', label: t('quickActions.viewOrders'), icon: Users, href: `/${locale}/vendor/orders` },
+    { id: 'stock', label: t('quickActions.stockLevels'), icon: Package, href: `/${locale}/vendor/stock` },
+    { id: 'earnings', label: t('quickActions.earnings'), icon: DollarSign, href: `/${locale}/vendor/earnings` },
+    { id: 'settings', label: t('quickActions.storeSettings'), icon: Settings, href: `/${locale}/vendor/settings` },
   ]
 
   const RightSidebarContent = () => (
@@ -58,7 +61,7 @@ export default function VendorDashboardWrapper({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
-            Quick Actions
+            {t('quickActionsTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -84,21 +87,21 @@ export default function VendorDashboardWrapper({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Boost Your Sales
+            {t('boostSalesTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <div className="flex items-start gap-2">
             <span className="text-emerald-500">✓</span>
-            <p>Add high-quality product photos for 3x more views</p>
+            <p>{t('boostSalesTips.photos')}</p>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-emerald-500">✓</span>
-            <p>Update inventory daily for better search ranking</p>
+            <p>{t('boostSalesTips.inventory')}</p>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-emerald-500">✓</span>
-            <p>Highlight regenerative practices for DAAR bonuses</p>
+            <p>{t('boostSalesTips.quality')}</p>
           </div>
         </CardContent>
       </Card>
@@ -108,17 +111,17 @@ export default function VendorDashboardWrapper({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            Vendor Resources
+            {t('resourcesTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>Learn how to maximize your store's potential</p>
+          <p>{t('resourcesDescription')}</p>
           <Button
             variant="link"
             className="p-0 h-auto"
             onClick={() => router.push(`/${locale}/docs/vendor-guide`)}
           >
-            View Vendor Guide →
+            {t('viewVendorGuide')}
           </Button>
         </CardContent>
       </Card>
@@ -126,20 +129,18 @@ export default function VendorDashboardWrapper({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      <div className="flex gap-6 min-h-screen">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
+      <div className="flex min-h-full gap-3">
         {/* Left Sidebar - Main Navigation (Desktop only) */}
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
+
 
         {/* Center Content Area */}
-        <div className="flex-1 py-8 px-4 md:px-0 md:pr-6 lg:pb-8 pb-24">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {children}
         </div>
 
         {/* Right Sidebar (Desktop only, 1024px+) */}
-        <div className="hidden lg:block w-[320px] flex-shrink-0 py-8 pr-6">
+        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
           <div className="sticky top-8">
             <RightSidebarContent />
           </div>
@@ -163,7 +164,7 @@ export default function VendorDashboardWrapper({
             size="lg"
             className="h-14 w-14 rounded-full shadow-2xl"
             onClick={() => setRightSidebarOpen(true)}
-            title="Quick Actions"
+            title={t('quickActionsFab')}
           >
             <Settings className="h-6 w-6" />
           </Button>

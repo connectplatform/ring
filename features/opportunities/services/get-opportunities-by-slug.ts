@@ -7,9 +7,10 @@
 
 import { cache } from 'react'
 import { Opportunity } from '@/features/opportunities/types'
+import { mapDbDocumentToOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
-import { db } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 /**
  * Fetches opportunities by matching tags in the 'slug' array, enforcing role-based access control.
@@ -61,26 +62,17 @@ export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opp
 
     console.log(`Services: getOpportunitiesBySlug - User authenticated with role ${userRole}`);
 
-    // Step 2: Execute query using DatabaseService (tags filter in-memory due to array-contains-any)
-    const result = await db().execute('query', {
-      querySpec: {
-        collection: 'opportunities',
-        orderBy: [{ field: 'dateCreated', direction: 'desc' }],
-        pagination: { limit: 200 } // Fetch more for filtering
-      }
+    // Step 2: Execute query using db().queryDocs (tags filter in-memory due to array-contains-any)
+    const result = await db().queryDocs({
+      collection: 'opportunities',
+      orderBy: [{ field: 'dateCreated', direction: 'desc' }],
+      pagination: { limit: 200 } // Fetch more for filtering
     })
 
     // Step 3: Map results and apply slug + role-based filtering
     let opportunities: Opportunity[] = []
     if (result.success && result.data) {
-      const items = Array.isArray(result.data) ? result.data : (result.data as any).data || []
-      opportunities = items.map((item: any) => {
-        const data = item.data || item
-        return {
-          ...data,
-          id: item.id
-        } as Opportunity
-      })
+      opportunities = result.data.map((item) => mapDbDocumentToOpportunity(item))
       
       // Filter by slugs (array-contains-any equivalent)
       if (slugs.length > 0) {

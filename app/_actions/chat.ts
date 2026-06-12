@@ -1,6 +1,6 @@
 'use server'
 
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { auth } from '@/auth'
 
 export interface MessageFormState {
@@ -44,12 +44,7 @@ export async function sendMessage(
       }
     }
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Create message document
-    await db.create('chats', {
+    await db().createDoc('chats', {
       chatId,
       participants: [entityCreatorId, session.user.id],
       senderId: session.user.id,
@@ -58,7 +53,7 @@ export async function sendMessage(
       entityId,
       entityName,
       ...(opportunityId && { opportunityId }),
-      ...(opportunityName && { opportunityName })
+      ...(opportunityName && { opportunityName }),
     })
 
     return {

@@ -37,10 +37,13 @@ import {
   Eye,
   Calendar,
   User,
-  TrendingUp
+  TrendingUp,
+  Newspaper,
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { GenerateArticleDialog } from '@/components/media/generate-article-dialog';
 
 interface AdminNewsManagerProps {
   initialArticles: NewsArticle[];
@@ -57,6 +60,8 @@ export function AdminNewsManager({
   const [statusFilter, setStatusFilter] = useState<NewsStatus | 'all'>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<NewsVisibility | 'all'>('all');
   const [loading, setLoading] = useState(false);
+  const [generateArticleOpen, setGenerateArticleOpen] = useState(false);
+  const router = useRouter();
 
   // Filter articles based on search and filters
   useEffect(() => {
@@ -182,14 +187,27 @@ export function AdminNewsManager({
           </div>
         </div>
 
-        {/* Create Article Button */}
-        <Link href={`/${locale}/admin/news/create`}>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Article
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" onClick={() => setGenerateArticleOpen(true)}>
+            <Newspaper className="h-4 w-4 mr-2" />
+            Generate with AI
           </Button>
-        </Link>
+          <Link href={`/${locale}/admin/news/create`}>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Article
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      <GenerateArticleDialog
+        open={generateArticleOpen}
+        onOpenChange={setGenerateArticleOpen}
+        onArticleReady={({ articleId }) => {
+          router.push(`/${locale}/admin/news/edit/${articleId}`);
+        }}
+      />
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

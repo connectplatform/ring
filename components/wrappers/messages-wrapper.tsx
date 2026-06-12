@@ -1,6 +1,5 @@
 'use client'
 
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { MessageCircle, Shield } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,10 +25,9 @@ export default function MessagesWrapper({ children }: MessagesWrapperProps) {
         </FloatingSidebarToggle>
       </div>
       <div className="flex-1 flex">
-        <DesktopSidebar />
         <div className="flex-1 flex min-w-0 min-h-0">
-          <div className="w-full p-2 md:p-4 flex min-h-0">
-            <div className="w-full max-w-7xl mx-auto flex flex-col min-h-0 min-w-0 flex-1">
+          <div className="w-full flex min-h-0">
+            <div className="ring-content-panel w-full max-w-7xl mx-auto flex flex-col min-h-0 min-w-0 flex-1">
               {children}
               <div className="mt-2 hidden md:block text-xs text-muted-foreground text-center">
                 <Shield className="inline h-3 w-3 mr-1 align-text-bottom" aria-hidden />

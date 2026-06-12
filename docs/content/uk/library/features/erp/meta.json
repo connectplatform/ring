@@ -1,0 +1,10 @@
+{
+  "title": "Ring ERP",
+  "description": "Склад, вендори та комісії (UK operator guide)",
+  "pages": [
+    "index",
+    "inventory",
+    "vendor-management",
+    "commissions"
+  ]
+}

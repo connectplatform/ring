@@ -12,7 +12,7 @@ import StoreWrapper from '@/components/wrappers/store-wrapper'
 import StoreSettingsClient from './store-settings-client'
 import { connection } from 'next/server'
 import { logger } from '@/lib/logger'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type StoreSettingsParams = Record<string, never>
 
@@ -32,8 +32,6 @@ export async function generateMetadata({
     locale,
     path: 'store.settings',
     pathname: '/store/settings',
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
     robots: storeSettingsRobots,
   })
 }

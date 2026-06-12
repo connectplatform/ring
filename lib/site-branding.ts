@@ -1,24 +1,19 @@
 import { routing } from '@/i18n/routing'
 import { blogArticlePathname } from '@/lib/blog/blog-path'
+import {
+  getPlatformIdentity,
+  getRingConfigSnapshot,
+  getRingSeoBranding,
+  getSiteBaseUrl,
+} from '@/lib/ring-config-core'
 
-function stripTrailingSlash(url: string): string {
-  return url.replace(/\/$/, '')
-}
-
-/** Canonical public origin (clone-safe via env). */
+/** Canonical public origin (clone-safe via env + ring-config). */
 export function getSiteOrigin(): string {
-  const raw =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.AUTH_URL ||
-    process.env.NEXTAUTH_URL ||
-    'https://ringplatform.org'
-  return stripTrailingSlash(raw)
+  return getSiteBaseUrl()
 }
 
 export function getBrandName(): string {
-  return process.env.NEXT_PUBLIC_BRAND_NAME || 'Ring Platform'
+  return process.env.NEXT_PUBLIC_BRAND_NAME || getPlatformIdentity().name
 }
 
 export function getBrandTagline(): string {
@@ -26,11 +21,16 @@ export function getBrandTagline(): string {
 }
 
 export function getBrandLogoPath(): string {
-  return process.env.NEXT_PUBLIC_BRAND_LOGO || '/images/logo.png'
+  const branding = getRingConfigSnapshot().branding as { logo?: { light?: string } } | undefined
+  return (
+    process.env.NEXT_PUBLIC_BRAND_LOGO ||
+    branding?.logo?.light ||
+    '/images/logo.png'
+  )
 }
 
 export function getBrandOgImagePath(): string {
-  return process.env.NEXT_PUBLIC_BRAND_OG_IMAGE || '/og-image.png'
+  return process.env.NEXT_PUBLIC_BRAND_OG_IMAGE || getRingSeoBranding().ogImage
 }
 
 export function getNewsSectionLabel(): string {

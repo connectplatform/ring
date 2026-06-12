@@ -8,7 +8,7 @@
 import { AuthUser, UserRole, Wallet, NotificationPreferences, UserSettings } from '@/features/auth/types'
 import { cache } from 'react'
 import { auth } from '@/auth'
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 
 /**
  * Retrieve user profile from PostgreSQL database
@@ -28,20 +28,14 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
 
     console.log('getUserProfile: Authenticated')
 
-    // Initialize database
-    await initializeDatabase()
-    const db = getDatabaseService()
-
-    // Read user document
-    const result = await db.findById('users', userId)
+    const result = await db().findDocById<Record<string, unknown>>('users', userId)
 
     if (!result.success || !result.data) {
       console.log('getUserProfile: User not found')
       return null
     }
 
-    const userData = result.data as any
-    const data = userData.data || userData
+    const data = result.data
 
     // Build AuthUser object
     const userProfile: AuthUser = {

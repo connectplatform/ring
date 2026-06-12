@@ -2,12 +2,12 @@
 
 /**
  * ABOUT PAGE WRAPPER - Ring Platform v2.0
+ * Right rail driven by ring-config.json sidebar section.
  */
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import DesktopSidebar from '@/components/navigation/desktop-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,11 +20,28 @@ import {
   ExternalLink,
   BookOpen,
   MessageSquare,
+  type LucideIcon,
 } from 'lucide-react'
+import {
+  getRingConfigSnapshot,
+  getResolvedSidebarStats,
+  resolveSocialUrlFromConfig,
+} from '@/lib/ring-config-core'
 
 interface AboutWrapperProps {
   children: React.ReactNode
   locale: string
+}
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Info,
+  Users,
+  Globe,
+  Mail,
+  BookOpen,
+  MessageSquare,
+  HelpCircle,
+  ExternalLink,
 }
 
 export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
@@ -32,13 +49,25 @@ export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
   const t = useTranslations('about.sidebar')
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
-  const quickLinks = [
-    { label: t('aboutUs'), href: `/${locale}/about`, icon: Info },
-    { label: t('tokenEconomy'), href: `/${locale}/token-economy`, icon: Globe },
-    { label: t('aiWeb3'), href: `/${locale}/ai-web3`, icon: BookOpen },
-    { label: t('globalImpact'), href: `/${locale}/global-impact`, icon: Users },
-    { label: t('contact'), href: `/${locale}/contact`, icon: Mail },
-  ]
+  const ringConfig = getRingConfigSnapshot()
+
+  const quickLinks =
+    ringConfig.sidebar?.quickLinks?.map((link) => ({
+      label: t(link.labelKey.replace('about.sidebar.', '')),
+      href: `/${locale}${link.href}`,
+      icon: ICON_MAP[link.icon || 'Info'] || Info,
+    })) ?? []
+
+  const communityLinks =
+    ringConfig.sidebar?.community?.map((link) => ({
+      label: t(link.labelKey.replace('about.sidebar.', '')),
+      url: resolveSocialUrlFromConfig(link.urlKey, ringConfig),
+    })) ?? []
+
+  const stats = getResolvedSidebarStats().map((stat) => ({
+    label: t(stat.labelKey.replace('about.sidebar.', '')),
+    value: stat.value,
+  }))
 
   const RightSidebarContent = () => (
     <div className="space-y-6">
@@ -51,70 +80,69 @@ export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>{t('platformInfoDesc')}</p>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>{t('version')}</span>
-              <span className="font-medium text-foreground">2.0.0</span>
+          {stats.length > 0 && (
+            <div className="space-y-2">
+              {stats.map((stat) => (
+                <div key={stat.label} className="flex justify-between">
+                  <span>{stat.label}</span>
+                  <span className="font-medium text-foreground">{stat.value}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex justify-between">
-              <span>{t('license')}</span>
-              <span className="font-medium text-foreground">MIT</span>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            {t('quickLinks')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {quickLinks.map((link) => (
-            <Button
-              key={link.href}
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => {
-                router.push(link.href)
-                setRightSidebarOpen(false)
-              }}
-            >
-              <link.icon className="h-4 w-4 mr-2" />
-              {link.label}
-            </Button>
-          ))}
-        </CardContent>
-      </Card>
+      {quickLinks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              {t('quickLinks')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {quickLinks.map((link) => (
+              <Button
+                key={link.href}
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  router.push(link.href)
+                  setRightSidebarOpen(false)
+                }}
+              >
+                <link.icon className="h-4 w-4 mr-2" />
+                {link.label}
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            {t('community')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={() => window.open(t('githubUrl'), '_blank', 'noopener,noreferrer')}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            {t('github')}
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={() => window.open(t('discordUrl'), '_blank', 'noopener,noreferrer')}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            {t('discord')}
-          </Button>
-        </CardContent>
-      </Card>
+      {communityLinks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              {t('community')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {communityLinks.map((link) => (
+              <Button
+                key={link.url}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                {link.label}
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -147,15 +175,10 @@ export default function AboutWrapper({ children, locale }: AboutWrapperProps) {
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
-      <div className="flex gap-6 min-h-screen">
-        <div className="hidden md:block w-[280px] flex-shrink-0">
-          <DesktopSidebar />
-        </div>
-        <div className="flex-1 py-8 px-4 md:px-4 md:pr-6 lg:pb-8 pb-24">
-          {children}
-        </div>
-        <div className="hidden lg:block w-[320px] flex-shrink-0 py-8 pr-6">
+    <div className="min-h-full text-foreground relative transition-colors duration-300">
+      <div className="flex min-h-full gap-3">
+        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">{children}</div>
+        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
           <div className="sticky top-8">
             <RightSidebarContent />
           </div>

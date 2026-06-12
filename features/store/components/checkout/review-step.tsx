@@ -1,12 +1,14 @@
 'use client'
 import React from 'react'
 import { useStore } from '@/features/store/context'
+import { ReferralCheckoutBadge } from '@/components/refcodes/referral-checkout-badge'
 
 export function ReviewStep({ onPlaceOrder, submitting }: { onPlaceOrder: () => void, submitting: boolean }) {
   const { cartItems, totalPriceByCurrency } = useStore()
   
   return (
     <div className="space-y-6">
+      <ReferralCheckoutBadge />
       <div className="bg-card border rounded-lg p-6">
         <h3 className="font-semibold text-lg mb-4">Order Summary</h3>
         <div className="space-y-4">

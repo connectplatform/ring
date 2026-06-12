@@ -4,8 +4,6 @@ description: Повна документація API мульти-вендорн
 last_modified: "2025-10-16"
 ---
 
-import { Callout } from '@/components/docs/callout'
-import { Steps, Step } from '@/components/docs/steps'
 
 # API магазину
 
@@ -700,7 +698,6 @@ Checkout через **PaymentConductor** (`store_order`): WayForPay/Stripe redir
 
 <Code language="typescript" title="TypeScript">
 {`import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface Product {
   id: string
@@ -762,12 +759,12 @@ export function ProductCatalog() {
 
       <div className="products-grid">
         {products.map(product => (
-          <Card key={product.id} className="product-card">
-            <CardHeader>
+          <UiCard key={product.id} className="product-card">
+            <UiCardHeader>
               <img src={product.images[0]} alt={product.name} />
-              <CardTitle>{product.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
+              <UiCardTitle>{product.name}</UiCardTitle>
+            </UiCardHeader>
+            <UiCardContent>
               <div className="price">
                 {product.currency} {product.price}
               </div>
@@ -783,8 +780,8 @@ export function ProductCatalog() {
               >
                 Додати до кошика
               </button>
-            </CardContent>
-          </Card>
+            </UiCardContent>
+          </UiCard>
         ))}
       </div>
     </div>

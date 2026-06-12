@@ -2,6 +2,11 @@ import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { orderCreateSchema } from '@/lib/zod'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
+import { REF_COOKIE_NAME } from '@/features/refcodes/constants'
+import {
+  getBuyerWalletAddresses,
+  resolveOrderReferral,
+} from '@/features/refcodes/services/attribution-service'
 
 export async function GET(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -34,8 +39,15 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid payload', details: parsed.error.flatten() }, { status: 400 })
     }
-    const { orderId } = await StoreOrdersService.createOrder(session.user.id, parsed.data)
-    return NextResponse.json({ orderId })
+    const refCode = req.cookies.get(REF_COOKIE_NAME)?.value
+    const buyerWallets = await getBuyerWalletAddresses(session.user.id)
+    const referral = await resolveOrderReferral(session.user.id, refCode, buyerWallets)
+    const { orderId } = await StoreOrdersService.createOrder(session.user.id, parsed.data, referral || undefined)
+    return NextResponse.json({
+      orderId,
+      referralApplied: Boolean(referral),
+      ...(referral ? { referralCode: referral.referralCode } : {}),
+    })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 })
   }

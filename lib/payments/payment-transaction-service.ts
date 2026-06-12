@@ -1,4 +1,4 @@
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import type {
   PaymentProcessorId,
@@ -32,17 +32,14 @@ function nowIso() {
 
 export const paymentTransactionService = {
   async findByOrderReference(orderReference: string): Promise<PaymentTransactionRecord | null> {
-    await initializeDatabase()
-    const db = getDatabaseService()
-    const result = await db.query({
+    const result = await db().queryDocs<PaymentTransactionRecord>({
       collection: 'payment_transactions',
       filters: [{ field: 'order_reference', operator: '==', value: orderReference }],
       pagination: { limit: 1 },
     })
     if (!result.success || !result.data?.length) return null
-    const doc = result.data[0]
-    const data = (doc.data ?? doc) as PaymentTransactionRecord
-    return { ...data, id: doc.id ?? data.id }
+    const row = result.data[0]
+    return { ...row, id: row.id }
   },
 
   async createPending(input: {
@@ -59,8 +56,6 @@ export const paymentTransactionService = {
     const existing = await this.findByOrderReference(input.orderReference)
     if (existing) return existing
 
-    await initializeDatabase()
-    const db = getDatabaseService()
     const id = `pay-${input.orderReference}`.slice(0, 255)
     const ts = nowIso()
     const record: PaymentTransactionRecord = {
@@ -80,7 +75,7 @@ export const paymentTransactionService = {
       updated_at: ts,
     }
 
-    const created = await db.create('payment_transactions', { id, data: record })
+    const created = await db().createDoc('payment_transactions', record, { id })
     if (!created.success) {
       logger.error('payment_transactions create failed', { error: created.error, id })
       throw created.error || new Error('Failed to create payment transaction')
@@ -96,8 +91,6 @@ export const paymentTransactionService = {
     const row = await this.findByOrderReference(orderReference)
     if (!row) return
 
-    await initializeDatabase()
-    const db = getDatabaseService()
     const ts = nowIso()
     const history = [...(row.status_history || []), { status, at: ts, meta }]
     const update: Partial<PaymentTransactionRecord> = {
@@ -110,8 +103,9 @@ export const paymentTransactionService = {
       update.processor_payload = meta.processor_payload as Record<string, unknown>
     }
 
-    await db.update('payment_transactions', row.id, {
-      data: { ...row, ...update },
+    await db().updateDoc('payment_transactions', row.id, {
+      ...row,
+      ...update,
     })
   },
 

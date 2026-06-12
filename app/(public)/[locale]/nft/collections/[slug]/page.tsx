@@ -4,7 +4,7 @@ import type { Locale } from '@/i18n/shared'
 import { routing } from '@/i18n/routing'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import StoreWrapper from '@/components/wrappers/store-wrapper'
-import { buildLocalizedMetadata, RING_PLATFORM_SEO } from '@/lib/seo-metadata'
+import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 
 type CollectionParams = { slug: string }
 
@@ -23,8 +23,6 @@ export async function generateMetadata({
     path: 'nft.collection',
     pathname: `/nft/collections/${slug}`,
     variables: { slug },
-    siteName: RING_PLATFORM_SEO.siteName,
-    twitterSite: RING_PLATFORM_SEO.twitterSite,
   })
 }
 

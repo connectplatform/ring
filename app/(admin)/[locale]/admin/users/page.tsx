@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from "@/auth"
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService';
+import { db } from '@/lib/database';
 import { AuthUser } from '@/features/auth/types';
 import { AdminUserManager } from '@/features/auth/components/admin-user-manager';
 import type { Locale } from '@/i18n/shared';
@@ -13,28 +13,19 @@ import { connection } from 'next/server'
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
 import { isPlatformAdmin } from '@/features/auth/user-role';
 
-
 async function getUsers(): Promise<AuthUser[]> {
   try {
-    // Initialize database service with proper error handling
-    const initResult = await initializeDatabase();
-    if (!initResult.success) {
-      console.error('Database initialization failed:', initResult.error);
-      return []; // Graceful degradation - return empty array instead of throwing
-    }
-    const db = getDatabaseService();
-    
-    const result = await db.query({
+    const result = await db().queryDocs({
       collection: 'users',
       orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      pagination: { limit: 100 }
-    });
-    
+      pagination: { limit: 100 },
+    })
+
     if (!result.success) {
-      throw result.error || new Error('Failed to fetch users');
+      throw result.error || new Error('Failed to fetch users')
     }
-    
-    return result.data as unknown as AuthUser[];
+
+    return result.data as unknown as AuthUser[]
   } catch (error) {
     console.error('Error fetching users:', error);
     return [];

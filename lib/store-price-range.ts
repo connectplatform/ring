@@ -18,7 +18,10 @@ type CatalogProduct = {
   name: string
   description?: string | null
   category?: string | null
+  /** Numeric quantity — preferred when available. */
   stock?: number | null
+  /** Boolean fallback when stock quantity is absent (e.g. StoreProduct from adapter). */
+  inStock?: boolean
   price?: string | number | null
   vendorId?: string | null
   vendorName?: string | null
@@ -55,8 +58,11 @@ export function applyCatalogFilters<T extends CatalogProduct>(
 
   if (filters.inStock !== null && filters.inStock !== undefined) {
     result = result.filter((p) => {
-      const stockQty = p.stock || 0
-      return filters.inStock ? stockQty > 0 : stockQty <= 0
+      // Prefer numeric stock field; fall back to boolean inStock (adapter-returned products)
+      const isAvailable = p.stock != null
+        ? p.stock > 0
+        : p.inStock === true
+      return filters.inStock ? isAvailable : !isAvailable
     })
   }
 

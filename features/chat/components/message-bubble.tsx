@@ -4,6 +4,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { MoreVertical, Edit2, Trash2, Reply, Check, CheckCheck, Clock } from 'lucide-react'
 import { Message } from '@/features/chat/types'
+import { getMessageTimeMs } from '@/features/chat/lib/message-time'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { 
@@ -292,7 +293,7 @@ export function MessageBubble({
             isOwn ? "justify-end" : "justify-start"
           )}>
             <span>
-              {new Date(message.timestamp.toMillis()).toLocaleTimeString([], { 
+              {new Date(getMessageTimeMs(message.timestamp)).toLocaleTimeString([], { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}

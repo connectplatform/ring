@@ -1,0 +1,272 @@
+---
+title: Customization Guide
+description: Brand and configure your Ring clone — ring-config.json, HomeWrapper, locales, features, and propagation exclusions (v1.6.0)
+last_modified: "2026-06-12"
+---
+
+# Customization Guide
+
+<Callout type="info">
+  **Time estimate:** 1–4 hours for branding + feature toggles. **Prerequisites:** [Quick Start](/docs/customization/quick-start) completed locally.
+</Callout>
+
+Ring clones share one codebase. Customization is **config-first** (`ring-config.json`, env, locales), then optional component overrides. The legacy **portal** layer is **removed** — the public home is **`HomeWrapper`** + **`HomeContent`**, not a separate portal app.
+
+## Customization map
+
+<Mermaid title="Where white-label settings live">
+{`flowchart TB
+  RC[ring-config.json]
+  ENV[.env.local overrides]
+  I18N[locales/ JSON]
+  HW[home-wrapper.tsx]
+  HC[HomeContent / home.tsx]
+  NAV[navigation + sidebar]
+  EX[.reggie-propagate-exclude.json]
+
+  RC -->|branding features matcher| Core[ring-config-core.ts]
+  ENV -->|NEXT_PUBLIC_BRAND_*| Brand[lib/site-branding.ts]
+  I18N -->|pages.home hero copy| HC
+  HW -->|layout right rail| Page[app/.../page.tsx]
+  HC --> HW
+  Core --> NAV
+  EX -->|protect fork| Reggie[Reggie propagate]`}
+</Mermaid>
+
+## 1. `ring-config.json` (install-time SSOT)
+
+Created by `./install.sh` or copied from `ring-config.template.json`. Merged with the template at runtime in `lib/ring-config-core.ts` (also exposed server-side via `lib/ring-config.ts`).
+
+### Clone identity
+
+```json
+{
+  "clone": {
+    "name": "my-ring-clone",
+    "displayName": "My Platform",
+    "description": "Regional opportunities network",
+    "organization": "Your Org",
+    "contactEmail": "contact@example.com"
+  },
+  "domains": {
+    "production": "https://example.com",
+    "development": "http://localhost:3000"
+  },
+  "platform": {
+    "baseUrl": "https://example.com"
+  }
+}
+```
+
+Used for SEO (`lib/seo-metadata.ts`), JSON-LD, and `getSiteBaseUrl()`.
+
+### Branding block
+
+`branding.logo`, `branding.colors`, `branding.darkColors`, `branding.fonts` in the template — place assets under `public/images/` (see template paths).
+
+Optional env overrides (`lib/site-branding.ts`):
+
+```env
+NEXT_PUBLIC_BRAND_NAME=My Platform
+NEXT_PUBLIC_BRAND_TAGLINE=Your tagline
+NEXT_PUBLIC_BRAND_LOGO=/images/logo-light.svg
+NEXT_PUBLIC_BRAND_OG_IMAGE=/og-image.png
+```
+
+### Feature flags
+
+Toggle modules without deleting code:
+
+```json
+{
+  "features": {
+    "entities": { "enabled": true },
+    "opportunities": { "enabled": true, "types": ["offer", "request"] },
+    "store": { "enabled": true, "multiVendor": true },
+    "web3": { "enabled": false },
+    "ai": { "enabled": true, "matcher": true },
+    "messaging": { "enabled": true }
+  }
+}
+```
+
+Server checks: `isFeatureEnabled()` in `lib/ring-config-core.ts` and `whitelabel/features.ts`. Disable routes in navigation when turning features off.
+
+### Matcher defaults
+
+Install-time AI matcher thresholds live under `matcher` in `ring-config.json` (`getMatcherInstallDefaults()`). Runtime DB overlay may apply for production rings — see [AI customization](/docs/customization/ai-customization).
+
+### Sidebar and navigation metadata
+
+`sidebar` and `navigation.links` in `ring-config.json` feed public instance config (`getPublicInstanceConfig()`). Primary chrome is implemented in:
+
+- `components/navigation/navigation.tsx`
+- `components/navigation/desktop-sidebar.tsx`
+- `components/navigation/bottom-navigation.tsx`
+
+For a custom desktop nav variant, follow [Whitelabel navigation](/docs/development/whitelabel-navigation).
+
+## 2. Home page (replaces deprecated portal)
+
+| Layer | File | Role |
+|-------|------|------|
+| Route | `app/(public)/[locale]/page.tsx` | Static metadata + renders `HomeWrapper` |
+| Layout shell | `components/wrappers/home-wrapper.tsx` | Responsive grid, right rail, session-aware chrome |
+| Hero body | `components/common/pages/home.tsx` | DaVinci hero, CTAs, feature rotator |
+| Copy | `locales/{locale}/pages.json` → `home` | **Primary** hero title, subtitle, features[], right-rail strings |
+
+<Callout type="warning">
+  Do not configure a separate “portal” app or `lib/portal-config.ts` — that path is deprecated. Marketing home is always `HomeWrapper` on `/`.
+</Callout>
+
+### Customize hero copy (fastest path)
+
+Edit `locales/en/pages.json` (mirror `uk`, `ru`):
+
+```json
+{
+  "home": {
+    "hero": {
+      "title": "Your headline",
+      "subtitle": "One sentence value prop",
+      "features": ["Bullet 1", "Bullet 2"]
+    }
+  }
+}
+```
+
+`HomeContent` reads via `useTranslations('pages.home')`.
+
+### Customize home layout
+
+- **Right rail** (OSS marketplace / Ringdom CTAs): `HomeRightRail` inside `home-wrapper.tsx`, strings in `pages.home.rightRail`
+- **Deeper UX** — fork `home-wrapper.tsx` or `home.tsx`; add paths to `.reggie-propagate-exclude.json`
+
+`ring-config.json` `hero` block remains for clones that read it elsewhere; the flagship home hero is **i18n-driven** as above.
+
+## 3. Internationalization
+
+```env
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+- SSOT: `lib/locale-config.ts`
+- Messages: `locales/{locale}/**/*.json`, loaded by `lib/i18n.ts`
+- Routing: `@/i18n/routing` — never hand-strip locale prefixes in client code
+
+Full guide: [Localization](/docs/customization/localization).
+
+Protected locale files (often per-clone) are listed in `.reggie-propagate-exclude.json` — e.g. `locales/*/config.json`, `vendor.json`, `calculator.json`.
+
+## 4. Theme and visual polish
+
+Ring uses **Tailwind 4** with CSS variables for light/dark (`next-themes`).
+
+1. Set `branding.colors` / `darkColors` in `ring-config.json` (template documents keys aligned to shadcn tokens)
+2. Replace `public/favicon.ico`, `public/images/logo-*.svg`, `apple-touch-icon.png`
+3. Theme default: `ring-config.json` → `"theme": { "default": "system" }`
+
+Avoid editing generated design tokens in unrelated clones — prefer `ring-config` + env brand overrides.
+
+## 5. Payments and store (clone-level)
+
+- **PaymentConductor** processors: env vars — [Payment integration](/docs/customization/payment-integration)
+- **Store currency / tax:** `features.store` in `ring-config.json`
+- **WayForPay / Stripe:** never commit secrets; use k8s secrets in production
+
+## 6. Web3 and tokens (optional)
+
+```json
+{
+  "features": {
+    "web3": {
+      "enabled": true,
+      "ringToken": true,
+      "defaultChain": "polygon"
+    }
+  }
+}
+```
+
+Contract addresses and treasury: env + [Token economics](/docs/customization/token-economics). Set `tokens.ring` in `ring-config.json` for display metadata.
+
+## 7. Reggie propagation exclusions
+
+When pulling updates from `ring-greenfood-live` (or upstream), protect fork-specific files:
+
+```json
+{
+  "exclude_paths": [
+    "ring-config.json",
+    ".env.local",
+    "locales/en/config.json",
+    "components/wrappers/home-wrapper.tsx"
+  ]
+}
+```
+
+File: `.reggie-propagate-exclude.json` at repo root.
+
+## 8. Verification checklist
+
+<Steps>
+
+<Step>
+
+**Branding** — logo, favicon, `NEXT_PUBLIC_BRAND_NAME`, OG image on share previews
+
+</Step>
+
+<Step>
+
+**Home** — `/` hero matches `pages.home` in each supported locale
+
+</Step>
+
+<Step>
+
+**Features** — disabled modules 404 or hide from nav; no dead sidebar links
+
+</Step>
+
+<Step>
+
+**Auth** — login/logout, role-gated admin at `/admin`
+
+</Step>
+
+<Step>
+
+**Build** — `npm run build` clean; smoke tests if payments enabled
+
+</Step>
+
+</Steps>
+
+## Next steps
+
+<Cards>
+  <Card title="Database selection" href="/docs/customization/database-selection">
+    `DB_BACKEND_MODE` and migration strategy
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    WayForPay, Stripe, webhooks
+  </Card>
+  <Card title="AI customization" href="/docs/customization/ai-customization">
+    Matcher tuning and agent costs
+  </Card>
+  <Card title="Multi-tenant" href="/docs/customization/multi-tenant">
+  Multiple orgs on one deployment
+  </Card>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    RING contracts and membership
+  </Card>
+  <Card title="Architecture" href="/docs/architecture">
+    System layout and backend modes
+  </Card>
+</Cards>
+
+<Callout type="success">
+  **Fork discipline:** Config + locales first, component forks second, exclusions before propagation. Your clone should upgrade without merge wars.
+</Callout>
