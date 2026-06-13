@@ -52,7 +52,7 @@ export function detectBackendMode(): BackendMode {
     console.error('❌ DB_BACKEND_MODE environment variable is REQUIRED')
     console.error('   Valid modes: k8s-postgres-fcm, firebase-full, supabase-fcm')
     console.error('   Example: DB_BACKEND_MODE=k8s-postgres-fcm')
-    console.error('   Documentation: https://ring-platform.org/en/library/architecture/backend-modes-and-databases')
+    console.error('   Documentation: https://ring-platform.org/en/docs/architecture/backend-modes-and-databases')
     throw new Error('DB_BACKEND_MODE environment variable is required')
   }
 

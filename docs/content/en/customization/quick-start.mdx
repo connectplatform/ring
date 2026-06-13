@@ -1,0 +1,227 @@
+---
+title: Quick Start — Your First Ring Clone
+description: Clone, configure Postgres-primary backend, and run locally with install.sh or manual setup
+last_modified: "2026-06-12"
+---
+
+# Quick Start: Your First Ring Clone
+
+<Callout type="warning" title="OSS self-host only">
+  **Ringdom-managed hosting?** [ringdom.org](https://ringdom.org) — describe your platform in the homepage chat. After handoff use [Customization guide](/docs/customization/customization-guide).
+</Callout>
+
+<Callout type="info">
+  **Time:** 45–90 minutes · **Prerequisites:** Git, Node.js 20+, Docker optional for Postgres.
+</Callout>
+
+| Outcome | Details |
+|---------|---------|
+| Local app | `http://localhost:3000` via `HomeWrapper` |
+| Backend | `DB_BACKEND_MODE=k8s-postgres-fcm` + PostgreSQL |
+| Auth | Auth.js v5 — `AUTH_SECRET` + one OAuth provider |
+| Schema | `data/schema.sql` v4+ and kingdom migrations |
+| Config | `ring-config.json` + `.env.local` |
+
+<Mermaid title="First-clone setup flow">
+{`flowchart LR
+  A[Clone] --> B[env + ring-config]
+  B --> C[PostgreSQL]
+  C --> D[migrations]
+  D --> E[npm run dev]
+  E --> F[Smoke test]`}
+</Mermaid>
+
+<Tabs items={['Path 1 — install.sh', 'Path 2 — Manual']}>
+
+<Tab value="Path 1 — install.sh">
+
+**Recommended** — from a fresh directory:
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+chmod +x install.sh
+./install.sh --quick`}
+</Code>
+
+`install.sh` v2.0:
+
+- Creates **`ring-config.json`** from template
+- Copies **`env.local.template`** → `.env.local` (includes `DB_BACKEND_MODE=k8s-postgres-fcm`)
+- Generates `AUTH_SECRET` / wallet keys
+- Runs `npm install`
+
+Flags: `--clone-name my-ring`, `--quick`, `--help`. See `INSTALL.md`.
+
+</Tab>
+
+<Tab value="Path 2 — Manual">
+
+<Steps>
+
+<Step>
+
+Clone and install:
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+npm install
+cp env.local.template .env.local
+cp ring-config.template.json ring-config.json`}
+</Code>
+
+Edit `ring-config.json` — `clone.displayName`, `domains.development`, `features`.
+
+</Step>
+
+<Step>
+
+Set **required** backend mode:
+
+<Code language="bash" title=".env.local">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024`}
+</Code>
+
+<Callout type="warning">
+  Do **not** use legacy `DATABASE_MODE=firebase_only` or `postgresql_only`.
+</Callout>
+
+Other modes: [Database selection](/docs/customization/database-selection).
+
+</Step>
+
+<Step>
+
+**PostgreSQL** — Docker (`docker-compose.dev.yml`), Homebrew bootstrap (`./infrastructure/postgres/bootstrap-brew-dev.sh`), or existing server.
+
+</Step>
+
+<Step>
+
+Apply migrations:
+
+<Code language="bash" title="terminal">
+{`export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+./scripts/run-migration.sh`}
+</Code>
+
+Full order: [Database migrations](/docs/getting-started/migrations).
+
+</Step>
+
+<Step>
+
+Auth minimum:
+
+<Code language="bash" title="Auth.js">
+{`AUTH_SECRET=
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+NEXT_PUBLIC_BASE_URL=http://localhost:3000`}
+</Code>
+
+</Step>
+
+<Step>
+
+Locales (defaults OK):
+
+<Code language="bash" title="locales">
+{`NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en`}
+</Code>
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+Open [http://localhost:3000](http://localhost:3000) — home via `components/wrappers/home-wrapper.tsx`.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+</Tabs>
+
+## Smoke-test checklist
+
+<Tabs items={['Developers', 'Operators']}>
+
+<Tab value="Developers">
+
+- [ ] Home — `locales/{locale}/pages.json` → `pages.home`
+- [ ] `/login` — OAuth works
+- [ ] `/entities`, `/opportunities` — no DB adapter errors
+- [ ] `npm run type-check` passes
+
+</Tab>
+
+<Tab value="Operators">
+
+- [ ] Runbook documents `DB_BACKEND_MODE` (not `DATABASE_MODE`)
+- [ ] Migrations match `data/migrations/` list
+- [ ] FCM vars only if push enabled
+- [ ] Secrets in k8s / vault — never commit `.env.local`
+
+</Tab>
+
+</Tabs>
+
+## Production outline
+
+<Steps>
+
+<Step>
+
+[Self-hosted deployment](/docs/deployment/self-hosted) — Docker or `npm run build && npm start`.
+
+</Step>
+
+<Step>
+
+[Environment](/docs/deployment/environment) — PaymentConductor, FCM, PSP keys.
+
+</Step>
+
+<Step>
+
+Ringdom settlers: [ringdom.org](https://ringdom.org) chat — skip this Quick Start.
+
+</Step>
+
+</Steps>
+
+<Callout type="warning">
+  **Not recommended for full v1.6:** Vercel + `firebase-full` only. Production default: **`k8s-postgres-fcm`** on your cluster.
+</Callout>
+
+<Cards>
+  <Card title="Customization guide" href="/docs/customization/customization-guide">
+    Branding, HomeWrapper, locales
+  </Card>
+  <Card title="Database selection" href="/docs/customization/database-selection">
+    `DB_BACKEND_MODE` matrix
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    PaymentConductor setup
+  </Card>
+  <Card title="Architecture hub" href="/docs/architecture">
+    System internals
+  </Card>
+</Cards>
+
+<Callout type="success">
+  **Clone running?** Edit `ring-config.json` and `locales/en/pages.json`, then `.reggie-propagate-exclude.json` before Reggie propagation.
+</Callout>

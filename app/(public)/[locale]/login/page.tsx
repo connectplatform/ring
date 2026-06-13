@@ -5,8 +5,7 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { auth } from '@/auth'
-import { redirectPostAuth } from '@/lib/auth/safe-post-auth-redirect'
+import { LoginAuthenticatedRedirect } from '@/features/auth/components/login-authenticated-redirect'
 import { connection } from 'next/server'
 
 type LoginParams = Record<string, never>
@@ -53,22 +52,24 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
         ? rawFrom[0]
         : undefined
 
-  const session = await auth()
   const hasOAuthCallbackParams = Boolean(
     firstSearchParam(searchParams.code) ||
       firstSearchParam(searchParams.state) ||
       firstSearchParam(searchParams.error) ||
       firstSearchParam(searchParams.session_state),
   )
-  if (session?.user && !hasOAuthCallbackParams) {
-    redirectPostAuth(from, locale)
-  }
 
   const tPages = await getTranslations('pages')
   const authError = firstSearchParam(searchParams.error)
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <>
+      <LoginAuthenticatedRedirect
+        from={from}
+        locale={locale}
+        disabled={hasOAuthCallbackParams}
+      />
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">{tPages('login.title')}</h1>
@@ -76,6 +77,7 @@ export default async function LoginPage(props: LocalePageProps<LoginParams>) {
         </div>
         <UnifiedLoginInline from={from} variant="hero" locale={locale} initialAuthError={authError} />
       </div>
-    </div>
+      </div>
+    </>
   )
 }

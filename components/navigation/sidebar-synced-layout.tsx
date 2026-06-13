@@ -356,7 +356,7 @@ export function SidebarSyncedLayout({
 
     list.push({ kind: 'section', key: 'concepts-h', label: 'Platform Concepts' })
     for (const item of [
-      { href: `/${locale}/docs/white-label/token-economics`, label: tNav('sidebar.ringEconomy'), icon: Coins },
+      { href: `/${locale}/docs/customization/token-economics`, label: tNav('sidebar.ringEconomy'), icon: Coins },
       { href: `/${locale}/about-publisher`, label: tNav('sidebar.appPublisher'), icon: Heart },
       { href: `/${locale}/global-impact`, label: tNav('sidebar.globalImpact'), icon: Globe },
       { href: `/${locale}/ai-web3`, label: tNav('sidebar.aiMeetsWeb3'), icon: Zap },
@@ -404,10 +404,6 @@ export function SidebarSyncedLayout({
     tStore,
   ])
 
-  if (!mounted) {
-    return <div className={cn('h-full min-w-[200px]', className)} aria-hidden />
-  }
-
   const gridCells: React.ReactNode[] = []
 
   for (const row of rows) {
@@ -435,7 +431,7 @@ export function SidebarSyncedLayout({
           href={row.href}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(
-            'sidebar-nav-item flex min-w-0 items-center gap-1 rounded-lg text-[13px] transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
+            'sidebar-nav-item sidebar-aside-col flex min-w-0 items-center gap-1 rounded-lg text-[13px] transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
             ROW,
             ASIDE_PAD,
           )}
@@ -469,7 +465,7 @@ export function SidebarSyncedLayout({
           href={row.href}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(
-            'sidebar-nav-item min-w-0 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
+            'sidebar-nav-item sidebar-aside-col min-w-0 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
             ASIDE_PAD,
             rowClass,
           )}
@@ -498,7 +494,7 @@ export function SidebarSyncedLayout({
       <div
         ref={asideContentRef}
         data-aside-content
-        className="relative z-[1] min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-24 transition-[filter,opacity] duration-500 ease-out data-too-small:opacity-30 data-too-small:pointer-events-none data-collapsing:blur-[5px]"
+        className="relative z-[1] min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-24 transition-[filter,opacity] duration-500 ease-out data-too-small:[&_.sidebar-aside-col]:opacity-30 data-too-small:[&_.sidebar-aside-col]:pointer-events-none data-collapsing:blur-[5px]"
       >
         <div className={cn('grid', GRID_COLS)}>{gridCells}</div>
       </div>
@@ -523,7 +519,9 @@ export function SidebarSyncedLayout({
             className={FOOTER_BTN}
             aria-label="Toggle theme"
           >
-            {currentTheme === 'dark' ? (
+            {!mounted ? (
+              <Sun className="size-4" strokeWidth={1.5} />
+            ) : currentTheme === 'dark' ? (
               <Moon className="size-4" strokeWidth={1.5} />
             ) : (
               <Sun className="size-4" strokeWidth={1.5} />

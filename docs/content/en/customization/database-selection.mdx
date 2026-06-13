@@ -1,0 +1,258 @@
+---
+title: Database Backend Selection
+description: Choose DB_BACKEND_MODE — PostgreSQL-primary, Firebase-full, or Supabase Postgres for your Ring clone
+last_modified: "2026-06-12"
+---
+
+# Database Backend Selection
+
+<Callout type="success" title="Executive summary">
+  Production Ring clones use **`DB_BACKEND_MODE=k8s-postgres-fcm`** — PostgreSQL for application data, Firebase Admin **only for FCM push** when configured. Legacy `DATABASE_MODE` is removed. Pick a mode before first boot.
+</Callout>
+
+<Cards>
+  <Card title="Backend modes (architecture)" href="/docs/architecture/backend-modes-and-databases">
+    Adapters, FCM vs Firestore, `DB_HYBRID_MODE`
+  </Card>
+  <Card title="Database migrations" href="/docs/getting-started/migrations">
+  `schema.sql` + kingdom migration order
+  </Card>
+  <Card title="Quick Start" href="/docs/customization/quick-start">
+    First clone with Postgres
+  </Card>
+</Cards>
+
+<Mermaid title="DB_BACKEND_MODE decision">
+{`flowchart TD
+  Start([New Ring clone])
+  Start --> Q1{Production v1.6 features?}
+  Q1 -->|Yes| PG[Postgres-primary]
+  Q1 -->|Firestore prototype only| FB[firebase-full]
+  PG --> Q2{Who runs Postgres?}
+  Q2 -->|You / k3s / VPS| K8S[k8s-postgres-fcm]
+  Q2 -->|Supabase hosted| SUP[supabase-fcm]
+  K8S --> Mig[schema.sql + migrations]
+  SUP --> Mig`}
+</Mermaid>
+
+## The three modes
+
+| `DB_BACKEND_MODE` | Application data | Firestore for DB? | Push |
+|-------------------|------------------|-------------------|------|
+| **`k8s-postgres-fcm`** | PostgreSQL (self-hosted, k3s, Docker) | **No** | FCM + Apple when configured |
+| **`supabase-fcm`** | PostgreSQL on Supabase | **No** | Same FCM pattern |
+| **`firebase-full`** | Firestore paths | **Yes** | Full Firebase stack |
+
+Implementation: `lib/database/backend-mode-config.ts`, `lib/database/DatabaseService.ts`, `lib/database/BackendSelector.ts`.
+
+<Callout type="info">
+  **ConnectPlatform** ([connect-brand.com](https://connect-brand.com)) is realtime collaboration — **not** a `DB_BACKEND_MODE` adapter. See [Tunnel protocol](/docs/features/tunnel-protocol).
+</Callout>
+
+## Setup by mode
+
+<Tabs items={['k8s-postgres-fcm', 'supabase-fcm', 'firebase-full']}>
+
+<Tab value="k8s-postgres-fcm">
+
+<Callout type="success" title="Recommended default">
+  OSS self-host, k3s, Ringdom handoff, PaymentConductor, News Kingdom, `data/schema.sql` v4.
+</Callout>
+
+<Steps>
+
+<Step>
+
+Set mode and connection in `.env.local`:
+
+<Code language="bash" title="Postgres-primary">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=your_password
+DB_SSL=false`}
+</Code>
+
+Optional: `DB_POOL_SIZE`, `DB_TIMEOUT`, `DB_RETRIES`.
+
+</Step>
+
+<Step>
+
+Provision PostgreSQL **14+** (18 recommended locally) — Docker `docker-compose.dev.yml`, Homebrew bootstrap, or your cluster.
+
+</Step>
+
+<Step>
+
+Apply schema and migrations:
+
+<Code language="bash" title="terminal">
+{`export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+./scripts/run-migration.sh`}
+</Code>
+
+Full order: [Database migrations](/docs/getting-started/migrations).
+
+</Step>
+
+<Step>
+
+**FCM (optional):** set `NEXT_PUBLIC_FIREBASE_*` + service account from `env.local.template`. App data stays on Postgres.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="supabase-fcm">
+
+<Callout type="success">
+  Managed Postgres without operating k8s — same SQL schema as other production clones.
+</Callout>
+
+<Steps>
+
+<Step>
+
+Create Supabase project; note URL + service role key.
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="Supabase mode">
+{`DB_BACKEND_MODE=supabase-fcm
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your_service_role_key`}
+</Code>
+
+</Step>
+
+<Step>
+
+Apply [migrations](/docs/getting-started/migrations) against Supabase Postgres connection.
+
+</Step>
+
+<Step>
+
+Optional: `NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase` for Realtime — orthogonal to `DB_BACKEND_MODE`.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="firebase-full">
+
+<Callout type="warning">
+  Prototyping only — PaymentConductor and most v1.6 features expect PostgreSQL.
+</Callout>
+
+<Steps>
+
+<Step>
+
+Create Firebase project (Firestore, Auth, Storage as needed).
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="Firebase-full">
+{`DB_BACKEND_MODE=firebase-full
+AUTH_FIREBASE_PROJECT_ID=your-project-id
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n..."
+AUTH_FIREBASE_CLIENT_EMAIL=firebase-adminsdk@...`}
+</Code>
+
+</Step>
+
+<Step>
+
+No `data/schema.sql` on Firestore — plan migration to `k8s-postgres-fcm` before scale.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+</Tabs>
+
+## What not to use
+
+| Legacy / invalid | Replacement |
+|------------------|-------------|
+| `DATABASE_MODE=firebase_only` / `postgresql_only` | `DB_BACKEND_MODE` values above |
+| `npm run db:migrate` / `db:backup` | `./scripts/run-migration.sh`, `pg_dump` |
+| `DB_HYBRID_MODE` as primary switch | `DB_BACKEND_MODE` — see architecture page |
+
+## Changing modes later
+
+<Steps>
+
+<Step>
+
+Export data from source (Firestore export or `pg_dump`).
+
+</Step>
+
+<Step>
+
+Provision target Postgres; apply [migrations](/docs/getting-started/migrations).
+
+</Step>
+
+<Step>
+
+Update `DB_BACKEND_MODE` and connection secrets on staging.
+
+</Step>
+
+<Step>
+
+Smoke-test auth, store, payments, news before production cutover.
+
+</Step>
+
+</Steps>
+
+<Tabs items={['Operators', 'Developers']}>
+
+<Tab value="Operators">
+
+**Pre-launch checklist (Postgres-primary):**
+
+- [ ] `DB_BACKEND_MODE` set — app starts clean
+- [ ] `data/schema.sql` + kingdom migrations applied
+- [ ] Backups configured (`pg_dump`, CNPG, provider snapshots)
+- [ ] FCM vars only if push required
+- [ ] `004_payment_transactions.sql` if using payments
+
+</Tab>
+
+<Tab value="Developers">
+
+`DatabaseService` keeps app code backend-agnostic — **data** still migrates deliberately. Auth tables: `lib/auth/postgres-adapter.ts`. Validate config: `validateBackendModeConfig()` in `backend-mode-config.ts`.
+
+</Tab>
+
+</Tabs>
+
+<Cards>
+  <Card title="Environment config" href="/docs/deployment/environment">
+    Secret groupings and locale vars
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    Requires Postgres ledger
+  </Card>
+  <Card title="Multi-tenant" href="/docs/customization/multi-tenant">
+    Clone-per-tenant vs custom SaaS
+  </Card>
+</Cards>

@@ -7,6 +7,7 @@ import { routing, type Locale } from '@/i18n/routing'
 import { setRequestLocale, getMessages } from 'next-intl/server'
 import { docsMdxComponents, getDocsMdxRemoteOptions } from '@/components/docs/mdx-docs-shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
+import { resolveDocFilePath } from '@/lib/docs/resolve-doc-file-path'
 
 export async function generateMetadata({
   params,
@@ -35,12 +36,12 @@ export default async function DocsPage({ params }: { params: Promise<{ locale: L
   const docsSeo = (messages.seo as { docs?: { title?: string; description?: string } } | undefined)
     ?.docs
 
-  const filePath = path.join(process.cwd(), 'docs', 'content', currentLocale, 'library', 'index.mdx')
+  const { filePath } = resolveDocFilePath(currentLocale, [])
 
   let content = ''
 
   try {
-    if (fs.existsSync(filePath)) {
+    if (filePath && fs.existsSync(filePath)) {
       const fileContents = fs.readFileSync(filePath, 'utf8')
       const { content: mdxContent } = matter(fileContents)
       content = mdxContent

@@ -20,7 +20,7 @@ const VALID_ACTIONS = [
 
 // Valid status types per action
 const VALID_STATUSES = {
-  login: ['success', 'failed', 'pending', 'blocked', 'expired'],
+  login: ['success', 'failed', 'blocked', 'expired'],
   register: ['success', 'pending_verification', 'failed', 'email_sent'],
   verify: ['success', 'failed', 'expired', 'already_verified'],
   'reset-password': ['email_sent', 'success', 'failed', 'expired', 'invalid_token'],

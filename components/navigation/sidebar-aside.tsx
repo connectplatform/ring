@@ -135,7 +135,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
       },
       { divider: 'divider-concepts', href: '#', label: '', icon: null },
       {
-        href: `/${locale}/docs/white-label/token-economics`,
+        href: `/${locale}/docs/customization/token-economics`,
         label: tNav('sidebar.ringEconomy'),
         icon: <Coins className="size-4.5 shrink-0 text-[var(--color-contrast-medium)]" strokeWidth={1.5} />,
       },

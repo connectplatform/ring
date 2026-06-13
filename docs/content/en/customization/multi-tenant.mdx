@@ -1,0 +1,218 @@
+---
+title: Multi-tenant Deployment
+description: One clone per organization (default) vs custom multi-tenant SaaS on PostgreSQL
+last_modified: "2026-06-12"
+---
+
+# Multi-tenant Deployment
+
+<Callout type="success" title="Executive summary">
+  **Default:** one Ring deployment = one tenant (one `ring-config.json`, one database, one domain). Ringdom runs **many clones**, not one shared multi-tenant app. Custom SaaS on a single URL is **your architecture** — not shipped in OSS.
+</Callout>
+
+<Cards>
+  <Card title="Database selection" href="/docs/customization/database-selection">
+    `DB_BACKEND_MODE` for Postgres-primary
+  </Card>
+  <Card title="Customization guide" href="/docs/customization/customization-guide">
+    Per-clone `ring-config.json` and branding
+  </Card>
+  <Card title="Quick Start" href="/docs/customization/quick-start">
+    Provision one clone end-to-end
+  </Card>
+</Cards>
+
+<Callout type="warning">
+  Ring does **not** ship `MULTI_TENANT_ENABLED`, `app/api/admin/tenants`, or `useTenant()`. Legacy docs invented those — do not copy env blocks from old guides.
+</Callout>
+
+## Deployment models
+
+| Model | How it works | Ring OSS fit |
+|-------|----------------|--------------|
+| **Clone-per-tenant** | Separate deployment per org | **Default** |
+| **Shared image, isolated DB** | Route hostname → different `DB_*` | Operator pattern |
+| **Shared Postgres + `tenant_id`** | RLS or app filters | Custom build |
+| **Schema-per-tenant** | `tenant_*` schemas | Custom build |
+
+`DatabaseService` does **not** auto-scope queries by tenant.
+
+<Tabs items={['Clone-per-tenant (default)', 'Custom SaaS (single URL)']}>
+
+<Tab value="Clone-per-tenant (default)">
+
+<Mermaid title="Ringdom pattern">
+{`flowchart LR
+  subgraph ops [Your ops / Ringdom]
+    C1[clone-a.com]
+    C2[clone-b.com]
+  end
+  C1 --> DB1[(Postgres A)]
+  C2 --> DB2[(Postgres B)]`}
+</Mermaid>
+
+**Why operators choose this:** full branding per clone, clean data boundary, independent migrations and PaymentConductor config.
+
+<Steps>
+
+<Step>
+
+[Quick Start](/docs/customization/quick-start) — new repo clone or k8s release per customer.
+
+</Step>
+
+<Step>
+
+Unique `ring-config.json` + `.env.local` with `DB_BACKEND_MODE=k8s-postgres-fcm` and `DB_*`.
+
+</Step>
+
+<Step>
+
+Apply [migrations](/docs/getting-started/migrations) to that tenant's database only.
+
+</Step>
+
+<Step>
+
+Ingress + TLS for tenant domain; document runbook per clone.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="Custom SaaS (single URL)">
+
+Use when serving **many orgs from one domain** (`*.platform.com` or `/org/:slug`).
+
+<Mermaid title="Request path you must build">
+{`sequenceDiagram
+  participant B as Browser
+  participant M as Your middleware
+  participant R as Ring handlers
+  participant DB as PostgreSQL
+
+  B->>M: Host or /org/slug
+  M->>M: Resolve tenantId
+  M->>DB: SET app.tenant_id
+  M->>R: Scoped request
+  R->>DB: Queries with RLS / tenant_id`}
+</Mermaid>
+
+**Prerequisites:**
+
+| Area | Requirement |
+|------|-------------|
+| Database | `k8s-postgres-fcm` or `supabase-fcm` |
+| Schema | `tenant_id` on tenant tables — extend `data/schema.sql` |
+| Auth | Session carries `tenantId`; enforce on every mutation |
+| Payments | PaymentConductor ledger scoped per tenant |
+| Branding | Dynamic config store (not static `ring-config.json` alone) |
+
+**Tenant identification (you implement):** subdomain in `middleware.ts`, path `/org/:slug`, or `X-Tenant-Id` for API-only clients.
+
+**RLS example:**
+
+<Code language="sql" title="PostgreSQL RLS">
+{`ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON users
+  FOR ALL USING (tenant_id = current_setting('app.tenant_id', true));`}
+</Code>
+
+**You must also build:** tenant registry, provisioning jobs, platform admin UI, per-tenant backups, optional billing.
+
+</Tab>
+
+</Tabs>
+
+## Environment configuration
+
+<Tabs items={['Valid (per clone)', 'Invalid (legacy docs)']}>
+
+<Tab value="Valid (per clone)">
+
+<Code language="bash" title=".env.local">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=...
+DB_NAME=ring_platform`}
+</Code>
+
+One database per clone. Details: [Backend modes](/docs/architecture/backend-modes-and-databases).
+
+</Tab>
+
+<Tab value="Invalid (legacy docs)">
+
+<Callout type="error">
+  These variables were **never** in the OSS tree:
+</Callout>
+
+<Code language="bash" title="Do not use">
+{`DATABASE_MODE=postgresql_only
+MULTI_TENANT_ENABLED=true
+TENANT_ISOLATION_LEVEL=schema`}
+</Code>
+
+</Tab>
+
+</Tabs>
+
+## Decision framework
+
+<MindMap title="Which model?">
+{`mindmap
+  root((Multi-tenant))
+    Clone per tenant
+      Ringdom settlers
+      Max isolation
+      Independent migrations
+    Custom SaaS
+      Single domain
+      You own RLS
+      One release train`}
+</MindMap>
+
+## Pre-launch checklist (custom SaaS only)
+
+<Steps>
+
+<Step>
+
+`DB_BACKEND_MODE` Postgres-primary; kingdom migrations applied.
+
+</Step>
+
+<Step>
+
+Every tenant-owned table isolated (`tenant_id` or separate DB).
+
+</Step>
+
+<Step>
+
+Auth session tenant matches request tenant on all mutations.
+
+</Step>
+
+<Step>
+
+Payment and news flows cannot cross tenants; load-test tenant A vs B.
+
+</Step>
+
+</Steps>
+
+<Cards>
+  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
+    FCM vs Firestore truth
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    Ledger per deployment
+  </Card>
+</Cards>
+
+<Callout type="info">
+  **Architecture consult?** [Ring customization opportunities](/opportunities?type=ring_customization)
+</Callout>

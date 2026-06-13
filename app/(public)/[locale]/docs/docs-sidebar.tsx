@@ -78,10 +78,10 @@ export function DocsSidebar({ locale }: DocsSidebarProps) {
     {
       title: '🏷️ ' + pt('sectionWhiteLabel'),
       items: [
-        { href: `/${locale}/docs/white-label`, label: s('whiteLabelOverview') },
-        { href: `/${locale}/docs/white-label/customization-guide`, label: s('customizationGuide') },
-        { href: `/${locale}/docs/white-label/database-selection`, label: s('databaseSelection') },
-        { href: `/${locale}/docs/white-label/token-economics`, label: s('tokenEconomics') },
+        { href: `/${locale}/docs/customization`, label: s('customizationOverview') },
+        { href: `/${locale}/docs/customization/customization-guide`, label: s('customizationGuide') },
+        { href: `/${locale}/docs/customization/database-selection`, label: s('databaseSelection') },
+        { href: `/${locale}/docs/customization/token-economics`, label: s('tokenEconomics') },
       ],
     },
     {
@@ -104,7 +104,7 @@ export function DocsSidebar({ locale }: DocsSidebarProps) {
       title: '🛡️ ' + pt('sectionAudit'),
       items: [
         { href: `/${locale}/docs/features/security`, label: s('securityCompliance') },
-        { href: `/${locale}/docs/white-label/database-selection`, label: s('databaseSelection') },
+        { href: `/${locale}/docs/customization/database-selection`, label: s('databaseSelection') },
         {
           href: 'https://github.com/connectplatform/ring',
           label: pt('linkGithub'),

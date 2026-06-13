@@ -5,7 +5,7 @@ import { connection } from 'next/server'
 import fs from 'fs'
 import matter from 'gray-matter'
 import type { Metadata } from 'next'
-import { resolveDocFilePath } from '@/lib/docs/resolve-doc-file-path'
+import { getDocsLocaleRoot, resolveDocFilePath } from '@/lib/docs/resolve-doc-file-path'
 import type { Locale } from '@/i18n/shared'
 import { SUPPORTED_LOCALES } from '@/lib/locale-config'
 import { docsMdxComponents, getDocsMdxRemoteOptions } from '@/components/docs/mdx-docs-shared'
@@ -126,7 +126,7 @@ export async function generateDocsStaticParams() {
   const params: { locale: string; slug: string[] }[] = []
 
   for (const locale of locales) {
-    const localePath = path.join(docsRoot, locale, 'library')
+    const localePath = getDocsLocaleRoot(locale, docsRoot)
 
     const scanDir = (dir: string, currentSlug: string[] = []): void => {
       if (!fs.existsSync(dir)) return

@@ -1,0 +1,120 @@
+---
+title: Багатотенантне розгортання
+description: Один клон на організацію (default) vs власний multi-tenant SaaS
+last_modified: "2026-06-12"
+---
+
+# Багатотенантне розгортання
+
+<Callout type="success" title="Коротко">
+  **За замовчуванням:** одне розгортання = один tenant. Ringdom керує **багатьма клонами**, а не одним спільним додатком. Custom SaaS на одному URL — **ваша архітектура**, не OSS.
+</Callout>
+
+<Cards>
+  <Card title="Вибір БД" href="/docs/customization/database-selection">
+    `DB_BACKEND_MODE`
+  </Card>
+  <Card title="Кастомізація" href="/docs/customization/customization-guide">
+    `ring-config.json` на клон
+  </Card>
+</Cards>
+
+<Callout type="warning">
+  Немає `MULTI_TENANT_ENABLED`, `app/api/admin/tenants`, `useTenant()` в OSS.
+</Callout>
+
+<Tabs items={['Клон на tenant', 'Custom SaaS']}>
+
+<Tab value="Клон на tenant">
+
+<Mermaid title="Патерн Ringdom">
+{`flowchart LR
+  C1[clone-a.com] --> DB1[(Postgres A)]
+  C2[clone-b.com] --> DB2[(Postgres B)]`}
+</Mermaid>
+
+<Steps>
+
+<Step>
+
+[Швидкий старт](/docs/customization/quick-start) на клієнта.
+
+</Step>
+
+<Step>
+
+Унікальні `ring-config.json` + `.env.local` з `DB_BACKEND_MODE=k8s-postgres-fcm`.
+
+</Step>
+
+<Step>
+
+[Міграції](/docs/getting-started/migrations) для БД цього tenant.
+
+</Step>
+
+<Step>
+
+Ingress + TLS для домену.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="Custom SaaS">
+
+<Mermaid title="Шлях запиту (ви будуєте)">
+{`sequenceDiagram
+  participant B as Браузер
+  participant M as middleware
+  participant DB as PostgreSQL
+  B->>M: Host або /org/slug
+  M->>DB: tenant context
+  M->>B: Scoped handler`}
+</Mermaid>
+
+Потрібно: `tenant_id` у схемі, auth з `tenantId`, PaymentConductor з tenant scope, dynamic branding.
+
+<Code language="sql" title="RLS приклад">
+{`ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON users
+  FOR ALL USING (tenant_id = current_setting('app.tenant_id', true));`}
+</Code>
+
+</Tab>
+
+</Tabs>
+
+<Tabs items={['Валідно', 'Невалідно']}>
+
+<Tab value="Валідно">
+
+<Code language="bash" title="на клон">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=...
+DB_NAME=ring_platform`}
+</Code>
+
+</Tab>
+
+<Tab value="Невалідно">
+
+<Code language="bash" title="не використовуйте">
+{`DATABASE_MODE=postgresql_only
+MULTI_TENANT_ENABLED=true`}
+</Code>
+
+</Tab>
+
+</Tabs>
+
+<Cards>
+  <Card title="Режими бекенду" href="/docs/architecture/backend-modes-and-databases">
+    FCM vs Firestore
+  </Card>
+  <Card title="Платежі" href="/docs/customization/payment-integration">
+    Ledger на розгортання
+  </Card>
+</Cards>

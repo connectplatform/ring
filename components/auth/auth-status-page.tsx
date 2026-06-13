@@ -3,8 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { safePostAuthRedirect, safePostAuthReturnTo } from '@/lib/auth/safe-post-auth-redirect'
+import { safePostAuthRedirect } from '@/lib/auth/safe-post-auth-redirect'
 import { useTranslations } from 'next-intl'
 import { motion } from 'framer-motion'
 import { ROUTES } from '@/constants/routes'
@@ -54,7 +53,6 @@ const STATUS_CONFIG = {
 export default function AuthStatusPage({ action, status, locale, email, token, requestId, returnTo }: AuthStatusPageProps) {
   const t = useTranslations('modules.auth.status')
   const router = useRouter()
-  const { status: sessionStatus } = useSession()
 
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending
   const IconComponent = config.icon
@@ -67,13 +65,6 @@ export default function AuthStatusPage({ action, status, locale, email, token, r
       return () => clearTimeout(timer)
     }
   }, [action, status, router, locale])
-
-  // Legacy /auth/status/login/pending bookmark — session-only (OAuth uses Auth.js redirect callback).
-  useEffect(() => {
-    if (action !== 'login' || status !== 'pending') return
-    if (sessionStatus !== 'authenticated') return
-    router.push(safePostAuthRedirect(returnTo, locale))
-  }, [action, status, sessionStatus, returnTo, router, locale])
 
   // Get action-specific navigation buttons
   const getActionButtons = () => {
@@ -104,19 +95,6 @@ export default function AuthStatusPage({ action, status, locale, email, token, r
                 {t('actions.tryAgain')}
               </Link>
             </Button>
-          )
-        }
-        if (status === 'pending') {
-          buttons.push(
-            <motion.div
-              key="redirect-info"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-sm text-muted-foreground"
-            >
-              {t('redirecting') || 'Redirecting...'}
-            </motion.div>
           )
         }
         if (status === 'success') {

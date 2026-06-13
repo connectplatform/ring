@@ -1,0 +1,152 @@
+---
+title: Швидкий старт — ваш перший клон Ring
+description: Клонування, Postgres-primary бекенд, локальний запуск
+last_modified: "2026-06-12"
+---
+
+# Швидкий старт: ваш перший клон Ring
+
+<Callout type="warning" title="Лише OSS self-host">
+  **Ringdom?** [ringdom.org](https://ringdom.org) — чат на головній. Після handoff: [Посібник кастомізації](/docs/customization/customization-guide).
+</Callout>
+
+<Callout type="info">
+  **Час:** 45–90 хв · **Передумови:** Git, Node.js 20+, Docker опційно.
+</Callout>
+
+| Результат | Деталі |
+|-----------|--------|
+| Локальний додаток | `http://localhost:3000`, `HomeWrapper` |
+| Бекенд | `DB_BACKEND_MODE=k8s-postgres-fcm` + PostgreSQL |
+| Auth | Auth.js v5 |
+| Схема | `data/schema.sql` v4+ і міграції |
+
+<Mermaid title="Потік налаштування">
+{`flowchart LR
+  A[Клон] --> B[env]
+  B --> C[Postgres]
+  C --> D[міграції]
+  D --> E[npm run dev]`}
+</Mermaid>
+
+<Tabs items={['install.sh', 'Вручну']}>
+
+<Tab value="install.sh">
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+chmod +x install.sh
+./install.sh --quick`}
+</Code>
+
+Створює `ring-config.json`, `.env.local` з `DB_BACKEND_MODE=k8s-postgres-fcm`, `AUTH_SECRET`, `npm install`.
+
+</Tab>
+
+<Tab value="Вручну">
+
+<Steps>
+
+<Step>
+
+<Code language="bash" title="клон">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+npm install
+cp env.local.template .env.local
+cp ring-config.template.json ring-config.json`}
+</Code>
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="бекенд">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024`}
+</Code>
+
+<Callout type="warning">
+  **Не** `DATABASE_MODE=firebase_only` / `postgresql_only`.
+</Callout>
+
+</Step>
+
+<Step>
+
+PostgreSQL — Docker, Homebrew bootstrap або ваш сервер.
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="міграції">
+{`export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+./scripts/run-migration.sh`}
+</Code>
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="Auth">
+{`AUTH_SECRET=
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+NEXT_PUBLIC_BASE_URL=http://localhost:3000`}
+</Code>
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="terminal">
+{`npm run dev`}
+</Code>
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+</Tabs>
+
+<Tabs items={['Розробники', 'Оператори']}>
+
+<Tab value="Розробники">
+
+- [ ] Головна, `/login`, `/entities` без помилок БД
+- [ ] `npm run type-check`
+
+</Tab>
+
+<Tab value="Оператори">
+
+- [ ] Runbook: `DB_BACKEND_MODE` (не `DATABASE_MODE`)
+- [ ] Секрети не в git
+
+</Tab>
+
+</Tabs>
+
+<Cards>
+  <Card title="Кастомізація" href="/docs/customization/customization-guide">
+    Брендинг і locales
+  </Card>
+  <Card title="Вибір БД" href="/docs/customization/database-selection">
+    Режими бекенду
+  </Card>
+  <Card title="Платежі" href="/docs/customization/payment-integration">
+    PaymentConductor
+  </Card>
+</Cards>
+
+<Callout type="success">
+  **Клон працює?** `ring-config.json`, `locales/uk/pages.json`, `.reggie-propagate-exclude.json`.
+</Callout>

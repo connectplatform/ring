@@ -7,6 +7,7 @@ import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale, supportedLocales } from '@/i18n/shared'
+import { getDocsLocaleRoot } from '@/lib/docs/resolve-doc-file-path'
 
 interface DocsNavigationTreeProps {
   locale: string
@@ -35,13 +36,11 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
 
-  const docsLocale = fs.existsSync(
-    path.join(process.cwd(), 'docs', 'content', validLocale, 'library'),
-  )
+  const docsLocale = fs.existsSync(getDocsLocaleRoot(validLocale))
     ? validLocale
     : defaultLocale
 
-  const libraryRoot = path.join(process.cwd(), 'docs', 'content', docsLocale, 'library')
+  const docsRoot = getDocsLocaleRoot(docsLocale)
 
   const readMeta = (metaPath: string): { title?: string; pages?: string[] } => {
     try {
@@ -80,12 +79,12 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   const loadHierarchicalNavigation = (): NavigationSection[] => {
     const sections: NavigationSection[] = []
-    const rootMeta = readMeta(path.join(libraryRoot, 'meta.json'))
+    const rootMeta = readMeta(path.join(docsRoot, 'meta.json'))
     const sectionSlugs = rootMeta.pages ?? []
 
     for (const entry of sectionSlugs) {
       if (entry === 'index') {
-        const indexPath = path.join(libraryRoot, 'index.mdx')
+        const indexPath = path.join(docsRoot, 'index.mdx')
         if (fs.existsSync(indexPath)) {
           sections.push({
             title: pt('linkLibrary'),
@@ -101,7 +100,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
       }
 
       if (entry === 'welcome') {
-        const welcomePath = path.join(libraryRoot, 'welcome.mdx')
+        const welcomePath = path.join(docsRoot, 'welcome.mdx')
         if (fs.existsSync(welcomePath)) {
           sections.push({
             title: pt('linkWelcome'),
@@ -116,7 +115,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
         continue
       }
 
-      const sectionDir = path.join(libraryRoot, entry)
+      const sectionDir = path.join(docsRoot, entry)
       if (!fs.existsSync(sectionDir) || !fs.statSync(sectionDir).isDirectory()) {
         continue
       }

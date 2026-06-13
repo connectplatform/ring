@@ -209,13 +209,13 @@ export default function Navigation() {
   const handleSignOut = useCallback(async () => {
     setIsOpen(false)
     try {
-      await signOut({ redirect: false })
-      router.push(`/${locale}/auth/signout`)
+      // Native Auth.js v5 single-hop sign-out + redirect (no /auth/signout status hop)
+      await signOut({ redirectTo: ROUTES.LOGIN(locale) })
     } catch (error) {
       console.error('Sign out error:', error)
       setError(tCommon('status.error'))
     }
-  }, [tCommon, router, locale])
+  }, [tCommon, locale])
 
   const toggleTheme = useCallback(() => {
     setTheme(currentTheme === 'dark' ? 'light' : 'dark')
@@ -325,14 +325,14 @@ export default function Navigation() {
 
   return (
     <>
-      {/* Desktop Sidebar Navigation */}
-      {mounted && <DesktopSidebar />}
+      {/* Desktop Sidebar Navigation — dynamic(ssr:false) already client-only */}
+      <DesktopSidebar />
 
       {/* Mobile Bottom Navigation */}
-      {mounted && <BottomNavigation />}
+      <BottomNavigation />
 
       {/* Mobile User Widget - GTA-Style Floating Radial Menu */}
-      {mounted && <MobileUserWidget />}
+      <MobileUserWidget />
 
       {/* Unified login selector (Google, Apple, Crypto) */}
       <UnifiedLoginComponent open={isLoginDialogOpen} onClose={handleCloseLoginDialog} />

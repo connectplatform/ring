@@ -7,6 +7,7 @@ import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale, supportedLocales } from '@/i18n/shared'
+import { getDocsLocaleRoot } from '@/lib/docs/resolve-doc-file-path'
 
 interface DocsNavigationTreeProps {
   locale: string
@@ -34,15 +35,13 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
 
-  const docsLocale = fs.existsSync(
-    path.join(process.cwd(), 'docs', 'content', validLocale, 'library'),
-  )
+  const docsLocale = fs.existsSync(getDocsLocaleRoot(validLocale))
     ? validLocale
     : defaultLocale
 
   const loadNavigation = (): NavigationSection[] => {
     try {
-      const docsRoot = path.join(process.cwd(), 'docs', 'content', docsLocale, 'library')
+      const docsRoot = getDocsLocaleRoot(docsLocale)
       const articles: { href: string; label: string; exists: boolean }[] = []
 
       const findMdxFiles = (dir: string, basePath: string = '') => {
@@ -113,7 +112,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   const getSectionTitle = (sectionSlug: string, loc: string): string => {
     try {
-      const metaPath = path.join(process.cwd(), 'docs', 'content', loc, 'library', sectionSlug, 'meta.json')
+      const metaPath = path.join(getDocsLocaleRoot(loc), sectionSlug, 'meta.json')
       if (fs.existsSync(metaPath)) {
         const metaContent = fs.readFileSync(metaPath, 'utf8')
         const meta = JSON.parse(metaContent)
@@ -164,8 +163,8 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
     { href: `/${validLocale}/docs/architecture`, label: pt('linkArchitecture') },
     { href: `/${validLocale}/docs/architecture/backend-modes-and-databases`, label: pt('linkBackendModes') },
     { href: `/${validLocale}/docs/deployment`, label: pt('linkDeployment') },
-    { href: `/${validLocale}/docs/white-label`, label: pt('linkWhiteLabel') },
-    { href: `/${validLocale}/docs/white-label/token-economics`, label: pt('linkTokenEconomy') },
+    { href: `/${validLocale}/docs/customization`, label: pt('linkCustomization') },
+    { href: `/${validLocale}/docs/customization/token-economics`, label: pt('linkTokenEconomy') },
     { href: `/${validLocale}/docs/features/security`, label: pt('linkSecurity') },
     { href: 'https://ringdom.org', label: pt('linkRingdom'), external: true },
     { href: 'https://github.com/connectplatform/ring', label: pt('linkGithub'), external: true },

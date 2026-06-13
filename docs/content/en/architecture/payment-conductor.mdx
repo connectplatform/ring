@@ -8,7 +8,19 @@ last_modified: "2026-06-12"
 
 PaymentConductor v1 (2026-05-22) is Ring Platform's config-driven payment layer. One PostgreSQL ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, news promotion, and optional wallet top-up.
 
-**Operator setup:** [Payment integration](/docs/library/customization/payment-integration) · [Environment — PaymentConductor](/docs/library/deployment/environment#payment-conductor)
+**Operator setup:** [Payment integration](/docs/customization/payment-integration) · [Environment — PaymentConductor](/docs/deployment/environment#payment-conductor)
+
+<Cards>
+  <Card title="Operator guide" href="/docs/customization/payment-integration">
+    PSP dashboards and env vars
+  </Card>
+  <Card title="Feature overview" href="/docs/features/payment-conductor">
+    Purposes and rails
+  </Card>
+  <Card title="Docs components" href="/docs/development/docs-components">
+    MDX authoring reference
+  </Card>
+</Cards>
 
 ## Request flow
 
@@ -65,21 +77,17 @@ Legacy services (`lib/payments/wayforpay-service.ts`, `wayforpay-store-service.t
 
 ## Types
 
-```typescript
-// lib/payments/conductor/types.ts (summary)
-type PaymentPurpose =
-  | 'store_order'
-  | 'membership_upgrade'
-  | 'news_promotion'
-  | 'wallet_topup'
+<Code language="typescript" title="lib/payments/conductor/types.ts (summary)">
+{`type PaymentPurpose =
+  | 'store_order' | 'membership_upgrade' | 'news_promotion' | 'wallet_topup'
 
 type PaymentRail = 'merchant_redirect' | 'internal_credit' | 'native_token'
 type PaymentProcessorId = 'wayforpay' | 'stripe' | 'internal-credit'
 
 type PaymentTransactionStatus =
   | 'created' | 'redirected' | 'pending' | 'paid'
-  | 'failed' | 'cancelled' | 'refunded'
-```
+  | 'failed' | 'cancelled' | 'refunded'`}
+</Code>
 
 `CreateCheckoutContext` carries `purpose`, optional `rail`, `userId`, `amount`, `currency`, `returnUrl`, and purpose-specific fields (`orderId`, `articleId`, `targetRole`, etc.).
 
@@ -113,8 +121,8 @@ Stable `orderReference` values tie PSP callbacks to domain entities. Webhook dis
 
 Migration: `data/migrations/004_payment_transactions.sql`
 
-```sql
-CREATE TABLE payment_transactions (
+<Code language="sql" title="Ledger table">
+{`CREATE TABLE payment_transactions (
     id VARCHAR(255) PRIMARY KEY,
     data JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -122,8 +130,8 @@ CREATE TABLE payment_transactions (
 );
 
 CREATE UNIQUE INDEX idx_payment_transactions_order_reference
-    ON payment_transactions ((data->>'order_reference'));
-```
+    ON payment_transactions ((data->>'order_reference'));`}
+</Code>
 
 JSON `data` fields (via `payment-transaction-service.ts`):
 
@@ -136,58 +144,68 @@ JSON `data` fields (via `payment-transaction-service.ts`):
 
 ## Webhook dispatcher
 
-`dispatchWayForPayWebhook(payload)`:
+<Steps>
 
-1. Read `orderReference` from payload
-2. `parseOrderReference` → purpose
-3. **Store:** `verifyWayForPayStoreWebhook` → `handleStoreWayForPayWebhook`
-4. **Membership / news:** `verifyWayForPayGenericWebhook` → respective handler
-5. Membership success returns WayForPay ACK (`buildMembershipWebhookAck`)
+<Step>
 
-`dispatchStripeWebhook(rawBody, signature)`:
+**WayForPay** — `dispatchWayForPayWebhook`: parse `orderReference` → verify signature (store vs generic) → purpose handler → membership returns WayForPay ACK.
 
-1. `verifyStripeWebhook`
-2. Read `metadata.purpose` (default `news_promotion`)
-3. `handleNewsStripeWebhook` on `checkout.session.completed` / news purpose
+</Step>
 
-Canonical routes call the dispatcher directly:
+<Step>
 
-- `app/api/payments/wayforpay/webhook/route.ts`
-- `app/api/payments/stripe/webhook/route.ts`
+**Stripe** — `dispatchStripeWebhook`: verify `stripe-signature` → read `metadata.purpose` → `handleNewsStripeWebhook` on `checkout.session.completed`.
+
+</Step>
+
+<Step>
+
+**Canonical routes:** `app/api/payments/wayforpay/webhook/route.ts`, `app/api/payments/stripe/webhook/route.ts`.
+
+</Step>
+
+</Steps>
 
 ## API routes
 
-### Canonical (register these in PSP dashboards)
+<Tabs items={['Canonical', 'Deprecated aliases']}>
+
+<Tab value="Canonical">
 
 | Method | Path | Role |
 |--------|------|------|
 | `POST` | `/api/payments/wayforpay/webhook` | Unified WayForPay callback |
 | `POST` | `/api/payments/stripe/webhook` | Stripe signed events |
-| `POST` | `/api/store/payments/wayforpay` | Initiate store WayForPay redirect |
-| `GET` | `/api/store/payments/[orderId]/status` | Poll order payment status |
-| `POST` | `/api/store/payments/credit` | Store checkout via internal credit |
-| `POST` | `/api/membership/payment/ring` | RING token membership payment |
-| `POST` | `/api/news/promotion/submit` | Start news promotion checkout |
+| `POST` | `/api/store/payments/wayforpay` | Store redirect checkout |
+| `GET` | `/api/store/payments/[orderId]/status` | Poll status |
+| `POST` | `/api/store/payments/credit` | Internal credit |
+| `POST` | `/api/membership/payment/ring` | RING membership |
+| `POST` | `/api/news/promotion/submit` | News promotion checkout |
 
-### Deprecated aliases (delegate to dispatcher)
+</Tab>
 
-| Path | Canonical target |
-|------|------------------|
+<Tab value="Deprecated aliases">
+
+| File | Delegates to |
+|------|----------------|
 | `app/api/store/payments/wayforpay/webhook/route.ts` | `/api/payments/wayforpay/webhook` |
 | `app/api/news/promotion/wayforpay-webhook/route.ts` | `/api/payments/wayforpay/webhook` |
 
-`app/api/membership/payment/credit/route.ts` re-exports `membership/payment/ring` — credit rail for membership uses RING/wallet paths, not a separate credit endpoint.
+`app/api/membership/payment/credit/route.ts` re-exports `membership/payment/ring`.
+
+</Tab>
+
+</Tabs>
 
 ## PaymentConductor API
 
-```typescript
-// lib/payments/conductor/payment-conductor.ts
-export const PaymentConductor = {
+<Code language="typescript" title="payment-conductor.ts">
+{`export const PaymentConductor = {
   createCheckout(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult>
   handleWebhook(provider: 'wayforpay' | 'stripe', request: Request): Promise<WebhookHandleResult>
   getTransactionByReference(orderReference: string)
-}
-```
+}`}
+</Code>
 
 `createCheckout` resolves processor from `ctx.rail` (internal credit) or `getPaymentProvider(ctx.purpose)`, then delegates to the matching processor. Processors write ledger rows before returning redirect URLs.
 
@@ -201,7 +219,14 @@ export const PaymentConductor = {
 
 ## Related
 
-- [Feature: PaymentConductor](/docs/library/features/payment-conductor)
-- [Payments feature overview](/docs/library/features/payments)
-- [Payment integration (operator)](/docs/library/customization/payment-integration)
-- [Migrations](/docs/library/getting-started/migrations)
+<Cards>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    Operator PSP setup
+  </Card>
+  <Card title="Payments feature" href="/docs/features/payments">
+    User-facing flows
+  </Card>
+  <Card title="Migrations" href="/docs/getting-started/migrations">
+    Migration 004 ledger
+  </Card>
+</Cards>

@@ -1,1 +1,6 @@
-export { resolveDocFilePath, getDocFilePath, type DocFilePathResult } from '@/lib/docs/resolve-doc-file-path'
+export {
+  resolveDocFilePath,
+  getDocFilePath,
+  getDocsLocaleRoot,
+  type DocFilePathResult,
+} from '@/lib/docs/resolve-doc-file-path'

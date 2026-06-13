@@ -1,0 +1,195 @@
+---
+title: Вибір бекенду бази даних
+description: Оберіть DB_BACKEND_MODE — PostgreSQL-primary, Firebase-full або Supabase Postgres
+last_modified: "2026-06-12"
+---
+
+# Вибір бекенду бази даних
+
+<Callout type="success" title="Коротко для оператора">
+  Продакшен-клони Ring використовують **`DB_BACKEND_MODE=k8s-postgres-fcm`** — PostgreSQL для даних, Firebase Admin **лише для FCM push**. Застарілий `DATABASE_MODE` прибрано.
+</Callout>
+
+<Cards>
+  <Card title="Режими бекенду" href="/docs/architecture/backend-modes-and-databases">
+    Адаптери, FCM vs Firestore
+  </Card>
+  <Card title="Міграції БД" href="/docs/getting-started/migrations">
+    Порядок `schema.sql` + kingdom
+  </Card>
+  <Card title="Швидкий старт" href="/docs/customization/quick-start">
+    Перший клон з Postgres
+  </Card>
+</Cards>
+
+<Mermaid title="Вибір DB_BACKEND_MODE">
+{`flowchart TD
+  Start([Новий клон Ring])
+  Start --> Q1{Продакшен v1.6?}
+  Q1 -->|Так| PG[Postgres-primary]
+  Q1 -->|Лише Firestore| FB[firebase-full]
+  PG --> Q2{Хто керує Postgres?}
+  Q2 -->|Ви / k3s| K8S[k8s-postgres-fcm]
+  Q2 -->|Supabase| SUP[supabase-fcm]`}
+</Mermaid>
+
+## Три режими
+
+| `DB_BACKEND_MODE` | Дані додатку | Firestore для БД? | Push |
+|-------------------|--------------|-------------------|------|
+| **`k8s-postgres-fcm`** | PostgreSQL | **Ні** | FCM при налаштуванні |
+| **`supabase-fcm`** | PostgreSQL на Supabase | **Ні** | Той самий FCM |
+| **`firebase-full`** | Firestore | **Так** | Повний Firebase |
+
+<Tabs items={['k8s-postgres-fcm', 'supabase-fcm', 'firebase-full']}>
+
+<Tab value="k8s-postgres-fcm">
+
+<Callout type="success" title="Рекомендовано">
+  Self-host, k3s, Ringdom, PaymentConductor, News Kingdom.
+</Callout>
+
+<Steps>
+
+<Step>
+
+<Code language="bash" title=".env.local">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=your_password
+DB_SSL=false`}
+</Code>
+
+</Step>
+
+<Step>
+
+PostgreSQL **14+** — Docker, Homebrew або кластер.
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="міграції">
+{`export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+./scripts/run-migration.sh`}
+</Code>
+
+[Міграції БД](/docs/getting-started/migrations).
+
+</Step>
+
+<Step>
+
+FCM опційно: `NEXT_PUBLIC_FIREBASE_*` з `env.local.template`.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="supabase-fcm">
+
+<Steps>
+
+<Step>
+
+Проєкт Supabase + URL і service role key.
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="Supabase">
+{`DB_BACKEND_MODE=supabase-fcm
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your_service_role_key`}
+</Code>
+
+</Step>
+
+<Step>
+
+Застосуйте [міграції](/docs/getting-started/migrations) на з'єднанні Supabase Postgres.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="firebase-full">
+
+<Callout type="warning">
+  Лише прототип — v1.6 очікує PostgreSQL.
+</Callout>
+
+<Steps>
+
+<Step>
+
+Проєкт Firebase (Firestore, Auth).
+
+</Step>
+
+<Step>
+
+<Code language="bash" title="Firebase-full">
+{`DB_BACKEND_MODE=firebase-full
+AUTH_FIREBASE_PROJECT_ID=your-project-id
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n..."
+AUTH_FIREBASE_CLIENT_EMAIL=firebase-adminsdk@...`}
+</Code>
+
+</Step>
+
+<Step>
+
+Плануйте перехід на `k8s-postgres-fcm` перед масштабом.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+</Tabs>
+
+## Чого не використовувати
+
+| Застаріле | Заміна |
+|-----------|--------|
+| `DATABASE_MODE=firebase_only` / `postgresql_only` | `DB_BACKEND_MODE` вище |
+| `npm run db:migrate` | `./scripts/run-migration.sh` |
+
+<Tabs items={['Оператори', 'Розробники']}>
+
+<Tab value="Оператори">
+
+- [ ] `DB_BACKEND_MODE` валідний
+- [ ] Міграції застосовані
+- [ ] Резервні копії налаштовані
+- [ ] `004_payment_transactions.sql` для платежів
+
+</Tab>
+
+<Tab value="Розробники">
+
+`DatabaseService` backend-agnostic; дані мігруються свідомо. Валідація: `validateBackendModeConfig()` у `backend-mode-config.ts`.
+
+</Tab>
+
+</Tabs>
+
+<Cards>
+  <Card title="Середовище" href="/docs/deployment/environment">
+    Секрети та локалі
+  </Card>
+  <Card title="Платежі" href="/docs/customization/payment-integration">
+    Потребує Postgres ledger
+  </Card>
+</Cards>
