@@ -1,5 +1,11 @@
 {
   "title": "Notifications",
+  "metadata": {
+    "title": "Notifications"
+  },
+  "metaDescription": {
+    "description": "View and manage your notifications on Ring Platform"
+  },
   "status": {
     "topic": "Topic",
     "notificationId": "Notification ID",

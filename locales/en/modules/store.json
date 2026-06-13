@@ -54,6 +54,7 @@
     "clearConfirmTitle": "Clear cart?",
     "clearConfirmDescription": "This will remove all {count} items from your cart",
     "goToCheckout": "Checkout",
+    "back": "Back to Store",
     "basePrice": "Base price",
     "withOptions": "With options",
     "secureCheckout": "Secure Checkout",

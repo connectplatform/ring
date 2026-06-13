@@ -93,7 +93,7 @@ export async function GET(request: Request) {
 {`import dynamic from 'next/dynamic'
 
 const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
-  loading: () => <p>Loading...</p>,
+  loading: () => <div>Loading...</div>,
   ssr: false // Skip SSR for client-only components
 })
 

@@ -210,6 +210,7 @@
     "clearConfirmDescription": "Это удалит все {count} товаров из вашей корзины",
     "yesClearCart": "Да, очистить корзину",
     "goToCheckout": "Оформить заказ",
+    "back": "Назад в магазин",
     "basePrice": "Базовая цена",
     "withOptions": "С опциями",
     "secureCheckout": "Безопасная оплата",

@@ -1,7 +1,57 @@
 {
   "title": "Wallet",
   "description": "Manage your RING tokens and view transaction history",
-  "balance": "Balance"
+  "balance": "Balance",
+  "backupPhrase": "Backup Recovery Phrase",
+  "enable2FA": "Enable 2FA",
+  "avoidPhishing": "Avoid Phishing",
+  "sendTokens": "Send RING",
+  "receiveTokens": "Receive RING",
+  "topUpBalance": "Top Up Balance",
+  "quickActions": "Quick Actions",
+  "recentTransactions": "Recent Transactions",
+  "noTransactions": "No recent transactions",
+  "viewAllTransactions": "View All Transactions",
+  "boostYourWallet": "Boost Your Wallet",
+  "topUpDescription": "Add RING tokens to unlock premium features and opportunities.",
+  "topUpNow": "Top Up Now",
+  "securityTips": "Security Tips",
+  "urgent": "Urgent",
+  "walletGuide": "Wallet Guide",
+  "guideDescription": "Learn how to manage your RING tokens safely and effectively.",
+  "gettingStarted": "Getting Started",
+  "securityGuide": "Security Guide",
+  "faq": "FAQ",
+  "contacts": "Contacts",
+  "connectWallet": "Connect Wallet",
+  "connectWalletDescription": "Connect your external wallet to view MATIC balance and interact on-chain.",
+  "connecting": "Connecting…",
+  "disconnectWallet": "Disconnect Wallet",
+  "walletConnected": "Wallet Connected",
+  "walletAddress": "Wallet Address",
+  "maticBalance": "MATIC Balance",
+  "loading": "Loading…",
+  "error": "Error",
+  "topup": {
+    "title": "Top Up Wallet",
+    "subtitle": "Add funds to your wallet using RING tokens or payment card",
+    "amount_label": "Amount (RING)",
+    "tx_hash_label": "Transaction Hash (Optional)",
+    "tx_hash_help": "Paste the Polygon transaction hash if you already sent RING on-chain.",
+    "description_label": "Description (Optional)",
+    "description_placeholder": "e.g. Monthly top-up",
+    "processing": "Processing…",
+    "record_transfer": "Record Transfer",
+    "blockchain_help": "Send RING to your wallet address on Polygon, then record the transfer here.",
+    "success": "Top-up recorded successfully.",
+    "methods": {
+      "blockchain": {
+        "name": "Blockchain Transfer",
+        "description": "Transfer RING tokens directly from your wallet"
+      }
+    },
+    "error": {
+      "invalid_amount": "Enter a valid amount greater than zero."
+    }
+  }
 }
-
-

@@ -5,10 +5,12 @@ export interface EvmNetwork {
   blockExplorerUrl?: string
 }
 
+import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
+
 export const POLYGON_MAINNET: EvmNetwork = {
   chainId: 137,
   name: 'polygon',
-  rpcUrl: 'https://polygon-rpc.com',
+  rpcUrl: getPolygonRpcUrl(),
   blockExplorerUrl: 'https://polygonscan.com'
 }
 

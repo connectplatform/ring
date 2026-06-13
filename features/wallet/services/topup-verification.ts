@@ -4,6 +4,7 @@ import { createPublicClient, http, parseAbiItem, parseUnits, type Address } from
 import { polygon } from 'viem/chains'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
+import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
 
 const TRANSFER_EVENT = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
 
@@ -14,7 +15,7 @@ export interface TopUpVerificationResult {
 }
 
 function getRpcUrl(): string {
-  return process.env.POLYGON_RPC_URL || process.env.NEXT_PUBLIC_POLYGON_RPC_URL || 'https://polygon-rpc.com'
+  return getPolygonRpcUrl()
 }
 
 function getTokenAddress(): Address | null {

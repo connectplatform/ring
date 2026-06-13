@@ -251,7 +251,10 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modSettings) modules.settings = loaded.modSettings
   if (loaded.modMembership) modules.membership = loaded.modMembership
   if (loaded.modNft) modules.nft = loaded.modNft
-  if (loaded.modNotifications) modules.notifications = loaded.modNotifications
+  if (loaded.modNotifications) {
+    messages.notifications = loaded.modNotifications
+    modules.notifications = loaded.modNotifications
+  }
   if (loaded.modRefcodes) modules.refcodes = loaded.modRefcodes
   if (Object.keys(modules).length > 0) messages.modules = modules
 

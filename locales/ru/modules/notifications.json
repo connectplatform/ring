@@ -1,5 +1,11 @@
 {
-  "title": "Notifications",
+  "title": "Уведомления",
+  "metadata": {
+    "title": "Уведомления"
+  },
+  "metaDescription": {
+    "description": "Просматривайте и управляйте уведомлениями на Ring Platform"
+  },
   "status": {
     "topic": "Topic",
     "notificationId": "Notification ID",

@@ -530,23 +530,39 @@ export async function updateUserNotificationPreferences(
   preferences: Partial<DetailedNotificationPreferences>
 ): Promise<void> {
   try {
-    const readResult = await db().readDoc('notification_preferences', userId);
-    const currentPrefs = readResult.success && readResult.data ? readResult.data : {};
+    const readResult = await db().readDoc<DetailedNotificationPreferences & Record<string, unknown>>(
+      'notification_preferences',
+      userId,
+    )
+
+    const now = new Date()
+    const currentPrefs =
+      readResult.success && readResult.data ? readResult.data : {}
 
     const updatedPrefs = {
       ...currentPrefs,
       ...preferences,
-      updated_at: new Date()
-    };
-
-    const updateResult = await db().updateDoc('notification_preferences', userId, updatedPrefs);
-    if (!updateResult.success) {
-      throw new Error('Failed to update notification preferences');
+      updated_at: now,
+      updatedAt: now,
     }
 
+    if (readResult.success && readResult.data) {
+      const updateResult = await db().updateDoc('notification_preferences', userId, updatedPrefs)
+      if (!updateResult.success) {
+        throw updateResult.error ?? new Error('Failed to update notification preferences')
+      }
+      return
+    }
+
+    const createResult = await db().createDoc('notification_preferences', updatedPrefs, { id: userId })
+    if (!createResult.success) {
+      throw createResult.error ?? new Error('Failed to create notification preferences')
+    }
   } catch (error) {
-    console.error('NotificationService: Error updating user preferences:', error);
-    throw new Error(`Failed to update notification preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('NotificationService: Error updating user preferences:', error)
+    throw new Error(
+      `Failed to update notification preferences: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    )
   }
 }
 

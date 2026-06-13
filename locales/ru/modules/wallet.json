@@ -1,7 +1,57 @@
 {
-  "title": "Wallet",
-  "description": "Manage your RING tokens and view transaction history",
-  "balance": "Balance"
+  "title": "Кошелёк",
+  "description": "Управляйте токенами RING и просматривайте историю транзакций",
+  "balance": "Баланс",
+  "backupPhrase": "Резервная фраза восстановления",
+  "enable2FA": "Включить 2FA",
+  "avoidPhishing": "Остерегайтесь фишинга",
+  "sendTokens": "Отправить RING",
+  "receiveTokens": "Получить RING",
+  "topUpBalance": "Пополнить баланс",
+  "quickActions": "Быстрые действия",
+  "recentTransactions": "Последние транзакции",
+  "noTransactions": "Нет последних транзакций",
+  "viewAllTransactions": "Все транзакции",
+  "boostYourWallet": "Пополните кошелёк",
+  "topUpDescription": "Добавьте токены RING, чтобы открыть премиум-функции и возможности.",
+  "topUpNow": "Пополнить сейчас",
+  "securityTips": "Советы по безопасности",
+  "urgent": "Срочно",
+  "walletGuide": "Руководство по кошельку",
+  "guideDescription": "Узнайте, как безопасно управлять токенами RING.",
+  "gettingStarted": "Начало работы",
+  "securityGuide": "Руководство по безопасности",
+  "faq": "FAQ",
+  "contacts": "Контакты",
+  "connectWallet": "Подключить кошелёк",
+  "connectWalletDescription": "Подключите внешний кошелёк для просмотра баланса MATIC и работы on-chain.",
+  "connecting": "Подключение…",
+  "disconnectWallet": "Отключить кошелёк",
+  "walletConnected": "Кошелёк подключён",
+  "walletAddress": "Адрес кошелька",
+  "maticBalance": "Баланс MATIC",
+  "loading": "Загрузка…",
+  "error": "Ошибка",
+  "topup": {
+    "title": "Пополнение кошелька",
+    "subtitle": "Добавьте средства с помощью токенов RING или платёжной карты",
+    "amount_label": "Сумма (RING)",
+    "tx_hash_label": "Хеш транзакции (необязательно)",
+    "tx_hash_help": "Вставьте хеш транзакции Polygon, если вы уже отправили RING on-chain.",
+    "description_label": "Описание (необязательно)",
+    "description_placeholder": "напр. Ежемесячное пополнение",
+    "processing": "Обработка…",
+    "record_transfer": "Зафиксировать перевод",
+    "blockchain_help": "Отправьте RING на адрес кошелька в сети Polygon, затем зафиксируйте перевод здесь.",
+    "success": "Пополнение успешно зафиксировано.",
+    "methods": {
+      "blockchain": {
+        "name": "Блокчейн-перевод",
+        "description": "Переведите токены RING напрямую из вашего кошелька"
+      }
+    },
+    "error": {
+      "invalid_amount": "Введите корректную сумму больше нуля."
+    }
+  }
 }
-
-

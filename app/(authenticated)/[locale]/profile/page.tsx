@@ -111,7 +111,9 @@ export default async function ProfilePage(props: LocalePageProps<ProfileParams>)
     try {
       userWalletBalance = await getUserWalletBalance()
     } catch (balanceError) {
-      logger.error('ProfilePage: balance fetch failed:', balanceError)
+      logger.warn('ProfilePage: on-chain balance unavailable (using 0):', {
+        message: balanceError instanceof Error ? balanceError.message : String(balanceError),
+      })
       userWalletBalance = '0'
     }
 

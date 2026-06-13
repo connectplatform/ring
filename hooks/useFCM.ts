@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging'
-import { app, validateFirebaseConfig } from '@/lib/firebase-client'
+import { app, isFcmConfigured, validateFirebaseConfig } from '@/lib/firebase-client'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 
 interface FCMState {
@@ -39,12 +39,14 @@ export function useFCM(): FCMHookReturn {
   useEffect(() => {
     const checkSupport = async () => {
       try {
-        // Check if Firebase is properly configured
-        if (!validateFirebaseConfig()) {
-          setState(prev => ({ 
-            ...prev, 
+        // Check if Firebase is properly configured (incl. VAPID for token subscribe)
+        if (!isFcmConfigured()) {
+          setState(prev => ({
+            ...prev,
             isSupported: false,
-            error: 'Firebase configuration incomplete' 
+            error: validateFirebaseConfig()
+              ? 'FCM VAPID key missing or invalid (NEXT_PUBLIC_FIREBASE_VAPID_KEY)'
+              : 'Firebase configuration incomplete',
           }))
           return
         }
@@ -103,7 +105,7 @@ export function useFCM(): FCMHookReturn {
     if (status === 'authenticated' && session?.user?.id && state.isSupported) {
       const initializeFCMServiceWorker = async () => {
         // Only register service worker if Firebase is properly configured
-        if ('serviceWorker' in navigator && validateFirebaseConfig()) {
+        if ('serviceWorker' in navigator && isFcmConfigured()) {
           try {
             // Check if service worker is already registered
             const existingRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
@@ -152,24 +154,39 @@ export function useFCM(): FCMHookReturn {
           setState(prev => ({ ...prev, isLoading: true, error: null }))
 
           // Get messaging instance with error handling
-          let messaging;
+          if (!app) {
+            setState(prev => ({
+              ...prev,
+              isLoading: false,
+              error: 'Firebase app not initialized',
+            }))
+            fcmInitializationInProgress = false
+            return
+          }
+
+          let messaging
           try {
             messaging = getMessaging(app)
           } catch (messagingError) {
             console.error('Error getting messaging instance:', messagingError)
-            setState(prev => ({ 
-              ...prev, 
+            setState(prev => ({
+              ...prev,
               isLoading: false,
-              error: 'Failed to initialize messaging service' 
+              error: 'Failed to initialize messaging service',
             }))
             fcmInitializationInProgress = false
             return
           }
 
           // Only get token if permission is already granted
-          const currentToken = await getToken(messaging, {
-            vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
-          })
+          const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+          if (!vapidKey?.trim()) {
+            setState(prev => ({ ...prev, isLoading: false }))
+            fcmInitializationInProgress = false
+            return
+          }
+
+          const currentToken = await getToken(messaging, { vapidKey })
 
           if (currentToken) {
             setState(prev => ({ ...prev, token: currentToken, isLoading: false }))
@@ -182,11 +199,19 @@ export function useFCM(): FCMHookReturn {
           }
 
         } catch (error) {
-          console.error('Error initializing FCM:', error)
-          setState(prev => ({ 
-            ...prev, 
+          const message = error instanceof Error ? error.message : 'Failed to initialize FCM'
+          if (message.includes('token-subscribe-failed') || message.includes('authentication credential')) {
+            console.warn('FCM token subscribe skipped — check NEXT_PUBLIC_FIREBASE_VAPID_KEY and Cloud Messaging API:', message)
+          } else {
+            console.error('Error initializing FCM:', error)
+          }
+          setState(prev => ({
+            ...prev,
             isLoading: false,
-            error: process.env.NODE_ENV === 'development' ? 'FCM disabled in development' : (error instanceof Error ? error.message : 'Failed to initialize FCM')
+            error:
+              process.env.NODE_ENV === 'development'
+                ? 'FCM unavailable — verify VAPID key and Cloud Messaging API'
+                : message,
           }))
         } finally {
           fcmInitializationInProgress = false
@@ -230,10 +255,13 @@ export function useFCM(): FCMHookReturn {
 
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
+      if (!app) return
+
+      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+      if (!vapidKey?.trim()) return
+
       const messaging = getMessaging(app)
-      const newToken = await getToken(messaging, {
-        vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
-      })
+      const newToken = await getToken(messaging, { vapidKey })
 
       if (newToken) {
         setState(prev => ({ ...prev, token: newToken, isLoading: false }))

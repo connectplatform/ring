@@ -9,6 +9,7 @@ import { polygon } from 'viem/chains'
 import { auth } from "@/auth"
 import { AuthUser, Wallet } from '@/features/auth/types'
 import { selectDefaultWallet } from './utils'
+import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
@@ -81,18 +82,27 @@ export async function getWalletBalance(): Promise<string> {
     // Step 3: Create viem public client for Polygon
     const client = createPublicClient({
       chain: polygon,
-      transport: http(process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com'),
+      transport: http(getPolygonRpcUrl()),
     })
 
     // Step 4: Fetch balance using viem
-    const balance = await client.getBalance({
-      address: walletAddress as `0x${string}`,
-    })
+    let balanceInEther = '0'
+    try {
+      const balance = await client.getBalance({
+        address: walletAddress as `0x${string}`,
+      })
+      balanceInEther = formatEther(balance)
+    } catch (rpcError) {
+      const rpcMessage =
+        rpcError instanceof Error ? rpcError.message : 'Polygon RPC request failed'
+      console.warn(
+        `Services: getWalletBalance - On-chain balance unavailable (${rpcMessage}). Set POLYGON_RPC_URL in .env.local (Alchemy recommended).`,
+      )
+      return '0'
+    }
 
-    const balanceInEther = formatEther(balance)
-
-    console.log(`Services: getWalletBalance - Balance fetched successfully for user ${userId}`);
-    return balanceInEther;
+    console.log(`Services: getWalletBalance - Balance fetched successfully for user ${userId}`)
+    return balanceInEther
   } catch (error) {
     console.error('Services: getWalletBalance - Error:', error);
     throw error instanceof Error ? error : new Error('Unknown error occurred while fetching wallet balance');

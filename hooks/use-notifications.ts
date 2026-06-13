@@ -332,32 +332,44 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
   // Fetch user preferences with Ring API Client
   const fetchPreferences = useCallback(async () => {
-    if (!session) return;
+    if (!session) return
+
+    const fallback: Partial<DetailedNotificationPreferences> = {
+      enabled: true,
+      channels: { inApp: true, email: true, sms: false, push: false },
+      language: 'en',
+      updatedAt: new Date(),
+    }
 
     try {
-      const response: ApiResponse<DetailedNotificationPreferences> = await apiClient.get('/api/notifications/preferences', {
-        timeout: 5000, // 5 second timeout for preferences
-        retries: 1 // Retry once for preferences
-      });
+      const response: ApiResponse<DetailedNotificationPreferences> = await apiClient.get(
+        '/api/notifications/preferences',
+        {
+          timeout: 5000,
+          retries: 1,
+        },
+      )
 
-      if (response.success && response.data) {
-        setPreferences(response.data);
-      } else {
-        throw new Error(response.error || 'Failed to fetch notification preferences');
+      if (response.success) {
+        setPreferences((response.data ?? fallback) as DetailedNotificationPreferences)
+        return
       }
 
+      console.warn('Notification preferences fetch returned no data; using defaults')
+      setPreferences(fallback as DetailedNotificationPreferences)
     } catch (err) {
       if (err instanceof ApiClientError) {
-        console.error('Notification preferences fetch failed:', {
+        console.warn('Notification preferences fetch failed; using defaults:', {
           endpoint: '/api/notifications/preferences',
           statusCode: err.statusCode,
-          context: err.context
-        });
+          message: err.message,
+        })
       } else {
-        console.error('Unexpected error fetching notification preferences:', err);
+        console.warn('Unexpected error fetching notification preferences; using defaults:', err)
       }
+      setPreferences(fallback as DetailedNotificationPreferences)
     }
-  }, [session]);
+  }, [session])
 
   // Update user preferences with Ring API Client
   const updatePreferences = useCallback(async (

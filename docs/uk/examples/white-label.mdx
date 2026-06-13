@@ -347,9 +347,9 @@ export function FeatureGate({ feature, children, fallback }: FeatureGateProps) {
   if (!tenant?.features[feature]) {
     return fallback || (
       <div className="p-4 bg-gray-100 rounded-lg text-center">
-        <p className="text-gray-600">
+        <div className="text-gray-600">
           This feature is not available in your current plan.
-        </p>
+        </div>
         <button className="mt-2 text-blue-600 hover:text-blue-800">
           Upgrade Plan
         </button>
@@ -366,20 +366,20 @@ export function Dashboard() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-semibold mb-4">Organizations</h3>
-        <p>Manage your organizations and teams.</p>
+        <div>Manage your organizations and teams.</div>
       </div>
 
       <FeatureGate feature="wallet">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Wallet</h3>
-          <p>Manage your crypto wallet and tokens.</p>
+          <div>Manage your crypto wallet and tokens.</div>
         </div>
       </FeatureGate>
 
       <FeatureGate feature="store">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Marketplace</h3>
-          <p>Buy and sell products and services.</p>
+          <div>Buy and sell products and services.</div>
         </div>
       </FeatureGate>
     </div>
@@ -519,9 +519,9 @@ export function DomainSetup() {
               className="w-full p-3 border border-gray-300 rounded-lg"
               required
             />
-            <p className="text-sm text-gray-600 mt-1">
+            <div className="text-sm text-gray-600 mt-1">
               Введіть ваш власний домен без http:// або https://
-            </p>
+            </div>
           </div>
 
           <button
@@ -538,9 +538,9 @@ export function DomainSetup() {
             <h3 className="font-semibold text-yellow-800 mb-2">
               Потрібна конфігурація DNS
             </h3>
-            <p className="text-yellow-700 mb-4">
+            <div className="text-yellow-700 mb-4">
               Будь ласка, додайте наступні DNS записи до вашого домену:
-            </p>
+            </div>
 
             <div className="space-y-3">
               {config.dns.records.map((record, index) => (

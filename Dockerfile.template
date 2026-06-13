@@ -154,8 +154,8 @@ COPY . .
 # Copy environment template
 COPY env.local.template env.local.template
 
-# Build the application
-RUN npm run build
+# Build the application (type-check runs in CI; skip in image to save RAM)
+RUN NODE_OPTIONS="--no-deprecation --max-old-space-size=6144" npm run build:skip-types
 
 # =============================================================================
 # Runtime Stage

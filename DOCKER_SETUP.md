@@ -9,10 +9,10 @@
 ## 📋 **Prerequisites**
 
 ### System Requirements
-- **Docker Desktop** 4.0+ (Mac/Windows) or **Docker Engine** 20.10+ (Linux)
-- **Docker Compose** 2.0+ (included with Docker Desktop)
+- **Docker CLI** + **Colima** (macOS, recommended), **Docker Engine** 20.10+ (Linux), or **Docker Desktop** 4.0+ (legacy)
+- **Docker Compose** 2.0+
 - **Git** (latest version)
-- **4GB RAM** minimum, **8GB recommended**
+- **8GB RAM** minimum for `ring prod` / production image builds (**Colima default 2GiB is insufficient**)
 - **10GB free disk space**
 
 ### Required Services
@@ -73,7 +73,23 @@ docker --version
 docker-compose --version
 ```
 
-#### Option 2: OrbStack (Lightweight Alternative)
+#### Option 2: Colima (Recommended for production image builds)
+```bash
+# Install Colima + Docker CLI (no Docker Desktop)
+brew install colima docker
+
+# Remove stale Docker Desktop symlinks if you uninstalled Desktop (shadows Homebrew docker)
+# sudo rm -f /usr/local/bin/docker /usr/local/bin/docker-compose
+
+# Start VM with enough RAM for Next.js image builds (default 2GiB OOMs on tsc+next build)
+colima stop 2>/dev/null || true
+colima start --cpu 4 --memory 8 --disk 100
+
+docker context use colima
+docker info | grep -i memory
+```
+
+#### Option 3: OrbStack (Lightweight Alternative)
 ```bash
 # Install OrbStack
 brew install --cask orbstack
@@ -409,7 +425,19 @@ newgrp docker
 sudo docker-compose up
 ```
 
-#### Out of Memory
+#### Out of Memory (Colima / Docker build)
+```bash
+# Symptom: `Killed` / `cannot allocate memory` during `npm run build` in Dockerfile builder stage.
+# Cause: Colima default VM is 2GiB; Next.js production builds need ~6–8GiB.
+
+colima stop
+colima start --cpu 4 --memory 8 --disk 100
+docker context use colima
+
+# Image build skips in-container type-check (CI runs tsc); ensure Dockerfile uses build:skip-types.
+```
+
+#### Out of Memory (Docker Desktop legacy)
 ```bash
 # Increase Docker memory limit in Docker Desktop settings
 # Or add to docker-compose.yml:

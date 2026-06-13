@@ -3,9 +3,11 @@
  * Defines blockchain addresses, network configurations, and token details
  */
 
+import { getPolygonRpcUrl } from '@/lib/web3/polygon-rpc'
+
 // Network Configuration
 export const POLYGON_CHAIN_ID = 137
-export const POLYGON_RPC_URL = 'https://polygon-rpc.com'
+export const POLYGON_RPC_URL = getPolygonRpcUrl()
 export const POLYGONSCAN_API_URL = 'https://api.polygonscan.com/api'
 export const POLYGONSCAN_API_KEY = process.env.NEXT_PUBLIC_POLYGONSCAN_API_KEY || ''
 

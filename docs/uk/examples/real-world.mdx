@@ -123,7 +123,7 @@ export default function HealthcareNetwork() {
               <div className="flex justify-between items-center py-6">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">МедЗв'язок</h1>
-                  <p className="text-gray-600">Мережа медичних працівників</p>
+                  <div className="text-gray-600">Мережа медичних працівників</div>
                 </div>
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600">
@@ -178,8 +178,8 @@ export default function HealthcareNetwork() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             Д-р {professional.name}
                           </h3>
-                          <p className="text-sm text-gray-600">{professional.specialty}</p>
-                          <p className="text-sm text-gray-500">{professional.hospital}</p>
+                          <div className="text-sm text-gray-600">{professional.specialty}</div>
+                          <div className="text-sm text-gray-500">{professional.hospital}</div>
                         </div>
                         {professional.verified && (
                           <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
@@ -207,12 +207,12 @@ export default function HealthcareNetwork() {
                       </div>
 
                       <div className="mb-4">
-                        <p className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600">
                           Вартість консультації: <span className="font-medium">${professional.consultationFee}</span>
-                        </p>
-                        <p className="text-sm text-gray-600">
+                        </div>
+                        <div className="text-sm text-gray-600">
                           Ліцензія: <span className="font-medium">{professional.license}</span>
-                        </p>
+                        </div>
                       </div>
 
                       <button
@@ -238,9 +238,9 @@ export default function HealthcareNetwork() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {opportunity.title}
                           </h3>
-                          <p className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600">
                             {opportunity.specialty} • {opportunity.location}
-                          </p>
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className={`text-xs px-2 py-1 rounded-full ${getUrgencyColor(opportunity.urgency)}`}>
@@ -256,7 +256,7 @@ export default function HealthcareNetwork() {
                         </div>
                       </div>
 
-                      <p className="text-gray-700 mb-4">{opportunity.description}</p>
+                      <div className="text-gray-700 mb-4">{opportunity.description}</div>
 
                       <div className="mb-4">
                         <h4 className="font-medium text-gray-900 mb-2">Вимоги:</h4>
@@ -269,10 +269,10 @@ export default function HealthcareNetwork() {
 
                       <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-600">
-                          <p>Винагорода: <span className="font-medium">{opportunity.compensation}</span></p>
-                          <p>Дедлайн: <span className="font-medium">
+                          <div>Винагорода: <span className="font-medium">{opportunity.compensation}</span></div>
+                          <div>Дедлайн: <span className="font-medium">
                             {new Date(opportunity.deadline).toLocaleDateString()}
-                          </span></p>
+                          </span></div>
                         </div>
                         <button className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
                           Подати заявку
@@ -292,7 +292,7 @@ export default function HealthcareNetwork() {
                     <div className="text-center py-12">
                       <div className="text-6xl mb-4">📅</div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">Немає запланованих консультацій</h3>
-                      <p className="text-gray-600">Запросіть консультацію з Каталогу спеціалістів</p>
+                      <div className="text-gray-600">Запросіть консультацію з Каталогу спеціалістів</div>
                     </div>
                   </div>
                 </div>
@@ -467,9 +467,9 @@ export default function StartupAccelerator() {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold mb-4">TechConnect Акселератор</h1>
-          <p className="text-xl opacity-90">
+          <div className="text-xl opacity-90">
             Об'єднуємо стартапи, менторів та інвесторів в технологічній екосистемі
-          </p>
+          </div>
         </div>
       </div>
 
@@ -523,11 +523,11 @@ export default function StartupAccelerator() {
                       />
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{startup.name}</h3>
-                        <p className="text-sm text-gray-600">{startup.industry}</p>
+                        <div className="text-sm text-gray-600">{startup.industry}</div>
                       </div>
                     </div>
 
-                    <p className="text-gray-700 mb-4 line-clamp-3">{startup.description}</p>
+                    <div className="text-gray-700 mb-4 line-clamp-3">{startup.description}</div>
 
                     <div className="flex items-center justify-between mb-4">
                       <span className={`text-xs px-2 py-1 rounded-full ${getStageColor(startup.stage)}`}>
@@ -588,8 +588,8 @@ export default function StartupAccelerator() {
                     />
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">{mentor.name}</h3>
-                      <p className="text-sm text-gray-600">{mentor.title}</p>
-                      <p className="text-sm text-gray-500">{mentor.company}</p>
+                      <div className="text-sm text-gray-600">{mentor.title}</div>
+                      <div className="text-sm text-gray-500">{mentor.company}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-gray-900">
@@ -645,9 +645,9 @@ export default function StartupAccelerator() {
                       <h3 className="text-xl font-semibold text-gray-900">
                         {investment.startupName}
                       </h3>
-                      <p className="text-gray-600">
+                      <div className="text-gray-600">
                         Раунд {investment.round.replace('-', ' ').toUpperCase()}
-                      </p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-gray-900">
@@ -734,7 +734,7 @@ export default function StartupAccelerator() {
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">📅</div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Немає запланованих подій</h3>
-                  <p className="text-gray-600">Перевіряйте пізніше для майбутніх подій акселератора</p>
+                  <div className="text-gray-600">Перевіряйте пізніше для майбутніх подій акселератора</div>
                 </div>
               </div>
             </div>
@@ -880,9 +880,9 @@ export default function UniversityNetwork() {
       <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold mb-4">Мережа випускників університету</h1>
-          <p className="text-xl opacity-90">
+          <div className="text-xl opacity-90">
             Об'єднуємо студентів, випускників та можливості для навчання впродовж життя
-          </p>
+          </div>
         </div>
       </div>
 
@@ -929,21 +929,21 @@ export default function UniversityNetwork() {
                     />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{alumnus.name}</h3>
-                      <p className="text-sm text-gray-600">{alumnus.currentRole}</p>
-                      <p className="text-sm text-gray-500">{alumnus.company}</p>
+                      <div className="text-sm text-gray-600">{alumnus.currentRole}</div>
+                      <div className="text-sm text-gray-500">{alumnus.company}</div>
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <p className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600">
                       <strong>Випуск {alumnus.graduationYear}</strong>
-                    </p>
-                    <p className="text-sm text-gray-600">
+                    </div>
+                    <div className="text-sm text-gray-600">
                       {alumnus.degree} з {alumnus.major}
-                    </p>
-                    <p className="text-sm text-gray-600">
+                    </div>
+                    <div className="text-sm text-gray-600">
                       {alumnus.location} • {alumnus.industry}
-                    </p>
+                    </div>
                   </div>
 
                   {alumnus.achievements.length > 0 && (
@@ -985,16 +985,16 @@ export default function UniversityNetwork() {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{opportunity.title}</h3>
-                      <p className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600">
                         {opportunity.company} • {opportunity.location}
-                      </p>
+                      </div>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${getOpportunityTypeColor(opportunity.type)}`}>
                       {opportunity.type.toUpperCase()}
                     </span>
                   </div>
 
-                  <p className="text-gray-700 mb-4">{opportunity.description}</p>
+                  <div className="text-gray-700 mb-4">{opportunity.description}</div>
 
                   <div className="mb-4">
                     <h4 className="font-medium text-gray-900 mb-2">Вимоги:</h4>
@@ -1007,10 +1007,10 @@ export default function UniversityNetwork() {
 
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-600">
-                      <p>Тривалість: <span className="font-medium">{opportunity.duration}</span></p>
-                      <p>Дедлайн: <span className="font-medium">
+                      <div>Тривалість: <span className="font-medium">{opportunity.duration}</span></div>
+                      <div>Дедлайн: <span className="font-medium">
                         {new Date(opportunity.applicationDeadline).toLocaleDateString()}
-                      </span></p>
+                      </span></div>
                     </div>
                     <button
                       onClick={() => applyToOpportunity(opportunity.id)}
@@ -1033,9 +1033,9 @@ export default function UniversityNetwork() {
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">👨‍🏫</div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Знайдіть свого наставника</h3>
-                  <p className="text-gray-600 mb-4">
+                  <div className="text-gray-600 mb-4">
                     Зв'яжіться з випускниками, які доступні для наставництва в Каталозі випускників
-                  </p>
+                  </div>
                   <button
                     onClick={() => setActiveTab('alumni')}
                     className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700"
@@ -1056,7 +1056,7 @@ export default function UniversityNetwork() {
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">📅</div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Немає запланованих подій</h3>
-                  <p className="text-gray-600">Перевіряйте пізніше для майбутніх подій випускників</p>
+                  <div className="text-gray-600">Перевіряйте пізніше для майбутніх подій випускників</div>
                 </div>
               </div>
             </div>

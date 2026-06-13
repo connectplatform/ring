@@ -127,7 +127,7 @@ export default function CartWrapper({
     },
     {
       id: 'checkout',
-      label: tStore('checkout', { defaultValue: 'Checkout' }),
+      label: tStore('checkoutPage', { defaultValue: 'Checkout' }),
       icon: CreditCard,
       href: `/${locale}/store/checkout`,
       active: pageContext === 'checkout'
@@ -175,25 +175,25 @@ export default function CartWrapper({
   const checkoutTips = [
     {
       id: 'secure',
-      title: tStore('secureCheckout', { defaultValue: 'Secure Checkout' }),
-      description: tStore('sslEncrypted', { defaultValue: 'All payments are SSL encrypted and secure' }),
+      title: t('secureCheckout', { defaultValue: 'Secure Checkout' }),
+      description: t('sslEncrypted', { defaultValue: 'All payments are SSL encrypted and secure' }),
       icon: Shield
     },
     {
       id: 'returns',
-      title: tStore('easyReturns', { defaultValue: 'Easy Returns' }),
+      title: t('easyReturns', { defaultValue: 'Easy Returns' }),
       description: t('returnPolicy', { defaultValue: '30-day return policy on all items' }),
       icon: CheckCircle
     },
     {
       id: 'support',
-      title: tStore('customerSupport', { defaultValue: '24/7 Support' }),
+      title: t('customerSupport', { defaultValue: '24/7 Support' }),
       description: t('helpAvailable', { defaultValue: 'Our team is here to help anytime' }),
       icon: Info
     },
     {
       id: 'fast',
-      title: tStore('fastDelivery', { defaultValue: 'Fast Delivery' }),
+      title: t('fastDelivery', { defaultValue: 'Fast Delivery' }),
       description: t('expressShipping', { defaultValue: 'Express shipping available for urgent orders' }),
       icon: Truck
     }

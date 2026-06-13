@@ -1,7 +1,57 @@
 {
   "title": "Гаманець",
-  "description": "Керуйте вашими RING токенами та переглядайте історію транзакцій",
-  "balance": "Баланс"
+  "description": "Керуйте токенами RING та переглядайте історію транзакцій",
+  "balance": "Баланс",
+  "backupPhrase": "Резервна фраза відновлення",
+  "enable2FA": "Увімкнути 2FA",
+  "avoidPhishing": "Остерігайтеся фішингу",
+  "sendTokens": "Надіслати RING",
+  "receiveTokens": "Отримати RING",
+  "topUpBalance": "Поповнити баланс",
+  "quickActions": "Швидкі дії",
+  "recentTransactions": "Останні транзакції",
+  "noTransactions": "Немає останніх транзакцій",
+  "viewAllTransactions": "Усі транзакції",
+  "boostYourWallet": "Поповніть гаманець",
+  "topUpDescription": "Додайте токени RING, щоб відкрити преміум-функції та можливості.",
+  "topUpNow": "Поповнити зараз",
+  "securityTips": "Поради з безпеки",
+  "urgent": "Терміново",
+  "walletGuide": "Посібник з гаманця",
+  "guideDescription": "Дізнайтеся, як безпечно керувати токенами RING.",
+  "gettingStarted": "Початок роботи",
+  "securityGuide": "Посібник з безпеки",
+  "faq": "FAQ",
+  "contacts": "Контакти",
+  "connectWallet": "Підключити гаманець",
+  "connectWalletDescription": "Підключіть зовнішній гаманець для перегляду балансу MATIC та роботи on-chain.",
+  "connecting": "Підключення…",
+  "disconnectWallet": "Відключити гаманець",
+  "walletConnected": "Гаманець підключено",
+  "walletAddress": "Адреса гаманця",
+  "maticBalance": "Баланс MATIC",
+  "loading": "Завантаження…",
+  "error": "Помилка",
+  "topup": {
+    "title": "Поповнення гаманця",
+    "subtitle": "Додайте кошти за допомогою токенів RING або платіжної картки",
+    "amount_label": "Сума (RING)",
+    "tx_hash_label": "Хеш транзакції (необов'язково)",
+    "tx_hash_help": "Вставте хеш транзакції Polygon, якщо ви вже надіслали RING on-chain.",
+    "description_label": "Опис (необов'язково)",
+    "description_placeholder": "напр. Щомісячне поповнення",
+    "processing": "Обробка…",
+    "record_transfer": "Зафіксувати переказ",
+    "blockchain_help": "Надішліть RING на адресу гаманця в мережі Polygon, потім зафіксуйте переказ тут.",
+    "success": "Поповнення успішно зафіксовано.",
+    "methods": {
+      "blockchain": {
+        "name": "Блокчейн-переказ",
+        "description": "Перекажіть токени RING безпосередньо з вашого гаманця"
+      }
+    },
+    "error": {
+      "invalid_amount": "Введіть коректну суму більше нуля."
+    }
+  }
 }
-
-

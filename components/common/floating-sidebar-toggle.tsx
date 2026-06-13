@@ -64,33 +64,11 @@ export default function FloatingSidebarToggle({
     setIsOpen(!isOpen)
   }, [isOpen, setIsOpen])
 
-  // Auto-hide on link click (mobile/iPad) - Enhanced for touch devices
+  // Close when route changes (after in-sidebar link navigation completes).
+  // Avoid touchend-to-close: on mobile it can race link click and cancel navigation.
   useEffect(() => {
-    if (!isOpen) return
-
-    const handleInteraction = (e: Event) => {
-      const target = e.target as HTMLElement
-      const sidebar = document.querySelector('[data-floating-sidebar="true"]')
-      
-      if (sidebar && sidebar.contains(target)) {
-        // If clicking/tapping a link inside sidebar, close it
-        // Check for both <a> tags and Next.js Link components (which render as <a>)
-        const linkElement = target.closest('a[href]')
-        if (linkElement) {
-          setTimeout(() => setIsOpen(false), 150) // Small delay for smooth transition
-        }
-      }
-    }
-
-    // Listen for both click (desktop/iPad) and touchend (mobile) events
-    document.addEventListener('click', handleInteraction)
-    document.addEventListener('touchend', handleInteraction)
-    
-    return () => {
-      document.removeEventListener('click', handleInteraction)
-      document.removeEventListener('touchend', handleInteraction)
-    }
-  }, [isOpen, setIsOpen])
+    setIsOpen(false)
+  }, [pathname, setIsOpen])
 
   const getNextCyclingLocale = useCallback(
     () => nextLocaleInRoutingOrder(locale),

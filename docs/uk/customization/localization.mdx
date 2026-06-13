@@ -137,7 +137,7 @@ export function MyComponent() {
       <button onClick={handleSave}>
         {t('actions.save')}
       </button>
-      <p>{t('messages.success.saved')}</p>
+      <div>{t('messages.success.saved')}</div>
     </div>
   )
 }`}
@@ -155,7 +155,7 @@ export default async function HomePage() {
   return (
     <div>
       <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+      <div>{t('description')}</div>
     </div>
   )
 }`}
@@ -284,8 +284,8 @@ export function LocalizedContent() {
 
   return (
     <div>
-      <p>Локальна валюта: {content[locale].currency}</p>
-      <p>Формат дати: {content[locale].dateFormat}</p>
+      <div>Локальна валюта: {content[locale].currency}</div>
+      <div>Формат дати: {content[locale].dateFormat}</div>
     </div>
   )
 }`}

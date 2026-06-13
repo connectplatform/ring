@@ -34,7 +34,7 @@ export function Card({ title, href, children }: CardProps) {
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
       </div>
       {children ? (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{children}</p>
+        <div className="mt-2 text-sm leading-relaxed text-muted-foreground">{children}</div>
       ) : null}
     </Link>
   )

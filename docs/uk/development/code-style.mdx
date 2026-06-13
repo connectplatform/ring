@@ -60,7 +60,7 @@ export const EntityCard: FC<EntityCardProps> = ({
   return (
     <div className={`entity-card ${className}`}>
       <h3>{entity.name}</h3>
-      <p>{entity.type}</p>
+      <div>{entity.type}</div>
       {onEdit && (
         <button onClick={() => onEdit(entity.id)}>
           Edit

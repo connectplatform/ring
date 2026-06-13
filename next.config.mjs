@@ -98,7 +98,6 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'static.ring.ck.ua' },
       { protocol: 'https', hostname: 'x0kypqbqtr7wbl1a.public.blob.vercel-storage.com' },
       { protocol: 'https', hostname: 'fonts.googleapis.com' },
       { protocol: 'https', hostname: 'fonts.gstatic.com' },
@@ -155,16 +154,24 @@ const nextConfig = {
   serverExternalPackages: ['google-auth-library', 'gaxios', 'gtoken'],
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', 'zemna.ai', 'www.zemna.ai'],
+      allowedOrigins: ['localhost:3000', 'ring-platform.org', 'www.ring-platform.org'],
       bodySizeLimit: '2mb'
-    }
+    },
+  ...(process.env.SKIP_TYPE_CHECK === '1'
+    ? {
+        cpus: 4,
+        staticGenerationMaxConcurrency: 4,
+        staticGenerationMinPagesPerWorker: 500,
+      }
+    : {}),
   },
   // Exclude docs from build
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'].filter(extension => {
     return !(extension.startsWith('my-docs/'));
   }),
   typescript: {
-    ignoreBuildErrors: false,
+    // CI runs `npm run type-check`; Docker/Colima builds set SKIP_TYPE_CHECK=1 to skip this phase and avoid OOM during cross-arch builds.
+    ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === '1',
   },
   // Note: eslint config removed from next.config in Next.js 16 - use eslint CLI directly
 }

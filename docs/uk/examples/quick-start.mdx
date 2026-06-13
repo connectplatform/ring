@@ -37,7 +37,7 @@ export default async function HomePage() {
   return (
     <div className="container mx-auto p-8">
       <h1>Ласкаво просимо до платформи Ring</h1>
-      <p>Привіт, {session.user?.name}!</p>
+      <div>Привіт, {session.user?.name}!</div>
     </div>
   )
 }`}
@@ -81,8 +81,8 @@ export function UserProfile() {
         </AvatarFallback>
       </Avatar>
       <div>
-        <p className="font-medium">{session.user?.name}</p>
-        <p className="text-sm text-gray-500">{session.user?.email}</p>
+        <div className="font-medium">{session.user?.name}</div>
+        <div className="text-sm text-gray-500">{session.user?.email}</div>
       </div>
     </div>
   )
@@ -133,8 +133,8 @@ export function EntityList() {
       {entities.map((entity) => (
         <div key={entity.id} className="border rounded-lg p-4 bg-white shadow-sm">
           <h3 className="font-semibold text-lg mb-2">{entity.name}</h3>
-          <p className="text-sm text-gray-600 mb-2">{entity.type}</p>
-          <p className="text-gray-700">{entity.description}</p>
+          <div className="text-sm text-gray-600 mb-2">{entity.type}</div>
+          <div className="text-gray-700">{entity.description}</div>
         </div>
       ))}
     </div>
@@ -271,8 +271,8 @@ export function WalletConnect() {
     <div className="p-4 border rounded-lg">
       {wallet ? (
         <div>
-          <p className="text-sm text-gray-600">Wallet Connected:</p>
-          <p className="font-mono text-sm">{wallet}</p>
+          <div className="text-sm text-gray-600">Wallet Connected:</div>
+          <div className="font-mono text-sm">{wallet}</div>
         </div>
       ) : (
         <button

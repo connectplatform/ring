@@ -182,7 +182,7 @@ export function NotificationPreferences({ className }: NotificationPreferencesPr
     }
   };
 
-  if (!preferences || !localPreferences.enabled !== undefined) {
+  if (!preferences) {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="w-8 h-8 animate-spin mr-3" />

@@ -204,8 +204,9 @@ export function resolveMessageScope(pathname: string): MessageScope {
   if (normalized.startsWith('/admin')) return 'admin'
   if (normalized.startsWith('/confidential')) return 'confidential'
   if (normalized.startsWith('/intro')) return 'presentation'
+  if (normalized.startsWith('/settings')) return 'authenticated'
   if (
-    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|meetups|pets|places|editor|publications)(\/|$)/.test(
+    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications)(\/|$)/.test(
       normalized,
     ) ||
     normalized.startsWith('/u/')

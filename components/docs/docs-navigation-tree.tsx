@@ -1,5 +1,6 @@
-import Link from 'next/link'
+import type { ComponentProps } from 'react'
 import { headers } from 'next/headers'
+import { Link } from '@/i18n/routing'
 import * as fs from 'fs'
 import * as path from 'path'
 import matter from 'gray-matter'
@@ -8,6 +9,8 @@ import { getTranslations } from 'next-intl/server'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale, supportedLocales } from '@/i18n/shared'
 import { buildDocsHref, getDocsLocaleRoot, readSectionMeta } from '@/lib/docs/docs-path'
+
+type DocsLinkHref = ComponentProps<typeof Link>['href']
 
 interface DocsNavigationTreeProps {
   locale: string
@@ -200,7 +203,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
                     }`}
                   />
                   <Link
-                    href={item.href}
+                    href={item.href as DocsLinkHref}
                     className={`text-sm hover:text-primary transition-colors block py-0.5 px-2 rounded-md hover:bg-muted/50 flex-1 leading-snug ${
                       isActive(item.href)
                         ? 'text-primary font-medium bg-primary/5'
@@ -238,7 +241,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
                 </a>
               ) : (
                 <Link
-                  href={item.href}
+                  href={item.href as DocsLinkHref}
                   className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted/50"
                 >
                   {item.label}

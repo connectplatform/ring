@@ -53,6 +53,7 @@
     "clearConfirmDescription": "Це видалить усі {count} товарів з вашого кошика",
     "yesClearCart": "Так, очистити кошик",
     "goToCheckout": "Оформити замовлення",
+    "back": "Назад до магазину",
     "basePrice": "Базова ціна",
     "withOptions": "З опціями",
     "secureCheckout": "Безпечна оплата",

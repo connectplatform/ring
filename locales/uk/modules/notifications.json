@@ -1,5 +1,11 @@
 {
   "title": "Сповіщення",
+  "metadata": {
+    "title": "Сповіщення"
+  },
+  "metaDescription": {
+    "description": "Переглядайте та керуйте сповіщеннями на Ring Platform"
+  },
   "status": {
     "topic": "Тема",
     "notificationId": "ID сповіщення",

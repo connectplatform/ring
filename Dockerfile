@@ -90,7 +90,7 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM node:25-alpine AS builder
 
 LABEL maintainer="Ring Platform Team <insight@ring-platform.org>"
-LABEL version="1.47"
+LABEL version="1.70.0"
 LABEL description="Ring Platform - Professional Networking with Web3 Integration"
 
 # Build arguments
@@ -331,15 +331,20 @@ COPY . .
 # Copy environment template and create build-time env
 COPY env.local.template env.local.template
 
-# Build the application (reuse .next/cache across builds when BuildKit cache mount is enabled)
+# Build-time: skip Next.js in-build TypeScript (CI runs `npm run type-check` separately).
+ENV SKIP_TYPE_CHECK=1
+
+# Build the application (reuse .next/cache across builds when BuildKit cache mount is enabled).
+# 8GiB Node heap; Colima VM should be >=12GiB (see ~/.colima/default/colima.yaml).
+# Do not set NODE_OPTIONS inside npm scripts — it would override this RUN env.
 RUN --mount=type=cache,target=/app/.next/cache \
-    npm run build
+    NODE_OPTIONS="--no-deprecation --max-old-space-size=8192" npm run build:skip-types
 
 # Runtime Stage
 FROM node:25-alpine AS runtime
 
 LABEL maintainer="Ring Platform Team <team@ring-platform.org>"
-LABEL version="1.47"
+LABEL version="1.70.0"
 LABEL description="Ring Platform Runtime - AI-powered Platform with Web3 Integration"
 
 # Runtime environment variables

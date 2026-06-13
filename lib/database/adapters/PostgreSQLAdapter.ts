@@ -110,6 +110,12 @@ export class PostgreSQLAdapter implements IDatabaseService {
     messages: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    notification_preferences: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    notifications: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     platform_settings: new Set([
       'id', 'data', 'secrets', 'updated_by', 'created_at', 'updated_at',
       'updatedBy', 'createdAt', 'updatedAt',

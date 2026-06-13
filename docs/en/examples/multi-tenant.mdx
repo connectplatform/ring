@@ -404,7 +404,7 @@ export async function getEntities(tenantId: string, filters: EntityFilters) {
       export function TenantFooter({ tenant }: { tenant: Tenant }) {
         return (
           <footer className="tenant-footer">
-            <p>&copy; ${new Date().getFullYear()} ${tenant.name}. Powered by Ring Platform.</p>
+            <div>&copy; ${new Date().getFullYear()} ${tenant.name}. Powered by Ring Platform.</div>
           </footer>
         )
       }

@@ -7,37 +7,30 @@
  * Firebase services are only loaded at runtime, never during build time.
  */
 
-// Only enable notification service when Firebase is available
-const isFirebaseMode = process.env.DB_HYBRID_MODE !== 'false';
+// Only enable notification service when Firebase hybrid mode is on (Postgres + FCM).
+const isFirebaseMode = process.env.DB_HYBRID_MODE !== 'false'
 
-let notificationServiceModule: any = null;
-let isRuntime = false;
-
-// Check if we're at runtime (not build time)
-if (typeof window === 'undefined') {
-  // Server-side: check if we have runtime environment variables
-  // This will be false during build time, true during runtime
-  isRuntime = !!process.env.NODE_ENV && process.env.NODE_ENV !== 'production';
-}
+let notificationServiceModule: typeof import('./notification-service') | null = null
 
 export function getNotificationService() {
-  if (!isFirebaseMode || !isRuntime) {
-    return null;
+  if (!isFirebaseMode) {
+    return null
   }
 
   if (!notificationServiceModule) {
     try {
-      notificationServiceModule = require('./notification-service');
+      notificationServiceModule = require('./notification-service') as typeof import('./notification-service')
     } catch (error) {
-      console.warn('Failed to load notification service (Firebase may not be available):', error.message);
-      return null;
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn('Failed to load notification service (Firebase may not be available):', message)
+      return null
     }
   }
 
-  return notificationServiceModule;
+  return notificationServiceModule
 }
 
 export function isNotificationServiceAvailable(): boolean {
-  return isFirebaseMode && isRuntime;
+  return isFirebaseMode
 }
 

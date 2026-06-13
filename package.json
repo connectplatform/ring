@@ -1,6 +1,6 @@
 {
   "name": "ring-platform-org",
-  "version": "1.6.4",
+  "version": "1.70.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -12,7 +12,7 @@
     "dev:ws": "NODE_OPTIONS='--no-deprecation' node server.js",
     "type-check": "tsc --noEmit",
     "build": "npm run type-check && NODE_OPTIONS='--no-deprecation' next build",
-    "build:skip-types": "NODE_OPTIONS='--no-deprecation' next build",
+    "build:skip-types": "SKIP_TYPE_CHECK=1 next build",
     "build:portal": "NODE_OPTIONS='--no-deprecation' next build",
     "start": "NODE_OPTIONS='--no-deprecation' next start",
     "start:portal": "PORT=3000 npm run start",
