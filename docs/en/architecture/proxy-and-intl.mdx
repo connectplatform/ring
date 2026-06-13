@@ -1,0 +1,38 @@
+---
+title: Proxy and internationalization
+description: Slim Auth.js proxy, layout-level auth, and lib/proxy-intl helpers
+last_modified: "2026-06-06"
+---
+
+# Proxy and internationalization
+
+Ring Platform uses **next-intl** with `localePrefix: 'as-needed'` and a **slim proxy** that handles locale rewriting — not full authorization.
+
+## Design principle
+
+| Layer | Responsibility |
+|-------|----------------|
+| `proxy.ts` | Locale rewrite, optimistic cookie redirect to `/login`, self-redirect guard |
+| `(authenticated)/[locale]/layout.tsx` | `await auth()` — redirect if unauthenticated |
+| `(admin)/[locale]/layout.tsx` | `await auth()` + role check |
+| `(confidential)/[locale]/layout.tsx` | `await auth()` + confidential tier |
+| API routes | Per-route `auth()` or session checks |
+
+Auth.js `callbacks.authorized` in `auth.config.ts` is **not** the primary enforcement layer for locale-prefixed routes.
+
+## lib/proxy-intl.ts (2026-05-28)
+
+Shared helpers extracted for flagship rings:
+
+- Strip locale prefix from pathname using `routing.locales`
+- Detect intl self-referential redirects
+- Apply upstream path headers for SEO (`x-pathname`)
+
+## OAuth / GIS
+
+`/api/auth/*` is excluded from intl middleware. Google One Tap and standard OAuth flows are unaffected by proxy slimming.
+
+## Related
+
+- [Authentication feature](/docs/features/authentication)
+- [Locale system](/docs/features/locale-system)

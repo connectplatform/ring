@@ -1,0 +1,208 @@
+---
+title: Push-уведомления через FCM (Ring)
+description: "Настройка веб- и кроссплатформенных push-уведомлений с помощью Firebase Cloud Messaging: Server Action для токенов, общий слой БД и управление жизненным циклом."
+last_modified: 2026-02-27
+---
+
+# Push-уведомления через FCM (Ring)
+
+Ring Platform хранит FCM-токены в основной базе данных (PostgreSQL или Firestore в зависимости от режима бэкенда) — по одной записи на пользователя и устройство. React-приложения регистрируют токены через Server Action; остальные клиенты используют ограниченный по частоте API. Оба пути вызывают один и тот же серверный слой БД, поэтому поведение и безопасность везде одинаковы.
+
+## Обзор: логика FCM в Ring
+
+«Ring-powered» FCM — это единая, не зависящая от бэкенда схема:
+
+- **Хранилище токенов как источник истины** — Таблица (или коллекция) `fcm_tokens` хранит все токены регистрации. Полезная нагрузка хранится в колонке JSONB `data` где применимо (PostgreSQL). Отдельного кэша нет; реестром служит БД.
+- **Одна строка на устройство и пользователя** — Составное уникальное ограничение по `(user_id, device_fingerprint)` даёт одну запись на устройство. Значение токена не уникально, поэтому при ротации FCM-токена обновляется та же строка, а не создаётся дубликат.
+- **React-приложение → Server Action** — Основной путь для браузера и React Native web — Server Action `upsertFcmToken`. Идентификатор пользователя сервер берёт только из `auth()`; клиент его не передаёт.
+- **Остальные клиенты → API** — Мобильные приложения или внешние сервисы вызывают `POST /api/notifications/fcm/register` с тем же телом запроса. Этот endpoint ограничен по частоте на пользователя (например, 10 запросов в минуту).
+- **Жизненный цикл в данных** — В каждой строке хранятся `status` (`active` | `stale` | `invalid`) и `invalidatedAt`. Реактивная очистка срабатывает при ошибках FCM по токену; по расписанию помечаются устаревшие токены и при необходимости выполняется жёсткое удаление.
+- **Режим бэкенда** — Хранилище токенов не привязано к конкретному бэкенду. BackendSelector направляет запросы по `DB_BACKEND_MODE` в PostgreSQL (например `k8s-postgres-fcm`, `supabase-fcm`) или Firestore (`firebase-full`). Один код; ветвлений в Server Action или API нет.
+
+<Mermaid title="Регистрация и доставка FCM в Ring">{`
+flowchart LR
+  subgraph client["Client"]
+    React["React app\n(useFCMToken)"]
+    NonReact["Non-React\n(mobile, API)"]
+  end
+  subgraph server["Server"]
+    SA["Server Action\nupsertFcmToken"]
+    API["POST .../fcm/register\n(rate-limited)"]
+    DBLayer["upsertFcmTokenForUser\n(server-only)"]
+    Selector["BackendSelector"]
+  end
+  subgraph storage["Storage"]
+    PG[(PostgreSQL\nfcm_tokens)]
+    FS[(Firestore\nfcm_tokens)]
+  end
+  React -->|primary| SA
+  NonReact --> API
+  SA --> DBLayer
+  API --> DBLayer
+  DBLayer --> Selector
+  Selector -->|k8s / supabase| PG
+  Selector -->|firebase-full| FS
+`}</Mermaid>
+
+## Предварительные требования
+
+- **Аутентификация** — Выполнен вход (сессия Auth.js). Регистрация токена всегда привязана к аутентифицированному пользователю; сервер не доверяет идентификатору пользователя от клиента.
+- **Web Push (браузер)** — HTTPS (или localhost в разработке), поддержка Web Push в браузере, зарегистрированный service worker и Firebase client SDK. Файл service worker обычно доступен по `/firebase-messaging-sw.js`.
+- **API-клиенты** — Действующая сессия (cookie или Bearer) и тот же контракт тела запроса (token, deviceFingerprint, deviceInfo).
+
+## React-приложение: путь через Server Action
+
+Используйте Server Action как основной способ регистрации и обновления FCM-токенов из любого React- или Next.js-клиента. Этот путь не ограничен по частоте, в отличие от API, и идентификатор пользователя остаётся только на сервере.
+
+<Callout type="info" title="Основной путь">
+React-приложениям следует использовать Server Action как основной путь. API предназначен для остальных клиентов и ограничен по частоте.
+</Callout>
+
+<Steps>
+
+<Step>
+
+**Получите стабильный device fingerprint**
+
+Сгенерируйте или загрузите стабильное значение (например, `crypto.randomUUID()` из `localStorage`) и используйте его при каждой загрузке и при обновлении токена. Сервер по паре `(user_id, device_fingerprint)` выполняет upsert одной строки на устройство.
+
+</Step>
+
+<Step>
+
+**Запросите разрешение и получите FCM-токен**
+
+В компоненте с `'use client'` (например внутри провайдера уведомлений) вызовите `Notification.requestPermission()`. После разрешения вызовите `getToken(messaging, { vapidKey })` из Firebase Messaging SDK. Не вызывайте `getToken()` в Server Components — в них нет контекста браузера.
+
+</Step>
+
+<Step>
+
+**Вызовите Server Action для регистрации токена**
+
+Вызовите `upsertFcmToken({ token, deviceFingerprint, deviceInfo, platform: 'web' })`. Не передавайте `userId`; сервер берёт его из `auth()`.
+
+</Step>
+
+<Step>
+
+**Обработка обновления токена**
+
+Когда Firebase SDK выдаёт новый токен (например через `onTokenRefresh`), снова вызовите тот же Server Action с новым токеном и тем же `deviceFingerprint`. Общий слой БД обновит существующую строку для этого пользователя и устройства.
+
+</Step>
+
+</Steps>
+
+Пример: регистрация и обновление токена в клиентском компоненте.
+
+<Code language="typescript" title="Пример: регистрация FCM-токена в клиентском компоненте">{`'use client';
+
+import { useEffect, useRef } from 'react';
+import { getToken, getMessaging, onMessage } from 'firebase/messaging';
+import { upsertFcmToken } from '@/app/_actions/fcm';
+
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+
+export function useFCMToken(deviceFingerprint: string) {
+  const lastTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !VAPID_KEY || !deviceFingerprint) return;
+
+    const messaging = getMessaging();
+    Notification.requestPermission().then((permission) => {
+      if (permission !== 'granted') return;
+      getToken(messaging, { vapidKey: VAPID_KEY })
+        .then((token) => {
+          if (token && token !== lastTokenRef.current) {
+            lastTokenRef.current = token;
+            upsertFcmToken({
+              token,
+              deviceFingerprint,
+              deviceInfo: {
+                platform: navigator.platform,
+                userAgent: navigator.userAgent,
+              },
+              platform: 'web',
+            });
+          }
+        })
+        .catch(console.error);
+    });
+  }, [deviceFingerprint]);
+}`}</Code>
+
+## Остальные клиенты: API
+
+Мобильные приложения и другие клиенты без React регистрируют токены через тот же контракт по HTTP.
+
+**Endpoint:** `POST /api/notifications/fcm/register`
+
+**Тело запроса:**
+
+- `token` (string, обязательно) — FCM registration token из клиентского SDK.
+- `deviceFingerprint` (string, обязательно) — Стабильный идентификатор устройства (например UUID в local storage). Не более 128 символов; только буквы, цифры, дефис и подчёркивание.
+- `deviceInfo` (object, необязательно) — Произвольные метаданные устройства (например platform, userAgent).
+
+**Аутентификация:** Обязательна (session cookie или Bearer). Сервер использует идентификатор аутентифицированного пользователя; не передавайте `userId` в теле.
+
+**Ответы:**
+
+- `200` — `{ "success": true }`
+- `400` — Ошибка валидации (например отсутствует или неверный `deviceFingerprint`)
+- `401` — Не аутентифицирован
+- `429` — Превышен лимит запросов (заголовок `Retry-After`)
+- `500` — Ошибка сервера
+
+<Callout type="warning" title="Лимит запросов">
+Этот endpoint ограничен по частоте на пользователя (например 10 запросов в минуту). Используйте Server Action из React-приложений, чтобы не расходовать лимит API.
+</Callout>
+
+Пример с cURL (подставьте cookie сессии или Bearer в соответствии с вашей настройкой auth):
+
+<Code language="bash" title="Пример: регистрация токена через API">{`curl -X POST https://your-app.com/api/notifications/fcm/register \\
+  -H "Content-Type: application/json" \\
+  -H "Cookie: your-session-cookie" \\
+  -d '{
+    "token": "FCM_REGISTRATION_TOKEN",
+    "deviceFingerprint": "uuid-from-device",
+    "deviceInfo": { "platform": "ios", "appVersion": "1.0.0" }
+  }'`}</Code>
+
+## Переменные окружения
+
+Настройки разделены так, чтобы на клиент попадали только публичные и безопасные значения.
+
+<Callout type="info" title="Безопасность">
+Приватный ключ VAPID и учётные данные Firebase service account не должны попадать на клиент. Храните их только на сервере.
+</Callout>
+
+| Назначение | Переменные | Где |
+|------------|------------|-----|
+| Клиент (браузер / приложение) | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Безопасны для клиента; используются Firebase client SDK и service worker |
+| Сервер (хранилище токенов, отправка FCM) | `FIREBASE_SERVICE_ACCOUNT_*` или путь к JSON сервисного аккаунта; `DB_BACKEND_MODE` (например `k8s-postgres-fcm`, `firebase-full`, `supabase-fcm`) | Только сервер; используются BackendSelector и Firebase Admin SDK |
+
+## Снятие регистрации и выход
+
+При выходе или отключении push пользователем:
+
+- **Браузер / React** — Вызовите `deleteToken(messaging)` из Firebase client SDK, затем снимите регистрацию на сервере: `DELETE /api/notifications/fcm/register` с телом `{ "deviceFingerprint": "same-uuid-as-register" }`. Идемпотентно; можно вызывать, даже если запись уже удалена или инвалидирована.
+- **Остальные клиенты** — Тот же запрос `DELETE` с тем же `deviceFingerprint`, что и при регистрации.
+
+Сервер помечает строку как `status: 'invalid'` и выставляет `invalidatedAt`; доставка на этот токен прекращается.
+
+## Устранение неполадок
+
+| Проблема | Причина | Действие |
+|----------|---------|----------|
+| Permission denied или токен не получен | Пользователь отклонил уведомления или разрешение ещё не запрашивали | Запросите разрешение до вызова `getToken()`; обрабатывайте `permission === 'denied'` в интерфейсе |
+| 429 при регистрации | Превышен лимит запросов | Используйте Server Action из React; для API-клиентов соблюдайте `Retry-After` и снизьте частоту регистрации |
+| Неверный deviceFingerprint | Ошибка валидации | Строка длиной 1–128 символов: только буквы, цифры, дефис и подчёркивание |
+| 401 при регистрации | Не аутентифицирован | Убедитесь, что отправляется действующая сессия (cookie или Bearer); не передавайте `userId` в теле |
+
+## См. также
+
+- [Уведомления](/docs/features/notifications) — Типы уведомлений, каналы и настройки
+- Схема и миграции для `fcm_tokens` (например `data/schema.sql`, `data/migrations/fcm_jsonb_schema.sql`) в вашем клоне Ring
+- Truth lens FCM-специалиста (`AI-LEGIOX/legiox-truth-lens/fcm-specialist.json`) — жизненный цикл токенов, реактивная очистка и путь отправки

@@ -1,0 +1,79 @@
+---
+title: Генеративные изображения (ImageConductor)
+description: Провайдер-агностичная генерация изображений xAI Grok Imagine и Google Imagen — MCP, админ UI, ring-filebase
+last_modified: "2026-06-09"
+---
+
+# Генеративные изображения (`ImageConductor`)
+
+**Провайдер-агностичный фасад** (как `PaymentConductor` и `file()`): сгенерированные файлы загружаются в **ring-filebase** и возвращают постоянный CDN URL.
+
+## Архитектура
+
+```text
+MCP / админ UI / серверный код
+  → ImageConductor.generate(ctx)
+    → провайдер (xai | google)
+    → file().upload(generated/…)
+  → { success, images: [{ url }] }
+```
+
+| Слой | Путь |
+|------|------|
+| Фасад | `lib/images/conductor/image-conductor.ts` |
+| Провайдеры | `lib/images/providers/xai.provider.ts`, `google.provider.ts` |
+| Конфиг | `lib/images/image.config.ts` |
+
+## Поверхности
+
+| Поверхность | Вход |
+|-------------|------|
+| **MCP** | `ring-image-create` → `POST /api/mcp/v1/images/generate` |
+| **Session API** | `POST /api/images/generate` (Auth.js admin) |
+| **UI** | `GenerateImageDialog` в редакторе новостей и rich text |
+
+## Пример запроса
+
+```json
+{
+  "prompt": "professional tech banner, vibrant gradient",
+  "provider": "xai",
+  "aspectRatio": "16:9",
+  "purpose": "news-featured"
+}
+```
+
+**OG preset:** `aspectRatio: "2:1"` на xAI (~1200×630). Google Imagen — ближайшее `16:9`.
+
+## Переменные окружения
+
+```bash
+IMAGE_GEN_PROVIDER=xai
+IMAGE_GEN_STORAGE_PREFIX=generated
+XAI_API_KEY=your_key
+XAI_API_BASE_URL=https://api.x.ai/v1
+XAI_IMAGE_MODEL=grok-imagine-image-quality
+```
+
+Требуется **ring-filebase** (`FILE_BACKEND=ringbase`, `RINGBASE_API_URL`, `RINGBASE_API_TOKEN`).
+
+Миграция аудита: `data/migrations/006_generated_images_schema.sql`.
+
+## Программный вызов
+
+```typescript
+import { ImageConductor } from '@/lib/images/conductor/image-conductor'
+
+const result = await ImageConductor.generate({
+  prompt: 'Ring Platform community meetup',
+  purpose: 'news-featured',
+  aspectRatio: '16:9',
+  actorId: userId,
+})
+```
+
+## Связанное
+
+- Полная EN-документация (таблицы полей, troubleshooting): [Generative images](/docs/development/generative-images) (локаль EN)
+- [Автономная редакция](/docs/development/generative-newsroom) — featured image для статей
+- [Ring MCP](/docs/development/ring-mcp) — `ring-image-create`

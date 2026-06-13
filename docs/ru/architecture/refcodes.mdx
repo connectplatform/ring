@@ -1,0 +1,71 @@
+---
+title: Архитектура Refcodes
+description: Cookie атрибуции, PostgreSQL ledger, UUPS minter и интеграция с PaymentConductor и ERP
+last_modified: "2026-06-10"
+---
+
+# Архитектура Refcodes
+
+> **EN canonical:** полная диаграмма и роли контракта — [Refcodes architecture (EN)](/docs/architecture/refcodes)
+
+## Компоненты
+
+<Mermaid>
+{`flowchart LR
+    Proxy["proxy.ts ?ref="]
+    Orders["POST /api/store/orders"]
+    WFP["WayForPay webhook"]
+    Credit["credit payment"]
+    Pipeline["settlement-pipeline"]
+    Rewards["ReferralRewardService"]
+    DB[("PostgreSQL")]
+    Chain["ReferralRewards"]
+
+    Proxy --> Orders
+    Orders --> DB
+    WFP --> Pipeline
+    WFP --> Rewards
+    Credit --> Pipeline
+    Credit --> Rewards
+    Pipeline --> DB
+    Rewards --> DB
+    Rewards --> Chain`}
+</Mermaid>
+
+| Модуль | Путь | Роль |
+|--------|------|------|
+| Cookie | `proxy.ts` | `ring_ref` + `ring_ref_visible` |
+| Коды | `refcode-service.ts` | CRUD кодов |
+| Атрибуция | `attribution-service.ts` | Guards, visits, signup `referredBy` |
+| Награды | `referral-reward-service.ts` | Fiat/credit/membership |
+| Mint | `reward-minter.ts` | viem `payReferral` |
+| ERP ledger | `settlement-pipeline.ts` | `settlements`, `erp_sales_assists` |
+
+## Идемпотентность
+
+| Слой | Ключ |
+|------|------|
+| PostgreSQL | Unique `orderReference` на `referral_rewards` |
+| Сервис | `rewardExistsForOrder` |
+| Контракт | `paidOrders[orderRef]` |
+
+## Cron и beacon
+
+- `POST /api/refcodes/track` — `visits++` на документе refcode.
+- `GET /api/cron/refcodes-mint` — `Authorization: Bearer $CRON_SECRET`.
+
+## Базы данных клонов
+
+| Окружение | БД |
+|-----------|-----|
+| ring-platform.org dev | `ring_platform` |
+| ring-connect-software | `ring_connect_software_dev` |
+| ring-ringdom-org | `ring_ringdom_org` |
+
+Миграции: `005_refcodes_schema.sql`, `007_settlements_schema.sql`.
+
+## Связанное
+
+- [Refcodes (функция)](/docs/features/refcodes)
+- [PaymentConductor](/docs/architecture/payment-conductor)
+- [ERP комиссии](/docs/features/erp/commissions)

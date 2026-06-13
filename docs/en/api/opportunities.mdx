@@ -1,0 +1,246 @@
+---
+title: Opportunities
+description: Opportunities documentation for Ring Platform
+---
+
+# Opportunities API
+
+Manage the dual-nature opportunity marketplace with **7 endpoints** supporting both offers and requests across multiple opportunity types.
+
+## Overview
+
+The Ring Platform opportunity system supports a unique dual-nature approach:
+- **Offers**: What entities provide (jobs, partnerships, resources)
+- **Requests**: What entities need (services, partnerships, resources)
+
+**7 Opportunity Types:**
+- Job opportunities
+- Partnership opportunities  
+- Volunteer opportunities
+- Mentorship opportunities
+- Resource opportunities
+- Event opportunities
+- Custom opportunities
+
+## API Endpoints
+
+### `GET /api/opportunities`
+List opportunities with advanced filtering
+
+### `POST /api/opportunities`
+Create new opportunity (requires MEMBER role)
+
+### `GET /api/opportunities/{id}`
+Get opportunity details by ID
+
+### `PUT /api/opportunities/{id}`
+Update opportunity information
+
+### `DELETE /api/opportunities/{id}`
+Delete opportunity
+
+### `POST /api/opportunities/{id}/apply`
+Apply to opportunity or express interest
+
+### `GET /api/opportunities/{id}/applications`
+List applications for opportunity
+
+## Data model
+
+API and server services use types from `features/opportunities/types`. **Responses and server actions expose `SerializedOpportunity`** — date fields are ISO strings (safe for JSON and React client components). The legacy `Opportunity` interface still documents Firestore `Timestamp` shapes for `DB_BACKEND_MODE=firebase-full` only.
+
+<Code language="typescript" title="SerializedOpportunity (canonical API shape)">
+{`type OpportunityType =
+  | 'offer' | 'request' | 'partnership' | 'volunteer' | 'mentorship'
+  | 'resource' | 'event' | 'ring_customization' | /* … */
+
+interface SerializedOpportunity {
+  id: string
+  type: OpportunityType
+  title: string
+  briefDescription: string
+  fullDescription?: string
+  status: 'draft' | 'pending' | 'active' | 'closed' | 'expired' | 'archived'
+  createdBy: string
+  organizationId: string
+  dateCreated: string   // ISO 8601
+  dateUpdated: string
+  expirationDate: string
+  applicationDeadline?: string
+  category: string
+  tags: string[]
+  location: string
+  budget?: { min?: number; max: number; currency?: string }
+  requiredSkills: string[]
+  visibility: 'public' | 'subscriber' | 'member' | 'confidential'
+  isConfidential: boolean
+  contactInfo: { linkedEntity: string; contactAccount: string }
+  applicantCount: number
+  // …see features/opportunities/types/index.ts
+}`}
+</Code>
+
+### PostgreSQL mapping
+
+`DatabaseService` query rows `{ id, data }` are mapped with `mapDbQueryRowToSerializedOpportunity()` in `features/opportunities/lib/opportunity-db-mapper.ts`. Do **not** use `lib/converters/opportunity-converter.ts` on the Postgres path — that module is a **Firestore-only legacy** `FirestoreDataConverter`.
+
+### Post-mutation discovery sync
+
+Creates, updates, deletes, and status changes call `syncOpportunityDiscovery()` which:
+
+1. **`revalidateTag`** — invalidates `unstable_cache` opportunity lists (`lib/cached-data.ts`)
+2. **`revalidatePath`** — refreshes `/[locale]/opportunities`, `/[locale]/opportunities/[id]`, and `/[locale]/opportunities/my`
+3. **Tunnel** — publishes `opportunity:created|updated|deleted` on the `opportunities` channel
+
+There is no separate search-index reindex command; discovery queries run against PostgreSQL JSONB. Tunnel publish is shared via `lib/discovery/sync-discovery.ts` (see [Discovery mutation sync](../architecture/discovery-mutation-sync)).
+
+## Opportunity Types
+
+### Job Opportunities
+- Full-time positions
+- Part-time roles
+- Contract work
+- Internships
+
+### Partnership Opportunities
+- Business partnerships
+- Strategic alliances
+- Joint ventures
+- Collaboration projects
+
+### Volunteer Opportunities
+- Non-profit work
+- Community service
+- Pro bono projects
+- Social impact initiatives
+
+### Mentorship Opportunities
+- Professional mentoring
+- Industry guidance
+- Skill development
+- Career coaching
+
+### Resource Opportunities
+- Equipment sharing
+- Space rental
+- Service exchange
+- Knowledge sharing
+
+### Event Opportunities
+- Conference speaking
+- Workshop hosting
+- Networking events
+- Training sessions
+
+## Implementation Examples
+
+### Create job offer (`type: 'offer'`)
+
+<Code language="typescript" title="POST /api/opportunities">
+{`const jobOffer = await fetch('/api/opportunities', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: \`Bearer \${token}\`,
+  },
+  body: JSON.stringify({
+    title: 'Senior React Developer',
+    type: 'offer',
+    briefDescription: 'Join our team building next-gen web applications',
+    category: 'engineering',
+    location: 'San Francisco, CA',
+    requiredSkills: ['React', 'TypeScript', 'Next.js'],
+    organizationId: 'entity-123',
+    visibility: 'public',
+    budget: { max: 150000, currency: 'USD' },
+  }),
+})`}
+</Code>
+
+### Create partnership request (`type: 'request'`)
+
+<Code language="typescript" title="POST /api/opportunities">
+{`const partnershipRequest = await fetch('/api/opportunities', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: \`Bearer \${token}\`,
+  },
+  body: JSON.stringify({
+    title: 'Seeking Marketing Partner',
+    type: 'request',
+    briefDescription: 'Digital marketing expertise for product launch',
+    category: 'partnerships',
+    organizationId: 'entity-456',
+    requiredSkills: ['digital marketing', 'social media', 'content'],
+    visibility: 'member',
+  }),
+})`}
+</Code>
+
+### Search opportunities
+
+<Code language="typescript" title="GET /api/opportunities with filters">
+{`const jobsResponse = await fetch(
+  '/api/opportunities?type=offer&location=Remote&limit=20'
+)
+const { opportunities, total } = await jobsResponse.json()
+
+const partnershipsResponse = await fetch(
+  '/api/opportunities?type=request&category=partnerships'
+)
+const partnerships = await partnershipsResponse.json()`}
+</Code>
+
+### Apply to Opportunity
+
+<Code language="typescript" title="TypeScript">
+{`const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    coverLetter: 'I am excited to apply for this position...',
+    resume: 'https://example.com/resume.pdf',
+    portfolio: 'https://portfolio.example.com'
+  })
+})`}
+</Code>
+
+## Access Control
+
+### Opportunity Visibility
+- **Public Opportunities**: Visible to all users
+- **Confidential Opportunities**: Require CONFIDENTIAL role
+
+### Opportunity Management
+- **Create**: Requires MEMBER role
+- **Update/Delete**: Opportunity creator or entity admin
+- **Apply**: Any authenticated user (role-dependent)
+
+### Application Management
+- **View Applications**: Opportunity creator and entity admins
+- **Manage Applications**: Accept/reject applications
+
+## Advanced Features
+
+### Deadline Management
+- Automatic opportunity expiration
+- Deadline notifications
+- Application cutoff handling
+
+### Smart Matching
+- AI-powered opportunity recommendations
+- Skill-based matching
+- Location and preference filtering
+
+### Analytics
+- Application tracking
+- Performance metrics
+- Success rate analysis
+
+---
+
+*Ready to post your first opportunity? Start with our [Getting Started](/en/docs/getting-started) guide.*

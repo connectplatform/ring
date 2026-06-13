@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.0-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.6.4-blue?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/React-19.2_(ALL_features)-61DAFB?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -36,7 +36,7 @@ Ring Platform is the largest, most versatile, and most thoroughly engineered all
 
 Ring Platform is the core technology of **[Ringdom](https://ringdom.org)** -- the First Digital Kingdom for global abundance. While this repository gives you the full open-source codebase, Ringdom offers the turn-key experience: AI customization via Legiox, enterprise-grade K8s hosting in your country or anywhere, and an AI assistant named **Reggie** who will "ringize" your project requirements into a deployment plan with forecasted costs.
 
-**Version**: 1.6.0 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
+**Version**: 1.6.4 | **License**: Open Source | **Origin**: Built by Ray Sorkin, a free person of Ukraine
 
 ## Ringdom Ecosystem
 
@@ -68,6 +68,14 @@ Ringdom.org (Turn-key service layer)
 | Pioneer Settler | $100 | 1,000 RNG | Ring clone + basic customization |
 | Founding Settler | $500 | 5,000 RNG | Ring clone + full AI customization + priority support |
 | Empire Builder | $1,000+ | 10,000+ RNG (with bonus) | Ring clone + enterprise customization + dedicated hosting + Legiox support |
+
+## What's New in v1.6.4 (June 2026)
+
+- **Store product AI chat** — Persisted agent conversations on product pages, unified Ring Messenger, SSE streaming replies (Anthropic/OpenAI/OpenRouter) with Grok fallback
+- **ring-db `*Doc` API** — Domain layer on `db().createDoc` / `findDocById` / `queryDocs` / `db().transaction()` (auto-init, throw-on-failure)
+- **Login redirect hardening** — Client `LoginAuthenticatedRedirect` on `/login` avoids stale-session loops and server `auth()` cold-start
+- **Docs path flatten** — Content at `docs/{locale}/**`; public URLs stay `/docs/...` with `.mdx` / trailing `/index` URL normalization in `next.config.mjs`
+- **Customization doc IA** — `/docs/customization/*` links across platform navigation (retired white-label doc paths)
 
 ## What's New in v1.6.0 (June 2026)
 
@@ -229,7 +237,7 @@ Ring Platform implements a tiered access model for professional networking:
 
 ### Platform Statistics
 
-- **Version**: 1.6.0 (production-deployed, 6+ live clones)
+- **Version**: 1.6.4 (production-deployed, 6+ live clones)
 - **API Endpoints**: 118+ documented endpoints
 - **Routes**: 88+ application routes
 - **Build Time**: ~17 seconds (optimized with Turbopack)
@@ -767,25 +775,25 @@ erDiagram
     }
 ```
 
-**DatabaseService API:**
+**DatabaseService API (domain code — v1.6.4):**
 
 ```typescript
-// Unified API across all backends
-await initializeDatabase()
-const db = getDatabaseService()
+// Prefer db() *Doc methods — auto-initializes, throws on failure
+import { db } from '@/lib/database/DatabaseService'
 
-// CRUD Operations
-const user = await db.findById('users', userId)
-const products = await db.query({ collection: 'store_products', filters: [...] })
-await db.create('orders', orderData)
-await db.update('users', { id: userId, data: updates })
+const user = await db().findDocById<UserRow>('users', userId)
+const products = await db().queryDocs<ProductRow>({ collection: 'store_products', filters: [...] })
+await db().createDoc('orders', orderData)
+await db().updateDoc('users', userId, updates)
 
-// Transactions (PostgreSQL - ACID compliant)
-await db.transaction(async (txn) => {
-  await txn.update('users', { id: userId, data: { balance: newBalance }})
+// Atomic multi-step writes
+await db().transaction(async (txn) => {
+  await txn.update('users', { id: userId, data: { balance: newBalance } })
   await txn.create('transactions', { userId, amount, type: 'payment' })
 })
 ```
+
+Legacy `initializeDatabase()` + `getDatabaseService()` remain for bootstrap and advanced `execute()` batches; new domain code should use `db()` only.
 
 ### White-Label Clone Architecture
 
@@ -1288,7 +1296,7 @@ Ring Platform is **open source software**. Clone, customize, and deploy your own
 </p>
 
 <p align="center">
-  <strong>Version 1.6.0</strong> | <strong>React 19.2 (ALL features)</strong> | <strong>Next.js 16.1</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
+  <strong>Version 1.6.4</strong> | <strong>React 19.2 (ALL features)</strong> | <strong>Next.js 16.1</strong> | <strong>TypeScript 5.9</strong> | <strong>Tailwind 4.1</strong> | <strong>Auth.js v5</strong>
 </p>
 
 <p align="center">

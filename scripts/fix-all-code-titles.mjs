@@ -29,7 +29,7 @@ import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 
-const DOCS_DIR = path.join(process.cwd(), 'docs/content');
+const DOCS_DIR = path.join(process.cwd(), 'docs');
 
 function getSimpleTitle(language) {
   const titleMap = {

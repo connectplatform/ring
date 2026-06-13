@@ -47,7 +47,7 @@ import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 
-const DOCS_DIR = path.join(process.cwd(), 'docs/content');
+const DOCS_DIR = path.join(process.cwd(), 'docs');
 
 function parseCodeWithComments(codeContent, language, title) {
   const lines = codeContent.split('\n');

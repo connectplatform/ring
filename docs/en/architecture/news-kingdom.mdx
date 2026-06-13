@@ -1,0 +1,49 @@
+---
+title: News Kingdom architecture
+description: Migrations, promotion workflow, scoring, and Telegram approval
+last_modified: "2026-06-06"
+---
+
+# News Kingdom architecture
+
+The News Kingdom upgrade (2026-05-21) elevates Ring's news module from a simple CMS to a digital newspaper with promotion, scoring, and member blogs.
+
+## Database
+
+1. `002_news_content_schema.sql` — `news`, `news_categories`, `news_likes`
+2. `003_news_kingdom_upgrade.sql` — promotion fields, blog username, AI score metadata
+
+Document model: JSONB `data` column mapped by `lib/news/map-news-document.ts`.
+
+## Services
+
+| Service | Path |
+|---------|------|
+| Promotion workflow | `features/news/services/news-promotion-workflow.ts` |
+| Payment facade | `features/news/services/news-payment-service.ts` |
+| OpenRouter scoring | `features/news/services/news-scoring-service.ts` |
+| Duplicate check | `features/news/services/news-duplicate-check.ts` |
+| Telegram approval | `features/news/services/news-telegram-approval.ts` |
+
+## Branding
+
+`lib/site-branding.ts` — canonical author/display names per ring clone.
+
+## Promotion flow
+
+```
+Member submits → AI score → Payment (PaymentConductor) → Telegram admin callback → main page
+```
+
+Admin callbacks: `lib/telegram/admin-bot/news-callback-handler.ts`.
+
+## API
+
+- `POST /api/news/promotion/submit`
+- Promotion WayForPay webhook under `app/api/news/promotion/`
+
+## Related
+
+- [News feature](/docs/features/news)
+- [Member blogs](/docs/features/member-blog)
+- [PaymentConductor](/docs/features/payment-conductor)

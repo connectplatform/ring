@@ -327,7 +327,7 @@
 
     "documentation_system": {
       "description": "Complete MDX-based documentation with interactive diagrams, syntax highlighting, and 3-language support",
-      "location": "docs/content/{locale}/library/",
+      "location": "docs/{locale}/",
       "architecture": "MDX with client-side rendering (Mermaid diagrams + @shikijs/core syntax highlighting)",
       "components": ["Callout (4 types)", "Steps", "Tabs", "Card", "MermaidDiagram"],
       "rendering": "remark -> remarkRehype -> rehypeStringify -> HTML (client-side highlighting, <3s load)",

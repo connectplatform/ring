@@ -1,0 +1,20 @@
+---
+title: Архитектура PaymentConductor
+description: Типы, диспетчер webhook, order reference и адаптеры процессоров
+last_modified: "2026-06-06"
+---
+
+# Архитектура PaymentConductor
+
+| Модуль | Ответственность |
+|--------|-----------------|
+| `payment-conductor.ts` | Оркестрация create → redirect / credit / token |
+| `webhook-dispatcher.ts` | Верификация и маршрутизация webhook PSP |
+| `types.ts` | `PaymentPurpose`, `PaymentProcessorId`, `PaymentRail` |
+| `payment-transaction-service.ts` | Запись в реестр |
+
+Процессоры: WayForPay, Stripe, internal credit. Конфиг: `lib/payments/payment.config.ts`.
+
+Идемпотентность через стабильные `orderReference` в `payment_transactions`.
+
+См. [PaymentConductor](/docs/features/payment-conductor).

@@ -1,0 +1,26 @@
+---
+title: Self-hosted розгортання
+description: Docker, install.sh, PostgreSQL — без k8s у публічному репозиторії
+last_modified: "2026-06-06"
+---
+
+# Self-hosted розгортання
+
+Публічний OSS-репозиторій призначений для self-host через Docker і `install.sh`. **Kubernetes-маніфести та Ring CLI не публікуються.**
+
+## Що є в OSS
+
+- `install.sh`, `scripts/setup-dev.sh`, `scripts/run-migration.sh`
+- `Dockerfile`, `DOCKER_SETUP.md`
+- `env.local.template`
+
+## Рекомендований стек
+
+1. `./install.sh`
+2. PostgreSQL + [міграції](/docs/getting-started/migrations)
+3. `DB_BACKEND_MODE=k8s-postgres-fcm`
+4. `docker compose up` або `npm run build && npm start`
+
+Керований хостинг: [ringdom.org](https://ringdom.org).
+
+Див. [OSS vs enterprise](/docs/development/oss-vs-enterprise).

@@ -1,0 +1,43 @@
+---
+title: Inventory & Stock
+description: ERP stock service, movements, thresholds, store reservations, and FSMA-oriented batch tracking
+last_modified: "2026-06-10"
+---
+
+# Inventory & Stock
+
+The **Warehouse Manager** agent (`ERPStockService`) tracks product stock in the default warehouse (`zero-warehouse`), deducts inventory when orders are paid, and logs movements for audit.
+
+## PostgreSQL tables
+
+Store inventory sync and checkout reservations use JSONB tables (in `data/schema.sql` v4.0.1+ and migration `008_inventory_schema.sql`):
+
+| Table | Purpose |
+|-------|---------|
+| `inventory_levels` | Per product+store quantity (`id` = `productId_storeId`) |
+| `inventory_reservations` | Order holds with TTL — released by `/api/cron/cleanup-reservations` |
+| `stock_movements` | ERP audit feed (warehouse agent) |
+
+Apply via [Database migrations](/docs/getting-started/migrations) or `./infrastructure/postgres/bootstrap-brew-dev.sh`.
+
+## Capabilities
+
+- `getStockSummary()` — dashboard totals (in stock, low, critical, out of stock, inventory value)
+- `getLowStockProducts()` — alerts at configurable thresholds (default low: 10, critical: 5)
+- `updateStock()` — add, subtract, or set quantities with reason codes (`sale`, `restock`, `adjustment`, …)
+- `getRecentStockMovements()` — audit feed from `stock_movements` collection
+
+## Admin & vendor UI
+
+| Surface | Route | Actions |
+|---------|-------|---------|
+| Admin stock tab | `/admin/store/stock` | Summary, low-stock list, initialize-all action |
+| Vendor stock | `/vendor/stock` | Per-product levels, restock |
+
+## API
+
+`POST /api/erp/stock/initialize` — bulk initialize stock (admin; dev mode open). See `app/api/erp/stock/initialize/route.ts`.
+
+## FSMA 204 (roadmap)
+
+Batch and lot tracking fields are specified in AI-CONTEXT `erp-inventory.json`; UI for traceability reports is Phase 3.

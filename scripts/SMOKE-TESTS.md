@@ -2,7 +2,7 @@
 
 Service-layer E2E checks for payment, store, ERP, refcodes, and platform pipelines. Each suite seeds throwaway `smk*` rows, calls **real** services (not mocks), asserts PostgreSQL state, and cleans up. Safe to re-run against local `ring_platform` dev DB.
 
-**Pipeline registry:** [`PIPELINES.md`](./PIPELINES.md) · **Coverage matrix / backlog:** [`docs/content/SMOKE-GAPS.md`](../docs/content/SMOKE-GAPS.md)
+**Pipeline registry:** [`PIPELINES.md`](./PIPELINES.md) · **Coverage matrix / backlog:** [`scripts/SMOKE-GAPS.md`](../scripts/SMOKE-GAPS.md)
 
 ## Prerequisites
 
@@ -107,7 +107,7 @@ async function main() {
 ```
 
 - **Unique prefix per suite** (`smk6_`, `smk7_`, …) to avoid collisions when suites run in parallel later.
-- **Register** new files in `scripts/run-all-smokes.sh` and `docs/content/SMOKE-GAPS.md`.
+- **Register** new files in `scripts/run-all-smokes.sh` and `scripts/SMOKE-GAPS.md`.
 - Prefer **service imports** over HTTP unless the route adds auth/middleware you must verify.
 - Use **`--keep`** while debugging failed assertions.
 
@@ -181,6 +181,6 @@ Admin due payouts (`smoke-erp-ops.cts`): `processDueSettlements` → `payout_bat
 
 ## Related docs
 
-- [`docs/content/SMOKE-GAPS.md`](../docs/content/SMOKE-GAPS.md) — funnel coverage table + residual backlog
-- [`docs/content/en/library/features/erp/commissions.mdx`](../docs/content/en/library/features/erp/commissions.mdx) — settlements ledger operator guide
+- [`scripts/SMOKE-GAPS.md`](../scripts/SMOKE-GAPS.md) — funnel coverage table + residual backlog
+- [`docs/en/features/erp/commissions.mdx`](../docs/en/features/erp/commissions.mdx) — settlements ledger operator guide
 - Jest unit tests: `npm test` (e.g. `settlement-pipeline`, `referral-commission`) — complementary, not a substitute for pipeline smokes

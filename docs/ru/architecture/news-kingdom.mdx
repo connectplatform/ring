@@ -1,0 +1,30 @@
+---
+title: Архитектура News Kingdom
+description: Миграции, промоция, скоринг, Telegram-одобрение
+last_modified: "2026-06-06"
+---
+
+# Архитектура News Kingdom
+
+Обновление News Kingdom (2026-05-21) превращает модуль новостей в цифровую газету с промоцией и блогами участников.
+
+## База данных
+
+1. `002_news_content_schema.sql`
+2. `003_news_kingdom_upgrade.sql`
+
+Маппинг: `lib/news/map-news-document.ts`.
+
+## Сервисы
+
+- `news-promotion-workflow.ts` — пайплайн промоции
+- `news-payment-service.ts` — PaymentConductor
+- `news-scoring-service.ts` — OpenRouter
+- `news-telegram-approval.ts` — одобрение в Telegram
+
+## API
+
+- `POST /api/news/promotion/submit`
+- Webhook промоции WayForPay
+
+См. [Новости](/docs/features/news) · [Блоги участников](/docs/features/member-blog).

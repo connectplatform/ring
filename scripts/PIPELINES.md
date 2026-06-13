@@ -1,7 +1,7 @@
 # Ring Platform — Pipeline Registry
 
 Canonical catalog of **known pipelines** exercised by `scripts/smoke-*.cts` suites.  
-Companion docs: [`SMOKE-TESTS.md`](./SMOKE-TESTS.md) (how to run) · [`docs/content/SMOKE-GAPS.md`](../docs/content/SMOKE-GAPS.md) (coverage matrix).
+Companion docs: [`SMOKE-TESTS.md`](./SMOKE-TESTS.md) (how to run) · [`scripts/SMOKE-GAPS.md`](../scripts/SMOKE-GAPS.md) (coverage matrix).
 
 **Last updated:** 2026-06-10 · **Suites in runner:** 10 · **ID prefixes:** `smk_` … `smk10_`
 
@@ -216,6 +216,6 @@ When adding a pipeline smoke:
 1. Assign next prefix (`smk10_`, …) and register in [`run-all-smokes.sh`](./run-all-smokes.sh).
 2. Add row to **Covered pipelines** and **Suite → pipeline index** above.
 3. Remove or mark done the matching **TODO** item.
-4. Update [`docs/content/SMOKE-GAPS.md`](../docs/content/SMOKE-GAPS.md) coverage table.
+4. Update [`scripts/SMOKE-GAPS.md`](../scripts/SMOKE-GAPS.md) coverage table.
 5. Document gotchas in [`SMOKE-TESTS.md`](./SMOKE-TESTS.md) if new (order-ref underscores, WFP signers, etc.).
 

@@ -1,0 +1,44 @@
+---
+title: OSS vs enterprise
+description: What the public GitHub repo includes versus Ringdom settler services
+last_modified: "2026-06-06"
+---
+
+# OSS vs enterprise
+
+Ring Platform v1.6.0 draws a clear line between **open-source community** tooling and **Ringdom enterprise** operations.
+
+## Public OSS (GitHub)
+
+| Included | Notes |
+|----------|-------|
+| Full application source | Next.js 16, React 19, all feature modules |
+| `install.sh` + community scripts | Setup, env, migrations |
+| Docs (`/docs`) | EN-first library |
+| Env templates | No real secrets |
+| Docker | Self-hosted path |
+
+| Excluded (gitignored) | Why |
+|-----------------------|-----|
+| `k8s/` | Production topology + secrets |
+| `cli/` | Empire deploy CLI |
+| `propagation/` | Clone sync manifests |
+| Internal ops scripts | `setup-github-secrets`, `sync-*-to-clones`, etc. |
+
+## Ringdom enterprise
+
+- Managed Kubernetes in your region
+- Reggie AI project ringization
+- Legiox skillsets (NFT-gated)
+- Custom clone propagation and monitoring
+
+Register: [ringdom.org/settler](https://ringdom.org/settler)
+
+## Contributing docs
+
+EN-first; track UK/RU gaps in [`LOCALE-GAPS.md`](/scripts/LOCALE-GAPS.md). Never commit credentials in comments or MDX examples.
+
+## Related
+
+- [Community tooling](/docs/development/community-tooling)
+- [Self-hosted deployment](/docs/deployment/self-hosted)

@@ -1,0 +1,82 @@
+---
+title: Email AI-CRM API
+description: Admin routes, cron processor и inbound webhook
+last_modified: "2026-06-10"
+---
+
+# Email AI-CRM API
+
+> **EN canonical:** полные тела запросов, примеры curl и JSON webhook — [Email AI-CRM API (EN)](/docs/api/email-ai-crm)
+
+<Callout type="warning" title="Доступ админа">
+Все `/api/admin/email/*` требуют сессии **platform admin** (`admin` или `superadmin`).
+</Callout>
+
+<Callout type="info" title="Cron / webhook">
+`/api/cron/*` и `/api/webhooks/email/inbound` — `CRON_SECRET` или `WEBHOOK_EMAIL_SECRET`, не user session.
+</Callout>
+
+## Admin — треды
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/admin/email/threads` | Список тредов; query `status` |
+| `PATCH` | `/api/admin/email/threads` | `{ id, status }` |
+| `GET` | `/api/admin/email/threads/[id]` | Тред + messages + drafts + tasks |
+
+## Admin — черновики
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/admin/email/drafts` | `status: pending` |
+| `POST` | `/api/admin/email/drafts/[id]/approve` | Утвердить |
+| `POST` | `/api/admin/email/drafts/[id]/reject` | `{ reason? }` |
+| `POST` | `/api/admin/email/drafts/[id]/send` | SMTP; опционально `toEmail`, `subject` |
+
+## Admin — контакты, задачи, аналитика
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` / `POST` | `/api/admin/email/contacts` | Поиск / создание контакта |
+| `GET` / `POST` | `/api/admin/email/tasks` | Список / создание задачи |
+| `POST` | `/api/admin/email/tasks/[id]/complete` | `{ completionNotes? }` |
+| `GET` | `/api/admin/email/analytics` | Query `range`: `7d`, `30d`, `90d` |
+
+## Cron — email processor
+
+### `POST` или `GET` `/api/cron/email-processor`
+
+**Auth:** `Authorization: Bearer $CRON_SECRET`
+
+| `action` | Поведение |
+|----------|-----------|
+| `poll` (default) | `pollInboundBatch()` — UNSEEN → process → disconnect |
+| `status` | Статистика процессора + IMAP |
+| `stop` | Остановить IDLE |
+| `start` | IDLE (нужен `EMAIL_PROCESSOR_ALLOW_HTTP_START=true`) |
+| `mark-overdue-tasks` | Просроченные задачи |
+
+```bash
+curl -X POST "$BASE_URL/api/cron/email-processor" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"poll"}'
+```
+
+### `GET /api/cron/email-analytics`
+
+7-дневный снимок дашборда (как admin analytics).
+
+## Webhook — входящая почта
+
+### `POST /api/webhooks/email/inbound`
+
+**Auth:** `Bearer $WEBHOOK_EMAIL_SECRET` или HMAC-SHA256 в `X-Email-Webhook-Signature`.
+
+Минимальные поля: `messageId`, `from`, `subject`, `bodyText`. Вызывает `EmailProcessor.ingestEvent()` с `uid: 0`.
+
+## Связанное
+
+- [Email AI-CRM (функция)](/docs/features/email-ai-crm)
+- [Гайд разработчика](/docs/examples/email-ai-crm)
+- [Admin API](/docs/api/admin)

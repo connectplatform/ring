@@ -3,7 +3,7 @@
  *
  * - remark-gfm: GFM tables, strikethrough, task lists, autolinks (not provided by remark-mdx alone).
  * - Mermaid / MindMap / RingAISynapseFlow: MDX JSX components — not remark plugins; expose them here so
- *   `library/index.mdx` can use the same blocks as deeper pages.
+ *   `docs/{locale}/index.mdx` can use the same blocks as deeper pages.
  * - Fenced code: `rehypeCodeFenceToMdx` → async `<Code>` → server Shiki (`highlightCodeToHtml`).
  */
 import React from 'react'

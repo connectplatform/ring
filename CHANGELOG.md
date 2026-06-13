@@ -2,6 +2,30 @@
 
 All notable changes to Ring Platform are documented in this file.
 
+## [1.6.4] - 2026-06-13
+
+### Added
+- **Store product AI chat** — Persisted agent conversations on product detail pages (product subject in `/messages`), Cursor-style mobile top bar and desktop overlay rail, unified Ring Messenger stack with user search
+- **SSE streaming agent replies** — Token events over `text/event-stream` for product agent chat; Anthropic/OpenAI/OpenRouter streaming in `LLMClient`; live bubble UI while persisting final agent message to Messenger history
+- **Grok streaming fallback** — xAI Grok `chat/completions` when configured LLM providers are not SSE-compatible; guest `UnifiedLoginInline` in open panel with `agentChat=1` restore after login
+- **`LoginAuthenticatedRedirect`** — Client-side `/login` bounce for genuinely authenticated sessions (`useSession`), avoiding stale-cookie redirect loops and server `auth()` cold-start blocking
+- **`getDocsLocaleRoot()`** — Shared physical MDX root helper in `lib/docs/docs-path.ts`
+
+### Changed
+- **ring-db `*Doc` migration** — Domain layer standardized on `db().*Doc` CRUD and `db().transaction()` for atomic writes; removed `getDatabaseService`, `initializeDatabase`, and `execute()` from features, app routes, pages, and services
+- **Docs root SSOT** — Physical MDX at `docs/{locale}/**` (retired `docs/content/` wrapper and `library/` segment); unified resolver in `lib/docs/docs-path.ts` (`resolveDocFilePath`, `buildDocsHref`, `scanDocsStaticParams`); optional catch-all `docs/[[...slug]]`; `.mdx` suffix and trailing `/index` URL normalization in `next.config.mjs` (no `/docs/library/` back-compat)
+- **Customization doc IA** — Navigation links `white-label` → `/docs/customization/*` across docs sidebar, navigation tree, and platform sidebar
+- **Docs link sweep** — Updated stale `/docs/library/` and filesystem path references across EN/UK/RU MDX and ops docs; `LOCALE-GAPS.md` / `SMOKE-GAPS.md` moved to `scripts/`
+- **Sidebar hydration** — Mobile bottom nav and user widget render without `mounted` gate; theme toggle SSR-safe; collapse uses `.sidebar-aside-col` opacity instead of blank aside placeholder
+- **Version** — `1.6.1` → `1.6.4`
+
+### Fixed
+- **`*Doc` / `DbRow` typing** — `UserRow` for auth reads; typed `queryDocs` generics across auth/store services; opportunity mapper signature; client/server bundle boundary (`product-agent` constants split; citation validator no longer imports server LLM/pg into editor bundle)
+- **Auth status** — Removed `login/pending` from valid status types; auth status page no longer depends on `useSession` for post-login redirect
+- **Backend mode doc URL** — Error hint points to `/en/docs/architecture/backend-modes-and-databases`
+
+---
+
 ## [1.6.1] - 2026-06-07
 
 ### Added
@@ -19,7 +43,7 @@ All notable changes to Ring Platform are documented in this file.
 
 ### Changed
 - **Version** — `1.6.0` → `1.6.1`
-- **Docs navigation** — `docs-navigation-tree.tsx` aligned with expanded library structure and locale gap tracker (`docs/content/LOCALE-GAPS.md`)
+- **Docs navigation** — `docs-navigation-tree.tsx` aligned with expanded library structure and locale gap tracker (`scripts/LOCALE-GAPS.md`)
 - **Store PostgreSQL adapter** — Order status and query hardening in `features/store/postgresql-adapter.ts`
 
 ---
@@ -35,7 +59,7 @@ All notable changes to Ring Platform are documented in this file.
 - **Content favorites API** (2026-05-29) — `app/(public)/api/user/favorites` + `useContentFavorite` for news articles
 - **DaVinci mobile UX (inline)** (2026-05-29) — Glass guest auth and fullscreen menu inlined in `bottom-navigation.tsx` and `mobile-menu.tsx`; news hero + Web Share in `NewsArticleHeader`
 - **Proxy-intl module** (2026-05-28) — `lib/proxy-intl.ts` shared helpers for `localePrefix: 'as-needed'` slim proxy
-- **Backend modes documentation** — `docs/content/en/library/architecture/backend-modes-and-databases.mdx`
+- **Backend modes documentation** — `docs/en/architecture/backend-modes-and-databases.mdx`
 - **Push notifications FCM + Ethereum wallets docs** — New integration MDX pages (EN)
 - **OSS security boundary** — Hardened `.gitignore`; public tree excludes `k8s/`, `cli/`, propagation manifests, and internal ops scripts
 

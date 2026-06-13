@@ -4,6 +4,8 @@
 
 The Ring Platform Database Abstraction Layer provides a unified interface for database operations across multiple backends including PostgreSQL and Firebase. This abstraction enables seamless switching between databases, automatic failover, and cross-database synchronization.
 
+> **Domain code standard (v1.6.4):** Use `db()` from `@/lib/database/DatabaseService` — `findDocById`, `queryDocs`, `createDoc`, `updateDoc`, `deleteDoc`, and `transaction()` for atomic writes. Methods auto-initialize and throw on failure. Legacy `initializeDatabase()` + `getDatabaseService()` remain for bootstrap and advanced `execute()` batches only.
+
 ## Key Features
 
 - **🔄 Multi-Backend Support**: PostgreSQL and Firebase Firestore
@@ -36,7 +38,20 @@ The Ring Platform Database Abstraction Layer provides a unified interface for da
 
 ## Quick Start
 
-### Basic Setup
+### Basic Setup (domain code — v1.6.4)
+
+```typescript
+import { db } from '@/lib/database/DatabaseService';
+
+// Auto-initializes on first call; throws on error
+const user = await db().findDocById('users', userId);
+await db().createDoc('users', {
+  email: 'user@example.com',
+  name: 'John Doe',
+});
+```
+
+### Legacy bootstrap (scripts, advanced batches)
 
 ```typescript
 import { createDatabaseService, initializeDatabase } from '@/lib/database';

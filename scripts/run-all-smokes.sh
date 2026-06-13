@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run all Ring pipeline smoke suites against dev ring_platform.
 #
-# Docs: scripts/SMOKE-TESTS.md  |  Coverage: docs/content/SMOKE-GAPS.md
+# Docs: scripts/SMOKE-TESTS.md  |  Coverage: scripts/SMOKE-GAPS.md
 #
 # Usage:
 #   ./scripts/run-all-smokes.sh

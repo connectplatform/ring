@@ -72,7 +72,7 @@ copy_tree "$CANON/app/(authenticated)/[locale]/vendor/stock" "$TARGET/app/(authe
 copy_tree "$CANON/app/api/vendor/status" "$TARGET/app/api/vendor/status"
 copy_tree "$CANON/app/api/cron/refcodes-mint" "$TARGET/app/api/cron/refcodes-mint"
 copy_tree "$CANON/components/refcodes" "$TARGET/components/refcodes"
-copy_tree "$CANON/docs/content/en/library/features/erp" "$TARGET/docs/content/en/library/features/erp"
+copy_tree "$CANON/docs/en/features/erp" "$TARGET/docs/en/features/erp"
 copy_file "$CANON/REFERRAL-ONCHAIN-OPS.md" "$TARGET/REFERRAL-ONCHAIN-OPS.md"
 
 # Contracts (optional but recommended for deploy)
@@ -245,7 +245,7 @@ SHARED FILE PATCHES (manual — merge if Reggie/propagate skipped a hunk)
     - locales/*/vendor.json: orders/earnings/settings/stock blocks + dashboard
       quick-actions + earnings.simulatedBadge
 
-22) docs/content/en/library/features/meta.json — add "erp"; docs nav tree must
+22) docs/en/features/meta.json — add "erp"; docs nav tree must
     support one nested meta.json level (components/docs/docs-navigation-tree.tsx).
 
 23) env.local.template — append blocks: REFERRAL CODES MODULE, CRON_SECRET,

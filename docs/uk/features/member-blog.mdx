@@ -1,0 +1,30 @@
+---
+title: Блоги учасників
+description: URL /blog/username/slug та інтеграція з News Kingdom
+last_modified: "2026-06-06"
+---
+
+# Блоги учасників
+
+v1.6.0 виправляє маршрутизацію блогів і зв’язує їх із пайплайном промоції News Kingdom.
+
+## Формат URL
+
+```
+/blog/{username}
+/blog/{username}/{slug}
+```
+
+Допоміжники: `lib/blog/blog-path.ts` — не хардкодьте шляхи вручну.
+
+## Інтеграція з новинами
+
+Пости учасників можна промотувати на головну стрічку через PaymentConductor і Telegram-затвердження. Див. [News Kingdom](/docs/architecture/news-kingdom).
+
+## Обране
+
+`POST /api/user/favorites` та хук `useContentFavorite`.
+
+## Пов’язане
+
+- [Модуль новин](/docs/features/news)

@@ -1,0 +1,26 @@
+---
+title: Proxy та інтернаціоналізація
+description: Slim Auth.js proxy, авторизація в layouts, lib/proxy-intl
+last_modified: "2026-06-06"
+---
+
+# Proxy та інтернаціоналізація
+
+Ring Platform використовує **next-intl** з `localePrefix: 'as-needed'` і **slim proxy** для перезапису локалі — не для повної авторизації.
+
+## Шари захисту
+
+| Шар | Роль |
+|-----|------|
+| `proxy.ts` | Локаль, optimistic redirect на `/login` |
+| `(authenticated)/[locale]/layout.tsx` | `await auth()` |
+| `(admin)/[locale]/layout.tsx` | Перевірка ролі |
+| API routes | `auth()` на маршруті |
+
+## lib/proxy-intl.ts
+
+Спільні хелпери для strip locale, self-referential redirect guard, SEO headers.
+
+OAuth: `/api/auth/*` виключено з intl middleware.
+
+Див. [Автентифікація](/docs/features/authentication).

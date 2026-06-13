@@ -1,0 +1,124 @@
+---
+title: Generative Images (ImageConductor)
+description: Provider-agnostic image generation via xAI Grok Imagine and Google Imagen — MCP, admin UI, and ring-filebase storage
+last_modified: "2026-06-09"
+---
+
+# Generative Images (`ImageConductor`)
+
+Ring Platform ships a provider-agnostic **ImageConductor** — the same facade pattern as `PaymentConductor` and `file()`. Generated assets upload to **ring-filebase** and return a permanent CDN URL.
+
+## Architecture
+
+```text
+Surface (MCP / admin UI / server code)
+  → ImageConductor.generate(ctx)
+    → provider (xai | google)
+    → file().upload(generated/…)
+    → optional DB row in generated_images
+  → { success, images: [{ url, … }] }
+```
+
+| Layer | Path |
+|-------|------|
+| Types | `lib/images/conductor/types.ts` |
+| Config | `lib/images/image.config.ts` |
+| Providers | `lib/images/providers/xai.provider.ts`, `google.provider.ts` |
+| Facade | `lib/images/conductor/image-conductor.ts` |
+| Public API | `lib/images/index.ts` |
+
+## Surfaces
+
+| Surface | Entry |
+|---------|--------|
+| **MCP** | `ring-image-create` → `POST /api/mcp/v1/images/generate` |
+| **Admin session API** | `POST /api/images/generate` (Auth.js admin) |
+| **UI** | `components/media/generate-image-dialog.tsx` in news editor + rich text editor |
+
+See [Ring MCP — Image generation](/en/docs/development/ring-mcp#image-generation) for MCP operator examples.
+
+## Request body
+
+```json
+{
+  "prompt": "professional tech banner, vibrant gradient",
+  "provider": "xai",
+  "aspectRatio": "16:9",
+  "resolution": "2k",
+  "n": 1,
+  "purpose": "news-featured",
+  "refCode": "optional-tracking-id",
+  "seed": 42
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `prompt` | Yes | Natural-language description |
+| `provider` | No | `xai` (default) or `google` |
+| `aspectRatio` | No | xAI: flexible; Google: `1:1`, `3:4`, `4:3`, `9:16`, `16:9` |
+| `resolution` | No | `1k` or `2k` (xAI) |
+| `n` | No | Number of images (default 1) |
+| `purpose` | No | Storage path segment, e.g. `og`, `news-featured` |
+| `actorId` | MCP/session | Set automatically from actor or session |
+
+**OG preset:** `aspectRatio: "2:1"` on xAI (~1200×630). For Google Imagen use `16:9` as nearest OG ratio.
+
+## Environment
+
+Add to `.env.local` (see `env.local.template`):
+
+```bash
+IMAGE_GEN_PROVIDER=xai
+IMAGE_GEN_STORAGE_PREFIX=generated
+IMAGE_GEN_POLL_TIMEOUT_MS=120000
+
+XAI_API_KEY=your_key
+XAI_API_BASE_URL=https://api.x.ai/v1
+XAI_IMAGE_MODEL=grok-imagine-image-quality
+XAI_IMAGE_RESOLUTION=2k
+XAI_IMAGE_ASPECT_RATIO=1:1
+
+# Optional Google Imagen fallback
+GOOGLE_GENAI_API_KEY=
+GOOGLE_GENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+GOOGLE_IMAGE_MODEL=imagen-4.0-generate-001
+GOOGLE_IMAGE_SIZE=2K
+GOOGLE_IMAGE_ASPECT_RATIO=1:1
+```
+
+Requires **ring-filebase** (`FILE_BACKEND=ringbase`, `RINGBASE_API_URL`, `RINGBASE_API_TOKEN`) or your configured storage backend.
+
+## Database
+
+Migration `data/migrations/006_generated_images_schema.sql` adds `generated_images` audit rows (provider, model, prompt, URL). Mirror exists in `data/schema.sql`.
+
+## Programmatic usage
+
+```typescript
+import { ImageConductor } from '@/lib/images/conductor/image-conductor'
+
+const result = await ImageConductor.generate({
+  prompt: 'Ring Platform community meetup photo',
+  purpose: 'news-featured',
+  aspectRatio: '16:9',
+  actorId: userId,
+})
+
+if (result.success && result.images?.[0]?.url) {
+  const featuredImage = result.images[0].url
+}
+```
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|--------|
+| `XAI_API_KEY is not configured` | Key in `.env.local`, restart `npm run dev` |
+| Upload failed | `RINGBASE_API_TOKEN`, `FILE_BACKEND=ringbase` |
+| Timeout | Raise `IMAGE_GEN_POLL_TIMEOUT_MS` (default 120000) |
+| Empty image | Provider quota, prompt policy, or model name drift |
+
+---
+
+*Related: [Autonomous newsroom](/en/docs/development/generative-newsroom) uses ImageConductor for featured images.*

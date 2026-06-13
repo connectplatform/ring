@@ -1,0 +1,299 @@
+---
+title: Швидкий старт
+description: Документація швидкого старту для платформи Ring
+---
+
+# Приклади швидкого старту
+
+Запустіть платформу Ring за лічені хвилини з цими практичними прикладами.
+
+## Клон і встановлення (v1.6.0)
+
+```bash
+git clone https://github.com/connectplatform/ring.git
+cd ring
+./install.sh
+```
+
+**Ring CLI** (`ring`) не в публічному репозиторії. Див. [Community tooling](/docs/development/community-tooling).
+
+## 🚀 5-хвилинне налаштування
+
+### Базова інтеграція платформи Ring
+
+// app/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { auth } from '@/auth'
+import { redirect } from 'next/navigation'
+
+export default async function HomePage() {
+  const session = await auth()
+  
+  if (!session) {
+    redirect('/login')
+  }
+
+  return (
+    <div className="container mx-auto p-8">
+      <h1>Ласкаво просимо до платформи Ring</h1>
+      <p>Привіт, {session.user?.name}!</p>
+    </div>
+  )
+}`}
+</Code>
+### Налаштування середовища
+
+.env.local Firebase Configuration OAuth Providers
+
+<Code language="bash" title="terminal">
+{`NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key
+
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret`}
+</Code>
+## 📱 Базові компоненти
+
+### Компонент профілю користувача
+
+// components/UserProfile.tsx
+
+<Code language="typescript" title="TypeScript">
+{`import { useSession } from 'next-auth/react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
+export function UserProfile() {
+  const { data: session } = useSession()
+  
+  if (!session) return null
+
+  return (
+    <div className="flex items-center space-x-4">
+      <Avatar>
+        <AvatarImage src={session.user?.image || ''} />
+        <AvatarFallback>
+          {session.user?.name?.charAt(0) || 'U'}
+        </AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-medium">{session.user?.name}</p>
+        <p className="text-sm text-gray-500">{session.user?.email}</p>
+      </div>
+    </div>
+  )
+}`}
+</Code>
+### Компонент списку сутностей
+
+// components/EntityList.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useEffect, useState } from 'react'
+
+interface Entity {
+  id: string
+  name: string
+  type: string
+  description: string
+}
+
+export function EntityList() {
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchEntities() {
+      try {
+        const response = await fetch('/api/entities')
+        const data = await response.json()
+        setEntities(data.entities || [])
+      } catch (error) {
+        console.error('Failed to fetch entities:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEntities()
+  }, [])
+
+  if (loading) {
+    return <div>Loading entities...</div>
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {entities.map((entity) => (
+        <div key={entity.id} className="border rounded-lg p-4 bg-white shadow-sm">
+          <h3 className="font-semibold text-lg mb-2">{entity.name}</h3>
+          <p className="text-sm text-gray-600 mb-2">{entity.type}</p>
+          <p className="text-gray-700">{entity.description}</p>
+        </div>
+      ))}
+    </div>
+  )
+}`}
+</Code>
+## 🔐 Приклади автентифікації
+
+### Автентифікація через Magic Link
+
+// app/(public)/[locale]/login/page.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { signIn } from 'next-auth/react'
+import { useState } from 'react'
+
+export default function SignIn() {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      await signIn('email', { 
+        email,
+        callbackUrl: '/dashboard'
+      })
+    } catch (error) {
+      console.error('Sign in failed:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-md mx-auto mt-8">
+      <form onSubmit={handleMagicLink} className="space-y-4">
+        <input
+          type="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 border rounded-lg"
+          required
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Sending...' : 'Send Magic Link'}
+        </button>
+      </form>
+    </div>
+  )
+}`}
+</Code>
+## 🌐 Інтеграція API
+
+### Базовий виклик API
+
+// lib/api.ts
+
+<Code language="typescript" title="TypeScript">
+{`export async function createEntity(data: {
+  name: string
+  type: string
+  description: string
+}) {
+  const response = await fetch('/api/entities', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to create entity')
+  }
+
+  return response.json()
+}
+
+// Usage in component
+const handleCreateEntity = async () => {
+  try {
+    const entity = await createEntity({
+      name: 'My Company',
+      type: 'technology',
+      description: 'Building the future'
+    })
+    console.log('Entity created:', entity)
+  } catch (error) {
+    console.error('Error:', error)
+  }
+}`}
+</Code>
+## 💰 Інтеграція Web3
+
+### Підключення гаманця
+
+// components/WalletConnect.tsx
+
+<Code language="typescript" title="TypeScript">
+{`'use client'
+
+import { useEffect, useState } from 'react'
+
+export function WalletConnect() {
+  const [wallet, setWallet] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const connectWallet = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/wallet/create', {
+        method: 'POST',
+      })
+      const data = await response.json()
+      setWallet(data.address)
+    } catch (error) {
+      console.error('Failed to connect wallet:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-4 border rounded-lg">
+      {wallet ? (
+        <div>
+          <p className="text-sm text-gray-600">Wallet Connected:</p>
+          <p className="font-mono text-sm">{wallet}</p>
+        </div>
+      ) : (
+        <button
+          onClick={connectWallet}
+          disabled={loading}
+          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
+        >
+          {loading ? 'Connecting...' : 'Connect Wallet'}
+        </button>
+      )}
+    </div>
+  )
+}`}
+</Code>
+## 🎯 Наступні кроки
+
+1. **[Приклади автентифікації](/uk/docs/examples/authentication)** - Дослідіть розширені патерни авторизації
+2. **[Інтеграція API](/uk/docs/examples/api-integration)** - Поглиблене вивчення використання API
+3. **[Інтеграція Web3](/uk/docs/examples/web3-integration)** - Розширені функції блокчейну
+4. **[Реальні додатки](/uk/docs/examples/real-world)** - Повноцінні приклади застосунків
+
+---
+
+*Потрібна допомога? Приєднуйтесь до нашої [Discord спільноти](https://discord.gg/ring-platform) або перевірте [Документацію API](/uk/docs/api).*

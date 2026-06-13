@@ -82,7 +82,7 @@ NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
 NEXT_PUBLIC_DEFAULT_LOCALE=en
 ```
 
-See [`lib/locale-config.ts`](lib/locale-config.ts) and [docs: locale system](/docs/library/features/locale-system).
+See [`lib/locale-config.ts`](lib/locale-config.ts) and [docs: locale system](/docs/features/locale-system).
 
 **PostgreSQL migrations (order):**
 

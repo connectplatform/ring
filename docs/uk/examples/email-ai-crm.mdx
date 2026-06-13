@@ -1,0 +1,89 @@
+---
+title: Email AI-CRM — гайд розробника
+description: .env.local, міграції 009/010, cron poll і SMTP smoke test
+last_modified: "2026-06-10"
+---
+
+# Email AI-CRM — гайд розробника
+
+Налаштування модуля на **локальному або self-hosted** клоні Ring: `.env.local`, міграції (за потреби), перевірка ingest і відправки чернетки з адмін UI.
+
+> **EN canonical:** повний troubleshooting і webhook — [Email AI-CRM developer guide (EN)](/docs/examples/email-ai-crm)
+
+## 1. Локальне середовище
+
+Блок **EMAIL CRM** з `env.local.template` → `.env.local`:
+
+```bash
+# .env.local
+IMAP_HOST=mail.example.com
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+
+ANTHROPIC_API_KEY=
+
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_CRM_PERSISTENCE=memory
+```
+
+## 2. Міграції
+
+```bash
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+```
+
+Приберіть `EMAIL_CRM_PERSISTENCE=memory`, якщо потрібна персистентність у Postgres.
+
+## 3. Ingest (локально)
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/cron/email-processor" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"poll"}'
+```
+
+## 4. SMTP smoke test
+
+<Mermaid>
+{`flowchart LR
+    A[Лист на inbox] --> B[Cron poll]
+    B --> C[Admin Inbox]
+    C --> D[Approve draft]
+    D --> E[Send SMTP]
+    E --> F[Відповідь відправнику]`}
+</Mermaid>
+
+1. Тест на `IMAP_USER`.
+2. `poll`.
+3. **Admin → Email Inbox** → **Email Drafts** → approve → send.
+4. Після успіху: `EMAIL_AUTO_SEND_ENABLED=true`.
+
+## 5. Продакшн cron
+
+```bash
+curl -sS -X POST "$BASE_URL/api/cron/email-processor" \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  -d '{"action":"poll"}'
+```
+
+## Усунення несправностей
+
+| Симптом | Перевірка |
+|---------|-----------|
+| Порожній inbox | Міграції або `memory`? `ANTHROPIC_API_KEY`? |
+| 401 на cron | `CRON_SECRET` у Bearer |
+| Send fails | `SMTP_*`, порт 587 |
+
+## Пов’язане
+
+- [Email AI-CRM](/docs/features/email-ai-crm)
+- [Environment](/docs/deployment/environment#email-ai-crm)

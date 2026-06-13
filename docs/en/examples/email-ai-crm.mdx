@@ -1,0 +1,128 @@
+---
+title: Email AI-CRM developer guide
+description: Local .env.local setup, migrations, cron poll, SMTP smoke test, and production cron
+last_modified: "2026-06-10"
+---
+
+# Email AI-CRM developer guide
+
+Set up the Email AI-CRM module on a **local or self-hosted** Ring clone: configure `.env.local`, apply JSONB migrations when using Postgres, then verify ingest and draft send from the admin UI.
+
+## 1. Local environment
+
+Copy the **EMAIL CRM** block from `env.local.template` into `.env.local`:
+
+```bash
+# .env.local
+IMAP_HOST=mail.example.com
+IMAP_PORT=993
+IMAP_TLS=true
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+
+ANTHROPIC_API_KEY=
+
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+WEBHOOK_EMAIL_SECRET=              # optional: webhook ingest instead of IMAP
+EMAIL_CRM_PERSISTENCE=memory       # quick start without DB tables
+```
+
+<Callout type="info" title="Postgres-backed dev">
+Remove `EMAIL_CRM_PERSISTENCE=memory` and apply migrations below so threads and drafts persist across restarts.
+</Callout>
+
+## 2. Database migrations
+
+When `DATABASE_URL` points at your dev Postgres:
+
+```bash
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+psql "$DATABASE_URL" -c "\dt email_*"
+```
+
+<Callout type="warning" title="Do not use 001_email_crm_schema.sql">
+`001_email_crm_schema.sql` is **deprecated** (column-model CRM). Always apply **009 + 010** only. If old column tables exist **with data**, migrate rows into JSONB `data` documents before `009` (which drops empty legacy tables only). ring-ringdom-org keeps the file under `data/migrations/_deprecated/` for archaeology.
+</Callout>
+
+## 3. Trigger ingest (local)
+
+**Option A — cron poll** (matches production):
+
+```bash
+curl -sS -X POST "http://localhost:3000/api/cron/email-processor" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"poll"}'
+```
+
+**Option B — webhook** (no IMAP required for the test):
+
+```bash
+BODY='{"messageId":"<test@local>","from":"you@example.com","to":"info@example.com","subject":"Hi","bodyText":"Hello"}'
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$WEBHOOK_EMAIL_SECRET" | awk '{print $2}')
+
+curl -X POST "http://localhost:3000/api/webhooks/email/inbound" \
+  -H "Content-Type: application/json" \
+  -H "X-Email-Webhook-Signature: $SIG" \
+  -d "$BODY"
+```
+
+## 4. SMTP smoke test
+
+1. Send a test message to your configured inbox (`IMAP_USER`).
+2. Run cron `poll` (or use the webhook example above).
+3. Open **Admin → Email Inbox** — thread should appear.
+4. Open **Email Drafts** — approve a draft, click send.
+5. Confirm reply in the sender mailbox and an outbound row in `email_messages`.
+
+Only then set `EMAIL_AUTO_SEND_ENABLED=true`.
+
+## 5. Admin UI checklist
+
+| Page | URL | Expect |
+|------|-----|--------|
+| Inbox | `/{locale}/admin/email-inbox` | Live threads from API |
+| Thread | `/{locale}/admin/email-inbox/<threadId>` | Message timeline |
+| Drafts | `/{locale}/admin/email-drafts` | Approve / reject / send |
+| Contacts | `/{locale}/admin/email-contacts` | CRM from processor |
+| Analytics | `/{locale}/admin/email-analytics` | Cost from `email_api_usage` |
+| Tasks | `/{locale}/admin/email-tasks` | Auto-created follow-ups |
+
+## 6. Production cron
+
+Schedule the same poll endpoint on your deployed `BASE_URL` every 1–5 minutes:
+
+```bash
+curl -sS -X POST "$BASE_URL/api/cron/email-processor" \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"poll"}'
+```
+
+Optional analytics snapshot: `GET $BASE_URL/api/cron/email-analytics` with the same Bearer token.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|--------|
+| Empty inbox | Migrations applied (or `EMAIL_CRM_PERSISTENCE=memory`)? Cron `poll` returning `processed > 0`? |
+| No AI draft | `ANTHROPIC_API_KEY` set? Security pipeline blocked? Check server logs. |
+| Duplicate processing | Should not occur — `email_messages` Message-ID dedup |
+| Draft send fails | `SMTP_*` credentials, port 587 STARTTLS, firewall to `SMTP_HOST` |
+| Auto-send silent | `EMAIL_AUTO_SEND_ENABLED=true` and confidence rules met |
+| 401 on cron | `CRON_SECRET` matches `Authorization: Bearer` header |
+
+## Related
+
+- [Email AI-CRM feature](/docs/features/email-ai-crm)
+- [Email AI-CRM API](/docs/api/email-ai-crm)
+- [Migrations](/docs/getting-started/migrations)
+- [Environment](/docs/deployment/environment#email-ai-crm)

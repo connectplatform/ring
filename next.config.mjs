@@ -12,6 +12,35 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 const createNextIntlPlugin = require('next-intl/plugin')
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
+/** Docs URL-shape normalizations (filesystem resolution stays in lib/docs/docs-path.ts). */
+function buildDocsUrlRedirects() {
+  const redirects = []
+  const prefixedLocales = ['uk', 'ru']
+
+  const addForBase = (base) => {
+    redirects.push(
+      {
+        source: `${base}/:path*.mdx`,
+        destination: `${base}/:path*`,
+        permanent: true,
+      },
+      {
+        source: `${base}/:path*/index`,
+        destination: `${base}/:path*`,
+        permanent: true,
+      },
+    )
+  }
+
+  // default locale (en) — localePrefix: 'as-needed'
+  addForBase('/docs')
+  for (const locale of prefixedLocales) {
+    addForBase(`/${locale}/docs`)
+  }
+
+  return redirects
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -29,7 +58,7 @@ const nextConfig = {
     AUTH_FIREBASE_PRIVATE_KEY: process.env.AUTH_FIREBASE_PRIVATE_KEY,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     AUTH_SECRET: process.env.AUTH_SECRET,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3333',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
     AUTH_APPLE_ID: process.env.AUTH_APPLE_ID,
     AUTH_APPLE_SECRET: process.env.AUTH_APPLE_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
@@ -37,6 +66,9 @@ const nextConfig = {
     NEXT_PUBLIC_AUTH_GOOGLE_ID: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID || process.env.AUTH_GOOGLE_ID,
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
     AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
+  },
+  async redirects() {
+    return buildDocsUrlRedirects()
   },
   async headers() {
     // SECURITY FIX: Restrict CORS to specific origins only

@@ -41,7 +41,7 @@ Full Ringdom deploy runbook (secrets paths, k8s cron, `info@ringdom.org`, SMTP s
 
 → **[EMAIL-CRM-OPS.md](./EMAIL-CRM-OPS.md)** (operators / LegioX only; not duplicated in public docs)
 
-Public developer setup: `docs/content/en/library/examples/email-ai-crm.mdx`.
+Public developer setup: `docs/en/examples/email-ai-crm.mdx`.
 
 ## Optional news seeds
 
@@ -49,9 +49,9 @@ Community announcements: [`scripts/seed-news-v1.6.0.sql`](../scripts/seed-news-v
 
 ## Docs
 
-- [Getting started: migrations](/docs/library/getting-started/migrations)
-- [News Kingdom architecture](/docs/library/architecture/news-kingdom)
-- [PaymentConductor](/docs/library/features/payment-conductor)
-- [Referral Codes](/docs/library/features/refcodes)
-- [Email AI-CRM](/docs/library/features/email-ai-crm)
+- [Getting started: migrations](/docs/getting-started/migrations)
+- [News Kingdom architecture](/docs/architecture/news-kingdom)
+- [PaymentConductor](/docs/features/payment-conductor)
+- [Referral Codes](/docs/features/refcodes)
+- [Email AI-CRM](/docs/features/email-ai-crm)
 - [EMAIL-CRM-OPS.md](./EMAIL-CRM-OPS.md) — internal ring-ringdom-org production runbook

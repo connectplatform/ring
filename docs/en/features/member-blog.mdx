@@ -1,0 +1,37 @@
+---
+title: Member Blogs
+description: Per-member blog URLs at /blog/username/slug with kingdom news promotion
+last_modified: "2026-06-06"
+---
+
+# Member Blogs
+
+v1.6.0 fixes member blog routing and integrates with the News Kingdom promotion pipeline.
+
+## URL shape
+
+```
+/blog/{username}
+/blog/{username}/{slug}
+```
+
+Routes: `app/(public)/[locale]/blog/[username]/page.tsx` and `.../[slug]/page.tsx`.
+
+Path helpers: `lib/blog/blog-path.ts` — use these instead of hardcoding URLs.
+
+## History (2026-05-29)
+
+Earlier trees used a parallel route slot `blog/@[username]/`, which did **not** produce `/blog/@handle/` URLs in App Router. The canonical pattern is a dynamic `[username]` segment with `@` only in the **param value** when needed.
+
+## News integration
+
+Member posts can be promoted to the main news feed with kingdom fields (`promoteToMainPage`, `mainPageStatus`, payment via PaymentConductor). See [News Kingdom](/docs/architecture/news-kingdom).
+
+## Content favorites
+
+Authenticated users can bookmark articles via `POST /api/user/favorites` and `useContentFavorite` hook.
+
+## Related
+
+- [News module](/docs/features/news)
+- [News Kingdom architecture](/docs/architecture/news-kingdom)

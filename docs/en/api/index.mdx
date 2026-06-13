@@ -1,0 +1,92 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# API Reference
+
+Welcome to the **Ring Platform API** — **132 route handlers** across entities, opportunities, store, payments (PaymentConductor), news, wallet, tunnel, and more (v1.6.0).
+
+## 🚀 Quick Start
+
+### Base URL
+```
+https://ring.ck.ua/api
+```
+
+### Authentication
+All API requests require authentication using Auth.js v5:
+
+<Code language="bash" title="curl -H "Authorization: Bearer YOUR_TOKEN" \">
+{`https://ring.ck.ua/api/entities`}
+</Code>
+
+## 📚 API Domains
+
+### 🔐 Authentication
+**3 endpoints** - Multi-provider OAuth, magic links, crypto wallets
+- [Authentication Guide](/en/docs/api/authentication)
+
+### 🏢 Entities  
+**8 endpoints** - Organization management with role-based access
+- [Entities API](/en/docs/api/entities)
+
+### 💼 Opportunities
+**7 endpoints** - Dual-type marketplace (offers/requests)
+- [Opportunities API](/en/docs/api/opportunities)
+
+### 💬 Messaging
+**8 endpoints** - Real-time communication system
+- [Messaging API](/en/docs/api/messaging)
+
+### 🔔 Notifications
+**9 endpoints** - Push notifications and preferences
+- [Notifications API](/en/docs/api/notifications)
+
+### 💰 Wallet
+**10 endpoints** - Web3 wallet and token management
+- [Wallet API](/en/docs/api/wallet)
+
+### 🏪 Store
+**7 endpoints** - Multi-vendor marketplace
+- [Store API](/en/docs/api/store)
+
+### ⚙️ Admin
+**5 endpoints** - Platform administration
+- [Admin API](/en/docs/api/admin)
+
+### 📧 Email AI-CRM
+**Admin + cron + webhook** — IMAP ingest, draft review, contacts, tasks, analytics (v1.6.0, 2026-06)
+- [Email AI-CRM API](/en/docs/api/email-ai-crm)
+
+## 🛠️ Interactive Features
+
+### Live API Testing
+Test endpoints directly in the documentation with our interactive API explorer.
+
+### Code Generation
+Generate code examples in multiple languages:
+- cURL commands
+- JavaScript/TypeScript
+- Python
+- PHP
+
+### Postman Collection
+Download our complete Postman collection with pre-configured environments.
+
+## 📊 API Statistics
+
+- **77 Total Endpoints** across 9 domains
+- **< 150ms** average response time
+- **Rate Limited** at 1000 requests/hour per user
+
+## 🔒 Security
+
+- **OAuth 2.0** with multiple providers
+- **JWT Tokens** with automatic refresh
+- **Role-based Access Control** (RBAC)
+- **Rate Limiting** and DDoS protection
+
+---
+
+*Ready to build with Ring Platform? Start with our [Getting Started](/en/docs/getting-started) guide.*

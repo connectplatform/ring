@@ -1,0 +1,33 @@
+---
+title: Керування вендорами
+description: Онбординг, рівні довіри, замовлення та заробіток вендора
+last_modified: "2026-06-10"
+---
+
+# Керування вендорами
+
+Мультивендорний маркетплейс Ring пов’язує **entities** (`storeActivated: true`) з профілями вендорів, власністю товарів і конфігурацією виплат.
+
+> **EN canonical:** [Vendor Management (EN)](/docs/features/erp/vendor-management)
+
+## Життєвий цикл
+
+1. **Онбординг** — `/vendor/start` (slug, брендинг, категорії).
+2. **Товари** — `/vendor/products` (+ модерація головного магазину).
+3. **Замовлення** — `/vendor/orders` (фільтр по `vendorSettlements`).
+4. **Заробіток** — `/vendor/earnings` з колекції **`settlements`**.
+
+## Комісія платформи
+
+Базовий % залежить від **tier** вендора (`TIER_BENEFITS`). Перевизначення — документ `merchant_configs` (admin).
+
+Реферальна комісія з продажу використовує ту саму ієрархію, що й [refcodes](/docs/features/refcodes).
+
+## Навігація
+
+Блок **VENDOR** у сайдбарі: Dashboard, Products, Orders, Stock, Earnings, Settings.
+
+## Пов’язане
+
+- [Комісії](/docs/features/erp/commissions)
+- [Магазин](/docs/features/store)

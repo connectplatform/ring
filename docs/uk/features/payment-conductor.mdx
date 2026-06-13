@@ -1,0 +1,54 @@
+---
+title: PaymentConductor
+description: Єдина оркестрація платежів для магазину, членства та промоції новин — WayForPay, Stripe, внутрішній кредит
+last_modified: "2026-06-06"
+---
+
+# PaymentConductor
+
+PaymentConductor (v1, 2026-05-22) — конфігурований платіжний шар Ring Platform. Один реєстр (`payment_transactions`) і один диспетчер webhook обслуговують checkout магазину, підвищення членства та промоцію новин.
+
+## Архітектура
+
+```
+Checkout / upgrade / promotion
+        ↓
+lib/payments/conductor/payment-conductor.ts
+        ↓
+Процесори: wayforpay | stripe | internal_credit
+        ↓
+payment_transactions (PostgreSQL)
+```
+
+Реалізація: `lib/payments/conductor/`, `lib/payments/processors/`, `lib/payments/payment.config.ts`.
+
+## Призначення платежів
+
+| Purpose | Обробник | Типовий процесор |
+|---------|----------|------------------|
+| `store_order` | `handlers/store-order.ts` | WayForPay або Stripe |
+| `membership_upgrade` | `handlers/membership-upgrade.ts` | WayForPay або Stripe |
+| `news_promotion` | `handlers/news-promotion.ts` | WayForPay або Stripe |
+
+Перевизначення через env: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`. За замовчуванням: `PAYMENT_DEFAULT_PROCESSOR`.
+
+## Змінні середовища
+
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_FIAT_CURRENCY=UAH
+```
+
+## База даних
+
+Застосуйте міграцію `data/migrations/004_payment_transactions.sql` перед продакшеном.
+
+## Пов’язане
+
+- [Огляд платежів](/docs/features/payments)
+- [WayForPay](/docs/features/wayforpay-integration)
+- [Архітектура PaymentConductor](/docs/architecture/payment-conductor)

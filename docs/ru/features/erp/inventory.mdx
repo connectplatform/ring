@@ -1,0 +1,34 @@
+---
+title: Склад и остатки
+description: ERPStockService, движения, пороги и метаданные реферальных продаж
+last_modified: "2026-06-10"
+---
+
+# Склад и остатки
+
+**Warehouse Manager** (`ERPStockService`) ведёт остатки на складе `zero-warehouse`, списывает товар после оплаты и логирует движения в `stock_movements`.
+
+> **EN canonical:** [Inventory & Stock (EN)](/docs/features/erp/inventory)
+
+## Возможности
+
+- `getStockSummary()` — дашборд (в наличии, low/critical/out, стоимость).
+- `updateStock()` — add / subtract / set с причиной.
+- `getRecentStockMovements()` — аудит из `stock_movements`.
+- **Реферальные продажи** — движения содержат `referralCode` и `assisted: true`, когда в заказе есть атрибуция.
+
+## UI
+
+| Поверхность | Маршрут |
+|-------------|---------|
+| Админ | `/admin/store/stock` |
+| Вендор | `/vendor/stock` |
+
+## API
+
+`POST /api/erp/stock/initialize` — массовая инициализация (admin).
+
+## Связанное
+
+- [Ring ERP](/docs/features/erp/index)
+- [Комиссии](/docs/features/erp/commissions)

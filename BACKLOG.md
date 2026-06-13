@@ -1,53 +1,63 @@
 
 # Ring Platform Development Backlog
 
-> **Last Updated**: January 2025  
-> **Platform Status**: Production-ready with revolutionary features implemented
+> **Last Updated**: June 13, 2026  
+> **Platform Version**: 1.6.4  
+> **Platform Status**: Production-ready — 6+ K8s clones, OSS on `connectplatform/ring`
 
 ---
 
-## ✅ COMPLETED FEATURES
+## ✅ COMPLETED (v1.6.2 – v1.6.4, June 2026)
+
+### Store & Messenger
+- ✅ **Store product AI chat** — Persisted agent threads on product pages, unified Ring Messenger, legacy chat component removal
+- ✅ **SSE streaming LLM replies** — Multi-provider streaming (Anthropic/OpenAI/OpenRouter) with live UI bubble
+- ✅ **Grok fallback + guest panel** — xAI when SSE unavailable; `UnifiedLoginInline` for guests with post-login panel restore
+
+### Database & Types
+- ✅ **ring-db `*Doc` migration** — Domain code on `db().createDoc` / `findDocById` / `queryDocs` / `db().transaction()`; auto-init throw-on-failure semantics
+- ✅ **`*Doc` / `DbRow` typing** — `UserRow`, typed query generics, client/server bundle boundaries for editor and product-agent
+
+### Auth & Navigation
+- ✅ **`LoginAuthenticatedRedirect`** — Client-side authenticated `/login` redirect (no stale-cookie loops, no server `auth()` cold-start)
+- ✅ **Sidebar hydration polish** — Mobile nav always mounted; SSR-safe theme toggle; aside collapse without blank placeholder
+
+### Documentation
+- ✅ **Docs path flatten** — `docs/{locale}/**`; resolver SSOT in `lib/docs/docs-path.ts`
+- ✅ **Customization doc IA** — `/docs/customization/*` replaces `/docs/white-label/*` in platform navigation
+
+---
+
+## ✅ COMPLETED FEATURES (prior releases)
 
 ### 🏗️ Core Platform Infrastructure
-- ✅ **React 19 + Next.js 16**: Full implementation with all modern features
-- ✅ **Auth.js v5**: Multi-provider OAuth, JWT sessions, role hierarchy
-- ✅ **App Router**: File-based routing with nested layouts
-- ✅ **Server Components**: Data fetching and static content optimization
-- ✅ **Streaming SSR**: Implemented with Suspense boundaries
-- ✅ **API Route Handlers**: 44+ RESTful endpoints
-- ✅ **Error Handling**: Custom error pages, error boundaries
-- ✅ **Metadata API**: Dynamic SEO with i18n support
-- ✅ **Server Actions**: Form submissions and data mutations
-- ✅ **Image Optimization**: Next.js Image with WebP
-- ✅ **TypeScript**: Strict mode with zero errors
-- ✅ **Testing**: 95+ comprehensive tests
+- ✅ **React 19 + Next.js 16**: Server Components, streaming SSR, App Router, React Compiler
+- ✅ **Auth.js v5**: Multi-provider OAuth, JWT sessions, slim proxy, PIN security
+- ✅ **API Route Handlers**: 132+ RESTful endpoints (verified 2026-06-06)
+- ✅ **TypeScript**: Strict mode, zero production errors
+- ✅ **Testing**: 12 test suites, 95+ tests
+- ✅ **PaymentConductor v1** — WayForPay + Stripe + internal credit ledger
+- ✅ **Ring MCP Service Gateway** — `/api/mcp/v1/*` bearer-token API (v1.6.1)
+- ✅ **Serialization Phase A/B** — `to-iso-date.ts`, MCP opportunity serializer (v1.6.1)
 
 ### 🚀 Revolutionary Features
-- ✅ **Tunnel Transport Abstraction**: 8 providers with automatic fallback
-- ✅ **Confidential Access Tier**: Exclusive C-level networking
-- ✅ **AI-Powered Matching**: LLM contextual analysis
+- ✅ **Tunnel Transport Abstraction**: Multi-provider real-time with automatic fallback
+- ✅ **AI-Powered Matching**: LLM contextual opportunity analysis
 - ✅ **Dual-Nature Opportunities**: Offers + Requests unified system
 - ✅ **KYC System**: Identity verification with status tracking
-- ✅ **Unified Status Pages**: Dynamic [action]/[status] routing
-- ✅ **90% API Call Reduction**: WebSocket push replacing polling
-- ✅ **Enterprise Security**: 6 vulnerabilities fixed, 100% test pass rate
+- ✅ **Unified Status Pages**: Dynamic `[action]/[status]` routing
+- ✅ **Enterprise Security**: Hardened auth, rate limiting, OSS boundary
 
 ### 🎯 Domain Features
-- ✅ **Entities**: 26 industry types, CRUD, verification, confidential tier
-- ✅ **Opportunities**: AI matching, budget ranges, application tracking
-- ✅ **Messaging**: Real-time chat, file sharing, reactions, moderation
-- ✅ **Notifications**: 52 types, multi-channel, templates, analytics
-- ✅ **Wallet**: Automatic creation, balance tracking, DAAR/DAARION support
-- ✅ **Staking**: 3 pools, reward distribution, APR display
-- ✅ **Store**: E-commerce with crypto payments, Nova Post shipping
-- ✅ **NFT Marketplace**: ERC721/1155 support, listing management
+- ✅ **Entities**, **Opportunities**, **Messaging**, **Notifications**, **Wallet**, **Staking**, **Store**, **NFT Marketplace**
+- ✅ **News Kingdom**, **Scientific Editor**, **Member blogs**, **Email AI CRM**
+- ✅ **Locale SSOT** — `lib/locale-config.ts`
 
 ### 🔧 Infrastructure & DevOps
-- ✅ **Vercel Deployment**: Edge Runtime with production JWT auth
-- ✅ **Performance**: 260kB bundle, 17s build time, Web Vitals monitoring
-- ✅ **i18n**: English/Ukrainian, SEO optimization, localization
-- ✅ **Security**: Rate limiting, CORS, XSS protection, JWT validation
-- ✅ **Analytics**: User behavior, performance metrics, dashboards
+- ✅ **K8s production** — 6+ active clones (ring-platform.org, ringdom.org, greenfood.live, vikka.ua, zemna.ai, ring.ck.ua)
+- ✅ **Docker setup** — See [DOCKER_SETUP.md](DOCKER_SETUP.md)
+- ✅ **i18n**: EN / UK / RU with SEO optimization
+- ✅ **Performance**: ~260kB bundle, ~17s build, Web Vitals monitoring
 
 ---
 
@@ -55,130 +65,85 @@
 
 ### 🎯 High Priority (P0)
 
-#### 1. **Video/Audio Calls** 
+#### 1. **Video/Audio Calls**
 - **Status**: 🚧 TODO
 - **Description**: WebRTC integration for video/audio calls
-- **Tasks**:
-  - Implement WebRTC peer-to-peer connections
-  - Add call UI components (incoming, outgoing, in-call)
-  - Integrate with tunnel transport for signaling
-  - Add call history and recording features
+- **Tasks**: Peer connections, call UI, tunnel signaling, call history
 
 #### 2. **End-to-End Encryption**
-- **Status**: 🚧 TODO  
+- **Status**: 🚧 TODO
 - **Description**: Secure message transmission
-- **Tasks**:
-  - Implement E2E encryption for messages
-  - Add key exchange mechanisms
-  - Update message storage to handle encrypted content
-  - Add encryption indicators in UI
+- **Tasks**: E2E keys, encrypted storage, UI indicators
 
 #### 3. **Production Payment Processing**
-- **Status**: 🚧 TODO (Stripe test mode only)
-- **Description**: Full Stripe production integration
-- **Tasks**:
-  - Complete Stripe production setup
-  - Implement webhook handlers
-  - Add invoice generation
-  - Add subscription management
+- **Status**: ⚠️ Partial (WayForPay production; Stripe varies by clone)
+- **Tasks**: Webhook hardening, invoice generation, subscription management at scale
+
+#### 4. **Serialization Logic Hardening — Phase 2**
+- **Status**: 🚧 TODO (plan: `.cursor/plans/serialization_logic_hardening_d3010b0f.plan.md`)
+- **Tasks**: Consolidate opportunity serializers, adapter-boundary `toIsoDate`, domain-type detox, news/tunnel wire fixes
 
 ### 🔧 Medium Priority (P1)
 
-#### 4. **Mobile Applications**
-- **Status**: 🚧 TODO
-- **Description**: React Native iOS/Android apps
-- **Tasks**:
-  - Set up React Native project structure
-  - Implement core features (auth, entities, opportunities)
-  - Add push notifications
-  - App store deployment
+#### 5. **Mobile Applications**
+- **Status**: 🚧 TODO (PWA patterns exist; native apps not shipped)
+- **Tasks**: React Native / Expo MVP, push notifications, store deployment
 
-#### 5. **Advanced Search**
+#### 6. **Advanced Search**
 - **Status**: 🚧 TODO
-- **Description**: Elasticsearch/Algolia integration
-- **Tasks**:
-  - Implement full-text search across entities/opportunities
-  - Add search filters and facets
-  - Implement search analytics
-  - Add search suggestions
+- **Tasks**: Full-text search, facets, analytics, suggestions
 
-#### 6. **Docker & CI/CD**
-- **Status**: 🚧 TODO
-- **Description**: Containerization and automation
-- **Tasks**:
-  - Create Dockerfile for containerized deployment
-  - Set up GitHub Actions workflows
-  - Implement automated testing pipeline
-  - Add deployment automation
+#### 7. **CI/CD automation**
+- **Status**: ⚠️ Partial
+- **Tasks**: GitHub Actions for test + build gates, automated release tagging
+
+#### 8. **Docs locale parity cleanup**
+- **Status**: ⚠️ Partial — see [scripts/LOCALE-GAPS.md](scripts/LOCALE-GAPS.md)
+- **Tasks**: UK/RU customization hub, affiliate-enablement pages; EN/UK/RU `library/` link sweep **done** (2026-06-13)
 
 ### 🌟 Low Priority (P2)
 
-#### 7. **AI Assistant**
-- **Status**: 🚧 TODO
-- **Description**: GPT-powered help system
-- **Tasks**:
-  - Integrate OpenAI API
-  - Create conversational UI
-  - Add context-aware responses
-  - Implement user feedback system
+#### 9. **Platform-wide AI Assistant**
+- **Status**: ⚠️ Partial (store product agent chat shipped; global help bot TODO)
+- **Tasks**: Context-aware help UI, feedback loop, non-store surfaces
 
-#### 8. **Advanced Analytics**
+#### 10. **Advanced Analytics**
 - **Status**: 🚧 TODO
-- **Description**: Predictive insights and A/B testing
-- **Tasks**:
-  - Implement feature flag system
-  - Add A/B testing framework
-  - Create predictive analytics models
-  - Add advanced reporting dashboards
+- **Tasks**: Feature flags, A/B testing, predictive dashboards
 
-#### 9. **Content Moderation**
+#### 11. **Content Moderation**
 - **Status**: 🚧 TODO
-- **Description**: AI-powered content filtering
-- **Tasks**:
-  - Implement automated content scanning
-  - Add user reporting system
-  - Create moderation dashboard
-  - Add appeal process
+- **Tasks**: Automated scanning, reporting, moderation dashboard
 
 ### 🔮 Future Features (P3)
 
-#### 10. **Blockchain Features**
+#### 12. **Blockchain Features**
 - **Status**: 🚧 TODO
-- **Description**: Advanced Web3 capabilities
-- **Tasks**:
-  - Multi-chain support (Solana, Polygon)
-  - Cross-chain transfers
-  - DAO governance system
-  - Advanced DeFi features
+- **Tasks**: Multi-chain, cross-chain, DAO governance, advanced DeFi
 
-#### 11. **Enterprise Features**
-- **Status**: 🚧 TODO
-- **Description**: White-label and enterprise tools
-- **Tasks**:
-  - White-label customization
-  - Enterprise SSO integration
-  - Advanced admin tools
-  - Custom branding system
+#### 13. **Enterprise Features**
+- **Status**: ⚠️ Partial (white-label clones live; enterprise SSO TODO)
+- **Tasks**: SSO, advanced admin tools, instance management API
 
 ---
 
 ## 📊 Development Metrics
 
-- **Completed Features**: 85%
-- **Revolutionary Features**: 100% ✅
-- **Standard Features**: 95% ✅
-- **TODO Items**: 11 major features
-- **Build Status**: ✅ Successful
-- **Test Coverage**: 95+ tests
-- **Security Score**: 100%
+- **Version**: 1.6.4
+- **API route handlers**: 132+
+- **Page routes**: 96+
+- **Build status**: ✅ Green (`tsc --noEmit` + Next.js build)
+- **Test suites**: 12 (95+ tests)
+- **Active K8s clones**: 6+
+- **TODO items**: 13 tracked areas (several partial)
 
 ---
 
 ## 🎯 Next Sprint Priorities
 
-1. **Video/Audio Calls** - Complete WebRTC integration
-2. **E2E Encryption** - Secure messaging implementation  
-3. **Production Payments** - Full Stripe production setup
-4. **Mobile App MVP** - Basic React Native implementation
+1. **Serialization Phase 2** — Adapter-boundary dates, serializer consolidation
+2. **Docs UK/RU customization hub** — Close gaps in `LOCALE-GAPS.md`
+3. **E2E encryption spike** — Messaging security design
+4. **CI/CD** — Automated test + type-check on PRs to `connectplatform/ring`
 
-**Ring Platform is production-ready with revolutionary networking features. The remaining TODO items are enhancements and additional capabilities.**
+**Ring Platform is production-ready. Remaining items are enhancements, parity, and scale hardening.**

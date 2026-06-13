@@ -7,7 +7,7 @@ import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale, supportedLocales } from '@/i18n/shared'
-import { getDocsLocaleRoot } from '@/lib/docs/resolve-doc-file-path'
+import { buildDocsHref, getDocsLocaleRoot, readSectionMeta } from '@/lib/docs/docs-path'
 
 interface DocsNavigationTreeProps {
   locale: string
@@ -42,15 +42,6 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   const docsRoot = getDocsLocaleRoot(docsLocale)
 
-  const readMeta = (metaPath: string): { title?: string; pages?: string[] } => {
-    try {
-      if (!fs.existsSync(metaPath)) return {}
-      return JSON.parse(fs.readFileSync(metaPath, 'utf8'))
-    } catch {
-      return {}
-    }
-  }
-
   const getTitleFromMdx = (filePath: string, fallback: string): string => {
     try {
       if (!fs.existsSync(filePath)) return fallback
@@ -70,16 +61,16 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   const buildHref = (sectionSlug: string | null, pageSlug: string): string => {
     if (sectionSlug === null) {
-      if (pageSlug === 'index') return `/${validLocale}/docs`
-      return `/${validLocale}/docs/${pageSlug}`
+      if (pageSlug === 'index') return buildDocsHref(docsLocale, [])
+      return buildDocsHref(docsLocale, [pageSlug])
     }
-    if (pageSlug === 'index') return `/${validLocale}/docs/${sectionSlug}`
-    return `/${validLocale}/docs/${sectionSlug}/${pageSlug}`
+    if (pageSlug === 'index') return buildDocsHref(docsLocale, [sectionSlug])
+    return buildDocsHref(docsLocale, [sectionSlug, pageSlug])
   }
 
   const loadHierarchicalNavigation = (): NavigationSection[] => {
     const sections: NavigationSection[] = []
-    const rootMeta = readMeta(path.join(docsRoot, 'meta.json'))
+    const rootMeta = readSectionMeta(path.join(docsRoot, 'meta.json'))
     const sectionSlugs = rootMeta.pages ?? []
 
     for (const entry of sectionSlugs) {
@@ -120,7 +111,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
         continue
       }
 
-      const sectionMeta = readMeta(path.join(sectionDir, 'meta.json'))
+      const sectionMeta = readSectionMeta(path.join(sectionDir, 'meta.json'))
       const sectionTitle = sectionMeta.title ?? slugToLabel(entry)
       const pageSlugs = sectionMeta.pages ?? ['index']
 
@@ -130,7 +121,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
         const nestedMetaPath = path.join(nestedDir, 'meta.json')
 
         if (fs.existsSync(nestedDir) && fs.statSync(nestedDir).isDirectory() && fs.existsSync(nestedMetaPath)) {
-          const nestedMeta = readMeta(nestedMetaPath)
+          const nestedMeta = readSectionMeta(nestedMetaPath)
           const nestedPages = nestedMeta.pages ?? ['index']
           for (const nestedPageSlug of nestedPages) {
             const nestedFileName = nestedPageSlug === 'index' ? 'index.mdx' : `${nestedPageSlug}.mdx`
@@ -138,8 +129,8 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
             if (!fs.existsSync(nestedFilePath)) continue
             const nestedHref =
               nestedPageSlug === 'index'
-                ? `/${validLocale}/docs/${entry}/${pageSlug}`
-                : `/${validLocale}/docs/${entry}/${pageSlug}/${nestedPageSlug}`
+                ? buildDocsHref(docsLocale, [entry, pageSlug])
+                : buildDocsHref(docsLocale, [entry, pageSlug, nestedPageSlug])
             items.push({
               href: nestedHref,
               label: getTitleFromMdx(
@@ -174,15 +165,15 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
   const navSections = loadHierarchicalNavigation()
 
   const quickLinks: { href: string; label: string; external?: boolean }[] = [
-    { href: `/${validLocale}/docs`, label: pt('linkLibrary') },
-    { href: `/${validLocale}/docs/welcome`, label: pt('linkWelcome') },
-    { href: `/${validLocale}/docs/getting-started`, label: pt('linkGettingStarted') },
-    { href: `/${validLocale}/docs/architecture`, label: pt('linkArchitecture') },
-    { href: `/${validLocale}/docs/architecture/backend-modes-and-databases`, label: pt('linkBackendModes') },
-    { href: `/${validLocale}/docs/deployment/self-hosted`, label: 'Self-hosted' },
-    { href: `/${validLocale}/docs/development/ring-mcp`, label: 'Ring MCP' },
-    { href: `/${validLocale}/docs/deployment`, label: pt('linkDeployment') },
-    { href: `/${validLocale}/docs/features/security`, label: pt('linkSecurity') },
+    { href: buildDocsHref(docsLocale, []), label: pt('linkLibrary') },
+    { href: buildDocsHref(docsLocale, ['welcome']), label: pt('linkWelcome') },
+    { href: buildDocsHref(docsLocale, ['getting-started']), label: pt('linkGettingStarted') },
+    { href: buildDocsHref(docsLocale, ['architecture']), label: pt('linkArchitecture') },
+    { href: buildDocsHref(docsLocale, ['architecture', 'backend-modes-and-databases']), label: pt('linkBackendModes') },
+    { href: buildDocsHref(docsLocale, ['deployment', 'self-hosted']), label: 'Self-hosted' },
+    { href: buildDocsHref(docsLocale, ['development', 'ring-mcp']), label: 'Ring MCP' },
+    { href: buildDocsHref(docsLocale, ['deployment']), label: pt('linkDeployment') },
+    { href: buildDocsHref(docsLocale, ['features', 'security']), label: pt('linkSecurity') },
     { href: 'https://ringdom.org', label: pt('linkRingdom'), external: true },
     { href: 'https://github.com/connectplatform/ring', label: pt('linkGithub'), external: true },
   ]

@@ -1,0 +1,90 @@
+---
+title: Реферальные коды (Refcodes)
+description: Реферальные ссылки на кошелёк, атрибуция первого касания, токен-награды и интеграция с ERP
+last_modified: "2026-06-10"
+---
+
+# Реферальные коды (Refcodes)
+
+Модуль **refcodes** превращает Ring Platform в реферальный движок роста: каждый подключённый кошелёк получает код, первая оплаченная покупка атрибутируется рефереру, награда фиксируется в PostgreSQL и (при настройке) минтится on-chain.
+
+> **EN canonical:** полные диаграммы, контракт, deploy и таблицы env — [Referral Codes (EN)](/docs/features/refcodes) · [Архитектура refcodes](/docs/architecture/refcodes)
+
+## Обзор
+
+| Слой | Ответственность |
+|------|-----------------|
+| Атрибуция | `?ref=CODE` → cookies `ring_ref` + `ring_ref_visible` (30 дней) |
+| Регистрация | `users.data.referredBy` при первом входе |
+| Checkout | Поля `referralCode`, `referrerUserId`, `referrerWallet` в заказе |
+| ERP | Та же иерархия % комиссии, что и в [комиссиях ERP](/docs/features/erp/commissions) |
+| Ledger | Таблица `referral_rewards` |
+| On-chain | UUPS `ReferralRewards` — `payReferral` |
+
+## Бизнес-правила
+
+- Один код на кошелёк (8 символов).
+- Только **первая** оплаченная покупка покупателя.
+- Без self-referral (user ID или общий кошелёк).
+- WayForPay → `pending_approval`; внутренний кредит → мгновенный mint (если minter настроен).
+
+## Маршруты и API
+
+| Маршрут | Доступ | Назначение |
+|---------|--------|------------|
+| `/refcodes` | Авторизованный | Коды, ссылки, история наград |
+| `/admin/refcodes` | Админ | Approve/reject, mint |
+| `POST /api/refcodes/track` | Публичный | Счётчик `visits` |
+| `GET /api/cron/refcodes-mint` | Cron + `CRON_SECRET` | Очередь approved → mint |
+
+Ссылка: `{APP_URL}?ref={CODE}`.
+
+## Поток оплаты
+
+1. `proxy.ts` — cookies из `?ref=`.
+2. `POST /api/store/orders` — атрибуция + guards.
+3. WayForPay или credit → stock, `settlements`, `referral_rewards`.
+4. Членство WayForPay → `onMembershipPaid` если есть `referredBy`.
+
+<Mermaid>
+{`sequenceDiagram
+    participant V as Посетитель
+    participant P as Ring Platform
+    participant DB as PostgreSQL
+    V->>P: ?ref=CODE
+    P->>P: ring_ref cookie
+    V->>P: Checkout + оплата
+    P->>DB: settlements + referral_rewards
+    P->>P: Admin approve или cron mint`}
+</Mermaid>
+
+## База данных
+
+| Миграция | Таблицы |
+|----------|---------|
+| `005_refcodes_schema.sql` | `refcodes`, `referral_rewards` |
+| `007_settlements_schema.sql` | `settlements`, `erp_sales_assists`, … |
+
+```bash
+./scripts/apply-erp-migrations-dev.sh   # dev: 005 + 007
+```
+
+Dev DB: **`ring_platform`** на `ring-postgres-dev`.
+
+## Переменные окружения (ключевые)
+
+| Переменная | Описание |
+|------------|----------|
+| `REFERRAL_MINTER_PRIVATE_KEY` | Operator wallet (mint) |
+| `REFERRAL_REWARDS_ADDRESS` | UUPS proxy |
+| `REFERRAL_REWARD_TOKEN_ADDRESS` | ERC20 награды |
+| `CRON_SECRET` | Bearer для `/api/cron/refcodes-mint` |
+| `REFERRAL_REWARD_PERCENT` | Fallback % (по умолч. 5) |
+
+Runbook on-chain: `REFERRAL-ONCHAIN-OPS.md` в корне репозитория.
+
+## Связанное
+
+- [Ring ERP — комиссии](/docs/features/erp/commissions)
+- [Магазин](/docs/features/store)
+- [PaymentConductor](/docs/features/payment-conductor)

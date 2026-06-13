@@ -1,0 +1,53 @@
+---
+title: Locale System
+description: Env-driven locale SSOT for routing, SEO, preferences, and client scripts
+last_modified: "2026-06-06"
+---
+
+# Locale System
+
+Ring Platform v1.6.0 centralizes locale configuration in **`lib/locale-config.ts`** (2026-05-28). One source drives routing, user preferences, SEO hreflang, static param generation, and the legacy browser gate.
+
+## Environment variables
+
+```bash
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+Comma-separated BCP-47 **short codes** must match folders under `locales/`.
+
+## Import pattern
+
+```typescript
+import {
+  DEFAULT_LOCALE,
+  SUPPORTED_LOCALES,
+  isValidLocale,
+  resolveLocale,
+  type Locale,
+} from '@/lib/locale-config'
+```
+
+Re-exports: `i18n/shared.ts`, `lib/locale-pref.ts`.
+
+## Client navigation (canonical)
+
+- **Never** strip locale with regex on pathname in client components.
+- Use `Link`, `useRouter`, `usePathname` from `@/i18n/routing`.
+- Locale switch: `persistRingLocalePreference(locale)` + `replaceLocalePath(router, pathname, locale)` from `lib/locale-pref.ts`.
+
+## Server / proxy
+
+- `lib/proxy-intl.ts` — shared helpers for `localePrefix: 'as-needed'`.
+- `lib/seo-metadata.ts` — `pathnameWithoutLocale()` for hreflang on raw URLs.
+- `app/layout.tsx` injects `window.__RING_LOCALE_CONFIG__` for `public/scripts/locale-tracking.js`.
+
+## Messages
+
+Translations load via `i18n/request.ts` → `lib/i18n.ts` `buildMessages(locale, scope)`. Message scopes: `lib/i18n/message-scopes.ts` (ensure `/editor` routes include `editor` bundle).
+
+## Related
+
+- [Customization: localization](/docs/customization/localization)
+- [Architecture: proxy and intl](/docs/architecture/proxy-and-intl)

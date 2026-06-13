@@ -1,0 +1,112 @@
+---
+title: Commissions & Settlements
+description: Settlement flow, vendor-funded referral commission, ERP sales assists, and payout scheduling — dual-rail with refcodes token rewards
+last_modified: "2026-06-12"
+---
+
+# Commissions & Settlements
+
+`settlement.ts` calculates platform commission, optional **referral commission** (when order attribution exists), and custom splits from merchant configuration. This is the **vendor-funded rail**; platform-funded **token** rewards are handled by [refcodes](/docs/features/refcodes).
+
+<Callout type="info" title="Dual-rail">
+  Same `orderReference` should appear on `settlements`, `erp_sales_assists`, and `referral_rewards` for cross-audit. See [Affiliate enablement](/docs/features/affiliate-enablement).
+</Callout>
+
+## Unified ledger flow
+
+Paid store orders (WayForPay webhook or credit rail) call `VendorSettlementService.processSettlements`, which delegates to `recordSettlementsForPaidOrder` in `settlement-pipeline.ts`. That invokes `createSettlement` per vendor slice and writes the **canonical** `settlements` table.
+
+| Collection | Role |
+|------------|------|
+| `settlements` | Commission/payout ledger — admin Commissions tab, vendor Earnings, `processDueSettlements` |
+| `vendor_settlements` | Legacy processing log (no longer written on new paid orders) |
+| `payout_batches` | Batch runs from admin **Process due payouts** |
+| `erp_sales_assists` | Referral-attributed sale rows when `referralCode` is on the order |
+
+Stock movements from `deductStockForOrder` include `referralCode`, `referrerUserId`, and `assisted: true` when attribution is present.
+
+<Mermaid title="Paid order → settlement + assists">
+{`sequenceDiagram
+    participant WFP as WayForPay webhook
+    participant SO as store-order handler
+    participant VS as VendorSettlementService
+    participant SP as settlement-pipeline
+    participant ST as settlement.ts
+    participant ERP as erp-stock-service
+    participant DB as PostgreSQL
+
+    WFP->>SO: Approved + isNew
+    SO->>VS: processSettlements
+    VS->>SP: recordSettlementsForPaidOrder
+    SP->>ST: createSettlement per vendor slice
+    ST->>DB: settlements + commissionBreakdown
+  par Referral metadata
+    SO->>ERP: deductStockForOrder(referralCode)
+    ERP->>DB: stock_movements + erp_sales_assists
+  end`}
+</Mermaid>
+
+## Settlement record
+
+Each payout creates a row in the `settlements` collection with `vendorId`, `orderId`, `commission`, `netPayout`, `status`, and `scheduledFor`.
+
+## Admin commissions tab
+
+`/admin/store/commissions` (`admin-commissions-client.tsx`) provides:
+
+| View | Data source |
+|------|-------------|
+| Settlements table | `settlements` — commission, net payout, status, `scheduledFor` |
+| Product referral rates | Effective `referralCommission` per SKU with resolver tier |
+| **Process due payouts** | `processDueSettlements` when `scheduledFor <= now` and `status = pending` |
+| Batch payout | `payout_batches` audit trail |
+
+Referral-assisted sales also appear in `erp_sales_assists` (product, ref code, referrer, order id, qty).
+
+## Referral commission hierarchy
+
+`resolveReferralCommissionPercent` in `features/store/lib/referral-commission.ts` is shared by ERP settlement and refcodes token rewards:
+
+| Priority | Source | Field |
+|----------|--------|-------|
+| 1 | Product override | `product.referralCommission` or `product.commissionStructure.referralCommission` |
+| 2 | Merchant config | `merchantConfig.commissionStructure.referralCommission` |
+| 3 | Platform constant | `DEFAULT_COMMISSION_STRUCTURE.referralCommission` (5%) |
+| 4 | Clone env fallback | `REFERRAL_REWARD_PERCENT` |
+
+Mixed-rate carts use a **subtotal-weighted** effective percent. Vendors may set per-product overrides in the product editor; merchant-level rates are admin-managed (read-only on `/vendor/settings`). Admin **Commissions** tab lists effective rates per product with source tier.
+
+Optional env: `REFERRAL_COMMISSION_MAX_PERCENT` (default `50`) clamps all resolved values.
+
+## Payout currencies and modes
+
+RING, DAAR, and DAARION payouts route through merchant `walletId`.
+
+| `SETTLEMENT_PAYOUT_MODE` | Behavior |
+|--------------------------|----------|
+| `simulated` (default) | Completes with `metadata.simulated: true` and `sim_` transaction id — admin Commissions and vendor Earnings show a **Simulated** badge |
+| `onchain` | ERC20 transfer via treasury wallet (`SETTLEMENT_PAYOUT_PRIVATE_KEY`, `SETTLEMENT_PAYOUT_TOKEN_ADDRESS`, `POLYGON_RPC_URL`) |
+
+Use `simulated` until WayForPay/RING payout rails are production-verified.
+
+## Database
+
+Migration **`007_settlements_schema.sql`** creates `settlements`, `payout_batches`, `merchant_configs`, `vendor_settlements`, `stock_movements`, `erp_sales_assists`.
+
+```bash
+# Dev (005 refcodes + 007 ERP)
+./scripts/apply-erp-migrations-dev.sh
+
+# Prod (k8s jump host)
+K8S_NAMESPACE=ring-platform-org POSTGRES_DB=ring_platform POSTGRES_USER=ring_user \
+  ./scripts/apply-erp-migrations-prod.sh
+```
+
+Apply **`005_refcodes_schema.sql`** first on clones that lack refcodes tables.
+
+## Related
+
+- [Affiliate enablement](/docs/features/affiliate-enablement) — dual-rail overview and verification
+- [Referral codes](/docs/features/refcodes) — shared commission hierarchy and token rewards
+- [Vendor management](/docs/features/erp/vendor-management)
+- [Inventory](/docs/features/erp/inventory)

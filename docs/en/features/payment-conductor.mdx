@@ -1,0 +1,62 @@
+---
+title: PaymentConductor
+description: Unified payment orchestration for store, membership, and news promotion with WayForPay, Stripe, and internal credit
+last_modified: "2026-06-06"
+---
+
+# PaymentConductor
+
+PaymentConductor (v1, 2026-05-22) is Ring Platform's config-driven payment layer. One ledger (`payment_transactions`) and one webhook dispatcher serve store checkout, membership upgrades, and news promotion.
+
+## Architecture
+
+```
+Checkout / upgrade / promotion
+        ↓
+lib/payments/conductor/payment-conductor.ts
+        ↓
+Processors: wayforpay | stripe | internal_credit
+        ↓
+payment_transactions (PostgreSQL)
+```
+
+Implementation: `lib/payments/conductor/`, `lib/payments/processors/`, `lib/payments/payment.config.ts`.
+
+## Payment purposes
+
+| Purpose | Handler | Typical processor |
+|---------|---------|-----------------|
+| `store_order` | `handlers/store-order.ts` | WayForPay or Stripe |
+| `membership_upgrade` | `handlers/membership-upgrade.ts` | WayForPay or Stripe |
+| `news_promotion` | `handlers/news-promotion.ts` | WayForPay or Stripe |
+
+Per-purpose override via env: `PAYMENT_STORE_PROCESSOR`, `PAYMENT_MEMBERSHIP_PROCESSOR`, `PAYMENT_NEWS_PROCESSOR`. Default: `PAYMENT_DEFAULT_PROCESSOR` (`wayforpay` or `stripe`).
+
+## Rails
+
+- **merchant_redirect** — WayForPay / Stripe hosted checkout
+- **internal_credit** — Wallet credit balance (`PAYMENT_STORE_ALLOW_CREDIT`)
+- **native_token** — RING token (optional, `PAYMENT_STORE_ALLOW_TOKEN`)
+
+## Environment variables
+
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay
+WAYFORPAY_MERCHANT_ACCOUNT=your_merchant
+WAYFORPAY_SECRET_KEY=your_secret
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PAYMENT_FIAT_CURRENCY=UAH
+```
+
+Webhooks: `/api/payments/wayforpay/webhook`, `/api/payments/stripe/webhook` — dispatched by `webhook-dispatcher.ts`.
+
+## Database
+
+Apply migration `data/migrations/004_payment_transactions.sql` before enabling PaymentConductor in production.
+
+## Related
+
+- [Payments overview](/docs/features/payments)
+- [WayForPay integration](/docs/features/wayforpay-integration)
+- [Architecture: PaymentConductor](/docs/architecture/payment-conductor)

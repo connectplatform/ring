@@ -1,0 +1,68 @@
+---
+title: Environment
+description: Environment documentation for Ring Platform
+last_modified: "2026-06-10"
+---
+
+# Environment Variables (Production)
+
+## Локали (v1.6.0)
+
+```bash
+NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en
+```
+
+См. `lib/locale-config.ts` и [Система локалей](/docs/features/locale-system).
+
+## PaymentConductor (v1.6.0)
+
+```bash
+PAYMENT_DEFAULT_PROCESSOR=wayforpay
+PAYMENT_STORE_PROCESSOR=wayforpay
+WAYFORPAY_MERCHANT_ACCOUNT=
+WAYFORPAY_SECRET_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+```
+
+См. [PaymentConductor](/docs/features/payment-conductor).
+
+## Email AI-CRM {#email-ai-crm}
+
+В **`.env.local`** (полный блок — `env.local.template`):
+
+```bash
+IMAP_HOST=mail.example.com
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+SMTP_HOST=mail.example.com
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+ANTHROPIC_API_KEY=
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_CRM_PERSISTENCE=memory
+```
+
+Миграции `009` + `010` для Postgres; cron `POST /api/cron/email-processor` с `{"action":"poll"}`.
+
+> **EN canonical:** [Environment — Email AI-CRM (EN)](/docs/deployment/environment#email-ai-crm) · [Гайд разработчика](/docs/examples/email-ai-crm)
+
+## Основные переменные
+
+<Code language="dotenv" title="AUTH_SECRET=">
+{`NEXTAUTH_URL=
+AUTH_FIREBASE_PROJECT_ID=
+AUTH_FIREBASE_CLIENT_EMAIL=
+AUTH_FIREBASE_PRIVATE_KEY=
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+BLOB_READ_WRITE_TOKEN=
+WALLET_ENCRYPTION_KEY=
+WAYFORPAY_MERCHANT_ACCOUNT=
+WAYFORPAY_SECRET_KEY=`}
+</Code>
+
+
+<Callout type="warning">Never commit secrets to Git.</Callout>

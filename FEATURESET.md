@@ -1,6 +1,6 @@
 # 🚀 Ring Platform: Complete Feature Set
 
-> **The Most Advanced React 19 + Next.js 16 Professional Networking Platform** (v1.6.0)  
+> **The Most Advanced React 19 + Next.js 16 Professional Networking Platform** (v1.6.4)  
 > *Enterprise-grade features with Web3 integration, real-time communication, and confidential access tiers*
 
 ---
@@ -17,6 +17,13 @@
 - **Security Score**: 100% (6 critical vulnerabilities fixed)
 - **Edge Runtime**: Full Vercel compatibility
 - **Real-time Transports**: 8 providers with automatic fallback
+
+## v1.6.4 Highlights (June 2026)
+
+- ✅ **Store product AI chat** — Persisted Messenger threads, SSE streaming, Grok fallback, guest login panel
+- ✅ **ring-db `*Doc` migration** — `db().createDoc` / `queryDocs` / `transaction()` across domain layer
+- ✅ **Login redirect hardening** — `LoginAuthenticatedRedirect` (client `useSession`, no stale-cookie loops)
+- ✅ **Docs path flatten** — `docs/{locale}/**`; `/docs/customization/*` navigation IA
 
 ## v1.6.0 Highlights (June 2026)
 

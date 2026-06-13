@@ -105,7 +105,7 @@ COMMENT ON COLUMN users.id IS 'User ID (Firebase UID or UUID)';
 COMMENT ON COLUMN users.data IS 'User data: email, role, displayName, avatar, preferences, credit_balance, etc.';
 
 -- Usernames table (Username reservation system with expiration)
--- Reference: docs/content/en/library/features/username-reservation.mdx
+-- Reference: docs/en/library/features/username-reservation.mdx
 CREATE TABLE IF NOT EXISTS usernames (
     id VARCHAR(255) PRIMARY KEY,
     data JSONB NOT NULL,

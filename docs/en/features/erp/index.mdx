@@ -1,0 +1,47 @@
+---
+title: Ring ERP
+description: AI-driven cooperative ERP for multi-vendor marketplaces — inventory, settlements, and vendor operations
+keywords: [ERP, inventory, settlements, vendor, warehouse, Ring Platform]
+---
+
+# Ring ERP
+
+Ring ERP surfaces backend services that already power the multi-vendor store: **stock management**, **inventory sync**, **vendor settlements**, and **referral-assisted sales tracking**. Referral commission shares the percent resolver with [refcodes](/docs/features/refcodes) — see [Affiliate enablement](/docs/features/affiliate-enablement).
+
+<Cards>
+
+<Card title="Commissions & settlements" href="/docs/features/erp/commissions">
+  Vendor-funded referral commission, `settlements` ledger, `erp_sales_assists`, admin payouts.
+</Card>
+
+<Card title="Referral codes" href="/docs/features/refcodes">
+  Platform-funded token rewards, visit analytics, checkout UX, on-chain minter.
+</Card>
+
+<Card title="Dual-rail overview" href="/docs/features/affiliate-enablement">
+  How ERP and refcodes reconcile on one attribution cookie.
+</Card>
+
+</Cards>
+
+**Roadmap:**
+
+1. **Phase 1 (shipped)** — Admin `/admin/store` hub (Orders · Stock · Commissions) and vendor menu (Orders · Stock · Earnings · Settings).
+2. **Phase 2 (shipped)** — Per-product `referralCommission` resolver, dual-rail wiring, commission reporting tab.
+3. **Phase 3** — Cooperative governance, FSMA batch traceability UI, and AI agent dashboards.
+
+## Core services
+
+| Service | Path | Role |
+|---------|------|------|
+| Warehouse stock | `features/store/services/erp-stock-service.ts` | Deductions on paid orders, low-stock alerts, movements audit |
+| Inventory sync | `features/store/services/inventory-sync.ts` | Reservations and transfers (API-ready, UI in progress) |
+| Settlements | `features/store/services/settlement.ts` + `settlement-pipeline.ts` | Canonical `settlements` ledger, referral assists, payout scheduling |
+| Store ERP actions | `app/_actions/store-erp.ts` | Sales-assist and quality server actions |
+
+## Admin & vendor surfaces
+
+- **Admin hub:** `/admin/store` → tabs for orders, warehouse summary, and commission payouts.
+- **Vendor hub:** `/vendor/dashboard` with quick links to orders, stock, earnings, and settings.
+
+See also: [Multi-Vendor Store](/docs/features/store) · [Referral rewards (refcodes)](/docs/features/refcodes)

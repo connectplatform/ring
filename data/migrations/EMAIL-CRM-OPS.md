@@ -1,7 +1,7 @@
 # Email AI-CRM — internal production ops (Ringdom)
 
 **Audience:** LegioX operators deploying Ringdom clones with a live community inbox.  
-**Public developer docs:** `docs/content/en/library/features/email-ai-crm.mdx` (`.env.local` + `mail.example.com` placeholders only).
+**Public developer docs:** `docs/en/features/email-ai-crm.mdx` (`.env.local` + `mail.example.com` placeholders only).
 
 **Canonical code:** `ring-platform.org` (main).  
 **Primary production mailbox (Ringdom):** `info@ringdom.org` on **ring-ringdom-org** k8s.
@@ -162,7 +162,7 @@ Processor entrypoints: `services/email/email-processor.ts` — `pollInboundBatch
 | Cron route | `app/api/cron/email-processor/route.ts` |
 | Webhook | `app/api/webhooks/email/inbound/route.ts` |
 | Env template | `env.local.template` (EMAIL CRM block) |
-| Public docs | `docs/content/en/library/features/email-ai-crm.mdx` |
+| Public docs | `docs/en/features/email-ai-crm.mdx` |
 | AI-CONTEXT | `AI-CONTEXT/ring-platform.org/implementations/email-crm-production-2026-06-10.json` |
 
 ---

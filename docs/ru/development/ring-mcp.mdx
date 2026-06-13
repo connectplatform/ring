@@ -1,0 +1,78 @@
+---
+title: Ring MCP Server
+description: Операторское руководство ring-mcp — подключение Cursor к клону Ring Platform
+last_modified: "2026-06-09"
+---
+
+# Ring MCP Server (`ring-mcp`)
+
+**Управляйте клоном Ring из natural language в Cursor или другом MCP-клиенте.**
+
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — открытый стандарт подключения AI к внешним системам. `ring-mcp` вызывает **HTTP gateway** клона на `/api/mcp/v1/*` с service token (синтетический SUPERADMIN).
+
+Пакет: **`AI-RING/ring-mcp/`** (v1.0.0, **57** инструментов). Kingdom MCP (`legiox-mcp`, `ringdom-mcp`, `reggie-mcp`) — другой scope. См. `AI-RING/README.md` и `AI-RING/ring-mcp/ROADMAP.md`.
+
+```text
+Чат → MCP host → ring-mcp (stdio) → Bearer token → /api/mcp/v1/* → сервисы Ring → БД
+```
+
+Инструменты `ring-*` — CRUD сущностей, новостей, магазина, пользователей, кредитов, платежей, сообщений. Деструктивные операции требуют `confirm: true`.
+
+**Генеративные возможности (v1.6.0+):**
+
+| Инструмент | Описание |
+|------------|----------|
+| `ring-image-create` | ImageConductor (xAI / Google Imagen) → CDN URL |
+| `ring-news-generate` | Автономная редакция: Grok + изображение + TTS → черновик новости |
+
+Подробнее: [Генеративные изображения](/docs/development/generative-images) · [Автономная редакция](/docs/development/generative-newsroom)
+
+## Предпосылки
+
+- Node.js 20+
+- Запущенный клон с `app/api/mcp/v1/`
+- Service token на обеих сторонах
+
+## Быстрый старт
+
+### 1 — Клон: включить gateway
+
+```bash
+RING_MCP_SERVICE_TOKENS=replace-with-long-random-string
+```
+
+### 2 — Установить ring-mcp
+
+```bash
+cd /path/to/ringdom/AI-RING/ring-mcp
+npm install
+node ring-mcp-server.js --test
+```
+
+Ожидается `"tools": 57` и `"ok": true`.
+
+### 3 — Cursor `.cursor/mcp.json`
+
+```json
+"ring-mcp": {
+  "command": "node",
+  "args": ["/path/to/AI-RING/ring-mcp/ring-mcp-server.js"],
+  "env": {
+    "RING_API_BASE_URL": "http://localhost:3000",
+    "RING_SERVICE_TOKEN": "same-as-RING_MCP_SERVICE_TOKENS-entry",
+    "RING_CLONE_NAME": "my-clone"
+  }
+}
+```
+
+### 4 — Проверка
+
+Спросите агента: **`ring-health`**, **`ring-whoami`**.
+
+## Связанное
+
+Полная EN-документация (57 инструментов, полные таблицы): переключите локаль на EN → [Ring MCP](/docs/development/ring-mcp).
+
+- [Генеративные изображения](/docs/development/generative-images)
+- [Автономная редакция](/docs/development/generative-newsroom)
+- [OSS vs enterprise](/docs/development/oss-vs-enterprise)

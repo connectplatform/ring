@@ -8,7 +8,7 @@
 psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
 ```
 
-See also [`data/migrations/README.md`](data/migrations/README.md) and [PaymentConductor docs](/docs/library/features/payment-conductor).
+See also [`data/migrations/README.md`](data/migrations/README.md) and [PaymentConductor docs](/docs/features/payment-conductor).
 
 ### **2. Environment Variables**
 Add to `.env.local` (development) or Vercel/K8s secrets (production):

@@ -1,0 +1,114 @@
+---
+title: Email AI-CRM
+description: AI-інбокс для публічних контактних скриньок — IMAP poll, JSONB, черга чернеток, задачі та адмін-панель
+last_modified: "2026-06-10"
+---
+
+# Email AI-CRM
+
+**AI-керований CRM для публічних поштових скриньок** (наприклад `info@example.com`). Вхідна пошта класифікується, збирається в треди; Claude формує чернетки відповідей; адміни затверджують відправку та бачать витрати API.
+
+> **EN canonical:** повні діаграми, таблиці API та runbook — [Email AI-CRM (EN)](/docs/features/email-ai-crm) · [Архітектура](/docs/architecture/email-ai-crm) · [API](/docs/api/email-ai-crm) · [Гайд розробника](/docs/examples/email-ai-crm)
+
+## Огляд
+
+| Шар | Відповідальність |
+|-----|------------------|
+| **Збір** | Cron `POST /api/cron/email-processor` (`action: poll`) або webhook |
+| **Процесор** | `services/email/email-processor.ts` — parse, security, AI, CRM |
+| **Зберігання** | PostgreSQL JSONB: `email_threads`, `email_contacts`, `email_messages`, `email_drafts`, `email_tasks`, `email_api_usage` |
+| **Вихід** | `EmailSenderService` (nodemailer), `In-Reply-To` / `References` |
+| **Адмін UI** | inbox, drafts, contacts, analytics, tasks |
+
+## Бізнес-правила
+
+- **Дедуп Message-ID** — один RFC `Message-ID` не обробляється двічі.
+- **Auto-send вимкнено** — `EMAIL_AUTO_SEND_ENABLED=false` до SMTP smoke test.
+- **Cron poll у продакшні** — кожні 1–5 хв; IDLE лише для довгоживучого Node (`EMAIL_PROCESSOR_AUTOSTART`).
+- **Admin API** — `auth()` + `isPlatformAdmin` на `/api/admin/email/*`.
+
+## Шлях адміна
+
+<Mermaid>
+{`sequenceDiagram
+    participant M as Контактна скринька
+    participant C as Cron poll
+    participant P as EmailProcessor
+    participant DB as PostgreSQL JSONB
+    participant A as Адмін UI
+
+    M->>C: UNSEEN
+    C->>P: pollInboundBatch
+    P->>P: Security + intent + sentiment
+    P->>DB: messages, threads, drafts, tasks
+    A->>DB: GET /api/admin/email/threads
+    A->>A: Approve draft, send SMTP`}
+</Mermaid>
+
+## Маршрути адмін UI
+
+| Маршрут | Призначення |
+|---------|-------------|
+| `/{locale}/admin/email-inbox` | Список тредів |
+| `/{locale}/admin/email-inbox/[id]` | Деталі треду + повідомлення |
+| `/{locale}/admin/email-drafts` | Чернетки AI — approve / reject / send |
+| `/{locale}/admin/email-contacts` | CRM-контакти |
+| `/{locale}/admin/email-analytics` | Обсяг, intent/sentiment, вартість API |
+| `/{locale}/admin/email-tasks` | Follow-up та ескалації |
+
+## Пайплайн
+
+1. Parse → 2. 4-шаровий security → 3. AI (Haiku + Sonnet) → 4. CRM + tasks → 5. Черга чернеток → 6. Сповіщення (in-app / Slack).
+
+## База даних
+
+| Міграція | Таблиці |
+|----------|---------|
+| `009_email_crm_jsonb.sql` | `email_threads`, `email_contacts`, `email_messages`, `email_drafts` |
+| `010_email_crm_tasks_jsonb.sql` | `email_tasks`, `email_api_usage` |
+
+```bash
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+```
+
+## Локальна конфігурація
+
+Додайте в **`.env.local`** (див. `env.local.template`, блок **EMAIL CRM**):
+
+```bash
+# .env.local
+IMAP_HOST=mail.example.com
+IMAP_USER=info@example.com
+IMAP_PASSWORD=
+
+SMTP_HOST=mail.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=info@example.com
+SMTP_PASSWORD=
+
+ANTHROPIC_API_KEY=
+
+CRON_SECRET=generate-a-long-random-string
+EMAIL_AUTO_SEND_ENABLED=false
+EMAIL_CRM_PERSISTENCE=memory
+```
+
+| Змінна | Опис |
+|--------|------|
+| `IMAP_*` / `SMTP_*` | Ваш community inbox (будь-який IMAP/SMTP) |
+| `ANTHROPIC_API_KEY` | Intent, sentiment, генерація чернеток |
+| `CRON_SECRET` | Bearer для `/api/cron/email-processor` |
+| `EMAIL_AUTO_SEND_ENABLED` | `false` до SMTP smoke test |
+| `EMAIL_CRM_PERSISTENCE` | `memory` для швидкого dev; omit + міграції `009`/`010` для Postgres |
+
+## Продакшн
+
+Ті самі змінні — у secret store (k8s/Vercel). Міграції `009`+`010`, cron `poll` кожні 1–5 хв. Див. [гайд розробника](/docs/examples/email-ai-crm).
+
+## Пов’язане
+
+- [Міграції](/docs/getting-started/migrations)
+- [Environment — Email AI-CRM](/docs/deployment/environment#email-ai-crm)
+- [Backend modes](/docs/architecture/backend-modes-and-databases)

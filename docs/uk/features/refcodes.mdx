@@ -1,0 +1,90 @@
+---
+title: Реферальні коди (Refcodes)
+description: Реферальні посилання на гаманець, атрибуція першого дотику, винагороди токенами та інтеграція з ERP
+last_modified: "2026-06-10"
+---
+
+# Реферальні коди (Refcodes)
+
+Модуль **refcodes** перетворює Ring Platform на реферальний двигун зростання: кожен підключений гаманець отримує код, перше оплачене замовлення атрибутується рефереру, а винагорода фіксується в PostgreSQL і (за налаштування) мінтиться on-chain.
+
+> **EN canonical:** повні діаграми, контракт, deploy і таблиці env — [Referral Codes (EN)](/docs/features/refcodes) · [Архітектура refcodes](/docs/architecture/refcodes)
+
+## Огляд
+
+| Шар | Відповідальність |
+|-----|------------------|
+| Атрибуція | `?ref=CODE` → cookies `ring_ref` + `ring_ref_visible` (30 днів) |
+| Реєстрація | `users.data.referredBy` при першому вході |
+| Checkout | Поля `referralCode`, `referrerUserId`, `referrerWallet` на замовленні |
+| ERP | Та сама ієрархія `%` комісії, що й у [комісіях ERP](/docs/features/erp/commissions) |
+| Ledger | Таблиця `referral_rewards` |
+| On-chain | UUPS `ReferralRewards` — `payReferral` |
+
+## Бізнес-правила
+
+- Один код на гаманець (8 символів).
+- Лише **перша** оплачена покупка покупця.
+- Без self-referral (user ID або спільний гаманець).
+- WayForPay → `pending_approval`; внутрішній кредит → миттєвий mint (якщо minter налаштований).
+
+## Маршрути та API
+
+| Маршрут | Доступ | Призначення |
+|---------|--------|-------------|
+| `/refcodes` | Авторизований | Коди, посилання, історія винагород |
+| `/admin/refcodes` | Адмін | Approve/reject, mint |
+| `POST /api/refcodes/track` | Публічний | Лічильник `visits` |
+| `GET /api/cron/refcodes-mint` | Cron + `CRON_SECRET` | Черга approved → mint |
+
+Посилання: `{APP_URL}?ref={CODE}`.
+
+## Потік оплати
+
+1. `proxy.ts` — cookies з `?ref=`.
+2. `POST /api/store/orders` — атрибуція + guards.
+3. WayForPay або credit → stock, `settlements`, `referral_rewards`.
+4. Членство WayForPay → `onMembershipPaid` якщо є `referredBy`.
+
+<Mermaid>
+{`sequenceDiagram
+    participant V as Відвідувач
+    participant P as Ring Platform
+    participant DB as PostgreSQL
+    V->>P: ?ref=CODE
+    P->>P: ring_ref cookie
+    V->>P: Checkout + оплата
+    P->>DB: settlements + referral_rewards
+    P->>P: Admin approve або cron mint`}
+</Mermaid>
+
+## База даних
+
+| Міграція | Таблиці |
+|----------|---------|
+| `005_refcodes_schema.sql` | `refcodes`, `referral_rewards` |
+| `007_settlements_schema.sql` | `settlements`, `erp_sales_assists`, … |
+
+```bash
+./scripts/apply-erp-migrations-dev.sh   # dev: 005 + 007
+```
+
+Dev DB: **`ring_platform`** на `ring-postgres-dev`.
+
+## Змінні середовища (ключові)
+
+| Змінна | Опис |
+|--------|------|
+| `REFERRAL_MINTER_PRIVATE_KEY` | Operator wallet (mint) |
+| `REFERRAL_REWARDS_ADDRESS` | UUPS proxy |
+| `REFERRAL_REWARD_TOKEN_ADDRESS` | ERC20 винагороди |
+| `CRON_SECRET` | Bearer для `/api/cron/refcodes-mint` |
+| `REFERRAL_REWARD_PERCENT` | Fallback % (за замовч. 5) |
+
+Runbook on-chain: `REFERRAL-ONCHAIN-OPS.md` у корені репозиторію.
+
+## Пов’язане
+
+- [Ring ERP — комісії](/docs/features/erp/commissions)
+- [Магазин](/docs/features/store)
+- [PaymentConductor](/docs/features/payment-conductor)

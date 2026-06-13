@@ -2,8 +2,8 @@
 
 ## CURRENT STATUS OVERVIEW
 
-**Last Updated**: June 8, 2026
-**Ring Platform Version**: 1.6.1
+**Last Updated**: June 13, 2026
+**Ring Platform Version**: 1.6.4
 **Ringdom Ecosystem**: Ring Platform is the open-source core of [Ringdom](https://ringdom.org) -- the First Digital Kingdom for global abundance
 **Major Achievements**: **PaymentConductor v1**, **News Kingdom**, **Scientific Editor**, **Locale SSOT**, **Member Blogs**, **DaVinci Mobile UX**, **OSS Security Boundary**, **Next.js 16**, **ALL React 19 Features**, **DAGI AI Agent System**, **Ringdom Settler System**, **Legiox-Access NFT**, **Interactive Maps**, **Email CRM**, **PIN Security**, **Slim Proxy Auth**, **6+ Active K8s Clones**, **147+ Legiox AI Agents**, **23 MCP Tools**, Database Abstraction Layer, Multi-Vendor E-Commerce, White-Label Clone System, RING Token Economy
 
@@ -48,6 +48,7 @@
 - **Global User Architecture** - Shared users across Ring clones
 
 #### IN PROGRESS
+- **Docs locale parity** — UK/RU customization hub and affiliate-enablement pages; residual `library/` prose in long MDX bodies ([LOCALE-GAPS.md](scripts/LOCALE-GAPS.md))
 - **Home Page Ringdom Narrative** - Restore Ring Platform identity with Ringdom context, settler CTA, Legiox NFT teaser
 - **Ring Customization Opportunity Categories** - Expanding from 4 to 16 types including ai_instructor, collective_need, platform_mentorship
 - **Messaging Frontend** - ConversationList complete, MessageThread & MessageComposer pending
@@ -98,6 +99,26 @@
 ---
 
 ## 🏆 **RECENT MAJOR ACHIEVEMENTS**
+
+### **✅ v1.6.4 — Messenger AI, ring-db `*Doc`, Docs Flatten (COMPLETE - June 13, 2026)**
+**Status**: 🟢 **SHIPPED** (`connectplatform/ring` main @ `15b6fe3`)
+
+**Store & AI:**
+- Product detail **AI agent chat** with persisted Messenger threads and unified stack (user search, overlay rail)
+- **SSE streaming** replies (Anthropic/OpenAI/OpenRouter) + **Grok fallback** for non-SSE providers
+- Guest login panel in agent chat with `agentChat=1` restore after auth
+
+**Database:**
+- Domain layer on **`db().*Doc`** and **`db().transaction()`** — removed per-route `getDatabaseService` / `initializeDatabase` / `execute()` from features and services
+- **`*Doc` / `DbRow` typing** and client/server bundle boundaries (`UserRow`, product-agent constant split)
+
+**Auth & UX:**
+- **`LoginAuthenticatedRedirect`** — client `useSession` gate on `/login` (stale-cookie loop fix)
+- Sidebar hydration: mobile nav always on, SSR-safe theme icon, collapse without blank aside
+
+**Documentation:**
+- Docs physical root **`docs/{locale}/**`** — retired `docs/content/` wrapper and `library/` segment; `.mdx` / trailing `/index` URL normalization in `next.config.mjs`
+- Platform nav: **`/docs/customization/*`** replaces white-label doc links
 
 ### **✅ Serialization Logic Hardening — Phase A/B (COMPLETE - June 8, 2026)**
 **Status**: 🟢 **BUILD GREEN** (ring-platform.org v1.6.1)

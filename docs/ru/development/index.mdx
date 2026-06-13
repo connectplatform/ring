@@ -1,0 +1,75 @@
+---
+title: Index
+description: Index documentation for Ring Platform
+---
+
+# Development Guide
+
+Welcome to the Ring Platform development guide. This section covers everything you need to know about developing with and contributing to Ring Platform.
+
+## 🛠️ Development Setup
+
+### Prerequisites
+- Node.js 18.17 or later
+- npm or pnpm package manager
+- Git for version control
+- MongoDB (optional, for local development)
+
+### Quick Start
+
+Clone the repository Install dependencies Set up environment variables Run development server
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+
+npm install
+
+cp env.local.template .env.local
+
+npm run dev`}
+</Code>
+
+## 📁 Project Structure
+
+```
+ring/
+├── app/              # Next.js 16 App Router
+├── components/       # React components
+├── lib/             # Utility functions
+├── features/        # Feature modules
+├── @actions/        # Server actions
+├── public/          # Static assets
+└── AI-CONTEXT/      # AI documentation
+```
+
+## 🔧 Development Workflow
+
+### Local Development
+- [Local Setup](/ru/docs/development/local-setup) - Complete local environment setup
+- [Code Structure](/ru/docs/development/code-structure) - Understanding the codebase
+- [Best Practices](/ru/docs/development/best-practices) - Coding standards and patterns
+
+### Testing & Quality
+- [Testing](/ru/docs/development/testing) - Unit and integration testing
+- [Debugging](/ru/docs/development/debugging) - Debugging techniques and tools
+- [Contributing](/ru/docs/development/contributing) - How to contribute to Ring Platform
+
+## 🚀 Key Technologies
+
+- **React 19** - Latest React features
+- **Next.js 16** - App Router and Server Components
+- **TypeScript** - Type safety and better DX
+- **Tailwind CSS v4** - Utility-first styling
+- **Auth.js v5** - Authentication
+- **Firebase** - Backend services
+
+## 📚 Resources
+
+- [API Documentation](/ru/docs/api) - Complete API reference
+- [Feature Guides](/ru/docs/features) - Deep dive into features
+- [Examples](/ru/docs/examples) - Code examples and patterns
+
+---
+
+*Ready to start developing? Begin with [Local Setup](/ru/docs/development/local-setup).*

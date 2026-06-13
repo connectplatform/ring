@@ -1,0 +1,35 @@
+---
+title: Миграции базы данных
+description: PostgreSQL schema и kingdom-миграции для новостей и платежей
+last_modified: "2026-06-10"
+---
+
+# Миграции базы данных
+
+Для `DB_BACKEND_MODE=k8s-postgres-fcm` или `supabase-fcm` примените миграции после `data/schema.sql`.
+
+## Порядок
+
+```bash
+psql "$DATABASE_URL" -f data/schema.sql
+psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
+psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+psql "$DATABASE_URL" -f data/migrations/005_refcodes_schema.sql
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
+```
+
+> **EN canonical:** полный порядок, legacy `001` callout и verify — [Migrations (EN)](/docs/getting-started/migrations)
+
+Помощник: `./scripts/run-migration.sh`
+
+Проверка Email CRM: `psql "$DATABASE_URL" -c "\dt email_*"`
+
+## Опциональные seeds
+
+```bash
+psql "$DATABASE_URL" -f scripts/seed-news-v1.6.0-ru.sql
+```
+
+См. [Режимы backend](/docs/architecture/backend-modes-and-databases) · [Email AI-CRM](/docs/features/email-ai-crm)

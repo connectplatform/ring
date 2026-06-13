@@ -1,0 +1,501 @@
+---
+title: Интеграция платежей
+description: Обработка платежей WayForPay, повышение уровня членства и оформление заказов в магазине
+---
+
+# Интеграция платежей
+
+В **v1.6.0** все карточные и кредитные потоки проходят через **PaymentConductor** (`lib/payments/conductor/`). WayForPay — основной PSP для Украины; Stripe — международные рельсы.
+
+> **Подробнее:** [PaymentConductor](/docs/features/payment-conductor) · [Архитектура](/docs/architecture/payment-conductor)
+
+## Обзор (PaymentConductor)
+
+PaymentConductor поддерживает:
+
+- **Магазин** — `store_order`, WayForPay/Stripe или внутренний кредит
+- **Членство** — `membership_upgrade`
+- **Промоция новостей** — `news_promotion` (News Kingdom)
+- **Реестр** — `payment_transactions` (миграция 004)
+- **Webhooks** — единый диспетчер WayForPay и Stripe
+
+## Обзор (WayForPay)
+
+Платформа Ring интегрируется с **WayForPay** для безопасной обработки платежей, поддерживая:
+
+- **Повышение уровня членства**: SUBSCRIBER → MEMBER (₴299 UAH)
+- **Оформление заказов в магазине**: Платежи в мульти-вендорном маркетплейсе
+- **Мульти-валюта**: UAH основная, поддержка крипто-кошельков
+- **Безопасность**: PCI DSS совместимо, зашифрованные транзакции
+
+## Способы оплаты
+
+### Интеграция WayForPay
+
+**Основной процессор платежей для украинского рынка**
+
+<Code language="typescript" title="interface WayForPayConfig {">
+{`merchantAccount: string
+  secretKey: string
+  domainName: string
+  webhookUrl: string
+}`}
+</Code>
+
+#### Поддерживаемые способы оплаты
+- 💳 **Банковские карты**: Visa, MasterCard
+- 📱 **Цифровые кошельки**: Apple Pay, Google Pay
+- 🏦 **Банкинг**: Privat24, LiqPay
+- 📅 **Рассрочка**: PayParts, мгновенная рассрочка
+- 📱 **QR-код**: Платежи через QR-код
+
+### Криптовалютные платежи
+
+**Интеграция Web3 кошелька для токенов RING**
+
+<Code language="typescript" title="interface CryptoPayment {">
+{`networks: ['Polygon', 'Ethereum']
+  tokens: ['RING', 'MATIC', 'ETH']
+  features: ['Non-custodial', 'Automatic conversion']
+}`}
+</Code>
+
+## Поток повышения уровня членства
+
+### Путь пользователя
+
+<Mermaid>
+{`sequenceDiagram
+    participant U as Пользователь (SUBSCRIBER)
+    participant R as Ring Platform
+    participant W as WayForPay
+    participant D as Database
+
+    U->>R: Нажать "Добавить сущность"
+    R->>R: Проверить роль пользователя
+    R->>U: Показать MembershipUpgradeModal
+    U->>R: Нажать "Повысить сейчас"
+    R->>R: Создать платежную сессию
+    R->>W: Сгенерировать форму WayForPay
+    W->>U: Отобразить платежную форму
+    U->>W: Ввести платежные данные
+    W->>W: Обработать платеж
+    W->>R: Отправить уведомление webhook
+    R->>R: Проверить подпись и обновить роль
+    R->>U: Перенаправить на страницу успеха
+    R->>D: Повысить SUBSCRIBER → MEMBER`}
+</Mermaid>
+
+### Реализация
+
+#### Компонент модального окна платежа
+
+<Code language="typescript" title="'use client'">
+{`import { useState } from 'react'
+import { createPaymentSession } from '@/actions/payments'
+
+export function MembershipUpgradeModal() {
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handleUpgrade = async () => {
+    setIsProcessing(true)
+
+    const paymentUrl = await createPaymentSession({
+      amount: 299,
+      currency: 'UAH',
+      productName: 'Повышение членства',
+      returnUrl: '/payment/success',
+      webhookUrl: '/api/payments/webhook'
+    })
+
+    // Перенаправить на WayForPay
+    window.location.href = paymentUrl
+  }
+
+  return (
+    <div className="modal">
+      <h2>Повысить до статуса MEMBER</h2>
+      <div className="benefits">
+        <h3>Преимущества:</h3>
+        <ul>
+          <li>✅ Создавать и управлять сущностями</li>
+          <li>✅ Доступ к премиум-функциям</li>
+          <li>✅ Расширенные возможности</li>
+          <li>✅ Приоритетная поддержка</li>
+        </ul>
+      </div>
+      <div className="pricing">
+        <p className="price">₴299 UAH</p>
+        <p className="note">Единовременный платеж, пожизненный доступ</p>
+      </div>
+      <button
+        onClick={handleUpgrade}
+        disabled={isProcessing}
+        className="upgrade-button"
+      >
+        {isProcessing ? 'Обработка...' : 'Повысить сейчас'}
+      </button>
+    </div>
+  )
+}`}
+</Code>
+
+#### Обработчик webhook
+
+// app/api/payments/webhook/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { NextRequest } from 'next/server'
+import { verifyWayForPaySignature } from '@/lib/payments/wayforpay'
+import { upgradeUserRole } from '@/lib/auth/role-upgrade'
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // Проверить подпись WayForPay
+    const isValid = verifyWayForPaySignature(body)
+    if (!isValid) {
+      return Response.json({ error: 'Неверная подпись' }, { status: 400 })
+    }
+
+    // Проверить статус платежа
+    if (body.transactionStatus === 'Approved') {
+      await upgradeUserRole(body.orderReference, 'MEMBER')
+
+      // Отправить письмо подтверждения
+      await sendUpgradeConfirmation(body.clientEmail)
+    }
+
+    // Ответить WayForPay
+    return Response.json({
+      orderReference: body.orderReference,
+      status: 'accept',
+      time: Math.floor(Date.now() / 1000)
+    })
+
+  } catch (error) {
+    console.error('Обработка webhook не удалась:', error)
+    return Response.json({ error: 'Обработка не удалась' }, { status: 500 })
+  }
+}`}
+</Code>
+
+## Интеграция оформления заказов в магазине
+
+### Поток платежей мульти-вендора
+
+<Mermaid>
+{`graph TD
+    A[Пользователь добавляет в корзину] --> B[Выбрать способ оплаты]
+    B --> C{WayForPay?}
+    C -->|Да| D[Сгенерировать форму WayForPay]
+    C -->|Нет| E{Крипто?}
+    E -->|Да| F[Подключить кошелек]
+    E -->|Нет| G{Токены RING?}
+    G -->|Да| H[Обработать платеж RING]
+
+    D --> I[Перенаправить на WayForPay]
+    I --> J[Обработка платежа]
+    J --> K{Платеж успешен?}
+    K -->|Да| L[Обновить статус заказа]
+    K -->|Нет| M[Платеж не удался]
+
+    F --> N[Транзакция кошелька]
+    N --> O[Подтвердить транзакцию]
+    O --> P{Подтверждено?}
+    P -->|Да| L
+    P -->|Нет| M
+
+    H --> Q[Перевод токенов]
+    Q --> R{Перевод успешен?}
+    R -->|Да| L
+    R -->|Нет| M
+
+    L --> S[Создать расчеты с вендорами]
+    S --> T[Отправить письма подтверждения]
+    T --> U[Перенаправить на страницу успеха]`}
+</Mermaid>
+
+### API платежей магазина
+
+// app/api/store/payments/wayforpay/route.ts
+
+<Code language="typescript" title="TypeScript">
+{`import { NextRequest } from 'next/server'
+import { auth } from '@/auth'
+import { createWayForPayPayment } from '@/lib/payments/store-payments'
+
+export async function POST(request: NextRequest) {
+  const session = await auth()
+
+  if (!session?.user) {
+    return Response.json({ error: 'Не авторизован' }, { status: 401 })
+  }
+
+  try {
+    const { orderId, amount, currency, products } = await request.json()
+
+    const paymentUrl = await createWayForPayPayment({
+      orderId,
+      amount,
+      currency,
+      products,
+      customer: {
+        email: session.user.email,
+        firstName: session.user.name?.split(' ')[0],
+        lastName: session.user.name?.split(' ')[1]
+      },
+      returnUrl: `/store/order/${orderId}/success`,
+      webhookUrl: `/api/store/payments/webhook`
+    })
+
+    return Response.json({ paymentUrl })
+
+  } catch (error) {
+    return Response.json({ error: 'Создание платежа не удалось' }, { status: 500 })
+  }
+}`}
+</Code>
+
+### Обработка расчетов с вендорами
+
+// lib/payments/vendor-settlement.ts
+
+<Code language="typescript" title="TypeScript">
+{`interface VendorSettlement {
+  vendorId: string
+  orderId: string
+  amount: number
+  commission: number // На основе уровня доверия вендера
+  netAmount: number  // Сумма после комиссии
+  currency: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+}
+
+export async function processVendorSettlement(orderId: string) {
+  // Получить детали заказа
+  const order = await getOrder(orderId)
+  const vendorTier = await getVendorTrustTier(order.vendorId)
+
+  // Рассчитать комиссию на основе уровня
+  const commissionRates = {
+    NEW: 0.20,      // 20%
+    BASIC: 0.18,    // 18%
+    VERIFIED: 0.16, // 16%
+    TRUSTED: 0.14,  // 14%
+    PREMIUM: 0.12   // 12%
+  }
+
+  const commission = order.total * commissionRates[vendorTier]
+  const netAmount = order.total - commission
+
+  // Создать запись расчета
+  await createSettlement({
+    vendorId: order.vendorId,
+    orderId,
+    amount: order.total,
+    commission,
+    netAmount,
+    currency: order.currency,
+    status: 'pending'
+  })
+
+  // Обработать выплату (может быть ручной или автоматической)
+  await processPayout(netAmount, vendorId)
+}`}
+</Code>
+
+## Безопасность и соответствие
+
+### Соответствие PCI DSS
+
+// Меры безопасности для обработки платежей
+
+<Code language="typescript" title="TypeScript">
+{`const paymentSecurity = {
+  // Никогда не хранить данные карт
+  noCardStorage: true,
+
+  // Использовать хостинговые формы WayForPay
+  hostedPaymentForms: true,
+
+  // Шифровать все платежные данные
+  encryption: 'AES-256',
+
+  // Безопасная верификация подписи
+  signatureVerification: true,
+
+  // Ограничение скорости на платежных конечных точках
+  rateLimiting: {
+    paymentCreation: '10 запросов/час на пользователя',
+    webhookCalls: 'неограничено (с верификацией подписи)'
+  }
+}`}
+</Code>
+
+### Соответствие GDPR
+
+// Обработка платежных данных
+
+<Code language="typescript" title="TypeScript">
+{`const gdprCompliance = {
+  // Нет ненужного сбора данных
+  dataMinimization: true,
+
+  // Согласие пользователя на обработку платежей
+  explicitConsent: true,
+
+  // Право на удаление данных
+  deletionGracePeriod: '30 дней',
+
+  // Аудиторский след для всех платежных активностей
+  auditLogging: true
+}`}
+</Code>
+
+## Обработка ошибок
+
+### Сценарии неудачных платежей
+
+// Обработка неудачных платежей
+
+<Code language="typescript" title="TypeScript">
+{`export async function handlePaymentFailure(orderReference: string, reason: string) {
+  // Записать детали неудачи
+  await logPaymentFailure({
+    orderReference,
+    reason,
+    timestamp: new Date(),
+    userAgent: getUserAgent(),
+    ipAddress: getClientIP()
+  })
+
+  // Обновить статус заказа
+  await updateOrderStatus(orderReference, 'payment_failed')
+
+  // Отправить уведомление о неудаче
+  await sendPaymentFailureEmail(orderReference)
+
+  // Предоставить опции повторной попытки
+  const retryUrl = generateRetryUrl(orderReference)
+  return { retryUrl, reason }
+}`}
+</Code>
+
+### Обработка ошибок webhook
+
+// Надежная обработка webhook
+
+<Code language="typescript" title="TypeScript">
+{`export async function processWebhookSafely(webhookData: any) {
+  try {
+    // Проверить подпись
+    if (!verifySignature(webhookData)) {
+      throw new Error('Неверная подпись webhook')
+    }
+
+    // Проверить на дублированную обработку
+    if (await isWebhookProcessed(webhookData.orderReference)) {
+      return { status: 'already_processed' }
+    }
+
+    // Обработать платеж
+    await processPaymentUpdate(webhookData)
+
+    // Отметить как обработанный
+    await markWebhookProcessed(webhookData.orderReference)
+
+    return { status: 'success' }
+
+  } catch (error) {
+    // Записать ошибку с полным контекстом
+    await logWebhookError({
+      webhookData,
+      error: error.message,
+      timestamp: new Date()
+    })
+
+    // Не раскрывать внутренние ошибки WayForPay
+    throw new Error('Обработка webhook не удалась')
+  }
+}`}
+</Code>
+
+## Тестирование и мониторинг
+
+### Тестирование платежей
+
+// Тестовые сценарии платежей
+
+<Code language="typescript" title="TypeScript">
+{`const paymentTests = {
+  successfulPayment: async () => {
+    const result = await testWayForPayPayment({
+      amount: 299,
+      currency: 'UAH',
+      testMode: true
+    })
+    expect(result.status).toBe('approved')
+  },
+
+  failedPayment: async () => {
+    const result = await testWayForPayPayment({
+      amount: 0, // Неверная сумма
+      currency: 'UAH'
+    })
+    expect(result.status).toBe('declined')
+  },
+
+  webhookProcessing: async () => {
+    const webhook = generateTestWebhook('approved')
+    const result = await processWebhookSafely(webhook)
+    expect(result.status).toBe('success')
+  }
+}`}
+</Code>
+
+### Мониторинг платежей
+
+// Отслеживание метрик платежей
+
+<Code language="typescript" title="TypeScript">
+{`const paymentMetrics = {
+  successRate: () => {
+    // Рассчитать процент успеха за период времени
+    return calculatePaymentSuccessRate('24h')
+  },
+
+  averageProcessingTime: () => {
+    // Отслеживать задержку обработки платежей
+    return getAveragePaymentLatency()
+  },
+
+  failureReasons: () => {
+    // Анализировать распространенные паттерны неудач
+    return analyzePaymentFailures()
+  }
+}`}
+</Code>
+
+## Чек-лист интеграции
+
+### Чек-лист перед запуском
+- [ ] Настроен аккаунт WayForPay merchant
+- [ ] Переменные окружения установлены в продакшене
+- [ ] Конечные точки webhook защищены и протестированы
+- [ ] SSL сертификаты установлены
+- [ ] PCI DSS соответствие проверено
+- [ ] Обработка ошибок реализована
+- [ ] Мониторинг и оповещения настроены
+
+### Развертывание в продакшен
+- [ ] Тестовые платежи в staging окружении
+- [ ] Нагрузочное тестирование завершено
+- [ ] План отката подготовлен
+- [ ] Команда поддержки обучена
+- [ ] Коммуникация с клиентами готова
+
+---
+
+*Эта интеграция платежей предоставляет безопасность и надежность корпоративного уровня для коммерческих функций платформы Ring.*

@@ -1,0 +1,44 @@
+---
+title: OSS vs enterprise
+description: Что входит в публичный GitHub, а что — в услуги Ringdom для поселенцев
+last_modified: "2026-06-06"
+---
+
+# OSS vs enterprise
+
+Ring Platform v1.6.0 чётко разделяет **открытый OSS** и **enterprise-операции Ringdom**.
+
+## Публичный OSS (GitHub)
+
+| Включено | Примечания |
+|----------|------------|
+| Полный код приложения | Next.js 16, React 19, все модули |
+| `install.sh` + community scripts | Setup, env, миграции |
+| Документация (`/docs`) | EN canonical, UK/RU во втором проходе |
+| Env templates | Без реальных секретов |
+| Docker | Self-hosted путь |
+
+| Исключено (gitignore) | Почему |
+|-----------------------|--------|
+| `k8s/` | Прод-топология + секреты |
+| `cli/` | Empire deploy CLI |
+| `propagation/` | Манифесты синхронизации клонов |
+| Внутренние ops scripts | `setup-github-secrets`, `sync-*-to-clones` и т.д. |
+
+## Ringdom enterprise
+
+- Управляемый Kubernetes в вашем регионе
+- Reggie AI ringization проектов
+- Legiox skillsets (NFT-gated)
+- Кастомная propagation и мониторинг
+
+Регистрация: [ringdom.org/settler](https://ringdom.org/settler)
+
+## Документация
+
+EN — canonical; UK/RU — [`LOCALE-GAPS.md`](/scripts/LOCALE-GAPS.md). Никогда не коммитьте credentials в комментариях или MDX.
+
+## Связанное
+
+- [Community tooling](/docs/development/community-tooling)
+- [Self-hosted](/docs/deployment/self-hosted)
