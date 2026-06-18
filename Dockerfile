@@ -340,16 +340,6 @@ ENV SKIP_TYPE_CHECK=1
 RUN --mount=type=cache,target=/app/.next/cache \
     NODE_OPTIONS="--no-deprecation --max-old-space-size=8192" npm run build:skip-types
 
-# Bundle custom server + tunnel deps (not fully traced by Next standalone output)
-RUN npx esbuild server.ts \
-    --bundle \
-    --platform=node \
-    --format=esm \
-    --outfile=server.mjs \
-    --external:next \
-    --external:ws \
-    --tsconfig=tsconfig.json
-
 # Runtime Stage
 FROM node:25-alpine AS runtime
 
@@ -383,12 +373,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy bundled custom server (native WSS + Next handler)
-COPY --from=builder --chown=nextjs:nodejs /app/server.mjs ./server.mjs
-
-# ws is external to esbuild bundle (CJS dynamic requires); not always in standalone trace
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
-
 # Copy lib directory for auth and utilities
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 
@@ -418,5 +402,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Bundled server: Next handler + native WSS tunnel (RING_DEPLOY_TARGET=k8s baked above)
-CMD ["node", "server.mjs"]
+# Next standalone server (SSE tunnel via API routes; native WSS uses server.ts in dev/k8s custom deploy later)
+CMD ["node", "server.js"]
