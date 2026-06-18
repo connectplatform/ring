@@ -1,20 +1,20 @@
 export const USER_ROLE_VALUES = [
-  "VISITOR",
-  "SUBSCRIBER",
-  "MEMBER",
-  "CONFIDENTIAL",
-  "ADMIN",
-  "SUPERADMIN",
+  "visitor",
+  "subscriber",
+  "member",
+  "confidential",
+  "admin",
+  "superadmin",
 ] as const
 
 export type UserRoleValue = (typeof USER_ROLE_VALUES)[number]
 
-export const DEFAULT_USER_ROLE = "SUBSCRIBER" as const satisfies UserRoleValue
+export const DEFAULT_USER_ROLE = "subscriber" as const satisfies UserRoleValue
 
 export const OAUTH_INTENT_ALLOWED_ROLES = [
-  "VISITOR",
-  "SUBSCRIBER",
-  "MEMBER",
+  "visitor",
+  "subscriber",
+  "member",
 ] as const satisfies readonly UserRoleValue[]
 
 export type OAuthIntentRole = (typeof OAUTH_INTENT_ALLOWED_ROLES)[number]
@@ -25,19 +25,20 @@ export const OAUTH_INTENT_COOKIE_MAX_AGE_SECONDS = 10 * 60
 const USER_ROLE_SET = new Set<UserRoleValue>(USER_ROLE_VALUES)
 const OAUTH_INTENT_ROLE_SET = new Set<OAuthIntentRole>(OAUTH_INTENT_ALLOWED_ROLES)
 
-export function normalizeUserRole(role: unknown): UserRoleValue | undefined {
+/** Exact lowercase enum match for OAuth signup intent (no casing coercion). */
+export function parseOAuthIntentRoleValue(role: unknown): UserRoleValue | undefined {
   if (typeof role !== "string") return undefined
 
-  const normalized = role.trim().toUpperCase()
-  if (!USER_ROLE_SET.has(normalized as UserRoleValue)) return undefined
+  const trimmed = role.trim()
+  if (!USER_ROLE_SET.has(trimmed as UserRoleValue)) return undefined
 
-  return normalized as UserRoleValue
+  return trimmed as UserRoleValue
 }
 
 export function resolveOAuthIntentRole(role: unknown): OAuthIntentRole {
-  const normalized = normalizeUserRole(role)
-  if (normalized && OAUTH_INTENT_ROLE_SET.has(normalized as OAuthIntentRole))
-    return normalized as OAuthIntentRole
+  const parsed = parseOAuthIntentRoleValue(role)
+  if (parsed && OAUTH_INTENT_ROLE_SET.has(parsed as OAuthIntentRole))
+    return parsed as OAuthIntentRole
 
   return DEFAULT_USER_ROLE
 }

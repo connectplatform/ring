@@ -3,7 +3,7 @@ import type { CreateCheckoutContext, CreateCheckoutResult } from '@/lib/payments
 import { buildOrderReference } from '@/lib/payments/order-reference'
 import { getWebhookUrl } from '@/lib/payments/payment.config'
 import { paymentTransactionService } from '@/lib/payments/payment-transaction-service'
-import { initiatePayment, MEMBERSHIP_PRICES } from '@/lib/payments/wayforpay-service'
+import { getMembershipTierConfig, initiatePayment } from '@/lib/payments/wayforpay-service'
 import { initiateStorePayment } from '@/lib/payments/wayforpay-store-service'
 import { UserRole } from '@/features/auth/types'
 
@@ -76,7 +76,7 @@ async function createStoreWayForPay(ctx: CreateCheckoutContext): Promise<CreateC
 }
 
 async function createMembershipWayForPay(ctx: CreateCheckoutContext): Promise<CreateCheckoutResult> {
-  const targetRole = (ctx.targetRole as UserRole) || UserRole.MEMBER
+  const targetRole = (ctx.targetRole as UserRole) || UserRole.member
   const orderReference = buildOrderReference('membership_upgrade', { userId: ctx.userId })
 
   await paymentTransactionService.createPending({
@@ -156,4 +156,4 @@ async function createNewsWayForPay(ctx: CreateCheckoutContext): Promise<CreateCh
   return { success: true, paymentUrl, orderReference }
 }
 
-export { MEMBERSHIP_PRICES }
+export { getMembershipTierConfig }

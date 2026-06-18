@@ -279,7 +279,7 @@ const opportunity = await createOpportunity({
 import { searchOpportunities } from '@/features/opportunities/services/search-opportunities'
 
 const { opportunities } = await getOpportunitiesForRole({
-  userRole: UserRole.MEMBER,
+  userRole: UserRole.member,
   limit: 20,
 })
 
@@ -338,13 +338,14 @@ When **Platform Settings → AI → Matcher → Auto-approve** is enabled, new o
 
 ### API-First Architecture
 
-<Code language="typescript" title="RESTful API endpoints">
-{`GET /api/opportunities          // List opportunities
-POST /api/opportunities         // Create opportunity
-GET /api/opportunities/:id      // Get specific opportunity
-PUT /api/opportunities/:id      // Update opportunity
-DELETE /api/opportunities/:id   // Delete opportunity
-POST /api/opportunities/:id/apply // Apply to opportunity`}
+<Code language="typescript" title="REST routes (alpha)">
+{`GET  /api/opportunities              // List (role-aware pagination)
+GET  /api/opportunities/{id}         // Detail
+GET  /api/opportunities/search       // Search
+PATCH /api/opportunities/update      // Update (prefer Server Actions in UI)
+DELETE /api/opportunities/delete/{id} // Delete
+POST /api/opportunities/upload       // Attachments
+// Create: createOpportunity Server Action (app/_actions/opportunities.ts)`}
 </Code>
 
 ## 🏆 Why Choose Ring Platform?

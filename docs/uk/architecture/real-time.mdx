@@ -10,24 +10,24 @@ description: Real Time documentation for Ring Platform
 ## Архітектура Tunnel Transport
 
 ### Підтримувані Транспорти
-- **WebSocket** - Primary transport для Kubernetes deployments
+- **Native WSS** — primary transport for k8s (`RING_DEPLOY_TARGET=k8s`, `/api/tunnel/ws`)
 - **Server-Sent Events (SSE)** - Primary transport для Vercel Edge Runtime
 - **Long Polling** - Fallback transport для restrictive environments
 - **Supabase Realtime** - Cloud-native real-time для Supabase deployments
 - **Firebase RTDB** - Legacy Firebase real-time database
 - **Pusher/Ably** - Third-party real-time services
 
-### Автоматичний Вибір Транспорту
-// Автоматична детекція середовища та вибір транспорту
+### Автоматичний вибір транспорту
 
-<Code language="typescript" title="TypeScript">
-{`const transportConfig = {
-  vercel: { primary: 'sse', fallback: 'polling' },
-  kubernetes: { primary: 'websocket', fallback: 'sse' },
-  supabase: { primary: 'supabase', fallback: 'polling' },
-  firebase: { primary: 'firebase', fallback: 'polling' }
-}`}
+Керується **`RING_DEPLOY_TARGET`** (не евристикою localhost):
+
+<Code language="bash" title="terminal">
+{`RING_DEPLOY_TARGET=vercel      # SSE + poll (serverless)
+RING_DEPLOY_TARGET=k8s           # native WSS primary (/api/tunnel/ws)
+RING_DEPLOY_TARGET=self-hosted   # native WSS primary`}
 </Code>
+
+Docker-образ платформи **запікає** `RING_DEPLOY_TARGET=k8s`.
 
 ### Архітектура Системи
 <Mermaid>
@@ -39,7 +39,7 @@ description: Real Time documentation for Ring Platform
     end
 
     subgraph "Transport Layer"
-        TM --> WS[🔌 WebSocket Transport]
+        TM --> WS[🔌 Native WSS /api/tunnel/ws]
         TM --> SSE[📡 SSE Transport]
         TM --> LP[🔄 Long Polling Transport]
         TM --> SB[☁️ Supabase Transport]
@@ -168,40 +168,26 @@ interface ConnectionHealth {
 ## Конфігурація за Середовищами
 
 ### Vercel Edge Runtime
-// SSE primary, WebSocket disabled
 
-<Code language="typescript" title="TypeScript">
-{`const vercelConfig = {
-  transports: ['sse', 'polling'],
-  heartbeatInterval: 30000,
-  reconnectDelay: 1000,
-  maxReconnectAttempts: 5
-}`}
+<Code language="bash" title="terminal">
+{`RING_DEPLOY_TARGET=vercel
+NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel`}
 </Code>
 
 ### Kubernetes Production
-// WebSocket primary, SSE fallback
 
-<Code language="typescript" title="TypeScript">
-{`const k8sConfig = {
-  transports: ['websocket', 'sse', 'polling'],
-  heartbeatInterval: 25000,
-  reconnectDelay: 500,
-  maxReconnectAttempts: 10,
-  enableMetrics: true
-}`}
+<Code language="bash" title="terminal">
+{`RING_DEPLOY_TARGET=k8s
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+# NEXT_PUBLIC_TUNNEL_WS_URL=wss://your-host/api/tunnel/ws`}
 </Code>
 
-### Development Environment
-// All transports enabled for testing
+### Development
 
-<Code language="typescript" title="TypeScript">
-{`const devConfig = {
-  transports: ['websocket', 'sse', 'polling', 'supabase'],
-  debugMode: true,
-  heartbeatInterval: 10000,
-  mockLatency: 100 // For testing
-}`}
+<Code language="bash" title="terminal">
+{`RING_DEPLOY_TARGET=self-hosted
+NEXT_PUBLIC_RING_DEPLOY_TARGET=self-hosted
+npm run dev   # server.ts — Next + native WSS`}
 </Code>
 
 ## Моніторинг та Аналітика

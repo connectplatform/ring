@@ -9,7 +9,8 @@ import { cache } from 'react'
 import { Opportunity } from '@/features/opportunities/types'
 import { mapDbDocumentToOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole } from '@/features/auth/user-role'
+import { canViewOpportunity } from '@/features/opportunities/lib/opportunity-visibility-filter'
 import { db } from '@/lib/database'
 
 /**
@@ -33,7 +34,7 @@ import { db } from '@/lib/database'
  * 4. Applies role-based filtering to ensure users only see opportunities they have permission to access.
  * 5. Returns an array of opportunities that match the criteria and the user has permission to view.
  * 
- * Note: Confidential opportunities are only included in the results for users with CONFIDENTIAL or ADMIN roles.
+ * Note: Confidential opportunities are only included in the results for users with confidential or admin roles.
  *       Other users will only see non-confidential opportunities matching the slugs.
  */
 export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opportunity[]> => {
@@ -46,19 +47,7 @@ export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opp
       throw new Error('Unauthorized access');
     }
 
-    const userRole = session.user.role as UserRole;
-
-    // Validate role before proceeding
-    const validRoles: UserRole[] = [
-      UserRole.VISITOR,
-      UserRole.SUBSCRIBER,
-      UserRole.MEMBER,
-      UserRole.ADMIN,
-      UserRole.CONFIDENTIAL
-    ];
-    if (!userRole || !validRoles.includes(userRole)) {
-      throw new Error('Invalid or missing user role');
-    }
+    const userRole = assertKnownUserRole(session.user.role)
 
     console.log(`Services: getOpportunitiesBySlug - User authenticated with role ${userRole}`);
 
@@ -82,21 +71,9 @@ export const getOpportunitiesBySlug = cache(async (slugs: string[]): Promise<Opp
       }
     }
 
-    // Apply role-based visibility filtering for non-admin users
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      const allowedVisibilities = ['public'];
-      
-      if (userRole === UserRole.SUBSCRIBER || userRole === UserRole.MEMBER) {
-        allowedVisibilities.push('subscriber');
-      }
-      if (userRole === UserRole.MEMBER) {
-        allowedVisibilities.push('member');
-      }
-
-      opportunities = opportunities.filter(opportunity => 
-        allowedVisibilities.includes(opportunity.visibility || 'public')
-      );
-    }
+      opportunities = opportunities.filter((opportunity) =>
+        canViewOpportunity(opportunity, { userRole, userId: session.user.id }),
+      )
 
     console.log('Services: getOpportunitiesBySlug - Fetched opportunities:', opportunities.length);
 

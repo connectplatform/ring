@@ -11,6 +11,8 @@ import {
   mapDbDocumentToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole } from '@/features/auth/user-role'
+import { buildOpportunityVisibilityFilters } from '@/features/opportunities/lib/opportunity-visibility-filter'
 import { auth } from '@/auth'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -76,24 +78,7 @@ export const getOpportunitiesForRole = cache(async (
   try {
     console.log('Services: getOpportunitiesForRole - Starting...', { userRole, limit, startAfter });
 
-    // Validate role
-    const validRoles: UserRole[] = [
-      UserRole.VISITOR,
-      UserRole.SUBSCRIBER,
-      UserRole.MEMBER,
-      UserRole.ADMIN,
-      UserRole.SUPERADMIN,
-      UserRole.CONFIDENTIAL
-    ];
-
-    if (!userRole || !validRoles.includes(userRole)) {
-      throw new OpportunityPermissionError('Invalid or missing user role', undefined, {
-        timestamp: Date.now(),
-        hasRole: !!userRole,
-        role: userRole,
-        operation: 'role_validation'
-      });
-    }
+    assertKnownUserRole(userRole)
 
     // Step 2: Build optimized query configuration based on user role
     const queryConfig: any = {
@@ -101,17 +86,7 @@ export const getOpportunitiesForRole = cache(async (
       orderBy: [{ field: 'dateCreated', direction: 'desc' }]
     };
 
-    // Apply role-based filtering for non-admin users
-    // Visitors see only public. Subscribers see public + subscriber. Members see public + subscriber + member.
-    const whereConditions: any[] = [];
-    if (userRole === UserRole.VISITOR) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public'] });
-    } else if (userRole === UserRole.SUBSCRIBER) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] });
-    } else if (userRole === UserRole.MEMBER) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] });
-    }
-    // ADMIN and CONFIDENTIAL users see all opportunities (no filter applied)
+    const whereConditions: any[] = [...buildOpportunityVisibilityFilters(userRole)]
 
     // Apply search and filter conditions
     if (query) {
@@ -127,9 +102,11 @@ export const getOpportunitiesForRole = cache(async (
       whereConditions.push({ field: 'category', operator: 'in', value: categories });
     }
 
+    /** Text-prefix location match (not geo radius). */
     if (location) {
-      whereConditions.push({ field: 'location', operator: '>=', value: location });
-      whereConditions.push({ field: 'location', operator: '<=', value: location + '\uf8ff' });
+      const loc = location.toLowerCase()
+      whereConditions.push({ field: 'location', operator: '>=', value: loc });
+      whereConditions.push({ field: 'location', operator: '<=', value: loc + '\uf8ff' });
     }
 
     if (budgetMin !== undefined) {

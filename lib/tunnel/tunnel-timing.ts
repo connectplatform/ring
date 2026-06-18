@@ -58,6 +58,13 @@ export function isDesktopDevice(): boolean {
   return !isMobileDevice();
 }
 
+/** Strip locale prefix so `/en/notifications` matches priority route `/notifications`. */
+export function normalizeTunnelRoute(route?: string): string | undefined {
+  if (!route) return route;
+  const stripped = route.replace(/^\/(en|uk|ru)(?=\/)/, '');
+  return stripped || '/';
+}
+
 /**
  * Get connection delay based on strategy and device
  */
@@ -65,13 +72,15 @@ export function getConnectionDelay(
   config: TunnelTimingConfig = DEFAULT_TIMING_CONFIG,
   route?: string
 ): number | null {
+  const normalizedRoute = normalizeTunnelRoute(route);
+
   // Check if route requires immediate connection
-  if (route && config.priorityRoutes?.includes(route)) {
+  if (normalizedRoute && config.priorityRoutes?.includes(normalizedRoute)) {
     return config.authRoutesDelay || 100;
   }
 
   // Check if route should be deferred to manual only
-  if (route && config.deferredRoutes?.includes(route)) {
+  if (normalizedRoute && config.deferredRoutes?.includes(normalizedRoute)) {
     return null; // Manual only
   }
 

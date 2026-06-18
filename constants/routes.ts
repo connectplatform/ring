@@ -81,6 +81,8 @@ const BASE_ROUTES = {
   WALLET_CONNECT: '/auth/wallet-connect',
   REFCODES: '/refcodes',
   ADMIN_REFCODES: '/admin/refcodes',
+  ADMIN_MODERATION: '/admin/moderation',
+  ADMIN_ACTIVITY: '/admin/activity',
   ADMIN_EMAIL_INBOX: '/admin/email-inbox',
   ADMIN_EMAIL_DRAFTS: '/admin/email-drafts',
   ADMIN_EMAIL_CONTACTS: '/admin/email-contacts',
@@ -164,12 +166,22 @@ export const ROUTES = {
   ADMIN_NEWS_CATEGORIES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/categories'),
   ADMIN_SETTINGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/settings'),
   ADMIN_MATCHER: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/matcher'),
+  ADMIN_VERIFICATION: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/verification'),
   ADMIN_PERFORMANCE: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/performance'),
   ADMIN_STORE: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store'),
   ADMIN_STORE_ORDERS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/orders'),
   ADMIN_STORE_STOCK: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/stock'),
   ADMIN_STORE_COMMISSIONS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/store/commissions'),
   ADMIN_REFCODES: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/refcodes'),
+  ADMIN_MODERATION: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/moderation'),
+  ADMIN_ACTIVITY: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/activity'),
+  ADMIN_EMAIL_INBOX: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/email-inbox'),
+  ADMIN_EMAIL_DRAFTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/email-drafts'),
+  ADMIN_EMAIL_CONTACTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/email-contacts'),
+  ADMIN_EMAIL_ANALYTICS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/email-analytics'),
+  ADMIN_EMAIL_TASKS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/email-tasks'),
+  ADMIN_EMAIL_THREAD: (id: string, locale: Locale = defaultLocale) =>
+    withLocale(locale, `/admin/email-inbox/${encodeURIComponent(id)}`),
   ADMIN_NEWS_COMMENTS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/comments'),
   ADMIN_NEWS_TAGS: (locale: Locale = defaultLocale) => withLocale(locale, '/admin/news/tags'),
   // Vendor Routes - Multi-Vendor Marketplace
@@ -194,8 +206,24 @@ export const API_ROUTES = {
   REGISTER: '/api/auth/register',
   GET_ENTITIES: '/api/entities',
   GET_ENTITY: (id: string) => `/api/entities/${id}`,
+  CREATE_ENTITY: '/api/entities/create',
+  UPDATE_ENTITY: (id: string) => `/api/entities/${id}`,
+  DELETE_ENTITY: (id: string) => `/api/entities/${id}`,
+  VERIFY_ENTITY: (id: string) => `/api/entities/${id}/verify`,
+  INVITE_ENTITY_MEMBER: (id: string) => `/api/entities/${id}/invite`,
+  ENTITY_ANALYTICS: (id: string) => `/api/entities/${id}/analytics`,
+  UPLOAD_ENTITY: '/api/entities/upload',
+  UPLOADS: '/api/uploads',
+  VERIFICATION_PROCEDURE_ME: '/api/verification/procedures/me',
+  VERIFICATION_PROCEDURE_DOCUMENTS: (procedureNumber: string) =>
+    `/api/verification/procedures/${procedureNumber}/documents`,
+  VERIFICATION_DOCUMENT: (procedureNumber: string, documentId: string) =>
+    `/api/verification/documents/${procedureNumber}/${documentId}`,
+  ADMIN_VERIFICATION_QUEUE: '/api/admin/verification/queue',
+  ADMIN_VERIFICATION_ACTION: (procedureNumber: string, action: string) =>
+    `/api/admin/verification/procedures/${procedureNumber}/${action}`,
   GET_OPPORTUNITIES: '/api/opportunities',
-  SUBMIT_CONTACT_FORM: '/api/contact'
-}
+  SUBMIT_CONTACT_FORM: '/api/contact',
+} as const
 
 export { getSocialLinks } from '@/lib/ring-config-core'

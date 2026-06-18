@@ -1,0 +1,177 @@
+---
+title: ring-video-create
+description: MCP tool reference — generate videos via VideoConductor (xAI Grok Imagine Video) with draft 480p and production 720p modes
+last_modified: "2026-06-18"
+---
+
+# `ring-video-create`
+
+Generate a short video from a text prompt (or image for I2V), poll xAI asynchronously, optionally upload to **ring-filebase**, and return CDN + temporary URLs.
+
+<Callout type="success" title="Executive summary">
+Operators call **`ring-video-create`** through `ring-mcp`. The gateway hits `POST /api/mcp/v1/videos/generate`, which runs **`VideoConductor`** (`lib/video/conductor/video-conductor.ts`). Default **`qualityMode: draft`** uses **`grok-imagine-video` @ 480p** (~**$0.05/second**) — cheapest text-to-video iteration. Set **`remaster: true`** or **`qualityMode: production`** for **720p** finals.
+</Callout>
+
+<Cards>
+  <Card title="MCP tools hub" href="/docs/mcp">
+    Ring MCP overview, kingdom vs clone scope, prerequisites.
+  </Card>
+  <Card title="Generative videos (VideoConductor)" href="/docs/development/generative-videos">
+    Draft vs production, CLI batch runner, remaster flow.
+  </Card>
+  <Card title="Ring MCP Server" href="/docs/development/ring-mcp">
+    Token setup, `ring-health`, full tool catalog.
+  </Card>
+</Cards>
+
+<Mermaid title="ring-video-create flow">
+{`sequenceDiagram
+  participant Agent as MCP host
+  participant Mcp as ring-mcp
+  participant GW as /api/mcp/v1/videos/generate
+  participant VC as VideoConductor
+  participant XAI as xAI videos API
+  participant FB as ring-filebase
+
+  Agent->>Mcp: ring-video-create prompt qualityMode draft
+  Mcp->>GW: Bearer token + JSON
+  GW->>VC: generate(actorId)
+  VC->>XAI: POST /videos/generations
+  XAI-->>VC: request_id
+  loop poll
+    VC->>XAI: GET /videos/{id}
+  end
+  XAI-->>VC: temporary mp4 url
+  VC->>FB: download + upload
+  VC-->>GW: permanent url + requestId
+  GW-->>Mcp: success + data
+  Mcp-->>Agent: video url`}
+</Mermaid>
+
+## Tool identity
+
+| Field | Value |
+|-------|--------|
+| **MCP tool name** | `ring-video-create` |
+| **HTTP route** | `POST /api/mcp/v1/videos/generate` |
+| **MCP server** | `AI-RING/ring-mcp/lib/tools.js` |
+| **Gateway handler** | `app/api/mcp/v1/videos/generate/route.ts` |
+| **Conductor** | `lib/video/conductor/video-conductor.ts` |
+| **Presets SSOT** | `lib/video/video-presets.json` |
+| **Confirm required** | No |
+
+## Quality modes & cost
+
+| `qualityMode` | Model | Resolution | ~$/sec | Text-to-video |
+|---------------|--------|------------|--------|---------------|
+| **`draft`** (default) | `grok-imagine-video` | **480p** | **$0.05** | Yes |
+| **`production`** | `grok-imagine-video` | **720p** | $0.05 | Yes |
+| **`production_i2v`** | `grok-imagine-video-1.5` | 720p | $0.14 | **No** — needs `imageUrl` |
+
+**Recommended workflow:** draft iterations → `remaster: true` with same `prompt` + `remasterFromRequestId` from draft.
+
+## Parameters
+
+| Parameter | Required | Type | Notes |
+|-----------|----------|------|-------|
+| `prompt` | **Yes** | string | Scene / motion description |
+| `qualityMode` | No | `draft` \| `production` \| `production_i2v` | Default `draft` |
+| `remaster` | No | boolean | Forces production 720p preset |
+| `duration` | No | number | 1–15 seconds (default 6) |
+| `aspectRatio` | No | string | e.g. `16:9`, `9:16` |
+| `resolution` | No | `480p` \| `720p` | Override preset |
+| `model` | No | string | Override xAI model slug |
+| `imageUrl` | No | string | Starting frame for I2V / 1.5 |
+| `purpose` | No | string | Storage path segment |
+| `refCode` | No | string | Tracking id |
+| `remasterFromRequestId` | No | string | Links draft job in audit |
+| `persistToFilebase` | No | boolean | Default true on MCP |
+
+## Examples
+
+**Draft (cheap iteration):**
+
+```
+ring-video-create prompt "HOA neighbors on video call, frustrated, documentary realism" qualityMode draft duration 6 purpose viral-ad
+```
+
+**Production remaster:**
+
+```
+ring-video-create prompt "…same locked prompt…" remaster true remasterFromRequestId <draft-request-id> qualityMode production duration 10
+```
+
+## Response shape
+
+<Code language="json" title="Success (201)">
+{`{
+  "success": true,
+  "data": {
+    "success": true,
+    "provider": "xai",
+    "model": "grok-imagine-video",
+    "qualityMode": "draft",
+    "resolution": "480p",
+    "requestId": "uuid",
+    "estimatedCostUsd": 0.3,
+    "video": {
+      "url": "https://cdn.example/.../generated/videos/.../draft/....mp4",
+      "temporaryUrl": "https://vidgen.x.ai/.../video.mp4",
+      "requestId": "uuid",
+      "duration": 6,
+      "contentType": "video/mp4"
+    }
+  }
+}`}
+</Code>
+
+## Environment
+
+<Code language="env" title=".env.local (clone)">
+{`RING_MCP_SERVICE_TOKENS=your-long-random-token
+
+XAI_API_KEY=your_key
+XAI_API_BASE_URL=https://api.x.ai/v1
+
+VIDEO_GEN_POLL_TIMEOUT_MS=900000
+VIDEO_GEN_POLL_INTERVAL_MS=5000
+VIDEO_GEN_STORAGE_PREFIX=generated/videos
+XAI_VIDEO_DEFAULT_DURATION=6
+XAI_VIDEO_ASPECT_RATIO=16:9
+
+FILE_BACKEND=ringbase
+RINGBASE_API_URL=
+RINGBASE_API_TOKEN=`}
+</Code>
+
+## CLI batch runner (operators)
+
+For multi-clip campaigns, use the cumulative manifest script:
+
+```bash
+cd ring-platform.org/scripts/ring-viral-video
+node generate-xai-videos.mjs --draft --download
+node generate-xai-videos.mjs --remaster 01_hoa_video_call_pains --download
+```
+
+Manifest upserts by `id::qualityMode` — partial runs do not wipe prior clips.
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|--------|
+| Timeout | Raise `VIDEO_GEN_POLL_TIMEOUT_MS` (video jobs take minutes) |
+| `does not support text-to-video` | Use `grok-imagine-video` (draft/production), not 1.5 without `imageUrl` |
+| Moderation filtered | `respectModeration: false` in response — revise prompt |
+| Expired temporary URL | Re-poll or use `persistToFilebase` CDN `url` |
+
+## Related
+
+<Cards>
+  <Card title="ring-image-create" href="/docs/mcp/ring-image-create">
+    Still frames for image-to-video with grok-imagine-video-1.5.
+  </Card>
+  <Card title="Generative videos" href="/docs/development/generative-videos">
+    Full VideoConductor reference.
+  </Card>
+</Cards>

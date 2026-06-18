@@ -10,6 +10,7 @@ import {
   mapDbDocumentToSerializedEntity,
 } from '@/features/entities/lib/entity-db-mapper'
 import { UserRole } from '@/features/auth/types'
+import { hasConfidentialAccess } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { cache } from 'react'
 import { db } from '@/lib/database'
@@ -21,7 +22,7 @@ interface getConfidentialEntitiesParams {
   filter: string;
   startAfter?: string;
   userId: string;
-  userRole: UserRole.CONFIDENTIAL | UserRole.ADMIN;
+  userRole: UserRole;
 }
 
 interface getConfidentialEntitiesResult {
@@ -43,8 +44,8 @@ export const getConfidentialEntities = cache(async (
 
     const { limit, startAfter, sort, filter, userRole, page } = params;
 
-    // Validate role: only CONFIDENTIAL or ADMIN allowed here
-    if (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
+    // Validate role: only confidential or admin allowed here
+    if (!hasConfidentialAccess(userRole)) {
       throw new Error('Invalid or missing user role for confidential access');
     }
 

@@ -102,6 +102,36 @@ function injectFirebaseConfig() {
       console.log('✅ Updated Firebase config object');
     }
 
+    // buildConfig fallback inside getFirebaseConfig() (SW cannot read process.env)
+    const buildConfigPattern = /const buildConfig = \{[\s\S]*?\};/;
+    const buildConfigReplacement = `const buildConfig = {
+    apiKey: "${firebaseConfig.FIREBASE_API_KEY || 'your-api-key'}",
+    authDomain: "${firebaseConfig.FIREBASE_AUTH_DOMAIN || 'your-project.firebaseapp.com'}",
+    projectId: "${firebaseConfig.FIREBASE_PROJECT_ID || 'your-project-id'}",
+    storageBucket: "${firebaseConfig.FIREBASE_STORAGE_BUCKET || 'your-project.appspot.com'}",
+    messagingSenderId: "${firebaseConfig.FIREBASE_MESSAGING_SENDER_ID || 'your-sender-id'}",
+    appId: "${firebaseConfig.FIREBASE_APP_ID || 'your-app-id'}",
+    measurementId: "${firebaseConfig.FIREBASE_MEASUREMENT_ID || 'G-XXXXXXXXXX'}"
+  };`;
+
+    if (buildConfigPattern.test(swContent)) {
+      swContent = swContent.replace(buildConfigPattern, buildConfigReplacement);
+      console.log('✅ Updated buildConfig fallback');
+    }
+
+    // Ensure self.FIREBASE_* defaults exist before getFirebaseConfig()
+    const selfDefaults = Object.entries(firebaseConfig)
+      .filter(([, value]) => value)
+      .map(([key, value]) => `self.${key} = self.${key} || "${value}";`)
+      .join('\n');
+    if (selfDefaults && !swContent.includes('self.FIREBASE_API_KEY = self.FIREBASE_API_KEY')) {
+      swContent = swContent.replace(
+        'const getFirebaseConfig = () => {',
+        `// Injected from .env.local at config:firebase time\n${selfDefaults}\n\nconst getFirebaseConfig = () => {`,
+      );
+      console.log('✅ Added self.FIREBASE_* defaults');
+    }
+
     // Write the updated service worker
     fs.writeFileSync(swPath, swContent, 'utf8');
     

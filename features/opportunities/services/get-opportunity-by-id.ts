@@ -8,6 +8,10 @@
 import { cache } from 'react'
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types'
 import { UserRole } from '@/features/auth/types'
+import {
+  assertKnownUserRole,
+} from '@/features/auth/user-role'
+import { canViewOpportunity } from '@/features/opportunities/lib/opportunity-visibility-filter'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
 import {
@@ -37,7 +41,7 @@ export const getOpportunityById = cache(async (id: string): Promise<Opportunity 
       throw new OpportunityAccessDeniedError('Authentication required')
     }
 
-    const userRole = (session?.user?.role as UserRole) || UserRole.VISITOR
+    const userRole = assertKnownUserRole(session.user.role)
 
     const result = await db().findDocById<Record<string, unknown>>('opportunities', id)
 
@@ -47,8 +51,10 @@ export const getOpportunityById = cache(async (id: string): Promise<Opportunity 
 
     const opportunity = mapDbDocumentToOpportunity(result.data)
 
-    if (opportunity.isConfidential && userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
-      throw new OpportunityAccessDeniedError('Confidential opportunity access requires CONFIDENTIAL or ADMIN role')
+    if (!canViewOpportunity(opportunity, { userRole, userId: session.user.id })) {
+      throw new OpportunityAccessDeniedError(
+        'Insufficient role to view this opportunity',
+      )
     }
 
     return opportunity

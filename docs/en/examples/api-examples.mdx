@@ -1,44 +1,85 @@
 ---
-title: Api Examples
-description: Api Examples documentation for Ring Platform
+title: API Examples (cURL)
+description: Minimal cURL examples for Ring Platform REST routes (alpha)
+last_modified: "2026-06-14"
 ---
 
 # API Examples
 
-Interactive API usage examples with Postman collections, cURL commands, and SDK implementations.
+Quick cURL samples for manual testing. For TypeScript client patterns, see [API integration examples](/en/docs/examples/api-integration).
 
-## 🔌 API Testing Tools
+<Callout type="info" title="Auth">
+Route handlers use **Auth.js session cookies**. Sign in through the UI, copy `authjs.session-token` from devtools, or use same-origin `fetch` from client code (cookie sent automatically).
+</Callout>
 
-### Postman Collection
-Download our complete Postman collection with:
-- **Pre-configured environments** - Development, staging, production
-- **Authentication setup** - Automatic token management
-- **Example requests** - Working examples for all endpoints
-- **Test scripts** - Automated response validation
-
-### cURL Examples
-Ready-to-use cURL commands for all 77 API endpoints:
-
-Authentication Create Entity
+## Entities
 
 <Code language="bash" title="terminal">
-{`curl -X POST https://ring.ck.ua/api/auth/signin \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com"}'
+{`# List entities
+curl -s "http://localhost:3000/api/entities?limit=10" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"
 
-curl -X POST https://ring.ck.ua/api/entities \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Company", "type": "technology"}'`}
+# Create entity
+curl -s -X POST "http://localhost:3000/api/entities/create" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Acme","type":"technologySoftware","shortDescription":"…"}'
+
+# Get one entity
+curl -s "http://localhost:3000/api/entities/ENTITY_ID" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"
+
+# Delete entity (requires confirm in body)
+curl -s -X DELETE "http://localhost:3000/api/entities/ENTITY_ID" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE" \\
+  -H "Content-Type: application/json" \\
+  -d '{"confirm":true}'`}
 </Code>
 
-### SDK Examples
-Implementation examples in multiple programming languages:
-- **JavaScript/TypeScript** - Frontend and Node.js
-- **Python** - Backend integration
-- **PHP** - Web application integration
-- **Go** - Microservices integration
+## Opportunities
+
+<Code language="bash" title="terminal">
+{`curl -s "http://localhost:3000/api/opportunities?limit=10" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
+</Code>
+
+Create and update opportunities in the app UI use **Server Actions** (`app/_actions/opportunities.ts`), not `POST /api/opportunities`.
+
+## Conversations
+
+<Code language="bash" title="terminal">
+{`curl -s "http://localhost:3000/api/conversations?limit=10" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"
+
+curl -s "http://localhost:3000/api/conversations/CONVERSATION_ID/messages?limit=20" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
+</Code>
+
+## Notifications
+
+<Code language="bash" title="terminal">
+{`curl -s "http://localhost:3000/api/notifications?limit=10" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"
+
+curl -s -X POST "http://localhost:3000/api/notifications/NOTIFICATION_ID/read" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
+</Code>
+
+## Tunnel diagnostics
+
+<Code language="bash" title="terminal">
+{`curl -s "http://localhost:3000/api/tunnel/test"`}
+</Code>
+
+## MCP (Bearer token)
+
+<Code language="bash" title="terminal">
+{`curl -s "http://localhost:3000/api/mcp/v1/entities?limit=5" \\
+  -H "Authorization: Bearer YOUR_RING_MCP_TOKEN"`}
+</Code>
+
+See [Ring MCP](/en/docs/development/ring-mcp) for token configuration.
 
 ---
 
-*Complete API examples documentation coming soon.*
+*Full route index: [API Reference](/en/docs/api).*

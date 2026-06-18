@@ -265,7 +265,7 @@ export function createNewUserProfileWithCredits(
   id: string,
   email: string,
   name?: string,
-  role: UserRole = UserRole.VISITOR
+  role: UserRole = UserRole.visitor
 ): UserProfileWithCredits {
   const now = Date.now();
   

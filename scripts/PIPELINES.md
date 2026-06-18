@@ -3,7 +3,7 @@
 Canonical catalog of **known pipelines** exercised by `scripts/smoke-*.cts` suites.  
 Companion docs: [`SMOKE-TESTS.md`](./SMOKE-TESTS.md) (how to run) · [`scripts/SMOKE-GAPS.md`](../scripts/SMOKE-GAPS.md) (coverage matrix).
 
-**Last updated:** 2026-06-10 · **Suites in runner:** 10 · **ID prefixes:** `smk_` … `smk10_`
+**Last updated:** 2026-06-15 · **Suites in runner:** 11 · **ID prefixes:** `smk_` … `smk11_`
 
 ---
 
@@ -18,7 +18,7 @@ Companion docs: [`SMOKE-TESTS.md`](./SMOKE-TESTS.md) (how to run) · [`scripts/S
 
 ---
 
-## Covered pipelines (45)
+## Covered pipelines (52)
 
 ### Payment & checkout
 
@@ -77,6 +77,13 @@ Companion docs: [`SMOKE-TESTS.md`](./SMOKE-TESTS.md) (how to run) · [`scripts/S
 | `entities.moderation.admin_block` | `smoke-entity-moderation-pipeline` | `smk10_` | global `moderationStatus=blocked` + discovery hide | service |
 | `entities.moderation.matcher_event` | `smoke-entity-moderation-pipeline` | `smk10_` | `notifyMatcherEntityModeration` → `matcher_moderation_events` | service |
 | `matcher.notify.block_suppress` | `smoke-entity-moderation-pipeline` | `smk10_` | `blockedEntityIds` precondition + baseline notify; full `organizationId` path needs auth harness (tsx) | service |
+| `verification.procedure.create` | `smoke-verification-pipeline` | `smk11_` | `createVerificationProcedure` → `verification_procedures` + `VRF-YYYY-######` numbering | service |
+| `verification.procedure.submit` | `smoke-verification-pipeline` | `smk11_` | `submitVerificationProcedure` draft→submitted + `matcher_verification_events` | service |
+| `verification.document.attach` | `smoke-verification-pipeline` | `smk11_` | `attachVerificationDocuments` + private `objectKey` (no public URL) | service |
+| `verification.document.proxy` | `smoke-verification-pipeline` | `smk11_` | `readVerificationBlob` local storage contract (HTTP proxy needs auth harness) | service |
+| `verification.admin.approve` | `smoke-verification-pipeline` | `smk11_` | `reviewVerificationProcedureAs` → user `kycVerification` / forensics | service |
+| `verification.admin.reject` | `smoke-verification-pipeline` | `smk11_` | `reviewVerificationProcedureAs` reject → entity `verificationStatus=rejected` | service |
+| `verification.entity.request` | `smoke-verification-pipeline` | `smk11_` | `entity_identity` procedure + entity `verificationStatus=pending` DB contract | service |
 | `opportunities.my.lifecycle` | — (manual / page) | — | `getMyOpportunities(view)` draft→pending→active→archived filters; delete archived-only guard; optional LLM auto-approve (`matcher.autoApprove`) pending→active on create | service |
 | `webhook.signature_reject` | `smoke-webhook-probe`, `smoke-membership-pipeline` | `smk5_` / `smk7_` | invalid HMAC → dispatch fails closed | dispatch |
 | `webhook.unknown_reference` | `smoke-webhook-probe` | `smk5_` | unknown `orderReference` → `success: false` | dispatch |
@@ -140,6 +147,7 @@ admin Process due payouts / cron
 | `smoke-refcodes-http.cts` | `smk8_` | referral.track.http, referral.cron_mint.http, referral.visit_track |
 | `smoke-erp-ops.cts` | `smk9_` | settlement.due_payout_batch |
 | `smoke-entity-moderation-pipeline.cts` | `smk10_` | entities.moderation.*, matcher.notify.block_suppress |
+| `smoke-verification-pipeline.cts` | `smk11_` | verification.procedure.*, verification.document.*, verification.admin.*, verification.entity.request |
 
 ---
 

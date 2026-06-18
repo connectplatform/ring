@@ -8,7 +8,8 @@
 import { db } from '@/lib/database'
 import { Entity } from '@/features/entities/types'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, hasConfidentialAccess, isPlatformAdmin } from '@/features/auth/user-role'
+import { canCreateEntity } from '@/features/entities/lib/entity-permissions'
 import { EntityAuthError, EntityPermissionError, EntityDatabaseError, EntityQueryError, logRingError } from '@/lib/errors'
 import { validateEntityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils'
 import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
@@ -57,8 +58,8 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
       });
     }
 
-    const userId = session.user.id;
-    const userRole = session.user.role as UserRole;
+    const userId = session.user.id
+    const userRole = assertKnownUserRole(session.user.role)
 
     // ES2022 Logical Assignment Operators for cleaner validation
     const validationContext = {
@@ -77,23 +78,14 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
       throw new EntityAuthError('Valid user ID required to create entity', undefined, validationContext);
     }
 
-    // ES2022 Object.hasOwn() for safe property checking
-    if (Object.hasOwn(data, 'isConfidential') && data.isConfidential) {
-      const hasConfidentialAccess = userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN;
-      
-      if (!hasConfidentialAccess) {
-        // Use &&= for conditional assignment
-        validationContext.requiredRole &&= 'ADMIN or CONFIDENTIAL';
-        throw new EntityPermissionError('Only ADMIN or CONFIDENTIAL users can create confidential entities', undefined, validationContext);
-      }
-    } else {
-      // Use logical OR for multiple role checking
-      const hasEntityAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
-      
-      if (!hasEntityAccess) {
-        validationContext.requiredRole ??= 'ADMIN, MEMBER, or CONFIDENTIAL';
-        throw new EntityPermissionError('Only ADMIN, MEMBER, or CONFIDENTIAL users can create entities', undefined, validationContext);
-      }
+    if (!canCreateEntity(userRole, { isConfidential: Boolean(data.isConfidential) })) {
+      throw new EntityPermissionError(
+        data.isConfidential
+          ? 'Only admin, superadmin or confidential users can create confidential entities'
+          : 'Only member, confidential, or admin users can create entities',
+        undefined,
+        validationContext,
+      );
     }
     
     console.log(`Services: createEntity - User authenticated: ${userId} with role: ${userRole}`);
@@ -186,7 +178,7 @@ export async function createEntity(data: NewEntityData): Promise<Entity> {
     const entityId = createdEntity.id
 
     // Step 6: Set up presence detection for eligible user roles
-    if (userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL) {
+    if (isPlatformAdmin(userRole) || hasConfidentialAccess(userRole)) {
       try {
         // Use db.command() to get entity data for presence detection setup
         await db().findDocById('entities', entityId)

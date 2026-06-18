@@ -1,17 +1,17 @@
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole } from '@/features/auth/user-role'
 import { getEntitiesForRole } from '@/features/entities/services/get-entities'
 import { createEntity } from '@/features/entities/services/create-entity'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
 import { queryInt, queryString, readJsonBody } from '@/app/api/mcp/v1/_lib/query'
 
-export const GET = withMcpGuard(async (request) => {
+export const GET = withMcpGuard(async (request, actor) => {
   const limit = queryInt(request, 'limit', 20)
   const startAfter = queryString(request, 'startAfter')
   const search = queryString(request, 'search')
 
   const result = await getEntitiesForRole({
-    userRole: UserRole.SUPERADMIN,
+    userRole: assertKnownUserRole(actor.role),
     limit,
     startAfter,
     filters: search ? { search } : undefined,

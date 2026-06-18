@@ -6,11 +6,10 @@
     "name": "my-ring-clone",
     "displayName": "My Ring Clone",
     "shortName": "Ring",
-    "description": "A Ring Platform clone for [your use case]",
+    "description": "Open-source white-label community, opportunity, and marketplace platform — Entities, Opportunities, Store, Web3, and AI matching in one React 19 / Next.js 16 stack",
     "version": "1.0.0",
     "organization": "Your Organization Name",
-    "contactEmail": "contact@your-domain.com",
-    "supportEmail": "support@your-domain.com"
+    "contactEmail": "contact@your-domain.com"
   },
 
   "branding": {
@@ -136,10 +135,10 @@
   },
 
   "hero": {
-    "title": "Connect talent and opportunity",
-    "subtitle": "A modular, open, white‑label platform.",
+    "title": "Your platform name",
+    "subtitle": "One-line value proposition for your community or marketplace.",
     "ctaText": "Get started",
-    "ctaHref": "/login",
+    "ctaHref": "/register",
     "showOnHome": true
   },
 
@@ -177,6 +176,10 @@
     "presetId": "deployment"
   },
 
+  "roadmap": {
+    "enabled": true
+  },
+
   "productFields": {
     "preset": "platform"
   },
@@ -204,7 +207,7 @@
     "siteName": "My Ring Clone",
     "siteDescription": "Professional networking platform powered by Ring",
     "siteKeywords": ["professional networking", "opportunities", "business", "web3"],
-    "ogImage": "/images/og-image.png",
+    "ogImage": "/og-ring-platform-1200x630.jpg",
     "twitterHandle": "@your_handle",
     "googleSiteVerification": "",
     "bingSiteVerification": ""
@@ -298,6 +301,23 @@
     "llmConfidenceGate": 0.8
   },
 
+  "membership": {
+    "tiers": {
+      "subscriber": {
+        "amount": 0,
+        "currency": "UAH",
+        "description": "Ring Platform Subscriber (Free)",
+        "duration": "lifetime"
+      },
+      "member": {
+        "amount": 299,
+        "currency": "UAH",
+        "description": "Ring Platform Member Upgrade",
+        "duration": "1 month"
+      }
+    }
+  },
+
   "integrations": {
     "demoUserEmail": "vendor@your-domain.com",
     "wayforpay": {
@@ -323,6 +343,24 @@
     "sentry": {
       "enabled": false,
       "dsn": ""
+    }
+  },
+
+  "founders": {
+    "primary": {
+      "firstName": "Your",
+      "lastName": "Name",
+      "photoAvatar": "/images/avatar-placeholder.jpg",
+      "xUsername": "your_handle",
+      "linkedInUsername": "your-linkedin",
+      "projectUsername": "your-username",
+      "customLinks": [
+        {
+          "uri": "https://github.com/your-org",
+          "name": "GitHub",
+          "desc": "Your organization on GitHub"
+        }
+      ]
     }
   }
 }

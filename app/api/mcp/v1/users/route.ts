@@ -34,7 +34,7 @@ export const POST = withMcpGuard(async (request) => {
   const user = await createUser({
     email: String(body.email),
     name: String(body.name),
-    role: (body.role as UserRole) || UserRole.SUBSCRIBER,
+    role: (body.role as UserRole) || UserRole.subscriber,
   })
 
   if (!user) return mcpError('Failed to create user', 400)

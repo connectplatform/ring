@@ -73,8 +73,15 @@
   "selectType": "Select type",
   "allTypes": "All types",
   "filters": {
+    "title": "Filters",
+    "subtitle": "Refine by opportunity type, category, and more",
+    "searchLabel": "Filter Opportunities",
     "types": "types",
-    "categories": "categories"
+    "categories": "categories",
+    "location": "location",
+    "priority": "priority",
+    "budget": "budget",
+    "activeFilters": "Active filters"
   },
   "sortBy": "Sort by",
   "newest": "Newest",
@@ -120,6 +127,7 @@
   "unknown": "Unknown",
   "type_selector": {
     "title": "What would you like to create?",
+    "subtitle": "Choose an opportunity type first — each opens a tailored form for that collaboration style.",
     "examples": "Examples",
     "request": {
       "title": "Request",
@@ -495,5 +503,35 @@
     "cvTypeDescription": "Share your developer profile and skills to connect with opportunities on the platform.",
     "confidentialOpportunities": "Confidential Opportunities",
     "confidentialOpportunitiesDescription": "Private opportunities only visible to Confidential members. Requires special access."
+  },
+  "types": {
+    "request": {
+      "title": "Create Request",
+      "description": "Looking for services, advice, or collaboration from the community."
+    },
+    "offer": {
+      "title": "Create Offer",
+      "description": "Post an official opportunity from your organization."
+    },
+    "partnership": {
+      "title": "Create Partnership",
+      "description": "Seek strategic partnerships and business collaborations."
+    },
+    "volunteer": {
+      "title": "Create Volunteer Opportunity",
+      "description": "Post volunteer opportunities for community causes."
+    },
+    "mentorship": {
+      "title": "Create Mentorship",
+      "description": "Offer or seek mentorship opportunities."
+    },
+    "resource": {
+      "title": "Create Resource",
+      "description": "Share or request resources, tools, and equipment."
+    },
+    "event": {
+      "title": "Create Event",
+      "description": "Organize events and invite community participation."
+    }
   }
 }

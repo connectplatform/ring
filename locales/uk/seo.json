@@ -4,21 +4,24 @@
     "description": "{description}"
   },
   "home": {
-    "title": "Ring Platform - Децентралізовані можливості та професійні мережі",
-    "description": "Підключайтеся, співпрацюйте та створюйте цінність у децентралізованій економіці. Приєднуйтесь до Ring Platform для професійних мереж, можливостей та співпраці на блокчейні.",
+    "title": "Ring Platform — open-source платформа спільнот, можливостей і маркетплейсу",
+    "description": "Клонуйте та розгорніть white-label Ring: Entities, Opportunities, багатовендорний Store, гаманець, обмін повідомленнями та ШІ-підбір. React 19, Next.js 16, Auth.js v5. Безкоштовний OSS на GitHub; Ringdom — для керованої ringization.",
     "keywords": [
-      "децентралізовані",
+      "Ring Platform",
+      "open source",
+      "white-label",
+      "платформа спільноти",
+      "маркетплейс",
       "можливості",
-      "блокчейн",
-      "співпраця",
-      "web3",
-      "професійні мережі",
-      "Ring Platform"
+      "Next.js 16",
+      "React 19",
+      "LegioX",
+      "Ringdom"
     ],
-    "ogTitle": "Ring Platform - Децентралізовані професійні мережі",
-    "ogDescription": "Відкрийте та створіть можливості в децентралізованій економіці",
+    "ogTitle": "Ring Platform — клонуйте, кастомізуйте, розгортайте.",
+    "ogDescription": "Open-source стек для спільнот, що співпрацюють, торгують і зростають — зі шляхом Ringdom, коли потрібна turn-key доставка.",
     "twitterTitle": "Ring Platform",
-    "twitterDescription": "Платформа децентралізованих можливостей та співпраці"
+    "twitterDescription": "OSS платформа спільноти та маркетплейсу. Entities, Opportunities, Store, Web3, AI-матчер."
   },
   "store": {
     "title": "Ring Store - Інноваційні продукти та послуги",
@@ -229,6 +232,93 @@
       "місія",
       "бачення"
     ]
+  },
+  "about-publisher": {
+    "title": "Sonoratek LLC — видавець платформи Ring",
+    "description": "Sonoratek LLC (Темпе, Аризона) — юридична особа Ringdom і офіційний видавець Ring, з вдячністю всім, хто допоміг Україні довести право на незалежність.",
+    "keywords": [
+      "Sonoratek LLC",
+      "Ringdom",
+      "Ring Platform",
+      "видавець",
+      "відкритий код",
+      "AI",
+      "Web3",
+      "Україна"
+    ],
+    "ogTitle": "Sonoratek LLC — видавець платформи Ring",
+    "ogDescription": "Юридичний видавець Ring Platform — відкритий стек для спільнот, можливостей і маркетплейсів."
+  },
+  "token-economy": {
+    "title": "Токеноміка - Економіка RING",
+    "description": "Розуміння економіки токенів RING, розподілу та корисності в екосистемі Платформи Ring.",
+    "keywords": [
+      "RING",
+      "токеноміка",
+      "Web3",
+      "блокчейн",
+      "криптовалюта",
+      "Ring Platform"
+    ],
+    "ogTitle": "Економіка токена RING",
+    "ogDescription": "Як RING забезпечує мікротранзакції, доступ до ШІ та управління спільнотою на Ring Platform."
+  },
+  "global-impact": {
+    "title": "Глобальний вплив - Платформа Ring",
+    "description": "ШІ-оркестрована колективна робота, white-label клонування та технологічна достатність для спільнот у всьому світі.",
+    "keywords": [
+      "Ring Platform",
+      "глобальний вплив",
+      "колективний інтелект",
+      "white-label",
+      "відкритий код",
+      "ШІ",
+      "Web3"
+    ],
+    "ogTitle": "Глобальний вплив Ring Platform",
+    "ogDescription": "Від темряви до світла — Ring об'єднує людство через ШІ-оркестровану співпрацю."
+  },
+  "ai-web3": {
+    "title": "ШІ зустрічає Web3 - Платформа Ring",
+    "description": "Як Ring Platform поєднує AI-матчинг можливостей із децентралізованою економікою RING та Web3-управлінням.",
+    "keywords": [
+      "ШІ",
+      "Web3",
+      "блокчейн",
+      "Ring Platform",
+      "колективний інтелект",
+      "RING"
+    ],
+    "ogTitle": "ШІ + Web3 на Ring Platform",
+    "ogDescription": "ШІ-оркестрована співпраця з блокчейн-верифікованою довірою та токен-стимулами."
+  },
+  "roadmap": {
+    "title": "Дорожня карта Ring Platform",
+    "description": "Де Ring сьогодні і куди рухається — для засновників і CTO, які оцінюють white-label платформу та економіку RING.",
+    "keywords": [
+      "Ring Platform",
+      "roadmap",
+      "RING",
+      "white-label",
+      "засновники",
+      "CTO",
+      "LegioX"
+    ],
+    "ogTitle": "Дорожня карта Ring Platform",
+    "ogDescription": "Що вже зроблено, плани токеноміки та етапи документації для Ring-клонів."
+  },
+  "calculator": {
+    "title": "Калькулятор Розгортання Платформи Ring",
+    "description": "Розрахуйте час розгортання, витрати та отримайте персоналізований план запуску вашої платформи Ring.",
+    "keywords": [
+      "Ring Platform",
+      "калькулятор",
+      "розгортання",
+      "оцінка витрат",
+      "white-label"
+    ],
+    "ogTitle": "Калькулятор розгортання Ring",
+    "ogDescription": "Оцініть час, вартість і модулі для вашої Ring-спільноти або маркетплейсу."
   },
   "contact": {
     "title": "Зв'язатися з Ring Platform - Контакти",

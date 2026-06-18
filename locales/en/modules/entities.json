@@ -4,6 +4,11 @@
   "entitiesTitle": "Entities Directory",
   "confidentialEntitiesTitle": "Confidential Entities",
   "loadingMessage": "Loading entities...",
+  "wrapper": {
+    "loginRequired": "Please sign in to view this page.",
+    "preparingDirectory": "Preparing entities directory",
+    "loadingDirectory": "Loading entities directory"
+  },
   "visitWebsite": "Visit website",
   "foundedIn": "Founded in {year}",
   "employees": "{count} employees",
@@ -15,6 +20,8 @@
   "previous": "Previous",
   "next": "Next",
   "filters": {
+    "title": "Filters",
+    "subtitle": "Refine by entity type, location, and more",
     "search": {
       "label": "Search entities",
       "placeholder": "Enter organization name, industry, or location..."
@@ -129,36 +136,58 @@
   "showingResults": "Showing {count} results",
   "companySize": "Company Size",
   "types": {
-    "3dPrinting": "3D Printing",
-    "aiMachineLearning": "AI & Machine Learning",
-    "biotechnology": "Biotechnology",
-    "blockchainDevelopment": "Blockchain Development",
-    "cleanEnergy": "Clean Energy",
-    "cloudComputing": "Cloud Computing",
-    "cncMachining": "CNC Machining",
-    "compositeManufacturing": "Composite Manufacturing",
-    "cybersecurity": "Cybersecurity",
-    "droneTechnology": "Drone Technology",
-    "electronicManufacturing": "Electronic Manufacturing",
-    "industrialDesign": "Industrial Design",
-    "iotDevelopment": "IoT Development",
-    "laserCutting": "Laser Cutting",
-    "manufacturing": "Manufacturing",
-    "metalFabrication": "Metal Fabrication",
+    "technologySoftware": "Technology & Software",
+    "technologySoftwareDesc": "Software, SaaS, AI, cloud, cybersecurity, and digital product companies",
+    "manufacturingIndustry": "Manufacturing & Industry",
+    "manufacturingIndustryDesc": "Production, industrial automation, and supply-chain organizations",
+    "financialServices": "Financial Services",
+    "financialServicesDesc": "Banking, fintech, insurance, investment, and financial advisory",
+    "healthcareMedical": "Healthcare & Medical",
+    "healthcareMedicalDesc": "Hospitals, clinics, medtech, and health services providers",
+    "educationTraining": "Education & Training",
+    "educationTrainingDesc": "Universities, schools, edtech, and professional training providers",
+    "realEstateConstruction": "Real Estate & Construction",
+    "realEstateConstructionDesc": "Developers, contractors, architecture, and property management",
+    "retailEcommerce": "Retail & E-commerce",
+    "retailEcommerceDesc": "Retail brands, marketplaces, and omnichannel commerce",
+    "professionalServices": "Professional Services",
+    "professionalServicesDesc": "Accounting, HR, design, engineering, and B2B service firms",
+    "mediaEntertainment": "Media & Entertainment",
+    "mediaEntertainmentDesc": "Studios, publishers, streaming, gaming, and creative media",
+    "transportationLogistics": "Transportation & Logistics",
+    "transportationLogisticsDesc": "Freight, mobility, warehousing, and last-mile delivery",
+    "energyUtilities": "Energy & Utilities",
+    "energyUtilitiesDesc": "Power, renewables, utilities, and energy infrastructure",
+    "agricultureFood": "Agriculture & Food",
+    "agricultureFoodDesc": "Farms, food producers, agtech, and agrifood supply chains",
+    "governmentPublicSector": "Government & Public Sector",
+    "governmentPublicSectorDesc": "Public agencies, municipalities, and government programs",
+    "nonProfitNgo": "Non-Profit & NGO",
+    "nonProfitNgoDesc": "Charities, foundations, and civil-society organizations",
+    "researchDevelopment": "Research & Development",
+    "researchDevelopmentDesc": "Labs, innovation centers, and R&D institutes",
+    "consultingAdvisory": "Consulting & Advisory",
+    "consultingAdvisoryDesc": "Management consulting and strategic advisory practices",
+    "legalServices": "Legal Services",
+    "legalServicesDesc": "Law firms, compliance, and legal technology providers",
+    "marketingAdvertising": "Marketing & Advertising",
+    "marketingAdvertisingDesc": "Agencies, mar-tech, and brand growth specialists",
+    "hospitalityTourism": "Hospitality & Tourism",
+    "hospitalityTourismDesc": "Hotels, travel, venues, and experience operators",
+    "sportsRecreation": "Sports & Recreation",
+    "sportsRecreationDesc": "Clubs, leagues, fitness, and recreation businesses",
+    "artsCulture": "Arts & Culture",
+    "artsCultureDesc": "Museums, galleries, cultural institutions, and artists",
+    "environmentalServices": "Environmental Services",
+    "environmentalServicesDesc": "Sustainability, remediation, and environmental consulting",
+    "telecommunications": "Telecommunications",
+    "telecommunicationsDesc": "Telcos, ISPs, and connectivity infrastructure providers",
+    "aerospaceDefense": "Aerospace & Defense",
+    "aerospaceDefenseDesc": "Aviation, space, defense contractors, and dual-use tech",
+    "pharmaceuticals": "Pharmaceuticals",
+    "pharmaceuticalsDesc": "Drug development, pharma manufacturing, and life-science vendors",
     "other": "Other",
-    "plasticInjectionMolding": "Plastic Injection Molding",
-    "precisionEngineering": "Precision Engineering",
-    "quantumComputing": "Quantum Computing",
-    "robotics": "Robotics",
-    "semiconductorProduction": "Semiconductor Production",
-    "smartMaterials": "Smart Materials",
-    "softwareDevelopment": "Software Development",
-    "softwareDevelopmentDesc": "Tech companies, startups, development agencies",
-    "technologyCenter": "Technology Center",
-    "technologyCenterDesc": "Research centers, innovation hubs, tech parks",
-    "manufacturingDesc": "Manufacturing companies and factories",
-    "otherDesc": "Consulting, services, and other organizations",
-    "virtualReality": "Virtual Reality"
+    "otherDesc": "Organizations that do not fit a single category above"
   },
   "verification": {
     "requirements": "Requirements",
@@ -170,6 +199,7 @@
     "officialDesc": "Only submit information about entities you officially represent",
     "accurate": "Keep Information Current",
     "accurateDesc": "Update contact information and details as they change",
+    "complete": "Complete Profile",
     "completeDesc": "Fill out all fields for better visibility and credibility",
     "unique": "One Entity Per Submission",
     "uniqueDesc": "Create separate submissions for different entities"
@@ -371,12 +401,6 @@
   "name": "Name",
   "type": "Type",
   "selectType": "Select type...",
-  "categories": {
-    "softwareDevelopment": "Software Development",
-    "manufacturing": "Manufacturing",
-    "technologyCenter": "Technology Center",
-    "other": "Other"
-  },
   "shortDescription": "Short Description",
   "fullDescription": "Full Description",
   "website": "Website",
@@ -393,5 +417,67 @@
   "saving": "Saving...",
   "save": "Save Entity",
   "loading": "Loading...",
-  "redirecting": "Redirecting..."
+  "redirecting": "Redirecting...",
+  "error": "Error",
+  "breadcrumb": {
+    "home": "Home",
+    "entities": "Entities",
+    "addEntity": "Add Entity"
+  },
+  "addEntity": {
+    "title": "Add Entity",
+    "description": "Create your organization profile on Ring Platform",
+    "formTitle": "Entity submission form",
+    "formDescription": "Add a new organization to the Ring ecosystem directory",
+    "onboarding": {
+      "title": "Register your organization",
+      "lead": "A Ring entity is your company's public studio — precise in detail, visible to the right partners. Work through the three sections below; you can refine your showcase after publishing.",
+      "step1": "Identity — official name, industry type, and mission in clear language",
+      "step2": "Presence — where you operate, how to reach you, and your brand mark",
+      "step3": "Discovery — tags, visibility, and optional confidentiality for trusted circles"
+    },
+    "form": {
+      "sectionIdentity": "Identity",
+      "sectionPresence": "Presence",
+      "sectionDiscovery": "Discovery"
+    },
+    "rail": {
+      "whatIsEntity": {
+        "title": "What is an entity?",
+        "description": "An entity is your organization's living profile on Ring Platform — not just a directory row. It powers your showcase page, team visibility, verification badge, and links to opportunities, messaging, and optional store features.",
+        "connectNote": "Ring-powered clones (e.g. Connect.Software) share the same entity model. Ring Platform exposes the full 26-industry taxonomy and ecosystem integrations; marketplace clones may simplify the creation form to a smaller type set."
+      },
+      "unlocks": {
+        "title": "What you unlock",
+        "showcase": {
+          "title": "Showcase page",
+          "description": "Multi-section profile with analytics, products, and contact options"
+        },
+        "opportunities": {
+          "title": "Opportunities",
+          "description": "Post and receive business opportunities linked to your entity"
+        },
+        "store": {
+          "title": "Vendor store",
+          "description": "Activate a store from your entity when you're ready to sell"
+        },
+        "messaging": {
+          "title": "Direct messaging",
+          "description": "Members can inquire and chat with verified entity owners"
+        }
+      },
+      "industryTypes": {
+        "title": "Industry types",
+        "subtitle": "26 specialized categories for discovery and filtering",
+        "moreInForm": "All industry types are available in the Type field — pick the closest match."
+      },
+      "fieldTips": {
+        "shortDescription": "One concise sentence for cards and search results (required)",
+        "location": "City and country help members find you on the map and in filters",
+        "contactEmail": "Public contact for inquiries; can differ from your login email",
+        "visibility": "Public profiles appear in search; members-only limits discovery to verified members"
+      },
+      "confidentialNote": "Mark as confidential only for trusted-partner visibility (confidential role). Most organizations should stay public."
+    }
+  }
 }

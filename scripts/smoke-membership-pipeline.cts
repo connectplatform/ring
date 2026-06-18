@@ -92,7 +92,7 @@ async function seed() {
     'users',
     {
       name: 'Smoke Subscriber',
-      role: UserRole.SUBSCRIBER,
+      role: UserRole.subscriber,
       createdAt: now,
       referredBy: {
         referralCode: 'SMOKECOD',
@@ -159,7 +159,7 @@ async function main() {
 
   const userRow = await db.findById('users', IDS.subscriber)
   const userData = (userRow.data?.data || userRow.data || {}) as Record<string, any>
-  ok('role upgraded to member', userData.role === UserRole.MEMBER, `role=${userData.role}`)
+  ok('role upgraded to member', userData.role === UserRole.member, `role=${userData.role}`)
   ok('payment history recorded', Array.isArray(userData.paymentHistory) && userData.paymentHistory.length >= 1)
 
   const ledger = await paymentTransactionService.findByOrderReference(orderReference)
@@ -170,7 +170,7 @@ async function main() {
   const replay = await dispatchWayForPayWebhook(signed)
   const userReplay = await db.findById('users', IDS.subscriber)
   const replayData = (userReplay.data?.data || userReplay.data || {}) as Record<string, any>
-  ok('role still member after replay', replayData.role === UserRole.MEMBER)
+  ok('role still member after replay', replayData.role === UserRole.member)
   const ledgerReplay = await paymentTransactionService.findByOrderReference(orderReference)
   ok('ledger remains paid after replay', ledgerReplay?.status === 'paid')
   if (!replay.success) {

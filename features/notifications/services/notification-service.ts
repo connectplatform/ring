@@ -54,8 +54,8 @@ async function publishUnreadCountUpdates(notifications: Notification[]): Promise
         const unreadCount = countResult.success ? (countResult.data ?? 0) : 0;
 
         // Publish update via tunnel
-        const { publishToTunnel } = await import('@/lib/tunnel/publisher');
-        await publishToTunnel(userId, 'notifications:unread', {
+        const { publishToUserTunnel } = await import('@/lib/tunnel/publisher');
+        await publishToUserTunnel(userId, 'notifications:unread', {
           unreadCount,
           timestamp: Date.now()
         });

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { Link, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -71,7 +71,7 @@ function AsideLabel({ title, count }: { title: string; count?: number | null }) 
 function AsideLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
-      href={href}
+      href={toAppHref(href)}
       className="flex h-10 w-full min-w-0 items-center rounded-lg px-2 transition-colors hover:bg-foreground/[0.04]"
     >
       {children}
@@ -86,7 +86,7 @@ function RailCell({ href, children }: { href?: string; children: React.ReactNode
   if (!href) return cell
   return (
     <Link
-      href={href}
+      href={toAppHref(href)}
       className="flex h-10 w-full items-center justify-center rounded-lg transition-colors hover:bg-white/10"
     >
       {cell}

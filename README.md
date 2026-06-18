@@ -952,7 +952,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```bash
 # Development
 npm run dev          # Start development server
-npm run dev:ws       # Start with WebSocket support
+npm run dev          # Custom server (Next + native WSS when RING_DEPLOY_TARGET≠vercel)
 npm run type-check   # Run TypeScript type checking
 
 # Building

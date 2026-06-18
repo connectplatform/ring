@@ -329,7 +329,7 @@ const DataTable = dynamic(() => import('@/components/data-table'), {
 })
 
 // Разделение кода на основе маршрутов
-const WalletPage = dynamic(() => import('@/app/wallet/page'), {
+const WalletPage = dynamic(() => import('@/app/[locale]/(protected)/wallet/wallet-client'), {
   loading: () => <WalletSkeleton />
 })
 

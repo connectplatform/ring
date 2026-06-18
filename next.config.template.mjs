@@ -184,7 +184,7 @@ const nextConfig = {
   },
   output: 'standalone',
   outputFileTracingIncludes: {
-    '**/*': ['./lib/**/*', './server.js']
+    '**/*': ['./lib/**/*', './server.ts', './server.js']
   },
   experimental: {
     serverActions: {

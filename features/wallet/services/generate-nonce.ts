@@ -41,7 +41,7 @@ export async function generateNonce(publicAddress: string): Promise<{ nonce: str
     const createResult = await db().createDoc(
       'users',
       {
-        role: UserRole.SUBSCRIBER,
+        role: UserRole.subscriber,
         email: '',
         name: null,
         isVerified: false,

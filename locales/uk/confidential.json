@@ -10,6 +10,10 @@
       "siteRootName": "Ring Platform",
       "webPageName": "Конфіденційні організації — Ring Platform",
       "mainEntityDescription": "Каталог чутливих записів про організації для довірених операторів і партнерів на Ring Platform."
+    },
+    "wrapper": {
+      "loading": "Завантаження конфіденційних організацій...",
+      "permissionDenied": "У вас немає дозволу на перегляд цієї сторінки."
     }
   },
   "opportunities": {
@@ -23,6 +27,10 @@
       "siteRootName": "Ring Platform",
       "webPageName": "Конфіденційні можливості — Ring Platform",
       "mainEntityDescription": "Приватний конвеєр можливостей для перевірених ролей, партнерств і запитів, видимий лише учасникам рівня Confidential."
+    },
+    "wrapper": {
+      "loading": "Завантаження конфіденційних можливостей...",
+      "permissionDenied": "У вас немає дозволу на перегляд цієї сторінки."
     }
   }
 }

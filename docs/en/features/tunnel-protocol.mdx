@@ -1,435 +1,143 @@
 ---
 title: Tunnel Protocol
-description: Multi-transport realtime with disconnected-tunnel-context and FCM push (v1.6.0)
-last_modified: "2026-06-06"
+description: Server-side TunnelHub broker with SSE and long-polling client transports (alpha)
+last_modified: "2026-06-15"
 ---
 
-# 🚇 Tunnel Protocol
+# Tunnel Protocol
 
-**Ring's Multi-Transport Real-Time Communication**
+Ring Platform's realtime layer for per-user inbox updates (notifications, balances) and topic channels (chat, discovery, matcher). The server runs a **custom Node entrypoint** (`server.ts`) that serves Next.js and, when `RING_DEPLOY_TARGET` is `k8s` or `self-hosted`, attaches **native WSS** at `/api/tunnel/ws`. Vercel deployments use serverless route handlers with **SSE + long-polling only**.
 
-Tunnel Protocol is Ring Platform's intelligent real-time communication system - **the Ring analog to Firebase Realtime Database**. It provides unified real-time messaging across WebSocket, Server-Sent Events (SSE), Supabase Realtime, and Long-Polling transports with automatic fallback and Edge Runtime compatibility.
+Pair with [Push notifications (FCM)](/en/docs/features/push-notifications-fcm) when the browser tab is closed or the tunnel is offline — `lib/tunnel/disconnected-tunnel-context.ts` keeps the UI usable while disconnected.
 
-**v1.6.0:** `lib/tunnel/disconnected-tunnel-context.ts` preserves UX when the tunnel is offline; pair with [Push notifications FCM](/docs/features/push-notifications-fcm) for mobile alerts.
+## Architecture
 
-## 🎯 Why Tunnel Protocol?
-
-### The Problem with Firebase RTDB
-
-Firebase Realtime Database provides excellent real-time features but creates vendor lock-in:
-
-- ❌ **Vendor Lock-in**: Tied to Firebase infrastructure
-- ❌ **Edge Runtime Incompatible**: Cannot run on Vercel Edge
-- ❌ **Cost Scaling**: Pay-per-operation pricing
-- ❌ **Limited Control**: Cannot optimize for specific use cases
-- ❌ **Single Transport**: WebSocket only
-
-### The Ring Solution: Tunnel Protocol
-
-✅ **Transport Abstraction**: Unified API across 5+ transports  
-✅ **Edge Runtime Compatible**: SSE support for Vercel Edge  
-✅ **Zero Vendor Lock-in**: Use any backend (PostgreSQL, Supabase, Firebase)  
-✅ **Intelligent Fallback**: Automatic cascade on transport failures  
-✅ **Cost Optimized**: Self-hosted options, pay only for infrastructure  
-✅ **Anonymous Support**: Real-time features for unauthenticated users
-
----
-
-## 🏗️ Architecture Overview
-
-<Callout type="success" title="Ring Analog to Firebase RTDB">
-Tunnel Protocol is Ring's equivalent to Firebase Realtime Database, providing the same real-time capabilities with multi-transport flexibility and zero vendor lock-in.
-</Callout>
-
-### Unified Transport API
-
-```typescript
-// Single API works across ALL transports
-import { publishToTunnel, subscribeToTunnel } from '@/lib/tunnel/publisher'
-
-// Publish message (works on any transport)
-await publishToTunnel(channel, eventType, data)
-
-// Subscribe to updates (works on any transport)
-const unsubscribe = subscribeToTunnel(channel, (message) => {
-  console.log('Received:', message)
-})
+```
+server.ts → Next request handler + attachTunnelWss (k8s/self-hosted)
+Server services → lib/tunnel/publisher.ts → getTunnelHub() → InMemoryTunnelHub
+Next.js routes (/api/tunnel/*) → getTunnelHub()
+Client → TunnelProvider / useTunnel → TransportManager → WSS | SSE | poll
 ```
 
-### Supported Transports
+| Layer | Module | Role |
+|-------|--------|------|
+| **Broker** | `lib/tunnel/hub/` | `getTunnelHub()`, unified SSE + poll registries, channel subscriptions |
+| **Publish API** | `lib/tunnel/publisher.ts` | `publishToChannel`, `publishToUserTunnel`, `broadcastToAll` |
+| **Client transport** | `lib/tunnel/transport-manager.ts` | Provider selection, fallback chain, reconnect |
+| **React integration** | `components/providers/tunnel-provider.tsx` | Shared connection, progressive connect via `tunnelTimingManager` |
+| **Data hooks** | `hooks/use-tunnel.ts`, `hooks/use-sync.ts` | Subscribe/publish; REST fetch + tunnel-driven refresh |
 
-| Transport | Latency | Throughput | Use Case |
-|-----------|---------|------------|----------|
-| **WebSocket** | `<50ms` | 10K msg/s | Self-hosted, K8s clusters |
-| **SSE** | `<100ms` | 1K msg/s | Vercel Edge Runtime |
-| **Supabase Realtime** | `<50ms` | 5K msg/s | Supabase deployments |
-| **Firebase Realtime** | `<200ms` | 1K msg/s | Firebase-full mode |
-| **Long-Polling** | 500ms-2s | 100 msg/s | Ultimate fallback |
+### API routes
 
----
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/tunnel/sse` | GET | SSE stream; registers user with TunnelHub |
+| `/api/tunnel/ws` | WS | Native WebSocket (k8s/self-hosted custom server only) |
+| `/api/tunnel/token` | POST | JWT for tunnel auth (SSE + WSS) |
+| `/api/tunnel/poll` | GET/POST | Long-polling inbox for restrictive networks |
+| `/api/tunnel/subscribe` | POST | Channel subscription |
+| `/api/tunnel/unsubscribe` | POST | Channel unsubscription |
+| `/api/tunnel/publish` | POST | Authenticated publish (admin/tools) |
+| `/api/tunnel/test` | GET | Environment and provider diagnostics |
 
-## 🚀 Quick Start
+## Server publishing
 
-### Publishing Real-Time Updates
+Use **`publishToChannel`** for topic fan-out (chat, discovery, matcher):
 
-Replace Firebase RTDB calls with Tunnel:
-
-**Before (Firebase RTDB):**
 ```typescript
-import { getAdminRtdb } from '@/lib/firebase-admin.server'
+import { publishToChannel } from '@/lib/tunnel/publisher'
 
-const rtdb = getAdminRtdb()
-await rtdb.ref(`messages/${messageId}`).set(messageData)
+await publishToChannel(`conversation:${conversationId}`, 'message:new', message)
+await publishToChannel('opportunities', 'opportunity:created', { id })
 ```
 
-**After (Tunnel Protocol):**
-```typescript
-import { publishToTunnel } from '@/lib/tunnel/publisher'
+Use **`publishToUserTunnel`** for per-user inbox (unread counts, credit balance):
 
-await publishToTunnel(`conversation:${conversationId}`, 'message:new', messageData)
+```typescript
+import { publishToUserTunnel } from '@/lib/tunnel/publisher'
+
+await publishToUserTunnel(userId, 'notifications:unread', { count: 3 })
 ```
 
-### Subscribing to Updates
+`lib/discovery/sync-discovery.ts` wraps `publishToChannel` for opportunity and entity CRUD events — see [Discovery mutation sync](/en/docs/architecture/discovery-mutation-sync).
 
-**Before (Firebase RTDB):**
-```typescript
-const ref = rtdb.ref(`messages/${messageId}`)
-ref.on('value', (snapshot) => {
-  const data = snapshot.val()
-  handleUpdate(data)
-})
-```
+## Client subscriptions
 
-**After (Tunnel Protocol):**
-```typescript
-import { subscribeToTunnel } from '@/lib/tunnel/client'
+Wrap the app in **`TunnelProvider`** (see `AppClientShell`). Components use **`useTunnel()`** for low-level subscribe/publish, or **`useSync()`** to combine REST fetch with tunnel-driven refresh:
 
-const unsubscribe = subscribeToTunnel(`conversation:${conversationId}`, (message) => {
-  if (message.type === 'message:new') {
-    handleUpdate(message.payload)
-  }
-})
-
-// Cleanup
-unsubscribe()
-```
-
----
-
-## 💡 Real-World Examples
-
-### Example 1: Chat Messages
-
-**Server-side (publish):**
-```typescript
-'use server'
-
-import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
-import { publishToTunnel } from '@/lib/tunnel/publisher'
-import { revalidatePath } from 'next/cache'
-
-export async function sendMessage(conversationId: string, content: string) {
-  await initializeDatabase()
-  const db = getDatabaseService()
-  
-  // Save to database (persistence)
-  const result = await db.create('messages', {
-    conversationId,
-    content,
-    timestamp: new Date()
-  })
-  
-  if (!result.success) throw result.error
-  
-  // Publish real-time update (Tunnel replaces Firebase RTDB)
-  await publishToTunnel(`conversation:${conversationId}`, 'message:new', {
-    id: result.data.id,
-    content,
-    timestamp: Date.now()
-  })
-  
-  // Revalidate (React 19 pattern)
-  revalidatePath(`/[locale]/chat/${conversationId}`)
-  
-  return result.data
-}
-```
-
-**Client-side (subscribe):**
 ```typescript
 'use client'
 
-import { useEffect, useState } from 'react'
-import { subscribeToTunnel } from '@/lib/tunnel/client'
+import { useSync } from '@/hooks/use-sync'
 
-export function ChatMessages({ conversationId }) {
-  const [messages, setMessages] = useState([])
-  
-  useEffect(() => {
-    // Subscribe to real-time updates
-    const unsubscribe = subscribeToTunnel(
-      `conversation:${conversationId}`,
-      (message) => {
-        if (message.type === 'message:new') {
-          setMessages(prev => [...prev, message.payload])
-        }
-      }
-    )
-    
-    return () => unsubscribe()
-  }, [conversationId])
-  
-  return <div>{messages.map(msg => <Message key={msg.id} {...msg} />)}</div>
-}
-```
-
-### Example 2: Typing Indicators
-
-**Publish typing status:**
-```typescript
-await publishToTunnel(`conversation:${conversationId}`, 'typing:start', {
-  userId,
-  userName,
-  timestamp: Date.now()
-})
-```
-
-**Subscribe to typing:**
-```typescript
-subscribeToTunnel(`conversation:${conversationId}`, (message) => {
-  if (message.type === 'typing:start') {
-    showTypingIndicator(message.payload.userName)
+const { data, usingTunnel, tunnelConnected } = useSync({
+  fetcher: () => fetch('/api/notifications/unread-count').then(r => r.json()),
+  tunnel: {
+    channel: 'notifications:unread',
+    enabled: true,
+    onMessage: (message) => ({
+      nextData: message.payload as { count: number }
+    })
   }
 })
 ```
 
-### Example 3: Like/Unlike Updates
+Chat and typing use `publishToChannel` on the server; clients subscribe to `conversation:${id}` via `useTunnel().subscribe()`.
 
-**Publish like update:**
-```typescript
-await publishToTunnel(`entity:${entityId}`, 'like:toggled', {
-  likeCount: newCount,
-  liked: true,
-  userId
-})
-```
+## Transports (alpha)
 
----
+| Transport | When used |
+|-----------|-----------|
+| **Native WebSocket** | `RING_DEPLOY_TARGET` is `k8s` or `self-hosted` — primary on custom `server.ts` (`/api/tunnel/ws`) |
+| **SSE** | Fallback and primary on `RING_DEPLOY_TARGET=vercel` (serverless) |
+| **Long-polling** | Ultimate fallback via `/api/tunnel/poll` |
+| **Supabase Realtime** | When `NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase` and Supabase URL/anon key are set |
 
-## 🎛️ Transport Selection
+`TransportManager` picks the first working provider in the configured fallback chain. Tunnel realtime is **orthogonal** to `DB_BACKEND_MODE` — see [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases).
 
-Tunnel automatically selects optimal transport based on deployment:
-
-### Kubernetes + PostgreSQL
-```typescript
-// Detected: postgres.*.svc.cluster.local
-// Selected: WebSocket (wss://)
-// Fallback: Long-Polling
-```
-
-### Vercel Edge Runtime
-```typescript
-// Detected: VERCEL=1
-// Selected: SSE (Edge compatible)
-// Fallback: Long-Polling
-```
-
-### Supabase Deployment
-```typescript
-// Detected: SUPABASE_URL configured
-// Selected: Supabase Realtime
-// Fallback: SSE → Long-Polling
-```
-
-### Firebase Mode
-```typescript
-// Detected: DB_BACKEND_MODE=firebase-full
-// Selected: Firebase Realtime
-// Fallback: SSE → Long-Polling
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
+## Configuration
 
 ```bash
-# Transport selection (optional - auto-detected)
-NEXT_PUBLIC_TUNNEL_TRANSPORT=websocket # or sse, supabase, firebase
+# Deploy target (required) — drives primary transport
+# Docker image bakes RING_DEPLOY_TARGET=k8s; override in .env.local for dev
+RING_DEPLOY_TARGET=k8s                    # vercel | k8s | self-hosted
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
 
-# WebSocket configuration
-TUNNEL_WEBSOCKET_URL=wss://your-domain.com/api/tunnel/ws
+# Optional explicit WS URL (default: same host /api/tunnel/ws)
+# NEXT_PUBLIC_TUNNEL_WS_URL=wss://your-host/api/tunnel/ws
 
-# SSE configuration (Edge Runtime)
-TUNNEL_SSE_URL=https://your-domain.com/api/tunnel/sse
+# Optional explicit client transport override
+NEXT_PUBLIC_TUNNEL_TRANSPORT=auto       # auto | sse | websocket | long-polling | supabase
 
-# Fallback settings
-TUNNEL_ENABLE_FALLBACK=true
-TUNNEL_FALLBACK_TIMEOUT=5000 # 5 seconds
+# Supabase Realtime (optional, orthogonal to DB_BACKEND_MODE)
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-### Backend Mode Integration
+Verify setup:
 
-Tunnel respects your database backend mode:
-
-```typescript
-// lib/database/backend-mode-config.ts
-export const BACKEND_MODES = {
-  'k8s-postgres-fcm': {
-    tunnel: 'websocket' // Primary transport
-  },
-  'firebase-full': {
-    tunnel: 'firebase' // Use Firebase Realtime
-  },
-  'supabase-fcm': {
-    tunnel: 'supabase' // Use Supabase Realtime
-  }
-}
+```bash
+curl "http://localhost:3000/api/tunnel/test"
 ```
 
----
+## Channel patterns
 
-## 📊 Performance Characteristics
+| Pattern | Example | Use |
+|---------|---------|-----|
+| Per-user inbox | `notifications:unread` | Unread badge, credit balance |
+| Conversation | `conversation:${id}` | Chat messages, typing |
+| Discovery | `opportunities`, `entities` | List freshness after CRUD |
+| Matcher | `matcher` | AI matcher moderation events |
+| User notify | `user:${userId}` | New conversation alerts |
 
-### Latency Comparison
+## Alpha limitations
 
-```typescript
-WebSocket:          <50ms   // Best for self-hosted
-SSE:                <100ms  // Best for Edge Runtime
-Supabase Realtime:  <50ms   // Best for Supabase deployments
-Firebase Realtime:  <200ms  // When using Firebase mode
-Long-Polling:       500ms-2s // Universal fallback
-```
+- **Single-process hub** — `InMemoryTunnelHub` does not share state across k8s replicas; horizontal scale requires a shared broker implementation behind `getTunnelHub()`.
+- **Channel SSE fan-out** — `publishToChannel` delivers to connected SSE sessions; poll clients receive messages for subscribed channels via the poll inbox.
 
-### Throughput Comparison
+## Related
 
-```typescript
-WebSocket:          10,000 messages/second
-SSE:                1,000 messages/second
-Supabase Realtime:  5,000 messages/second
-Firebase Realtime:  1,000 messages/second
-Long-Polling:       100 messages/second
-```
-
----
-
-## 🛡️ Security Features
-
-### Encrypted Channels
-
-All transports support encryption:
-
-```typescript
-await publishToTunnel(`secure:${userId}`, 'sensitive:data', {
-  encrypted: true,
-  data: encryptedPayload
-})
-```
-
-### Rate Limiting
-
-Built-in protection against abuse:
-
-```typescript
-// Automatic rate limiting per user/IP
-Max 100 messages/minute per user
-Max 1000 messages/minute per IP
-```
-
-### DDoS Protection
-
-Transport-level protection:
-- Connection limits per IP
-- Message size limits
-- Automatic ban for abusive patterns
-
----
-
-## 🎯 Migration Guide
-
-### From Firebase RTDB
-
-| Firebase RTDB | Tunnel Protocol |
-|---------------|-----------------|
-| `rtdb.ref(path).set(data)` | `publishToTunnel(channel, type, data)` |
-| `rtdb.ref(path).on('value', cb)` | `subscribeToTunnel(channel, cb)` |
-| `rtdb.ref(path).off()` | `unsubscribe()` |
-| `rtdb.ref(path).onDisconnect()` | Handled by transport layer |
-
-### Code Example
-
-**Before:**
-```typescript
-const rtdb = getAdminRtdb()
-await rtdb.ref(`typing/${conversationId}/${userId}`).set(typingData)
-await rtdb.ref(`typing/${conversationId}/${userId}`).onDisconnect().remove()
-```
-
-**After:**
-```typescript
-await publishToTunnel(`conversation:${conversationId}`, 'typing:start', {
-  userId,
-  userName,
-  timestamp: Date.now()
-})
-// Disconnect handling automatic in Tunnel transport layer
-```
-
----
-
-## 🔥 Advanced Features
-
-### Message Types
-
-Tunnel supports typed messages:
-
-```typescript
-type TunnelMessageType = 
-  | 'DATA'          // Generic data
-  | 'NOTIFICATION'  // Push notifications
-  | 'MESSAGE'       // Chat messages
-  | 'PRESENCE'      // User presence/typing
-  | 'HEARTBEAT'     // Keep-alive
-  | 'ACK'           // Acknowledgments
-  | 'ERROR'         // Error messages
-  | 'AUTH'          // Authentication
-  | 'DB_INSERT'     // Database insert event
-  | 'DB_UPDATE'     // Database update event
-  | 'DB_DELETE'     // Database delete event
-```
-
-### Channel Patterns
-
-Organize channels by feature:
-
-```typescript
-`conversation:${id}`     // Chat conversations
-`entity:${id}`           // Entity updates
-`opportunity:${id}`      // Opportunity updates
-`user:${id}`             // User-specific channel
-`typing:${conversationId}` // Typing indicators
-`presence:${userId}`     // User presence
-`global:announcements`   // Broadcast channel
-```
-
----
-
-## 🎖️ Best Practices Summary
-
-<Callout type="success" title="Tunnel Protocol Best Practices">
-1. **Use Tunnel for real-time**, DatabaseService for persistence
-2. **Channel naming**: Use `feature:id` pattern
-3. **Message types**: Use semantic types (message:new, typing:start, etc.)
-4. **Error handling**: Tunnel failures should not break core functionality
-5. **React 19**: Combine with revalidatePath() for cache updates
-6. **Performance**: Tunnel is async, don't await unless critical
-7. **Cleanup**: Always unsubscribe in useEffect cleanup
-</Callout>
-
----
-
-**Built by Legiox Commander for Emperor Ray**  
-**Ring analog to Firebase RTDB - Zero vendor lock-in - Maximum flexibility**  
-**🔥⚔️👑**
-
+- [Realtime transport](/en/docs/architecture/real-time)
+- [Discovery mutation sync](/en/docs/architecture/discovery-mutation-sync)
+- [Notifications API](/en/docs/api/notifications)
+- [Messaging API](/en/docs/api/messaging)

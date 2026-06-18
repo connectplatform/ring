@@ -35,10 +35,10 @@ export enum StoreTier {
 
 // Store Visibility (aligns with Entity.visibility pattern)
 export enum StoreVisibility {
-  PUBLIC = 'public',
-  SUBSCRIBER = 'subscriber',
-  MEMBER = 'member',
-  CONFIDENTIAL = 'confidential'
+  public = 'public',
+  subscriber = 'subscriber',
+  member = 'member',
+  confidential = 'confidential'
 }
 
 // Vendor Trust Levels

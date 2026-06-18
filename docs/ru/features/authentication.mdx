@@ -13,7 +13,7 @@ Auth.js v5 multi-provider authentication with magic links, OAuth providers, cryp
 |------|------|
 | `proxy.ts` | Перезапись локали + optimistic redirect на `ROUTES.LOGIN(locale)` |
 | `(authenticated)/[locale]/layout.tsx` | `await auth()` — каноничный gate сессии |
-| `(admin)/[locale]/layout.tsx` | Проверка роли (ADMIN/SUPERADMIN) |
+| `(admin)/[locale]/layout.tsx` | Проверка роли (admin/superadmin) |
 | API routes | `auth()` в каждом handler |
 
 OAuth: `/api/auth/*` исключено из intl middleware. См. [Proxy и intl](/docs/architecture/proxy-and-intl).
@@ -240,4 +240,6 @@ export async function GET(request: Request) {
 
 ---
 
-*Complete authentication documentation coming soon.*
+<Callout type="development" title="Документация в разработке">
+Полная документация по аутентификации дополняется.
+</Callout>

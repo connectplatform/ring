@@ -5,14 +5,14 @@ description: Entities documentation for Ring Platform
 
 # Entities API
 
-Manage organizations and businesses with **8 endpoints** for comprehensive entity management, including role-based access control and industry-specific features.
+Manage organizations and businesses with **11 endpoints** for comprehensive entity management, including role-based access control and industry-specific features.
 
 ## Overview
 
 Entities represent organizations, businesses, and professional groups within the Ring Platform ecosystem.
 
 **Key Features:**
-- 26 industry types with visual icons
+- Industry types with visual icons
 - Verification badge system
 - Confidential entity protection
 - Role-based access control
@@ -20,28 +20,38 @@ Entities represent organizations, businesses, and professional groups within the
 ## API Endpoints
 
 ### `GET /api/entities`
-List entities with filtering and pagination
+List entities with role-aware filtering and pagination (`limit`, `startAfter`).
 
-### `POST /api/entities`
-Create a new entity (requires MEMBER role)
+### `POST /api/entities/create`
+Create a new entity (authenticated; requires sufficient role).
 
 ### `GET /api/entities/{id}`
-Get entity details by ID
+Get entity details by ID.
 
 ### `PUT /api/entities/{id}`
-Update entity information
+Full update entity fields (owner or `ADMIN`).
+
+### `PATCH /api/entities/{id}`
+Partial update with validated fields (`name`, `type`, `shortDescription`, `visibility`, `isConfidential`, plus passthrough). Canonical update path — replaces legacy `PATCH /api/entities/update/{id}`.
 
 ### `DELETE /api/entities/{id}`
-Delete entity (admin only)
+Hard-delete entity. Requires session cookie and JSON body `{ "confirm": true }`. Owner or `ADMIN` (see `delete-entity` service). Prefer the **Server Action** flow from `/entities/{id}/delete` for in-app UI.
 
 ### `POST /api/entities/{id}/verify`
-Request entity verification
+Queue entity for platform verification review (owner or `ADMIN`). Sets `verificationStatus: 'pending'` and records `entity_verification_requests`. Returns `202` when accepted.
 
-### `GET /api/entities/{id}/members`
-List entity members and roles
+### `POST /api/entities/{id}/invite`
+Invite an existing platform user to the entity by email. Appends their user id to `members` and sends an in-app notification. Body: `{ "email": "user@example.com", "role": "member" }` (`role` is informational today).
 
-### `POST /api/entities/{id}/members`
-Add member to entity
+### `GET /api/entities/{id}/analytics`
+Entity performance snapshot for owners, entity members, or `ADMIN`: member count, linked opportunities, `storeMetrics`, verification state.
+
+### `POST /api/entities/upload`
+Upload entity media assets.
+
+<Callout type="info" title="In-app vs REST">
+Create/update/delete in the UI still prefer **Server Actions** (`app/_actions/entities.ts`). REST routes above are for API clients and integrations.
+</Callout>
 
 ## Data model
 
@@ -51,7 +61,7 @@ API and server services expose **`SerializedEntity`** — date fields as ISO str
 {`interface SerializedEntity {
   id: string
   name: string
-  type: EntityType          // e.g. 'softwareDevelopment'
+  type: EntityType          // e.g. 'technologySoftware'
   shortDescription: string
   fullDescription?: string
   addedBy: string
@@ -125,29 +135,26 @@ Ring Platform supports **26 industry types**:
 ### Create Entity
 
 ```typescript
-const response = await fetch('/api/entities', {
+const response = await fetch('/api/entities/create', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  },
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     name: 'Tech Innovators Inc',
-    description: 'Leading software development company',
-    industry: 'TECHNOLOGY_SOFTWARE',
-    website: 'https://techinnovators.com',
-    location: 'San Francisco, CA'
-  })
+    type: 'technologySoftware',
+    shortDescription: 'Leading software development company',
+    location: 'San Francisco, CA',
+  }),
 })
 
-const entity = await response.json()
+const { entity } = await response.json()
 ```
 
 ### List Entities with Filtering
 
 <Code language="typescript" title="TypeScript">
-{`const response = await fetch('/api/entities?industry=TECHNOLOGY_SOFTWARE&verified=true&limit=10')
-const { entities, total, hasMore } = await response.json()`}
+{`const response = await fetch('/api/entities?limit=10', { credentials: 'include' })
+const { entities, lastVisible } = await response.json()`}
 </Code>
 
 ### Get Entity Details
@@ -169,8 +176,8 @@ if (entity.confidential && !hasConfidentialAccess) {
 
 ### Entity Management
 - **Create**: Requires MEMBER role
-- **Update**: Entity members with ADMIN role
-- **Delete**: Platform ADMIN only
+- **Update**: Entity members with admin role
+- **Delete**: Platform admin only
 - **Verify**: Special verification process
 
 ### Member Roles

@@ -21,7 +21,7 @@ import {
   type UserSettings,
   type NotificationPreferences,
 } from "@/features/auth/types"
-import { normalizeUserRole } from "@/features/auth/user-role"
+import { resolveSessionUserRole } from "@/features/auth/user-role"
 import { ensureWallet } from "@/features/wallet/services/ensure-wallet"
 import { userMigrationService } from "@/features/auth/services/user-migration"
 import { shouldSkipDatabaseConnect } from "@/lib/build-cache/phase-detector"
@@ -30,6 +30,13 @@ import {
   getGoogleOAuthClientId,
 } from "@/lib/auth/google-oauth-client"
 import { getMcpActor } from "@/lib/auth/mcp-actor-context"
+import {
+  createOAuthUserFromGooglePayload,
+  ensureGoogleAccountLinked,
+  findUserByEmail,
+  normalizeAuthEmail,
+  resolveCanonicalUser,
+} from "@/features/auth/services/user-resolve"
 
 const googleOAuthClientId = getGoogleOAuthClientId()
 
@@ -51,6 +58,13 @@ const authLog = (...args: any[]) => {
     console.log(...args);
   }
 };
+
+function isGoogleOneTapSignIn(
+  account: { provider?: string } | null | undefined,
+  user: { id?: string | null }
+): boolean {
+  return account?.provider === 'google-one-tap' || user.id === 'gis-jwt-pending'
+}
 
 /**
  * Auth.js v5 Server-Side Configuration
@@ -161,7 +175,7 @@ const nextAuthApp = NextAuth({
           email: credentials.credential as string, // Store JWT credential here for signIn callback
           name: 'GIS User',
           image: null,
-          role: UserRole.SUBSCRIBER,
+          role: UserRole.subscriber,
         }
       },
     }),
@@ -250,7 +264,7 @@ const nextAuthApp = NextAuth({
             email: String(userData?.email || ""),
             name: (userData?.name as string | null) || null,
             image: (userData?.photoURL as string | null) || (userData?.image as string | null) || null,
-            role: (userData?.role as UserRole) || UserRole.SUBSCRIBER,
+            role: (userData?.role as UserRole) || UserRole.subscriber,
             isVerified: !!userData?.isVerified,
             createdAt: (userData?.createdAt as Date) || now,
             lastLogin: now,
@@ -312,10 +326,28 @@ const nextAuthApp = NextAuth({
                 token.organization = userData.organization as string | undefined
                 token.position = userData.position as string | undefined
                 token.photoURL = (userData.photoURL || userData.image) as string | undefined
-                token.role = (userData.role as UserRole | undefined) ?? UserRole.SUBSCRIBER
-                token.isVerified = Boolean(userData.isVerified)
+                token.role = (userData.role as UserRole | undefined) ?? UserRole.subscriber
+                token.isVerified = Boolean(userData.isVerified ?? userData.is_verified)
               } else {
                 authLog('User document not found in PostgreSQL for ID:', userId)
+                const repairEmail = normalizeAuthEmail(
+                  (token.email as string | undefined) || user?.email || undefined
+                )
+                if (repairEmail) {
+                  const canonical = await findUserByEmail(repairEmail)
+                  if (canonical) {
+                    authLog('JWT repair: remapping userId to canonical email match:', canonical.id)
+                    token.userId = canonical.id
+                    token.username = canonical.username as string | undefined
+                    token.phoneNumber = canonical.phoneNumber as string | undefined
+                    token.bio = canonical.bio as string | undefined
+                    token.organization = canonical.organization as string | undefined
+                    token.position = canonical.position as string | undefined
+                    token.photoURL = (canonical.photoURL || canonical.image) as string | undefined
+                    token.role = (canonical.role as UserRole | undefined) ?? UserRole.subscriber
+                    token.isVerified = Boolean(canonical.isVerified)
+                  }
+                }
               }
             }
           } else if (useFirebase) {
@@ -336,7 +368,7 @@ const nextAuthApp = NextAuth({
                 token.organization = userData?.organization
                 token.position = userData?.position
                 token.photoURL = userData?.photoURL
-                token.role = userData?.role ?? UserRole.SUBSCRIBER
+                token.role = userData?.role ?? UserRole.subscriber
                 token.isVerified = userData?.isVerified ?? false
               } else {
                 console.log('User document not found in Firebase for ID:', userId)
@@ -350,7 +382,7 @@ const nextAuthApp = NextAuth({
 
       if (user) {
         token.userId = user.id
-        token.role = token.role || (user as any).role || UserRole.SUBSCRIBER
+        token.role = token.role || (user as any).role || UserRole.subscriber
         token.isVerified = (user as any).isVerified ?? false
         token.username = (user as any).username
         token.phoneNumber = (user as any).phoneNumber
@@ -365,7 +397,7 @@ const nextAuthApp = NextAuth({
             const internalJWT = await generateInternalJWT(
               user.id,
               user.email || undefined,
-              normalizeUserRole((user as any).role || (token.role as string))
+              resolveSessionUserRole((user as any).role || (token.role as string))
             )
             token.accessToken = internalJWT
           } catch (error) {
@@ -383,8 +415,7 @@ const nextAuthApp = NextAuth({
         }
       }
       
-      // Coerce DB/OAuth uppercase roles (e.g. SUBSCRIBER) to canonical lowercase UserRole
-      token.role = normalizeUserRole(token.role as string | undefined)
+      token.role = resolveSessionUserRole(token.role)
 
       // Regenerate accessToken if it's missing or expired
       if (!token.accessToken && token.userId) {
@@ -407,7 +438,7 @@ const nextAuthApp = NextAuth({
       // Reduced logging - only log if there's an issue
       if (token) {
         session.user.id = token.userId as string
-        session.user.role = normalizeUserRole(token.role as string | undefined)
+        session.user.role = resolveSessionUserRole(token.role)
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
@@ -441,7 +472,7 @@ const nextAuthApp = NextAuth({
         })
 
             // Special handling for Google One Tap - verify the JWT token here
-            if (account?.provider === "google-one-tap") {
+            if (isGoogleOneTapSignIn(account, user)) {
               console.log('🔵 Google One Tap detected in signIn callback - verifying JWT token')
               
               // For credentials providers, the credential is stored in the user.email field
@@ -469,22 +500,48 @@ const nextAuthApp = NextAuth({
               email_verified: payload?.email_verified
             })
             
-            if (!payload) {
-              console.error('🔵 No payload in verified token')
+            if (!payload?.sub || !payload.email) {
+              console.error('🔵 Missing sub or email in verified token')
               return false
             }
 
-            // Update the user object with real Google data
-            user.id = payload.sub
-            user.email = payload.email || ''
+            const googleSub = payload.sub
+            const email = normalizeAuthEmail(payload.email)
+            const emailVerified = payload.email_verified ? new Date() : null
+            const resolved = await resolveCanonicalUser({ email })
+
+            if (resolved.userRow) {
+              user.id = resolved.canonicalId
+              console.log('🔵 One Tap reusing canonical user:', user.id)
+            } else {
+              user.id = crypto.randomUUID()
+              await createOAuthUserFromGooglePayload({
+                userId: user.id,
+                email,
+                name: payload.name,
+                image: payload.picture,
+                emailVerified,
+              })
+              console.log('🔵 One Tap created new canonical user:', user.id)
+            }
+
+            await ensureGoogleAccountLinked({
+              userId: user.id,
+              providerAccountId: googleSub,
+              idToken: credential,
+            })
+
+            user.email = email
             user.name = payload.name || ''
             user.image = payload.picture || null
-            ;(user as any).emailVerified = payload.email_verified ? new Date() : null
+            ;(user as any).emailVerified = emailVerified
+            ;(user as any).role = (resolved.userRow?.role as UserRole) || UserRole.subscriber
 
-            console.log('🔵 Updated user object with Google data:', {
+            console.log('🔵 Updated user object with canonical Google data:', {
               id: user.id,
               email: user.email,
-              name: user.name
+              name: user.name,
+              googleSub,
             })
           } catch (error) {
             console.error('🔵 Google token verification failed in signIn callback:', error)
@@ -497,86 +554,7 @@ const nextAuthApp = NextAuth({
         // We only need to handle special cases here
         
         if (usePostgreSQL) {
-          // PostgreSQL adapter via BackendSelector
-          // The adapter will handle user creation automatically
           console.log('✅ Using PostgreSQL adapter - user creation handled by adapter')
-
-          console.log('🔵 Checking for Google One Tap provider:', { provider: account?.provider, userId: user.id })
-
-          // For Google One Tap, ensure user is created in database
-          if (account?.provider === "google-one-tap") {
-            try {
-              console.log('🔵 Google One Tap condition met - ensuring user exists in PostgreSQL:', user.id)
-              let existingUser = null
-              try {
-                const readResult = await db().readDoc('users', user.id)
-                if (readResult.success && readResult.data) {
-                  existingUser = readResult.data
-                  console.log('🔵 Google One Tap user already exists in PostgreSQL:', user.id)
-                }
-              } catch (readError) {
-                console.log('🔵 Error reading user (might not exist yet):', (readError as any).message)
-              }
-
-              // Create new user if not found
-              if (!existingUser) {
-                console.log('🔵 Creating new Google One Tap user in PostgreSQL:', user.email)
-
-                const now = new Date()
-                const userData = {
-                  email: user.email,
-                  emailVerified: (user as any).emailVerified || null,
-                  name: user.name,
-                  image: user.image,
-                  role: 'SUBSCRIBER',
-                  isVerified: !!(user as any).emailVerified,
-                  createdAt: now,
-                  lastLogin: now,
-                  bio: '',
-                  username: null,
-                  phoneNumber: null,
-                  organization: null,
-                  position: null,
-                  wallets: [],
-                  canPostConfidentialOpportunities: false,
-                  canViewConfidentialOpportunities: false,
-                  postedOpportunities: [],
-                  savedOpportunities: [],
-                  notificationPreferences: {
-                    email: true,
-                    inApp: true,
-                    sms: false,
-                  },
-                  settings: {
-                    language: 'en',
-                    theme: 'light',
-                    notifications: false,
-                  },
-                }
-
-                try {
-                  const createResult = await db().createDoc('users', userData, { id: user.id })
-                  if (createResult.success) {
-                    console.log('✅ Google One Tap user created successfully in PostgreSQL:', user.id)
-                  } else {
-                    console.error('❌ Failed to create Google One Tap user:', createResult.error)
-                    // Don't fail the authentication if user creation fails
-                    // The user can still use the app with JWT session
-                  }
-                } catch (createError) {
-                  console.error('❌ Exception during Google One Tap user creation:', createError)
-                  // Continue with authentication even if database operations fail
-                }
-              }
-            } catch (error) {
-              console.error('❌ Error in Google One Tap user handling:', error)
-              // Continue with authentication - don't fail due to database issues
-            }
-          }
-          
-          // NOTE: Wallet creation moved to events.signIn callback (non-blocking)
-          // This allows profile to load instantly without waiting for wallet creation
-          
           return true
         } else if (useFirebase) {
           // Firebase adapter - let it handle user creation
@@ -620,8 +598,11 @@ const nextAuthApp = NextAuth({
       // Ensure user document exists in database (migration for existing Auth.js users)
       try {
         console.log('Ensuring user document exists for authenticated user:', user.email)
-        await userMigrationService.ensureUserDocument(user as any)
-        console.log('User document ensured successfully for authenticated user')
+        const canonicalId = await userMigrationService.ensureUserDocument(user as any)
+        if (canonicalId && canonicalId !== user.id) {
+          user.id = canonicalId
+        }
+        console.log('User document ensured successfully for authenticated user:', canonicalId)
       } catch (error) {
         console.error('Failed to ensure user document exists:', error)
         // Don't fail authentication if user document creation fails
@@ -655,7 +636,7 @@ const { auth: nextAuthBase, handlers, signIn, signOut } = nextAuthApp
 /**
  * Auth.js v5 Universal auth() method
  * Replaces getServerSession, getToken, etc.
- * MCP service gateway injects a synthetic SUPERADMIN session via AsyncLocalStorage.
+ * MCP service gateway injects a synthetic SUPERadmin session via AsyncLocalStorage.
  *
  * Typed as zero-arg server session lookup — do not use Parameters<typeof nextAuthBase>
  * (that resolves to the middleware overload and breaks every await auth() call site).

@@ -46,11 +46,11 @@ function processEnhancedUserProfile(userData: any): AuthUser {
     emailVerified: userData?.emailVerified ? convertTimestamp(userData.emailVerified) : null,
     name: userData?.name,
     username: userData?.username,
-    role: userData?.role || UserRole.SUBSCRIBER,
+    role: userData?.role || UserRole.subscriber,
     photoURL: userData?.photoURL || userData?.image,
     authProvider: userData?.authProvider || 'credentials',
     authProviderId: userData?.authProviderId || userData?.id,
-    isVerified: userData?.isVerified || false,
+    isVerified: Boolean(userData?.isVerified ?? userData?.is_verified ?? false),
     createdAt: convertTimestamp(userData?.createdAt),
     lastLogin: convertTimestamp(userData?.lastLogin),
     lastActivityAt: userData?.lastActivityAt ? convertTimestamp(userData.lastActivityAt) : undefined,
@@ -221,7 +221,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     console.log(`Services: getUserById - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
     // Step 2: Check authorization
-    if (requestingUserId !== userId && requestingUserRole !== UserRole.ADMIN) {
+    if (requestingUserId !== userId && requestingUserRole !== UserRole.admin) {
       console.log(`Services: getUserById - Unauthorized access attempt to user ${userId} by user ${requestingUserId}`);
       return null; // Only allow users to access their own profile or admins to access any profile
     }
@@ -297,7 +297,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     // Users can always see their own full profile data (including privacy settings)
     const isOwnProfile = requestingUserId === userId;
     
-    if (requestingUserRole === UserRole.ADMIN || isOwnProfile) {
+    if (requestingUserRole === UserRole.admin || isOwnProfile) {
       console.log(`Services: getUserById - ${isOwnProfile ? 'User accessing own profile' : 'Admin user'} retrieved full enhanced profile for ID: ${userId}`);
       return enhancedUserProfile;
     } else {

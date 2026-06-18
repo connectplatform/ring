@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react'
 
+function storageSerialized<T>(value: T): string {
+  return JSON.stringify(value)
+}
+
+function storageEquals<T>(a: T, b: T): boolean {
+  return storageSerialized(a) === storageSerialized(b)
+}
+
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     if (typeof window === 'undefined') {
@@ -19,8 +27,12 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.setItem(key, JSON.stringify(storedValue))
-        // Notify other hook instances in this tab
+        const serialized = storageSerialized(storedValue)
+        const existing = window.localStorage.getItem(key)
+        if (existing === serialized) {
+          return
+        }
+        window.localStorage.setItem(key, serialized)
         const evt = new CustomEvent('ring:storage', { detail: { key, value: storedValue } })
         window.dispatchEvent(evt)
       } catch (error) {
@@ -29,15 +41,13 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
     }
   }, [key, storedValue])
 
-  // Listen for cross-tab and intra-tab updates
   useEffect(() => {
     const onCustom = (e: Event) => {
       const ce = e as CustomEvent
       if (ce.detail?.key === key) {
         try {
           const next = typeof ce.detail.value !== 'undefined' ? ce.detail.value : storedValue
-          // Avoid infinite loops
-          setStoredValue(next)
+          setStoredValue((current) => (storageEquals(current, next) ? current : next))
         } catch (_err) {}
       }
     }
@@ -45,7 +55,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       if (e.key === key) {
         try {
           const next = e.newValue ? JSON.parse(e.newValue) : initialValue
-          setStoredValue(next)
+          setStoredValue((current) => (storageEquals(current, next) ? current : next))
         } catch (_err) {}
       }
     }
@@ -57,11 +67,14 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
         window.removeEventListener('storage', onStorage)
       }
     }
-  }, [key])
+  }, [key, initialValue])
 
   const setValue = (value: T | ((val: T) => T)) => {
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value
+      if (storageEquals(storedValue, valueToStore)) {
+        return
+      }
       setStoredValue(valueToStore)
     } catch (error) {
       console.error('Error setting value:', error)

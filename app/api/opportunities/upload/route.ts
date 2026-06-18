@@ -48,9 +48,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     /** 
      * Extract user role from session for authorization
-     * Falls back to UserRole.SUBSCRIBER if role is undefined
+     * Falls back to UserRole.subscriber if role is undefined
      */
-    const userRole = session.user.role as UserRole || UserRole.SUBSCRIBER
+    const userRole = session.user.role as UserRole || UserRole.subscriber
     console.log('API: /api/opportunities/upload - Authorized access', {
       userId: session.user.id,
       role: userRole,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Check if user has appropriate permissions to upload opportunity files
     // Only ADMIN, MEMBER, or CONFIDENTIAL users can upload opportunity files
-    if (![UserRole.ADMIN, UserRole.MEMBER, UserRole.CONFIDENTIAL].includes(userRole)) {
+    if (![UserRole.admin, UserRole.member, UserRole.confidential].includes(userRole)) {
       console.log('API: /api/opportunities/upload - Permission denied', {
         userId: session.user.id,
         role: userRole

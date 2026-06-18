@@ -187,12 +187,12 @@
       },
 
       "role_hierarchy": {
-        "VISITOR": {"level": 0, "description": "Unauthenticated, public access only"},
-        "SUBSCRIBER": {"level": 1, "description": "Basic authenticated users (free)"},
-        "MEMBER": {"level": 2, "description": "Create entities, vendor features ($29/month)"},
-        "CONFIDENTIAL": {"level": 3, "description": "Access confidential content"},
-        "ADMIN": {"level": 4, "description": "Full system access"},
-        "SUPERADMIN": {"level": 5, "description": "Cross-clone administration"}
+        "visitor": {"level": 0, "description": "Unauthenticated, public access only"},
+        "subscriber": {"level": 1, "description": "Basic authenticated users (free)"},
+        "member": {"level": 2, "description": "Create entities, vendor features ($29/month)"},
+        "confidential": {"level": 3, "description": "Access confidential content"},
+        "admin": {"level": 4, "description": "Full system access"},
+        "superadmin": {"level": 5, "description": "Cross-clone administration"}
       },
 
       "account_deletion": {
@@ -404,12 +404,12 @@
   "access_control": {
     "description": "6-tier hierarchical role system with granular permissions",
     "tiers": {
-      "VISITOR": {"level": 0, "permissions": ["View public entities", "Browse opportunities", "Read documentation"]},
-      "SUBSCRIBER": {"level": 1, "permissions": ["Create opportunities", "Basic messaging", "Apply to opportunities"], "cost": "Free"},
-      "MEMBER": {"level": 2, "permissions": ["Create entities", "Vendor store activation", "NFT marketplace", "Advanced features"], "cost": "$29/month"},
-      "CONFIDENTIAL": {"level": 3, "permissions": ["Access confidential entities/opportunities", "Enhanced collaboration"]},
-      "ADMIN": {"level": 4, "permissions": ["Full system access", "User management", "Analytics", "Configuration"]},
-      "SUPERADMIN": {"level": 5, "permissions": ["Cross-clone administration", "Global configuration"]}
+      "visitor": {"level": 0, "permissions": ["View public entities", "Browse opportunities", "Read documentation"]},
+      "subscriber": {"level": 1, "permissions": ["Create opportunities", "Basic messaging", "Apply to opportunities"], "cost": "Free"},
+      "member": {"level": 2, "permissions": ["Create entities", "Vendor store activation", "NFT marketplace", "Advanced features"], "cost": "$29/month"},
+      "confidential": {"level": 3, "permissions": ["Access confidential entities/opportunities", "Enhanced collaboration"]},
+      "admin": {"level": 4, "permissions": ["Full system access", "User management", "Analytics", "Configuration"]},
+      "superadmin": {"level": 5, "permissions": ["Cross-clone administration", "Global configuration"]}
     },
     "enforcement": {
       "middleware": "proxy.ts (Next.js 16 middleware pattern for route protection)",

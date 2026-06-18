@@ -31,6 +31,7 @@ SUITES=(
   "scripts/smoke-refcodes-http.cts"
   "scripts/smoke-erp-ops.cts"
   "scripts/smoke-entity-moderation-pipeline.cts"
+  "scripts/smoke-verification-pipeline.cts"
 )
 
 failures=0

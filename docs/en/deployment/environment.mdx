@@ -29,7 +29,7 @@ last_modified: "2026-06-10"
 
 Ring Platform requires **`DB_BACKEND_MODE`** at runtime (`k8s-postgres-fcm` | `firebase-full` | `supabase-fcm`). It controls PostgreSQL vs Firebase for **application data** and how **FCM** is wired. **`DB_HYBRID_MODE`** is a separate legacy toggle — see [Backend modes and databases](/en/docs/architecture/backend-modes-and-databases).
 
-Optional **Tunnel** realtime may use Supabase (`NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase`) regardless of `DB_BACKEND_MODE`; see [Tunnel protocol](/en/docs/features/tunnel-protocol).
+Optional **Tunnel** realtime: driven by `RING_DEPLOY_TARGET` (`vercel` = SSE + poll; `k8s` / `self-hosted` = native WSS at `/api/tunnel/ws` + fallback). Set `NEXT_PUBLIC_TUNNEL_TRANSPORT=supabase` for Supabase Realtime when URL/anon key are present. Orthogonal to `DB_BACKEND_MODE` — see [Tunnel protocol](/en/docs/features/tunnel-protocol).
 
 ## Locales (v1.6.0)
 

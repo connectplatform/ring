@@ -11,6 +11,7 @@ import Image from 'next/image'
 import remarkGfm from 'remark-gfm'
 import { rehypeMermaidFenceToMdx } from '@/components/docs/rehype-mermaid-fence'
 import { rehypeCodeFenceToMdx } from '@/components/docs/rehype-code-fence-to-mdx'
+import { remarkMermaidJsxSource } from '@/components/docs/remark-mermaid-jsx-source'
 import { Callout } from '@/components/docs/callout'
 import { Steps, Step } from '@/components/docs/steps'
 import {
@@ -31,7 +32,14 @@ import {
   MathBlock,
   MindMap,
   RingAISynapseFlow,
+  RingGatewayBridge,
+  RingCollectiveIntelligenceLoop,
+  RingDeploymentPaths,
+  RingFeatureEcosystem,
+  RingProblemSolvingEvolution,
+  RingHumanityVision,
   Timeline,
+  RingWidgetsContact,
 } from '@/components/docs/mdx-heavy-components'
 import { collectDiagramSource } from '@/components/docs/diagram-source'
 
@@ -52,10 +60,17 @@ export const docsMdxComponents = {
   MindMap,
   Code,
   RingAISynapseFlow,
+  RingGatewayBridge,
+  RingCollectiveIntelligenceLoop,
+  RingDeploymentPaths,
+  RingFeatureEcosystem,
+  RingProblemSolvingEvolution,
+  RingHumanityVision,
   Timeline,
   Math,
   MathBlock,
   CodeSandbox,
+  RingWidgetsContact,
   h1: ({ children, ...props }: React.ComponentProps<'h1'>) => (
     <h1
       className="text-4xl font-bold tracking-tight mb-6 mt-8 first:mt-0 text-foreground scroll-mt-20"
@@ -196,7 +211,7 @@ export const docsMdxComponents = {
 export function getDocsMdxRemoteOptions() {
   return {
     mdxOptions: {
-      remarkPlugins: [remarkGfm],
+      remarkPlugins: [remarkGfm, remarkMermaidJsxSource],
       rehypePlugins: [[rehypeMermaidFenceToMdx], [rehypeCodeFenceToMdx]] as any,
     },
   }

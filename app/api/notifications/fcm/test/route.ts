@@ -1,48 +1,53 @@
-import { NextRequest, NextResponse, connection} from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
+import { db } from '@/lib/database'
 import { getMessaging } from 'firebase-admin/messaging'
-import { getAdminDb } from '@/lib/firebase-admin.server'
 
-const db = getAdminDb()
+type FcmTokenRow = Record<string, unknown> & { id: string; token?: string }
+
+async function loadActiveTokens(userId: string): Promise<string[]> {
+  const result = await db().queryDocs<FcmTokenRow>({
+    collection: 'fcm_tokens',
+    filters: [
+      { field: 'userId', operator: '==', value: userId },
+      { field: 'isActive', operator: '==', value: true },
+    ],
+  })
+
+  if (!result.success) {
+    throw result.error || new Error('Failed to load FCM tokens')
+  }
+
+  return result.data
+    .map((row) => row.token)
+    .filter((token): token is string => typeof token === 'string' && token.length > 0)
+}
 
 export async function POST(req: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
-    // Check authentication
     const session = await auth()
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     const { message: customMessage } = await req.json().catch(() => ({}))
+    const tokens = await loadActiveTokens(session.user.id)
 
-    // Get user's FCM tokens
-    const tokensSnapshot = await db
-      .collection('fcm_tokens')
-      .where('userId', '==', session.user.id)
-      .where('isActive', '==', true)
-      .get()
-
-    if (tokensSnapshot.empty) {
+    if (tokens.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'No active FCM tokens found for user',
-        tokenCount: 0
+        tokenCount: 0,
       })
     }
 
-    const tokens = tokensSnapshot.docs.map(doc => doc.data().token)
     const messaging = getMessaging()
-
-    // Prepare test notification
     const notification = {
       title: 'Ring FCM Test',
-      body: customMessage || `Hello ${session.user.name || 'User'}! FCM is working correctly. 🎉`,
-      icon: '/icons/notification-icon.png'
+      body: customMessage || `Hello ${session.user.name || 'User'}! FCM is working correctly.`,
+      icon: '/icons/notification-icon.png',
     }
 
     const message = {
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
         type: 'test',
         timestamp: Date.now().toString(),
         userId: session.user.id,
-        clickAction: '/notifications'
+        clickAction: '/notifications',
       },
       webpush: {
         notification: {
@@ -59,21 +64,18 @@ export async function POST(req: NextRequest) {
           badge: '/icons/badge-icon.png',
           requireInteraction: false,
           click_action: '/notifications',
-          tag: 'fcm-test'
+          tag: 'fcm-test',
         },
         fcm_options: {
-          link: '/notifications'
-        }
+          link: '/notifications',
+        },
       },
-      tokens
+      tokens,
     }
 
-    // Send test notification
     const response = await messaging.sendEachForMulticast(message)
-    
     console.log(`FCM test notification sent: ${response.successCount}/${tokens.length} successful`)
 
-    // Handle failed tokens
     const failedTokens: string[] = []
     response.responses.forEach((resp, index) => {
       if (!resp.success) {
@@ -82,81 +84,79 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Clean up failed tokens
-    if (failedTokens.length > 0) {
-      const batch = db.batch()
-      
-      for (const token of failedTokens) {
-        const tokenSnapshot = await db
-          .collection('fcm_tokens')
-          .where('token', '==', token)
-          .limit(1)
-          .get()
-        
-        if (!tokenSnapshot.empty) {
-          batch.update(tokenSnapshot.docs[0].ref, { 
-            isActive: false,
-            updatedAt: new Date()
-          })
-        }
+    for (const token of failedTokens) {
+      const tokenResult = await db().queryDocs<FcmTokenRow>({
+        collection: 'fcm_tokens',
+        filters: [{ field: 'token', operator: '==', value: token }],
+        pagination: { limit: 1 },
+      })
+      if (tokenResult.success && tokenResult.data.length > 0) {
+        await db().updateDoc('fcm_tokens', tokenResult.data[0].id, {
+          isActive: false,
+          updatedAt: new Date(),
+        })
       }
-
-      await batch.commit()
     }
 
     return NextResponse.json({
-      success: true,
-      message: 'Test notification sent successfully',
+      success: response.successCount > 0,
+      message:
+        response.successCount > 0
+          ? 'Test notification sent successfully'
+          : 'No tokens accepted the test notification',
       stats: {
         totalTokens: tokens.length,
         successCount: response.successCount,
         failureCount: response.failureCount,
-        failedTokensRemoved: failedTokens.length
+        failedTokensRemoved: failedTokens.length,
       },
       notification,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
-
   } catch (error) {
     console.error('Error sending FCM test notification:', error)
     return NextResponse.json(
-      { 
+      {
         success: false,
         error: 'Failed to send test notification',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
 
 export async function GET(req: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
-    // Check authentication
     const session = await auth()
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    // Get FCM configuration status
-    const tokensSnapshot = await db
-      .collection('fcm_tokens')
-      .where('userId', '==', session.user.id)
-      .where('isActive', '==', true)
-      .get()
+    const result = await db().queryDocs<FcmTokenRow>({
+      collection: 'fcm_tokens',
+      filters: [
+        { field: 'userId', operator: '==', value: session.user.id },
+        { field: 'isActive', operator: '==', value: true },
+      ],
+    })
 
-    const tokens = tokensSnapshot.docs.map(doc => ({
-      id: doc.id,
-      platform: doc.data().deviceInfo?.platform || 'Unknown',
-      browser: doc.data().deviceInfo?.browser || 'Unknown',
-      lastSeen: doc.data().deviceInfo?.lastSeen?.toDate() || new Date(),
-      createdAt: doc.data().createdAt?.toDate() || new Date()
-    }))
+    if (!result.success) {
+      throw result.error || new Error('Failed to load FCM tokens')
+    }
+
+    const tokens = result.data.map((doc) => {
+      const deviceInfo = doc.deviceInfo as Record<string, unknown> | undefined
+      return {
+        id: doc.id,
+        platform: (deviceInfo?.platform as string) || 'Unknown',
+        browser: (deviceInfo?.browser as string) || 'Unknown',
+        lastSeen: deviceInfo?.lastSeen ?? null,
+        createdAt: doc.createdAt ?? null,
+      }
+    })
 
     return NextResponse.json({
       fcmConfigured: true,
@@ -166,19 +166,22 @@ export async function GET(req: NextRequest) {
         hasVapidKey: !!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
         hasProjectId: !!process.env.AUTH_FIREBASE_PROJECT_ID,
         hasClientEmail: !!process.env.AUTH_FIREBASE_CLIENT_EMAIL,
-        hasPrivateKey: !!process.env.AUTH_FIREBASE_PRIVATE_KEY
+        hasPrivateKey: !!process.env.AUTH_FIREBASE_PRIVATE_KEY,
+        adminProjectId: process.env.AUTH_FIREBASE_PROJECT_ID,
+        clientProjectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        projectsAligned:
+          process.env.AUTH_FIREBASE_PROJECT_ID === process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
-
   } catch (error) {
     console.error('Error getting FCM test status:', error)
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to get FCM status',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 }
+      { status: 500 },
     )
   }
-} 
+}

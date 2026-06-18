@@ -46,6 +46,7 @@ function mergeDeep(base: RingConfig, override: Partial<RingConfig>): RingConfig 
     hero: override.hero ?? base.hero,
     sidebar: override.sidebar ?? base.sidebar,
     calculator: override.calculator ?? base.calculator,
+    roadmap: override.roadmap ?? base.roadmap,
     productFields: override.productFields ?? base.productFields,
     productBadges: override.productBadges ?? base.productBadges,
     contact: override.contact ?? base.contact,
@@ -60,6 +61,7 @@ function mergeDeep(base: RingConfig, override: Partial<RingConfig>): RingConfig 
     domains: { ...base.domains, ...override.domains },
     clone: { ...base.clone, ...override.clone },
     matcher: { ...base.matcher, ...override.matcher },
+    founders: override.founders ?? base.founders,
   }
 }
 
@@ -83,6 +85,11 @@ export function getMatcherInstallDefaults(): {
 
 export function getRingConfigSnapshot(): RingConfig {
   return mergeDeep(template as RingConfig, concrete as Partial<RingConfig>)
+}
+
+/** Whether the public roadmap page and /about roadmap widget are active for this clone. */
+export function isRoadmapModuleEnabled(config: RingConfig = getRingConfigSnapshot()): boolean {
+  return config.roadmap?.enabled !== false
 }
 
 export function resolveFeatureFlags(
@@ -142,7 +149,7 @@ export function ringConfigToInstanceConfig(config: RingConfig): InstanceConfig {
       },
       logoUrl: config.branding?.logo?.light ?? '/images/logo.svg',
       faviconUrl: config.branding?.logo?.favicon ?? '/favicon.ico',
-      ogImageUrl: config.seo?.ogImage ?? config.branding?.logo?.light ?? '/images/og-image.png',
+      ogImageUrl: config.seo?.ogImage ?? config.branding?.logo?.light ?? '/og-ring-platform-1200x630.jpg',
     },
     theme: config.theme ?? { default: 'system' },
     seo: {
@@ -289,7 +296,7 @@ export function getRingSeoBranding(): {
   return {
     siteName: config.seo?.siteName ?? config.clone?.displayName ?? 'Ring Platform',
     twitterSite: config.seo?.twitterHandle ?? '@RingPlatform',
-    ogImage: config.seo?.ogImage ?? '/images/og-image.png',
+    ogImage: config.seo?.ogImage ?? '/og-ring-platform-1200x630.jpg',
   }
 }
 

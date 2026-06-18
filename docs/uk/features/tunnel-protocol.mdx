@@ -1,46 +1,32 @@
 ---
 title: Протокол Tunnel
-description: Мультитранспортна система реального часу Ring - аналог Firebase Realtime Database
+description: Брокер TunnelHub з native WSS, SSE та long-polling (alpha)
+last_modified: "2026-06-15"
 ---
 
-# 🚇 Протокол Tunnel
+# Протокол Tunnel
 
-**Мультитранспортна Комунікація Реального Часу Ring**
+Realtime-шар Ring Platform: inbox користувача (сповіщення, баланс) і topic-канали (чат, discovery, matcher).
 
-Протокол Tunnel - це інтелектуальна система комунікації реального часу Ring Platform - **аналог Ring для Firebase Realtime Database**. Забезпечує уніфіковані повідомлення реального часу через WebSocket, Server-Sent Events (SSE), Supabase Realtime та Long-Polling з автоматичним перемиканням та сумісністю з Edge Runtime.
+- **Сервер:** `server.ts` — Next.js + native WSS (`/api/tunnel/ws`) при `RING_DEPLOY_TARGET=k8s|self-hosted`
+- **Брокер:** `lib/tunnel/hub/` → `InMemoryTunnelHub`
+- **Клієнт:** `TunnelProvider` / `useTunnel` → WSS → SSE → poll
 
-**v1.6.0:** `lib/tunnel/disconnected-tunnel-context.ts` зберігає UX офлайн; поєднуйте з [FCM push](/docs/features/push-notifications-fcm).
+## Маршрути API
 
-## 🎯 Чому Протокол Tunnel?
+| Маршрут | Метод | Призначення |
+|---------|-------|-------------|
+| `/api/tunnel/ws` | WS | Native WebSocket (k8s/self-hosted) |
+| `/api/tunnel/sse` | GET | SSE-потік |
+| `/api/tunnel/token` | POST | JWT для tunnel auth |
+| `/api/tunnel/poll` | GET/POST | Long-polling fallback |
 
-### Проблема з Firebase RTDB
+## Конфігурація
 
-Firebase Realtime Database надає чудові можливості реального часу, але створює залежність від постачальника:
+```bash
+RING_DEPLOY_TARGET=k8s
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+# Docker-образ запікає k8s
+```
 
-- ❌ **Прив'язка до Постачальника**: Залежність від інфраструктури Firebase
-- ❌ **Несумісність з Edge Runtime**: Не працює на Vercel Edge
-- ❌ **Масштабування Вартості**: Ціноутворення за операцією
-- ❌ **Обмежений Контроль**: Неможливо оптимізувати під конкретні випадки
-- ❌ **Один Транспорт**: Тільки WebSocket
-
-### Рішення Ring: Протокол Tunnel
-
-✅ **Абстракція Транспорту**: Єдиний API для 5+ транспортів  
-✅ **Сумісність з Edge Runtime**: Підтримка SSE для Vercel Edge  
-✅ **Нуль Залежності**: Використовуйте будь-який бекенд (PostgreSQL, Supabase, Firebase)  
-✅ **Інтелектуальний Фолбек**: Автоматичне перемикання при збоях  
-✅ **Оптимізація Вартості**: Самохостинг, платите тільки за інфраструктуру  
-✅ **Підтримка Анонімних**: Функції реального часу для неавторизованих користувачів
-
----
-
-<Callout type="success" title="Аналог Ring для Firebase RTDB">
-Протокол Tunnel - це еквівалент Ring для Firebase Realtime Database, що надає ті самі можливості реального часу з гнучкістю мультитранспорту та нульовою залежністю від постачальника.
-</Callout>
-
----
-
-**Створено Командиром Легіону для Імператора Рея**  
-**Аналог Ring для Firebase RTDB - Нуль залежності - Максимальна гнучкість**  
-**🔥⚔️👑**
-
+Деталі — [англійська версія](/en/docs/features/tunnel-protocol).

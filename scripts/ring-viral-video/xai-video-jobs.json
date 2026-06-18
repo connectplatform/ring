@@ -1,0 +1,49 @@
+{
+  "project": "ring-platform-viral-hoa-nightclub",
+  "created": "2026-06-18",
+  "defaultQualityMode": "draft",
+  "modes": {
+    "draft": {
+      "model": "grok-imagine-video",
+      "resolution": "480p",
+      "estimatedUsdPerSecond": 0.05
+    },
+    "production": {
+      "model": "grok-imagine-video",
+      "resolution": "720p",
+      "estimatedUsdPerSecond": 0.05
+    }
+  },
+  "clips": [
+    {
+      "id": "01_hoa_video_call_pains",
+      "duration": 10,
+      "aspect_ratio": "16:9",
+      "prompt": "Cinematic realistic multi-panel video call montage, four suburban American neighbors on laptops and phones in split-screen grid, frustrated middle-aged HOA homeowners in casual home clothes, muted beige and gray living rooms, one woman rubbing temples, one man pointing at messy spreadsheet on screen, another scrolling long email thread, overlay text feeling: parking rules fights, late fees confusion, nobody reads the newsletter. Soft daylight through blinds, authentic Midwest suburban tone, documentary realism, shallow depth of field, no logos, no readable UI text, 24fps film grain, empathetic frustrated mood, opening hook for community software story."
+    },
+    {
+      "id": "02_ringize_audio_upload_prompt",
+      "duration": 10,
+      "aspect_ratio": "16:9",
+      "prompt": "Over-the-shoulder cinematic shot of a person at a modern laptop in a clean home office, screen shows a dark purple and gold futuristic settlement chat UI titled New Ring settlement, AI agent named Reggie typing a friendly reply, user attaches an audio file chip labeled HOA meeting recording m4a, cursor in a large prompt box where user writes about gathering their homeowners association network, subtle LegioX sparkle icon, ringdom.org vibe, soft keyboard typing hands, warm desk lamp, shallow depth of field, UI glow on face, hopeful productive mood, no legible tiny text except large readable headline New Ring settlement and Attach file icon, premium SaaS product demo aesthetic, 24fps."
+    },
+    {
+      "id": "03_sf_nightclub_ring_opener",
+      "duration": 12,
+      "aspect_ratio": "16:9",
+      "prompt": "San Francisco nightclub interior at night, neon magenta and cobalt lights, crowded bar, loud club music energy, attractive woman early 30s with Jennifer Lawrence energy—witty relaxed smile, casual chic black dress, silver ring on right hand—standing with cocktail. Handsome man late 30s with Ryan Gosling calm charm blended with Ryan Reynolds playful smirk, dark fitted jacket, subtle stubble, confident lean-in at bar, leaning close to talk over music, flirtatious but wholesome, he gestures warmly as if explaining a community platform, she listens amused, bokeh lights, haze, realistic cinematic 35mm, no subtitles, no readable signage, vibrant SF nightlife atmosphere."
+    },
+    {
+      "id": "04_sf_nightclub_guy_notices_ring",
+      "duration": 12,
+      "aspect_ratio": "16:9",
+      "prompt": "Same San Francisco nightclub bar continuity, camera now medium close-up on handsome man late 30s Ryan Gosling-Reynolds hybrid look, dark jacket, playful warm eyes, he glances down at her hand and smiles, mouth moves as if saying compliment about her ring, then looks up engaged, club lights rim-light his face, shallow depth of field, background soft crowd blur, she partially in frame smiling, silver ring catches light, cinematic realistic dialogue scene, no on-screen text, no subtitles, energetic bass-heavy nightclub mood."
+    },
+    {
+      "id": "05_sf_nightclub_ringize_payoff",
+      "duration": 15,
+      "aspect_ratio": "16:9",
+      "prompt": "San Francisco nightclub bar two-shot, handsome man gesturing enthusiastically explaining open source community software, woman with Jennifer Lawrence type warmth and quick humor nodding genuinely interested, both wearing simple silver rings, he talks over music with animated hands then grins saying ringize, she laughs satisfied and toasts, club neon bokeh, realistic lip movement implied, wholesome flirt ending, cinematic 35mm, no burned-in captions, no logos, upbeat viral ad energy, friends-found-common-ground vibe."
+    }
+  ]
+}

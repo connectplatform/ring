@@ -70,6 +70,8 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
   } = options
 
   const { isConnected: tunnelConnected, subscribe } = useTunnel()
+  const tunnelChannel = tunnel?.channel
+  const tunnelEnabled = tunnel?.enabled ?? false
 
   const [data, setData] = useState<T | null>(initialData)
   const [loading, setLoading] = useState(false)
@@ -182,19 +184,19 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
   }, [])
 
   useEffect(() => {
-    if (!enabled || !tunnel?.channel || !tunnel.enabled) {
-      setUsingTunnel(false)
+    if (!enabled || !tunnelChannel || !tunnelEnabled) {
+      setUsingTunnel((prev) => (prev ? false : prev))
       return
     }
 
     if (!tunnelConnected) {
-      setUsingTunnel(false)
+      setUsingTunnel((prev) => (prev ? false : prev))
       return
     }
 
     let unsubscribe: (() => void) | null = null
     try {
-      unsubscribe = subscribe(tunnel.channel, async (message: TunnelMessage) => {
+      unsubscribe = subscribe(tunnelChannel, async (message: TunnelMessage) => {
         const action = tunnelOnMessageRef.current?.(message, { data: dataRef.current })
         if (!action) {
           return
@@ -210,9 +212,9 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
           void refresh()
         }
       })
-      setUsingTunnel(true)
+      setUsingTunnel((prev) => (prev ? prev : true))
     } catch (err) {
-      setUsingTunnel(false)
+      setUsingTunnel((prev) => (prev ? false : prev))
       onErrorRef.current?.(err instanceof Error ? err : new Error('Failed to subscribe to tunnel updates'))
       setError('Failed to subscribe to tunnel updates')
     }
@@ -221,9 +223,9 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
       if (unsubscribe) {
         unsubscribe()
       }
-      setUsingTunnel(false)
+      setUsingTunnel((prev) => (prev ? false : prev))
     }
-  }, [enabled, tunnel, tunnelConnected, subscribe, refresh, applyData])
+  }, [enabled, tunnelChannel, tunnelEnabled, tunnelConnected, subscribe, refresh, applyData])
 
   useEffect(() => {
     if (!enabled) {

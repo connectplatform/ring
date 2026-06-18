@@ -8,6 +8,8 @@
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
 import { UserRole } from '@/features/auth/types';
+import { canCreateOpportunityType } from '@/features/opportunities/lib/opportunity-permissions';
+import { assertKnownUserRole } from '@/features/auth/user-role';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
 import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
 import { mapDbDocumentToSerializedOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
@@ -28,7 +30,7 @@ import { db } from '@/lib/database';
 type NewOpportunityData = Omit<Opportunity, 'id' | 'dateCreated' | 'dateUpdated'>;
 
 /**
- * Creates a new Opportunity in Firestore with ES2022 enhancements.
+ * Creates a new Opportunity with ES2022 enhancements.
  * 
  * This function performs the following steps:
  * 1. Authenticates the user and retrieves their session.
@@ -66,7 +68,7 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
     }
 
     const userId = session.user.id;
-    const userRole = session.user.role as UserRole;
+    const userRole = assertKnownUserRole(session.user.role);
 
     // ES2022 Logical Assignment Operators for cleaner validation context
     const validationContext = {
@@ -87,66 +89,44 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
 
     // ES2022 Object.hasOwn() for safe property checking on confidential opportunities
     if (Object.hasOwn(data, 'isConfidential') && data.isConfidential) {
-      const hasConfidentialAccess = userRole === UserRole.ADMIN || userRole === UserRole.CONFIDENTIAL;
-      
+      const hasConfidentialAccess =
+        userRole === UserRole.admin ||
+        userRole === UserRole.superadmin ||
+        userRole === UserRole.confidential;
+
       if (!hasConfidentialAccess) {
-        // Use &&= for conditional assignment
-        validationContext.requiredRoles &&= [UserRole.ADMIN, UserRole.CONFIDENTIAL];
+        validationContext.requiredRoles &&= [UserRole.admin, UserRole.superadmin, UserRole.confidential];
         throw new OpportunityPermissionError(
-          'Only ADMIN or CONFIDENTIAL users can create confidential opportunities',
+          'Only admin, superadmin or confidential users can create confidential opportunities',
           undefined,
           validationContext
         );
       }
     } else {
-      // Type-based permission checking: different rules for different opportunity types
-      const opportunityType = data.type || 'offer'; // Default to offer if not specified
-      
-      // Define type categories for permission checking
-      const requestTypes = ['request']; // Individual requests
-      const offerTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event']; // Organizational opportunities
-      
-      if (requestTypes.includes(opportunityType)) {
-        // Requests can be created by SUBSCRIBER and above
-        const hasRequestAccess = [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
-        
-        if (!hasRequestAccess) {
-          validationContext.requiredRoles ??= [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
-          validationContext.opportunityType = opportunityType;
-          throw new OpportunityPermissionError(
-            `Only SUBSCRIBER, MEMBER, ADMIN, or CONFIDENTIAL users can create ${opportunityType} opportunities`,
-            undefined,
-            validationContext
-          );
-        }
-      } else if (offerTypes.includes(opportunityType)) {
-        // Offers and organizational opportunities require MEMBER and above
-        const hasOfferAccess = [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL].includes(userRole);
-        
-        if (!hasOfferAccess) {
-          validationContext.requiredRoles ??= [UserRole.MEMBER, UserRole.ADMIN, UserRole.CONFIDENTIAL];
-          validationContext.opportunityType = opportunityType;
-          throw new OpportunityPermissionError(
-            `Only MEMBER, ADMIN, or CONFIDENTIAL users can create ${opportunityType} opportunities`,
-            undefined,
-            validationContext
-          );
-        }
-        
-        // Validate linkedEntity requirement for organizational opportunities
-        if (!data.contactInfo?.linkedEntity) {
-          validationContext.opportunityType = opportunityType;
-          throw new OpportunityPermissionError(
-            `${opportunityType} opportunities require a linkedEntity in contactInfo`,
-            undefined,
-            validationContext
-          );
-        }
-      } else {
-        // Unknown opportunity type
+      const opportunityType = data.type || 'offer';
+
+      if (!canCreateOpportunityType(userRole, opportunityType)) {
         validationContext.opportunityType = opportunityType;
-        throw new OpportunityQueryError(
-          `Unknown opportunity type: ${opportunityType}`,
+        validationContext.userRole = userRole;
+        throw new OpportunityPermissionError(
+          `Your role (${userRole}) cannot create ${opportunityType} opportunities`,
+          undefined,
+          validationContext
+        );
+      }
+
+      const linkedEntityRequired = new Set([
+        'offer',
+        'partnership',
+        'volunteer',
+        'mentorship',
+        'resource',
+        'event',
+      ]);
+      if (linkedEntityRequired.has(opportunityType) && !data.contactInfo?.linkedEntity) {
+        validationContext.opportunityType = opportunityType;
+        throw new OpportunityPermissionError(
+          `${opportunityType} opportunities require a linkedEntity in contactInfo`,
           undefined,
           validationContext
         );

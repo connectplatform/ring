@@ -7,10 +7,10 @@ last_modified: "2025-10-16"
 
 # Admin API
 
-Ring Platform provides a comprehensive administrative API with **12 secure endpoints** for system management, user administration, analytics access, and configuration control. All admin endpoints require **ADMIN role** and implement enterprise-grade security measures.
+Ring Platform provides a comprehensive administrative API with **12 secure endpoints** for system management, user administration, analytics access, and configuration control. All admin endpoints require **admin role** and implement enterprise-grade security measures.
 
 <Callout type="warning" title="🔒 Admin Access Required">
-All admin endpoints require **ADMIN role** authentication and are subject to strict rate limiting and audit logging. Unauthorized access attempts are logged and may trigger security alerts.
+All admin endpoints require **admin role** authentication and are subject to strict rate limiting and audit logging. Unauthorized access attempts are logged and may trigger security alerts.
 </Callout>
 
 ## 🏗️ System Architecture
@@ -50,7 +50,7 @@ List and search platform users with advanced filtering and pagination.
 | `page` | number | No | Page number (default: 1) |
 | `limit` | number | No | Users per page (default: 50, max: 200) |
 | `search` | string | No | Search by name, email, or username |
-| `role` | string | No | Filter by role: `VISITOR`, `MEMBER`, `CONFIDENTIAL`, `ADMIN` |
+| `role` | string | No | Filter by role: `visitor`, `member`, `confidential`, `ADMIN` |
 | `status` | string | No | Filter by status: `active`, `suspended`, `banned` |
 | `verified` | boolean | No | Filter by email verification status |
 | `createdAfter` | string | No | ISO date - users created after this date |
@@ -62,7 +62,8 @@ List and search platform users with advanced filtering and pagination.
 #### Example Request
 
 <Code language="bash" title="terminal">
-{`curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&status=active&sortBy=createdAt&sortOrder=desc" \-H "Authorization: Bearer admin-session-token"`}
+{`curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20" \\
+  -H "Cookie: authjs.session-token=YOUR_ADMIN_SESSION_COOKIE"`}
 </Code>
 
 #### Response
@@ -74,7 +75,7 @@ List and search platform users with advanced filtering and pagination.
       "email": "john.doe@example.com",
       "name": "John Doe",
       "username": "johndoe",
-      "role": "MEMBER",
+      "role": "member",
       "status": "active",
       "emailVerified": true,
       "avatar": "https://cdn.example.com/avatars/user_123456.jpg",
@@ -105,7 +106,7 @@ List and search platform users with advanced filtering and pagination.
   },
   "filters": {
     "applied": {
-      "role": "MEMBER",
+      "role": "member",
       "status": "active"
     },
     "counts": {
@@ -114,10 +115,10 @@ List and search platform users with advanced filtering and pagination.
       "suspended": 45,
       "banned": 16,
       "byRole": {
-        "VISITOR": 234,
-        "MEMBER": 890,
-        "CONFIDENTIAL": 89,
-        "ADMIN": 37
+        "visitor": 234,
+        "member": 890,
+        "confidential": 89,
+        "admin": 37
       }
     }
   }
@@ -136,7 +137,7 @@ Get detailed information about a specific user.
     "email": "john.doe@example.com",
     "name": "John Doe",
     "username": "johndoe",
-    "role": "MEMBER",
+    "role": "member",
     "status": "active",
     "emailVerified": true,
     "emailVerifiedAt": "2025-01-15T10:35:00Z",
@@ -202,7 +203,7 @@ Update a user's role and permissions.
 #### Request Body
 
 <Code language="json" title="json">
-{`"role": "CONFIDENTIAL",
+{`"role": "confidential",
   "reason": "Promoted to Confidential role for project access",
   "notifyUser": true,
   "notificationMessage": "Congratulations! You've been promoted to Confidential role with access to premium features."
@@ -215,12 +216,12 @@ Update a user's role and permissions.
 {`"user": {
     "id": "user_123456",
     "email": "john.doe@example.com",
-    "role": "CONFIDENTIAL",
+    "role": "confidential",
     "updatedAt": "2025-10-16T10:00:00Z"
   },
   "change": {
-    "previousRole": "MEMBER",
-    "newRole": "CONFIDENTIAL",
+    "previousRole": "member",
+    "newRole": "confidential",
     "changedBy": "admin_789",
     "changedAt": "2025-10-16T10:00:00Z",
     "reason": "Promoted to Confidential role for project access"
@@ -550,7 +551,7 @@ Get audit logs for admin actions.
       "actor": {
         "id": "admin_789",
         "name": "Admin User",
-        "role": "ADMIN"
+        "role": "admin"
       },
       "target": {
         "id": "user_123",
@@ -558,8 +559,8 @@ Get audit logs for admin actions.
         "type": "user"
       },
       "details": {
-        "previousRole": "MEMBER",
-        "newRole": "CONFIDENTIAL",
+        "previousRole": "member",
+        "newRole": "confidential",
         "reason": "Promoted for project access"
       },
       "ip": "192.168.1.100",
@@ -835,8 +836,8 @@ export function UserManagement() {
 {`{
   "error": "InsufficientPermissionsError",
   "message": "Admin role required for this operation",
-  "requiredRole": "ADMIN",
-  "currentRole": "MEMBER",
+  "requiredRole": "admin",
+  "currentRole": "member",
   "statusCode": 403
 }
 

@@ -21,7 +21,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react'
-import Link from 'next/link'
+import { Link, toAppHref } from '@/i18n/routing'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
@@ -111,7 +111,7 @@ function ActionButton({ icon, count, href, label, color, onClick }: ActionButton
   const colors = colorMap[color]
 
   return (
-    <Link href={href} onClick={onClick}>
+    <Link href={toAppHref(href)} onClick={onClick}>
       <motion.div
         className={cn(
           "relative group",
@@ -384,7 +384,7 @@ function FavoritesWidget() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <Link
-                            href={`${ROUTES.STORE(locale)}/${p.id}`}
+                            href={toAppHref(`${ROUTES.STORE(locale)}/${p.id}`)}
                             className="block font-medium text-sm hover:text-primary transition-colors truncate"
                             onClick={() => setOpen(false)}
                           >
@@ -409,7 +409,7 @@ function FavoritesWidget() {
                   <div className="border-t border-border pt-3 mt-4">
                     <Link
                       className="w-full text-center py-2 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium block"
-                      href={ROUTES.STORE(locale)}
+                      href={toAppHref(ROUTES.STORE(locale))}
                       onClick={() => setOpen(false)}
                     >
                       {t('browseStore')}
@@ -516,14 +516,14 @@ function CartWidget() {
                     <div className="flex gap-2">
                       <Link
                         className="flex-1 text-center py-2 px-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                        href={ROUTES.CART(locale)}
+                        href={toAppHref(ROUTES.CART(locale))}
                         onClick={() => setOpen(false)}
                       >
                         {tStore('cart.title')}
                       </Link>
                       <Link
                         className="flex-1 text-center py-2 px-3 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors text-sm font-medium"
-                        href={ROUTES.CHECKOUT(locale)}
+                        href={toAppHref(ROUTES.CHECKOUT(locale))}
                         onClick={() => setOpen(false)}
                       >
                         Checkout
@@ -641,7 +641,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
       
       {/* The Grand Portrait Composition */}
       <Link
-        href={ROUTES.PROFILE(locale)}
+        href={toAppHref(ROUTES.PROFILE(locale))}
         className="relative group block mb-4"
       >
         <motion.div
@@ -766,7 +766,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
       </Link>
 
       {/* RING Balance - Floating Gem Design */}
-      <Link href={ROUTES.WALLET(locale)} className="block">
+      <Link href={toAppHref(ROUTES.WALLET(locale))} className="block">
         <motion.div
           className="relative mx-auto mb-4 group"
           whileHover={{ scale: 1.03, y: -2 }}
@@ -852,7 +852,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
         <ActionButton
           icon={<Bell className="w-5 h-5" />}
           count={notificationCount}
-          href={ROUTES.PROFILE(locale) + '?tab=notifications'}
+          href={`${ROUTES.PROFILE(locale)}?tab=notifications`}
           label="Notifications"
           color="blue"
         />
@@ -866,7 +866,7 @@ export default function UserWidget({ className, variant = 'desktop' }: UserWidge
         <ActionButton
           icon={<MessageCircle className="w-5 h-5" />}
           count={messagesCount}
-          href={ROUTES.PROFILE(locale) + '?tab=messages'}
+          href={`${ROUTES.PROFILE(locale)}?tab=messages`}
           label="Messages"
           color="purple"
         />

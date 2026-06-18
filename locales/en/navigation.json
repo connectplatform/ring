@@ -95,7 +95,7 @@
     "browseDirectory": "Browse the Ring ecosystem directory",
     "findOpportunities": "Find Opportunities",
     "jobsAndProjects": "Jobs, grants, and Ring customization projects",
-    "admin": "ADMIN",
+    "admin": "admin",
     "adminDashboard": "Dashboard",
     "userManagement": "User Management",
     "analytics": "Analytics",
@@ -129,6 +129,7 @@
       "treeSectionTitle": "Ring Platform · library index",
       "quickLinksTitle": "Quick entry (CTOs · auditors · agents)",
       "linkLibrary": "Library hub",
+      "linkQuickReference": "Quick Reference",
       "linkWelcome": "Welcome — mission & audiences",
       "linkGettingStarted": "Getting started",
       "linkArchitecture": "Architecture & Auth.js",
@@ -247,5 +248,9 @@
   "places": "Places",
   "map": "Map",
   "meetups": "Meetups",
-  "myPlaces": "My Places"
+  "myPlaces": "My Places",
+  "storeSettings": "Store Settings",
+  "membership": "Membership",
+  "confidentialEntities": "Confidential Entities",
+  "confidentialOpportunities": "Confidential Opportunities"
 }

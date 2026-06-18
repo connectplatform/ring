@@ -137,6 +137,20 @@ export type PublicInstanceConfig = {
   features: Record<string, boolean>
 }
 
+export interface RingMembershipTierConfig {
+  amount: number
+  currency: string
+  description: string
+  duration: string
+}
+
+export interface RingMembershipConfig {
+  tiers: {
+    subscriber: RingMembershipTierConfig
+    member: RingMembershipTierConfig
+  }
+}
+
 export interface RingConfig {
   clone: {
     name: string
@@ -145,8 +159,8 @@ export interface RingConfig {
     description?: string
     version?: string
     organization?: string
+    /** Platform contact SSOT — support, legal, and transactional footers use this. */
     contactEmail?: string
-    supportEmail?: string
   }
   branding?: RingBranding
   domains: {
@@ -207,6 +221,10 @@ export interface RingConfig {
     enabled?: boolean
     presetId?: string | null
   }
+  /** Public /roadmap marketing page — surfaced on /about when enabled. */
+  roadmap?: {
+    enabled?: boolean
+  }
   productFields?: {
     preset?: ProductFieldsPreset
   }
@@ -217,7 +235,32 @@ export interface RingConfig {
     address?: string
     phone?: string
     email?: string
+    partners?: Array<{ name: string; logo: string; url?: string }>
   }
   /** Clone install defaults for AI matcher + auto-approval (runtime: platform_settings.ai). */
   matcher?: RingMatcherConfig
+  /** WayForPay purchasable membership tiers (subscriber + member only). */
+  membership?: RingMembershipConfig
+  /** Founder / publisher contacts for RingWidgetsContact on /about and /about-publisher. */
+  founders?: {
+    primary?: RingWidgetsContactConfig
+    /** Additional contacts (future co-founders, team). */
+    team?: RingWidgetsContactConfig[]
+  }
+}
+
+/** Install-time contact card props — mirrors ring-widgets/contact-schema (paths allowed for avatars). */
+export type RingWidgetsContactConfig = {
+  firstName?: string
+  lastName?: string
+  nickname?: string
+  photoAvatar?: string
+  xUsername?: string
+  linkedInUsername?: string
+  facebookUsername?: string
+  instagramUsername?: string
+  telegramUsername?: string
+  whatsAppBusinessNumber?: string
+  projectUsername?: string
+  customLinks?: Array<{ uri: string; name: string; desc?: string }>
 }

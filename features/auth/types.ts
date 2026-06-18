@@ -1,17 +1,31 @@
-import { DefaultSession } from "next-auth";
-
 /**
- * UserRole enum
- * Defines the possible roles a user can have in the system
+ * UserRole — re-exported from SSOT (`user-role.ts`).
+ * Middleware and edge-safe code should import from `@/features/auth/user-role` directly.
  */
-export enum UserRole {
-  VISITOR = 'visitor',
-  SUBSCRIBER = 'subscriber',
-  MEMBER = 'member',
-  CONFIDENTIAL = 'confidential',
-  ADMIN = 'admin',
-  SUPERADMIN = 'superadmin'
-}
+export {
+  UserRole,
+  ALL_USER_ROLES,
+  ASSIGNABLE_ROLES,
+  CONFIDENTIAL_ACCESS_ROLES,
+  PLATFORM_ADMIN_ROLES,
+  UPGRADEABLE_ROLES,
+  ROLE_LEVEL,
+  InvalidUserRoleError,
+  parseUserRole,
+  resolveSessionUserRole,
+  isKnownUserRole,
+  assertKnownUserRole,
+  getRoleLevel,
+  hasRoleAtLeast,
+  hasMemberPrivileges,
+  isPlatformAdmin,
+  hasConfidentialAccess,
+  isGuest,
+  canAccessOpportunityCreation,
+  opportunitySelectorUserRole,
+} from './user-role'
+
+import type { UserRole } from './user-role'
 
 /**
  * Wallet interface

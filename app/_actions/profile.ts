@@ -35,7 +35,7 @@ export async function updateProfile(prevState: ProfileUpdateState, formData: For
     // For security, we always use the session user ID for profile updates
     // Users can only update their own profile (unless they're admin)
     const currentUserId = session.user.id
-    const isAdmin = session.user.role === UserRole.ADMIN
+    const isAdmin = session.user.role === UserRole.admin
 
     // If admin, allow updating other users (would need additional validation)
     // For now, all users can only update their own profile

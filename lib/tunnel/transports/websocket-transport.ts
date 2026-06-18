@@ -1,9 +1,8 @@
 /**
- * WebSocket Transport Implementation
- * Wraps existing WebSocketManager to implement TunnelTransport interface
+ * Native WebSocket Transport — wraps browser NativeWsClient for TunnelTransport.
  */
 
-import { WebSocketManager, WebSocketState } from '@/lib/websocket/websocket-manager';
+import { NativeWsClient } from '../native-ws/client';
 import {
   TunnelTransport,
   TunnelProvider,
@@ -15,10 +14,10 @@ import {
   TunnelSubscriptionOptions,
   TunnelEventHandler,
 } from '../types';
-import { MessageConverter, createTunnelMessage, TunnelMessageType } from '../protocol';
+import { createTunnelMessage, TunnelMessageType } from '../protocol';
 
 export class WebSocketTransport implements TunnelTransport {
-  private manager: WebSocketManager;
+  private client: NativeWsClient;
   private subscriptions = new Map<string, TunnelSubscription>();
   private eventHandlers = new Map<string, Set<TunnelEventHandler>>();
   private connectionState: TunnelConnectionState = TunnelConnectionState.DISCONNECTED;
@@ -29,66 +28,66 @@ export class WebSocketTransport implements TunnelTransport {
   private lastError?: string;
   private lastActivity = Date.now();
   private startTime = Date.now();
+  private messageHandler?: (message: TunnelMessage) => void;
 
   constructor(options?: TunnelConnectionOptions) {
-    this.manager = new WebSocketManager({
-      url: options?.url,
+    const url = options?.url ?? this.resolveDefaultUrl();
+    this.client = new NativeWsClient({
+      url,
       reconnectDelay: options?.reconnectDelay,
       maxReconnectAttempts: options?.maxReconnectAttempts,
       heartbeatInterval: options?.heartbeatInterval,
     });
-
     this.setupEventListeners();
   }
 
+  private resolveDefaultUrl(): string {
+    if (typeof window === 'undefined') {
+      return process.env.NEXT_PUBLIC_TUNNEL_WS_URL ?? 'ws://localhost:3000/api/tunnel/ws';
+    }
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return (
+      process.env.NEXT_PUBLIC_TUNNEL_WS_URL ??
+      `${wsProto}//${window.location.host}/api/tunnel/ws`
+    );
+  }
+
   private setupEventListeners(): void {
-    // Map WebSocket events to tunnel events
-    this.manager.on('connected', () => {
+    this.client.on('connected', () => {
       this.connectionState = TunnelConnectionState.CONNECTED;
       this.emit('connect', undefined);
     });
 
-    this.manager.on('disconnected', () => {
+    this.client.on('disconnected', () => {
       this.connectionState = TunnelConnectionState.DISCONNECTED;
       this.emit('disconnect', { reason: 'Connection closed' });
     });
 
-    this.manager.on('reconnecting', (attempt: number) => {
-      this.connectionState = TunnelConnectionState.RECONNECTING;
-      this.emit('reconnect', { attempt });
+    this.client.on('connecting', () => {
+      this.connectionState = TunnelConnectionState.CONNECTING;
     });
 
-    this.manager.on('error', (error: Error) => {
+    this.client.on('error', (error: Error) => {
       this.connectionState = TunnelConnectionState.ERROR;
       this.errors++;
       this.lastError = error.message;
       this.emit('error', { error });
     });
 
-    // Handle incoming messages
-    this.manager.on('notification', (data: any) => {
+    this.client.on('message', (message: TunnelMessage) => {
       this.messagesReceived++;
       this.lastActivity = Date.now();
-      
-      const message = MessageConverter.fromWebSocket({
-        event: 'notification',
-        data,
-      });
-      
+      this.emit('message', message);
+    });
+
+    this.client.on('notification', (message: TunnelMessage) => {
+      this.messagesReceived++;
+      this.lastActivity = Date.now();
       this.emit('notification', message);
       this.emit('message', message);
     });
 
-    this.manager.on('message', (data: any) => {
-      this.messagesReceived++;
-      this.lastActivity = Date.now();
-      
-      const message = MessageConverter.fromWebSocket(data);
-      this.emit('message', message);
-    });
-
-    // Track latency from heartbeats
-    this.manager.on('pong', (latency: number) => {
+    this.client.on('latency', (latency: number) => {
       this.latencyHistory.push(latency);
       if (this.latencyHistory.length > 10) {
         this.latencyHistory.shift();
@@ -97,11 +96,10 @@ export class WebSocketTransport implements TunnelTransport {
     });
   }
 
-  async connect(options?: TunnelConnectionOptions): Promise<void> {
+  async connect(_options?: TunnelConnectionOptions): Promise<void> {
     this.connectionState = TunnelConnectionState.CONNECTING;
-    
     try {
-      await this.manager.connect();
+      await this.client.connect();
       this.connectionState = TunnelConnectionState.CONNECTED;
     } catch (error) {
       this.connectionState = TunnelConnectionState.ERROR;
@@ -112,18 +110,17 @@ export class WebSocketTransport implements TunnelTransport {
   }
 
   async disconnect(): Promise<void> {
-    this.manager.disconnect();
+    this.client.disconnect();
     this.connectionState = TunnelConnectionState.DISCONNECTED;
   }
 
   isConnected(): boolean {
-    return this.manager.isConnected;
+    return this.client.isConnected;
   }
 
   getConnectionState(): TunnelConnectionState {
-    const wsState = this.manager.getState();
-    
-    switch (wsState.status) {
+    const state = this.client.getState();
+    switch (state.status) {
       case 'connected':
         return TunnelConnectionState.CONNECTED;
       case 'connecting':
@@ -137,55 +134,24 @@ export class WebSocketTransport implements TunnelTransport {
     }
   }
 
-  async publish(channel: string, event: string, data: any): Promise<void> {
+  async publish(channel: string, event: string, data: unknown): Promise<void> {
     if (!this.isConnected()) {
       throw new Error('Not connected');
     }
-
-    const message = createTunnelMessage(
-      TunnelMessageType.DATA,
-      data,
-      { channel, event, provider: TunnelProvider.WEBSOCKET }
-    );
-
-    this.manager.emit(event, {
-      channel,
-      data,
-      message,
-    });
-
+    this.client.publish(channel, event, data);
     this.messagesSent++;
     this.lastActivity = Date.now();
   }
 
   async subscribe(options: TunnelSubscriptionOptions): Promise<TunnelSubscription> {
     const subscriptionId = `ws-${options.channel}-${Date.now()}`;
-    
-    // Subscribe to channel on WebSocket
-    this.manager.subscribe(options.channel);
-
-    // Handle channel-specific messages
-    const handler = (data: any) => {
-      if (data.channel === options.channel) {
-        const message = MessageConverter.fromWebSocket(data);
-        
-        // Filter by event if specified
-        if (options.events && !options.events.includes(message.event || '')) {
-          return;
-        }
-
-        this.emit('message', message);
-      }
-    };
-
-    this.manager.on('message', handler);
+    this.client.subscribe(options.channel);
 
     const subscription: TunnelSubscription = {
       id: subscriptionId,
       channel: options.channel,
       unsubscribe: () => {
-        this.manager.off('message', handler);
-        this.manager.unsubscribe(options.channel);
+        this.client.unsubscribe(options.channel);
         this.subscriptions.delete(subscriptionId);
       },
     };
@@ -230,20 +196,21 @@ export class WebSocketTransport implements TunnelTransport {
     this.on(event, onceHandler);
   }
 
-  private emit(event: string, data: any): void {
+  private emit(event: string, data: unknown): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
-      handlers.forEach(handler => handler(data));
+      handlers.forEach((handler) => handler(data));
     }
   }
 
   getHealth(): TunnelHealth {
-    const wsState = this.manager.getState();
+    const state = this.client.getState();
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
-    
-    const avgLatency = this.latencyHistory.length > 0
-      ? Math.round(this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length)
-      : 0;
+
+    const avgLatency =
+      this.latencyHistory.length > 0
+        ? Math.round(this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length)
+        : 0;
 
     return {
       state: this.getConnectionState(),
@@ -256,53 +223,33 @@ export class WebSocketTransport implements TunnelTransport {
       lastActivity: this.lastActivity,
       provider: TunnelProvider.WEBSOCKET,
       providerSpecific: {
-        isAuthenticated: wsState.isAuthenticated,
-        reconnectAttempts: wsState.reconnectAttempts,
-        totalConnections: wsState.totalConnections || 0,
-        totalDisconnections: wsState.totalDisconnections || 0,
+        isAuthenticated: state.isAuthenticated,
+        reconnectAttempts: state.reconnectAttempts,
       },
     };
   }
 
   async getLatency(): Promise<number> {
-    return new Promise((resolve) => {
-      const start = Date.now();
-      
-      // Use WebSocket ping/pong for latency measurement
-      this.manager.once('pong', () => {
-        const latency = Date.now() - start;
-        resolve(latency);
-      });
-      
-      // Use emit to trigger ping
-      this.manager.emit('ping', {});
-      
-      // Timeout after 5 seconds
-      setTimeout(() => resolve(-1), 5000);
-    });
+    return this.latencyHistory[this.latencyHistory.length - 1] ?? -1;
   }
 
   getProvider(): TunnelProvider {
     return TunnelProvider.WEBSOCKET;
   }
 
-  getProviderClient(): WebSocketManager {
-    return this.manager;
+  getProviderClient(): NativeWsClient {
+    return this.client;
   }
 
   setDebug(enabled: boolean): void {
-    // WebSocketManager doesn't have a debug mode, but we can add logging
     if (enabled) {
       console.log('[WebSocketTransport] Debug mode enabled');
     }
   }
 }
 
-/**
- * Factory function for creating WebSocket transport
- */
 export function createWebSocketTransport(
-  options?: TunnelConnectionOptions
+  options?: TunnelConnectionOptions,
 ): TunnelTransport {
   return new WebSocketTransport(options);
 }

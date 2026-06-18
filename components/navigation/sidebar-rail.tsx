@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback } from 'react'
-import Link from 'next/link'
+import { Link, toAppHref } from '@/i18n/routing'
 import { usePathname, useRouter, replaceLocalePath } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -43,7 +43,7 @@ function RailLink({
   return (
     <li>
       <Link
-        href={href}
+        href={toAppHref(href)}
         title={label}
         aria-current={active ? 'page' : undefined}
         data-current={active ? '' : undefined}

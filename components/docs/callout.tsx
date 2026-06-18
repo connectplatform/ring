@@ -1,43 +1,84 @@
 'use client'
 
 import React from 'react'
-import { AlertCircle, Info, CheckCircle, AlertTriangle } from 'lucide-react'
+import {
+  AlertCircle,
+  Info,
+  CheckCircle,
+  AlertTriangle,
+  Lightbulb,
+  Construction,
+  CircleDollarSign,
+} from 'lucide-react'
+
+export type CalloutType =
+  | 'info'
+  | 'tip'
+  | 'warning'
+  | 'error'
+  | 'success'
+  | 'development'
+  | 'financing'
 
 export interface CalloutProps {
   children: React.ReactNode
-  type?: 'info' | 'warning' | 'error' | 'success'
+  type?: CalloutType
   title?: string
 }
 
-export function Callout({ children, type = 'info', title }: CalloutProps) {
-  const config = {
-    info: {
-      icon: Info,
-      className: 'border-info bg-info/10 text-info-foreground',
-      iconClassName: 'text-info',
-      defaultTitle: 'Info',
-    },
-    warning: {
-      icon: AlertTriangle,
-      className: 'border-warning bg-warning/10 text-warning-foreground',
-      iconClassName: 'text-warning',
-      defaultTitle: 'Warning',
-    },
-    error: {
-      icon: AlertCircle,
-      className: 'border-destructive bg-destructive/10 text-destructive-foreground',
-      iconClassName: 'text-destructive',
-      defaultTitle: 'Error',
-    },
-    success: {
-      icon: CheckCircle,
-      className: 'border-success bg-success/10 text-success-foreground',
-      iconClassName: 'text-success',
-      defaultTitle: 'Success',
-    },
-  }
+const CALLOUT_CONFIG = {
+  info: {
+    icon: Info,
+    className: 'border-info bg-info/10 text-info-foreground',
+    iconClassName: 'text-info',
+    defaultTitle: 'Info',
+  },
+  tip: {
+    icon: Lightbulb,
+    className: 'border-primary bg-primary/10 text-foreground',
+    iconClassName: 'text-primary',
+    defaultTitle: 'Tip',
+  },
+  warning: {
+    icon: AlertTriangle,
+    className: 'border-warning bg-warning/10 text-warning-foreground',
+    iconClassName: 'text-warning',
+    defaultTitle: 'Warning',
+  },
+  error: {
+    icon: AlertCircle,
+    className: 'border-destructive bg-destructive/10 text-destructive-foreground',
+    iconClassName: 'text-destructive',
+    defaultTitle: 'Error',
+  },
+  success: {
+    icon: CheckCircle,
+    className: 'border-success bg-success/10 text-success-foreground',
+    iconClassName: 'text-success',
+    defaultTitle: 'Success',
+  },
+  development: {
+    icon: Construction,
+    className: 'border-violet-500 bg-violet-500/10 text-foreground',
+    iconClassName: 'text-violet-600 dark:text-violet-400',
+    defaultTitle: 'Under active development',
+  },
+  financing: {
+    icon: CircleDollarSign,
+    className: 'border-emerald-500 bg-emerald-500/10 text-foreground',
+    iconClassName: 'text-emerald-600 dark:text-emerald-400',
+    defaultTitle: 'Financing opportunity',
+  },
+} as const satisfies Record<CalloutType, {
+  icon: React.ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+  defaultTitle: string
+}>
 
-  const { icon: Icon, className, iconClassName, defaultTitle } = config[type]
+export function Callout({ children, type = 'info', title }: CalloutProps) {
+  const resolved = CALLOUT_CONFIG[type] ?? CALLOUT_CONFIG.info
+  const { icon: Icon, className, iconClassName } = resolved
 
   return (
     <div className={`my-6 flex gap-3 rounded-lg border-l-4 p-4 ${className}`}>

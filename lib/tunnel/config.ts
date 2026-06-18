@@ -5,6 +5,11 @@
 
 import { z } from 'zod';
 import {
+  getDeployFallbackChain,
+  getPrimaryTransport,
+  isNativeWssEnabled,
+} from './deploy-target';
+import {
   TunnelProvider,
   TunnelConfig,
   TunnelConfigSchema,
@@ -83,18 +88,10 @@ export function detectProviderCredentials(): Set<TunnelProvider> {
   available.add(TunnelProvider.SSE);
   available.add(TunnelProvider.LONG_POLLING);
 
-  // WebSocket available in non-Vercel environments (Kubernetes/production)
+  // Native WebSocket when deploy target supports WSS
   const env = detectEnvironment();
-  const websocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false';
-
-  if (!env.isVercel && !websocketDisabled && env.hasWebSocketSupport) {
+  if (isNativeWssEnabled() && env.hasWebSocketSupport) {
     available.add(TunnelProvider.WEBSOCKET);
-  }
-
-  // SSE only available when explicitly on Vercel (VERCEL=1)
-  const isVercelEnv = process.env.VERCEL === '1';
-  if (isVercelEnv) {
-    available.add(TunnelProvider.SSE);
   }
 
   return available;
@@ -104,30 +101,15 @@ export function detectProviderCredentials(): Set<TunnelProvider> {
  * Get recommended transport based on environment
  */
 export function getRecommendedTransport(): TunnelProvider {
-  const env = detectEnvironment();
   const available = detectProviderCredentials();
+  const primary = getPrimaryTransport();
 
-  // Check if WebSocket is explicitly disabled
-  const websocketDisabled = process.env.NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED === 'false';
-
-  // Vercel environment - NEVER use WebSocket
-  if (env.isVercel || websocketDisabled) {
-    // Remove WebSocket from available if on Vercel
-    available.delete(TunnelProvider.WEBSOCKET);
-    
-    if (available.has(TunnelProvider.SUPABASE)) {
-      return TunnelProvider.SUPABASE;
-    }
-    if (available.has(TunnelProvider.PUSHER)) {
-      return TunnelProvider.PUSHER;
-    }
-    if (available.has(TunnelProvider.ABLY)) {
-      return TunnelProvider.ABLY;
-    }
-    return TunnelProvider.SSE;
+  if (available.has(primary)) {
+    return primary;
   }
 
-  // Firebase environment - prefer Firebase
+  // Firebase / third-party overrides when primary unavailable
+  const env = detectEnvironment();
   if (env.isFirebase) {
     if (env.isEdgeRuntime && available.has(TunnelProvider.FIREBASE_EDGE)) {
       return TunnelProvider.FIREBASE_EDGE;
@@ -137,43 +119,8 @@ export function getRecommendedTransport(): TunnelProvider {
     }
   }
 
-  // Local development - prefer SSE (WebSocket server not running in dev)
-  if (env.isLocalhost && available.has(TunnelProvider.SSE)) {
-    return TunnelProvider.SSE;
-  }
-
-  // Private Kubernetes cluster with PostgreSQL - use WebSocket
-  const isK8sPostgres = process.env.DB_HOST?.includes('postgres.') &&
-                       process.env.DB_HOST?.includes('.svc.cluster.local') &&
-                       process.env.DATABASE_URL?.startsWith('postgresql://');
-  if (isK8sPostgres && available.has(TunnelProvider.WEBSOCKET)) {
-    return TunnelProvider.WEBSOCKET;
-  }
-
-  // Self-hosted with Node.js - prefer WebSocket
-  if (!env.isVercel && env.isNodeRuntime && available.has(TunnelProvider.WEBSOCKET)) {
-    return TunnelProvider.WEBSOCKET;
-  }
-
-  // Default fallback order
-  const preferenceOrder: TunnelProvider[] = [
-    TunnelProvider.SUPABASE,
-    TunnelProvider.WEBSOCKET,
-    TunnelProvider.PUSHER,
-    TunnelProvider.ABLY,
-    TunnelProvider.FIREBASE,
-    TunnelProvider.FIREBASE_EDGE,
-    TunnelProvider.SSE,
-    TunnelProvider.LONG_POLLING,
-  ];
-
-  for (const provider of preferenceOrder) {
-    if (available.has(provider)) {
-      return provider;
-    }
-  }
-
-  // Ultimate fallback
+  if (available.has(TunnelProvider.SUPABASE)) return TunnelProvider.SUPABASE;
+  if (available.has(TunnelProvider.SSE)) return TunnelProvider.SSE;
   return TunnelProvider.LONG_POLLING;
 }
 
@@ -183,35 +130,21 @@ export function getRecommendedTransport(): TunnelProvider {
 export function buildFallbackChain(
   primary?: TunnelProvider
 ): TunnelProvider[] {
+  const deployChain = getDeployFallbackChain();
   const available = detectProviderCredentials();
   const chain: TunnelProvider[] = [];
 
-  // Add primary if specified and available
-  if (primary && available.has(primary)) {
-    chain.push(primary);
-  }
-
-  // Build fallback order
-  const fallbackOrder: TunnelProvider[] = [
-    TunnelProvider.SUPABASE,
-    TunnelProvider.PUSHER,
-    TunnelProvider.ABLY,
-    TunnelProvider.SSE,
-    TunnelProvider.FIREBASE_EDGE,
-    TunnelProvider.FIREBASE,
-    TunnelProvider.WEBSOCKET,
-    TunnelProvider.LONG_POLLING,
-  ];
-
-  // Add available providers not already in chain
-  for (const provider of fallbackOrder) {
+  for (const provider of deployChain) {
     if (available.has(provider) && !chain.includes(provider)) {
       chain.push(provider);
     }
   }
 
-  // Ensure at least SSE and polling as ultimate fallbacks
-  if (!chain.includes(TunnelProvider.SSE)) {
+  if (primary && available.has(primary) && !chain.includes(primary)) {
+    chain.unshift(primary);
+  }
+
+  if (!chain.includes(TunnelProvider.SSE) && available.has(TunnelProvider.SSE)) {
     chain.push(TunnelProvider.SSE);
   }
   if (!chain.includes(TunnelProvider.LONG_POLLING)) {
@@ -270,27 +203,17 @@ export function getProviderConnectionOptions(
       };
       break;
 
-    case TunnelProvider.WEBSOCKET:
-      // SECURITY: Use secure WebSocket (wss://) for k8s-prod and dev environments
-      // Vercel uses SSE (no WebSocket), so this only applies to self-hosted deployments
-      if (process.env.NEXT_PUBLIC_WEBSOCKET_URL) {
-        options.url = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+    case TunnelProvider.WEBSOCKET: {
+      if (process.env.NEXT_PUBLIC_TUNNEL_WS_URL) {
+        options.url = process.env.NEXT_PUBLIC_TUNNEL_WS_URL;
       } else if (typeof window !== 'undefined') {
-        const isK8sProd = process.env.NEXT_PUBLIC_DEPLOY_ENV === 'k8s-prod';
-        const isDev = process.env.NODE_ENV === 'development';
-        
-        // Force secure WebSocket for k8s-prod and dev
-        if (isK8sProd || isDev) {
-          options.url = `wss://${window.location.host}`;
-        } else {
-          // Auto-detect based on page protocol for other environments
-          options.url = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-        }
+        const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        options.url = `${wsProto}//${window.location.host}/api/tunnel/ws`;
       } else {
-        // Server-side fallback (dev environment)
-        options.url = 'wss://localhost:3001';
+        options.url = 'ws://localhost:3000/api/tunnel/ws';
       }
       break;
+    }
 
     case TunnelProvider.SSE:
       options.url = '/api/tunnel/sse';

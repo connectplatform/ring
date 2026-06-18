@@ -12,6 +12,13 @@ jest.mock('next-auth/react', () => ({
   useSession: jest.fn()
 }));
 
+jest.mock('@/hooks/use-tunnel', () => ({
+  useTunnel: () => ({
+    isConnected: false,
+    subscribe: jest.fn(() => jest.fn()),
+  }),
+}));
+
 // Mock fetch
 global.fetch = jest.fn();
 
@@ -62,30 +69,31 @@ describe('useUnreadCount', () => {
   });
 
   it('should use cached data when available and not expired', async () => {
-    const cachedData = { unreadCount: 3 };
-    const cacheTime = Date.now() - 60000; // 1 minute ago (within 2-minute TTL)
+    const cacheTime = Date.now() - 60000 // 1 minute ago (within 2-minute TTL)
 
-    mockSessionStorage.getItem
-      .mockReturnValueOnce(JSON.stringify(cachedData)) // cached data
-      .mockReturnValueOnce(cacheTime.toString()); // cache time
+    mockSessionStorage.getItem.mockImplementation((key: string) => {
+      if (key === 'notifications-unread') return '3'
+      if (key === 'notifications-unread-time') return cacheTime.toString()
+      return null
+    })
 
-    const { result } = renderHook(() => useUnreadCount());
+    const { result } = renderHook(() => useUnreadCount())
 
     await waitFor(() => {
-      expect(result.current.unreadCount).toBe(3);
-    });
+      expect(result.current.unreadCount).toBe(3)
+    })
 
-    // Should not make API call when using cache
-    expect(global.fetch).not.toHaveBeenCalled();
-  });
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
 
   it('should fetch fresh data when cache is expired', async () => {
-    const cachedData = { unreadCount: 3 };
-    const cacheTime = Date.now() - 180000; // 3 minutes ago (expired)
+    const cacheTime = Date.now() - 180000 // 3 minutes ago (expired)
 
-    mockSessionStorage.getItem
-      .mockReturnValueOnce(JSON.stringify(cachedData)) // cached data
-      .mockReturnValueOnce(cacheTime.toString()); // cache time
+    mockSessionStorage.getItem.mockImplementation((key: string) => {
+      if (key === 'notifications-unread') return '3'
+      if (key === 'notifications-unread-time') return cacheTime.toString()
+      return null
+    })
 
     const { result } = renderHook(() => useUnreadCount());
 
@@ -106,7 +114,7 @@ describe('useUnreadCount', () => {
 
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith(
       'notifications-unread',
-      JSON.stringify({ unreadCount: 5 })
+      '5'
     );
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith(
       'notifications-unread-time',
@@ -120,8 +128,8 @@ describe('useUnreadCount', () => {
     const { result } = renderHook(() => useUnreadCount());
 
     await waitFor(() => {
-      expect(result.current.error).toBe('Failed to fetch unread count');
-    });
+      expect(result.current.error).toBe('Network error')
+    })
 
     expect(result.current.unreadCount).toBe(0);
   });
@@ -185,17 +193,16 @@ describe('useUnreadCount', () => {
       autoRefresh: false,
       refreshInterval: 300000, // 5 minutes
       cacheTimeout: 60000 // 1 minute
-    };
+    }
 
-    renderHook(() => useUnreadCount(customOptions));
+    const { result } = renderHook(() => useUnreadCount(customOptions))
 
     await waitFor(() => {
-      expect(result.current.unreadCount).toBe(5);
-    });
+      expect(result.current.unreadCount).toBe(5)
+    })
 
-    // Should still make initial fetch
-    expect(global.fetch).toHaveBeenCalled();
-  });
+    expect(global.fetch).toHaveBeenCalled()
+  })
 
   it('should clear error when clearError is called', async () => {
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
@@ -203,8 +210,8 @@ describe('useUnreadCount', () => {
     const { result } = renderHook(() => useUnreadCount());
 
     await waitFor(() => {
-      expect(result.current.error).toBe('Failed to fetch unread count');
-    });
+      expect(result.current.error).toBe('Network error')
+    })
 
     act(() => {
       result.current.clearError();

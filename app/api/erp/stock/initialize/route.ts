@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const session = await auth()
     
     // In production, require admin role
-    const isAdmin = session?.user?.role === UserRole.ADMIN || session?.user?.role === UserRole.SUPERADMIN
+    const isAdmin = session?.user?.role === UserRole.admin || session?.user?.role === UserRole.superadmin
     const isDev = process.env.NODE_ENV === 'development'
     
     if (!isDev && !isAdmin) {

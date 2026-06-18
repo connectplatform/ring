@@ -9,7 +9,13 @@ import {
   mapDbDocumentToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { UserRole } from '@/features/auth/types'
+import {
+  assertKnownUserRole,
+  InvalidUserRoleError,
+} from '@/features/auth/user-role'
+import { buildOpportunityVisibilityFilters } from '@/features/opportunities/lib/opportunity-visibility-filter'
 import { auth } from '@/auth'
+import { getMcpActor } from '@/lib/auth/mcp-actor-context'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, logRingError } from '@/lib/errors'
@@ -25,7 +31,6 @@ export interface SearchOpportunitiesParams {
   types?: string[]
   categories?: string[]
   location?: string
-  locationRadius?: number // in kilometers
   budgetMin?: number
   budgetMax?: number
   currency?: string
@@ -41,8 +46,7 @@ export interface SearchOpportunitiesParams {
   limit?: number
   startAfter?: string
 
-  // User context (for role-based filtering)
-  userRole?: UserRole
+  // User context derived from session only (no client override)
   userId?: string
   // Extended priority type to include filter options
   priority?: 'urgent' | 'normal' | 'low' | 'all' | 'any'
@@ -103,55 +107,24 @@ export const searchOpportunities = cache(async (
   try {
     logger.info('Services: searchOpportunities - Starting advanced search', { params })
 
-    // Step 1: Authentication and user context
-    let userRole: UserRole = UserRole.VISITOR
-    let userId: string | undefined
-
     const session = await auth()
-    if (session?.user) {
-      userRole = session.user.role as UserRole
-      userId = session.user.id
+    const mcpActor = getMcpActor()
+
+    if (!session?.user && !mcpActor) {
+      throw new OpportunityAuthError('Authentication required', undefined, {
+        timestamp: Date.now(),
+        operation: 'searchOpportunities',
+      })
     }
 
-    // Override with provided user context if specified
-    if (params.userRole) {
-      userRole = params.userRole
-    }
-    if (params.userId) {
-      userId = params.userId
-    }
+    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role)
+    const userId = session?.user?.id ?? mcpActor?.id
 
     // Step 2: Build comprehensive search filters
-    const filters: Array<{ field: string; operator: string; value: any }> = []
-    const filtersApplied: string[] = []
-
-    // Role-based visibility filtering
-    if (userRole === UserRole.VISITOR) {
-      filters.push({ field: 'visibility', operator: '==', value: 'public' })
-      filtersApplied.push('public_visibility')
-    } else if (userRole === UserRole.SUBSCRIBER) {
-      filters.push({
-        field: 'visibility',
-        operator: 'in',
-        value: ['public', 'subscriber']
-      })
-      filtersApplied.push('subscriber_visibility')
-    } else if (userRole === UserRole.MEMBER) {
-      filters.push({
-        field: 'visibility',
-        operator: 'in',
-        value: ['public', 'subscriber', 'member']
-      })
-      filtersApplied.push('member_visibility')
-    }
-    // ADMIN and CONFIDENTIAL users see all (no visibility filter)
-
-    // Confidentiality filtering
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      // Non-admin users can only see non-confidential opportunities
-      filters.push({ field: 'isConfidential', operator: '==', value: false })
-      filtersApplied.push('non_confidential_only')
-    }
+    const filters: Array<{ field: string; operator: string; value: any }> = [
+      ...buildOpportunityVisibilityFilters(userRole),
+    ]
+    const filtersApplied: string[] = ['role_visibility']
 
     // Type filtering
     if (params.types && params.types.length > 0) {
@@ -165,19 +138,18 @@ export const searchOpportunities = cache(async (
       filtersApplied.push(`categories: ${params.categories.join(', ')}`)
     }
 
-    // Location-based filtering (simple text match for now)
+    /** Text-prefix location match — not geolocation radius (no lat/lng schema yet). */
     if (params.location) {
-      // For location search, we'll use a more sophisticated approach
-      // This could be enhanced with geolocation in the future
+      const loc = params.location.toLowerCase()
       filters.push({
         field: 'location',
         operator: '>=',
-        value: params.location.toLowerCase()
+        value: loc,
       })
       filters.push({
         field: 'location',
         operator: '<=',
-        value: params.location.toLowerCase() + '\uf8ff'
+        value: loc + '\uf8ff',
       })
       filtersApplied.push(`location: ${params.location}`)
     }
@@ -382,7 +354,7 @@ export const searchOpportunities = cache(async (
   } catch (error) {
     logRingError(error, 'Services: searchOpportunities - Search failed')
 
-    if (error instanceof OpportunityAuthError || error instanceof OpportunityPermissionError) {
+    if (error instanceof OpportunityAuthError || error instanceof OpportunityPermissionError || error instanceof InvalidUserRoleError) {
       throw error
     }
 
@@ -421,13 +393,11 @@ export const searchOpportunitiesByQuery = cache(async (
  */
 export const searchOpportunitiesByLocation = cache(async (
   location: string,
-  radiusKm: number = 50,
-  options: Omit<SearchOpportunitiesParams, 'location' | 'locationRadius'> = {}
+  options: Omit<SearchOpportunitiesParams, 'location'> = {}
 ): Promise<SearchOpportunitiesResult> => {
   return searchOpportunities({
     ...options,
     location,
-    locationRadius: radiusKm
   })
 })
 

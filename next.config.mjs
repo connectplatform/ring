@@ -149,7 +149,7 @@ const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.join(__dirname, './'),
   outputFileTracingIncludes: {
-    '**/*': ['./i18n/**/*', './lib/**/*', './server.js']
+    '**/*': ['./i18n/**/*', './lib/**/*', './server.ts', './server.js']
   },
   serverExternalPackages: ['google-auth-library', 'gaxios', 'gtoken'],
   experimental: {
@@ -159,8 +159,8 @@ const nextConfig = {
     },
   ...(process.env.SKIP_TYPE_CHECK === '1'
     ? {
-        cpus: 4,
-        staticGenerationMaxConcurrency: 4,
+        cpus: 8,
+        staticGenerationMaxConcurrency: 8,
         staticGenerationMinPagesPerWorker: 500,
       }
     : {}),

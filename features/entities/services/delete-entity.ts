@@ -6,7 +6,7 @@
  */
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, hasConfidentialAccess, isPlatformAdmin } from '@/features/auth/user-role'
 import { Entity } from '@/features/entities/types'
 import { checkEntityOwnership } from '@/features/entities/utils/entity-utils'
 import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
@@ -33,8 +33,8 @@ import { db } from '@/lib/database'
  * @returns {Promise<boolean>} A promise that resolves to true if the deletion was successful.
  * @throws {Error} If the user is not authenticated, lacks the necessary permissions, or if the entity doesn't exist.
  * 
- * Note: Only ADMIN users can delete any entity. Other users can only delete entities they have added,
- *       unless the entity is confidential, in which case only ADMIN and CONFIDENTIAL users have permission.
+ * Note: Only admin users can delete any entity. Other users can only delete entities they have added,
+ *       unless the entity is confidential, in which case only admin and confidential users have permission.
  */
 export async function deleteEntity(id: string): Promise<boolean> {
   try {
@@ -46,7 +46,8 @@ export async function deleteEntity(id: string): Promise<boolean> {
       throw new Error('Unauthorized access');
     }
 
-    const { id: userId, role: userRole } = session.user;
+    const userId = session.user.id
+    const userRole = assertKnownUserRole(session.user.role)
 
     console.log(`Services: deleteEntity - User authenticated with ID ${userId} and role ${userRole}`);
 
@@ -63,13 +64,13 @@ export async function deleteEntity(id: string): Promise<boolean> {
 
     // Step 4: Check user's permission to delete the entity
     const isOwner = await checkEntityOwnership(userId, id);
-    if (userRole !== UserRole.ADMIN && !isOwner) {
+    if (!isPlatformAdmin(userRole) && !isOwner) {
       console.error(`Services: deleteEntity - User ${userId} attempted to delete entity ${id} without permission`);
       throw new Error('You do not have permission to delete this entity.');
     }
 
     // Step 5: If the entity is confidential, ensure the user has appropriate permissions
-    if (entity.isConfidential && userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+    if (entity.isConfidential && !hasConfidentialAccess(userRole)) {
       console.error(`Services: deleteEntity - Non-admin/confidential user ${userId} attempted to delete confidential entity ${id}`);
       throw new Error('You do not have permission to delete confidential entities.');
     }

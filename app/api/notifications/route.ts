@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = session.user.id;
-    const userRole = (session.user.role as UserRole) || UserRole.SUBSCRIBER;
+    const userRole = (session.user.role as UserRole) || UserRole.subscriber;
 
     // Check if user document exists (with caching - migration now handled at auth level)
     try {
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Check user permissions (for manual notification creation)
     // Only admins can create manual notifications via API
-    if (userRole !== UserRole.ADMIN) {
+    if (userRole !== UserRole.admin) {
       console.log('API: /api/notifications - Access denied for user', { userId, role: userRole });
       return NextResponse.json({ 
         error: 'Access denied. Only administrators can create notifications manually.' 

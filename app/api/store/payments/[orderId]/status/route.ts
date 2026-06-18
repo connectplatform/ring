@@ -47,7 +47,7 @@ export async function GET(
     }
 
     // Step 3: Verify order belongs to user (unless admin)
-    if (order.userId !== session.user.id && session.user.role !== UserRole.ADMIN) {
+    if (order.userId !== session.user.id && session.user.role !== UserRole.admin) {
       logger.warn('Store Payment Status: Order access denied', {
         orderId,
         userId: session.user.id,

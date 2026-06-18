@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link, toAppHref } from '@/i18n/routing'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -100,7 +100,7 @@ export default function WalletNavigation({ locale }: WalletNavigationProps) {
         {navigationItems.map((item) => (
           <Link
             key={item.href}
-            href={item.href}
+            href={toAppHref(item.href)}
             className={cn(
               "flex items-start gap-3 p-3 rounded-lg transition-all duration-200",
               "hover:bg-accent hover:shadow-sm",

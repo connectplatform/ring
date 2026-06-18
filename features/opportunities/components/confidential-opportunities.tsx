@@ -12,7 +12,8 @@ import { Calendar, MapPin, Tag, Building, Lock, DollarSign, Clock } from "lucide
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { UserRole } from "@/features/auth/types"
+import { hasConfidentialAccess } from '@/features/auth/user-role'
+import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 import { useInView } from "@/hooks/use-intersection-observer"
 import { formatBudget, truncateDescription, formatTimestampOrFieldValue } from "@/lib/utils"
 import { useAppContext } from "@/contexts/app-context"
@@ -66,7 +67,7 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
    * Fetches more confidential opportunities when the user scrolls to the bottom of the list
    */
   const fetchMoreOpportunities = useCallback(async () => {
-    if (!session || (session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN)) {
+    if (!session || !hasConfidentialAccess(session.user?.role)) {
       return
     }
 
@@ -140,7 +141,7 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
     )
   }
 
-  if (session.user?.role !== UserRole.CONFIDENTIAL && session.user?.role !== UserRole.ADMIN) {
+  if (!hasConfidentialAccess(session.user?.role)) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
         <motion.div
@@ -183,7 +184,10 @@ const ConfidentialOpportunities: React.FC<ConfidentialOpportunitiesProps> = ({
   return (
     <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
       <div className="container mx-auto px-4 py-12">
-        <PageTitle title={t("ConfidentialOpportunitiesTitle")} />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <PageTitle title={t("ConfidentialOpportunitiesTitle")} />
+          <AddOpportunityButton />
+        </div>
         <OpportunityGrid opportunities={opportunities} />
         {lastVisible && (
           <div ref={ref} className="mt-8 text-center">

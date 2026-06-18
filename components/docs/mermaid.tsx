@@ -2,21 +2,38 @@
 
 import React, { useEffect, useRef } from 'react'
 import { collectDiagramSource } from '@/components/docs/diagram-source'
+import { normalizeMermaidSource, renderMermaidDiagram } from '@/lib/mermaid-render'
 
 export interface MermaidProps {
-  children: React.ReactNode
+  children?: React.ReactNode
+  /** Optional explicit diagram source (prefer children in MDX). */
+  source?: string
   title?: string
   type?: 'diagram' | 'mindmap'
 }
 
-export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
+function normalizeSvgWidth(svg: string): string {
+  return svg.replace(/<svg\b([^>]*)>/i, (_, attrs: string) => {
+    const cleaned = attrs
+      .replace(/\swidth="[^"]*"/gi, '')
+      .replace(/\sheight="[^"]*"/gi, '')
+      .replace(/\sstyle="([^"]*)"/gi, '')
+    return `<svg${cleaned} width="100%" style="width:100%;height:auto;max-width:100%;display:block">`
+  })
+}
+
+export function Mermaid({ children, source: sourceProp, title, type = 'diagram' }: MermaidProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [svg, setSvg] = React.useState<string>('')
   const [error, setError] = React.useState<string>('')
   const [isClient, setIsClient] = React.useState(false)
   const [currentTheme, setCurrentTheme] = React.useState<'light' | 'dark'>('light')
 
-  const source = React.useMemo(() => collectDiagramSource(children).trim(), [children])
+  const source = React.useMemo(() => {
+    const explicit = typeof sourceProp === 'string' ? sourceProp.trim() : ''
+    const fromChildren = collectDiagramSource(children).trim()
+    return explicit || fromChildren
+  }, [children, sourceProp])
 
   useEffect(() => {
     setIsClient(true)
@@ -52,10 +69,9 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
 
     const renderDiagram = async () => {
       try {
-        const mermaid = (await import('mermaid')).default
         const isDark = currentTheme === 'dark'
-
-        await mermaid.initialize({
+        const themeKey = isDark ? 'dark' : 'light'
+        const config = {
           startOnLoad: false,
           theme: isDark ? 'dark' : 'neutral',
           securityLevel: 'loose',
@@ -110,11 +126,10 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
                 border1: '#d1d5db',
                 border2: '#9ca3af',
               },
-        })
+        } as const
 
-        const id = `mermaid-${Math.random().toString(36).substring(2, 9)}`
-        const { svg: rendered } = await mermaid.render(id, source)
-        setSvg(rendered)
+        const rendered = await renderMermaidDiagram(source, config, themeKey)
+        setSvg(normalizeSvgWidth(rendered))
         setError('')
       } catch (err: unknown) {
         console.error('Mermaid render error:', err)
@@ -131,29 +146,44 @@ export function Mermaid({ children, title, type = 'diagram' }: MermaidProps) {
     return null
   }
 
+  const showLoading = !svg && !error
+
   if (error) {
     return (
-      <div className="my-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-        {title && <p className="mb-2 font-semibold text-red-600 dark:text-red-400">{title}</p>}
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-red-500 dark:text-red-400">Show source</summary>
-          <pre className="mt-2 overflow-x-auto rounded bg-red-100 p-2 text-xs dark:bg-red-900/30">
-            {source}
-          </pre>
-        </details>
-      </div>
+      <figure className="my-6 w-full">
+        {title && <figcaption className="mb-2 font-semibold text-foreground">{title}</figcaption>}
+        <div className="w-full rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs text-red-500 dark:text-red-400">Show source</summary>
+            <pre className="mt-2 overflow-x-auto rounded bg-red-100 p-2 text-xs dark:bg-red-900/30">
+              {normalizeMermaidSource(source)}
+            </pre>
+          </details>
+        </div>
+      </figure>
     )
   }
 
   return (
-    <div className="my-6">
-      {title && <div className="mb-2 font-semibold text-foreground">{title}</div>}
-      <div
-        ref={containerRef}
-        className="flex items-center justify-center overflow-x-auto rounded-lg border border-border bg-background p-6"
-        dangerouslySetInnerHTML={{ __html: svg }}
-      />
-    </div>
+    <figure className="my-6 w-full min-w-0">
+      {title && <figcaption className="mb-2 font-semibold text-foreground">{title}</figcaption>}
+      <div className="flex w-full min-h-[12rem] min-w-0 items-center justify-center overflow-x-auto rounded-lg border border-border bg-background p-4 md:p-6">
+        {showLoading ? (
+          <div
+            className="h-40 w-full animate-pulse rounded-md bg-muted"
+            aria-busy="true"
+            aria-label="Rendering diagram"
+          />
+        ) : null}
+        {svg ? (
+          <div
+            ref={containerRef}
+            className="w-full min-w-0 [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:w-full"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        ) : null}
+      </div>
+    </figure>
   )
 }

@@ -48,9 +48,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     /** 
      * Extract user role from session for authorization
-     * Falls back to UserRole.SUBSCRIBER if role is undefined
+     * Falls back to UserRole.subscriber if role is undefined
      */
-    const userRole = session.user.role as UserRole || UserRole.SUBSCRIBER
+    const userRole = session.user.role as UserRole || UserRole.subscriber
     console.log('API: /api/entities/upload - Authorized access', {
       userId: session.user.id,
       role: userRole,

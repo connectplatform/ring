@@ -3,11 +3,10 @@
     "name": "ring-platform",
     "displayName": "Ring Platform",
     "shortName": "Ring",
-    "description": "Open-source community and marketplace platform",
+    "description": "Open-source white-label community, opportunity, and marketplace platform — Entities, Opportunities, Store, Web3, and AI matching in one React 19 / Next.js 16 stack",
     "version": "2.0.0",
     "organization": "ConnectPlatform",
-    "contactEmail": "contact@ring-platform.org",
-    "supportEmail": "support@ring-platform.org"
+    "contactEmail": "contact@ring-platform.org"
   },
   "domains": {
     "production": "https://ring-platform.org",
@@ -38,10 +37,10 @@
     ]
   },
   "hero": {
-    "title": "Connect talent and opportunity",
-    "subtitle": "A modular, open, white‑label platform.",
+    "title": "Ring Platform",
+    "subtitle": "Open-source community, opportunities, and marketplace — clone it, shape it, deploy it.",
     "ctaText": "Get started",
-    "ctaHref": "/login",
+    "ctaHref": "/register",
     "showOnHome": true
   },
   "legal": {
@@ -68,6 +67,9 @@
     "enabled": true,
     "presetId": "deployment"
   },
+  "roadmap": {
+    "enabled": true
+  },
   "productFields": {
     "preset": "platform"
   },
@@ -82,7 +84,7 @@
   "seo": {
     "siteName": "Ring Platform",
     "twitterHandle": "@RingPlatform",
-    "ogImage": "/images/og-image.png"
+    "ogImage": "/og-ring-platform-1200x630.jpg"
   },
   "social": {
     "github": "https://github.com/connectplatform/ring-platform",
@@ -97,7 +99,51 @@
     "autoApproveMinScore": 0.7,
     "llmConfidenceGate": 0.8
   },
+  "membership": {
+    "tiers": {
+      "subscriber": {
+        "amount": 0,
+        "currency": "UAH",
+        "description": "Ring Platform Subscriber (Free)",
+        "duration": "lifetime"
+      },
+      "member": {
+        "amount": 299,
+        "currency": "UAH",
+        "description": "Ring Platform Member Upgrade",
+        "duration": "1 month"
+      }
+    }
+  },
   "integrations": {
     "demoUserEmail": "vendor@ring-platform.org"
+  },
+  "founders": {
+    "primary": {
+      "firstName": "Ray",
+      "lastName": "Sorkin",
+      "nickname": "Ray",
+      "photoAvatar": "/images/insight.jpg",
+      "xUsername": "ray_sorkin",
+      "linkedInUsername": "aos80",
+      "projectUsername": "insight",
+      "customLinks": [
+        {
+          "uri": "https://github.com/connectplatform",
+          "name": "ConnectPlatform",
+          "desc": "Open-source ConnectPlatform and Ring ecosystem on GitHub — digitalization for interest groups and communities since 2013."
+        },
+        {
+          "uri": "https://sonoratek.com",
+          "name": "Sonoratek LLC",
+          "desc": "Legal publisher of Ring Platform — IT pathfinding, automation, and cloud services in Tempe, Arizona since 2015."
+        },
+        {
+          "uri": "https://ringdom.org",
+          "name": "Ringdom",
+          "desc": "Turnkey Ring-powered cloud clones, LegioX knowledge stack, and white-label platform operations."
+        }
+      ]
+    }
   }
 }

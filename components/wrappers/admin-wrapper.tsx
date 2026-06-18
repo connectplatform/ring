@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * ADMIN PAGE WRAPPER - Ring Platform v2.0
+ * admin PAGE WRAPPER - Ring Platform v2.0
  * =======================================
  * Universal 3-column responsive layout for all admin pages
  *
@@ -25,14 +25,11 @@
  * - Performance Optimizer (admin dashboard efficiency)
  */
 
-import React, { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n/shared'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { Link, toAppHref } from '@/i18n/routing'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
   Settings,
@@ -40,13 +37,9 @@ import {
   BarChart3,
   Shield,
   FileText,
-  Activity,
   Wrench,
   HelpCircle,
   TrendingUp,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
   Database,
   Server,
   Zap,
@@ -58,6 +51,7 @@ import {
   ListTodo
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
 
 /** Keys aligned with `modules.admin` / admin right-rail copy (partial overrides allowed). */
 export type ModulesAdminLabels = Partial<{
@@ -70,9 +64,20 @@ export type ModulesAdminLabels = Partial<{
   security: string
   settings: string
   matcher: string
+  verification: string
   store: string
   refcodes: string
+  emailInbox: string
+  emailDrafts: string
+  emailContacts: string
+  emailAnalytics: string
+  emailTasks: string
   quickNav: string
+  navGroupOverview: string
+  navGroupCommunity: string
+  navGroupPlatform: string
+  navGroupCommerce: string
+  navGroupEmail: string
   systemStats: string
   totalUsers: string
   publishedArticles: string
@@ -104,8 +109,8 @@ export type ModulesAdminLabels = Partial<{
 
 interface AdminWrapperProps {
   children: React.ReactNode
-  locale: string
-  pageContext?: 'dashboard' | 'users' | 'news' | 'analytics' | 'moderation' | 'performance' | 'security' | 'settings' | 'matcher' | 'store' | 'refcodes' | 'email-inbox' | 'email-drafts' | 'email-contacts' | 'email-analytics' | 'email-tasks'
+  locale: Locale
+  pageContext?: 'dashboard' | 'users' | 'news' | 'analytics' | 'moderation' | 'performance' | 'security' | 'settings' | 'matcher' | 'verification' | 'store' | 'refcodes' | 'email-inbox' | 'email-drafts' | 'email-contacts' | 'email-analytics' | 'email-tasks'
   translations?: { modules?: { admin?: ModulesAdminLabels } }
   /** Flat admin labels (e.g. from `buildModulesAdminLabels`) — merged over `translations.modules.admin`. */
   labels?: ModulesAdminLabels
@@ -119,7 +124,6 @@ export default function AdminWrapper({
   labels,
 }: AdminWrapperProps) {
   const router = useRouter()
-  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
@@ -133,9 +137,20 @@ export default function AdminWrapper({
     security: 'Security',
     settings: 'Settings',
     matcher: 'Matcher',
+    verification: 'Verification',
     store: 'Store',
     refcodes: 'Referral Rewards',
+    emailInbox: 'Email Inbox',
+    emailDrafts: 'Email Drafts',
+    emailContacts: 'Email Contacts',
+    emailAnalytics: 'Email Analytics',
+    emailTasks: 'Email Tasks',
     quickNav: 'Quick Navigation',
+    navGroupOverview: 'Overview',
+    navGroupCommunity: 'Community & content',
+    navGroupPlatform: 'Platform operations',
+    navGroupCommerce: 'Commerce & rewards',
+    navGroupEmail: 'Email & CRM',
     systemStats: 'System Stats',
     totalUsers: 'Total Users',
     publishedArticles: 'Published',
@@ -176,117 +191,78 @@ export default function AdminWrapper({
     setMounted(true)
   }, [])
 
-  // Admin navigation sections
-  const adminSections = [
-    {
-      id: 'dashboard',
-      label: t['dashboard'] || 'Dashboard',
-      icon: BarChart3,
-      href: `/${locale}/admin`,
-      active: pageContext === 'dashboard'
-    },
-    {
-      id: 'users',
-      label: t['users'] || 'Users',
-      icon: Users,
-      href: `/${locale}/admin/users`,
-      active: pageContext === 'users'
-    },
-    {
-      id: 'news',
-      label: t['news'] || 'News',
-      icon: FileText,
-      href: `/${locale}/admin/news`,
-      active: pageContext === 'news'
-    },
-    {
-      id: 'analytics',
-      label: t['analytics'] || 'Analytics',
-      icon: TrendingUp,
-      href: `/${locale}/admin/analytics`,
-      active: pageContext === 'analytics'
-    },
-    {
-      id: 'moderation',
-      label: t['moderation'] || 'Moderation',
-      icon: Shield,
-      href: `/${locale}/admin/moderation`,
-      active: pageContext === 'moderation'
-    },
-    {
-      id: 'performance',
-      label: t['performance'] || 'Performance',
-      icon: Zap,
-      href: `/${locale}/admin/performance`,
-      active: pageContext === 'performance'
-    },
-    {
-      id: 'security',
-      label: t['security'] || 'Security',
-      icon: Shield,
-      href: `/${locale}/admin/security`,
-      active: pageContext === 'security'
-    },
-    {
-      id: 'email-inbox',
-      label: 'Email Inbox',
-      icon: Mail,
-      href: `/${locale}/admin/email-inbox`,
-      active: pageContext === 'email-inbox'
-    },
-    {
-      id: 'email-drafts',
-      label: 'Email Drafts',
-      icon: Mail,
-      href: `/${locale}/admin/email-drafts`,
-      active: pageContext === 'email-drafts'
-    },
-    {
-      id: 'email-tasks',
-      label: 'Email Tasks',
-      icon: ListTodo,
-      href: `/${locale}/admin/email-tasks`,
-      active: pageContext === 'email-tasks'
-    },
-    {
-      id: 'settings',
-      label: t['settings'] || 'Settings',
-      icon: Settings,
-      href: `/${locale}/admin/settings`,
-      active: pageContext === 'settings'
-    },
-    {
-      id: 'matcher',
-      label: t['matcher'] || 'Matcher',
-      icon: Database,
-      href: `/${locale}/admin/matcher`,
-      active: pageContext === 'matcher'
-    },
-    {
-      id: 'store',
-      label: t['store'] || 'Store',
-      icon: Archive,
-      href: `/${locale}/admin/store`,
-      active: pageContext === 'store'
-    },
-  ]
-
-  // Mock system stats (will be dynamic later)
-  const systemStats = {
-    users: { total: 15420, active: 8920, new: 245 },
-    articles: { total: 1234, published: 987, drafts: 89 },
-    orders: { total: 5678, pending: 123, completed: 5234 },
-    performance: { uptime: 99.9, responseTime: 145, errors: 3 }
+  // Admin navigation — grouped like docs sidebar sections
+  type AdminNavItem = {
+    id: string
+    label: string
+    icon: React.ComponentType<{ className?: string }>
+    href: string
+    active: boolean
   }
 
-  // Mock recent activity (will be dynamic later)
-  const recentActivity = [
-    { id: '1', type: 'user_registered', message: 'New user registered: john@example.com', time: '2 min ago', icon: Users },
-    { id: '2', type: 'article_published', message: 'Article "Platform Updates" published', time: '15 min ago', icon: FileText },
-    { id: '3', type: 'order_completed', message: 'Order #12345 completed', time: '1 hour ago', icon: CheckCircle },
-    { id: '4', type: 'security_alert', message: 'Failed login attempt detected', time: '2 hours ago', icon: AlertTriangle },
-    { id: '5', type: 'user_banned', message: 'User account suspended', time: '3 hours ago', icon: Shield },
-  ]
+  type AdminNavGroup = {
+    id: string
+    title: string
+    items: AdminNavItem[]
+  }
+
+  const adminNavGroups = useMemo((): AdminNavGroup[] => {
+    const item = (
+      id: string,
+      label: string,
+      icon: React.ComponentType<{ className?: string }>,
+      href: string,
+      active: boolean,
+    ): AdminNavItem => ({ id, label, icon, href, active })
+
+    return [
+      {
+        id: 'overview',
+        title: t.navGroupOverview,
+        items: [item('dashboard', t.dashboard, BarChart3, ROUTES.ADMIN(locale), pageContext === 'dashboard')],
+      },
+      {
+        id: 'community',
+        title: t.navGroupCommunity,
+        items: [
+          item('users', t.users, Users, ROUTES.ADMIN_USERS(locale), pageContext === 'users'),
+          item('news', t.news, FileText, ROUTES.ADMIN_NEWS(locale), pageContext === 'news'),
+          item('moderation', t.moderation, Shield, ROUTES.ADMIN_MODERATION(locale), pageContext === 'moderation'),
+          item('analytics', t.analytics, TrendingUp, ROUTES.ADMIN_ANALYTICS(locale), pageContext === 'analytics'),
+        ],
+      },
+      {
+        id: 'platform',
+        title: t.navGroupPlatform,
+        items: [
+          item('performance', t.performance, Zap, ROUTES.ADMIN_PERFORMANCE(locale), pageContext === 'performance'),
+          item('security', t.security, Shield, ROUTES.ADMIN_SECURITY(locale), pageContext === 'security'),
+          item('settings', t.settings, Settings, ROUTES.ADMIN_SETTINGS(locale), pageContext === 'settings'),
+          item('matcher', t.matcher, Database, ROUTES.ADMIN_MATCHER(locale), pageContext === 'matcher'),
+          item('verification', t.verification, Shield, ROUTES.ADMIN_VERIFICATION(locale), pageContext === 'verification'),
+        ],
+      },
+      {
+        id: 'commerce',
+        title: t.navGroupCommerce,
+        items: [
+          item('store', t.store, Archive, ROUTES.ADMIN_STORE(locale), pageContext === 'store'),
+          item('refcodes', t.refcodes, TrendingUp, ROUTES.ADMIN_REFCODES(locale), pageContext === 'refcodes'),
+        ],
+      },
+      {
+        id: 'email',
+        title: t.navGroupEmail,
+        items: [
+          item('email-inbox', t.emailInbox, Mail, ROUTES.ADMIN_EMAIL_INBOX(locale), pageContext === 'email-inbox'),
+          item('email-drafts', t.emailDrafts, Mail, ROUTES.ADMIN_EMAIL_DRAFTS(locale), pageContext === 'email-drafts'),
+          item('email-contacts', t.emailContacts, Mail, ROUTES.ADMIN_EMAIL_CONTACTS(locale), pageContext === 'email-contacts'),
+          item('email-analytics', t.emailAnalytics, BarChart3, ROUTES.ADMIN_EMAIL_ANALYTICS(locale), pageContext === 'email-analytics'),
+          item('email-tasks', t.emailTasks, ListTodo, ROUTES.ADMIN_EMAIL_TASKS(locale), pageContext === 'email-tasks'),
+        ],
+      },
+    ]
+  }, [locale, pageContext, t])
 
   // Context-specific admin tools
   const getContextualTools = () => {
@@ -319,122 +295,59 @@ export default function AdminWrapper({
   }
 
   const RightSidebarContent = () => (
-    <div className="space-y-6">
-      {/* Quick Navigation Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            {t['quickNav'] || 'Quick Navigation'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {adminSections.map((section) => (
-            <Button
-              key={section.id}
-              variant={section.active ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => {
-                router.push(section.href)
-                setRightSidebarOpen(false)
-              }}
-            >
-              <section.icon className="h-4 w-4 mr-2" />
-              {section.label}
-            </Button>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* System Stats Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            {t['systemStats'] || 'System Stats'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{systemStats.users.total.toLocaleString()}</div>
-              <div className="text-xs text-muted-foreground">{t['totalUsers'] || 'Total Users'}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{systemStats.articles.published}</div>
-              <div className="text-xs text-muted-foreground">{t['publishedArticles'] || 'Published'}</div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t['activeUsers'] || 'Active Users'}</span>
-              <span>{systemStats.users.active.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t['newUsers'] || 'New Today'}</span>
-              <span className="text-green-600">+{systemStats.users.new}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t['uptime'] || 'Uptime'}</span>
-              <span className="text-green-600">{systemStats.performance.uptime}%</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activity Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            {t['recentActivity'] || 'Recent Activity'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {recentActivity.map((activity) => (
-            <div key={activity.id} className="flex items-start gap-3">
-              <div className="p-1 bg-muted rounded">
-                <activity.icon className="h-3 w-3" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm">{activity.message}</p>
-                <p className="text-xs text-muted-foreground">{activity.time}</p>
+    <div className="flex flex-col min-h-0 text-foreground space-y-6">
+      {/* Quick Navigation */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Settings className="h-5 w-5 shrink-0" />
+          {t['quickNav'] || 'Quick Navigation'}
+        </h2>
+        <div className="space-y-4">
+          {adminNavGroups.map((group, groupIndex) => (
+            <div key={group.id}>
+              {groupIndex > 0 ? <Separator className="mb-3" /> : null}
+              <p className="mb-1.5 px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {group.title}
+              </p>
+              <div className="space-y-1">
+                {group.items.map((section) => (
+                  <Button
+                    key={section.id}
+                    variant={section.active ? 'default' : 'ghost'}
+                    className="h-9 w-full justify-start"
+                    asChild
+                  >
+                    <Link
+                      href={toAppHref(section.href)}
+                      onClick={() => setRightSidebarOpen(false)}
+                    >
+                      <section.icon className="mr-2 h-4 w-4" />
+                      {section.label}
+                    </Link>
+                  </Button>
+                ))}
               </div>
             </div>
           ))}
+        </div>
+      </section>
 
-          <Button
-            variant="link"
-            className="w-full p-0 h-auto"
-            onClick={() => router.push(`/${locale}/admin/activity`)}
-          >
-{t['viewAllActivity'] || 'View All Activity'} →
-          </Button>
-        </CardContent>
-      </Card>
+      <Separator />
 
-      {/* Admin Tools Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            {t['adminTools'] || 'Admin Tools'}
-          </CardTitle>
-          <CardDescription>
-            {t['contextualTools'] || 'Context-specific tools for this page'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
+      {/* Admin Tools */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <Wrench className="h-4 w-4 shrink-0" />
+          {t['adminTools'] || 'Admin Tools'}
+        </h2>
+        <p className="text-xs text-muted-foreground">{t['contextualTools'] || 'Context-specific tools for this page'}</p>
+        <div className="space-y-1">
           {getContextualTools().map((tool) => (
             <Button
               key={tool.id}
               variant="outline"
-              className="w-full justify-start"
+              className="w-full justify-start h-9"
               onClick={() => {
-                // TODO: Implement tool actions
                 console.log('Tool clicked:', tool.id)
                 setRightSidebarOpen(false)
               }}
@@ -443,75 +356,57 @@ export default function AdminWrapper({
               {tool.label}
             </Button>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* Help & Documentation Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <HelpCircle className="h-4 w-4" />
-            {t['helpDocs'] || 'Help & Docs'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>{t['adminHelpDescription'] || 'Get help with admin tasks and platform management.'}</p>
-          <div className="space-y-2">
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/admin/getting-started`)}
-            >
-              {t['gettingStarted'] || 'Getting Started'} →
-            </Button>
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/admin/api-reference`)}
-            >
-              {t['apiReference'] || 'API Reference'} →
-            </Button>
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/admin/troubleshooting`)}
-            >
-              {t['troubleshooting'] || 'Troubleshooting'} →
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Separator />
+
+      {/* Help */}
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <HelpCircle className="h-4 w-4 shrink-0" />
+          {t['helpDocs'] || 'Help & Docs'}
+        </h2>
+        <p className="text-sm text-muted-foreground">{t['adminHelpDescription'] || 'Get help with admin tasks and platform management.'}</p>
+        <div className="space-y-1">
+          <Button
+            variant="link"
+            className="h-auto p-0 text-sm"
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/admin/getting-started`)}
+          >
+            {t.gettingStarted} →
+          </Button>
+          <Button
+            variant="link"
+            className="h-auto p-0 text-sm"
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/admin/api-reference`)}
+          >
+            {t.apiReference} →
+          </Button>
+          <Button
+            variant="link"
+            className="h-auto p-0 text-sm"
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/admin/troubleshooting`)}
+          >
+            {t.troubleshooting} →
+          </Button>
+        </div>
+      </section>
     </div>
   )
 
+  if (!mounted) {
+    return <div className="min-h-[40vh]">{children}</div>
+  }
+
   return (
-    <div className="min-h-full text-foreground relative transition-colors duration-300">
-      <div className="flex min-h-full gap-3">
-        {/* Left Sidebar - Main Navigation (Desktop only) */}
-
-
-        {/* Center Content Area */}
-        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
-          {children}
-        </div>
-
-        {/* Right Sidebar - Admin Tools & Stats (Desktop only, 1024px+) */}
-        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
-          <div className="sticky top-8">
-            <RightSidebarContent />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
-      <FloatingSidebarToggle
-        isOpen={rightSidebarOpen}
-        onToggle={setRightSidebarOpen}
-        mobileWidth="90%"
-        tabletWidth="380px"
-      >
-        <RightSidebarContent />
-      </FloatingSidebarToggle>
-    </div>
+    <RingRightRailLayout
+      rightRail={<RightSidebarContent />}
+      contentClassName="pb-24 lg:pb-8"
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
+    >
+      {children}
+    </RingRightRailLayout>
   )
 }

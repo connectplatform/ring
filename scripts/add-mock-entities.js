@@ -30,13 +30,13 @@ const app = initializeApp({
 const db = getFirestore(app)
 
 const categories = [
-  'SoftwareDevelopment', 'Manufacturing', 'TechnologyCenter', 'LaserCutting',
-  'CncMachining', '3dPrinting', 'Robotics', 'ElectronicManufacturing',
-  'IotDevelopment', 'AiMachineLearning', 'VirtualReality', 'DroneTechnology',
-  'Cybersecurity', 'CloudComputing', 'BlockchainDevelopment', 'Biotechnology',
-  'CleanEnergy', 'SmartMaterials', 'IndustrialDesign', 'PrecisionEngineering',
-  'CompositeManufacturing', 'PlasticInjectionMolding', 'MetalFabrication',
-  'SemiconductorProduction', 'QuantumComputing'
+  'technologySoftware', 'manufacturingIndustry', 'financialServices', 'healthcareMedical',
+  'educationTraining', 'realEstateConstruction', 'retailEcommerce', 'professionalServices',
+  'mediaEntertainment', 'transportationLogistics', 'energyUtilities', 'agricultureFood',
+  'governmentPublicSector', 'nonProfitNgo', 'researchDevelopment', 'consultingAdvisory',
+  'legalServices', 'marketingAdvertising', 'hospitalityTourism', 'sportsRecreation',
+  'artsCulture', 'environmentalServices', 'telecommunications', 'aerospaceDefense',
+  'pharmaceuticals', 'other',
 ];
 
 const mockEntities = [
@@ -44,7 +44,7 @@ const mockEntities = [
   {
     __id: 'sample-entity-1',
     name: 'TechnoSoft Solutions',
-    type: 'softwareDevelopment',
+    type: 'technologySoftware',
     shortDescription: 'Innovative software solutions for businesses',
     logo: '/placeholder.svg',
     location: 'Cherkasy, Ukraine',
@@ -84,7 +84,7 @@ const mockEntities = [
   {
     __id: 'sample-entity-2',
     name: 'InnovaTech Manufacturing',
-    type: 'manufacturing',
+    type: 'manufacturingIndustry',
     shortDescription: 'Cutting-edge manufacturing solutions',
     logo: 'https://example.com/innovatech-logo.png',
     location: 'Cherkasy, Ukraine',
@@ -119,7 +119,7 @@ const mockEntities = [
     members: [],
     opportunities: []
   },
-  // Confidential entity (visible only to CONFIDENTIAL or ADMIN roles)
+  // Confidential entity (visible only to CONFIDENTIAL or admin roles)
   {
     __id: 'confidential-entity-1',
     name: 'Quantum Labs X',

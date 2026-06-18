@@ -103,31 +103,7 @@ export function NotificationProvider({
     }
   }, [removeToast, refreshUnreadCount]);
 
-  // DEPRECATED: Old polling code - disabled in favor of WebSocket push
-  // WebSocket now handles real-time notification updates
-  useEffect(() => {
-    // Polling disabled - using WebSocket push notifications
-    // The unreadCount is now updated via WebSocketProvider
-    console.log('Notification polling disabled - using WebSocket push');
-  }, [session]);
-
-  // Listen for new notifications via Server-Sent Events (when implemented)
-  useEffect(() => {
-    if (!session) return;
-
-    // TODO: Implement SSE connection for real-time notifications
-    // const eventSource = new EventSource('/api/notifications/stream');
-    
-    // eventSource.onmessage = (event) => {
-    //   const notification = JSON.parse(event.data);
-    //   showToast(notification);
-    //   setUnreadCount(prev => prev + 1);
-    // };
-
-    // return () => {
-    //   eventSource.close();
-    // };
-  }, [session, showToast]);
+  // Real-time unread count via useUnreadCount → useSync → tunnel channel `notifications:unread`
 
   // Safe localStorage (avoid "getItem is not a function" during build/SSR polyfill)
   const safeLocalStorage = typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function' ? localStorage : null;

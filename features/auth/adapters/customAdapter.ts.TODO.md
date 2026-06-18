@@ -8,7 +8,7 @@ export function createCustomAdapter(): Adapter {
       const adminDb = await getAdminDb();
       const { id } = await adminDb.collection('users').add({
         ...user,
-        role: UserRole.SUBSCRIBER,
+        role: UserRole.subscriber,
         walletAddress: undefined,
         createdAt: new Date(),
         lastLogin: new Date(),

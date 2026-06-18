@@ -1,4 +1,7 @@
-import { UserRole } from '../types';
+import {
+  ASSIGNABLE_ROLES,
+  CONFIDENTIAL_ACCESS_ROLES,
+} from '../user-role';
 // NOTE: These constants are used on the client; use plain strings as defaults.
 // Components should localize their UI with next-intl at render time.
 
@@ -39,9 +42,11 @@ export const DEFAULT_AUTH_STATE = {
   error: null,
 };
 
-export const USER_ROLES: UserRole[] = [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.CONFIDENTIAL, UserRole.ADMIN];
+/** @deprecated Use ASSIGNABLE_ROLES from @/features/auth/user-role */
+export const USER_ROLES = ASSIGNABLE_ROLES;
 
-export const CONFIDENTIAL_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.CONFIDENTIAL];
+/** @deprecated Use CONFIDENTIAL_ACCESS_ROLES from @/features/auth/user-role */
+export const CONFIDENTIAL_ROLES = CONFIDENTIAL_ACCESS_ROLES;
 
 export const AUTH_FORM_LABELS = {
   EMAIL: 'Email address',

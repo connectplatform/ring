@@ -1,0 +1,227 @@
+---
+title: Vendor Guide
+description: Vendor-first guide for selling on ring-platform.org — dev studios, agencies, hosting providers, and open-source industry sellers
+keywords:
+  - Ring Platform
+  - vendor
+  - marketplace
+  - multi-vendor store
+  - onboarding
+  - open source
+last_modified: "2026-06-15"
+---
+
+# Vendor Guide
+
+**Sell on Ring Platform as a vendor** — whether you ship Ring clones, AI tooling, expert integrations, or managed hosting. This guide is written for **you** (the seller), not the platform operator.
+
+<Callout type="info" title="Open-source marketplace">
+Ring Platform is [open source](https://github.com/connectplatform/ring). The community portal at **ring-platform.org** hosts a multi-vendor store where **verified entities** list digital products and services for builders, agencies, and platform operators worldwide.
+</Callout>
+
+## Who can become a vendor?
+
+You need:
+
+1. A **Ring account** with at least **Subscriber** access (Member role unlocks additional opportunity types elsewhere on the platform).
+2. A completed **vendor store** at [`/vendor/start`](/vendor/start) — slug, name, description, categories, and logo.
+3. Honest listings that match one or more [store categories](#store-categories-on-ring-platformorg) below.
+
+Your public storefront lives at:
+
+```text
+/store/vendors/{your-store-slug}
+```
+
+## Vendor journey at a glance
+
+<Mermaid>
+{`flowchart TB
+    subgraph Onboard[Onboarding]
+        Start["/vendor/start"]
+        Profile[Store profile + categories]
+        Logo[Logo upload]
+    end
+    subgraph Catalog[Catalog]
+        Product[Add product]
+        MainStore{Submit to Main Store?}
+        Review[Admin review]
+        Live[Live in /store]
+    end
+    subgraph Operate[Operations]
+        Orders[Orders + messaging]
+        Stock[Inventory]
+        Earn[Earnings + settlements]
+        Tier[Trust tier progression]
+    end
+    Start --> Profile --> Logo --> Product
+    Product --> MainStore
+    MainStore -->|Yes| Review --> Live
+    MainStore -->|Vendor storefront only| Orders
+    Live --> Orders
+    Orders --> Stock --> Earn --> Tier`}
+</Mermaid>
+
+## Nine common vendor types on ring-platform.org
+
+These are the archetypes we see most often on the open-source Ring ecosystem. You may fit one or combine several.
+
+| # | Vendor type | What you sell | Typical categories |
+|---|-------------|---------------|-------------------|
+| 1 | **Ring implementation studio** | White-label Ring clones, module wiring, Auth.js/DB setup, k8s deploy packages | `ring-platform`, `expert-services` |
+| 2 | **Dev kit publisher** | Starter repos, integration packs, CLI scaffolds, migration kits | `dev-kits`, `ring-platform` |
+| 3 | **AI tools & agent builder** | Prompt packs, MCP servers, matcher configs, local LLM pipelines | `ai-tools`, `saas-assets` |
+| 4 | **Expert services firm** | Audits, custom features, payment/tunnel/i18n remediation, SLA support | `expert-services` |
+| 5 | **Digital template studio** | UI kits, landing themes, email/notification templates, docs layouts | `digital-templates` |
+| 6 | **Cloud & Kubernetes host** | Managed Ring hosting, CNPG backups, ingress/TLS, observability stacks | `saas-assets`, `expert-services` |
+| 7 | **Marketing & growth agency** | Launch playbooks, SEO for Ring clones, community growth, Product Hunt kits | `expert-services`, `digital-templates` |
+| 8 | **Education & training provider** | Courses, workshops, certification prep for Ring stack (Next.js 16, Auth.js v5, k8s) | `learn`, `community` |
+| 9 | **Open-source SaaS asset publisher** | Plugins, premium components, licensed extensions compatible with Ring clones | `saas-assets`, `dev-kits` |
+
+<Callout type="tip" title="Pick your positioning">
+Buyers compare **outcome** (faster launch, fewer regressions, compliant payments) — not stack trivia. Lead with deliverables, support window, and what is included in the repo or service SOW.
+</Callout>
+
+## Store categories on ring-platform.org
+
+When onboarding, you select one or more categories. They align with filter chips in the [main store](/store):
+
+- **ring-platform** — deployment, modules, branding, localization, payments, tunnel/Web3 customization
+- **dev-kits** — scaffolds, integration bundles, tooling
+- **ai-tools** — agents, matchers, automation
+- **expert-services** — professional services and retainers
+- **digital-templates** — themes, layouts, content packs
+- **learn** — courses and structured training
+- **community** — memberships, cohorts, office hours
+- **saas-assets** — hosted add-ons, subscriptions, infrastructure products
+
+## Onboarding checklist
+
+<Steps>
+<Step>
+
+### Create your store
+
+Go to [**/vendor/start**](/vendor/start) and complete:
+
+- **Store slug** — URL-safe identifier (e.g. `acme-ring-studio`)
+- **Store name** — public brand
+- **Description** — who you help and what you ship (max 500 characters)
+- **Categories** — at least one from the list above
+- **Logo** — square image, 512×512 recommended
+
+</Step>
+<Step>
+
+### Add your first product
+
+Open [**/vendor/products**](/vendor/products) → **Add Product**:
+
+- 1–5 photos (first image is the hero)
+- Name, category, price (UAH; optional DAAR display)
+- Stock count for physical or seat-limited digital goods
+- Short description; use clear scope bullets for services
+
+Optional: **Submit to Main Store** for admin review and listing in the central [`/store`](/store) catalog.
+
+</Step>
+<Step>
+
+### Configure fulfillment
+
+- **Digital goods** — document delivery (repo access, license key, calendar link) in the product description and order messaging.
+- **Services** — state response SLA, timezone, and what discovery call includes.
+- **Hosted offers** — link status page or onboarding doc; never promise root access you do not provide.
+
+</Step>
+<Step>
+
+### Monitor dashboard
+
+Use [**/vendor/dashboard**](/vendor/dashboard) for sales snapshot, [**/vendor/orders**](/vendor/orders) for fulfillment, [**/vendor/earnings**](/vendor/earnings) for settlements, and [**/vendor/stock**](/vendor/stock) for inventory.
+
+</Step>
+</Steps>
+
+## Trust tiers and commission
+
+Ring uses a **trust tier** model. New vendors start at **NEW** (higher platform commission); commission **decreases** as you maintain quality sales, reviews, and tenure.
+
+| Tier | Indicative commission | How you progress |
+|------|----------------------|------------------|
+| NEW | 20% | Complete onboarding; first listings live |
+| BASIC | 18% | Early sales; positive feedback |
+| VERIFIED | 16% | Sustained rating and revenue thresholds |
+| TRUSTED | 14% | Longer track record; featured eligibility |
+| PREMIUM | 12% | Top reputation; lowest platform take |
+
+Exact thresholds and overrides may be set in **merchant configuration** (admin-managed). Details: [Vendor Management](/docs/features/erp/vendor-management) and [Multi-Vendor Store](/docs/features/store).
+
+<Callout type="warning" title="Main Store review">
+Products submitted to the **Main Store** are reviewed for quality, accuracy, and category fit. Rejected listings include a reason — fix and resubmit.
+</Callout>
+
+## Listing quality (what buyers expect)
+
+<Tabs>
+<Tab value="Do">
+
+- Use real screenshots or diagrams of deliverables
+- Specify Ring / Next.js / Auth.js versions you support
+- List prerequisites (k8s cluster, Postgres, WayForPay, etc.)
+- Offer a clear refund or revision policy for services
+
+</Tab>
+<Tab value="Avoid">
+
+- Vague “consulting” with no scope
+- Stock photos unrelated to the product
+- Misleading “official Ring” claims unless contractually true
+- Duplicate listings that differ only by keyword stuffing
+
+</Tab>
+</Tabs>
+
+## Payments and settlements
+
+- Checkout supports **fiat (WayForPay)** and platform wallet flows where enabled.
+- Settlements are **automated** with tier-based commission deduction; see earnings for pending and completed payouts.
+- For payment architecture: [Payment Conductor](/docs/features/payment-conductor) and [WayForPay integration](/docs/features/wayforpay-integration).
+
+## AI product enrichment
+
+Upload a hero image plus basic fields; platform AI can suggest descriptions, tags, and cross-sells. **You remain responsible** for technical accuracy — review every generated field before publishing.
+
+## After launch
+
+1. Link your storefront from your site and GitHub org profile.
+2. Respond to buyer messages via Ring messaging where enabled.
+3. Keep stock and pricing updated after each release.
+4. Request Main Store inclusion once you have polished assets and docs.
+
+## Related documentation
+
+<Cards>
+  <Card title="Multi-Vendor Store" href="/docs/features/store">
+    Architecture, payments, and marketplace flows.
+  </Card>
+  <Card title="Vendor Management (ERP)" href="/docs/features/erp/vendor-management">
+    Tiers, trust scoring, and merchant configuration.
+  </Card>
+  <Card title="Wallet & credits" href="/docs/features/wallet">
+    Token balances and checkout integration.
+  </Card>
+  <Card title="Customization & white-label" href="/docs/customization">
+    Branding and clone-specific marketplace rules.
+  </Card>
+</Cards>
+
+## Support
+
+- **Onboarding UI**: [/vendor/start](/vendor/start)
+- **Community**: [ring-platform.org](https://ring-platform.org) — opportunities, entities, and docs
+- **Source**: [github.com/connectplatform/ring](https://github.com/connectplatform/ring)
+
+---
+
+*Last updated: June 2026. Commission tiers and routes reflect ring-platform.org community portal; self-hosted clones may configure marketplace rules independently.*

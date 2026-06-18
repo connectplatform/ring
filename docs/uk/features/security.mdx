@@ -107,20 +107,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 <Code language="typescript" title="TypeScript">
 {`export enum UserRole {
-  VISITOR = 0,      // Тільки публічний контент
-  SUBSCRIBER = 1,   // Основні аутентифіковані функції
-  MEMBER = 2,       // Створення сутностей, платні функції
-  CONFIDENTIAL = 3, // Конфіденційні сутності/можливості
-  ADMIN = 4         // Повне адміністрування системи
+  visitor = 0,      // Тільки публічний контент
+  subscriber = 1,   // Основні аутентифіковані функції
+  memnber = 2,       // Створення сутностей, платні функції
+  confidential = 3, // Конфіденційні сутності/можливості
+  admin = 4         // Повне адміністрування системи
 }
 
 // Матриця дозволів
 const rolePermissions = {
-  [UserRole.VISITOR]: ['read:public'],
-  [UserRole.SUBSCRIBER]: ['read:public', 'read:authenticated'],
-  [UserRole.MEMBER]: ['read:public', 'read:authenticated', 'write:entities'],
-  [UserRole.CONFIDENTIAL]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
-  [UserRole.ADMIN]: ['*']
+  [UserRole.visitor]: ['read:public'],
+  [UserRole.subscriber]: ['read:public', 'read:authenticated'],
+  [UserRole.member]: ['read:public', 'read:authenticated', 'write:entities'],
+  [UserRole.confidential]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
+  [UserRole.admin]: ['*']
 }`}
 </Code>
 
@@ -145,7 +145,7 @@ export async function createEntity(formData: FormData) {
   }
 
   // Перевірка авторизації
-  if (session.user.role < UserRole.MEMBER) {
+  if (session.user.role < UserRole.member) {
     throw new Error('Недостатньо прав')
   }
 
@@ -172,7 +172,7 @@ export async function createEntity(formData: FormData) {
   // Отримати сутність і перевірити володіння
   const entity = await getEntity(entityId)
 
-  if (entity.userId !== session.user.id && session.user.role < UserRole.ADMIN) {
+  if (entity.userId !== session.user.id && session.user.role < UserRole.admin) {
     throw new Error('Заборонено: Не власник сутності')
   }
 

@@ -37,7 +37,7 @@ Ring Platform can be deployed using Docker containers with full Kubernetes orche
     environment:
       - NODE_ENV=development
       - NEXTAUTH_URL=http://localhost:3000
-      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      # Same-origin /api — no separate API host required in alpha
     volumes:
       - .:/app
       - /app/node_modules
@@ -197,8 +197,6 @@ spec:
           value: "production"
         - name: NEXTAUTH_URL
           value: "https://ring-platform.org"
-        - name: NEXT_PUBLIC_API_URL
-          value: "https://ring-platform.org"
         resources:
           requests:
             memory: "512Mi"
@@ -326,7 +324,6 @@ metadata:
 data:
   NODE_ENV: "production"
   NEXTAUTH_URL: "https://ring-platform.org"
-  NEXT_PUBLIC_API_URL: "https://ring-platform.org"
   LOG_LEVEL: "info"
   METRICS_ENABLED: "true"`}
 </Code>

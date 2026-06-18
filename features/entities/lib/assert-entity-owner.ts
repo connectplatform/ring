@@ -30,7 +30,7 @@ export async function assertEntityOwnerOrAdmin(entityId: string): Promise<{
   }
 
   const role = session.user.role as UserRole
-  const isAdmin = role === UserRole.ADMIN || role === UserRole.SUPERADMIN
+  const isAdmin = role === UserRole.admin || role === UserRole.superadmin
   const isOwner = entity.addedBy === session.user.id
 
   if (!isAdmin && !isOwner) {

@@ -18,8 +18,7 @@
 import React, { useState, useRef, useEffect, useOptimistic, useTransition, useCallback } from 'react';
 import { Bell, Settings, Search, X, Wifi, WifiOff, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useWebSocketNotifications } from '@/hooks/use-websocket';
-import { useWebSocketConnection } from '@/hooks/use-websocket';
+import { useRealtimeNotifications, useRealtimeConnection } from '@/hooks/use-realtime';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
 import { useUnreadCount } from '@/hooks/use-unread-count';
 import { NotificationItem } from './notification-item';
@@ -85,7 +84,7 @@ export function NotificationCenter({
     error: connectionError,
     reconnect: reconnectWebSocket,
     disconnect: disconnectWebSocket
-  } = useWebSocketConnection();
+  } = useRealtimeConnection();
 
   // Real-time WebSocket notifications
   const {
@@ -96,7 +95,7 @@ export function NotificationCenter({
     markAllAsRead: wsMarkAllAsRead,
     clearNotifications: wsClearNotifications,
     refresh: wsRefresh
-  } = useWebSocketNotifications();
+  } = useRealtimeNotifications();
 
   // Optimized unread count with caching
   const { unreadCount: cachedUnreadCount, refresh: refreshUnreadCount } = useUnreadCount({
@@ -624,8 +623,8 @@ export function NotificationBadge({
   onClick,
   animated = true 
 }: NotificationBadgeProps) {
-  const { unreadCount } = useWebSocketNotifications();
-  const { isConnected } = useWebSocketConnection();
+  const { unreadCount } = useRealtimeNotifications();
+  const { isConnected } = useRealtimeConnection();
 
   if (unreadCount === 0) {
     return null;
@@ -664,7 +663,7 @@ export function NotificationBadge({
  * Shows real-time notifications as they arrive
  */
 export function NotificationToast() {
-  const { lastNotification } = useWebSocketNotifications();
+  const { lastNotification } = useRealtimeNotifications();
   const { data: session } = useSession();
   const [displayedNotification, setDisplayedNotification] = useState<Notification | null>(null);
 

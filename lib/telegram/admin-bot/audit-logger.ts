@@ -1,5 +1,5 @@
 /**
- * ADMIN TELEGRAM BOT - Audit Logger
+ * admin TELEGRAM BOT - Audit Logger
  * Logs all admin bot interactions to telegram_admin_audit table
  * 
  * Truth Lens:
@@ -33,7 +33,7 @@ export interface AuditLogEntry {
  * Log admin bot interaction to audit table
  * 
  * @param telegramId - Telegram Chat ID of sender
- * @param userId - Ring Platform user ID (ADMIN/SUPERADMIN)
+ * @param userId - Ring Platform user ID (admin/superadmin)
  * @param rawMessage - Original message text from Telegram
  * @param parsedCommand - Parsed command from Anthropic
  * @param executionResult - Result from ring-api-executor

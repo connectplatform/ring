@@ -1,4 +1,3 @@
-import { UserRole } from '@/features/auth/types'
 import { searchEntities } from '@/features/entities/services/search-entities'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
 import { mcpOk, mcpError } from '@/app/api/mcp/v1/_lib/respond'
@@ -10,7 +9,6 @@ export const GET = withMcpGuard(async (request) => {
 
   const result = await searchEntities({
     query,
-    userRole: UserRole.SUPERADMIN,
     maxResults: queryInt(request, 'limit', 50),
     location: queryString(request, 'location'),
   })

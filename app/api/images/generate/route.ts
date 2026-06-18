@@ -9,7 +9,7 @@ type GenerateImageBody = Partial<GenerateImageContext> & {
 }
 
 function canGenerateImages(role?: UserRole): boolean {
-  return role === UserRole.ADMIN || role === UserRole.SUPERADMIN
+  return role === UserRole.admin || role === UserRole.superadmin
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

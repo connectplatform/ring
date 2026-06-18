@@ -7,10 +7,10 @@ last_modified: "2025-10-16"
 
 # Notifications API
 
-Ring Platform provides a comprehensive notification system with **9 REST endpoints** and real-time WebSocket delivery. The system supports FCM push notifications, user preferences, bulk operations, and detailed analytics.
+Ring Platform provides a comprehensive notification system with **9 REST endpoints** and real-time Tunnel delivery (native WSS, SSE, or poll). The system supports FCM push notifications, user preferences, bulk operations, and detailed analytics.
 
-<Callout type="info" title="🔥 Real-time Features">
-Built on **Tunnel Transport** abstraction supporting WebSocket, SSE, and long-polling fallbacks for universal compatibility.
+<Callout type="info" title="Real-time delivery">
+Unread counts and in-app alerts use **Tunnel Protocol** — server `publishToUserTunnel` on channel `notifications:unread`, client `useSync` via `TunnelProvider`. FCM handles push when the tab is closed.
 </Callout>
 
 ## 🏗️ System Architecture
@@ -24,8 +24,7 @@ Event Trigger → Notification Service → Real-time Delivery → User Preferenc
 ### Storage Strategy
 
 - **Primary**: PostgreSQL with optimized queries
-- **Caching**: Redis for session storage (optional)
-- **Real-time**: WebSocket connections via Tunnel Transport
+- **Real-time**: TunnelHub WSS / SSE / poll via `publishToUserTunnel`
 - **Push**: Firebase Cloud Messaging (FCM) integration
 
 ## 📋 API Endpoints Reference
@@ -49,7 +48,7 @@ List user notifications with advanced filtering and pagination.
 #### Example Request
 
 <Code language="bash" title="curl -X GET "http://localhost:3000/api/notifications?page=1&limit=10&status=unread&type=OPPORTUNITY" \">
-{`-H "Authorization: Bearer your-session-token"`}
+{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
 #### Response
@@ -132,7 +131,7 @@ Mark a specific notification as read.
 #### Example Request
 
 <Code language="bash" title="curl -X PUT "http://localhost:3000/api/notifications/notif_123456/read" \">
-{`-H "Authorization: Bearer your-session-token"`}
+{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
 #### Response
@@ -161,7 +160,7 @@ Mark all user notifications as read.
 #### Example Request
 
 <Code language="bash" title="curl -X PUT "http://localhost:3000/api/notifications/read-all?type=OPPORTUNITY" \">
-{`-H "Authorization: Bearer your-session-token"`}
+{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
 #### Response
@@ -179,7 +178,7 @@ Delete a specific notification.
 #### Example Request
 
 <Code language="bash" title="curl -X DELETE "http://localhost:3000/api/notifications/notif_123456" \">
-{`-H "Authorization: Bearer your-session-token"`}
+{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
 #### Response
@@ -377,54 +376,23 @@ Get notification analytics (admin only).
 }`}
 </Code>
 
-## 🔄 Real-time Notifications
+## Real-time notifications
 
-### WebSocket Integration
+### Server
 
-Ring Platform uses **Tunnel Transport** for real-time notifications:
+`features/notifications/services/notification-service.ts` calls `publishToUserTunnel` after creating a notification:
 
-// Client-side WebSocket connection
+```typescript
+await publishToUserTunnel(userId, 'notifications:unread', { count })
+```
 
-<Code language="typescript" title="TypeScript">
-{`import { io } from 'socket.io-client'
+### Client
 
-const socket = io('/notifications', {
-  auth: {
-    token: sessionToken
-  }
-})
+`NotificationProvider` uses `useUnreadCount` → `useSync` on channel `notifications:unread`. When the tunnel is connected, the badge updates without waiting for the poll interval.
 
-// Listen for notifications
-socket.on('notification', (notification) => {
-  console.log('New notification:', notification)
-  // Update UI immediately
-  updateNotificationList(notification)
-})
+See [Tunnel protocol](/en/docs/features/tunnel-protocol) for routes and configuration.
 
-// Listen for unread count updates
-socket.on('unread-count', (count) => {
-  updateUnreadBadge(count)
-})`}
-</Code>
-
-### Server-Sent Events (SSE) Fallback
-
-For environments without WebSocket support:
-
-// SSE connection for notifications
-
-<Code language="typescript" title="TypeScript">
-{`const eventSource = new EventSource('/api/notifications/stream')
-
-eventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data)
-  if (data.type === 'notification') {
-    handleNewNotification(data.notification)
-  }
-}`}
-</Code>
-
-## 📱 Push Notifications
+## Push notifications
 
 ### FCM Integration
 
@@ -589,8 +557,7 @@ Triggered for:
 // hooks/useNotifications.ts
 
 <Code language="typescript" title="TypeScript">
-{`import { useState, useEffect } from 'react'
-import { io, Socket } from 'socket.io-client'
+{`import { useSync } from '@/hooks/use-sync'
 
 interface Notification {
   id: string
@@ -603,64 +570,29 @@ interface Notification {
 }
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [socket, setSocket] = useState<Socket | null>(null)
-
-  useEffect(() => {
-    // Fetch initial notifications
-    fetchNotifications()
-
-    // Setup WebSocket connection
-    const newSocket = io('/notifications')
-    setSocket(newSocket)
-
-    newSocket.on('notification', (notification: Notification) => {
-      setNotifications(prev => [notification, ...prev])
-      setUnreadCount(prev => prev + 1)
-    })
-
-    newSocket.on('unread-count', (count: number) => {
-      setUnreadCount(count)
-    })
-
-    return () => {
-      newSocket.disconnect()
-    }
-  }, [])
-
-  const fetchNotifications = async () => {
-    try {
+  const list = useSync<{ notifications: Notification[]; unreadCount: number }>({
+    fetcher: async () => {
       const response = await fetch('/api/notifications')
-      const data = await response.json()
-      setNotifications(data.notifications)
-      setUnreadCount(data.unreadCount)
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error)
+      return response.json()
+    },
+    tunnel: {
+      channel: 'notifications:unread',
+      enabled: true,
+      onMessage: () => ({ shouldRefetch: true })
     }
-  }
+  })
 
   const markAsRead = async (notificationId: string) => {
-    try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PUT'
-      })
-      setNotifications(prev =>
-        prev.map(n =>
-          n.id === notificationId ? { ...n, status: 'read' } : n
-        )
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch (error) {
-      console.error('Failed to mark as read:', error)
-    }
+    await fetch(\`/api/notifications/\${notificationId}/read\`, { method: 'PUT' })
+    await list.refresh()
   }
 
   return {
-    notifications,
-    unreadCount,
+    notifications: list.data?.notifications ?? [],
+    unreadCount: list.data?.unreadCount ?? 0,
     markAsRead,
-    refresh: fetchNotifications
+    refresh: list.refresh,
+    tunnelConnected: list.tunnelConnected
   }
 }`}
 </Code>
@@ -796,14 +728,21 @@ export function NotificationCenter() {
 
 <Code language="typescript" title="TypeScript">
 {`import { trackEvent } from '@/lib/analytics'
+import { useTunnel } from '@/hooks/use-tunnel'
 
-socket.on('notification', (notification) => {
-  trackEvent('notification_received', {
-    type: notification.type,
-    priority: notification.priority,
-    deliveryMethod: 'websocket'
-  })
-})`}
+function NotificationAnalytics() {
+  const { subscribe } = useTunnel()
+
+  useEffect(() => {
+    return subscribe('notifications:unread', (message) => {
+      trackEvent('notification_received', {
+        type: message.payload?.type,
+        priority: message.payload?.priority,
+        deliveryMethod: 'tunnel'
+      })
+    })
+  }, [subscribe])
+}`}
 </Code>
 
 ### Performance Monitoring
@@ -813,12 +752,10 @@ socket.on('notification', (notification) => {
 <Code language="typescript" title="TypeScript">
 {`const startTime = Date.now()
 
-socket.emit('notification', notificationData, (ack) => {
-  const deliveryTime = Date.now() - startTime
-  trackEvent('notification_delivered', {
-    deliveryTime,
-    method: 'websocket'
-  })
+// After publishToUserTunnel on server, client receives via useTunnel
+trackEvent('notification_delivered', {
+  deliveryTime: Date.now() - startTime,
+  method: 'tunnel'
 })`}
 </Code>
 

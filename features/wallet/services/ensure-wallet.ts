@@ -52,7 +52,7 @@ export async function ensureWallet(userOverride?: { id: string; role: string }):
     }
 
     // Step 2: Validate user role (optional, remove if not needed)
-    if (userRole === UserRole.VISITOR) {
+    if (userRole === UserRole.visitor) {
       console.error('🔐 Services: ensureWallet - Visitors are not allowed to have wallets')
       throw new Error('Access denied: Visitors cannot have wallets')
     }

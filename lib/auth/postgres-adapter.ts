@@ -13,11 +13,15 @@ import { cookies } from "next/headers"
 import { db } from "@/lib/database"
 import type { DatabaseResult } from "@/lib/database/interfaces/IDatabaseService"
 import {
+  parseOAuthIntentRoleValue,
   DEFAULT_USER_ROLE,
   OAUTH_INTENT_COOKIE_NAME,
   resolveOAuthIntentRole,
-  normalizeUserRole,
 } from "@/features/auth/role-intent"
+import {
+  findUserByEmail,
+  normalizeAuthEmail,
+} from "@/features/auth/services/user-resolve"
 
 type UserRow = Record<string, unknown> & {
   id: string
@@ -56,7 +60,7 @@ function toAdapterUser(row: UserRow): AdapterUser {
  */
 export function PostgreSQLAdapter(): Adapter {
   const readRequestedRole = async (user: AdapterUser) => {
-    const explicitRole = normalizeUserRole((user as AdapterUser & { role?: string }).role)
+    const explicitRole = parseOAuthIntentRoleValue((user as AdapterUser & { role?: string }).role)
     if (explicitRole) return explicitRole
 
     const cookieStore = await cookies()
@@ -71,7 +75,9 @@ export function PostgreSQLAdapter(): Adapter {
         const requestedRole = await readRequestedRole(user)
         const now = new Date()
         const userData = {
-        email: user.email,
+        id: user.id,
+        globalUserId: user.id,
+        email: normalizeAuthEmail(user.email),
         emailVerified: user.emailVerified || null,
         name: user.name,
         image: user.image,
@@ -81,8 +87,8 @@ export function PostgreSQLAdapter(): Adapter {
         lastLogin: now,
         bio: '',
         wallets: [],
-        canPostConfidentialOpportunities: requestedRole === 'ADMIN' || requestedRole === 'CONFIDENTIAL',
-        canViewConfidentialOpportunities: requestedRole === 'ADMIN' || requestedRole === 'CONFIDENTIAL',
+        canPostConfidentialOpportunities: requestedRole === 'admin' || requestedRole === 'superadmin' || requestedRole === 'confidential',
+        canViewConfidentialOpportunities: requestedRole === 'admin' || requestedRole === 'superadmin' || requestedRole === 'confidential',
         postedOpportunities: [],
         savedOpportunities: [],
         notificationPreferences: {
@@ -132,20 +138,15 @@ export function PostgreSQLAdapter(): Adapter {
 
     async getUserByEmail(email) {
       console.log('PostgreSQLAdapter: Getting user by email:', email)
-      
-      try {
-        const result = await db().queryDocs<UserRow>({
-          collection: 'users',
-          filters: [{ field: 'email', operator: '==', value: email }],
-          pagination: { limit: 1 },
-        })
 
-        if (!result.success || result.data.length === 0) {
+      try {
+        const row = await findUserByEmail(email)
+        if (!row) {
           console.log('PostgreSQLAdapter: User not found by email:', email)
           return null
         }
 
-        return toAdapterUser(result.data[0])
+        return toAdapterUser(row)
       } catch (error) {
         console.error('PostgreSQLAdapter: Error getting user by email:', error)
         return null

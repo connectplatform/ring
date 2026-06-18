@@ -1,83 +1,58 @@
 /**
  * Tunnel Publish Endpoint
- * Allows publishing messages to channels via HTTP POST
- * Used by unidirectional transports (SSE, polling)
+ * Client transports POST here; hub fans out to SSE + poll registries.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/edge-jwt';
-import { sseHelpers } from '../sse/route';
-import { pollHelpers } from '../poll/route';
+import { getTunnelHub } from '@/lib/tunnel/hub';
+import type { TunnelMessage } from '@/lib/tunnel/types';
 
-// Edge Runtime configuration
-
-/**
- * POST handler to publish messages
- */
 export async function POST(request: NextRequest) {
-  // Authenticate the request
   const authResult = await verifyAuth(request);
-  
+
   if (!authResult) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { userId } = authResult;
 
   try {
     const body = await request.json();
-    const { channel, event, message } = body;
+    const { channel, event, message } = body as {
+      channel: string;
+      event?: string;
+      message: TunnelMessage;
+    };
 
     if (!channel || !message) {
-      return NextResponse.json(
-        { error: 'Channel and message are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Channel and message are required' }, { status: 400 });
     }
 
-    // Broadcast to SSE connections
-    if (typeof sseHelpers.broadcastToChannel === 'function') {
-      sseHelpers.broadcastToChannel(channel, {
-        ...message,
-        channel,
-        event,
-        metadata: {
-          ...message.metadata,
-          publishedBy: userId,
-          publishedAt: Date.now(),
-        },
-      });
-    }
+    const hub = getTunnelHub();
+    const envelope: TunnelMessage = {
+      ...message,
+      channel,
+      event: event ?? message.event,
+      metadata: {
+        ...message.metadata,
+        timestamp: message.metadata?.timestamp ?? Date.now(),
+        publishedBy: userId,
+        publishedAt: Date.now(),
+      },
+    };
 
-    // Queue for polling connections
-    if (typeof pollHelpers.broadcastToChannel === 'function') {
-      pollHelpers.broadcastToChannel(channel, {
-        ...message,
-        channel,
-        event,
-        metadata: {
-          ...message.metadata,
-          publishedBy: userId,
-          publishedAt: Date.now(),
-        },
-      });
-    }
+    hub.publishToChannel(channel, envelope);
 
     return NextResponse.json({
       success: true,
       channel,
       event,
-      messageId: message.id,
+      messageId: envelope.id,
     });
   } catch (error) {
     console.error('Failed to publish message:', error);
-    
-    return NextResponse.json(
-      { error: 'Failed to publish message' },
-      { status: 500 }
-    );
+
+    return NextResponse.json({ error: 'Failed to publish message' }, { status: 500 });
   }
 }

@@ -36,7 +36,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
   }
   
   // MEMBER+ users can directly add entities
-  if (hasRole(UserRole.MEMBER)) {
+  if (hasRole(UserRole.member)) {
     return (
       <Button asChild className={className}>
         <Link href={`/${locale}/entities/add`}>
@@ -48,7 +48,7 @@ export function AddEntityButton({ locale, className }: AddEntityButtonProps) {
   }
   
   // SUBSCRIBER users see upgrade prompt
-  if (hasRole(UserRole.SUBSCRIBER)) {
+  if (hasRole(UserRole.subscriber)) {
     return (
       <>
         <Button 

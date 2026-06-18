@@ -23,13 +23,13 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id;
 
     // Check if user is at least a SUBSCRIBER
-    if (!session.user.role || session.user.role === UserRole.VISITOR) {
+    if (!session.user.role || session.user.role === UserRole.visitor) {
       return NextResponse.json(
         { 
           error: 'Insufficient access level',
           message: 'You must be at least a Subscriber to create a membership subscription',
           current_role: session.user.role,
-          required_roles: [UserRole.SUBSCRIBER, UserRole.MEMBER, UserRole.CONFIDENTIAL, UserRole.ADMIN],
+          required_roles: [UserRole.subscriber, UserRole.member, UserRole.confidential, UserRole.admin],
         },
         { status: 403 }
       );

@@ -45,26 +45,26 @@ export async function GET(request: NextRequest) {
 
     // Determine membership tier benefits
     const membershipBenefits = {
-      [UserRole.VISITOR]: ['Basic profile access', 'Limited messaging'],
-      [UserRole.SUBSCRIBER]: ['Enhanced profile', 'Standard messaging', 'Basic opportunities'],
-      [UserRole.MEMBER]: [
+      [UserRole.visitor]: ['Basic profile access', 'Limited messaging'],
+      [UserRole.subscriber]: ['Enhanced profile', 'Standard messaging', 'Basic opportunities'],
+      [UserRole.member]: [
         'Full profile access',
         'Unlimited messaging',
         'All opportunities access',
         'Create entities',
         'Priority support',
       ],
-      [UserRole.CONFIDENTIAL]: [
+      [UserRole.confidential]: [
         'All Member benefits',
         'Confidential opportunities',
         'Advanced analytics',
         'White-label access',
       ],
-      [UserRole.ADMIN]: ['All platform features', 'Admin dashboard', 'User management'],
+      [UserRole.admin]: ['All platform features', 'Admin dashboard', 'User management'],
     };
 
-    const currentTier = session.user.role || UserRole.VISITOR;
-    const canUpgrade = !hasActiveMembership && [UserRole.VISITOR, UserRole.SUBSCRIBER].includes(currentTier);
+    const currentTier = session.user.role || UserRole.visitor;
+    const canUpgrade = !hasActiveMembership && [UserRole.visitor, UserRole.subscriber].includes(currentTier);
 
     const response = {
       user: {
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       },
       membership: {
         current_benefits: membershipBenefits[currentTier] || [],
-        upgrade_benefits: hasActiveMembership ? [] : membershipBenefits[UserRole.MEMBER],
+        upgrade_benefits: hasActiveMembership ? [] : membershipBenefits[UserRole.member],
         monthly_cost: {
           ring_amount: '1.0',
           usd_equivalent: '~$1.00', // Approximate

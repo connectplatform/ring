@@ -1,44 +1,55 @@
 ---
 title: Real Time
-description: Real Time documentation for Ring Platform
+description: TunnelHub broker and native WSS client transport for Ring Platform realtime
+last_modified: "2026-06-15"
 ---
 
 # Realtime Transport
 
-- Tunnel transport abstraction (WebSocket / SSE fallback)
-- Presence, typing indicators, push notifications
-- Edge Runtime compatible (SSE primary on Vercel)
-- **Discovery mutations** — `lib/discovery/sync-discovery.ts` publishes `opportunity:*` and `entity:*` events on topic channels after CRUD (see [Discovery mutation sync](./discovery-mutation-sync))
+Ring Platform delivers realtime updates through **Tunnel Protocol**:
 
-## WebSocket & SSE Implementation
+- **TunnelHub** (`lib/tunnel/hub/`) — server-side broker; SSE, native WSS, poll queues, channel subscriptions
+- **Custom server** (`server.ts`) — Next.js handler + `attachTunnelWss` when `RING_DEPLOY_TARGET` is `k8s` or `self-hosted`
+- **TunnelTransport** — client-side WSS → SSE → long-polling fallback chain
+- **TunnelProvider** — shared React connection with progressive connect after auth
+- **Discovery mutations** — `lib/discovery/sync-discovery.ts` publishes `opportunity:*` and `entity:*` on topic channels after CRUD ([Discovery mutation sync](./discovery-mutation-sync))
 
-### Real-time Communication Architecture
+## Request flow
 
 <Mermaid>
 {`sequenceDiagram
     participant Client as Web Client
-    participant LB as Load Balancer
-    participant WS as WebSocket Service
-    participant Redis as Redis Pub/Sub
+    participant WSS as /api/tunnel/ws
+    participant SSE as /api/tunnel/sse
+    participant Hub as TunnelHub
+    participant Service as Server Service
     participant DB as PostgreSQL
 
-    Client->>LB: Connect WebSocket
-    LB->>WS: Route to Available Instance
-    WS->>Client: Connection Established
-
-    loop Real-time Updates
-        DB->>Redis: Publish Event (New Opportunity)
-        Redis->>WS: Broadcast to Subscribers
-        WS->>Client: Push Update via WebSocket
-        Client->>Client: Update UI (Optimistic)
+    alt k8s / self-hosted
+        Client->>WSS: WS connect + auth frame
+        WSS->>Hub: registerWsConnection(userId)
+    else vercel / SSE fallback
+        Client->>SSE: GET SSE (authenticated)
+        SSE->>Hub: registerSseConnection(userId)
     end
 
-    Client->>WS: Send Message
-    WS->>DB: Store Message
-    DB-->>WS: Confirm
-    WS->>Redis: Publish to Recipients
-    Redis->>WS: Broadcast
-    WS->>Client: Deliver Message
+    Service->>DB: persist mutation
+    Service->>Hub: publishToUser / publishToChannel
+    Hub->>WSS: deliverWsToUser (when connected)
+    Hub->>SSE: enqueue to SSE controller
+    Client->>Client: useTunnel / useSync updates UI
 
-    Note over Client,DB: Tunnel Transport Protocol<br/>Fallback: SSE → Long Polling`}
+    Note over Client,DB: Fallback: long-polling via /api/tunnel/poll`}
 </Mermaid>
+
+## Where realtime is used
+
+| Feature | Server publish | Client subscribe |
+|---------|----------------|------------------|
+| Notifications | `publishToUserTunnel` → `notifications:unread` | `useSync` / `useUnreadCount` |
+| Chat | `publishToChannel` → `conversation:${id}` | `useTunnel().subscribe` |
+| Discovery | `syncDiscovery` → `opportunities` / `entities` | Topic channel subscriptions |
+| Matcher | `publishToChannel` → `matcher` | Admin/matcher UI |
+| Collaboration (flagged) | `collab:${id}` binary CRDT frames | `useCollaboration` (requires WSS) |
+
+See [Tunnel protocol](../features/tunnel-protocol) for API routes, `RING_DEPLOY_TARGET`, and alpha limitations.

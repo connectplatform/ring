@@ -40,7 +40,7 @@ export async function getStoreProducts(
     if (session?.user) {
       const userRole = session.user.role
 
-      if (userRole === UserRole.ADMIN || userRole === UserRole.SUPERADMIN) {
+      if (userRole === UserRole.admin || userRole === UserRole.superadmin) {
         vendorId = 'vendor_ring_portal_store'
         vendorName = 'Ring Portal Store'
       } else {

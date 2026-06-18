@@ -181,13 +181,7 @@ export function getLocaleFileIdsForScope(scope: MessageScope): LocaleFileId[] {
     case 'admin':
       return unique([...PUBLIC_HOME, ...PUBLIC_CONTENT, ...AUTHENTICATED_EXTRA, ...ADMIN_EXTRA])
     case 'confidential':
-      return unique([
-        ...PUBLIC_HOME,
-        ...PUBLIC_CONTENT,
-        ...CONFIDENTIAL_EXTRA,
-        'modProfile',
-        'modSettings',
-      ])
+      return unique([...PUBLIC_HOME, ...PUBLIC_CONTENT, ...CONFIDENTIAL_EXTRA, 'modProfile', 'modSettings'])
     case 'presentation':
       return unique([...CORE, ...PRESENTATION_EXTRA])
     case 'full':
@@ -203,17 +197,22 @@ export function resolveMessageScope(pathname: string): MessageScope {
 
   if (normalized.startsWith('/admin')) return 'admin'
   if (normalized.startsWith('/confidential')) return 'confidential'
+  if (normalized.startsWith('/docs/roadmap')) return 'confidential'
   if (normalized.startsWith('/intro')) return 'presentation'
   if (normalized.startsWith('/settings')) return 'authenticated'
   if (
-    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications)(\/|$)/.test(
+    /^\/(profile|settings|wallet|refcodes|vendor|entities|opportunities|contacts|notifications|messages|meetups|pets|places|editor|publications|my-news)(\/|$)/.test(
       normalized,
     ) ||
-    normalized.startsWith('/u/')
+    normalized.startsWith('/u/') ||
+    normalized.startsWith('/membership/success') ||
+    normalized.startsWith('/membership/failure')
   ) {
     return 'authenticated'
   }
-  if (normalized.startsWith('/store/checkout')) return 'authenticated'
+  if (normalized.startsWith('/store/checkout') || normalized.startsWith('/store/settings')) {
+    return 'authenticated'
+  }
   if (normalized === '/') return 'public-home'
   if (normalized.startsWith('/store')) return 'public-store'
   if (normalized.startsWith('/news')) return 'public-news'

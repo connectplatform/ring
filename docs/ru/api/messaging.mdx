@@ -46,10 +46,12 @@ Mark message as read
 
 The messaging system uses **Tunnel Transport** abstraction for optimal performance:
 
-- **WebSocket** - Primary transport for real-time updates
-- **SSE (Server-Sent Events)** - Fallback for Edge Runtime
-- **Long-polling** - Universal fallback for all environments
+- **Native WSS** — primary when `RING_DEPLOY_TARGET` is `k8s` or `self-hosted` (`/api/tunnel/ws`)
+- **SSE** — primary on Vercel; fallback after WSS
+- **Long-polling** — universal fallback via `/api/tunnel/poll`
 
 ---
 
-*Complete messaging documentation coming soon. Check our [Features](/ru/docs/features/messaging) section for implementation details.*
+<Callout type="development" title="Документация в разработке">
+Полная документация по сообщениям дополняется. См. раздел [Features](/ru/docs/features/messaging) для текущих деталей реализации.
+</Callout>

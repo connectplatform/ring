@@ -2,7 +2,7 @@ import type { ModulesAdminLabels } from '@/components/wrappers/admin-wrapper'
 
 type AdminTranslationFn = (key: string, ...args: unknown[]) => string
 
-const safeLabel = (t: AdminTranslationFn, key: keyof ModulesAdminLabels): string | undefined => {
+const safeLabel = (t: AdminTranslationFn, key: string): string | undefined => {
   try {
     const value = t(key)
     return typeof value === 'string' ? value : undefined
@@ -20,11 +20,22 @@ export const buildModulesAdminLabels = (t: AdminTranslationFn): ModulesAdminLabe
     moderation: safeLabel(t, 'moderation'),
     performance: safeLabel(t, 'performance'),
     security: safeLabel(t, 'security'),
-    settings: safeLabel(t, 'settings'),
-    matcher: safeLabel(t, 'matcher'),
+    settings: safeLabel(t, 'settingsNav'),
+    matcher: safeLabel(t, 'matcherNav'),
+    verification: safeLabel(t, 'verificationNav'),
     store: safeLabel(t, 'store'),
     refcodes: safeLabel(t, 'refcodes'),
+    emailInbox: safeLabel(t, 'emailInbox'),
+    emailDrafts: safeLabel(t, 'emailDrafts'),
+    emailContacts: safeLabel(t, 'emailContacts'),
+    emailAnalytics: safeLabel(t, 'emailAnalytics'),
+    emailTasks: safeLabel(t, 'emailTasks'),
     quickNav: safeLabel(t, 'quickNav'),
+    navGroupOverview: safeLabel(t, 'navGroupOverview'),
+    navGroupCommunity: safeLabel(t, 'navGroupCommunity'),
+    navGroupPlatform: safeLabel(t, 'navGroupPlatform'),
+    navGroupCommerce: safeLabel(t, 'navGroupCommerce'),
+    navGroupEmail: safeLabel(t, 'navGroupEmail'),
     systemStats: safeLabel(t, 'systemStats'),
     totalUsers: safeLabel(t, 'totalUsers'),
     publishedArticles: safeLabel(t, 'publishedArticles'),

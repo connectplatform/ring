@@ -1,0 +1,242 @@
+---
+title: ring-image-create
+description: MCP tool reference — generate images via ImageConductor (xAI Grok Imagine or Google Imagen) and store in ring-filebase
+last_modified: "2026-06-15"
+---
+
+# `ring-image-create`
+
+Generate an image from a natural-language prompt, upload it to **ring-filebase**, persist an audit row in `generated_images`, and return a permanent CDN URL.
+
+<Callout type="success" title="Executive summary">
+Operators and agents call **`ring-image-create`** through `ring-mcp`. The gateway hits `POST /api/mcp/v1/images/generate`, which runs **`ImageConductor`** (`lib/images/conductor/image-conductor.ts`) with the MCP service actor as `actorId`. Default provider is **xAI** (`IMAGE_GEN_PROVIDER=xai`).
+</Callout>
+
+<Cards>
+  <Card title="MCP tools hub" href="/docs/mcp">
+    Ring MCP overview, kingdom vs clone scope, prerequisites.
+  </Card>
+  <Card title="Generative images (ImageConductor)" href="/docs/development/generative-images">
+    Architecture, admin UI, programmatic API, troubleshooting.
+  </Card>
+  <Card title="Ring MCP Server" href="/docs/development/ring-mcp">
+    Token setup, `ring-health`, full tool catalog.
+  </Card>
+  <Card title="Environment" href="/docs/deployment/environment">
+    Image and storage env vars on the clone.
+  </Card>
+</Cards>
+
+<Mermaid title="ring-image-create flow">
+{`sequenceDiagram
+  participant Agent as MCP host
+  participant Mcp as ring-mcp
+  participant GW as /api/mcp/v1/images/generate
+  participant IC as ImageConductor
+  participant Prov as xAI or Google
+  participant FB as ring-filebase
+
+  Agent->>Mcp: ring-image-create prompt
+  Mcp->>GW: Bearer token + JSON body
+  GW->>IC: generate(actorId)
+  IC->>Prov: provider API
+  Prov-->>IC: image buffer
+  IC->>FB: file().upload
+  IC-->>GW: url + recordId
+  GW-->>Mcp: success + data
+  Mcp-->>Agent: CDN URL`}
+</Mermaid>
+
+## Tool identity
+
+| Field | Value |
+|-------|--------|
+| **MCP tool name** | `ring-image-create` |
+| **HTTP route** | `POST /api/mcp/v1/images/generate` |
+| **MCP server** | `AI-RING/ring-mcp/lib/tools.js` |
+| **Gateway handler** | `app/api/mcp/v1/images/generate/route.ts` |
+| **Conductor** | `lib/images/conductor/image-conductor.ts` |
+| **Confirm required** | No (read-only generation + storage) |
+
+## Parameters
+
+| Parameter | Required | Type | Notes |
+|-----------|----------|------|-------|
+| `prompt` | **Yes** | string | Natural-language image description |
+| `provider` | No | `xai` \| `google` | Default from `IMAGE_GEN_PROVIDER` (usually `xai`) |
+| `model` | No | string | Override provider model (see env defaults below) |
+| `aspectRatio` | No | string | xAI: flexible; Google: `1:1`, `3:4`, `4:3`, `9:16`, `16:9` |
+| `resolution` | No | `1k` \| `2k` | xAI resolution tier |
+| `n` | No | number | Image count (xAI 1–10, Google 1–4) |
+| `purpose` | No | string | Storage path segment, e.g. `og`, `news-featured` |
+| `refCode` | No | string | Optional tracking id |
+| `seed` | No | number | Reproducibility hint (provider-dependent) |
+
+**OG preset:** `aspectRatio: "2:1"` on xAI (~1200×630). For Google Imagen use `16:9` as nearest OG ratio.
+
+<Tabs items={['Operators', 'Developers']}>
+
+<Tab value="Operators">
+
+Ask your MCP-connected agent in natural language:
+
+```
+Generate a professional Ring Platform banner with vibrant gradient,
+aspect ratio 2:1, purpose og
+```
+
+Or invoke the tool explicitly:
+
+```
+ring-image-create prompt "community meetup photo, warm lighting" aspectRatio 16:9 purpose news-featured
+```
+
+<Steps>
+
+<Step>
+
+**Enable the MCP gateway** on the Ring clone — set `RING_MCP_SERVICE_TOKENS` in `.env.local` and restart `npm run dev`.
+
+</Step>
+
+<Step>
+
+**Configure image generation** — `XAI_API_KEY` (or `GOOGLE_GENAI_API_KEY`), plus ring-filebase (`FILE_BACKEND=ringbase`, `RINGBASE_API_URL`, `RINGBASE_API_TOKEN`).
+
+</Step>
+
+<Step>
+
+**Register `ring-mcp`** in Cursor with matching `RING_SERVICE_TOKEN` and `RING_API_BASE_URL` (e.g. `http://localhost:3000` for ring-platform.org).
+
+</Step>
+
+<Step>
+
+**Verify** — run `ring-health`, then `ring-image-create` with a short test prompt. Expect a `url` in the response.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="Developers">
+
+<Code language="bash" title="curl — gateway direct">
+{`curl -s -X POST http://localhost:3000/api/mcp/v1/images/generate \\
+  -H "Authorization: Bearer YOUR_RING_MCP_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "prompt": "professional tech referral banner, vibrant gradient",
+    "provider": "xai",
+    "aspectRatio": "2:1",
+    "purpose": "og"
+  }'`}
+</Code>
+
+<Code language="typescript" title="Admin session API (non-MCP)">
+{`// POST /api/images/generate — requires Auth.js admin/superadmin session
+// app/api/images/generate/route.ts`}
+</Code>
+
+<Code language="typescript" title="Programmatic — ImageConductor">
+{`import { ImageConductor } from '@/lib/images/conductor/image-conductor'
+
+const result = await ImageConductor.generate({
+  prompt: 'Ring Platform community meetup photo',
+  purpose: 'news-featured',
+  aspectRatio: '16:9',
+  actorId: userId,
+})
+
+if (result.success && result.images?.[0]?.url) {
+  const featuredImage = result.images[0].url
+}`}
+</Code>
+
+</Tab>
+
+</Tabs>
+
+## Response shape
+
+MCP gateway wraps the conductor result in `{ success, data }`:
+
+<Code language="json" title="Success (201)">
+{`{
+  "success": true,
+  "data": {
+    "success": true,
+    "provider": "xai",
+    "model": "grok-imagine-image-quality",
+    "prompt": "professional tech banner",
+    "images": [
+      {
+        "url": "https://cdn.example/.../generated/og/....png",
+        "fileId": "...",
+        "size": 245760,
+        "contentType": "image/png",
+        "recordId": "uuid"
+      }
+    ]
+  }
+}`}
+</Code>
+
+## Environment
+
+<Code language="env" title=".env.local (clone)">
+{`# MCP gateway
+RING_MCP_SERVICE_TOKENS=your-long-random-token
+
+# ImageConductor
+IMAGE_GEN_PROVIDER=xai
+IMAGE_GEN_STORAGE_PREFIX=generated
+IMAGE_GEN_POLL_TIMEOUT_MS=120000
+
+XAI_API_KEY=your_key
+XAI_API_BASE_URL=https://api.x.ai/v1
+XAI_IMAGE_MODEL=grok-imagine-image-quality
+XAI_IMAGE_RESOLUTION=2k
+XAI_IMAGE_ASPECT_RATIO=1:1
+
+# Optional Google Imagen
+GOOGLE_GENAI_API_KEY=
+GOOGLE_IMAGE_MODEL=imagen-4.0-generate-001
+
+# Storage (ring-filebase)
+FILE_BACKEND=ringbase
+RINGBASE_API_URL=
+RINGBASE_API_TOKEN=`}
+</Code>
+
+## Database
+
+Migration `data/migrations/006_generated_images_schema.sql` adds the `generated_images` audit table (mirrored in `data/schema.sql`).
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|--------|
+| `Invalid service token` / 401 | `RING_SERVICE_TOKEN` in MCP client matches `RING_MCP_SERVICE_TOKENS` on clone |
+| `prompt is required` | Pass non-empty `prompt` |
+| `XAI_API_KEY is not configured` | Key in `.env.local`, restart dev server |
+| Upload failed | `RINGBASE_API_TOKEN`, `FILE_BACKEND=ringbase` |
+| Timeout | Raise `IMAGE_GEN_POLL_TIMEOUT_MS` (default 120000) |
+| Empty / policy rejection | Provider quota, prompt policy, or model name drift |
+
+<Callout type="warning" title="Security">
+The MCP service token grants **SUPERADMIN**-equivalent access on the clone — including image generation billed to your provider keys. Rotate tokens per environment; never commit secrets.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="ring-news-generate" href="/docs/development/generative-newsroom">
+    Autonomous newsroom — uses ImageConductor for featured images.
+  </Card>
+  <Card title="News feature" href="/docs/features/news">
+    Member blog UI with `GenerateImageDialog`.
+  </Card>
+</Cards>

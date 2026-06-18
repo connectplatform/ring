@@ -42,7 +42,7 @@ export default function UpgradeRequestModal({
       const requestData: Partial<RoleUpgradeRequest> = {
         userId: user.id,
         fromRole: user.role,
-        toRole: UserRole.MEMBER,
+        toRole: UserRole.member,
         status: UpgradeRequestStatus.PENDING,
         reason: formData.get('reason') as string,
         organization: formData.get('organization') as string || undefined,

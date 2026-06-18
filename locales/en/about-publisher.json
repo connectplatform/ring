@@ -101,6 +101,10 @@
     "slogan": "Slava Ukraini! 🇺🇦",
     "message": "Built with love for Ukraine and gratitude to the world.\nRing Platform - Free forever, for everyone."
   },
+  "founders": {
+    "contactTitle": "Founder & publisher",
+    "contactSubtitle": "Ray Sorkin — ConnectPlatform architect, Sonoratek LLC, Ringdom"
+  },
   "actions": {
     "cloneRing": "Clone Ring Now",
     "learnTokens": "Learn About RING Tokens",

@@ -51,8 +51,8 @@ interface TunnelProviderProps {
 /**
  * Tunnel Provider — static shell + deferred runtime.
  *
- * K8s (connect.software): WebSocket primary; `autoConnect={false}` + tunnelTimingManager
- * progressive connect after auth/pathname resolve. usePathname/useSession stay in runtime only.
+ * K8s (connect.software): `autoConnect={false}` defers hook-level connect; TunnelProvider still
+ * runs tunnelTimingManager progressive connect after auth/pathname resolve.
  */
 export function TunnelProvider(props: TunnelProviderProps) {
   return (
@@ -93,6 +93,8 @@ function TunnelProviderRuntime({
   const managerRef = useRef<TunnelTransportManager | null>(null);
   const subscriptionsRef = useRef<Map<string, Map<symbol, (message: TunnelMessage) => void>>>(new Map());
   const channelSubscriptionsRef = useRef<Map<string, any>>(new Map());
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   // Track authentication state changes for racing protection
   useEffect(() => {
@@ -102,9 +104,8 @@ function TunnelProviderRuntime({
     }
   }, [sessionStatus, lastAuthTime]);
 
-  // Initialize manager once
+  // Effect A — initialize manager and event listeners (mount only; no route/session teardown)
   useEffect(() => {
-    // Configure timing strategy
     tunnelTimingManager.updateConfig({
       strategy: timingStrategy
     });
@@ -115,66 +116,61 @@ function TunnelProviderRuntime({
     });
 
     managerRef.current = manager;
-    
-    // Capture ref values for cleanup
+
     const currentSubscriptions = subscriptionsRef.current;
     const currentChannelSubscriptions = channelSubscriptionsRef.current;
-    
-    // Set initial state
+
     setIsConnected(manager.isConnected());
     setConnectionState(manager.getConnectionState());
     setProvider(manager.getProvider());
     setAvailableProviders(manager.getAvailableProviders());
-    
-    // Set up event listeners
+
     const handleConnect = () => {
       setIsConnected(true);
       setConnectionState(TunnelConnectionState.CONNECTED);
       setProvider(manager.getProvider());
       setError(null);
     };
-    
+
     const handleDisconnect = () => {
       setIsConnected(false);
       setConnectionState(TunnelConnectionState.DISCONNECTED);
     };
-    
+
     const handleReconnect = ({ attempt }: { attempt: number }) => {
       setConnectionState(TunnelConnectionState.RECONNECTING);
     };
-    
+
     const handleError = ({ error: err }: { error: Error }) => {
       setError(err);
       setConnectionState(TunnelConnectionState.ERROR);
 
-      // Show unobtrusive blue toast for SSE reconnection
-      if (err.message.includes('SSE') || provider === TunnelProviderType.SSE) {
+      if (err.message.includes('SSE') || manager.getProvider() === TunnelProviderType.SSE) {
         toast({
-          title: '🔄 Reconnecting every 2 sec...',
-          description: 'Attempting to restore real-time connection',
+          title: '🔄 Reconnection',
+          description: 'Attempting to restore connection...',
           variant: 'default',
-          duration: 3000, // Auto-dismiss after 3 seconds
+          duration: 3000,
         });
       }
     };
-    
+
     const handleHealth = (healthData: TunnelHealth) => {
       setHealth(healthData);
     };
-    
+
     const handleLatency = ({ value }: { value: number }) => {
       setLatency(value);
     };
-    
+
     const handleTransportSwitch = ({ from, to }: { from: TunnelProviderType; to: TunnelProviderType }) => {
       setProvider(to);
       if (debug) {
         console.log(`[TunnelProvider] Transport switched from ${from} to ${to}`);
       }
     };
-    
+
     const handleMessage = (message: TunnelMessage) => {
-      // Route message to channel handlers
       if (message.channel) {
         const handlers = subscriptionsRef.current.get(message.channel);
         if (handlers) {
@@ -182,8 +178,7 @@ function TunnelProviderRuntime({
         }
       }
     };
-    
-    // Register event listeners
+
     manager.on('connect', handleConnect);
     manager.on('disconnect', handleDisconnect);
     manager.on('reconnect', handleReconnect);
@@ -192,35 +187,7 @@ function TunnelProviderRuntime({
     manager.on('latency', handleLatency);
     manager.on('transport:switch', handleTransportSwitch);
     manager.on('message', handleMessage);
-    
-    // Auto-connect using timing strategy (supports both authenticated and anonymous users)
-    if (autoConnect && sessionStatus !== 'loading' && !manager.isConnected()) {
-      // Racing protection: Add extra delay for recently authenticated users
-      // This prevents tunnel connection while database operations in signIn callbacks are still running
-      const now = Date.now();
-      const timeSinceAuth = lastAuthTime ? now - lastAuthTime : Infinity;
-      const authGraceMs = 400;
-      const isRecentlyAuthenticated = sessionStatus === 'authenticated' && timeSinceAuth < authGraceMs;
 
-      if (isRecentlyAuthenticated) {
-        setTimeout(() => {
-          if (!manager.isConnected()) {
-            tunnelTimingManager.initializeForRoute(pathname).catch(err => {
-              console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
-              setError(err);
-            });
-          }
-        }, Math.max(0, authGraceMs - timeSinceAuth));
-      } else {
-        // Normal timing for anonymous users or well-established authenticated sessions
-        tunnelTimingManager.initializeForRoute(pathname).catch(err => {
-          console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
-          setError(err);
-        });
-      }
-    }
-    
-    // Cleanup
     return () => {
       manager.off('connect', handleConnect);
       manager.off('disconnect', handleDisconnect);
@@ -230,9 +197,8 @@ function TunnelProviderRuntime({
       manager.off('latency', handleLatency);
       manager.off('transport:switch', handleTransportSwitch);
       manager.off('message', handleMessage);
-      
-      // Clean up all subscriptions using captured variables
-      for (const [channel, subscription] of currentChannelSubscriptions) {
+
+      for (const [, subscription] of currentChannelSubscriptions) {
         if (subscription && typeof subscription.unsubscribe === 'function') {
           subscription.unsubscribe();
         }
@@ -241,7 +207,45 @@ function TunnelProviderRuntime({
       currentChannelSubscriptions.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, autoConnect, debug, sessionStatus, timingStrategy, pathname, lastAuthTime]);
+  }, [config, debug, timingStrategy]);
+
+  // Effect B — session-aware initial connect with auth grace (no subscription teardown)
+  useEffect(() => {
+    const manager = managerRef.current;
+    if (!manager || sessionStatus === 'loading' || manager.isConnected()) {
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceAuth = lastAuthTime ? now - lastAuthTime : Infinity;
+    const authGraceMs = 400;
+    const isRecentlyAuthenticated = sessionStatus === 'authenticated' && timeSinceAuth < authGraceMs;
+
+    if (isRecentlyAuthenticated) {
+      const timeoutId = setTimeout(() => {
+        if (!manager.isConnected()) {
+          void tunnelTimingManager.initializeForRoute(pathnameRef.current).catch(err => {
+            console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
+            setError(err);
+          });
+        }
+      }, Math.max(0, authGraceMs - timeSinceAuth));
+      return () => clearTimeout(timeoutId);
+    }
+
+    void tunnelTimingManager.initializeForRoute(pathnameRef.current).catch(err => {
+      console.error('[TunnelProvider] Failed to initialize tunnel with timing:', err);
+      setError(err);
+    });
+  }, [sessionStatus, lastAuthTime]);
+
+  // Effect C — route timing updates without tearing down channel subscriptions
+  useEffect(() => {
+    if (sessionStatus === 'loading') {
+      return;
+    }
+    void tunnelTimingManager.initializeForRoute(pathname);
+  }, [pathname, sessionStatus]);
 
   // Connect method
   const connect = useCallback(async () => {

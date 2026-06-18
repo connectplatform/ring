@@ -117,7 +117,7 @@ NEXTAUTH_URL=https://ваш-домен.com`}
 const paymentRequest = {
   userId: session.user.id,
   userEmail: session.user.email,
-  targetRole: UserRole.MEMBER,
+  targetRole: UserRole.member,
   returnUrl: 'https://ваш-домен.com/membership/success',
   callbackUrl: 'https://ваш-домен.com/api/payments/wayforpay/webhook'
 }
@@ -151,13 +151,13 @@ const success = await processSuccessfulPayment(payload)`}
 Поточні ціни членства:
 
 <Code language="typescript" title="export const MEMBERSHIP_PRICES = {">
-{`[UserRole.MEMBER]: {
+{`[UserRole.member]: {
     amount: 299,        // ₴299 UAH
     currency: 'UAH',
     description: 'Оновлення Учасника Ring Platform',
     duration: '1 місяць'
   },
-  [UserRole.CONFIDENTIAL]: {
+  [UserRole.confidential]: {
     amount: 999,        // ₴999 UAH  
     currency: 'UAH',
     description: 'Конфіденційне Членство Ring Platform',

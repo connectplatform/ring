@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import type { TunnelMessage } from '@/lib/tunnel/types'
 import { useSync } from './use-sync'
 
 interface UseUnreadCountOptions {
@@ -61,6 +62,18 @@ export function useUnreadCount(options: UseUnreadCountOptions = {}): UseUnreadCo
     }
   }, [session, sessionStartTime])
 
+  const handleTunnelMessage = useCallback((message: TunnelMessage) => {
+    const nextCount = message?.payload?.unreadCount
+    if (nextCount == null) {
+      return { shouldRefetch: true }
+    }
+    const parsed = typeof nextCount === 'number' ? nextCount : Number(nextCount)
+    if (!Number.isFinite(parsed)) {
+      return { shouldRefetch: true }
+    }
+    return { nextData: parsed }
+  }, [])
+
   const sync = useSync<number>({
     enabled: Boolean(session),
     autoRefresh,
@@ -73,17 +86,7 @@ export function useUnreadCount(options: UseUnreadCountOptions = {}): UseUnreadCo
     tunnel: {
       channel: 'notifications:unread',
       enabled: enableTunnel,
-      onMessage: (message) => {
-        const nextCount = message?.payload?.unreadCount
-        if (nextCount == null) {
-          return { shouldRefetch: true }
-        }
-        const parsed = typeof nextCount === 'number' ? nextCount : Number(nextCount)
-        if (!Number.isFinite(parsed)) {
-          return { shouldRefetch: true }
-        }
-        return { nextData: parsed }
-      }
+      onMessage: handleTunnelMessage,
     }
   })
 

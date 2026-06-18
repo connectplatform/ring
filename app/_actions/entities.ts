@@ -5,6 +5,8 @@ import { auth } from '@/auth'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import { UserRole } from '@/features/auth/types'
+import { hasRoleAtLeast, isPlatformAdmin, assertKnownUserRole } from '@/features/auth/user-role'
+import { canCreateEntity } from '@/features/entities/lib/entity-permissions'
 import { updateEntity as updateEntityService } from '@/features/entities/services/update-entity'
 import { executeUnifiedUpload } from '@/lib/uploads/server/upload-core'
 
@@ -26,6 +28,16 @@ export async function createEntity(
   if (!session?.user?.id) {
     return {
       error: 'You must be logged in to create an entity'
+    }
+  }
+
+  const userRole = assertKnownUserRole(session.user.role)
+  const wantsConfidential = formData.get('isConfidential') === 'true'
+  if (!canCreateEntity(userRole, { isConfidential: wantsConfidential })) {
+    return {
+      error: wantsConfidential
+        ? 'Only confidential or admin users can create confidential entities'
+        : 'Only member, confidential, or admin users can create entities',
     }
   }
 
@@ -139,17 +151,6 @@ export async function createEntity(
   }
 }
 
-/**
- * Role hierarchy for access control
- */
-const ROLE_HIERARCHY = {
-  [UserRole.VISITOR]: 0,
-  [UserRole.SUBSCRIBER]: 1,
-  [UserRole.MEMBER]: 2,
-  [UserRole.CONFIDENTIAL]: 3,
-  [UserRole.ADMIN]: 4,
-} as const
-
 export async function updateEntity(
   prevState: EntityFormState | null,
   formData: FormData,
@@ -163,7 +164,7 @@ export async function updateEntity(
   }
 
   const userRole = (session.user as any)?.role as UserRole
-  if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+  if (!hasRoleAtLeast(userRole, UserRole.member)) {
     return { error: 'Only MEMBER users and above can update entities' }
   }
 
@@ -183,8 +184,7 @@ export async function updateEntity(
       return { error: 'Entity not found' }
     }
 
-    const canUpdate = entity.addedBy === session.user.id || 
-                     ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[UserRole.ADMIN]
+    const canUpdate = entity.addedBy === session.user.id || isPlatformAdmin(userRole)
 
     if (!canUpdate) {
       return { error: 'You do not have permission to update this entity' }
@@ -278,7 +278,7 @@ export async function deleteEntity(
   }
 
   const userRole = (session.user as any)?.role as UserRole
-  if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+  if (!hasRoleAtLeast(userRole, UserRole.member)) {
     return { error: 'Only MEMBER users and above can delete entities' }
   }
 
@@ -304,8 +304,7 @@ export async function deleteEntity(
       return { error: 'Entity not found' }
     }
 
-    const canDelete = entity.addedBy === session.user.id || 
-                     ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[UserRole.ADMIN]
+    const canDelete = entity.addedBy === session.user.id || isPlatformAdmin(userRole)
 
     if (!canDelete) {
       return { error: 'You do not have permission to delete this entity' }

@@ -28,7 +28,7 @@ async function requireSuperAdmin(): Promise<{ userId: string; email: string }> {
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
   }
-  if (session.user.role !== UserRole.SUPERADMIN) {
+  if (session.user.role !== UserRole.superadmin) {
     throw new Error('SuperAdmin access required')
   }
   return {

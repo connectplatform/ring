@@ -25,25 +25,26 @@ The Ring Platform opportunity system supports a unique dual-nature approach:
 ## API Endpoints
 
 ### `GET /api/opportunities`
-List opportunities with advanced filtering
-
-### `POST /api/opportunities`
-Create new opportunity (requires MEMBER role)
+List opportunities with role-aware pagination (`limit`, `startAfter`).
 
 ### `GET /api/opportunities/{id}`
-Get opportunity details by ID
+Get opportunity details by ID.
 
-### `PUT /api/opportunities/{id}`
-Update opportunity information
+### `GET /api/opportunities/search`
+Search opportunities (query parameters per route implementation).
 
-### `DELETE /api/opportunities/{id}`
-Delete opportunity
+### `PATCH /api/opportunities/update`
+Update opportunity (route present; prefer Server Actions for UI flows in alpha).
 
-### `POST /api/opportunities/{id}/apply`
-Apply to opportunity or express interest
+### `DELETE /api/opportunities/delete/{id}`
+Delete opportunity.
 
-### `GET /api/opportunities/{id}/applications`
-List applications for opportunity
+### `POST /api/opportunities/upload`
+Upload opportunity attachments.
+
+<Callout type="info" title="Create flow">
+**Creating** opportunities uses the **`createOpportunity` Server Action** (`app/_actions/opportunities.ts`) from the add-opportunity UI — there is no `POST /api/opportunities` list-create route in alpha.
+</Callout>
 
 ## Data model
 
@@ -134,79 +135,24 @@ There is no separate search-index reindex command; discovery queries run against
 
 ## Implementation Examples
 
-### Create job offer (`type: 'offer'`)
+### Create opportunity (Server Action)
 
-<Code language="typescript" title="POST /api/opportunities">
-{`const jobOffer = await fetch('/api/opportunities', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: \`Bearer \${token}\`,
-  },
-  body: JSON.stringify({
-    title: 'Senior React Developer',
-    type: 'offer',
-    briefDescription: 'Join our team building next-gen web applications',
-    category: 'engineering',
-    location: 'San Francisco, CA',
-    requiredSkills: ['React', 'TypeScript', 'Next.js'],
-    organizationId: 'entity-123',
-    visibility: 'public',
-    budget: { max: 150000, currency: 'USD' },
-  }),
-})`}
-</Code>
+Use the add-opportunity form pattern with `useActionState` and `createOpportunity` from `app/_actions/opportunities.ts` — see [API integration examples](/en/docs/examples/api-integration).
 
-### Create partnership request (`type: 'request'`)
+### List opportunities
 
-<Code language="typescript" title="POST /api/opportunities">
-{`const partnershipRequest = await fetch('/api/opportunities', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: \`Bearer \${token}\`,
-  },
-  body: JSON.stringify({
-    title: 'Seeking Marketing Partner',
-    type: 'request',
-    briefDescription: 'Digital marketing expertise for product launch',
-    category: 'partnerships',
-    organizationId: 'entity-456',
-    requiredSkills: ['digital marketing', 'social media', 'content'],
-    visibility: 'member',
-  }),
-})`}
+<Code language="typescript" title="GET /api/opportunities">
+{`const response = await fetch('/api/opportunities?limit=10', { credentials: 'include' })
+const { opportunities, lastVisible } = await response.json()`}
 </Code>
 
 ### Search opportunities
 
-<Code language="typescript" title="GET /api/opportunities with filters">
-{`const jobsResponse = await fetch(
-  '/api/opportunities?type=offer&location=Remote&limit=20'
-)
-const { opportunities, total } = await jobsResponse.json()
-
-const partnershipsResponse = await fetch(
-  '/api/opportunities?type=request&category=partnerships'
-)
-const partnerships = await partnershipsResponse.json()`}
-</Code>
-
-### Apply to Opportunity
-
-<Code language="typescript" title="TypeScript">
-{`const application = await fetch(`/api/opportunities/${opportunityId}/apply`, {
-method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  },
-  body: JSON.stringify({
-    coverLetter: 'I am excited to apply for this position...',
-    resume: 'https://example.com/resume.pdf',
-    portfolio: 'https://portfolio.example.com'
-  })
-})`}
+<Code language="typescript" title="GET /api/opportunities/search">
+{`const response = await fetch('/api/opportunities/search?q=react&limit=20', {
+  credentials: 'include',
+})
+const data = await response.json()`}
 </Code>
 
 ## Access Control
@@ -216,13 +162,9 @@ method: 'POST',
 - **Confidential Opportunities**: Require CONFIDENTIAL role
 
 ### Opportunity Management
-- **Create**: Requires MEMBER role
-- **Update/Delete**: Opportunity creator or entity admin
-- **Apply**: Any authenticated user (role-dependent)
-
-### Application Management
-- **View Applications**: Opportunity creator and entity admins
-- **Manage Applications**: Accept/reject applications
+- **Create**: Server Action from add-opportunity UI (`createOpportunity`)
+- **Update/Delete**: Server Actions or `PATCH /api/opportunities/update`, `DELETE /api/opportunities/delete/{id}`
+- **Apply**: In-app flows (no dedicated `/apply` REST route in alpha)
 
 ## Advanced Features
 

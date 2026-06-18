@@ -6,14 +6,7 @@ import { routing } from '@/i18n/routing'
 import { logger } from '@/lib/logger'
 import type { Locale } from '@/i18n/shared'
 
-// Role hierarchy for validation
-const ROLE_HIERARCHY = {
-  [UserRole.VISITOR]: 0,
-  [UserRole.SUBSCRIBER]: 1,
-  [UserRole.MEMBER]: 2,
-  [UserRole.CONFIDENTIAL]: 3,
-  [UserRole.ADMIN]: 4,
-} as const
+import { getRoleLevel, UPGRADEABLE_ROLES } from '@/features/auth/user-role'
 
 export interface MembershipPaymentFormState {
   success?: boolean
@@ -58,9 +51,15 @@ export async function initiateMembershipPayment(
   }
 
   // Prevent downgrades and invalid upgrades
-  const currentRole = (session.user as any)?.role as UserRole || UserRole.VISITOR
-  const currentRoleLevel = ROLE_HIERARCHY[currentRole]
-  const targetRoleLevel = ROLE_HIERARCHY[targetRole]
+  const currentRole = (session.user as any)?.role as UserRole || UserRole.visitor
+  const currentRoleLevel = getRoleLevel(currentRole)
+  const targetRoleLevel = getRoleLevel(targetRole)
+
+  if (!UPGRADEABLE_ROLES.includes(targetRole)) {
+    return {
+      error: 'This membership tier cannot be purchased online',
+    }
+  }
 
   if (targetRoleLevel <= currentRoleLevel) {
     return {
@@ -69,7 +68,7 @@ export async function initiateMembershipPayment(
   }
 
   // Admin role cannot be purchased
-  if (targetRole === UserRole.ADMIN) {
+  if (targetRole === UserRole.admin) {
     return {
       error: 'Admin role cannot be purchased'
     }
@@ -93,7 +92,7 @@ export async function initiateMembershipPayment(
     const failureReturnUrl = `${baseUrl}/${locale}/profile/membership/failure`
 
     // Import and call the WayForPay service
-    const { initiatePayment, MEMBERSHIP_PRICES } = await import('@/lib/payments/wayforpay-service')
+    const { initiatePayment, getMembershipTierConfig } = await import('@/lib/payments/wayforpay-service')
     
     const paymentRequest = {
       userId,
@@ -103,6 +102,11 @@ export async function initiateMembershipPayment(
       callbackUrl
     }
 
+    const tierConfig = getMembershipTierConfig(targetRole)
+    if (!tierConfig) {
+      return { error: 'This membership tier cannot be purchased online' }
+    }
+
     const paymentResponse = await initiatePayment(paymentRequest)
 
     if (paymentResponse.success && paymentResponse.paymentUrl) {
@@ -110,7 +114,7 @@ export async function initiateMembershipPayment(
         userId,
         targetRole,
         orderId: paymentResponse.orderId,
-        amount: MEMBERSHIP_PRICES[targetRole].amount
+        amount: tierConfig.amount
       })
 
       // Store payment attempt in user's profile for tracking
@@ -120,8 +124,8 @@ export async function initiateMembershipPayment(
           userId,
           orderId: paymentResponse.orderId!,
           targetRole,
-          amount: MEMBERSHIP_PRICES[targetRole].amount,
-          currency: MEMBERSHIP_PRICES[targetRole].currency,
+          amount: tierConfig.amount,
+          currency: tierConfig.currency,
           status: 'initiated',
           paymentUrl: paymentResponse.paymentUrl
         })

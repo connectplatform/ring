@@ -1,13 +1,13 @@
 /**
- * ADMIN TELEGRAM BOT - Whitelist Service
- * Telegram Chat ID whitelist for ADMIN/SUPERADMIN users
+ * admin TELEGRAM BOT - Whitelist Service
+ * Telegram Chat ID whitelist for admin/superadmin users
  * 
  * Truth Lens:
  * - @legiox-truth-lens/ring-backend-administrator.json
  * - @legiox-truth-lens/postgres-db-specialist.json
  * 
  * Security:
- * - Only ADMIN/SUPERADMIN with telegramId can interact with bot
+ * - Only admin/superadmin with telegramId can interact with bot
  * - 60-second cache to reduce DB load
  * - PALADIN Layer 2: Authorization check
  */
@@ -29,7 +29,7 @@ type AdminUserRow = {
 }
 
 /**
- * Get all Telegram Chat IDs for ADMIN/SUPERADMIN users
+ * Get all Telegram Chat IDs for admin/superadmin users
  * Cached for 60 seconds to reduce database load
  * 
  * @returns Array of Telegram Chat IDs
@@ -48,13 +48,13 @@ export async function getAdminTelegramIds(): Promise<string[]> {
         {
           field: 'role',
           operator: 'in',
-          value: [UserRole.ADMIN, UserRole.SUPERADMIN],
+          value: [UserRole.admin, UserRole.superadmin],
         },
       ],
     })
 
     if (!adminUsersResult.success) {
-      console.error('[ADMIN BOT WHITELIST] Failed to query users:', adminUsersResult.error)
+      console.error('[admin BOT WHITELIST] Failed to query users:', adminUsersResult.error)
       return cache ? Array.from(cache.ids) : []
     }
 
@@ -68,12 +68,12 @@ export async function getAdminTelegramIds(): Promise<string[]> {
     }
 
     console.log(
-      `[ADMIN BOT WHITELIST] Refreshed whitelist: ${telegramIds.length} admin(s) with Telegram ID`
+      `[admin BOT WHITELIST] Refreshed whitelist: ${telegramIds.length} admin(s) with Telegram ID`
     )
 
     return telegramIds
   } catch (error) {
-    console.error('[ADMIN BOT WHITELIST] Error fetching admin IDs:', error)
+    console.error('[admin BOT WHITELIST] Error fetching admin IDs:', error)
     return cache ? Array.from(cache.ids) : []
   }
 }
@@ -81,7 +81,7 @@ export async function getAdminTelegramIds(): Promise<string[]> {
 /**
  * Check if a Telegram Chat ID is whitelisted
  * @param chatId - Telegram Chat ID to check
- * @returns true if chatId belongs to an ADMIN/SUPERADMIN user
+ * @returns true if chatId belongs to an admin/superadmin user
  */
 export async function isWhitelisted(chatId: string): Promise<boolean> {
   const whitelist = await getAdminTelegramIds()
@@ -103,7 +103,7 @@ export async function getUserIdFromTelegramId(chatId: string): Promise<string | 
         {
           field: 'role',
           operator: 'in',
-          value: [UserRole.ADMIN, UserRole.SUPERADMIN],
+          value: [UserRole.admin, UserRole.superadmin],
         },
       ],
     })
@@ -113,7 +113,7 @@ export async function getUserIdFromTelegramId(chatId: string): Promise<string | 
     const user = (result.data || []).find((u) => u.communication?.telegramId === chatId)
     return user?.id || null
   } catch (error) {
-    console.error('[ADMIN BOT WHITELIST] Error fetching user ID:', error)
+    console.error('[admin BOT WHITELIST] Error fetching user ID:', error)
     return null
   }
 }
@@ -124,5 +124,5 @@ export async function getUserIdFromTelegramId(chatId: string): Promise<string | 
  */
 export function invalidateWhitelistCache(): void {
   cache = null
-  console.log('[ADMIN BOT WHITELIST] Cache invalidated')
+  console.log('[admin BOT WHITELIST] Cache invalidated')
 }

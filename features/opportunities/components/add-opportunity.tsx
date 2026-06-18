@@ -59,7 +59,7 @@ const DeveloperCVForm = dynamic(() => import('./developer-cv-form'), {
 })
 
 interface AddOpportunityFormProps {
-  opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'cv' | 'resource' | 'event'
+  opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'cv' | 'resource' | 'event' | 'ring_customization'
 }
 
 function SubmitButton() {
@@ -73,72 +73,7 @@ function SubmitButton() {
   )
 }
 
-// Enhanced opportunity type configurations with visual styling
-const opportunityTypeConfigs = {
-  request: {
-    color: 'from-blue-500 to-cyan-500',
-    bgColor: 'bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20',
-    borderColor: 'border-blue-200 dark:border-blue-800',
-    textColor: 'text-blue-700 dark:text-blue-300',
-    icon: Target,
-    title: 'Create Request',
-    description: 'Looking for services, advice, or collaboration from the community.'
-  },
-  offer: {
-    color: 'from-green-500 to-emerald-500',
-    bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20',
-    borderColor: 'border-green-200 dark:border-green-800',
-    textColor: 'text-green-700 dark:text-green-300',
-    icon: Users,
-    title: 'Create Offer',
-    description: 'Post an official opportunity from your organization.'
-  },
-  partnership: {
-    color: 'from-purple-500 to-violet-500',
-    bgColor: 'bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/20 dark:to-violet-950/20',
-    borderColor: 'border-purple-200 dark:border-purple-800',
-    textColor: 'text-purple-700 dark:text-purple-300',
-    icon: Sparkles,
-    title: 'Create Partnership',
-    description: 'Seek strategic partnerships and business collaborations.'
-  },
-  volunteer: {
-    color: 'from-red-500 to-pink-500',
-    bgColor: 'bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/20 dark:to-pink-950/20',
-    borderColor: 'border-red-200 dark:border-red-800',
-    textColor: 'text-red-700 dark:text-red-300',
-    icon: Users,
-    title: 'Create Volunteer Opportunity',
-    description: 'Post volunteer opportunities for community causes.'
-  },
-  mentorship: {
-    color: 'from-indigo-500 to-blue-500',
-    bgColor: 'bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20',
-    borderColor: 'border-indigo-200 dark:border-indigo-800',
-    textColor: 'text-indigo-700 dark:text-indigo-300',
-    icon: Users,
-    title: 'Create Mentorship',
-    description: 'Offer or seek mentorship opportunities.'
-  },
-  resource: {
-    color: 'from-orange-500 to-amber-500',
-    bgColor: 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20',
-    borderColor: 'border-orange-200 dark:border-orange-800',
-    textColor: 'text-orange-700 dark:text-orange-300',
-    icon: Target,
-    title: 'Create Resource',
-    description: 'Share or request resources, tools, and equipment.'
-  },
-  event: {
-    color: 'from-teal-500 to-cyan-500',
-    bgColor: 'bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/20 dark:to-cyan-950/20',
-    borderColor: 'border-teal-200 dark:border-teal-800',
-    textColor: 'text-teal-700 dark:text-teal-300',
-    icon: Calendar,
-    title: 'Create Event',
-    description: 'Organize events and invite community participation.'
-  }
-}
+import { getOpportunityFormTypePreset } from '@/features/opportunities/lib/opportunity-type-presets'
 
 // Helper function to get form configuration based on opportunity type
 function getFormConfig(type: string) {
@@ -256,11 +191,11 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
     }
   }, [state, router])
 
-  const userRole = session?.user?.role as UserRole || UserRole.SUBSCRIBER
-  const isConfidentialAllowed = userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN
+  const userRole = session?.user?.role as UserRole || UserRole.subscriber
+  const isConfidentialAllowed = userRole === UserRole.confidential || userRole === UserRole.admin || userRole === UserRole.superadmin
   
   // Determine the opportunity type - use prop if provided, otherwise default based on role
-  const currentType = opportunityType || (userRole === UserRole.MEMBER || userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN ? 'offer' : 'request')
+  const currentType = opportunityType || (userRole === UserRole.member || userRole === UserRole.confidential || userRole === UserRole.admin || userRole === UserRole.superadmin ? 'offer' : 'request')
   
   // Get form configuration based on type
   const formConfig = getFormConfig(currentType)
@@ -321,16 +256,13 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
     return <div>{t('redirecting', { defaultValue: 'Redirecting...' })}</div>
   }
 
-  // Get current type configuration
-  const typeConfig = opportunityTypeConfigs[currentType as keyof typeof opportunityTypeConfigs] || opportunityTypeConfigs.request
+  const typeConfig = getOpportunityFormTypePreset(currentType) ?? getOpportunityFormTypePreset('request')!
   const TypeIcon = typeConfig.icon
 
   // Use specialized Developer CV form for cv type
   if (currentType === 'cv') {
     return <DeveloperCVForm locale={locale} />
   }
-
-  return <AddOpportunityFormContent opportunityType={opportunityType} />
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -364,11 +296,11 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
           </div>
           <h1 className="text-4xl font-bold mb-2">
             <span className={`bg-gradient-to-r ${typeConfig.color} bg-clip-text text-transparent`}>
-              {typeConfig.title}
+              {t(`types.${typeConfig.titleKey}`, { defaultValue: typeConfig.id })}
             </span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {typeConfig.description}
+            {t(`types.${typeConfig.descriptionKey}`, { defaultValue: '' })}
           </p>
         </motion.div>
 

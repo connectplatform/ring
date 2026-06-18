@@ -285,12 +285,12 @@ async function main() {
   console.log('1) Entity visibility filter')
   ok(
     'visitor cannot see globally blocked entity',
-    !isEntityVisibleInDiscovery(globallyBlocked, { userRole: UserRole.VISITOR }),
+    !isEntityVisibleInDiscovery(globallyBlocked, { userRole: UserRole.visitor }),
   )
   ok(
     'admin can see globally blocked entity',
     isEntityVisibleInDiscovery(globallyBlocked, {
-      userRole: UserRole.ADMIN,
+      userRole: UserRole.admin,
       userId: IDS.viewer,
     }),
   )
@@ -298,7 +298,7 @@ async function main() {
     'viewer cannot see user-blocked entity',
     !isEntityVisibleInDiscovery(userHidden, {
       userId: IDS.viewer,
-      userRole: UserRole.SUBSCRIBER,
+      userRole: UserRole.subscriber,
       blockedEntityIds: ['smk10hidden'],
     }),
   )
@@ -306,7 +306,7 @@ async function main() {
     [activeEntity, globallyBlocked, userHidden],
     {
       userId: IDS.viewer,
-      userRole: UserRole.SUBSCRIBER,
+      userRole: UserRole.subscriber,
       blockedEntityIds: ['smk10hidden'],
     },
   )
@@ -477,7 +477,7 @@ async function main() {
     'globally blocked org hidden from subscriber discovery',
     !isEntityVisibleInDiscovery(blockedOrgEntity, {
       userId: IDS.viewer,
-      userRole: UserRole.SUBSCRIBER,
+      userRole: UserRole.subscriber,
     }),
   )
 

@@ -31,7 +31,7 @@ function mapReportRow(row: Record<string, unknown> & { id: string }): EntityRepo
 export async function getEntityModerationQueue(): Promise<EntityModerationQueueItem[]> {
   const session = await auth()
   const role = session?.user?.role as UserRole | undefined
-  if (!session?.user || (role !== UserRole.ADMIN && role !== UserRole.SUPERADMIN)) {
+  if (!session?.user || (role !== UserRole.admin && role !== UserRole.superadmin)) {
     throw new EntityPermissionError('Admin access required')
   }
 

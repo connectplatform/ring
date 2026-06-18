@@ -10,6 +10,10 @@
       "siteRootName": "Ring Platform",
       "webPageName": "Confidential entities — Ring Platform",
       "mainEntityDescription": "Directory of sensitive organization records for trusted operators and partners on Ring Platform."
+    },
+    "wrapper": {
+      "loading": "Loading confidential entities...",
+      "permissionDenied": "You don't have permission to view this page."
     }
   },
   "opportunities": {
@@ -23,6 +27,10 @@
       "siteRootName": "Ring Platform",
       "webPageName": "Confidential opportunities — Ring Platform",
       "mainEntityDescription": "Private opportunity pipeline for vetted roles, partnerships, and requests visible only to Confidential-tier members."
+    },
+    "wrapper": {
+      "loading": "Loading confidential opportunities...",
+      "permissionDenied": "You don't have permission to view this page."
     }
   }
 }

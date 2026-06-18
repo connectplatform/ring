@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { setUserRole } from '@/features/auth/services/user-management';
+import { isKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 
 export async function POST(req: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     // CRITICAL: Only admins can change user roles
-    if (session.user.role !== 'admin') {
+    if (!isPlatformAdmin(session.user.role)) {
       console.log(`API: /api/set-user-role - Access denied for user ${session.user.id} with role ${session.user.role}`);
       return NextResponse.json({ 
         message: 'Forbidden: Only administrators can change user roles' 
@@ -30,10 +31,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate role value
-    const validRoles = ['visitor', 'subscriber', 'member', 'confidential', 'admin'];
-    if (!validRoles.includes(role)) {
+    if (!isKnownUserRole(role)) {
       return NextResponse.json({ 
-        message: 'Invalid role. Valid roles are: ' + validRoles.join(', ') 
+        message: 'Invalid role. Valid roles are: visitor, subscriber, member, confidential, admin, superadmin' 
       }, { status: 400 });
     }
 

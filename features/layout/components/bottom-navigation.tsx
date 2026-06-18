@@ -344,7 +344,7 @@ export default function BottomNavigation() {
             setShowOpportunitySelector(false)
             setShowAddMenu(false)
           }}
-          userRole={hasRole(UserRole.MEMBER) ? 'member' : 'subscriber'}
+          userRole={hasRole(UserRole.member) ? 'member' : 'subscriber'}
           locale={locale}
         />
       )}

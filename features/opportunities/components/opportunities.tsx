@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback, useTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import { Entity } from '@/features/entities/types'
@@ -18,6 +18,7 @@ import { formatDateValue, truncateDescription, fetchOpportunities, formatBudget 
 import { useAppContext } from '@/contexts/app-context'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 import { usePathname, useSearchParams } from 'next/navigation'
+import type { Locale } from '@/i18n/shared'
 import OpportunityList from './opportunity-list'
 import { useRealtimeOpportunities, useOptimisticOpportunities } from '@/hooks/use-realtime-opportunities'
 
@@ -49,8 +50,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   // React 19 useTransition for non-blocking filter updates
   const [isPending, startTransition] = useTransition()
 
-  // Extract locale from pathname
-  const locale = pathname.split('/')[1] || 'en'
+  const locale = useLocale() as Locale
   
   // Get filters from URL params (managed by OpportunitiesSearchClient)
   const filters = React.useMemo(() => ({

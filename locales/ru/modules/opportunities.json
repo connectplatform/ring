@@ -73,8 +73,15 @@
   "selectType": "Select type",
   "allTypes": "All types",
   "filters": {
+    "title": "Фильтры",
+    "subtitle": "Уточните по типу возможности, категории и другим параметрам",
+    "searchLabel": "Фильтр возможностей",
     "types": "типов",
-    "categories": "категорий"
+    "categories": "категорий",
+    "location": "локация",
+    "priority": "приоритет",
+    "budget": "бюджет",
+    "activeFilters": "Активные фильтры"
   },
   "sortBy": "Sort by",
   "newest": "Newest",
@@ -120,6 +127,7 @@
   "unknown": "Неизвестно",
   "type_selector": {
     "title": "What would you like to create?",
+    "subtitle": "Choose an opportunity type first — each opens a tailored form for that collaboration style.",
     "examples": "Examples",
     "request": {
       "title": "Request",

@@ -8,6 +8,7 @@
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, hasConfidentialAccess, isPlatformAdmin } from '@/features/auth/user-role'
 import { Opportunity } from '@/features/opportunities/types'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -59,25 +60,9 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
         });
       }
       currentUserId = session.user.id;
-      currentUserRole = session.user.role as UserRole;
-    }
-
-    // Validate role
-    const validRoles: UserRole[] = [
-      UserRole.VISITOR,
-      UserRole.SUBSCRIBER,
-      UserRole.MEMBER,
-      UserRole.ADMIN,
-      UserRole.CONFIDENTIAL
-    ];
-
-    if (!currentUserRole || !validRoles.includes(currentUserRole)) {
-      throw new OpportunityPermissionError('Invalid or missing user role', undefined, {
-        timestamp: Date.now(),
-        hasRole: !!currentUserRole,
-        role: currentUserRole,
-        operation: 'role_validation'
-      });
+      currentUserRole = assertKnownUserRole(session.user.role);
+    } else {
+      currentUserRole = assertKnownUserRole(currentUserRole);
     }
 
     logger.info(`Services: deleteOpportunity - User authenticated with ID ${currentUserId} and role ${currentUserRole}`);
@@ -109,7 +94,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
     }
 
     // Step 3: Ownership check
-    if (currentUserRole !== UserRole.ADMIN && opportunity.createdBy !== currentUserId) {
+    if (!isPlatformAdmin(currentUserRole) && opportunity.createdBy !== currentUserId) {
       throw new OpportunityPermissionError(
         'You do not have permission to delete this opportunity',
         undefined,
@@ -126,7 +111,7 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
 
     // Step 4: Owners may delete only archived listings (admins may delete any)
     if (
-      currentUserRole !== UserRole.ADMIN &&
+      !isPlatformAdmin(currentUserRole) &&
       opportunity.createdBy === currentUserId &&
       !canOwnerDeleteOpportunity(opportunity.status)
     ) {
@@ -144,9 +129,9 @@ export async function deleteOpportunity(id: string, userId?: string, userRole?: 
     }
 
     // Step 5: If the opportunity is confidential, ensure the user has appropriate permissions
-    if (opportunity.isConfidential && currentUserRole !== UserRole.ADMIN && currentUserRole !== UserRole.CONFIDENTIAL) {
+    if (opportunity.isConfidential && !hasConfidentialAccess(currentUserRole)) {
       throw new OpportunityPermissionError(
-        'You do not have permission to delete confidential opportunities',
+        'Only admin, superadmin or confidential users can delete confidential opportunities',
         undefined,
         {
           timestamp: Date.now(),

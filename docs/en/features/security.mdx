@@ -111,16 +111,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   SUBSCRIBER = 1,   // Basic authenticated features
   MEMBER = 2,       // Entity creation, paid features
   CONFIDENTIAL = 3, // Confidential entities/opportunities
-  ADMIN = 4         // Full system administration
+  admin = 4         // Full system administration
 }
 
 // Permission matrix
 const rolePermissions = {
-  [UserRole.VISITOR]: ['read:public'],
-  [UserRole.SUBSCRIBER]: ['read:public', 'read:authenticated'],
-  [UserRole.MEMBER]: ['read:public', 'read:authenticated', 'write:entities'],
-  [UserRole.CONFIDENTIAL]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
-  [UserRole.ADMIN]: ['*']
+  [UserRole.visitor]: ['read:public'],
+  [UserRole.subscriber]: ['read:public', 'read:authenticated'],
+  [UserRole.member]: ['read:public', 'read:authenticated', 'write:entities'],
+  [UserRole.confidential]: ['read:public', 'read:authenticated', 'write:entities', 'read:confidential'],
+  [UserRole.admin]: ['*']
 }`}
 </Code>
 
@@ -145,7 +145,7 @@ export async function createEntity(formData: FormData) {
   }
 
   // Authorization check
-  if (session.user.role < UserRole.MEMBER) {
+  if (session.user.role < UserRole.member) {
     throw new Error('Insufficient permissions')
   }
 
@@ -172,7 +172,7 @@ export async function createEntity(formData: FormData) {
   // Get entity and verify ownership
   const entity = await getEntity(entityId)
 
-  if (entity.userId !== session.user.id && session.user.role < UserRole.ADMIN) {
+  if (entity.userId !== session.user.id && session.user.role < UserRole.admin) {
     throw new Error('Forbidden: Not entity owner')
   }
 

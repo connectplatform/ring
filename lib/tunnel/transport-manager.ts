@@ -96,6 +96,7 @@ export class TunnelTransportManager implements TunnelTransport {
   private connectionAttempts = 0;
   private maxConnectionAttempts = 3;
   private isConnecting = false;
+  private connectInFlight: Promise<void> | null = null;
   private debug = false;
   // Adaptive health checking
   private consecutiveFailures = 0;
@@ -158,24 +159,29 @@ export class TunnelTransportManager implements TunnelTransport {
   }
 
   async connect(options?: TunnelConnectionOptions): Promise<void> {
-    if (this.isConnecting) {
-      this.log('Already connecting, skipping duplicate connect call');
-      return;
-    }
-
     if (this.currentTransport?.isConnected()) {
       this.log('Already connected');
       return;
     }
 
-    this.isConnecting = true;
-    this.connectionAttempts = 0;
-
-    try {
-      await this.connectWithFallback(options);
-    } finally {
-      this.isConnecting = false;
+    if (this.connectInFlight) {
+      this.log('Awaiting in-flight connect');
+      return this.connectInFlight;
     }
+
+    this.connectInFlight = (async () => {
+      this.isConnecting = true;
+      this.connectionAttempts = 0;
+
+      try {
+        await this.connectWithFallback(options);
+      } finally {
+        this.isConnecting = false;
+        this.connectInFlight = null;
+      }
+    })();
+
+    return this.connectInFlight;
   }
 
   private async connectWithFallback(options?: TunnelConnectionOptions): Promise<void> {
@@ -597,9 +603,8 @@ export class TunnelTransportManager implements TunnelTransport {
   }
 
   // PHASE 1: User-specific publishing methods for server push
+  // CLIENT ONLY: server-side delivery uses TunnelHub (lib/tunnel/hub).
   isUserConnected(userId: string): boolean {
-    // Check if user has an active connection
-    // This is a simplified implementation - in production this would track active connections
     return this.currentTransport !== null && this.getConnectionState() === TunnelConnectionState.CONNECTED;
   }
 

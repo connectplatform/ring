@@ -1,5 +1,5 @@
 /**
- * ADMIN TELEGRAM BOT - Webhook Route
+ * admin TELEGRAM BOT - Webhook Route
  * Receives Telegram webhook updates for Admin Bot
  * 
  * Truth Lens:
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true }, { status: 200 }) // Silent 200
     }
 
-    // PALADIN Layer 2: Whitelist check - is sender an ADMIN/SUPERADMIN?
+    // PALADIN Layer 2: Whitelist check - is sender an admin/superadmin?
     const whitelisted = await isWhitelisted(chatId)
     if (!whitelisted) {
       await logFailedRequest(chatId, text, 'Telegram ID not whitelisted')
@@ -103,12 +103,12 @@ export async function POST(request: NextRequest) {
 
     // Queue async processing (respond to Telegram within 200ms)
     processAdminCommand(chatId, text, userId).catch((error) => {
-      console.error('[ADMIN BOT WEBHOOK] Error processing command:', error)
+      console.error('[admin BOT WEBHOOK] Error processing command:', error)
     })
 
     return NextResponse.json({ ok: true }, { status: 200 })
   } catch (error: any) {
-    console.error('[ADMIN BOT WEBHOOK] Error handling webhook:', error)
+    console.error('[admin BOT WEBHOOK] Error handling webhook:', error)
     await logFailedRequest(null, null, `Webhook error: ${error.message}`)
     return NextResponse.json({ ok: true }, { status: 200 }) // Always 200
   }
@@ -132,7 +132,7 @@ async function processAdminCommand(
 
   try {
     // Get user role for permission checks
-    let userRole = UserRole.ADMIN // Default to ADMIN
+    let userRole = UserRole.admin // Default to ADMIN
     if (userId) {
       const userResult = await db().findDocById<{ role?: string; name?: string }>('users', userId)
       if (userResult.success && userResult.data?.role) {
@@ -176,7 +176,7 @@ async function processAdminCommand(
     // PALADIN Layer 5: Audit logging
     await logInteraction(chatId, userId, text, parsedCommand, executionResult)
   } catch (error: any) {
-    console.error('[ADMIN BOT] Error processing command:', error)
+    console.error('[admin BOT] Error processing command:', error)
 
     // Send error message to user
     const errorMessage = `❌ <b>Internal Error</b>\n\nFailed to process command: ${error.message || 'Unknown error'}`

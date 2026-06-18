@@ -6,34 +6,34 @@ import {
   PaymentProcessor 
 } from '@/constants/store';
 
-// Technology & Industry Entity Types for Ring Platform
+// Professional networking industry categories (ring-platform.org SSOT — see entity-management-system.json)
 export type EntityType =
-  | '3dPrinting'
-  | 'aiMachineLearning'
-  | 'biotechnology'
-  | 'blockchainDevelopment'
-  | 'cleanEnergy'
-  | 'cloudComputing'
-  | 'cncMachining'
-  | 'compositeManufacturing'
-  | 'cybersecurity'
-  | 'droneTechnology'
-  | 'electronicManufacturing'
-  | 'industrialDesign'
-  | 'iotDevelopment'
-  | 'laserCutting'
-  | 'manufacturing'
-  | 'metalFabrication'
-  | 'other'
-  | 'plasticInjectionMolding'
-  | 'precisionEngineering'
-  | 'quantumComputing'
-  | 'robotics'
-  | 'semiconductorProduction'
-  | 'smartMaterials'
-  | 'softwareDevelopment'
-  | 'technologyCenter'
-  | 'virtualReality';
+  | 'technologySoftware'
+  | 'manufacturingIndustry'
+  | 'financialServices'
+  | 'healthcareMedical'
+  | 'educationTraining'
+  | 'realEstateConstruction'
+  | 'retailEcommerce'
+  | 'professionalServices'
+  | 'mediaEntertainment'
+  | 'transportationLogistics'
+  | 'energyUtilities'
+  | 'agricultureFood'
+  | 'governmentPublicSector'
+  | 'nonProfitNgo'
+  | 'researchDevelopment'
+  | 'consultingAdvisory'
+  | 'legalServices'
+  | 'marketingAdvertising'
+  | 'hospitalityTourism'
+  | 'sportsRecreation'
+  | 'artsCulture'
+  | 'environmentalServices'
+  | 'telecommunications'
+  | 'aerospaceDefense'
+  | 'pharmaceuticals'
+  | 'other';
 
 // Store Verification Status
 export interface StoreVerification {
@@ -129,6 +129,11 @@ export interface Entity {
   lastReportedAt?: Timestamp;
   blockedAt?: Timestamp;
   blockedReason?: string;
+
+  /** Platform verification queue (`POST /api/entities/{id}/verify`). */
+  verificationStatus?: 'none' | 'pending' | 'under_review' | 'verified' | 'rejected';
+  verificationRequestedAt?: Timestamp;
+  verificationCompletedAt?: Timestamp;
   
   // Multi-vendor Store Fields
   storeActivated?: boolean;
@@ -193,6 +198,11 @@ export interface SerializedEntity {
   lastReportedAt?: string;
   blockedAt?: string;
   blockedReason?: string;
+
+  /** Platform verification queue (`POST /api/entities/{id}/verify`). */
+  verificationStatus?: 'none' | 'pending' | 'under_review' | 'verified' | 'rejected';
+  verificationRequestedAt?: string;
+  verificationCompletedAt?: string;
   
   // Multi-vendor Store Fields (serialized)
   storeActivated?: boolean;

@@ -129,6 +129,7 @@
       "treeSectionTitle": "Ring Platform · покажчик бібліотеки",
       "quickLinksTitle": "Швидкий вхід (CTO · аудитори · агенти)",
       "linkLibrary": "Хаб бібліотеки",
+      "linkQuickReference": "Швидкий довідник",
       "linkWelcome": "Вітаємо — місія та аудиторії",
       "linkGettingStarted": "Початок роботи",
       "linkArchitecture": "Архітектура та Auth.js",
@@ -247,5 +248,9 @@
   "places": "Місця",
   "map": "Карта",
   "meetups": "Зустрічі",
-  "myPlaces": "Мої Місця"
+  "myPlaces": "Мої Місця",
+  "storeSettings": "Налаштування магазину",
+  "membership": "Членство",
+  "confidentialEntities": "Конфіденційні сутності",
+  "confidentialOpportunities": "Конфіденційні можливості"
 }

@@ -24,11 +24,11 @@
  * - UI/UX Optimization Agent (mobile excellence)
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -54,7 +54,7 @@ import { ROUTES } from '@/constants/routes'
 
 interface ConfidentialWrapperProps {
   children: React.ReactNode
-  locale: string
+  locale: Locale
   contentType?: 'entities' | 'opportunities'
 }
 
@@ -65,13 +65,7 @@ export default function ConfidentialWrapper({
 }: ConfidentialWrapperProps) {
   const router = useRouter()
   const t = useTranslations(`modules.${contentType}`)
-  const tCommon = useTranslations('common')
-  const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // Access level information
   const accessInfo = {
@@ -309,7 +303,7 @@ export default function ConfidentialWrapper({
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={() => router.push(`/${locale}/docs/confidential`)}
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/confidential`)}
           >
             {t('learnMore', { defaultValue: 'Learn More' })}
           </Button>
@@ -319,33 +313,13 @@ export default function ConfidentialWrapper({
   )
 
   return (
-    <div className="min-h-full text-foreground relative transition-colors duration-300">
-      <div className="flex min-h-full gap-3">
-        {/* Left Sidebar - Main Navigation (Desktop only) */}
-
-
-        {/* Center Content Area */}
-        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
-          {children}
-        </div>
-
-        {/* Right Sidebar - Security & Access Info (Desktop only, 1024px+) */}
-        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
-          <div className="sticky top-8">
-            <RightSidebarContent />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
-      <FloatingSidebarToggle
-        isOpen={rightSidebarOpen}
-        onToggle={setRightSidebarOpen}
-        mobileWidth="90%"
-        tabletWidth="380px"
-      >
-        <RightSidebarContent />
-      </FloatingSidebarToggle>
-    </div>
+    <RingRightRailLayout
+      rightRail={<RightSidebarContent />}
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
+      contentClassName="pb-24 lg:pb-8"
+    >
+      {children}
+    </RingRightRailLayout>
   )
 }

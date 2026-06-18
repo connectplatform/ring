@@ -7,7 +7,7 @@
 
 import { Entity } from '@/features/entities/types'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { checkEntityOwnership } from '../utils/entity-utils'
 import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
 import { db } from '@/lib/database'
@@ -33,7 +33,7 @@ import { db } from '@/lib/database'
  * 3. If authorized, the function updates the entity with the provided data.
  * 4. The user receives feedback on whether the update was successful.
  * 
- * Note: Only the entity creator or users with ADMIN role can update entities.
+ * Note: Only the entity creator or users with admin role can update entities.
  */
 export async function updateEntity(id: string, data: Partial<Entity>): Promise<boolean> {
   try {
@@ -46,13 +46,13 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
       throw new Error('Unauthorized access');
     }
 
-    const userRole = session.user.role as UserRole;
+    const userRole = assertKnownUserRole(session.user.role);
     const userId = session.user.id;
 
     console.log(`Services: updateEntity - User authenticated with role ${userRole} and ID ${userId}`);
 
     // Step 2: Check permissions
-    if (userRole !== UserRole.ADMIN && !(await checkEntityOwnership(userId, id))) {
+    if (!isPlatformAdmin(userRole) && !(await checkEntityOwnership(userId, id))) {
       console.error('Services: updateEntity - Access denied for non-admin user attempting to update entity they did not create');
       throw new Error('Access denied. Only the entity creator or an admin can update this entity.');
     }

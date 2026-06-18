@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "updated": "2026-06-18",
+  "notes": {
+    "cheapest_draft": "grok-imagine-video @ 480p — $0.05/s, supports text-to-video",
+    "production": "grok-imagine-video @ 720p — $0.05/s per xAI model page",
+    "i2v_premium": "grok-imagine-video-1.5 — image-to-video only; 480p $0.08/s, 720p $0.14/s; no text-to-video"
+  },
+  "modes": {
+    "draft": {
+      "model": "grok-imagine-video",
+      "resolution": "480p",
+      "estimatedUsdPerSecond": 0.05,
+      "supportsTextToVideo": true
+    },
+    "production": {
+      "model": "grok-imagine-video",
+      "resolution": "720p",
+      "estimatedUsdPerSecond": 0.05,
+      "supportsTextToVideo": true
+    },
+    "production_i2v": {
+      "model": "grok-imagine-video-1.5",
+      "resolution": "720p",
+      "estimatedUsdPerSecond": 0.14,
+      "supportsTextToVideo": false,
+      "requiresImageUrl": true
+    }
+  },
+  "defaults": {
+    "qualityMode": "draft",
+    "duration": 6,
+    "aspectRatio": "16:9",
+    "pollIntervalMs": 5000,
+    "pollTimeoutMs": 900000
+  }
+}

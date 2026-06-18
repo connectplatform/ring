@@ -50,7 +50,7 @@ last_modified: "2025-10-16"
 | `page` | number | Ні | Номер сторінки (за замовчуванням: 1) |
 | `limit` | number | Ні | Користувачів на сторінку (за замовчуванням: 50, макс: 200) |
 | `search` | string | Ні | Пошук за ім'ям, email або ім'ям користувача |
-| `role` | string | Ні | Фільтр за роллю: `VISITOR`, `MEMBER`, `CONFIDENTIAL`, `ADMIN` |
+| `role` | string | Ні | Фільтр за роллю: `visitor`, `member`, `confidential`, `ADMIN` |
 | `status` | string | Ні | Фільтр за статусом: `active`, `suspended`, `banned` |
 | `verified` | boolean | Ні | Фільтр за статусом верифікації email |
 | `createdAfter` | string | Ні | ISO дата - користувачі створені після цієї дати |
@@ -75,7 +75,7 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
       "email": "john.doe@example.com",
       "name": "John Doe",
       "username": "johndoe",
-      "role": "MEMBER",
+      "role": "member",
       "status": "active",
       "emailVerified": true,
       "avatar": "https://cdn.example.com/avatars/user_123456.jpg",
@@ -106,7 +106,7 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
   },
   "filters": {
     "applied": {
-      "role": "MEMBER",
+      "role": "member",
       "status": "active"
     },
     "counts": {
@@ -115,10 +115,10 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
       "suspended": 45,
       "banned": 16,
       "byRole": {
-        "VISITOR": 234,
-        "MEMBER": 890,
-        "CONFIDENTIAL": 89,
-        "ADMIN": 37
+        "visitor": 234,
+        "member": 890,
+        "confidential": 89,
+        "admin": 37
       }
     }
   }
@@ -137,7 +137,7 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
     "email": "john.doe@example.com",
     "name": "John Doe",
     "username": "johndoe",
-    "role": "MEMBER",
+    "role": "member",
     "status": "active",
     "emailVerified": true,
     "emailVerifiedAt": "2025-01-15T10:35:00Z",
@@ -203,7 +203,7 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
 #### Тіло запиту
 
 <Code language="json" title="{">
-{`"role": "CONFIDENTIAL",
+{`"role": "confidential",
   "reason": "Підвищений до ролі Confidential для доступу до проектів",
   "notifyUser": true,
   "notificationMessage": "Вітаємо! Вас підвищили до ролі Confidential з доступом до преміум функцій."
@@ -216,12 +216,12 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
 {`"user": {
     "id": "user_123456",
     "email": "john.doe@example.com",
-    "role": "CONFIDENTIAL",
+    "role": "confidential",
     "updatedAt": "2025-10-16T10:00:00Z"
   },
   "change": {
-    "previousRole": "MEMBER",
-    "newRole": "CONFIDENTIAL",
+    "previousRole": "member",
+    "newRole": "confidential",
     "changedBy": "admin_789",
     "changedAt": "2025-10-16T10:00:00Z",
     "reason": "Підвищений до ролі Confidential для доступу до проектів"
@@ -551,7 +551,7 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
       "actor": {
         "id": "admin_789",
         "name": "Admin User",
-        "role": "ADMIN"
+        "role": "admin"
       },
       "target": {
         "id": "user_123",
@@ -559,8 +559,8 @@ curl -X GET "http://localhost:3000/api/admin/users?page=1&limit=20&role=MEMBER&s
         "type": "user"
       },
       "details": {
-        "previousRole": "MEMBER",
-        "newRole": "CONFIDENTIAL",
+        "previousRole": "member",
+        "newRole": "confidential",
         "reason": "Підвищений для доступу до проектів"
       },
       "ip": "192.168.1.100",
@@ -696,9 +696,9 @@ export function AdminDashboard() {
 <Code language="json" title="configuration">
 {`{
   "error": "InsufficientPermissionsError",
-  "message": "Необхідна роль ADMIN для цієї операції",
-  "requiredRole": "ADMIN",
-  "currentRole": "MEMBER",
+  "message": "Необхідна роль admin для цієї операції",
+  "requiredRole": "admin",
+  "currentRole": "member",
   "statusCode": 403
 }
 

@@ -207,7 +207,7 @@ export function PrebillingPage({
         <div className="space-y-8">
           
           {/* Authentication Section for Visitors */}
-          {role === UserRole.VISITOR && (
+          {role === UserRole.visitor && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

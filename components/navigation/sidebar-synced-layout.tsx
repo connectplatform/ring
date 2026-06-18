@@ -1,9 +1,8 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { Link, usePathname, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
-import { usePathname } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
@@ -428,7 +427,7 @@ export function SidebarSyncedLayout({
         <div key={`${row.key}-rail`} className={ROW} aria-hidden />,
         <Link
           key={`${row.key}-aside`}
-          href={row.href}
+          href={toAppHref(row.href)}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(
             'sidebar-nav-item sidebar-aside-col flex min-w-0 items-center gap-1 rounded-lg text-[13px] transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
@@ -448,7 +447,7 @@ export function SidebarSyncedLayout({
       row.href ? (
         <Link
           key={`${row.key}-rail`}
-          href={row.href}
+          href={toAppHref(row.href)}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(railLinkClass, rowClass)}
         >
@@ -462,7 +461,7 @@ export function SidebarSyncedLayout({
       row.href ? (
         <Link
           key={`${row.key}-aside`}
-          href={row.href}
+          href={toAppHref(row.href)}
           data-current={isActive(row.href) ? '' : undefined}
           className={cn(
             'sidebar-nav-item sidebar-aside-col min-w-0 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
@@ -562,16 +561,16 @@ export function SidebarSyncedLayout({
         >
           <div className="flex min-w-0 items-center gap-1.5">
             <TunnelIndicatorCompact />
-            <Link href={`/${locale}/about-publisher`} className="truncate hover:underline">
+            <Link href="/about-publisher" className="truncate hover:underline">
               v{packageInfo.version}
             </Link>
           </div>
           <div className="flex shrink-0 gap-1">
-            <Link href={`/${locale}/privacy`} className="hover:underline">
+            <Link href="/privacy" className="hover:underline">
               Privacy
             </Link>
             <span>|</span>
-            <Link href={`/${locale}/contact`} className="hover:underline">
+            <Link href="/contact" className="hover:underline">
               Contact
             </Link>
           </div>

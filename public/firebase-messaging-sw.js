@@ -4,6 +4,15 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 
 // Firebase configuration - conditionally initialized based on environment
 // In hybrid mode, Firebase config may be injected at runtime via environment variables
+// Injected from .env.local at build/config time
+self.FIREBASE_API_KEY = self.FIREBASE_API_KEY || "AIzaSyCJGCDpjjP4DrBulMvgQ2vkxt0PFI5dsjA";
+self.FIREBASE_AUTH_DOMAIN = self.FIREBASE_AUTH_DOMAIN || "ring-platform.firebaseapp.com";
+self.FIREBASE_PROJECT_ID = self.FIREBASE_PROJECT_ID || "ring-platform";
+self.FIREBASE_STORAGE_BUCKET = self.FIREBASE_STORAGE_BUCKET || "ring-platform.firebasestorage.app";
+self.FIREBASE_MESSAGING_SENDER_ID = self.FIREBASE_MESSAGING_SENDER_ID || "943600517697";
+self.FIREBASE_APP_ID = self.FIREBASE_APP_ID || "1:943600517697:web:6def92b494dd06f601bcc0";
+self.FIREBASE_MEASUREMENT_ID = self.FIREBASE_MEASUREMENT_ID || "G-P88CYTGMSC";
+
 const getFirebaseConfig = () => {
   // Try to get config from environment variables first (runtime injection)
   const envConfig = {
@@ -26,13 +35,13 @@ const getFirebaseConfig = () => {
 
   // Fallback to build-time config (may be placeholder values)
   const buildConfig = {
-    apiKey: "AIzaSyCWd2YVU7mN0FkMMO9ZDuIv6MlnunH7VX8",
-    authDomain: "ring-main.firebaseapp.com",
-    projectId: "ring-main",
-    storageBucket: "ring-main.appspot.com",
-    messagingSenderId: "919637187324",
-    appId: "1:919637187324:web:af95cb1c3d96f2bc0bd579",
-    measurementId: "G-WVDVCRX12R"
+    apiKey: "AIzaSyCJGCDpjjP4DrBulMvgQ2vkxt0PFI5dsjA",
+    authDomain: "ring-platform.firebaseapp.com",
+    projectId: "ring-platform",
+    storageBucket: "ring-platform.firebasestorage.app",
+    messagingSenderId: "943600517697",
+    appId: "1:943600517697:web:6def92b494dd06f601bcc0",
+    measurementId: "G-P88CYTGMSC"
   };
 
   console.log('FCM SW: Using build-time Firebase config (may be placeholder)');

@@ -201,9 +201,18 @@
   "cacheClear": "Очистить кэш",
   "viewLogs": "Посмотреть логи",
   "quickNav": "Быстрая навигация",
+  "navGroupOverview": "Обзор",
+  "navGroupCommunity": "Сообщество и контент",
+  "navGroupPlatform": "Операции платформы",
+  "navGroupCommerce": "Магазин и награды",
+  "navGroupEmail": "Email и CRM",
   "gettingStarted": "Начало работы",
   "apiReference": "Справочник API",
   "troubleshooting": "Устранение неполадок",
+  "newsManagement": "Управление новостями",
+  "newsManagementDescription": "Управляйте статьями новостей, категориями и публикациями на платформе",
+  "createArticle": "Создать статью",
+  "securityCenter": "Центр безопасности",
   "dashboard": "Панель управления",
   "users": "Пользователи",
   "news": "Новости",
@@ -211,8 +220,16 @@
   "moderation": "Модерация",
   "performance": "Производительность",
   "security": "Безопасность",
+  "settingsNav": "Настройки",
+  "matcherNav": "Matcher",
+  "verificationNav": "Верификация",
   "store": "Магазин",
   "refcodes": "Реферальные награды",
+  "emailInbox": "Входящие",
+  "emailDrafts": "Черновики",
+  "emailContacts": "Контакты",
+  "emailAnalytics": "Аналитика email",
+  "emailTasks": "Задачи email",
   "matcherModeration": {
     "tab": "Модерация организаций",
     "title": "Жалобы на организации",
@@ -227,7 +244,7 @@
   },
   "storeHub": {
     "orders": "Заказы",
-    "stock": "Склад",
+    "stock": "Остаток",
     "commissions": "Комиссии",
     "stockTitle": "Складской учёт",
     "commissionsTitle": "Комиссии и выплаты продавцам",
@@ -237,7 +254,6 @@
     "lowStock": "Низкий остаток",
     "movements": "Последние движения",
     "product": "Товар",
-    "stock": "Остаток",
     "movementType": "Тип",
     "quantityChange": "Изменение",
     "timestamp": "Когда",
@@ -305,7 +321,25 @@
         "canceled": "Отменён"
       }
     }
+  },
+  "verificationQueue": {
+    "pageTitle": "Identity Verification",
+    "pageSubtitle": "Review submitted KYC and entity identity procedures",
+    "title": "Verification queue",
+    "subtitle": "Procedures awaiting admin review",
+    "refresh": "Refresh",
+    "empty": "No verification procedures in the queue.",
+    "documentCount": "{count} documents",
+    "applicant": "Applicant: {id}",
+    "submittedAt": "Submitted: {at}",
+    "subjectType": "Subject: {type}",
+    "viewEntity": "View entity profile",
+    "notePlaceholder": "Rejection reason or info request note",
+    "approve": "Approve",
+    "reject": "Reject",
+    "requestInfo": "Request info",
+    "rejectReasonRequired": "Rejection reason is required",
+    "requestInfoNoteRequired": "A note is required to request more information",
+    "actionFailed": "Verification action failed"
   }
 }
-
-

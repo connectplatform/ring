@@ -82,22 +82,28 @@ export class PollingTransport implements TunnelTransport {
     }
   }
 
-  private async fetchAuthToken(): Promise<string> {
+  private async fetchAuthToken(): Promise<string | undefined> {
     try {
-      const response = await fetch('/api/websocket/auth', {
-        method: 'GET',
+      const response = await fetch('/api/tunnel/token', {
+        method: 'POST',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          return undefined;
+        }
         throw new Error(`Auth failed: ${response.status}`);
       }
 
       const data = await response.json();
-      return data.token;
+      return data.token as string;
     } catch (error) {
-      console.error('Failed to fetch polling auth token:', error);
-      throw error;
+      console.log('[PollingTransport] Auth token not available, using cookie session for poll');
+      return undefined;
     }
   }
 
@@ -141,9 +147,10 @@ export class PollingTransport implements TunnelTransport {
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.authToken}`,
-          'Accept': 'application/json',
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
+          Accept: 'application/json',
         },
+        credentials: 'include',
         signal: controller.signal,
         // Keep connection alive for long-polling
         keepalive: true,
@@ -295,8 +302,9 @@ export class PollingTransport implements TunnelTransport {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}`,
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           channel,
           event,
@@ -329,8 +337,9 @@ export class PollingTransport implements TunnelTransport {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}`,
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           channel: options.channel,
           events: options.events,
@@ -372,8 +381,9 @@ export class PollingTransport implements TunnelTransport {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.authToken}`,
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           channel: subscription.channel,
         }),
@@ -454,8 +464,9 @@ export class PollingTransport implements TunnelTransport {
       const response = await fetch('/api/tunnel/ping', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.authToken}`,
+          ...(this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}),
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {

@@ -21,8 +21,6 @@ export async function POST(request: NextRequest) {
     // Add user context to search parameters
     const searchParams: SearchOpportunitiesParams = {
       ...body,
-      userRole: session.user.role,
-      userId: session.user.id
     }
 
     // Execute search
@@ -79,8 +77,6 @@ export async function GET(request: NextRequest) {
       location,
       limit,
       sortBy: 'relevance',
-      userRole: session.user.role,
-      userId: session.user.id
     })
 
     return NextResponse.json(results)

@@ -32,17 +32,17 @@ interface UpdateNewsResult {
 
 // Author permission helper functions
 function canCreateArticles(userRole: UserRole): boolean {
-  return [UserRole.MEMBER, UserRole.CONFIDENTIAL, UserRole.ADMIN, UserRole.SUPERADMIN].includes(userRole)
+  return [UserRole.member, UserRole.confidential, UserRole.admin, UserRole.superadmin].includes(userRole)
 }
 
 function canEditArticle(userRole: UserRole, articleAuthorId: string, currentUserId: string): boolean {
-  const isAdmin = [UserRole.ADMIN, UserRole.SUPERADMIN].includes(userRole)
+  const isAdmin = [UserRole.admin, UserRole.superadmin].includes(userRole)
   const isAuthor = articleAuthorId === currentUserId
   return isAdmin || isAuthor
 }
 
 function canDeleteArticle(userRole: UserRole, articleAuthorId: string, currentUserId: string): boolean {
-  const isAdmin = [UserRole.ADMIN, UserRole.SUPERADMIN].includes(userRole)
+  const isAdmin = [UserRole.admin, UserRole.superadmin].includes(userRole)
   const isAuthor = articleAuthorId === currentUserId
   return isAdmin || isAuthor
 }
@@ -171,7 +171,7 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
     if (!canCreateArticles(userRole)) {
       return {
         success: false,
-        error: 'MEMBER status or higher required to create articles',
+        error: 'Member, confidential, admin or superadmin role required to create articles',
       }
     }
 

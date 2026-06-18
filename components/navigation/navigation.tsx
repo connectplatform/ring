@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { Link, useRouter, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 import { useTranslations, useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -102,7 +101,7 @@ export default function Navigation() {
   // Fix hydration mismatch by only rendering auth UI after mount
   useEffect(() => {
     setMounted(true)
-  }, [session])
+  }, [])
 
   // Enhanced navigation items with icons and improved organization
   const navigationItems = [
@@ -288,7 +287,7 @@ export default function Navigation() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(ROUTES.WALLET(locale))}
+            onClick={() => router.push('/wallet')}
             className="flex items-center gap-2 px-3 py-1.5 h-8 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 dark:from-green-950/30 dark:to-blue-950/30 dark:hover:from-green-900/40 dark:hover:to-blue-900/40 rounded-full border border-green-200/50 dark:border-green-800/30 transition-all duration-200"
             title="Click to manage your RING tokens"
           >
@@ -312,7 +311,7 @@ export default function Navigation() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(`${ROUTES.WALLET(locale)}?action=topup`)}
+            onClick={() => router.push({ pathname: '/wallet', query: { action: 'topup' } })}
             className="h-8 w-8 p-0 rounded-full bg-primary/10 hover:bg-primary/20 text-primary"
             title="Top up RING balance"
           >

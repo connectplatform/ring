@@ -50,7 +50,7 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
       wallets: data.wallets || [],
       authProvider: data.authProvider,
       authProviderId: data.authProviderId,
-      isVerified: data.isVerified || false,
+      isVerified: Boolean(data.isVerified ?? data.is_verified ?? false),
       createdAt: new Date(data.createdAt || Date.now()),
       lastLogin: new Date(data.lastLogin || Date.now()),
       accountStatus: (data.account_status as 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED') || 'ACTIVE',

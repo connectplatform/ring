@@ -7,10 +7,10 @@ last_modified: "2025-10-16"
 
 # API повідомлень
 
-Платформа Ring надає комплексну систему повідомлень із **9 REST кінцевими точками** та доставкою WebSocket у режимі реального часу. Система підтримує push-сповіщення FCM, налаштування користувачів, масові операції та детальну аналітику.
+Платформа Ring надає комплексну систему повідомлень із **9 REST кінцевими точками** та доставкою через **Tunnel Protocol** (native WSS, SSE, poll). Система підтримує push-сповіщення FCM, налаштування користувачів, масові операції та детальну аналітику.
 
 <Callout type="info" title="🔥 Функції реального часу">
-Побудовано на **Tunnel Transport** абстракції, що підтримує WebSocket, SSE та long-polling фолбеки для універсальної сумісності.
+**Tunnel Protocol** — `publishToUserTunnel` на `notifications:unread`, клієнт `useRealtimeNotifications`. k8s: `/api/tunnel/ws`.
 </Callout>
 
 ## 🏗️ Архітектура системи
@@ -25,7 +25,7 @@ last_modified: "2025-10-16"
 
 - **Первинне**: PostgreSQL з оптимізованими запитами
 - **Кешування**: Redis для зберігання сесій (необов'язково)
-- **Реальний час**: WebSocket з'єднання через Tunnel Transport
+- **Реальний час**: TunnelHub WSS / SSE / poll через `publishToUserTunnel`
 - **Push**: Firebase Cloud Messaging (FCM) інтеграція
 
 ## 📋 Довідка кінцевих точок API
@@ -379,32 +379,16 @@ last_modified: "2025-10-16"
 
 ## 🔄 Повідомлення у режимі реального часу
 
-### Інтеграція WebSocket
+### Інтеграція Tunnel
 
-Платформа Ring використовує **Tunnel Transport** для повідомлень у режимі реального часу:
-
-// Клієнтське WebSocket з'єднання
+Платформа Ring використовує **Tunnel Protocol** — `publishToUserTunnel` на `notifications:unread`, клієнт `useSync` / `useRealtimeNotifications`.
 
 <Code language="typescript" title="TypeScript">
-{`import { io } from 'socket.io-client'
+{`import { useRealtimeNotifications } from '@/hooks/use-realtime'
 
-const socket = io('/notifications', {
-  auth: {
-    token: sessionToken
-  }
-})
+const { notifications, unreadCount, lastNotification } = useRealtimeNotifications()
 
-// Прослуховування повідомлень
-socket.on('notification', (notification) => {
-  console.log('Нове повідомлення:', notification)
-  // Оновити UI негайно
-  updateNotificationList(notification)
-})
-
-// Прослуховування оновлень лічильника непрочитаних
-socket.on('unread-count', (count) => {
-  updateUnreadBadge(count)
-})`}
+// TunnelProvider керує WSS (k8s) або SSE (vercel) автоматично`}
 </Code>
 
 ### Фолбек Server-Sent Events (SSE)
@@ -586,82 +570,21 @@ messaging.onBackgroundMessage((payload) => {
 
 ### React Hook для повідомлень
 
-// hooks/useNotifications.ts
+// hooks/useNotifications.ts — використовуйте useRealtimeNotifications
 
 <Code language="typescript" title="TypeScript">
-{`import { useState, useEffect } from 'react'
-import { io, Socket } from 'socket.io-client'
-
-interface Notification {
-  id: string
-  type: string
-  title: string
-  message: string
-  status: 'unread' | 'read'
-  createdAt: string
-  data?: Record<string, any>
-}
+{`import { useRealtimeNotifications } from '@/hooks/use-realtime'
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [socket, setSocket] = useState<Socket | null>(null)
-
-  useEffect(() => {
-    // Отримати початкові повідомлення
-    fetchNotifications()
-
-    // Налаштувати WebSocket з'єднання
-    const newSocket = io('/notifications')
-    setSocket(newSocket)
-
-    newSocket.on('notification', (notification: Notification) => {
-      setNotifications(prev => [notification, ...prev])
-      setUnreadCount(prev => prev + 1)
-    })
-
-    newSocket.on('unread-count', (count: number) => {
-      setUnreadCount(count)
-    })
-
-    return () => {
-      newSocket.disconnect()
-    }
-  }, [])
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch('/api/notifications')
-      const data = await response.json()
-      setNotifications(data.notifications)
-      setUnreadCount(data.unreadCount)
-    } catch (error) {
-      console.error('Не вдалося отримати повідомлення:', error)
-    }
-  }
-
-  const markAsRead = async (notificationId: string) => {
-    try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PUT'
-      })
-      setNotifications(prev =>
-        prev.map(n =>
-          n.id === notificationId ? { ...n, status: 'read' } : n
-        )
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch (error) {
-      console.error('Не вдалося позначити як прочитане:', error)
-    }
-  }
-
-  return {
+  const {
     notifications,
     unreadCount,
     markAsRead,
-    refresh: fetchNotifications
-  }
+    markAllAsRead,
+    refresh
+  } = useRealtimeNotifications()
+
+  return { notifications, unreadCount, markAsRead, markAllAsRead, refresh }
 }`}
 </Code>
 
@@ -796,24 +719,18 @@ export function NotificationCenter() {
 
 <Code language="typescript" title="TypeScript">
 {`import { trackEvent } from '@/lib/analytics'
+import { useRealtimeNotifications } from '@/hooks/use-realtime'
 
-socket.on('notification', (notification) => {
-  trackEvent('notification_received', {
-    type: notification.type,
-    priority: notification.priority,
-    deliveryMethod: 'websocket'
-  })
+const { lastNotification } = useRealtimeNotifications()
+
+trackEvent('notification_received', {
+  type: lastNotification?.type,
+  deliveryMethod: 'tunnel'
 })
 
-// Відстеження продуктивності доставки
-const startTime = Date.now()
-
-socket.emit('notification', notificationData, (ack) => {
-  const deliveryTime = Date.now() - startTime
-  trackEvent('notification_delivered', {
-    deliveryTime,
-    method: 'websocket'
-  })
+trackEvent('notification_delivered', {
+  deliveryTime: Date.now() - startTime,
+  method: 'tunnel'
 })`}
 </Code>
 

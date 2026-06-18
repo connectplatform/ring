@@ -1,0 +1,124 @@
+---
+title: Ring MCP Tools
+description: Model Context Protocol reference for Ring Platform clones — ring-mcp gateway, kingdom vs clone scope, and per-tool operator pages
+last_modified: "2026-06-15"
+---
+
+# Ring MCP Tools
+
+**Connect Cursor, Claude Desktop, or any MCP host to a running Ring clone** and operate entities, news, store, messaging, and generative media from natural language.
+
+<Callout type="success" title="Executive summary">
+Ring ships a **service-token HTTP gateway** at `/api/mcp/v1/*` on each clone. The stdio server **`ring-mcp`** (`AI-RING/ring-mcp/`) exposes `ring-*` tools that call that gateway as a synthetic **SUPERADMIN** actor. This section documents **individual tools**; the full operator manual lives under [Ring MCP Server](/docs/development/ring-mcp).
+</Callout>
+
+<Cards>
+  <Card title="Ring MCP Server (operator manual)" href="/docs/development/ring-mcp">
+    Install ring-mcp, configure tokens, full 58-tool catalog, troubleshooting.
+  </Card>
+  <Card title="Generative images (ImageConductor)" href="/docs/development/generative-images">
+    Provider architecture, env block, admin UI — shared backend for image tools.
+  </Card>
+  <Card title="Generative videos (VideoConductor)" href="/docs/development/generative-videos">
+    Draft 480p vs production 720p, remaster workflow, CLI manifest.
+  </Card>
+  <Card title="Environment configuration" href="/docs/deployment/environment">
+    `RING_MCP_SERVICE_TOKENS`, image generation keys, ring-filebase storage.
+  </Card>
+</Cards>
+
+<Mermaid title="MCP scope in Ringdom">
+{`flowchart LR
+  Host["MCP host\n(Cursor, Claude)"]
+  RingMcp["ring-mcp\nAI-RING/ring-mcp"]
+  Gateway["/api/mcp/v1/*\nRing clone"]
+  Services["features/*/services"]
+  DB[("PostgreSQL / storage")]
+
+  Host --> RingMcp --> Gateway --> Services --> DB
+
+  subgraph Kingdom["Kingdom MCP — different scope"]
+    Legiox["legiox-mcp"]
+    Ringdom["ringdom-mcp"]
+    Reggie["reggie-mcp"]
+  end`}
+</Mermaid>
+
+## What is MCP?
+
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io/docs/getting-started/intro) is an open standard for connecting AI applications to external data and tools. Ring implements MCP in two layers:
+
+| Layer | Package / server | Scope |
+|-------|------------------|-------|
+| **Per-clone operator** | `ring-mcp` → `/api/mcp/v1/*` | One white-label instance (this section) |
+| **Kingdom-wide** | `legiox-mcp`, `ringdom-mcp`, `reggie-mcp` | AI-CONTEXT, deployment, propagation across Ringdom |
+
+Ring's user-facing REST routes use **Auth.js session cookies**. The MCP gateway validates `Authorization: Bearer` against `RING_MCP_SERVICE_TOKENS` and injects a service actor — see [Ring MCP Server — Architecture](/docs/development/ring-mcp#architecture-notes).
+
+## Prerequisites
+
+| Requirement | Notes |
+|-------------|--------|
+| Node.js 20+ | Ring Platform baseline |
+| Running Ring clone | `npm run dev` or production deploy |
+| `RING_MCP_SERVICE_TOKENS` | On the **Ring app** `.env.local` |
+| `RING_SERVICE_TOKEN` | In Cursor `.cursor/mcp.json` — must match one server token |
+| `ring-mcp` registered | `AI-RING/ring-mcp/ring-mcp-server.js` in MCP client config |
+
+<Code language="bash" title="Smoke test">
+{`cd AI-RING/ring-mcp
+npm install
+node ring-mcp-server.js --test
+
+RING_API_BASE_URL=http://localhost:3000 \\
+RING_SERVICE_TOKEN=your-token \\
+npm run smoke`}
+</Code>
+
+## Tool catalog
+
+Each card links to a dedicated reference page. Pages are added as tools ship.
+
+<Cards>
+  <Card title="ring-image-create" href="/docs/mcp/ring-image-create">
+    Generate images via ImageConductor (xAI / Google Imagen) → ring-filebase CDN URL.
+  </Card>
+  <Card title="ring-video-create" href="/docs/mcp/ring-video-create">
+    Generate videos via VideoConductor — draft 480p or production 720p remaster.
+  </Card>
+</Cards>
+
+<Callout type="development" title="Growing catalog">
+Additional `ring-*` tools (entities, news, store, `ring-news-generate`, etc.) are documented in the [Ring MCP Server](/docs/development/ring-mcp#tool-reference-58-tools) operator manual. Per-tool pages under `/docs/mcp/` will appear here as they are authored.
+</Callout>
+
+## Response contract
+
+All `/api/mcp/v1/*` handlers return uniform JSON:
+
+<Code language="json" title="Success">
+{`{
+  "success": true,
+  "data": { }
+}`}
+</Code>
+
+<Code language="json" title="Error">
+{`{
+  "success": false,
+  "error": "Human-readable message"
+}`}
+</Code>
+
+Destructive `ring-*` mutations require **`confirm: true`** in tool arguments — do not bypass in wrappers.
+
+## Related
+
+<Cards>
+  <Card title="Autonomous newsroom" href="/docs/development/generative-newsroom">
+    `ring-news-generate` — cited drafts with featured images.
+  </Card>
+  <Card title="Doc system" href="/docs/features/doc-system">
+    MDX components used on these pages.
+  </Card>
+</Cards>

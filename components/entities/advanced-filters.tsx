@@ -20,30 +20,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { 
-  Building2,
-  Cpu,
-  Dna,
-  Blocks,
-  Leaf,
-  Cloud,
-  Cog,
-  Layers,
-  Shield,
-  Plane,
-  Zap,
-  Palette,
-  Wifi,
-  Scissors,
-  Factory,
-  Wrench,
-  Package,
-  Gauge,
-  Atom,
-  Bot,
-  Microchip,
-  Sparkles,
-  Code,
+import {
   MapPin,
   Users,
   Calendar as CalendarIcon,
@@ -53,9 +30,11 @@ import {
   Search,
   CheckCircle,
   Award,
-  Globe
+  Globe,
 } from 'lucide-react'
 import { EntityType } from '@/features/entities/types'
+import { entityTypeConfigs } from '@/components/entities/entity-type-icons'
+import { resolveEntityType } from '@/lib/entities/legacy-entity-type-map'
 
 interface EntityFilterState {
   search: string
@@ -78,36 +57,6 @@ interface EntityAdvancedFiltersProps {
   onClearFilters: () => void
   resultCount?: number
 }
-
-// Entity types with icons and colors for visual distinction
-const entityTypes = [
-  { id: '3dPrinting' as EntityType, icon: Layers, color: 'bg-purple-500', label: '3D Printing' },
-  { id: 'aiMachineLearning' as EntityType, icon: Bot, color: 'bg-blue-500', label: 'AI & Machine Learning' },
-  { id: 'biotechnology' as EntityType, icon: Dna, color: 'bg-green-500', label: 'Biotechnology' },
-  { id: 'blockchainDevelopment' as EntityType, icon: Blocks, color: 'bg-orange-500', label: 'Blockchain Development' },
-  { id: 'cleanEnergy' as EntityType, icon: Leaf, color: 'bg-emerald-500', label: 'Clean Energy' },
-  { id: 'cloudComputing' as EntityType, icon: Cloud, color: 'bg-sky-500', label: 'Cloud Computing' },
-  { id: 'cncMachining' as EntityType, icon: Cog, color: 'bg-gray-500', label: 'CNC Machining' },
-  { id: 'compositeManufacturing' as EntityType, icon: Layers, color: 'bg-indigo-500', label: 'Composite Manufacturing' },
-  { id: 'cybersecurity' as EntityType, icon: Shield, color: 'bg-red-500', label: 'Cybersecurity' },
-  { id: 'droneTechnology' as EntityType, icon: Plane, color: 'bg-teal-500', label: 'Drone Technology' },
-  { id: 'electronicManufacturing' as EntityType, icon: Zap, color: 'bg-yellow-500', label: 'Electronic Manufacturing' },
-  { id: 'industrialDesign' as EntityType, icon: Palette, color: 'bg-pink-500', label: 'Industrial Design' },
-  { id: 'iotDevelopment' as EntityType, icon: Wifi, color: 'bg-cyan-500', label: 'IoT Development' },
-  { id: 'laserCutting' as EntityType, icon: Scissors, color: 'bg-rose-500', label: 'Laser Cutting' },
-  { id: 'manufacturing' as EntityType, icon: Factory, color: 'bg-amber-500', label: 'Manufacturing' },
-  { id: 'metalFabrication' as EntityType, icon: Wrench, color: 'bg-slate-500', label: 'Metal Fabrication' },
-  { id: 'other' as EntityType, icon: Package, color: 'bg-neutral-500', label: 'Other' },
-  { id: 'plasticInjectionMolding' as EntityType, icon: Package, color: 'bg-lime-500', label: 'Plastic Injection Molding' },
-  { id: 'precisionEngineering' as EntityType, icon: Gauge, color: 'bg-violet-500', label: 'Precision Engineering' },
-  { id: 'quantumComputing' as EntityType, icon: Atom, color: 'bg-fuchsia-500', label: 'Quantum Computing' },
-  { id: 'robotics' as EntityType, icon: Bot, color: 'bg-blue-600', label: 'Robotics' },
-  { id: 'semiconductorProduction' as EntityType, icon: Microchip, color: 'bg-green-600', label: 'Semiconductor Production' },
-  { id: 'smartMaterials' as EntityType, icon: Sparkles, color: 'bg-purple-600', label: 'Smart Materials' },
-  { id: 'softwareDevelopment' as EntityType, icon: Code, color: 'bg-blue-700', label: 'Software Development' },
-  { id: 'technologyCenter' as EntityType, icon: Building2, color: 'bg-indigo-600', label: 'Technology Center' },
-  { id: 'virtualReality' as EntityType, icon: Cpu, color: 'bg-pink-600', label: 'Virtual Reality' }
-]
 
 const employeeCountRanges = [
   { id: '1-10', label: '1-10 employees' },
@@ -142,37 +91,9 @@ const EntityAdvancedFilters = ({
   const tCommon = useTranslations('common')
   const [isExpanded, setIsExpanded] = useState(false)
   
-  // Get translated type name
-  const getTypeTranslation = (type: EntityType) => {
-    const typeMap: { [key in EntityType]: string } = {
-      '3dPrinting': t('types.3dPrinting'),
-      'aiMachineLearning': t('types.aiMachineLearning'),
-      'biotechnology': t('types.biotechnology'),
-      'blockchainDevelopment': t('types.blockchainDevelopment'),
-      'cleanEnergy': t('types.cleanEnergy'),
-      'cloudComputing': t('types.cloudComputing'),
-      'cncMachining': t('types.cncMachining'),
-      'compositeManufacturing': t('types.compositeManufacturing'),
-      'cybersecurity': t('types.cybersecurity'),
-      'droneTechnology': t('types.droneTechnology'),
-      'electronicManufacturing': t('types.electronicManufacturing'),
-      'industrialDesign': t('types.industrialDesign'),
-      'iotDevelopment': t('types.iotDevelopment'),
-      'laserCutting': t('types.laserCutting'),
-      'manufacturing': t('types.manufacturing'),
-      'metalFabrication': t('types.metalFabrication'),
-      'other': t('types.other'),
-      'plasticInjectionMolding': t('types.plasticInjectionMolding'),
-      'precisionEngineering': t('types.precisionEngineering'),
-      'quantumComputing': t('types.quantumComputing'),
-      'robotics': t('types.robotics'),
-      'semiconductorProduction': t('types.semiconductorProduction'),
-      'smartMaterials': t('types.smartMaterials'),
-      'softwareDevelopment': t('types.softwareDevelopment'),
-      'technologyCenter': t('types.technologyCenter'),
-      'virtualReality': t('types.virtualReality')
-    }
-    return typeMap[type] || type
+  const getTypeTranslation = (type: EntityType | string) => {
+    const resolved = resolveEntityType(type)
+    return t(`types.${resolved}`)
   }
   
   const updateFilter = (key: keyof EntityFilterState, value: any) => {
@@ -241,7 +162,7 @@ const EntityAdvancedFilters = ({
       <div>
         <Label className="text-sm font-medium mb-3 block">{t('industryType')}</Label>
         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-          {entityTypes.map((type) => {
+          {entityTypeConfigs.map((type) => {
             const Icon = type.icon
             const isSelected = filters.types.includes(type.id)
             
@@ -256,7 +177,7 @@ const EntityAdvancedFilters = ({
                   isSelected && "shadow-sm"
                 )}
               >
-                <div className={cn("w-3 h-3 rounded-full flex items-center justify-center", type.color)}>
+                <div className={cn("w-3 h-3 rounded-full flex items-center justify-center", type.bgColor)}>
                   <Icon className="h-2 w-2 text-white" />
                 </div>
                 {getTypeTranslation(type.id)}

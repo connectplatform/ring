@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, forwardRef } from 'react'
-import Link from 'next/link'
-import { usePathname } from '@/i18n/routing'
+import { Link, usePathname, toAppHref } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   Users,
@@ -218,7 +217,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                     ].map(({ href, label, icon: Icon }) => (
                       <Link
                         key={href}
-                        href={href}
+                        href={toAppHref(href)}
                         data-current={isActive(href) ? '' : undefined}
                         className="sidebar-nav-item flex items-center gap-2 h-8 data-current:bg-foreground/8 hover:bg-foreground/5 rounded-lg px-4 text-xs"
                       >
@@ -246,7 +245,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                   ].map(({ href, label, icon: Icon }) => (
                     <Link
                       key={href}
-                      href={href}
+                      href={toAppHref(href)}
                       data-current={isActive(href) ? '' : undefined}
                       className="flex items-center gap-2 h-8 data-current:bg-foreground/8 hover:bg-foreground/5 rounded-lg px-4 text-xs"
                     >
@@ -279,7 +278,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={toAppHref(item.href)}
                     data-current={active ? '' : undefined}
                     className={cn(
                       'sidebar-nav-item flex items-center gap-2 rounded-lg transition-colors hover:bg-foreground/5 data-current:bg-foreground/8',
@@ -321,16 +320,16 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
               <div className="flex items-center gap-2">
                 <TunnelIndicatorCompact />
-                <Link href={`/${locale}/about-publisher`} className="hover:underline">
+                <Link href="/about-publisher" className="hover:underline">
                   v{packageInfo.version}
                 </Link>
               </div>
               <div className="flex gap-1">
-                <Link href={`/${locale}/privacy`} className="hover:underline">
+                <Link href="/privacy" className="hover:underline">
                   Privacy
                 </Link>
                 <span>|</span>
-                <Link href={`/${locale}/contact`} className="hover:underline">
+                <Link href="/contact" className="hover:underline">
                   Contact
                 </Link>
               </div>

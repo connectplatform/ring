@@ -5,8 +5,9 @@
  * It provides secure payment initiation, webhook handling, and automatic role upgrades.
  */
 
-import { UserRole } from '@/features/auth/types';
+import { UserRole, UPGRADEABLE_ROLES } from '@/features/auth/user-role';
 import { upgradeUserRole } from '@/features/auth/services/upgrade-user-role';
+import { getRingConfig } from '@/lib/ring-config';
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
 
@@ -16,27 +17,26 @@ const WAYFORPAY_MERCHANT_ACCOUNT = process.env.WAYFORPAY_MERCHANT_ACCOUNT;
 const WAYFORPAY_SECRET_KEY = process.env.WAYFORPAY_SECRET_KEY;
 const WAYFORPAY_DOMAIN = process.env.WAYFORPAY_DOMAIN;
 
-// Membership pricing configuration (₴299 UAH for MEMBER upgrade)
-export const MEMBERSHIP_PRICES = {
-  [UserRole.SUBSCRIBER]: {
-    amount: 0,
-    currency: 'UAH',
-    description: 'Ring Platform Subscriber (Free)',
-    duration: 'lifetime'
-  },
-  [UserRole.MEMBER]: {
-    amount: 299,
-    currency: 'UAH',
-    description: 'Ring Platform Member Upgrade',
-    duration: '1 month'
-  },
-  [UserRole.CONFIDENTIAL]: {
-    amount: 999,
-    currency: 'UAH',
-    description: 'Ring Platform Confidential Membership',
-    duration: '1 month'
+export type MembershipTierRole = 'subscriber' | 'member';
+
+export interface MembershipTierConfig {
+  amount: number;
+  currency: string;
+  description: string;
+  duration: string;
+}
+
+/** Purchasable tiers from ring-config (subscriber + member only). */
+export function getMembershipTierConfig(
+  role: UserRole,
+): MembershipTierConfig | null {
+  if (!UPGRADEABLE_ROLES.includes(role)) {
+    return null;
   }
-} as const;
+  const tiers = getRingConfig().membership?.tiers;
+  if (!tiers) return null;
+  return tiers[role as MembershipTierRole] ?? null;
+}
 
 export interface PaymentRequest {
   userId: string;
@@ -44,6 +44,15 @@ export interface PaymentRequest {
   targetRole: UserRole;
   returnUrl: string;
   callbackUrl: string;
+}
+
+/** Resolve purchasable role from webhook payment amount. */
+export function resolveMembershipRoleFromAmount(amount: number): UserRole | null {
+  const tiers = getRingConfig().membership?.tiers
+  if (!tiers) return null
+  if (tiers.member.amount === amount) return UserRole.member
+  if (tiers.subscriber.amount === amount) return UserRole.subscriber
+  return null
 }
 
 export interface PaymentResponse {
@@ -113,7 +122,7 @@ export async function initiatePayment(request: PaymentRequest): Promise<PaymentR
   try {
     validateConfig();
 
-    const membershipConfig = MEMBERSHIP_PRICES[request.targetRole];
+    const membershipConfig = getMembershipTierConfig(request.targetRole);
     if (!membershipConfig) {
       return {
         success: false,
@@ -242,13 +251,7 @@ export async function processSuccessfulPayment(payload: WebhookPayload): Promise
     const userId = orderParts[1];
     
     // Determine target role based on payment amount
-    let targetRole: UserRole | null = null;
-    for (const [role, config] of Object.entries(MEMBERSHIP_PRICES)) {
-      if (config.amount === payload.amount) {
-        targetRole = role as UserRole;
-        break;
-      }
-    }
+    let targetRole: UserRole | null = resolveMembershipRoleFromAmount(payload.amount);
 
     if (!targetRole) {
       logger.error('WayForPay: Could not determine target role from payment amount', {

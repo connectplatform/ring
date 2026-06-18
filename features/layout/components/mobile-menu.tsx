@@ -114,9 +114,9 @@ function MobileMenuGuestAuth({
   )
 }
 
-// Import the Session type from next-auth
 import { Session } from 'next-auth'
 import { UserRole } from '@/features/auth/types'
+import { hasConfidentialAccess, hasRoleAtLeast } from '@/features/auth/user-role'
 
 // Client-side constant for default locale
 const DEFAULT_LOCALE = 'en' as const
@@ -152,8 +152,8 @@ interface NavigationLink {
  * Get user role from session
  */
 const getUserRole = (user: Session['user'] | null): UserRole => {
-  if (!user) return UserRole.VISITOR
-  return (user as any)?.role || UserRole.VISITOR
+  if (!user) return UserRole.visitor
+  return (user as any)?.role || UserRole.visitor
 }
 
 /**
@@ -161,16 +161,7 @@ const getUserRole = (user: Session['user'] | null): UserRole => {
  */
 const canAccessLink = (link: NavigationLink, userRole: UserRole): boolean => {
   if (!link.requiredRole) return true
-  
-  const roleHierarchy = {
-    [UserRole.VISITOR]: 0,
-    [UserRole.SUBSCRIBER]: 1,
-    [UserRole.MEMBER]: 2,
-    [UserRole.CONFIDENTIAL]: 3,
-    [UserRole.ADMIN]: 4
-  }
-  
-  return roleHierarchy[userRole] >= roleHierarchy[link.requiredRole]
+  return hasRoleAtLeast(userRole, link.requiredRole)
 }
 
 /**
@@ -246,33 +237,33 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
       },
       {
         href: `/${locale}/store/settings`,
-        label: 'Store Settings',
+        label: t('storeSettings'),
         icon: Store,
         gradient: 'from-pink-500 to-rose-600'
       },
       {
         href: ROUTES.MEMBERSHIP(locale),
-        label: 'Membership',
+        label: t('membership'),
         icon: Heart,
         gradient: 'from-red-500 to-pink-600'
       }
     ] : []
 
     // Confidential links for high-tier users
-    const confidentialLinks: NavigationLink[] = (userRole === UserRole.CONFIDENTIAL || userRole === UserRole.ADMIN) ? [
+    const confidentialLinks: NavigationLink[] = hasConfidentialAccess(userRole) ? [
       {
         href: ROUTES.CONFIDENTIAL_ENTITIES(locale),
-        label: 'Confidential Entities',
+        label: t('confidentialEntities'),
         icon: Shield,
-        requiredRole: UserRole.CONFIDENTIAL,
+        requiredRole: UserRole.confidential,
         badge: 'VIP',
         gradient: 'from-purple-500 to-indigo-600'
       },
       {
         href: ROUTES.CONFIDENTIAL_OPPORTUNITIES(locale),
-        label: 'Confidential Opportunities',
+        label: t('confidentialOpportunities'),
         icon: Crown,
-        requiredRole: UserRole.CONFIDENTIAL,
+        requiredRole: UserRole.confidential,
         badge: 'VIP',
         gradient: 'from-amber-500 to-yellow-600'
       }
@@ -358,10 +349,10 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 <p className="font-semibold text-sm truncate">{user.name || user.email}</p>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-muted-foreground capitalize">{userRole}</span>
-                  {userRole === UserRole.CONFIDENTIAL && (
+                  {userRole === UserRole.confidential || userRole === UserRole.superadmin && (
                     <Crown className="w-3 h-3 text-yellow-500" />
                   )}
-                  {userRole === UserRole.ADMIN && (
+                  {(userRole === UserRole.admin || userRole === UserRole.superadmin) && (
                     <Shield className="w-3 h-3 text-red-500" />
                   )}
                 </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { Link, toAppHref } from '@/i18n/routing'
 import { usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -87,7 +87,7 @@ function NavItem({ icon: Icon, label, href, isActive, onClick, isButton }: NavIt
   }
 
   return (
-    <Link href={href} onClick={onClick} className={className}>
+    <Link href={toAppHref(href)} onClick={onClick} className={className}>
       {content}
     </Link>
   )
@@ -243,8 +243,8 @@ function BottomNavFullscreenMenu({
 
   const isLoggedIn = !!session?.user
   const isAdmin =
-    session?.user?.role === UserRole.ADMIN ||
-    session?.user?.role === UserRole.SUPERADMIN
+    session?.user?.role === UserRole.admin ||
+    session?.user?.role === UserRole.superadmin
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -485,8 +485,8 @@ export default function BottomNavigation() {
 
   const isLoggedIn = !!session?.user
   const isAdmin =
-    session?.user?.role === UserRole.ADMIN ||
-    session?.user?.role === UserRole.SUPERADMIN
+    session?.user?.role === UserRole.admin ||
+    session?.user?.role === UserRole.superadmin
 
   const isActive = (href: string) => {
     if (href === `/${locale}`) {
@@ -694,7 +694,7 @@ export default function BottomNavigation() {
       {showOpportunitySelector && (
         <OpportunityTypeSelector
           onClose={() => setShowOpportunitySelector(false)}
-          userRole={hasRole(UserRole.MEMBER) ? 'member' : 'subscriber'}
+          userRole={hasRole(UserRole.member) ? 'member' : 'subscriber'}
           locale={locale}
         />
       )}

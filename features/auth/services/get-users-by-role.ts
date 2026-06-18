@@ -40,7 +40,7 @@ export async function getUsersByRole(
   try {
     // Step 1: Authenticate and get user session
     const session = await auth();
-    if (!session || !session.user || (session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.CONFIDENTIAL)) {
+    if (!session || !session.user || (session.user.role !== UserRole.admin && session.user.role !== UserRole.confidential)) {
       throw new Error('Unauthorized access: Admin or Confidential privileges required');
     }
 

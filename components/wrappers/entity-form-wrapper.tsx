@@ -1,38 +1,21 @@
 'use client'
 
 /**
- * ENTITY FORM PAGE WRAPPER - Ring Platform v2.0
- * ==============================================
- * Standardized 3-column responsive layout for entity form pages
- *
- * Layout Structure:
- * - Desktop: DesktopSidebar (280px) + Center Content + Right Sidebar (320px)
- * - iPad: DesktopSidebar (280px) + Center Content + Floating Toggle for Right Sidebar
- * - Mobile: Center Content + Bottom Navigation + Floating Toggle for Right Sidebar
- *
- * Right Sidebar Content:
- * - Entity Types
- * - Field Guide
- * - Verification Tips
- * - Help
- *
- * Strike Team:
- * - Ring Components Specialist (layout pattern)
- * - React 19 Specialist (modern patterns)
- * - Entity Domain Expert (entity creation flow)
- * - Form UX Expert (field guidance)
- * - Content Strategy Expert (verification tips)
- * - UI/UX Optimization Agent (mobile excellence)
+ * Entity form layout — center content + transparent right guidance rail (add/edit).
+ * Locale keys: modules.entities.addEntity.rail.*
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n/shared'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useTranslations } from 'next-intl'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { entityTypeConfigs } from '@/components/entities/entity-type-icons'
+import type { EntityType } from '@/features/entities/types'
+import type { Locale } from '@/i18n/shared'
+import { ROUTES } from '@/constants/routes'
 import {
   Building2,
   HelpCircle,
@@ -47,24 +30,35 @@ import {
   Award,
   Users,
   Globe,
-  Cpu,
-  Factory,
-  Lightbulb
+  Mail,
+  MapPin,
+  Briefcase,
+  Store,
+  MessageSquare,
+  Sparkles,
 } from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
+
+/** Featured types shown in the rail (form supports all 26 via entityTypeConfigs). */
+const FEATURED_ENTITY_TYPES: EntityType[] = [
+  'technologySoftware',
+  'financialServices',
+  'professionalServices',
+  'researchDevelopment',
+  'educationTraining',
+  'nonProfitNgo',
+  'manufacturingIndustry',
+  'other',
+]
 
 interface EntityFormWrapperProps {
   children: React.ReactNode
-  locale: string
+  locale: Locale
 }
 
-export default function EntityFormWrapper({
-  children,
-  locale
-}: EntityFormWrapperProps) {
+export default function EntityFormWrapper({ children, locale }: EntityFormWrapperProps) {
   const router = useRouter()
   const t = useTranslations('modules.entities')
-  const tCommon = useTranslations('common')
+  const tRail = useTranslations('modules.entities.addEntity.rail')
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
@@ -72,310 +66,304 @@ export default function EntityFormWrapper({
     setMounted(true)
   }, [])
 
-  // Entity types
-  const entityTypes = [
-    {
-      id: 'software-development',
-      name: t('types.softwareDevelopment', { defaultValue: 'Software Development' }),
-      description: t('types.softwareDevelopmentDesc', { defaultValue: 'Tech companies, startups, development agencies' }),
-      icon: Cpu,
-      color: 'blue'
-    },
-    {
-      id: 'manufacturing',
-      name: t('types.manufacturing', { defaultValue: 'Manufacturing' }),
-      description: t('types.manufacturingDesc', { defaultValue: 'Manufacturing companies and factories' }),
-      icon: Factory,
-      color: 'orange'
-    },
-    {
-      id: 'technology-center',
-      name: t('types.technologyCenter', { defaultValue: 'Technology Center' }),
-      description: t('types.technologyCenterDesc', { defaultValue: 'Research centers, innovation hubs, tech parks' }),
-      icon: Lightbulb,
-      color: 'yellow'
-    },
-    {
-      id: 'other',
-      name: t('types.other', { defaultValue: 'Other' }),
-      description: t('types.otherDesc', { defaultValue: 'Consulting, services, and other organizations' }),
-      icon: Building2,
-      color: 'gray'
-    }
-  ]
+  const featuredTypes = useMemo(
+    () =>
+      FEATURED_ENTITY_TYPES.map((id) => entityTypeConfigs.find((c) => c.id === id)).filter(
+        (c): c is (typeof entityTypeConfigs)[number] => Boolean(c)
+      ),
+    []
+  )
 
-  // Field guidance
   const fieldGuide = [
+    { field: 'name', title: t('fields.name'), required: true, tip: t('fieldTips.name'), icon: Building2 },
     {
-      field: 'name',
-      title: t('fields.name', { defaultValue: 'Entity Name' }),
+      field: 'shortDescription',
+      title: t('shortDescription'),
       required: true,
-      tip: t('fieldTips.name', { defaultValue: 'Use your official company or organization name' }),
-      icon: Building2
+      tip: tRail('fieldTips.shortDescription'),
+      icon: FileText,
     },
     {
-      field: 'description',
-      title: t('fields.description', { defaultValue: 'Description' }),
+      field: 'location',
+      title: t('location'),
       required: true,
-      tip: t('fieldTips.description', { defaultValue: 'Describe what your organization does, your mission, and unique value' }),
-      icon: FileText
+      tip: tRail('fieldTips.location'),
+      icon: MapPin,
     },
     {
       field: 'website',
-      title: t('fields.website', { defaultValue: 'Website' }),
+      title: t('fields.website'),
       required: false,
-      tip: t('fieldTips.website', { defaultValue: 'Your official website URL for credibility and contact' }),
-      icon: Globe
+      tip: t('fieldTips.website'),
+      icon: Globe,
     },
     {
-      field: 'logo',
-      title: t('fields.logo', { defaultValue: 'Logo' }),
+      field: 'contactEmail',
+      title: t('contactEmail'),
       required: false,
-      tip: t('fieldTips.logo', { defaultValue: 'High-quality logo helps users recognize your brand' }),
-      icon: Award
+      tip: tRail('fieldTips.contactEmail'),
+      icon: Mail,
     },
+    { field: 'tags', title: t('fields.tags'), required: false, tip: t('fieldTips.tags'), icon: Tag },
     {
-      field: 'tags',
-      title: t('fields.tags', { defaultValue: 'Tags' }),
-      required: false,
-      tip: t('fieldTips.tags', { defaultValue: 'Add relevant keywords for better discoverability' }),
-      icon: Tag
-    }
+      field: 'visibility',
+      title: t('entity.visibility'),
+      required: true,
+      tip: tRail('fieldTips.visibility'),
+      icon: Eye,
+    },
   ]
 
-  // Verification tips
+  const unlockKeys = ['showcase', 'opportunities', 'store', 'messaging'] as const
+  const unlockIcons = {
+    showcase: Sparkles,
+    opportunities: Briefcase,
+    store: Store,
+    messaging: MessageSquare,
+  }
+
   const verificationTips = [
     {
       id: 'official',
-      title: t('verification.official', { defaultValue: 'Use Official Information' }),
-      description: t('verification.officialDesc', { defaultValue: 'Only submit information about entities you officially represent' }),
+      title: t('verification.official'),
+      description: t('verification.officialDesc'),
       icon: Shield,
-      priority: 'high'
+      priority: 'high' as const,
     },
     {
       id: 'accurate',
-      title: t('verification.accurate', { defaultValue: 'Keep Information Current' }),
-      description: t('verification.accurateDesc', { defaultValue: 'Update contact information and details as they change' }),
+      title: t('verification.accurate'),
+      description: t('verification.accurateDesc'),
       icon: CheckCircle,
-      priority: 'medium'
+      priority: 'medium' as const,
     },
     {
       id: 'complete',
-      title: t('verification.complete', { defaultValue: 'Complete Profile' }),
-      description: t('verification.completeDesc', { defaultValue: 'Fill out all fields for better visibility and credibility' }),
+      title: t('verification.complete'),
+      description: t('verification.completeDesc'),
       icon: Info,
-      priority: 'medium'
+      priority: 'medium' as const,
     },
     {
       id: 'unique',
-      title: t('verification.unique', { defaultValue: 'One Entity Per Submission' }),
-      description: t('verification.uniqueDesc', { defaultValue: 'Create separate submissions for different entities' }),
+      title: t('verification.unique'),
+      description: t('verification.uniqueDesc'),
       icon: AlertTriangle,
-      priority: 'low'
-    }
+      priority: 'low' as const,
+    },
   ]
 
-  // Visibility options
   const visibilityOptions = [
     {
       id: 'public',
-      name: t('visibility.public', { defaultValue: 'Public' }),
-      description: t('visibility.publicDesc', { defaultValue: 'Visible to all Ring platform users' }),
+      name: t('visibility.public'),
+      description: t('visibility.publicDesc'),
       icon: Eye,
-      badge: 'default'
     },
     {
       id: 'members',
-      name: t('visibility.members', { defaultValue: 'Members Only' }),
-      description: t('visibility.membersDesc', { defaultValue: 'Visible only to verified members' }),
+      name: t('visibility.members'),
+      description: t('visibility.membersDesc'),
       icon: Users,
-      badge: 'secondary'
-    }
+    },
   ]
 
   const RightSidebarContent = () => (
-    <div className="space-y-6">
-      {/* Entity Types Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            {t('entityTypes', { defaultValue: 'Entity Types' })}
-          </CardTitle>
-          <CardDescription>
-            {t('chooseTypeDescription', { defaultValue: 'Select the category that best describes your organization' })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {entityTypes.map((type) => (
-            <div key={type.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent transition-colors">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <type.icon className="h-4 w-4 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{type.name}</p>
-                <p className="text-xs text-muted-foreground">{type.description}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <div className="flex flex-col min-h-0 text-foreground space-y-6">
+      {/* What is an entity on Ring Platform */}
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Building2 className="h-5 w-5 shrink-0" />
+          {tRail('whatIsEntity.title')}
+        </h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">{tRail('whatIsEntity.description')}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-primary/30 pl-3">
+          {tRail('whatIsEntity.connectNote')}
+        </p>
+      </section>
 
-      {/* Field Guide Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            {t('fieldGuide', { defaultValue: 'Field Guide' })}
-          </CardTitle>
-          <CardDescription>
-            {t('fieldGuideDescription', { defaultValue: 'Tips for filling out each field correctly' })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Separator />
+
+      {/* What creating an entity unlocks */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">{tRail('unlocks.title')}</h2>
+        <ul className="space-y-3">
+          {unlockKeys.map((key) => {
+            const Icon = unlockIcons[key]
+            return (
+              <li key={key} className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium">{tRail(`unlocks.${key}.title`)}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {tRail(`unlocks.${key}.description`)}
+                  </p>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+
+      <Separator />
+
+      {/* Industry types (26 professional categories; legacy slugs resolved at display time) */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold">{tRail('industryTypes.title')}</h2>
+          <p className="text-xs text-muted-foreground mt-1">{tRail('industryTypes.subtitle')}</p>
+        </div>
+        <ul className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+          {featuredTypes.map((config) => {
+            const Icon = config.icon
+            const label = t(`types.${config.id}`)
+            const description = t(`types.${config.id}Desc`)
+            return (
+              <li
+                key={config.id}
+                className="flex items-start gap-2.5 rounded-lg p-2 hover:bg-accent/50 transition-colors"
+              >
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.bgColor}`}>
+                  <Icon className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-tight">{label}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <p className="text-xs text-muted-foreground">{tRail('industryTypes.moreInForm')}</p>
+      </section>
+
+      <Separator />
+
+      {/* Field guide */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <BookOpen className="h-4 w-4 shrink-0" />
+          {t('fieldGuide')}
+        </h2>
+        <ul className="space-y-3">
           {fieldGuide.map((field) => (
-            <div key={field.field} className="flex items-start gap-3">
+            <li key={field.field} className="flex items-start gap-2.5">
               <div className="p-1 bg-primary/10 rounded mt-0.5">
                 <field.icon className="h-3 w-3 text-primary" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <p className="text-sm font-medium">{field.title}</p>
                   {field.required && (
-                    <Badge variant="destructive" className="text-xs">
-                      {t('required', { defaultValue: 'Required' })}
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                      {t('required')}
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">{field.tip}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{field.tip}</p>
               </div>
-            </div>
+            </li>
           ))}
-        </CardContent>
-      </Card>
+        </ul>
+      </section>
 
-      {/* Verification Tips Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            {t('verificationTips', { defaultValue: 'Verification Tips' })}
-          </CardTitle>
-          <CardDescription>
-            {t('verificationDescription', { defaultValue: 'Ensure your entity submission meets our standards' })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <Separator />
+
+      {/* Verification */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <Shield className="h-4 w-4 shrink-0" />
+          {t('verificationTips')}
+        </h2>
+        <ul className="space-y-2.5">
           {verificationTips.map((tip) => (
-            <div key={tip.id} className="flex items-start gap-3">
-              <div className={`p-1 rounded ${
-                tip.priority === 'high' ? 'bg-red-100 text-red-600' :
-                tip.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                'bg-green-100 text-green-600'
-              }`}>
-                <tip.icon className="h-3 w-3" />
-              </div>
+            <li key={tip.id} className="flex items-start gap-2.5">
+              <tip.icon
+                className={`h-4 w-4 shrink-0 mt-0.5 ${
+                  tip.priority === 'high'
+                    ? 'text-destructive'
+                    : tip.priority === 'medium'
+                      ? 'text-amber-600'
+                      : 'text-muted-foreground'
+                }`}
+              />
               <div>
                 <p className="text-sm font-medium">{tip.title}</p>
                 <p className="text-xs text-muted-foreground">{tip.description}</p>
               </div>
-            </div>
+            </li>
           ))}
-        </CardContent>
-      </Card>
+        </ul>
+      </section>
 
-      {/* Visibility Options Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            {t('visibilityOptions', { defaultValue: 'Visibility Options' })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <Separator />
+
+      {/* Visibility */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <Eye className="h-4 w-4 shrink-0" />
+          {t('visibilityOptions')}
+        </h2>
+        <ul className="space-y-2">
           {visibilityOptions.map((option) => (
-            <div key={option.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent">
-              <div className="p-1 bg-muted rounded">
-                <option.icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{option.name}</p>
+            <li key={option.id} className="flex items-start gap-2.5 text-sm">
+              <option.icon className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+              <div>
+                <p className="font-medium">{option.name}</p>
                 <p className="text-xs text-muted-foreground">{option.description}</p>
               </div>
-              {option.badge === 'secondary' && (
-                <Users className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
+            </li>
           ))}
-        </CardContent>
-      </Card>
+        </ul>
+        <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+          <Award className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          {tRail('confidentialNote')}
+        </p>
+      </section>
 
-      {/* Help & Documentation Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <HelpCircle className="h-4 w-4" />
-            {t('help', { defaultValue: 'Help & Documentation' })}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>{t('entityHelpDescription', { defaultValue: 'Get help with creating and managing your entity profile.' })}</p>
-          <div className="space-y-2">
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/entities/creating`)}
-            >
-              {t('creatingEntities', { defaultValue: 'Creating Entities' })} →
-            </Button>
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/entities/best-practices`)}
-            >
-              {t('bestPractices', { defaultValue: 'Best Practices' })} →
-            </Button>
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/entities/verification`)}
-            >
-              {t('verificationGuide', { defaultValue: 'Verification Guide' })} →
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Separator />
+
+      {/* Help */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <HelpCircle className="h-4 w-4 shrink-0" />
+          {t('help')}
+        </h2>
+        <p className="text-xs text-muted-foreground">{t('entityHelpDescription')}</p>
+        <div className="flex flex-col items-start gap-1">
+          <Button
+            variant="link"
+            className="p-0 h-auto text-xs"
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/entities/creating`)}
+          >
+            {t('creatingEntities')} →
+          </Button>
+          <Button
+            variant="link"
+            className="p-0 h-auto text-xs"
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/entities/best-practices`)}
+          >
+            {t('bestPractices')} →
+          </Button>
+        </div>
+      </section>
     </div>
   )
 
+  if (!mounted) {
+    return <div className="min-h-[40vh]">{children}</div>
+  }
+
   return (
-    <div className="min-h-full text-foreground relative transition-colors duration-300">
-      <div className="flex min-h-full gap-3">
-        {/* Left Sidebar - Main Navigation (Desktop only) */}
-
-
-        {/* Center Content Area */}
-        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
-          {children}
-        </div>
-
-        {/* Right Sidebar - Form Guidance & Tips (Desktop only, 1024px+) */}
-        <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
-          <div className="sticky top-8">
-            <RightSidebarContent />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
-      <FloatingSidebarToggle
-        isOpen={rightSidebarOpen}
-        onToggle={setRightSidebarOpen}
-        mobileWidth="90%"
-        tabletWidth="380px"
-      >
-        <RightSidebarContent />
-      </FloatingSidebarToggle>
-    </div>
+    <RingRightRailLayout
+      rightRail={<RightSidebarContent />}
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
+      contentClassName="pb-24 lg:pb-8"
+    >
+      {children}
+    </RingRightRailLayout>
   )
 }

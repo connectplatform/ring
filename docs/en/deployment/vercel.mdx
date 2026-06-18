@@ -13,4 +13,6 @@ description: Vercel documentation for Ring Platform
 4. Deploy main branch
 
 
-<Callout type="info">Prefer SSE over WebSocket on Vercel.</Callout>
+<Callout type="info">
+Set `RING_DEPLOY_TARGET=vercel` and `NEXT_PUBLIC_RING_DEPLOY_TARGET=vercel`. Vercel runs serverless route handlers only — **no custom `server.ts`**. Tunnel uses SSE + long-polling; native WSS is not available.
+</Callout>

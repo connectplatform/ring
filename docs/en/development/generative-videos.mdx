@@ -1,0 +1,147 @@
+---
+title: Generative Videos (VideoConductor)
+description: xAI Grok Imagine Video with draft 480p and production 720p modes — MCP, CLI batch runner, ring-filebase storage
+last_modified: "2026-06-18"
+---
+
+# Generative Videos (`VideoConductor`)
+
+Ring Platform ships **VideoConductor** — async xAI Grok video generation with **draft** and **production** quality modes, mirroring the ImageConductor pattern.
+
+## Cost strategy (xAI pricing)
+
+| Mode | Model | Resolution | ~$/second | Text-to-video |
+|------|--------|------------|----------|---------------|
+| **draft** (default) | `grok-imagine-video` | **480p** | **$0.05** | Yes |
+| **production** | `grok-imagine-video` | **720p** | **$0.05** | Yes |
+| **production_i2v** | `grok-imagine-video-1.5` | 720p | $0.14 | **No** — requires `imageUrl` |
+
+`grok-imagine-video-1.5` is image-to-video only (no text-to-video). Use it when animating a still frame at premium quality.
+
+**Workflow:** iterate in **draft** (480p, faster, cheaper per pixel) → **remaster** to **production** (720p) when the prompt is locked.
+
+Presets live in `lib/video/video-presets.json` (SSOT).
+
+## Architecture
+
+```text
+Surface (MCP / CLI / server code)
+  → VideoConductor.generate(ctx) | .remaster(ctx)
+    → xAI POST /v1/videos/generations → request_id
+    → poll GET /v1/videos/{request_id}
+    → optional file().upload(generated/videos/…)
+  → { success, video: { url, temporaryUrl, requestId, … } }
+```
+
+| Layer | Path |
+|-------|------|
+| Presets | `lib/video/video-presets.json` |
+| Config | `lib/video/video.config.ts` |
+| Provider | `lib/video/providers/xai.provider.ts` |
+| Facade | `lib/video/conductor/video-conductor.ts` |
+| CLI batch | `scripts/ring-viral-video/generate-xai-videos.mjs` |
+
+## Surfaces
+
+| Surface | Entry |
+|---------|--------|
+| **MCP** | `ring-video-create` → `POST /api/mcp/v1/videos/generate` |
+| **CLI** | `node scripts/ring-viral-video/generate-xai-videos.mjs` |
+
+See [Ring MCP — Video generation](/en/docs/development/ring-mcp#video-generation).
+
+## MCP request body
+
+```json
+{
+  "prompt": "Cinematic HOA neighbors on a video call, frustrated, documentary realism",
+  "qualityMode": "draft",
+  "duration": 6,
+  "aspectRatio": "16:9",
+  "purpose": "viral-ad",
+  "persistToFilebase": true
+}
+```
+
+**Remaster to 720p:**
+
+```json
+{
+  "prompt": "Same prompt as draft…",
+  "remaster": true,
+  "remasterFromRequestId": "prior-draft-request-id",
+  "qualityMode": "production"
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `prompt` | Yes | Motion / scene description |
+| `qualityMode` | No | `draft` (default), `production`, `production_i2v` |
+| `remaster` | No | When `true`, forces production preset |
+| `duration` | No | 1–15 seconds (default 6) |
+| `aspectRatio` | No | e.g. `16:9`, `9:16` |
+| `imageUrl` | No | Required for `production_i2v` / `grok-imagine-video-1.5` |
+| `remasterFromRequestId` | No | Audit link to draft job |
+| `persistToFilebase` | No | Default `true` on MCP — uploads MP4 to CDN |
+
+## Environment
+
+```bash
+XAI_API_KEY=your_key
+XAI_API_BASE_URL=https://api.x.ai/v1
+
+# Optional overrides
+VIDEO_GEN_POLL_TIMEOUT_MS=900000
+VIDEO_GEN_POLL_INTERVAL_MS=5000
+VIDEO_GEN_STORAGE_PREFIX=generated/videos
+XAI_VIDEO_DEFAULT_DURATION=6
+XAI_VIDEO_ASPECT_RATIO=16:9
+```
+
+Requires **ring-filebase** when `persistToFilebase` is true.
+
+## CLI batch runner
+
+Cumulative **`output/manifest.json`** — never wipes prior clips; upserts by `id::qualityMode`.
+
+```bash
+cd ring-platform.org/scripts/ring-viral-video
+
+# Cheapest drafts (480p) — all clips in xai-video-jobs.json
+node generate-xai-videos.mjs --draft --download
+
+# One clip draft
+node generate-xai-videos.mjs --draft 01_hoa_video_call_pains --download
+
+# Remaster to 720p (links remasterFromRequestId from draft row in manifest)
+node generate-xai-videos.mjs --remaster 01_hoa_video_call_pains --download
+
+# Full production pass
+node generate-xai-videos.mjs --production --download
+```
+
+Manifest rows include `qualityMode`, `estimatedCostUsd`, `localPath` (with `--download`), and `remasterFromRequestId`.
+
+## Programmatic usage
+
+```typescript
+import { VideoConductor } from '@/lib/video'
+
+const draft = await VideoConductor.generate({
+  prompt: '…',
+  qualityMode: 'draft',
+  duration: 6,
+  purpose: 'marketing',
+})
+
+const final = await VideoConductor.remaster({
+  prompt: '…',
+  remasterFromRequestId: draft.requestId,
+})
+```
+
+## Related
+
+- [Generative images](/en/docs/development/generative-images) — ImageConductor
+- xAI Imagine video docs — https://docs.x.ai/developers/model-capabilities/video/generation

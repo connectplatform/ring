@@ -20,7 +20,7 @@ Ring Platform v1.6.0 is a **multi-tenant Next.js application** with a single `Da
 | **Data (production default)** | `DB_BACKEND_MODE=k8s-postgres-fcm` — Postgres + PostGIS, JSONB-first schema |
 | **Auth** | Auth.js v5 — layout-level `auth()`, slim `proxy.ts` for locale only |
 | **Payments** | PaymentConductor — WayForPay, Stripe, ledger + webhooks |
-| **Realtime** | Tunnel protocol — WebSocket / SSE / optional Supabase channel |
+| **Realtime** | TunnelHub — native WSS (`/api/tunnel/ws`) on k8s; SSE/poll on Vercel; driven by `RING_DEPLOY_TARGET` |
 | **Files** | Vercel Blob or clone-specific object storage |
 | **Deploy target** | k3s (ringdom.org rings) — not Vercel-hosted Postgres |
 | **Extension** | White-label env, portal config, per-clone token contracts |
@@ -171,7 +171,7 @@ Ring Platform v1.6.0 is a **multi-tenant Next.js application** with a single `Da
     Attribution cookies, visit analytics, dual-rail ledger + on-chain minter
   </Card>
   <Card title="Real-time" href="/docs/architecture/real-time">
-    Tunnel transports, WebSocket/SSE, connection pooling
+    TunnelHub, SSE/poll transports, discovery and notification fan-out
   </Card>
   <Card title="Security" href="/docs/architecture/security">
     Defense in depth, secrets, webhook verification, admin boundaries

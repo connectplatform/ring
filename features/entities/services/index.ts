@@ -24,3 +24,6 @@ export {
   adminBlockEntity,
   getUserBlockedEntityIds,
 } from './entity-moderation';
+export { requestEntityVerification } from './request-entity-verification';
+export { inviteEntityMember } from './invite-entity-member';
+export { getEntityAnalytics } from './get-entity-analytics';

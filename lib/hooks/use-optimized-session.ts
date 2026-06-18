@@ -153,7 +153,7 @@ export function useOptimizedSession(options: OptimizedSessionOptions = {}): Opti
     email: session.user.email || '',
     emailVerified: (session.user as any).emailVerified || null,
     name: session.user.name || null,
-    role: (session.user as any).role || UserRole.SUBSCRIBER,
+    role: (session.user as any).role || UserRole.subscriber,
     photoURL: session.user.image || null,
     wallets: [],
     authProvider: (session.user as any).provider || 'credentials',

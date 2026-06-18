@@ -23,7 +23,7 @@ export type UserRow = Record<string, unknown> & {
   isVerified?: boolean
   createdAt?: string | Date
   lastLogin?: string | Date
-  account_status?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED'
+  account_status?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'DELETED'
   bio?: string
   phoneNumber?: string
   organization?: string

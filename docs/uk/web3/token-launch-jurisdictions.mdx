@@ -1,0 +1,347 @@
+---
+title: Token launch jurisdictions
+description: Jurisdiction-aware guide for Ring clone token launches — EU MiCA, US federal framework, UK FinProm, Ukraine virtual assets law, FATF VASP, and disclosure patterns from LegioX compliance lenses
+last_modified: "2026-06-15"
+---
+
+# Token launch jurisdictions
+
+<Callout type="warning" title="Not legal advice">
+  This page synthesizes **public regulatory sources** and **LegioX compliance-communications patterns** for Ring operators. It does **not** constitute legal, tax, or investment advice. Laws change quickly — verify status with counsel licensed in each jurisdiction you **offer**, **market to**, or **onboard users from**.
+</Callout>
+
+<Callout type="info" title="Why this matters for Ring clones">
+  Ring ships **utility-token mechanics** (membership credits, marketplace fees, referral mints). Regulators and courts often judge **what you communicate and who you reach**, not only what you label the token. A message lawful in one country can be impermissible in another.
+</Callout>
+
+<Cards>
+  <Card title="Token economics (technical)" href="/docs/customization/token-economics">
+    Credit ledger, RING contracts, refcodes, env vars
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    WayForPay, Stripe, internal credit — fiat rails
+  </Card>
+  <Card title="Web3 hub" href="/docs/web3">
+    Index of Web3 operator docs
+  </Card>
+</Cards>
+
+## LegioX compliance patterns (communications)
+
+From the **DeFi / token compliance communications** truth lens — apply these when drafting sites, white papers, Discord posts, and ambassador briefs:
+
+| Pattern | Operator rule |
+|---------|----------------|
+| **Policy not promise** | Describe what governance **can** do today; avoid guaranteed outcomes |
+| **Mechanism not outcome** | Explain contracts, fees, and risks — not user-specific profits |
+| **Conditional scenarios** | Model upside/downside with explicit assumptions |
+| **APR equivalence trap** | Separate projected vs realized; gross vs net; pre-token vs post-token |
+| **Treasury boundary** | Disclose multisig/process; avoid "floor", peg, or guaranteed buyback language |
+| **Influencer firewall** | Paid promotion disclosures; no undisclosed coordinated "calls" |
+| **Fragmentation header** | Name jurisdictional limits; "not an offer where prohibited" — not empty boilerplate alone |
+
+<Callout type="tip" title="Ring Platform default posture">
+  Position clone tokens as **platform utility** (access, fees, referrals) — not investments. See [Token economics](/docs/customization/token-economics) for the reference **1 RING/month** membership model and treasury mint pattern.
+</Callout>
+
+## Decision flow (high level)
+
+<Mermaid title="Where to look first">
+{`flowchart TD
+  Start([Planning token launch or promotion])
+  Start --> Geo{Who can see the offer?}
+  Geo --> EU[EU / EEA residents]
+  Geo --> US[US persons or US marketing]
+  Geo --> UK[UK consumers]
+  Geo --> UA[Ukraine]
+  Geo --> Other[Other countries]
+
+  EU --> MiCA[MiCA issuer / CASP rules + white paper]
+  US --> SEC[SEC/CFTC classification + Howey sale context]
+  US --> FinCEN[FinCEN MSB if exchange/transmit CVC]
+  UK --> FCA[FCA financial promotions regime]
+  UA --> VA2074[Law 2074-IX + tax activation + AML]
+  Other --> FATF[FATF VASP + local counsel]
+
+  MiCA --> Counsel[Licensed counsel per jurisdiction]
+  SEC --> Counsel
+  FinCEN --> Counsel
+  FCA --> Counsel
+  UA --> Counsel
+  FATF --> Counsel`}
+</Mermaid>
+
+<Steps>
+
+<Step>
+
+### Inventory your activities
+
+List what the clone **actually does**: public token sale, airdrop, staking APR marketing, custodial wallet, exchange, referral mints, fiat on-ramp, geo-targeted ads.
+
+</Step>
+
+<Step>
+
+### Map **users** and **promotions**, not only entity HQ
+
+UK FCA rules apply to promotions **capable of effect in the UK** even if the firm is overseas. EU MiCA looks at offers to the public in the Union. US analysis includes how assets are **sold**, not only where the dev team sits.
+
+</Step>
+
+<Step>
+
+### Separate **token** from **transaction**
+
+A utility token may still be offered as part of an **investment contract** under the US Howey framework depending on marketing and economic reality (see SEC/CFTC March 2026 interpretation below).
+
+</Step>
+
+<Step>
+
+### Implement **geo-gating**, terms, and risk disclosures before scaling marketing
+
+Technical blocks (locale, IP, KYC) do not replace legal analysis but reduce accidental cross-border exposure.
+
+</Step>
+
+</Steps>
+
+---
+
+## European Union — MiCA
+
+**Markets in Crypto-Assets (MiCA)** — Regulation (EU) **2023/1114** — harmonizes rules for crypto-asset issuers and **crypto-asset service providers (CASPs)**.
+
+| Topic | Summary |
+|-------|---------|
+| **Scope** | Issuance, public offers, admission to trading, and CASP services for crypto-assets not covered by legacy financial services acts |
+| **ART / EMT** | Asset-referenced tokens and e-money tokens — stricter authorization (EBA involvement for significant EMTs) |
+| **Other crypto-assets** | White paper, governance, and conduct rules for issuers; licensing for CASPs |
+| **Timeline** | ART/EMT provisions from **30 June 2024**; broader framework from **30 December 2024** |
+| **Transitional** | Member State-dependent grandfathering for pre-existing CASPs (see ESMA statement) |
+
+<Callout type="warning" title="Public offer in the EU">
+  Offering a token to the public in the EU may trigger **white paper** and notification obligations depending on asset class and exemptions. CASP activities (exchange, custody, advice) generally require **authorization** and passporting compliance.
+</Callout>
+
+### Official sources (EU)
+
+| Source | URL |
+|--------|-----|
+| **MiCA Regulation (EUR-Lex, consolidated)** | [https://eur-lex.europa.eu/eli/reg/2023/1114/oj/eng](https://eur-lex.europa.eu/eli/reg/2023/1114/oj/eng) |
+| **EUR-Lex summary — European crypto-assets regulation** | [https://eur-lex.europa.eu/EN/legal-content/summary/european-crypto-assets-regulation-mica.html](https://eur-lex.europa.eu/EN/legal-content/summary/european-crypto-assets-regulation-mica.html) |
+| **ESMA — Markets in Crypto-Assets (MiCA) hub** | [https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica](https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica) |
+| **ESMA — Statement on MiCA transitional measures (PDF)** | [https://www.esma.europa.eu/sites/default/files/2024-12/ESMA75-453128700-1396_Statement_on_MiCA_transitional_measures.pdf](https://www.esma.europa.eu/sites/default/files/2024-12/ESMA75-453128700-1396_Statement_on_MiCA_transitional_measures.pdf) |
+
+---
+
+## United States — securities, commodities, AML
+
+US treatment is **fragmented**: securities law (SEC), commodities (CFTC), and AML/BSA (FinCEN) can all apply to different activities.
+
+### SEC / CFTC — crypto asset taxonomy (March 2026)
+
+The SEC and CFTC issued a joint **interpretation** on how federal securities laws apply to certain crypto assets and transactions (Release **33-11412**, March 2026). Highlights relevant to operators:
+
+| Category (interpretation) | Typical regulatory lens |
+|---------------------------|-------------------------|
+| **Digital commodities** | Not inherently securities as assets — but may be sold via **investment contract** |
+| **Digital collectibles** | Distinct category in taxonomy |
+| **Digital tools** | Utility/access framing — still context-dependent |
+| **Stablecoins** | Separate treatment in interpretation |
+| **Digital securities** | Tokenized conventional instruments (stock, bond, etc.) |
+
+The interpretation discusses **airdrops**, **protocol staking**, **protocol mining**, and **wrapping**, and states the **Howey test** remains binding precedent.
+
+<Callout type="warning" title="Investment contract risk">
+  Marketing that emphasizes profit expectation, managerial efforts of others, or passive holding can strengthen **investment contract** characterization even when the token is labeled "utility."
+</Callout>
+
+### FinCEN — money transmission / MSB
+
+Administrators and exchangers of **convertible virtual currency (CVC)** may be **money services businesses (MSBs)** — including money transmitters — with registration, AML program, and reporting duties. Pure **users** buying goods/services for personal use are not MSBs under FinCEN's classic guidance.
+
+### Official sources (US)
+
+| Source | URL |
+|--------|-----|
+| **SEC press release — crypto assets interpretation (2026-30)** | [https://www.sec.gov/newsroom/press-releases/2026-30-sec-clarifies-application-federal-securities-laws-crypto-assets](https://www.sec.gov/newsroom/press-releases/2026-30-sec-clarifies-application-federal-securities-laws-crypto-assets) |
+| **SEC Release 33-11412 (PDF)** | [https://www.sec.gov/files/rules/interp/2026/33-11412.pdf](https://www.sec.gov/files/rules/interp/2026/33-11412.pdf) |
+| **CFTC Federal Register — joint interpretation (2026-05635)** | [https://www.cftc.gov/LawRegulation/FederalRegister/finalrules/2026-05635.html](https://www.cftc.gov/LawRegulation/FederalRegister/finalrules/2026-05635.html) |
+| **SEC — Framework for "Investment Contract" Analysis of Digital Assets (2019)** | [https://www.sec.gov/corpfin/framework-investment-contract-analysis-digital-assets](https://www.sec.gov/corpfin/framework-investment-contract-analysis-digital-assets) |
+| **FinCEN — Application of regulations to virtual currencies (2013)** | [https://www.fincen.gov/resources/statutes-regulations/guidance/application-fincens-regulations-persons-administering](https://www.fincen.gov/resources/statutes-regulations/guidance/application-fincens-regulations-persons-administering) |
+| **FinCEN — CVC business models guidance FIN-2019-G001 (PDF)** | [https://www.fincen.gov/sites/default/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf](https://www.fincen.gov/sites/default/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf) |
+| **IRS — MSB information center** | [https://www.irs.gov/businesses/small-businesses-self-employed/money-services-business-msb-information-center](https://www.irs.gov/businesses/small-businesses-self-employed/money-services-business-msb-information-center) |
+
+---
+
+## United Kingdom — financial promotions
+
+Since **8 October 2023**, **qualifying cryptoassets** fall under FCA **financial promotions** rules. Promotions to UK consumers must be **fair, clear, and not misleading**, with risk warnings and consumer-journey safeguards.
+
+**Four routes** to communicate promotions legally (summary from FCA):
+
+1. Communicated by an **FCA-authorised** person  
+2. Approved by an **FCA-authorised** person (s21 gateway)  
+3. Communicated by an **FCA-registered** crypto business under MLRs (Article **73ZA** exemption)  
+4. Another **Financial Promotion Order** exemption applies  
+
+<Callout type="error" title="UK promotions">
+  Restricted incentives (e.g. some "refer-a-friend" bonus patterns), misleading yield claims, and overseas-targeted ads that UK users can access are enforcement hotspots. Review **FG23/3** before launch campaigns.
+</Callout>
+
+### Official sources (UK)
+
+| Source | URL |
+|--------|-----|
+| **FCA PS23/6 — Financial promotion rules for cryptoassets** | [https://www.fca.org.uk/publications/policy-statements/ps23-6-financial-promotion-rules-cryptoassets](https://www.fca.org.uk/publications/policy-statements/ps23-6-financial-promotion-rules-cryptoassets) |
+| **FCA FG23/3 — Guidance on cryptoasset financial promotions** | [https://www.fca.org.uk/publications/fg23-3-finalised-non-handbook-guidance-cryptoasset-financial-promotions](https://www.fca.org.uk/publications/fg23-3-finalised-non-handbook-guidance-cryptoasset-financial-promotions) |
+| **FCA FG23/3 (PDF)** | [https://www.fca.org.uk/publication/finalised-guidance/fg23-3.pdf](https://www.fca.org.uk/publication/finalised-guidance/fg23-3.pdf) |
+| **FCA — Cryptoassets: our work** | [https://www.fca.org.uk/firms/cryptoassets](https://www.fca.org.uk/firms/cryptoassets) |
+
+---
+
+## Ukraine — virtual assets
+
+**Law of Ukraine No. 2074-IX** "On Virtual Assets" (signed **17 February 2022**) defines virtual assets, market participants, and policy principles. Operators with Ukrainian users or Ukrainian entities should track:
+
+| Nuance | Detail |
+|--------|--------|
+| **Legal nature** | Virtual assets as **intangible goods** / digital things — **not** legal tender |
+| **Financial virtual assets** | Subset with securities-like characteristics — heightened rules |
+| **Activation** | Full licensing framework has been **conditional** on tax-code amendments; verify current in-force status with Ukrainian counsel |
+| **AML** | Virtual asset service providers align with Ukraine's AML law and **FATF** expectations |
+| **Reform pipeline** | Tax and definitional updates have been debated to align with EU-style regulation — confirm before relying on 2022 text alone |
+
+<Callout type="info" title="Ringdom context">
+  Ring Platform and several Ring clones operate from or serve **Ukraine**. Treat cross-border marketing, hryvnia fiat rails (WayForPay), and public token copy as **high-touch** compliance work — not "utility label only."
+</Callout>
+
+### Official sources (Ukraine)
+
+| Source | URL |
+|--------|-----|
+| **Law 2074-IX — Verkhovna Rada official text** | [https://zakon.rada.gov.ua/laws/show/2074-20](https://zakon.rada.gov.ua/laws/show/2074-20) |
+| **Official publication (Uryadovyi Kurier PDF, 2022)** | [https://ukurier.gov.ua/media/newspaper/adv/2022-03-20/62_7183r.pdf](https://ukurier.gov.ua/media/newspaper/adv/2022-03-20/62_7183r.pdf) |
+
+---
+
+## Global AML — FATF VASP standards
+
+Even where securities laws are unclear, **AML/CFT** rules often apply to exchanges, custodians, and some token issuers. FATF **Recommendation 15** requires countries to regulate **VASPs** for AML/CFT, including licensing/registration and the **Travel Rule**.
+
+### Official sources (FATF)
+
+| Source | URL |
+|--------|-----|
+| **FATF — Updated Guidance on VA/VASP (2021) landing page** | [https://www.fatf-gafi.org/en/publications/fatfrecommendations/documents/guidance-rba-virtual-assets-2021.html](https://www.fatf-gafi.org/en/publications/fatfrecommendations/documents/guidance-rba-virtual-assets-2021.html) |
+| **FATF — Updated Guidance VA/VASP (PDF)** | [https://www.fatf-gafi.org/content/dam/fatf-gafi/guidance/Updated-Guidance-VA-VASP.pdf](https://www.fatf-gafi.org/content/dam/fatf-gafi/guidance/Updated-Guidance-VA-VASP.pdf) |
+
+---
+
+## Singapore — digital payment tokens (reference)
+
+Many Ring operators compare **Singapore** as an APAC licensing benchmark. **Digital payment token (DPT)** services are regulated under the **Payment Services Act 2019** (amended 2024), administered by **MAS**.
+
+| DPT service examples | Buy/sell, exchange platform, transmission, custodial wallets |
+|----------------------|--------------------------------------------------------------|
+
+Licensing thresholds (Standard vs Major Payment Institution) depend on transaction volume and service type.
+
+### Official sources (Singapore)
+
+| Source | URL |
+|--------|-----|
+| **MAS — Payment Services Act 2019** | [https://www.mas.gov.sg/regulation/acts/payment-services-act](https://www.mas.gov.sg/regulation/acts/payment-services-act) |
+| **MAS — Payments regulation hub** | [https://www.mas.gov.sg/regulation/payments](https://www.mas.gov.sg/regulation/payments) |
+| **MAS — Types of payment services (incl. DPT)** | [https://www.mas.gov.sg/regulation/payments/licensing-for-payment-service-providers/types-of-payment-services](https://www.mas.gov.sg/regulation/payments/licensing-for-payment-service-providers/types-of-payment-services) |
+| **MAS — 2024 expansion of regulated payment services (media release)** | [https://www.mas.gov.sg/news/media-releases/2024/mas-expands-scope-of-regulated-payment-services](https://www.mas.gov.sg/news/media-releases/2024/mas-expands-scope-of-regulated-payment-services) |
+
+---
+
+## Ring clone — practical compliance checklist
+
+<Tabs items={['Before marketing', 'Technical controls', 'Documentation']}>
+
+<Tab value="Before marketing">
+
+- [ ] Counsel sign-off in **each target jurisdiction** (not only entity incorporation country)
+- [ ] Tokenomics paper: **utility**, fees, treasury — no profit promises
+- [ ] Remove or qualify **APR / staking / earn** copy unless counsel approves
+- [ ] UK/EU/US promotion review if pages are globally accessible
+- [ ] Influencer and ambassador contracts with disclosure clauses
+
+</Tab>
+
+<Tab value="Technical controls">
+
+- [ ] Geo restrictions on token sale / mint flows where required
+- [ ] KYC/AML vendor for fiat on-ramps and high-risk jurisdictions
+- [ ] `REFERRAL_*` env only on mainnet after ops runbook ([`REFERRAL-ONCHAIN-OPS.md`](https://github.com/connectplatform/ring/blob/main/REFERRAL-ONCHAIN-OPS.md))
+- [ ] Separate **testnet** vs **mainnet** addresses in `.env`
+- [ ] Audit trail: `payment_transactions`, `referral_rewards`, credit history
+
+</Tab>
+
+<Tab value="Documentation">
+
+- [ ] Public **risk warnings** on wallet and token pages
+- [ ] Terms of service + privacy + cookie policy updated for Web3 features
+- [ ] Record of smart-contract audits and admin-key procedures
+- [ ] Incident comms plan (exploit, oracle failure, treasury multisig)
+
+</Tab>
+
+</Tabs>
+
+## Messaging templates (conservative)
+
+<Callout type="tip" title="Disclosure pattern — not a substitute for counsel">
+  Example header block for clone token pages: *"[TOKEN] is a utility token used for platform fees and membership on [CLONE NAME]. It is not legal tender, a deposit, or an investment product. Rules for crypto assets vary by country. This page is not an offer or solicitation where prohibited. Past platform activity does not predict future value. Consult local laws before acquiring or using [TOKEN]."*
+</Callout>
+
+Avoid in public copy unless counsel explicitly approves:
+
+- Guaranteed returns, "passive income", or bank-deposit analogies  
+- "ICO", "presale", or exchange listing timelines as entitlements  
+- APR figures without gross/net methodology and risk of loss  
+- Comparisons implying equity-like rights without registration  
+
+## Related Ring documentation
+
+<Cards>
+  <Card title="Token economics" href="/docs/customization/token-economics">
+    Three-layer economy — credit, contracts, refcodes
+  </Card>
+  <Card title="Affiliate enablement" href="/docs/features/affiliate-enablement">
+    Dual-rail referral commission + token mint
+  </Card>
+  <Card title="Refcodes architecture" href="/docs/architecture/refcodes">
+    Attribution, PostgreSQL ledger, Polygon minter
+  </Card>
+  <Card title="Payment integration" href="/docs/customization/payment-integration">
+    Fiat membership and store checkout
+  </Card>
+</Cards>
+
+## Official source index (quick links)
+
+All links below are **primary or regulator-published** materials cited on this page:
+
+| Jurisdiction | Authority | Document |
+|--------------|-----------|----------|
+| EU | European Union | [MiCA Regulation 2023/1114 (EUR-Lex)](https://eur-lex.europa.eu/eli/reg/2023/1114/oj/eng) |
+| EU | ESMA | [MiCA hub](https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica) |
+| US | SEC | [Release 33-11412 (PDF)](https://www.sec.gov/files/rules/interp/2026/33-11412.pdf) |
+| US | SEC | [Digital assets framework (2019)](https://www.sec.gov/corpfin/framework-investment-contract-analysis-digital-assets) |
+| US | FinCEN | [Virtual currency guidance (2013)](https://www.fincen.gov/resources/statutes-regulations/guidance/application-fincens-regulations-persons-administering) |
+| UK | FCA | [PS23/6](https://www.fca.org.uk/publications/policy-statements/ps23-6-financial-promotion-rules-cryptoassets) |
+| UK | FCA | [FG23/3](https://www.fca.org.uk/publications/fg23-3-finalised-non-handbook-guidance-cryptoasset-financial-promotions) |
+| Ukraine | Verkhovna Rada | [Law 2074-IX](https://zakon.rada.gov.ua/laws/show/2074-20) |
+| Global | FATF | [VA/VASP guidance 2021 (PDF)](https://www.fatf-gafi.org/content/dam/fatf-gafi/guidance/Updated-Guidance-VA-VASP.pdf) |
+| Singapore | MAS | [Payment Services Act 2019](https://www.mas.gov.sg/regulation/acts/payment-services-act) |
+
+<Callout type="development" title="Living document">
+  Regulatory texts update frequently. If a link 404s, search the authority site for the current consolidated rule or guidance series named above. Submit doc fixes via Ring Platform GitHub when sources move.
+</Callout>

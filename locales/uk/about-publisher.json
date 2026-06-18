@@ -101,6 +101,10 @@
     "slogan": "Слава Україні! 🇺🇦",
     "message": "Створено з любов'ю до України та вдячністю світові.\nПлатформа Ring - Безкоштовно назавжди, для всіх."
   },
+  "founders": {
+    "contactTitle": "Засновник і видавець",
+    "contactSubtitle": "Ray Sorkin — архітектор ConnectPlatform, Sonoratek LLC, Ringdom"
+  },
   "actions": {
     "cloneRing": "Клонувати Ring Зараз",
     "learnTokens": "Дізнатися про Токени RING",

@@ -9,6 +9,7 @@ import { AuthUser, UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
 import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors'
 import { db } from '@/lib/database'
+import { findUserByEmail, normalizeAuthEmail } from '@/features/auth/services/user-resolve'
 
 /**
  * Create a new user in Firestore, with authentication and role-based access control.
@@ -71,10 +72,10 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
       const requestingUserRole = session.user.role as UserRole;
       
       // Only admins can create users with roles other than SUBSCRIBER
-      if (userData.role && userData.role !== UserRole.SUBSCRIBER) {
-        if (requestingUserRole !== UserRole.ADMIN) {
+      if (userData.role && userData.role !== UserRole.subscriber) {
+        if (requestingUserRole !== UserRole.admin) {
           throw new AuthPermissionError(
-            'Only ADMIN users can create users with non-SUBSCRIBER roles',
+            'Only admin users can create users with non-SUBSCRIBER roles',
             undefined,
             {
               timestamp: Date.now(),
@@ -87,29 +88,21 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
         }
       }
     }
-
     // Step 3: Check if user already exists by email
+    const email = normalizeAuthEmail(userData.email)
     try {
-      const existingResult = await db().queryDocs({
-        collection: 'users',
-        filters: [{ field: 'email', operator: '=', value: userData.email }],
-        pagination: { limit: 1 }
-      })
-      
-      if (existingResult.success && existingResult.data.length > 0) {
-        const users = existingResult.data
-        if (users.length > 0) {
-          throw new ValidationError(
-            'User with this email already exists',
-            undefined,
-            {
-              timestamp: Date.now(),
-              email: userData.email,
-              existingUserId: users[0].id,
-              operation: 'createUser'
-            }
-          )
-        }
+      const existing = await findUserByEmail(email)
+      if (existing) {
+        throw new ValidationError(
+          'User with this email already exists',
+          undefined,
+          {
+            timestamp: Date.now(),
+            email,
+            existingUserId: existing.id,
+            operation: 'createUser'
+          }
+        )
       }
     } catch (error) {
       if (error instanceof ValidationError) throw error
@@ -118,7 +111,7 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
         error instanceof Error ? error : new Error(String(error)),
         {
           timestamp: Date.now(),
-          email: userData.email,
+          email,
           operation: 'existing_user_check'
         }
       )
@@ -130,10 +123,10 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
     
     const newUser: AuthUser = {
       id: userId,
-      globalUserId: userData.globalUserId || crypto.randomUUID(), // Generate universal UUID
-      email: userData.email,
+      globalUserId: userData.globalUserId || userId,
+      email,
       name: userData.name,
-      role: userData.role || UserRole.SUBSCRIBER,
+      role: userData.role || UserRole.subscriber,
       authProvider: userData.authProvider || 'credentials',
       authProviderId: userData.authProviderId || userId,
       isVerified: userData.isVerified || false,
@@ -151,8 +144,8 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           sms: false,
         },
       },
-      canPostconfidentialOpportunities: userData.role === UserRole.ADMIN || userData.role === UserRole.CONFIDENTIAL,
-      canViewconfidentialOpportunities: userData.role === UserRole.ADMIN || userData.role === UserRole.CONFIDENTIAL,
+      canPostconfidentialOpportunities: userData.role === UserRole.admin || userData.role === UserRole.superadmin || userData.role === UserRole.confidential,
+      canViewconfidentialOpportunities: userData.role === UserRole.admin || userData.role === UserRole.superadmin || userData.role === UserRole.confidential,
       postedopportunities: userData.postedopportunities || [],
       savedopportunities: userData.savedopportunities || [],
       notificationPreferences: userData.notificationPreferences || {

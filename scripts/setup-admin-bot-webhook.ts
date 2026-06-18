@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 /**
- * ADMIN TELEGRAM BOT - Webhook Setup Script
+ * admin TELEGRAM BOT - Webhook Setup Script
  * One-time script to register webhook with Telegram API
  * 
  * Usage:
@@ -114,7 +114,7 @@ async function setWebhook() {
     console.log('✅ Setup complete!')
     console.log('')
     console.log('📝 Next steps:')
-    console.log('   1. Add your Telegram Chat ID to your ADMIN/SUPERADMIN user profile')
+    console.log('   1. Add your Telegram Chat ID to your admin/superadmin user profile')
     console.log('   2. Find your Chat ID by messaging @userinfobot on Telegram')
     console.log('   3. Paste your numeric Chat ID in your profile settings')
     console.log(`   4. Start chatting with @${meResult.result?.username || 'your bot'}`)

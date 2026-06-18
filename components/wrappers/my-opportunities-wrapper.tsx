@@ -192,7 +192,7 @@ export default function MyOpportunitiesWrapper({
     opportunity.createdBy === session?.user?.id
 
   return (
-    <div className="ring-content-panel min-w-0 min-h-full">
+    <div className="min-w-0 min-h-full px-4 py-4 sm:px-6">
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>

@@ -22,13 +22,10 @@ import { Entity, SerializedEntity } from '@/features/entities/types'
 /**
  * Verification levels and their configurations
  */
-export type VerificationLevel = 
-  | 'unverified'
-  | 'basic'
-  | 'verified'
-  | 'premium'
-  | 'enterprise'
-  | 'partner'
+import type { EntityVerificationLevel } from '@/features/entities/lib/entity-verification-resolver'
+import { determineEntityVerificationLevel } from '@/features/entities/lib/entity-verification-resolver'
+
+export type VerificationLevel = EntityVerificationLevel
 
 export interface VerificationConfig {
   level: VerificationLevel
@@ -129,36 +126,8 @@ export const getVerificationConfig = (level: VerificationLevel): VerificationCon
 /**
  * Determine entity verification level based on entity data
  */
-export const determineVerificationLevel = (entity: Entity | SerializedEntity): VerificationLevel => {
-  // Check for Ring Partner status (highest level)
-  if (entity.partnerships?.some(p => p.toLowerCase().includes('ring') || p.toLowerCase().includes('platform'))) {
-    return 'partner'
-  }
-  
-  // Check for enterprise indicators
-  if (entity.employeeCount && entity.employeeCount > 500) {
-    if (entity.certifications && entity.certifications.length >= 3) {
-      return 'enterprise'
-    }
-  }
-  
-  // Check for premium verification
-  if (entity.certifications && entity.certifications.length >= 2 && entity.partnerships && entity.partnerships.length > 0) {
-    return 'premium'
-  }
-  
-  // Check for basic verification
-  if (entity.certifications && entity.certifications.length > 0) {
-    return 'verified'
-  }
-  
-  // Check for basic profile completion
-  if (entity.contactEmail && entity.phoneNumber && entity.website) {
-    return 'basic'
-  }
-  
-  return 'unverified'
-}
+export const determineVerificationLevel = (entity: Entity | SerializedEntity): VerificationLevel =>
+  determineEntityVerificationLevel(entity)
 
 /**
  * Verification Badge Component

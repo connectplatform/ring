@@ -248,7 +248,7 @@ export default async function ProtectedRoute({
 
 export default function AdminPage() {
   return (
-    <ProtectedRoute requiredRole="ADMIN">
+    <ProtectedRoute requiredRole="admin">
       <div className="container mx-auto p-8">
         <h1>Admin Dashboard</h1>
         <div>Only admins can see this content.</div>

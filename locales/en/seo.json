@@ -4,21 +4,24 @@
     "description": "{description}"
   },
   "home": {
-    "title": "Ring Platform - Decentralized Opportunities & Professional Networking",
-    "description": "Connect, collaborate, and create value in the decentralized economy. Join Ring Platform for professional networking, opportunities, and blockchain-enabled collaboration.",
+    "title": "Ring Platform — Open-Source Community, Opportunities & Marketplace",
+    "description": "Clone and deploy a white-label Ring: Entities, Opportunities, multi-vendor Store, wallet, messaging, and AI matching. React 19, Next.js 16, Auth.js v5. Free OSS on GitHub; Ringdom for hosted ringization.",
     "keywords": [
-      "decentralized",
+      "Ring Platform",
+      "open source",
+      "white-label",
+      "community platform",
+      "marketplace",
       "opportunities",
-      "blockchain",
-      "collaboration",
-      "web3",
-      "professional networking",
-      "Ring Platform"
+      "Next.js 16",
+      "React 19",
+      "LegioX",
+      "Ringdom"
     ],
-    "ogTitle": "Ring Platform - Decentralized Professional Networking",
-    "ogDescription": "Discover and create opportunities in the decentralized economy",
+    "ogTitle": "Ring Platform — Clone. Customize. Deploy.",
+    "ogDescription": "The open-source stack for communities that collaborate, trade, and grow — with a Ringdom path when you want turn-key delivery.",
     "twitterTitle": "Ring Platform",
-    "twitterDescription": "Decentralized opportunities and collaboration platform"
+    "twitterDescription": "OSS community + marketplace platform. Entities, Opportunities, Store, Web3, AI matcher."
   },
   "store": {
     "title": "Ring Store - Innovative Products & Services",
@@ -245,6 +248,99 @@
       "mission",
       "vision"
     ]
+  },
+  "about-publisher": {
+    "title": "Sonoratek LLC — Ring platform publisher",
+    "description": "Sonoratek LLC (Tempe, Arizona) is Ringdom's domestic LLC and the legal publisher of Ring — with gratitude for everyone who helped Ukraine prove its right to independence.",
+    "keywords": [
+      "Sonoratek LLC",
+      "Ringdom",
+      "Ring Platform",
+      "publisher",
+      "open source",
+      "AI",
+      "Web3",
+      "Ukraine"
+    ],
+    "ogTitle": "Sonoratek LLC — Ring platform publisher",
+    "ogDescription": "Legal publisher of Ring Platform — open-source community, opportunities, and marketplace stack built with gratitude for Ukraine's independence."
+  },
+  "token-economy": {
+    "title": "Tokenomics - RING Economy",
+    "description": "Understanding the RING token economy, distribution, and utility within the Ring Platform ecosystem.",
+    "keywords": [
+      "Ring Token",
+      "RING",
+      "Tokenomics",
+      "Web3",
+      "Blockchain",
+      "Cryptocurrency",
+      "Digital Economy",
+      "DeFi"
+    ],
+    "ogTitle": "RING Token Economy",
+    "ogDescription": "How RING powers microtransactions, AI access, governance, and community incentives across Ring Platform."
+  },
+  "global-impact": {
+    "title": "Global Impact - Ring Platform",
+    "description": "Experience Ring's AI-orchestrated collective problem solving, white-label cloning, and technological abundance for communities worldwide.",
+    "keywords": [
+      "Ring Platform",
+      "Global Impact",
+      "Collective Intelligence",
+      "White-label",
+      "Sonoratek LLC",
+      "Ringdom",
+      "Open Source",
+      "AI",
+      "Web3"
+    ],
+    "ogTitle": "Ring Platform Global Impact",
+    "ogDescription": "From darkness to light — Ring connects humanity through AI-orchestrated collaboration and open cloneable platforms."
+  },
+  "ai-web3": {
+    "title": "AI Meets Web3 - Ring Platform",
+    "description": "Discover how Ring Platform combines AI opportunity matching with decentralized RING token economics and Web3 governance.",
+    "keywords": [
+      "AI",
+      "Web3",
+      "Blockchain",
+      "Ring Platform",
+      "Collective Intelligence",
+      "Smart Contracts",
+      "RING token"
+    ],
+    "ogTitle": "AI + Web3 on Ring Platform",
+    "ogDescription": "AI-orchestrated collaboration meets blockchain-verified trust and token incentives."
+  },
+  "roadmap": {
+    "title": "Ring Platform Roadmap",
+    "description": "Where Ring is today and where it is going — for founders and CTOs evaluating a white-label platform and the RING token economy.",
+    "keywords": [
+      "Ring Platform",
+      "roadmap",
+      "RING token",
+      "white-label",
+      "founders",
+      "CTO",
+      "LegioX"
+    ],
+    "ogTitle": "Ring Platform Roadmap",
+    "ogDescription": "Shipped capabilities, token economy plans, and documentation milestones for Ring clones."
+  },
+  "calculator": {
+    "title": "Ring Platform Deployment Calculator",
+    "description": "Calculate deployment time, costs, and get a customized roadmap for launching your Ring platform.",
+    "keywords": [
+      "Ring Platform",
+      "calculator",
+      "platform setup",
+      "cost estimation",
+      "deployment",
+      "white-label"
+    ],
+    "ogTitle": "Ring Deployment Calculator",
+    "ogDescription": "Estimate time, cost, and modules for your Ring-powered community or marketplace."
   },
   "contact": {
     "title": "Contact Ring Platform - Get in Touch",

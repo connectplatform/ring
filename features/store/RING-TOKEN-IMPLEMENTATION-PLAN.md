@@ -7,7 +7,7 @@ This plan implements RING token-based membership fees and credit balance system 
 ## Current Architecture Analysis
 
 ### Existing Infrastructure
-- **Auth System**: Auth.js v5 with role hierarchy (VISITOR < SUBSCRIBER < MEMBER < CONFIDENTIAL < ADMIN)
+- **Auth System**: Auth.js v5 with role hierarchy (visitor < subscriber < member < confidential < admin)
 - **Wallet Service**: EVM-compatible wallet creation, balance checking, transfers (`ring/services/wallet/`)
 - **Store System**: Adapter-driven catalog, cart, checkout (`ring/features/store/`)
 - **Payment Service**: Stripe integration (`ring/services/store/payments-service.ts`)

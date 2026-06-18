@@ -1,35 +1,81 @@
 {
-  "aboutUsText": {
-    "title": "About Ring Platform",
-    "introduction": {
-      "title": "Introduction",
-      "content": "Ring is a community platform designed to connect innovators, entrepreneurs, and organizations in the Cherkasy region of Ukraine. Our mission is to foster collaboration, knowledge sharing, and business opportunities within the local tech ecosystem."
+  "title": "About this project",
+  "description": "Learn what this Ring-powered project is, who it serves, how to get started, and where to find the publisher behind the platform.",
+  "hero": {
+    "badge": "Your Ring clone",
+    "title": "About this project",
+    "description": "This site runs on Ring — an open-source platform for communities, opportunities, and marketplaces. Here is what this project is building and how you can take part."
+  },
+  "badges": {
+    "openSource": "Open source",
+    "community": "Community-driven",
+    "modular": "Modular by design"
+  },
+  "sections": {
+    "origin": {
+      "title": "How it started",
+      "subtitle": "From idea to living platform",
+      "content": "Every Ring clone begins with a clear need: connect people, surface opportunities, and run day-to-day collaboration in one place. This project packages those capabilities for its own community — tuned through ring-config.json and your own content, without vendor lock-in."
     },
-    "forWhom": {
-      "title": "For Whom",
-      "content": "Ring is designed for various stakeholders in the Cherkasy tech ecosystem:",
-      "item1": "Startups and entrepreneurs looking for partnerships and resources",
-      "item2": "Established companies seeking innovation and talent"
+    "founders": {
+      "title": "Who is behind the platform",
+      "subtitle": "Publisher vs. project",
+      "description": "This page describes the project you are using. The legal publisher and founding team — the organization that ships and maintains the Ring stack — has a dedicated story with contacts and gratitude.",
+      "ctaLabel": "Meet the publisher",
+      "ctaHint": "Origin story, legal entity, and team contacts",
+      "contactTitle": "Publisher founder",
+      "contactSubtitle": "Architect behind this Ring deployment — Sonoratek LLC & Ringdom"
     },
-    "howToUse": {
-      "title": "How to Use",
-      "content": "Follow these steps to get the most out of Ring:",
-      "item1": "Create an account and complete your profile",
-      "item2": "Explore organizations and opportunities in the ecosystem",
-      "item3": "Connect with other members and start conversations",
-      "item4": "Post opportunities or find collaborators for your projects",
-      "item5": "Participate in community discussions and events",
-      "item6": "Stay updated with notifications and newsletters",
-      "item7": "Contribute to the growth of the local tech community"
+    "goals": {
+      "title": "What we are building toward",
+      "subtitle": "Goals for this deployment",
+      "items": {
+        "connect": {
+          "title": "Connect the right people",
+          "description": "Profiles, entities, and messaging so members find collaborators faster than scattered chats and spreadsheets."
+        },
+        "opportunities": {
+          "title": "Make opportunities visible",
+          "description": "Structured listings, matching, and notifications so relevant work surfaces without noise."
+        },
+        "sovereignty": {
+          "title": "Own your stack",
+          "description": "Self-hosted, white-label, and configurable — evolve the product on your timeline, not a SaaS roadmap."
+        }
+      },
+      "roadmapTitle": "Platform roadmap",
+      "roadmapDescription": "See shipped capabilities, token economy plans, and documentation milestones for this Ring deployment.",
+      "roadmapCta": "View roadmap"
     },
-    "techFields": {
-      "title": "Technology Fields",
-      "content": "Ring covers a wide range of technology fields including software development, artificial intelligence, blockchain, IoT, cybersecurity, and more. We welcome all technology enthusiasts and professionals."
+    "audience": {
+      "title": "Who this is for",
+      "subtitle": "Typical participants",
+      "items": [
+        "Founders and operators building a niche community or marketplace",
+        "Members looking for collaborators, vendors, or local expertise",
+        "Organizations publishing entities, opportunities, and news",
+        "Contributors extending modules (store, Web3, AI matching) as needed"
+      ]
     },
-    "userInfo": {
-      "title": "Welcome",
-      "content": "Welcome to Ring, {name}! We're excited to have you as part of our community."
+    "gettingStarted": {
+      "title": "How to get started",
+      "subtitle": "First steps on this site",
+      "steps": [
+        "Create an account and complete your profile",
+        "Browse entities and opportunities relevant to you",
+        "Follow or message members you want to work with",
+        "Post an opportunity or entity when you are ready to contribute",
+        "Explore docs and settings to tune notifications and privacy"
+      ]
+    },
+    "capabilities": {
+      "title": "What you can do here",
+      "description": "Ring combines community profiles, opportunity matching, optional store and Web3 modules, and AI-assisted discovery — enable only what this deployment needs."
     }
+  },
+  "actions": {
+    "contact": "Contact the team",
+    "documentation": "Read the docs"
   },
   "sidebar": {
     "platformInfo": "Platform Info",

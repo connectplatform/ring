@@ -2,7 +2,7 @@
  * Get Confidential Opportunities Service
  * 
  * Ring-native: DatabaseService + React 19 cache()
- * Role-based access control (CONFIDENTIAL/ADMIN only)
+ * Role-based access control (confidential/admin only)
  * READ operation - cached for performance
  */
 
@@ -12,6 +12,7 @@ import {
   mapDbDocumentToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { UserRole } from '@/features/auth/types'
+import { hasConfidentialAccess } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 
 /**
@@ -23,7 +24,7 @@ import { db } from '@/lib/database'
  * @property {string} filter - Filter criteria for opportunity status
  * @property {string} [startAfter] - Optional document ID to start pagination after
  * @property {string} userId - ID of the user making the request
- * @property {UserRole.CONFIDENTIAL | UserRole.ADMIN} userRole - Role of the requesting user
+ * @property {UserRole.confidential | UserRole.admin | UserRole.superadmin} userRole - Role of the requesting user
  */
 interface getConfidentialOpportunitiesParams {
   page: number;
@@ -32,7 +33,7 @@ interface getConfidentialOpportunitiesParams {
   filter: string;
   startAfter?: string;
   userId: string;
-  userRole: UserRole.CONFIDENTIAL | UserRole.ADMIN;
+  userRole: UserRole.confidential | UserRole.admin | UserRole.superadmin;
 }
 
 /**
@@ -61,13 +62,13 @@ interface getConfidentialOpportunitiesResult {
  *   sort: 'createdAt:desc',
  *   filter: 'active',
  *   userId: 'user123',
- *   userRole: UserRole.CONFIDENTIAL
+ *   userRole: UserRole.confidential || UserRole.admin || UserRole.superadmin
  * });
  * ```
  * 
  * User flow:
  * 1. User requests confidential opportunities with specific criteria
- * 2. System validates user has appropriate role (CONFIDENTIAL or ADMIN)
+ * 2. System validates user has appropriate role (confidential, admin or superadmin)
  * 3. System fetches opportunities matching criteria with pagination
  * 4. System returns formatted results with pagination metadata
  * 
@@ -82,8 +83,8 @@ export const getConfidentialOpportunities = cache(async (
     console.log('Services: getconfidential-opportunities - Starting...', params);
     const { limit, startAfter, sort, filter, userRole } = params;
 
-    // Validate role: only CONFIDENTIAL or ADMIN allowed here
-    if (userRole !== UserRole.CONFIDENTIAL && userRole !== UserRole.ADMIN) {
+    // Validate role: only CONFIDENTIAL or admin allowed here
+    if (!hasConfidentialAccess(userRole)) {
       throw new Error('Invalid or missing user role for confidential access');
     }
 

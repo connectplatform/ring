@@ -68,7 +68,7 @@ Ring Platform implements a **sophisticated multi-layer authentication architectu
       SUBSCRIBER level 1
       MEMBER level 2
       CONFIDENTIAL level 3
-      ADMIN level 4
+      admin level 4
     🛡️ Security
       Email Linking
         Same email auto-link
@@ -202,6 +202,7 @@ Ring Platform implements a **sophisticated multi-layer authentication architectu
 - **GIS One Tap:** Client-side popup for instant authentication
 - **Theme Support:** GIS button dynamically switches outline (light) / filled_black (dark)
 - **Email Linking:** Accounts with same email automatically linked
+- **Identity invariant:** `users.id` is always a platform UUID (Auth.js session id). Google `sub` is stored only in `accounts.providerAccountId`, never as `users.id`. Email is normalized to lowercase on write; a unique DB index on `lower(data->>'email')` prevents duplicate rows.
 
 **Configuration:**
 // auth.config.ts - Google OAuth provider
@@ -732,8 +733,8 @@ export default function UserProfile() {
     return getRoleLevel(session.user.role) >= getRoleLevel(requiredRole)
   }
   
-  const isAdmin = hasRole(UserRole.ADMIN)
-  const isMember = hasRole(UserRole.MEMBER)
+  const isAdmin = hasRole(UserRole.admin)
+  const isMember = hasRole(UserRole.member)
   
   return { session, hasRole, isAdmin, isMember }
 }`}

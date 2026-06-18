@@ -33,9 +33,9 @@ Ring Platform's real-time messaging system transforms business communication fro
 {`mindmap
   root((Messaging))
     Transport
-      WebSocket
+      Native WSS Tunnel
       Server-Sent Events
-      Edge Runtime
+      Long Polling
     Features
       Anonymous Support
       Real-time Chat

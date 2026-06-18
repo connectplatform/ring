@@ -3,7 +3,8 @@ import { Entity } from '@/features/entities/types'
 import { mapDbRowToSerializedEntity } from '@/features/entities/lib/entity-db-mapper'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole } from '@/features/auth/user-role'
+import { canViewEntity } from '@/features/entities/lib/entity-visibility-filter'
 import { logger } from '@/lib/logger'
 import { cache } from 'react'
 
@@ -28,7 +29,7 @@ import { cache } from 'react'
  * @returns {Promise<Entity[]>} A promise that resolves to an array of Entity objects matching the given slugs.
  * @throws {Error} If the user is not authenticated or an error occurs during the fetch operation.
  * 
- * Note: Confidential entities are only included in the results for users with CONFIDENTIAL or ADMIN roles.
+ * Note: Confidential entities are only included in the results for users with confidential or admin roles.
  *       Other users will only see non-confidential entities matching the slugs.
  */
 export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]> => {
@@ -42,19 +43,7 @@ export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]
       throw new Error('Unauthorized access');
     }
 
-    const userRole = session.user.role as UserRole;
-
-    // Validate role before proceeding
-    const validRoles: UserRole[] = [
-      UserRole.VISITOR,
-      UserRole.SUBSCRIBER,
-      UserRole.MEMBER,
-      UserRole.ADMIN,
-      UserRole.CONFIDENTIAL
-    ];
-    if (!userRole || !validRoles.includes(userRole)) {
-      throw new Error('Invalid or missing user role');
-    }
+    const userRole = assertKnownUserRole(session.user.role)
 
     logger.info(`Services: getEntitiesBySlug - User authenticated with role ${userRole}`);
 
@@ -84,21 +73,7 @@ export const getEntitiesBySlug = cache(async (slugs: string[]): Promise<Entity[]
       )
     }
 
-    // Apply role-based visibility filtering for non-admin users
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
-      const allowedVisibilities = ['public'];
-      
-      if (userRole === UserRole.SUBSCRIBER || userRole === UserRole.MEMBER) {
-        allowedVisibilities.push('subscriber');
-      }
-      if (userRole === UserRole.MEMBER) {
-        allowedVisibilities.push('member');
-      }
-
-      entities = entities.filter(entity => 
-        allowedVisibilities.includes(entity.visibility || 'public')
-      );
-    }
+    entities = entities.filter((entity) => canViewEntity(entity, { userRole }))
 
     logger.info(`Services: getEntitiesBySlug - Fetched ${entities.length} entities`);
 

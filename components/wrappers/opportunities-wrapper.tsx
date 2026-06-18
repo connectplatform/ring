@@ -2,22 +2,17 @@
 
 import React, { Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { useSearchParams, usePathname } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+import { usePathname } from '@/i18n/routing'
 import { SerializedOpportunity, OpportunityVisibility, Attachment, type OpportunitySubmenuTab } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 import { useAppContext } from '@/contexts/app-context'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { OpportunitySuspenseBoundary } from '@/components/suspense/enhanced-suspense-boundary'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Plus, User, Briefcase } from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
-import { routing } from '@/i18n/routing'
-import { isValidLocale } from '@/i18n/shared'
-import { useSession } from 'next-auth/react'
 import OpportunitiesSubmenu from '@/components/navigation/opportunities-submenu'
-import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import OpportunitiesFiltersRail from '@/components/opportunities/opportunities-filters-rail'
 
 
 // Dynamically import components
@@ -46,6 +41,7 @@ interface OpportunitiesWrapperProps {
 }
 
 export default function OpportunitiesWrapper({
+  locale,
   initialOpportunities = [],
   initialOpportunity,
   initialEntity,
@@ -61,16 +57,11 @@ export default function OpportunitiesWrapper({
 
   // Restore useAppContext hook
   const { setEntities, setError } = useAppContext()
-  // Restore useSession hook - optional for unauthenticated visitors
-  const { data: session } = useSession({ required: false })
   // Restore useTranslations hook
   const t = useTranslations('modules.opportunities')
 
-  const localeSegment = pathname.split('/')[1] || routing.defaultLocale
-  const locale: Locale = isValidLocale(localeSegment)
-    ? localeSegment
-    : (routing.defaultLocale as Locale)
-  const isMyOpportunitiesPage = pathname.endsWith('/opportunities/my')
+  const isMyOpportunitiesPage = pathname === '/opportunities/my'
+  const isBrowseListPage = pathname === '/opportunities'
 
   const limit = parseInt(searchParams.get('limit') || (initialLimit || 20).toString(), 10)
 
@@ -110,52 +101,24 @@ export default function OpportunitiesWrapper({
     )
   }
 
-  // Otherwise, render the opportunities list with navigation
-  return (
-    <div className="ring-content-panel min-w-0 min-h-full">
-      {/* Main Navigation Bar for Opportunities */}
-      <div className="bg-background border-b border-border mb-6">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-2xl font-bold text-foreground">
-              {t('opportunities', { defaultValue: 'Opportunities' })}
-            </h1>
-
-            <div className="flex flex-wrap gap-3">
-              {session?.user && (
-                <>
-                  <Link href={ROUTES.MY_OPPORTUNITIES(locale)}>
-                    <Button variant="outline" className="flex items-center gap-2">
-                      <User size={20} />
-                      {t('myOpportunities', { defaultValue: 'My Opportunities' })}
-                    </Button>
-                  </Link>
-                  <AddOpportunityButton locale={locale as any} className="flex items-center gap-2" />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Restore Submenu Navigation - Only show on My Opportunities page */}
+  const listContent = (
+    <div className="min-w-0 min-h-full px-4 py-4 sm:px-6">
       {isMyOpportunitiesPage && (
         <OpportunitiesSubmenu
           activeTab={activeTab}
           onTabChange={setActiveTab}
           counts={{
             all: initialOpportunities.length,
-            saved: 0, // TODO: Get from user preferences
-            applied: 0, // TODO: Get from user applications
-            posted: 0, // TODO: Get from user's posted opportunities
-            drafts: 0, // TODO: Get from user's draft opportunities
+            saved: 0,
+            applied: 0,
+            posted: 0,
+            drafts: 0,
             expired: initialOpportunities.filter(opp =>
               opp.expirationDate && new Date(opp.expirationDate) < new Date()
             ).length
           }}
         />
       )}
-
 
       <OpportunitySuspenseBoundary
         level="page"
@@ -173,5 +136,23 @@ export default function OpportunitiesWrapper({
       </OpportunitySuspenseBoundary>
     </div>
   )
+
+  if (isBrowseListPage) {
+    return (
+      <RingRightRailLayout
+        showRightRail
+        rightRail={
+          <Suspense fallback={<div className="h-32 animate-pulse rounded-md bg-muted/40" />}>
+            <OpportunitiesFiltersRail />
+          </Suspense>
+        }
+        contentClassName="pb-24 lg:pb-8"
+      >
+        {listContent}
+      </RingRightRailLayout>
+    )
+  }
+
+  return listContent
 }
 

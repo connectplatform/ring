@@ -2,6 +2,14 @@ import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
 import type { AuthUser } from '@/features/auth/types';
 import type { DefaultSession } from 'next-auth';
+import { UserRole, parseUserRole } from '@/features/auth/user-role';
+import {
+  findUserByEmail,
+  isUniqueViolation,
+  normalizeAuthEmail,
+  resolveCanonicalUser,
+  resolveInFlightByEmail,
+} from '@/features/auth/services/user-resolve';
 
 /**
  * Service for migrating and initializing user documents
@@ -24,18 +32,46 @@ export class UserMigrationService {
   /**
    * Create initial user document for authenticated user
    */
-  async createInitialUserDocument(authUser: AuthUser | DefaultSession['user']): Promise<void> {
+  async createInitialUserDocument(authUser: AuthUser | DefaultSession['user']): Promise<string> {
+    const userId = authUser.id || (authUser as { globalUserId?: string }).globalUserId;
+    const rawEmail = authUser.email;
+
+    if (!userId) {
+      throw new Error('UserMigration: authUser.id is required to create initial document');
+    }
+    if (!rawEmail) {
+      throw new Error('UserMigration: authUser.email is required to create initial document');
+    }
+
+    const email = normalizeAuthEmail(rawEmail);
+
     try {
-      console.log(`UserMigration: Creating initial document for user ${authUser.id}`);
+      const existingByEmail = await findUserByEmail(email);
+      if (existingByEmail) {
+        logger.info('UserMigration: User already exists by email, skipping create', {
+          userId,
+          canonicalId: existingByEmail.id,
+          email,
+        });
+        return existingByEmail.id;
+      }
+
+      console.log(`UserMigration: Creating initial document for user ${userId}`);
 
       const initialUserData = {
-        id: authUser.id || (authUser as any).globalUserId,
-        email: authUser.email || '',
+        id: userId,
+        globalUserId: userId,
+        email,
         name: authUser.name || null,
-        username: (authUser as any).username || null,
-        photoURL: (authUser as any).photoURL || (authUser as any).image || null,
-        role: (authUser as any).role || 'MEMBER',
-        isVerified: (authUser as any).emailVerified || (authUser as any).email_verified || false,
+        username: (authUser as { username?: string }).username || null,
+        photoURL: (authUser as { photoURL?: string; image?: string }).photoURL
+          || (authUser as { image?: string }).image
+          || null,
+        role: parseUserRole((authUser as { role?: string }).role) ?? UserRole.subscriber,
+        isVerified: Boolean(
+          (authUser as { emailVerified?: boolean }).emailVerified
+          || (authUser as { email_verified?: boolean }).email_verified
+        ),
         createdAt: new Date(),
         updatedAt: new Date(),
 
@@ -102,36 +138,44 @@ export class UserMigrationService {
       };
 
       logger.info('UserMigration: About to create user document', {
-        userId: authUser.id,
-        firebaseUid: initialUserData.id,
-        email: authUser.email
+        userId,
+        email,
       });
 
-      const createResult = await db().createDoc('users', initialUserData);
+      const createResult = await db().createDoc('users', initialUserData, { id: userId });
 
       logger.info('UserMigration: Create result', {
-        userId: authUser.id,
+        userId,
         success: createResult.success,
         error: createResult.error,
         hasData: !!createResult.data
       });
 
       if (!createResult.success) {
+        if (isUniqueViolation(createResult.error)) {
+          const raced = await findUserByEmail(email);
+          if (raced) return raced.id;
+        }
         logger.error('UserMigration: Failed to create user document', {
-          userId: authUser.id,
+          userId,
           error: createResult.error
         });
         throw new Error('Failed to create user document');
       }
 
       logger.info('UserMigration: Successfully created initial user document', {
-        userId: authUser.id,
-        email: authUser.email
+        userId,
+        email,
       });
 
+      return userId;
     } catch (error) {
+      if (isUniqueViolation(error)) {
+        const raced = await findUserByEmail(email);
+        if (raced) return raced.id;
+      }
       logger.error('UserMigration: Error creating initial user document', {
-        userId: authUser.id,
+        userId,
         error
       });
       throw error;
@@ -161,20 +205,33 @@ export class UserMigrationService {
   /**
    * Ensure user document exists, create if it doesn't
    */
-  async ensureUserDocument(authUser: AuthUser): Promise<void> {
+  async ensureUserDocument(authUser: AuthUser): Promise<string> {
     try {
-      console.log('UserMigration: Checking if user document exists for', authUser.id);
-      const exists = await this.userDocumentExists(authUser.id);
-      console.log('UserMigration: User document exists check result:', exists);
+      const canonicalId = await resolveInFlightByEmail(authUser.email, async () => {
+        console.log('UserMigration: Resolving canonical user for', authUser.id, authUser.email);
 
-      if (!exists) {
+        const resolved = await resolveCanonicalUser({
+          id: authUser.id,
+          email: authUser.email,
+        });
+
+        if (resolved.userRow) {
+          console.log('UserMigration: Canonical user already exists:', resolved.canonicalId);
+          return resolved.canonicalId;
+        }
+
         console.log('UserMigration: User document does not exist, creating initial document');
-        await this.createInitialUserDocument(authUser);
+        const createdId = await this.createInitialUserDocument(authUser);
         console.log('UserMigration: Initial user document created successfully');
+        return createdId;
+      });
+
+      UserMigrationService.userCache.set(canonicalId, { exists: true, timestamp: Date.now() });
+      if (authUser.id && authUser.id !== canonicalId) {
         UserMigrationService.userCache.set(authUser.id, { exists: true, timestamp: Date.now() });
-      } else {
-        console.log('UserMigration: User document already exists');
       }
+
+      return canonicalId;
     } catch (error) {
       console.error('UserMigration: Error in ensureUserDocument:', error);
       throw error;
@@ -192,6 +249,10 @@ export class UserMigrationService {
 
 export const userMigrationService = UserMigrationService.getInstance();
 
-export async function createInitialUserDocument(authUser: AuthUser | DefaultSession['user']): Promise<void> {
+export async function createInitialUserDocument(authUser: AuthUser | DefaultSession['user']): Promise<string> {
   return userMigrationService.createInitialUserDocument(authUser);
+}
+
+export async function ensureUserDocument(authUser: AuthUser): Promise<string> {
+  return userMigrationService.ensureUserDocument(authUser);
 }

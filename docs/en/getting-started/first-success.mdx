@@ -125,7 +125,7 @@ Test session endpoint
     "name": "User Name",
     "email": "user@example.com",
     "image": "https://...",
-    "role": "MEMBER"
+    "role": "member"
   },
   "expires": "2025-..."
 }`}
@@ -220,19 +220,18 @@ Test opportunities endpoint
 
 #### 4.2 Real-time Features
 
-**WebSocket Test:**
-Test tunnel transport endpoint
+**Tunnel diagnostics:**
 
 <Code language="bash" title="terminal">
-{`curl -X POST "http://localhost:3000/api/tunnel/test" \
-  -H "Content-Type: application/json" \
-  -d '{"test": "connection"}'`}
+{`curl "http://localhost:3000/api/tunnel/test"`}
 </Code>
 
-**Notification Test:**
-1. Create an opportunity (triggers notification)
-2. Verify notification appears in real-time
-3. Check notification count in UI
+**Expected:** JSON with `availableProviders`, `environment`, and `status: "ready"`.
+
+**Notification test:**
+1. Sign in and confirm SSE connects (browser devtools → Network → `/api/tunnel/sse`)
+2. Create an opportunity or trigger a notification
+3. Verify unread badge updates without waiting for the poll interval
 
 #### 4.3 Messaging System (Optional)
 
@@ -373,10 +372,10 @@ firebase use your-project-id`}
 
 ### Real-time Issues
 
-**WebSocket not connecting:**
-- Check browser network tab for connection attempts
-- Verify tunnel transport configuration
-- Test with different browsers
+**Tunnel not connecting:**
+- Set `RING_DEPLOY_TARGET` and `NEXT_PUBLIC_RING_DEPLOY_TARGET` (k8s/self-hosted for WSS)
+- Check browser network tab for `/api/tunnel/ws` or `/api/tunnel/sse`
+- Verify `/api/tunnel/test` returns `status: "ready"`
 
 **Notifications not appearing:**
 - Check browser notification permissions
@@ -409,7 +408,7 @@ Monitor Node.js process Or use PM2: pm2 monit
 | **Database** | ☐ | Connections work, data operations succeed |
 | **Entities** | ☐ | CRUD operations function correctly |
 | **Opportunities** | ☐ | Listing, creation, search works |
-| **Real-time** | ☐ | WebSocket connections, notifications |
+| **Real-time** | ☐ | Tunnel connected (WSS or SSE), notifications |
 | **Wallet** | ☐ | Address creation, balance display |
 | **API Health** | ☐ | All endpoints respond correctly |
 | **Performance** | ☐ | Response times < 2s |

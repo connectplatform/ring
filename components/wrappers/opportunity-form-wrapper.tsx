@@ -1,38 +1,17 @@
 'use client'
 
 /**
- * OPPORTUNITY FORM PAGE WRAPPER - Ring Platform v2.0
- * ==================================================
- * Standardized 3-column responsive layout for opportunity form pages
- *
- * Layout Structure:
- * - Desktop: DesktopSidebar (280px) + Center Content + Right Sidebar (320px)
- * - iPad: DesktopSidebar (280px) + Center Content + Floating Toggle for Right Sidebar
- * - Mobile: Center Content + Bottom Navigation + Floating Toggle for Right Sidebar
- *
- * Right Sidebar Content:
- * - Creation Tips
- * - Categories Guide
- * - Visibility Options
- * - Help
- *
- * Strike Team:
- * - Ring Components Specialist (layout pattern)
- * - React 19 Specialist (modern patterns)
- * - Form UX Expert (opportunity creation flow)
- * - Content Strategy Expert (guidance and tips)
- * - UI/UX Optimization Agent (mobile excellence)
+ * Opportunity form layout — center content + right guidance rail (add/edit only).
+ * Locale keys: locales/{locale}/modules/opportunities.json (type_selector, creationTips).
  */
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
-import type { Locale } from '@/i18n/shared'
+import { useTranslations } from 'next-intl'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import {
   Lightbulb,
   Tag,
@@ -42,27 +21,22 @@ import {
   Briefcase,
   User,
   Lock,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  BookOpen
+  BookOpen,
 } from 'lucide-react'
-import { ROUTES } from '@/constants/routes'
 
 interface OpportunityFormWrapperProps {
   children: React.ReactNode
   locale: string
-  opportunityType?: 'request' | 'offer' | 'cv'
+  opportunityType?: 'request' | 'offer' | 'cv' | 'ring_customization'
 }
 
 export default function OpportunityFormWrapper({
   children,
   locale,
-  opportunityType
+  opportunityType,
 }: OpportunityFormWrapperProps) {
   const router = useRouter()
   const t = useTranslations('modules.opportunities')
-  const tCommon = useTranslations('common')
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
@@ -70,192 +44,74 @@ export default function OpportunityFormWrapper({
     setMounted(true)
   }, [])
 
-  // Opportunity categories
-  const categories = [
-    {
-      id: 'partnership',
-      name: t('categories.partnership', { defaultValue: 'Partnership' }),
-      description: t('categories.partnershipDesc', { defaultValue: 'Business partnerships and collaborations' }),
-      icon: '🤝'
-    },
-    {
-      id: 'investment',
-      name: t('categories.investment', { defaultValue: 'Investment' }),
-      description: t('categories.investmentDesc', { defaultValue: 'Investment opportunities and funding' }),
-      icon: '💰'
-    },
-    {
-      id: 'sales',
-      name: t('categories.sales', { defaultValue: 'Sales' }),
-      description: t('categories.salesDesc', { defaultValue: 'Sales and business development' }),
-      icon: '📈'
-    },
-    {
-      id: 'procurement',
-      name: t('categories.procurement', { defaultValue: 'Procurement' }),
-      description: t('categories.procurementDesc', { defaultValue: 'Procurement and supplier opportunities' }),
-      icon: '🛒'
-    },
-    {
-      id: 'consulting',
-      name: t('categories.consulting', { defaultValue: 'Consulting' }),
-      description: t('categories.consultingDesc', { defaultValue: 'Consulting and advisory services' }),
-      icon: '🎯'
-    },
-    {
-      id: 'development',
-      name: t('categories.development', { defaultValue: 'Development' }),
-      description: t('categories.developmentDesc', { defaultValue: 'Software and product development' }),
-      icon: '💻'
-    }
+  const categoryItems = [
+    { id: 'partnership', name: t('type_selector.partnership.title'), description: t('type_selector.partnership.description'), icon: '🤝' },
+    { id: 'investment', name: t('investment'), icon: '💰' },
+    { id: 'sales', name: t('sales'), icon: '📈' },
+    { id: 'procurement', name: t('procurement'), icon: '🛒' },
+    { id: 'technology', name: t('technology'), icon: '💻' },
+    { id: 'business', name: t('business'), icon: '🎯' },
   ]
 
-  // Opportunity types
   const opportunityTypes = [
     {
-      id: 'request',
-      name: t('types.request', { defaultValue: 'Request' }),
-      description: t('types.requestDesc', { defaultValue: 'Find services, advice, or collaboration from the Ring community' }),
+      id: 'request' as const,
+      name: t('type_selector.request.title'),
+      description: t('type_selector.request.description'),
       icon: '🔍',
-      color: 'blue',
-      minRole: 'subscriber'
+      minRole: 'subscriber',
     },
     {
-      id: 'offer',
-      name: t('types.offer', { defaultValue: 'Offer' }),
-      description: t('types.offerDesc', { defaultValue: 'Post official opportunities from your organization' }),
+      id: 'offer' as const,
+      name: t('type_selector.offer.title'),
+      description: t('type_selector.offer.description'),
       icon: '💼',
-      color: 'green',
-      minRole: 'member'
+      minRole: 'member',
     },
     {
-      id: 'cv',
-      name: t('types.cv', { defaultValue: 'Developer CV' }),
-      description: t('types.cvDesc', { defaultValue: 'Share your developer profile and skills' }),
+      id: 'cv' as const,
+      name: t('type_selector.cv.title'),
+      description: t('type_selector.cv.description'),
       icon: '👔',
-      color: 'purple',
-      minRole: 'subscriber'
-    }
+      minRole: 'subscriber',
+    },
   ]
 
-  // Visibility options
-  const visibilityOptions = [
-    {
-      id: 'public',
-      name: t('visibility.public', { defaultValue: 'Public' }),
-      description: t('visibility.publicDesc', { defaultValue: 'Visible to all Ring platform users' }),
-      icon: Eye,
-      badge: 'default'
-    },
-    {
-      id: 'subscriber',
-      name: t('visibility.subscriber', { defaultValue: 'Subscribers Only' }),
-      description: t('visibility.subscriberDesc', { defaultValue: 'Visible to subscribers and above' }),
-      icon: User,
-      badge: 'secondary'
-    },
-    {
-      id: 'confidential',
-      name: t('visibility.confidential', { defaultValue: 'Confidential' }),
-      description: t('visibility.confidentialDesc', { defaultValue: 'Visible only to confidential members' }),
-      icon: Lock,
-      badge: 'destructive'
-    }
-  ]
-
-  // Creation tips based on type
-  const getCreationTips = () => {
+  const creationTipItems = (() => {
     switch (opportunityType) {
       case 'request':
         return [
-          {
-            title: t('tips.request.title1', { defaultValue: 'Be Specific' }),
-            description: t('tips.request.desc1', { defaultValue: 'Clearly describe what you need and your budget' }),
-            icon: Search
-          },
-          {
-            title: t('tips.request.title2', { defaultValue: 'Set Expectations' }),
-            description: t('tips.request.desc2', { defaultValue: 'Include timeline and deliverables clearly' }),
-            icon: CheckCircle
-          },
-          {
-            title: t('tips.request.title3', { defaultValue: 'Choose Wisely' }),
-            description: t('tips.request.desc3', { defaultValue: 'Review proposals carefully before accepting' }),
-            icon: AlertCircle
-          }
+          { title: t('creationTips.requestType'), description: t('creationTips.requestTypeDescription'), icon: Search },
         ]
       case 'offer':
         return [
-          {
-            title: t('tips.offer.title1', { defaultValue: 'Professional Presentation' }),
-            description: t('tips.offer.desc1', { defaultValue: 'Present your opportunity professionally' }),
-            icon: Briefcase
-          },
-          {
-            title: t('tips.offer.title2', { defaultValue: 'Clear Requirements' }),
-            description: t('tips.offer.desc2', { defaultValue: 'Specify requirements and qualifications' }),
-            icon: CheckCircle
-          },
-          {
-            title: t('tips.offer.title3', { defaultValue: 'Fair Compensation' }),
-            description: t('tips.offer.desc3', { defaultValue: 'Offer competitive compensation' }),
-            icon: AlertCircle
-          }
+          { title: t('creationTips.offerType'), description: t('creationTips.offerTypeDescription'), icon: Briefcase },
         ]
       case 'cv':
         return [
-          {
-            title: t('tips.cv.title1', { defaultValue: 'Highlight Skills' }),
-            description: t('tips.cv.desc1', { defaultValue: 'Showcase your technical expertise' }),
-            icon: User
-          },
-          {
-            title: t('tips.cv.title2', { defaultValue: 'Include Projects' }),
-            description: t('tips.cv.desc2', { defaultValue: 'Link to your work and achievements' }),
-            icon: CheckCircle
-          },
-          {
-            title: t('tips.cv.title3', { defaultValue: 'Be Available' }),
-            description: t('tips.cv.desc3', { defaultValue: 'Indicate your availability for opportunities' }),
-            icon: AlertCircle
-          }
+          { title: t('creationTips.cvType'), description: t('creationTips.cvTypeDescription'), icon: User },
         ]
       default:
         return [
-          {
-            title: t('tips.general.title1', { defaultValue: 'Choose Right Type' }),
-            description: t('tips.general.desc1', { defaultValue: 'Select the most appropriate opportunity type' }),
-            icon: Lightbulb
-          },
-          {
-            title: t('tips.general.title2', { defaultValue: 'Complete Information' }),
-            description: t('tips.general.desc2', { defaultValue: 'Provide all required information' }),
-            icon: CheckCircle
-          },
-          {
-            title: t('tips.general.title3', { defaultValue: 'Review Before Submit' }),
-            description: t('tips.general.desc3', { defaultValue: 'Review your opportunity before publishing' }),
-            icon: AlertCircle
-          }
+          { title: t('creationTips.requestType'), description: t('creationTips.requestTypeDescription'), icon: Search },
+          { title: t('creationTips.offerType'), description: t('creationTips.offerTypeDescription'), icon: Briefcase },
+          { title: t('creationTips.cvType'), description: t('creationTips.cvTypeDescription'), icon: User },
         ]
     }
-  }
+  })()
 
   const RightSidebarContent = () => (
     <div className="space-y-6">
-      {/* Creation Tips Card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Lightbulb className="h-4 w-4" />
-            {t('creationTips', { defaultValue: 'Creation Tips' })}
+            {t('type_selector.title')}
           </CardTitle>
-          <CardDescription>
-            {t('tipsDescription', { defaultValue: 'Tips for creating effective opportunities' })}
-          </CardDescription>
+          <CardDescription>{t('opportunitiesDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {getCreationTips().map((tip, index) => (
+          {creationTipItems.map((tip, index) => (
             <div key={index} className="flex items-start gap-3">
               <div className="p-1 bg-primary/10 rounded">
                 <tip.icon className="h-4 w-4 text-primary" />
@@ -269,41 +125,33 @@ export default function OpportunityFormWrapper({
         </CardContent>
       </Card>
 
-      {/* Categories Guide Card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Tag className="h-4 w-4" />
-            {t('categoriesGuide', { defaultValue: 'Categories Guide' })}
+            {t('categories')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {categories.map((category) => (
+          {categoryItems.map((category) => (
             <div key={category.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent">
               <span className="text-lg">{category.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{category.name}</p>
-                <p className="text-xs text-muted-foreground">{category.description}</p>
+                {'description' in category && category.description ? (
+                  <p className="text-xs text-muted-foreground">{category.description}</p>
+                ) : null}
               </div>
             </div>
           ))}
-
-          <Button
-            variant="link"
-            className="w-full p-0 h-auto"
-            onClick={() => router.push(`/${locale}/docs/opportunities/categories`)}
-          >
-            {t('viewAllCategories', { defaultValue: 'View All Categories' })} →
-          </Button>
         </CardContent>
       </Card>
 
-      {/* Opportunity Types Card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Briefcase className="h-4 w-4" />
-            {t('opportunityTypes', { defaultValue: 'Opportunity Types' })}
+            {t('type_selector.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -333,82 +181,61 @@ export default function OpportunityFormWrapper({
         </CardContent>
       </Card>
 
-      {/* Visibility Options Card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            {t('visibilityOptions', { defaultValue: 'Visibility Options' })}
+            {t('confidential')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {visibilityOptions.map((option) => (
-            <div key={option.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent">
-              <div className="p-1 bg-muted rounded">
-                <option.icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{option.name}</p>
-                <p className="text-xs text-muted-foreground">{option.description}</p>
-              </div>
-              {option.badge === 'destructive' && (
-                <Lock className="h-4 w-4 text-muted-foreground" />
-              )}
+          <div className="flex items-start gap-3 p-2 rounded-lg">
+            <div className="p-1 bg-muted rounded">
+              <Lock className="h-4 w-4" />
             </div>
-          ))}
+            <div className="flex-1">
+              <p className="text-sm font-medium">{t('creationTips.confidentialOpportunities')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('creationTips.confidentialOpportunitiesDescription')}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('confidentialOpportunityDescription')}</p>
         </CardContent>
       </Card>
 
-      {/* Help & Documentation Card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <HelpCircle className="h-4 w-4" />
-            {t('help', { defaultValue: 'Help & Documentation' })}
+            {t('helpResources')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>{t('helpDescription', { defaultValue: 'Get help with creating and managing opportunities.' })}</p>
-          <div className="space-y-2">
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/opportunities/creating`)}
-            >
-              {t('creatingGuide', { defaultValue: 'Creating Opportunities' })} →
-            </Button>
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/opportunities/best-practices`)}
-            >
-              {t('bestPractices', { defaultValue: 'Best Practices' })} →
-            </Button>
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm"
-              onClick={() => router.push(`/${locale}/docs/opportunities/faq`)}
-            >
-              {t('faq', { defaultValue: 'FAQ' })} →
-            </Button>
-          </div>
+          <p>{t('opportunitiesHelp')}</p>
+          <Button
+            variant="link"
+            className="p-0 h-auto text-sm"
+            onClick={() => router.push(`/${locale}/docs/opportunities`)}
+          >
+            {t('viewGuide')} →
+          </Button>
         </CardContent>
       </Card>
     </div>
   )
 
+  if (!mounted) {
+    return <div className="min-h-[40vh]">{children}</div>
+  }
+
   return (
     <div className="min-h-full text-foreground relative transition-colors duration-300">
       <div className="flex min-h-full gap-3">
-        {/* Left Sidebar - Main Navigation (Desktop only) */}
-
-
-        {/* Center Content Area */}
         <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
           {children}
         </div>
 
-        {/* Right Sidebar - Form Guidance & Tips (Desktop only, 1024px+) */}
         <div className="ring-right-rail hidden w-[300px] shrink-0 self-stretch min-h-0 lg:block">
           <div className="sticky top-8">
             <RightSidebarContent />
@@ -416,7 +243,6 @@ export default function OpportunityFormWrapper({
         </div>
       </div>
 
-      {/* Mobile/Tablet: Floating toggle sidebar for right sidebar content */}
       <FloatingSidebarToggle
         isOpen={rightSidebarOpen}
         onToggle={setRightSidebarOpen}

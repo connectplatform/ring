@@ -117,7 +117,7 @@ The WayForPay service (`lib/payments/wayforpay-service.ts`) provides three core 
 const paymentRequest = {
   userId: session.user.id,
   userEmail: session.user.email,
-  targetRole: UserRole.MEMBER,
+  targetRole: UserRole.member,
   returnUrl: 'https://your-domain.com/membership/success',
   callbackUrl: 'https://your-domain.com/api/payments/wayforpay/webhook'
 }
@@ -162,21 +162,21 @@ if (status.success && status.status === 'Approved') {
 Current membership pricing:
 
 <Code language="typescript" title="export const MEMBERSHIP_PRICES = {">
-{`[UserRole.SUBSCRIBER]: {
+{`[UserRole.subscriber]: {
     amount: 0,
-    currency: 'UAH',
+    currency: 'USD',
     description: 'Ring Platform Subscriber (Free)',
     duration: 'lifetime'
   },
-  [UserRole.MEMBER]: {
-    amount: 299,        // ₴299 UAH
-    currency: 'UAH',
+  [UserRole.member]: {
+    amount: 19,        // US$19
+    currency: 'USD',
     description: 'Ring Platform Member Upgrade',
     duration: '1 month'
   },
-  [UserRole.CONFIDENTIAL]: {
-    amount: 999,        // ₴999 UAH
-    currency: 'UAH',
+  [UserRole.confidentail]: {
+    amount: 99,        // US$99 UAH
+    currency: 'USD',
     description: 'Ring Platform Confidential Membership',
     duration: '1 month'
   }
@@ -195,7 +195,7 @@ const [formState, formAction] = useActionState(initiateMembershipPayment, null)
 
 // Form submission
 <form action={formAction}>
-  <input type="hidden" name="targetRole" value={UserRole.MEMBER} />
+  <input type="hidden" name="targetRole" value={UserRole.member} />
   <input type="hidden" name="returnUrl" value={returnUrl} />
   <button type="submit">Pay ₴299 UAH</button>
 </form>
@@ -342,7 +342,7 @@ Track payment lifecycle with status transitions:
 await recordPaymentAttempt({
   orderId,
   userId,
-  targetRole: UserRole.MEMBER,
+  targetRole: UserRole.member,
   amount: 299,
   currency: 'UAH',
   status: 'initiated',
@@ -573,13 +573,13 @@ MasterCard (Success): 5555555555554444
 {`describe('WayForPay Integration', () => {
   it('should successfully upgrade user role on payment', async () => {
     // 1. Create test user (SUBSCRIBER)
-    const user = await createTestUser({ role: UserRole.SUBSCRIBER })
+    const user = await createTestUser({ role: UserRole.subscriber })
 
     // 2. Initiate payment
     const payment = await initiatePayment({
       userId: user.id,
       userEmail: user.email,
-      targetRole: UserRole.MEMBER,
+      targetRole: UserRole.member,
       returnUrl: '/success',
       callbackUrl: '/webhook'
     })
@@ -599,7 +599,7 @@ MasterCard (Success): 5555555555554444
 
     // 4. Verify role upgraded
     const updatedUser = await findUser(user.id)
-    expect(updatedUser.role).toBe(UserRole.MEMBER)
+    expect(updatedUser.role).toBe(UserRole.member)
   })
 
   it('should reject invalid webhook signatures', async () => {
@@ -624,7 +624,7 @@ MasterCard (Success): 5555555555554444
 
     // User role should NOT be upgraded
     const user = await findUser(userId)
-    expect(user.role).toBe(UserRole.SUBSCRIBER)
+    expect(user.role).toBe(UserRole.subscriber)
   })
 })`}
 </Code>

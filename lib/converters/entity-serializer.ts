@@ -67,6 +67,12 @@ export function deserializeEntity(serialized: SerializedEntity): Entity {
       ? safeToTimestamp(serialized.lastReportedAt)
       : undefined,
     blockedAt: serialized.blockedAt ? safeToTimestamp(serialized.blockedAt) : undefined,
+    verificationRequestedAt: serialized.verificationRequestedAt
+      ? safeToTimestamp(serialized.verificationRequestedAt)
+      : undefined,
+    verificationCompletedAt: serialized.verificationCompletedAt
+      ? safeToTimestamp(serialized.verificationCompletedAt)
+      : undefined,
   }
 }
 
@@ -109,6 +115,18 @@ export function serializeEntity(entity: Entity): SerializedEntity {
         ? entity.blockedAt.toDate().toISOString()
         : typeof entity.blockedAt === 'string'
           ? entity.blockedAt
+          : undefined,
+    verificationRequestedAt:
+      entity.verificationRequestedAt instanceof Timestamp
+        ? entity.verificationRequestedAt.toDate().toISOString()
+        : typeof entity.verificationRequestedAt === 'string'
+          ? entity.verificationRequestedAt
+          : undefined,
+    verificationCompletedAt:
+      entity.verificationCompletedAt instanceof Timestamp
+        ? entity.verificationCompletedAt.toDate().toISOString()
+        : typeof entity.verificationCompletedAt === 'string'
+          ? entity.verificationCompletedAt
           : undefined,
   }
 }

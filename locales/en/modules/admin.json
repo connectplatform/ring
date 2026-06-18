@@ -205,6 +205,11 @@
   "cacheClear": "Clear Cache",
   "viewLogs": "View Logs",
   "quickNav": "Quick Navigation",
+  "navGroupOverview": "Overview",
+  "navGroupCommunity": "Community & content",
+  "navGroupPlatform": "Platform operations",
+  "navGroupCommerce": "Commerce & rewards",
+  "navGroupEmail": "Email & CRM",
   "gettingStarted": "Getting Started",
   "apiReference": "API Reference",
   "troubleshooting": "Troubleshooting",
@@ -215,8 +220,16 @@
   "moderation": "Moderation",
   "performance": "Performance",
   "security": "Security",
+  "settingsNav": "Settings",
+  "matcherNav": "Matcher",
+  "verificationNav": "Verification",
   "store": "Store",
   "refcodes": "Referral rewards",
+  "emailInbox": "Email Inbox",
+  "emailDrafts": "Email Drafts",
+  "emailContacts": "Email Contacts",
+  "emailAnalytics": "Email Analytics",
+  "emailTasks": "Email Tasks",
   "matcherModeration": {
     "tab": "Entity moderation",
     "title": "Reported entities",
@@ -241,7 +254,6 @@
     "lowStock": "Low stock alerts",
     "movements": "Recent stock movements",
     "product": "Product",
-    "stock": "Stock",
     "movementType": "Type",
     "quantityChange": "Change",
     "timestamp": "When",
@@ -309,7 +321,25 @@
         "canceled": "Canceled"
       }
     }
+  },
+  "verificationQueue": {
+    "pageTitle": "Identity Verification",
+    "pageSubtitle": "Review submitted KYC and entity identity procedures",
+    "title": "Verification queue",
+    "subtitle": "Procedures awaiting admin review (submitted or under review)",
+    "refresh": "Refresh",
+    "empty": "No verification procedures in the queue.",
+    "documentCount": "{count} documents",
+    "applicant": "Applicant: {id}",
+    "submittedAt": "Submitted: {at}",
+    "subjectType": "Subject: {type}",
+    "viewEntity": "View entity profile",
+    "notePlaceholder": "Rejection reason or info request note",
+    "approve": "Approve",
+    "reject": "Reject",
+    "requestInfo": "Request info",
+    "rejectReasonRequired": "Rejection reason is required",
+    "requestInfoNoteRequired": "A note is required to request more information",
+    "actionFailed": "Verification action failed"
   }
 }
-
-

@@ -1,6 +1,7 @@
 'use server'
 
 import { UserRole } from '@/features/auth/types'
+import { getRoleLevel } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 import { db } from '@/lib/database'
 
@@ -46,16 +47,8 @@ export async function upgradeUserRole(
     const user = userResult.data
 
     // Validate upgrade is allowed
-    const roleHierarchy = {
-      [UserRole.VISITOR]: 0,
-      [UserRole.SUBSCRIBER]: 1,
-      [UserRole.MEMBER]: 2,
-      [UserRole.CONFIDENTIAL]: 3,
-      [UserRole.ADMIN]: 4
-    }
-
-    const currentLevel = roleHierarchy[(user.role as UserRole)] || 0
-    const targetLevel = roleHierarchy[targetRole] || 0
+    const currentLevel = getRoleLevel(user.role as string)
+    const targetLevel = getRoleLevel(targetRole)
 
     if (targetLevel <= currentLevel) {
       logger.warn('Role upgrade: Invalid upgrade attempt', {

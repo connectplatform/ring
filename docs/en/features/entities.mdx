@@ -240,7 +240,7 @@ Production clones use **PostgreSQL via `DatabaseService`**. Server reads return 
 
 const entity = await createEntity({
   name: 'Innovative Solutions Inc',
-  type: 'softwareDevelopment',
+  type: 'technologySoftware',
   shortDescription: 'Enterprise software and Ring Platform integrations',
   fullDescription: 'Full-service dev shop…',
   addedBy: userId,
@@ -257,43 +257,31 @@ const entity = await createEntity({
 </Code>
 
 ### Advanced Entity Management
-// Invite team members with specific roles
 
-<Code language="typescript" title="TypeScript">
-{`await inviteMembers(entity.id, [
-  {
+<Code language="typescript" title="REST — invite & analytics">
+{`// Invite an existing user by email (owner/admin)
+await fetch(\`/api/entities/\${entity.id}/invite\`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
     email: 'john@innovativesolutions.com',
     role: 'ADMIN',
-    permissions: ['post_opportunities', 'manage_team', 'view_analytics']
-  },
-  {
-    email: 'mike@innovativesolutions.com',
-    role: 'MEMBER',
-    permissions: ['apply_opportunities', 'network', 'view_public_content']
-  }
-])
-
-// Configure privacy and access settings
-await updateEntitySettings(entity.id, {
-  visibility: 'PUBLIC',
-  allowDirectMessages: true,
-  showAnalytics: true,
-  confidentialOpportunities: true,
-  partnerMatching: true
+  }),
 })
 
-const opportunity = await createOpportunity({
-  organizationId: entity.id,
-  type: 'offer',
-  title: 'Senior Software Architect',
-  briefDescription: 'Lead architecture for Ring-powered products',
-  status: 'pending',
-  category: 'engineering',
-  tags: ['architecture', 'react', 'postgresql'],
-  location: 'Remote',
-  requiredSkills: ['10+ years experience', 'AWS', 'team leadership'],
-  // …see Opportunities feature docs
-})`}
+// Request platform verification badge review
+await fetch(\`/api/entities/\${entity.id}/verify\`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ note: 'Registered LLC, docs in profile' }),
+})
+
+// Metrics for owners, members, and admins
+const analytics = await fetch(\`/api/entities/\${entity.id}/analytics\`, {
+  credentials: 'include',
+}).then((r) => r.json())`}
 </Code>
 
 ## 📊 Success Metrics & Benchmarks
@@ -340,14 +328,16 @@ const opportunity = await createOpportunity({
 ### API-First Architecture
 // Entity management endpoints
 
-<Code language="typescript" title="TypeScript">
-{`POST /api/entities                    // Create entity
-GET /api/entities/:id                 // Get entity details
-PUT /api/entities/:id                 // Update entity
-DELETE /api/entities/:id              // Delete entity
-POST /api/entities/:id/verify         // Request verification
-POST /api/entities/:id/invite         // Invite team members
-GET /api/entities/:id/analytics       // Get performance metrics`}
+<Code language="typescript" title="REST routes (alpha)">
+{`POST /api/entities/create           // Create entity
+GET  /api/entities/{id}             // Get entity details
+PUT  /api/entities/{id}             // Full update
+PATCH /api/entities/{id}            // Partial update (canonical)
+DELETE /api/entities/{id}           // Delete entity (body: { confirm: true })
+POST /api/entities/{id}/verify      // Request verification
+POST /api/entities/{id}/invite      // Invite team member by email
+GET  /api/entities/{id}/analytics   // Performance metrics
+POST /api/entities/upload           // Upload media`}
 </Code>
 
 ## 🏆 Why Choose Ring Platform Entities?

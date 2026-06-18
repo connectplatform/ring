@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useOptimistic, useTransition, useCallback } from 'react'
+import { useState, useOptimistic, useTransition, useCallback, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -87,6 +87,8 @@ const categories = [
   'other'
 ]
 
+const ANY_PRIORITY = '__any__'
+
 const priorities = [
   { id: 'urgent', icon: AlertTriangle, label: 'Urgent', color: 'text-red-600' },
   { id: 'normal', icon: CheckCircle, label: 'Normal', color: 'text-gray-600' },
@@ -150,6 +152,8 @@ export default function OpportunitiesFiltersPanel({
 
     return true
   }
+  const isApplyingFilters = useRef(false)
+
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     types: [],
@@ -164,6 +168,13 @@ export default function OpportunitiesFiltersPanel({
     hasDeadline: null,
     ...initialFilters
   })
+
+  useEffect(() => {
+    if (isApplyingFilters.current && onFiltersApplied) {
+      onFiltersApplied(filters)
+      isApplyingFilters.current = false
+    }
+  }, [filters, onFiltersApplied])
 
   // Get translated type name
   const getTypeTranslation = (type: string) => {
@@ -213,7 +224,10 @@ export default function OpportunitiesFiltersPanel({
 
   const updateFilters = useCallback((updates: Partial<FilterState>) => {
     startTransition(() => {
-    setFilters(prev => ({ ...prev, ...updates }))
+      setFilters((prev) => {
+        isApplyingFilters.current = true
+        return { ...prev, ...updates }
+      })
     })
   }, [startTransition])
 
@@ -547,14 +561,14 @@ export default function OpportunitiesFiltersPanel({
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 px-3">
             <Select
-              value={filters.priority}
-              onValueChange={(value) => updateFilters({ priority: value })}
+              value={filters.priority || ANY_PRIORITY}
+              onValueChange={(value) => updateFilters({ priority: value === ANY_PRIORITY ? '' : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any priority</SelectItem>
+                <SelectItem value={ANY_PRIORITY}>Any priority</SelectItem>
                 {priorities.map((priority) => {
                   const IconComponent = priority.icon
                   return (

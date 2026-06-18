@@ -43,7 +43,7 @@ describe('generateNonce', () => {
     expect(mockCreate).toHaveBeenCalledWith(
       'users',
       expect.objectContaining({
-        role: UserRole.SUBSCRIBER,
+        role: UserRole.subscriber,
         nonce: result.nonce,
         walletAddress: expect.any(String),
       }),
@@ -55,7 +55,7 @@ describe('generateNonce', () => {
   it('updates an existing wallet user', async () => {
     mockRead.mockResolvedValue({
       success: true,
-      data: { data: { email: 'wallet@example.com', role: UserRole.SUBSCRIBER } },
+      data: { data: { email: 'wallet@example.com', role: UserRole.subscriber } },
     })
     mockUpdate.mockResolvedValue({ success: true })
 

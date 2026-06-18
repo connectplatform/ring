@@ -173,8 +173,8 @@ function App() {
 ### From WebSocket Only
 ```typescript
 // Before
-import { useWebSocketConnection } from '@/hooks/use-websocket';
-const { isConnected, subscribe } = useWebSocketConnection();
+import { useRealtimeConnection } from '@/hooks/use-realtime';
+const { isConnected, subscribe } = useRealtimeConnection();
 
 // After
 import { useTunnel } from '@/hooks/use-tunnel';

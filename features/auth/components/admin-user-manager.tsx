@@ -170,14 +170,23 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
     setError(null);
     
     try {
+      const verifiedAtLocal = new Date().toISOString();
+      const verifiedAtLocalDisplay = new Date().toLocaleString(locale);
+
       const response = await fetch(`/api/admin/users/${userId}/verification`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isVerified })
+        body: JSON.stringify({
+          isVerified,
+          verifiedAtLocal,
+          verifiedAtLocalDisplay,
+        }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to update user verification');
+        throw new Error(data.error || 'Failed to update user verification');
       }
 
       // Update local state
@@ -185,7 +194,11 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
         user.id === userId ? { ...user, isVerified } : user
       ));
       
-      setSuccess('User verification updated successfully');
+      setSuccess(
+        isVerified
+          ? 'User verified manually — KYC procedure recorded'
+          : 'User verification cleared',
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user verification');
     } finally {
@@ -222,11 +235,11 @@ export function AdminUserManager({ initialUsers, locale }: AdminUserManagerProps
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
-      case UserRole.ADMIN: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case UserRole.CONFIDENTIAL: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case UserRole.MEMBER: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case UserRole.SUBSCRIBER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case UserRole.VISITOR: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+      case UserRole.admin: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case UserRole.confidential: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case UserRole.member: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case UserRole.subscriber: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case UserRole.visitor: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
   };

@@ -1,93 +1,75 @@
 'use client'
 
-import { useAuth } from '@/hooks/use-auth'
-import { UserRole } from '@/features/auth/types'
-import { Button } from '@/components/ui/button'
-import { Plus, Crown, MessageSquare, Briefcase } from 'lucide-react'
-import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
+import { useAuth } from '@/hooks/use-auth'
+import {
+  canAccessOpportunityCreation,
+  opportunitySelectorUserRole,
+} from '@/features/auth/user-role'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
 
 interface AddOpportunityButtonProps {
-  locale: Locale
+  locale?: Locale
   className?: string
 }
 
-export function AddOpportunityButton({ locale, className }: AddOpportunityButtonProps) {
-  const { hasRole, isAuthenticated, user } = useAuth()
-  const [showTypeSelector, setShowTypeSelector] = useState(false)
-  const pathname = usePathname()
+export function AddOpportunityButton({ locale: localeProp, className }: AddOpportunityButtonProps) {
+  const resolvedLocale = (useLocale() as Locale) ?? localeProp
+  const locale = resolvedLocale ?? ('en' as Locale)
+  const { role, isAuthenticated } = useAuth()
   const t = useTranslations('modules.opportunities')
-  
-  // Not authenticated - redirect to login
+  const [showTypeSelector, setShowTypeSelector] = useState(false)
+
   if (!isAuthenticated) {
     return (
       <Button asChild className={className}>
-        <Link href={`${ROUTES.LOGIN(locale)}?returnTo=${encodeURIComponent(pathname)}`}>
+        <Link
+          href={`${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(ROUTES.OPPORTUNITIES(locale))}`}
+        >
           <Plus className="h-4 w-4 mr-2" />
-          {t('addOpportunity', { defaultValue: 'Add Opportunity' })}
+          {t('addOpportunity')}
         </Link>
       </Button>
     )
   }
-  
-  // MEMBER+ users can create both types - show selector
-  if (hasRole(UserRole.MEMBER)) {
+
+  if (!canAccessOpportunityCreation(role)) {
     return (
-      <>
-        <Button 
-          onClick={() => setShowTypeSelector(true)}
-          className={className}
+      <Button asChild className={className}>
+        <Link
+          href={`${ROUTES.MEMBERSHIP(locale)}?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(locale))}`}
         >
           <Plus className="h-4 w-4 mr-2" />
-          {t('addOpportunity', { defaultValue: 'Add Opportunity' })}
-        </Button>
-        
-        {showTypeSelector && (
-          <OpportunityTypeSelector
-            onClose={() => setShowTypeSelector(false)}
-            userRole="member"
-            locale={locale}
-          />
-        )}
-      </>
+          {t('addOpportunity')}
+        </Link>
+      </Button>
     )
   }
-  
-  // SUBSCRIBER users get type selector with upgrade flow for offers
-  if (hasRole(UserRole.SUBSCRIBER)) {
-    return (
-      <>
-        <Button 
-          onClick={() => setShowTypeSelector(true)}
-          className={className}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('addOpportunity', { defaultValue: 'Add Opportunity' })}
-        </Button>
-        
-        {showTypeSelector && (
-          <OpportunityTypeSelector
-            onClose={() => setShowTypeSelector(false)}
-            userRole="subscriber"
-            locale={locale}
-          />
-        )}
-      </>
-    )
-  }
-  
-  // VISITOR - redirect to registration
+
   return (
-    <Button asChild className={className}>
-      <Link href={`/${locale}/auth/register?returnTo=${encodeURIComponent(pathname)}`}>
+    <>
+      <Button
+        type="button"
+        className={className}
+        onClick={() => setShowTypeSelector(true)}
+      >
         <Plus className="h-4 w-4 mr-2" />
-        {t('addOpportunity', { defaultValue: 'Add Opportunity' })}
-      </Link>
-    </Button>
+        {t('addOpportunity')}
+      </Button>
+      {showTypeSelector && (
+        <OpportunityTypeSelectorClient
+          layout="overlay"
+          userRole={opportunitySelectorUserRole(role)}
+          locale={locale}
+          onClose={() => setShowTypeSelector(false)}
+        />
+      )}
+    </>
   )
 }

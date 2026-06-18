@@ -153,6 +153,52 @@ export default function ProfileContent({
   const [activeTab, setActiveTab] = useState('overview')
   const user = initialUser || session?.user
   const kycStatus = getKycStatus()
+  const [verificationProcedure, setVerificationProcedure] = useState<{
+    procedureNumber: string
+    status: string
+    documents: Array<{
+      id: string
+      documentType: string
+      fileName: string
+      uploadedAt: string
+      status: string
+    }>
+  } | null>(null)
+
+  const mapProcedureStatusToKyc = (status?: string): KYCStatus => {
+    switch (status) {
+      case 'submitted':
+        return KYCStatus.PENDING
+      case 'under_review':
+        return KYCStatus.UNDER_REVIEW
+      case 'approved':
+        return KYCStatus.APPROVED
+      case 'rejected':
+        return KYCStatus.REJECTED
+      case 'expired':
+        return KYCStatus.EXPIRED
+      default:
+        return kycStatus as KYCStatus
+    }
+  }
+
+  const loadVerificationProcedure = useCallback(async () => {
+    try {
+      const response = await fetch('/api/verification/procedures/me?subjectType=user_kyc')
+      const result = await response.json()
+      if (result.success && result.procedure) {
+        setVerificationProcedure(result.procedure)
+      }
+    } catch (error) {
+      console.error('Failed to load verification procedure:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'verification') {
+      void loadVerificationProcedure()
+    }
+  }, [activeTab, loadVerificationProcedure])
 
   const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
@@ -563,26 +609,62 @@ export default function ProfileContent({
   // Handle KYC document upload
   const handleKYCDocumentUpload = async (document: { type: KYCDocumentType; file: File }) => {
     try {
+      const bootstrap = await fetch('/api/verification/procedures/me?subjectType=user_kyc', {
+        method: 'POST',
+      })
+      const bootstrapResult = await bootstrap.json()
+      if (!bootstrapResult.success || !bootstrapResult.procedure?.procedureNumber) {
+        throw new Error(bootstrapResult.error || 'Failed to start verification procedure')
+      }
+
+      const procedureNumber = bootstrapResult.procedure.procedureNumber as string
+
       const formData = new FormData()
       formData.append('file', document.file)
       formData.append('type', 'kyc')
       formData.append('documentType', document.type)
       formData.append('purpose', 'profile:kyc')
       formData.append('fileType', document.type)
+      formData.append('procedureNumber', procedureNumber)
 
-      const response = await fetch('/api/uploads', {
+      const uploadResponse = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
       })
 
-      const result = await response.json()
-      if (result.success) {
-        console.log('KYC document uploaded successfully:', result)
-        await refreshSession()
-        router.refresh()
-      } else {
-        throw new Error(result.error || 'Upload failed')
+      const uploadResult = await uploadResponse.json()
+      if (!uploadResult.success || !uploadResult.objectKey) {
+        throw new Error(uploadResult.error || 'Upload failed')
       }
+
+      const attachResponse = await fetch(
+        `/api/verification/procedures/${encodeURIComponent(procedureNumber)}/documents`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentType: document.type,
+            objectKey: uploadResult.objectKey,
+            fileName: uploadResult.filename || document.file.name,
+            contentType: uploadResult.contentType,
+            autoSubmit: true,
+          }),
+        },
+      )
+
+      const attachResult = await attachResponse.json()
+      if (!attachResult.success) {
+        throw new Error(attachResult.error || 'Failed to attach document to verification procedure')
+      }
+
+      if (attachResult.procedure) {
+        setVerificationProcedure(attachResult.procedure)
+      } else {
+        await loadVerificationProcedure()
+      }
+
+      await refreshSession()
+      router.refresh()
     } catch (error) {
       console.error('KYC document upload error:', error)
       throw error
@@ -620,11 +702,11 @@ export default function ProfileContent({
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
-      case UserRole.SUPERADMIN: return 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
-      case UserRole.ADMIN: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      case UserRole.CONFIDENTIAL: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-      case UserRole.MEMBER: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-      case UserRole.SUBSCRIBER: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+      case UserRole.superadmin: return 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
+      case UserRole.admin: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      case UserRole.confidential: return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+      case UserRole.member: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+      case UserRole.subscriber: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
   }
@@ -1631,8 +1713,15 @@ export default function ProfileContent({
                 <div className="space-y-6">
                   <KYCUpload
                     onUpload={handleKYCDocumentUpload}
-                    currentStatus={kycStatus as KYCStatus}
-                    uploadedDocuments={[]}
+                    currentStatus={mapProcedureStatusToKyc(verificationProcedure?.status)}
+                    uploadedDocuments={(verificationProcedure?.documents ?? []).map((doc) => ({
+                      type: doc.documentType as KYCDocumentType,
+                      status: mapProcedureStatusToKyc(
+                        doc.status === 'accepted' ? 'approved' : verificationProcedure?.status,
+                      ),
+                      uploadedAt: new Date(doc.uploadedAt),
+                      fileName: doc.fileName,
+                    }))}
                   />
                 </div>
               )}

@@ -13,4 +13,6 @@ description: Vercel documentation for Ring Platform
 4. Deploy main branch
 
 
-<Callout type="info">Prefer SSE over WebSocket on Vercel.</Callout>
+<Callout type="info">
+Встановіть `RING_DEPLOY_TARGET=vercel` — лише SSE + long-polling; native WSS недоступний на serverless.
+</Callout>

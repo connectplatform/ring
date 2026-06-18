@@ -22,7 +22,7 @@ let clientTunnelManager: any = null
 let connectionPromise: Promise<any> | null = null
 let isConnecting = false
 
-// Track active subscriptions to prevent duplicates
+// Track active subscriptions per hook instance (cleanup on unmount only)
 const activeSubscriptions = new Set<string>()
 
 interface UseTunnelSubscriptionOptions<T> {
@@ -132,14 +132,8 @@ export function useTunnelSubscription<T = any>(
     const userId = session.user.id
     const userChannel = `${channel}:${userId}`
 
-    // Skip if already subscribed to this channel
+    // Skip if this hook instance already subscribed for this user/channel
     if (hasSubscribedRef.current && userIdRef.current === userId) {
-      return
-    }
-
-    // Skip if subscription already active globally
-    if (activeSubscriptions.has(userChannel)) {
-      logger.debug('Subscription already active, skipping:', { userChannel })
       return
     }
 
@@ -220,7 +214,11 @@ export function useTunnelSubscription<T = any>(
           setConnectionState(TunnelConnectionState.ERROR)
           setIsConnected(false)
           hasSubscribedRef.current = false
-          logger.error('Tunnel connection failed:', err)
+          activeSubscriptions.delete(userChannel)
+          logger.error('Tunnel connection failed:', {
+            error: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+          })
         }
       }
     }

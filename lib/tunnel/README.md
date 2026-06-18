@@ -57,7 +57,7 @@ The tunnel transport system is **production-ready for Vercel** with automatic en
 # Environment variables for Vercel
 NEXT_PUBLIC_TUNNEL_TRANSPORT=sse
 NEXT_PUBLIC_TUNNEL_FALLBACK_CHAIN=sse,polling
-NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED=false
+NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED is removed — use RING_DEPLOY_TARGET=vercel for SSE-only.
 ```
 
 **Features:**
@@ -299,9 +299,9 @@ const client = transport?.getProviderClient(); // Access underlying client
 ### Before (WebSocket only)
 
 ```typescript
-import { useWebSocketConnection } from '@/hooks/use-websocket';
+import { useRealtimeConnection } from '@/hooks/use-realtime';
 
-const { isConnected, subscribe } = useWebSocketConnection();
+const { isConnected, subscribe } = useRealtimeConnection();
 ```
 
 ### After (Multi-transport)

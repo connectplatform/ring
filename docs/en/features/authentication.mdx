@@ -14,7 +14,7 @@ Auth.js v5 multi-provider authentication with magic links, OAuth providers, cryp
 |-------|------|
 | `proxy.ts` | Locale rewrite + optimistic redirect to `ROUTES.LOGIN(locale)` (cookie presence only — not session validity) |
 | `(authenticated)/[locale]/layout.tsx` | `await auth()` — canonical session gate |
-| `(admin)/[locale]/layout.tsx` | Role check (ADMIN/SUPERADMIN) |
+| `(admin)/[locale]/layout.tsx` | Role check (admin/superadmin) |
 | `/login` | `LoginAuthenticatedRedirect` — client `useSession` bounce when genuinely authenticated (avoids stale-cookie loops; skips during OAuth callback query params) |
 | API routes | Per-handler `auth()` |
 
@@ -244,4 +244,6 @@ export async function GET(request: Request) {
 
 ---
 
-*Complete authentication documentation coming soon.*
+<Callout type="development" title="Documentation in progress">
+Complete authentication documentation is being expanded.
+</Callout>

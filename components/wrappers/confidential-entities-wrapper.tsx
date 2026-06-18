@@ -1,24 +1,17 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import type { Entity } from '@/types'
-import { 
-  ConfidentialEntitiesProvider 
-} from '@/features/entities/context/confidential-entities-context'
-import { UserRole } from '@/features/auth/types'
+import { ConfidentialEntitiesProvider } from '@/features/entities/context/confidential-entities-context'
+import { hasConfidentialAccess } from '@/features/auth/user-role'
 
-// Simple loading component
-function LoadingFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-pulse">Loading confidential entities...</div>
-    </div>
-  )
-}
+const ConfidentialEntities = React.lazy(
+  () => import('@/features/entities/components/confidential-entities')
+)
 
-// Props interface
 interface ConfidentialEntitiesWrapperProps {
   initialEntities: Entity[]
   initialError: string | null
@@ -32,7 +25,18 @@ interface ConfidentialEntitiesWrapperProps {
   initialFilter: string
 }
 
-// Main component
+function LoadingFallback({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-pulse">{message}</div>
+    </div>
+  )
+}
+
+function canAccessConfidential(role: string | undefined | null): boolean {
+  return hasConfidentialAccess(role)
+}
+
 export default function ConfidentialEntitiesWrapper({
   initialEntities,
   initialError,
@@ -43,65 +47,51 @@ export default function ConfidentialEntitiesWrapper({
   lastVisible,
   initialLimit,
   initialSort,
-  initialFilter
+  initialFilter,
 }: ConfidentialEntitiesWrapperProps) {
-  // Use React hooks directly without destructuring
-  const sessionData = useSession()
-  const searchParamsData = useSearchParams()
-  const [isClient, setIsClient] = React.useState(false)
+  const { data: session, status } = useSession()
+  const searchParams = useSearchParams()
+  const t = useTranslations('confidential.entities.wrapper')
+  const [mounted, setMounted] = React.useState(false)
 
-  // Parse search params
-  const currentPage = parseInt(searchParamsData.get('page') || initialPage.toString(), 10)
-  const limit = parseInt(searchParamsData.get('limit') || initialLimit.toString(), 10)
-  const currentSort = searchParamsData.get('sort') || initialSort
-  const currentFilter = searchParamsData.get('filter') || initialFilter
+  const currentPage = parseInt(searchParams.get('page') || initialPage.toString(), 10)
+  const limit = parseInt(searchParams.get('limit') || initialLimit.toString(), 10)
+  const currentSort = searchParams.get('sort') || initialSort
+  const currentFilter = searchParams.get('filter') || initialFilter
 
-  // Set isClient to true when component mounts
   React.useEffect(() => {
-    setIsClient(true)
+    setMounted(true)
   }, [])
 
-  // Show loading state
-  if (!isClient || sessionData.status === 'loading') {
-    return <LoadingFallback />
+  if (!mounted || status === 'loading') {
+    return <LoadingFallback message={t('loading')} />
   }
 
-  // Check permissions
-  if (!sessionData.data ||
-      (sessionData.data.user?.role !== UserRole.CONFIDENTIAL &&
-       sessionData.data.user?.role !== UserRole.ADMIN)) {
+  if (!session?.user || !canAccessConfidential(session.user.role)) {
     return (
-      <div className="text-center p-4 text-red-500">
-        You don't have permission to view this page.
+      <div className="text-center p-4 text-destructive">
+        {t('permissionDenied')}
       </div>
     )
   }
 
-  // Import the component only when needed
-  const ConfidentialEntities = React.lazy(() => 
-    import('@/features/entities/components/confidential-entities')
-  )
-
   return (
     <div className="ring-content-panel min-w-0 min-h-full">
-    <ConfidentialEntitiesProvider 
-      initialEntities={initialEntities} 
-      initialError={initialError}
-    >
-      <React.Suspense fallback={<LoadingFallback />}>
-        <ConfidentialEntities 
-          initialEntities={initialEntities} 
-          initialError={initialError}
-          page={currentPage}
-          totalPages={totalPages}
-          totalEntities={totalEntities}
-          lastVisible={lastVisible}
-          limit={limit}
-          sort={currentSort}
-          filter={currentFilter}
-        />
-      </React.Suspense>
-    </ConfidentialEntitiesProvider>
+      <ConfidentialEntitiesProvider initialEntities={initialEntities} initialError={initialError}>
+        <Suspense fallback={<LoadingFallback message={t('loading')} />}>
+          <ConfidentialEntities
+            initialEntities={initialEntities}
+            initialError={initialError}
+            page={currentPage}
+            totalPages={totalPages}
+            totalEntities={totalEntities}
+            lastVisible={lastVisible}
+            limit={limit}
+            sort={currentSort}
+            filter={currentFilter}
+          />
+        </Suspense>
+      </ConfidentialEntitiesProvider>
     </div>
   )
 }

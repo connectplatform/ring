@@ -68,13 +68,18 @@ export function slugFromDocRelativePath(relativePath: string): string[] {
   return normalized.split('/').filter(Boolean)
 }
 
+/** Locale-neutral path for next-intl `Link` (routing adds `/uk`, `/ru`, etc.). */
+export function buildDocsLinkPath(slug: string[]): string {
+  if (slug.length === 0) {
+    return '/docs'
+  }
+  return `/docs/${slug.join('/')}`
+}
+
 /** Public docs href with `localePrefix: as-needed` (default locale omits `/en`). */
 export function buildDocsHref(locale: string, slug: string[]): string {
   const prefix = locale === DEFAULT_LOCALE ? '' : `/${locale}`
-  if (slug.length === 0) {
-    return `${prefix}/docs`
-  }
-  return `${prefix}/docs/${slug.join('/')}`
+  return `${prefix}${buildDocsLinkPath(slug)}`
 }
 
 export function readSectionMeta(metaPath: string): DocsSectionMeta {

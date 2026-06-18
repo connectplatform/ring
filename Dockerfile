@@ -353,6 +353,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV NODE_OPTIONS="--no-deprecation"
+ENV RING_DEPLOY_TARGET=k8s
+ENV NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
 
 # Install runtime dependencies
 RUN apk add --no-cache \
@@ -370,6 +372,9 @@ WORKDIR /app
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy custom server entry (native WSS + Next handler)
+COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
 
 # Copy lib directory for auth and utilities
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
@@ -400,5 +405,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application with Next.js standalone server (supports WebSocket via API routes)
-CMD ["node", "server.js"]
+# Custom server: Next handler + native WSS tunnel (RING_DEPLOY_TARGET=k8s baked above)
+CMD ["node", "--import", "tsx", "server.ts"]

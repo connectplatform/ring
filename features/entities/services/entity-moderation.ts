@@ -183,7 +183,7 @@ export async function adminBlockEntity(
   }
 
   const role = session.user.role as UserRole
-  if (role !== UserRole.ADMIN && role !== UserRole.SUPERADMIN) {
+  if (role !== UserRole.admin && role !== UserRole.superadmin) {
     throw new EntityPermissionError('Admin access required')
   }
 

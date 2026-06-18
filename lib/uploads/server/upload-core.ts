@@ -35,6 +35,7 @@ interface UploadPolicy {
   allowedTypes: string[]
   requireScopeIds?: string[]
   requiresRole?: string[]
+  privateAccess?: boolean
   keyBuilder: (params: UploadBuildParams) => Promise<string>
   authorize?: (params: UploadPolicyContext) => Promise<void>
 }
@@ -307,6 +308,7 @@ const policies: Record<string, UploadPolicy> = {
   'profile:kyc': {
     purpose: 'profile:kyc',
     authMode: 'authenticated',
+    privateAccess: true,
     maxSizeBytes: normalizeFileConfig(getKYCStorageConfig()).maxSizeBytes,
     allowedTypes: normalizeFileConfig(getKYCStorageConfig()).allowedTypes,
     requiresRole: ['subscriber', 'member', 'confidential', 'admin', 'superadmin'],
@@ -434,6 +436,20 @@ const policies: Record<string, UploadPolicy> = {
       return `${sanitizeSegment('refmagic')}/outputs/${actor.userId}/${safeBasename}`
     },
   },
+  'verification:document': {
+    purpose: 'verification:document',
+    authMode: 'authenticated',
+    privateAccess: true,
+    maxSizeBytes: normalizeFileConfig(getKYCStorageConfig()).maxSizeBytes,
+    allowedTypes: normalizeFileConfig(getKYCStorageConfig()).allowedTypes,
+    requiresRole: ['subscriber', 'member', 'confidential', 'admin', 'superadmin'],
+    keyBuilder: async ({ actor, tenantPrefix, file, meta }) => {
+      const docType = sanitizeSegment(meta.fileType || 'document', 'document')
+      const suffix = buildObjectId()
+      const ext = sanitizeExtension(file.name)
+      return `${tenantPrefix}/verification/${actor.userId || 'unknown'}/${docType}_${Date.now()}_${suffix}.${ext || 'bin'}`
+    },
+  },
 }
 
 function assertRequiredRoles(requiredRoles: string[] | undefined, actorRoleValue: string | undefined): void {
@@ -512,7 +528,7 @@ async function executePolicy(
   })
 
   const uploadResult = await file().upload(objectKey, input.file, {
-    access: 'public',
+    access: meta.privateAccess ? 'private' : 'public',
     addRandomSuffix: false,
     contentType: input.file.type || undefined,
   })

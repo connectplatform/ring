@@ -27,7 +27,7 @@ export async function updateSettings(state: UpdateSettingsResponse | null, formD
   const currentUserId = session.user.id
   
   // Users can only update their own settings (unless they're admin)
-  const isAdmin = session.user.role === UserRole.ADMIN
+  const isAdmin = session.user.role === UserRole.admin
   
   if (!isAdmin && requestedUserId !== currentUserId) {
     return {

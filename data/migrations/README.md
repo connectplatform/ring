@@ -32,8 +32,25 @@ Or use [`scripts/run-migration.sh`](../scripts/run-migration.sh) when configured
 | `008_inventory_schema.sql` | `inventory_levels` + `inventory_reservations` (also in `schema.sql` v4.0.1+) |
 | `009_email_crm_jsonb.sql` | Email CRM JSONB tables: contacts, threads, messages, drafts |
 | `010_email_crm_tasks_jsonb.sql` | Email CRM tasks + `email_api_usage` cost ledger |
+| `012_verification_procedures.sql` | Verification procedures SSOT + matcher events |
+| `013_users_email_unique.sql` | Unique index on `lower(users.data->>'email')` — **run dedupe script first** |
+| `014_user_roles_lowercase.sql` | Lowercase all `users.data` role strings + nested upgrade fields; idempotent |
 
 **Dev DB name:** `ring_platform` (`DATABASE_URL` in `.env.local`). Clone DBs use their own names (e.g. `ring_ringdom_org`).
+
+### User email dedupe (dev)
+
+Before `013_users_email_unique.sql`:
+
+```bash
+DATABASE_URL=postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform \
+  npx tsx scripts/dedupe-users-by-email.cts --email automart@gmail.com --apply
+
+psql "$DATABASE_URL" -f data/migrations/013_users_email_unique.sql
+psql "$DATABASE_URL" -f data/migrations/014_user_roles_lowercase.sql
+```
+
+Dry-run (default): omit `--apply`.
 
 ### Email CRM — internal production ops
 

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     switch (type) {
       case 'membership_upgrade':
         // Upgrade from SUBSCRIBER to MEMBER
-        if (session.user.role !== UserRole.SUBSCRIBER) {
+        if (session.user.role !== UserRole.subscriber) {
           return NextResponse.json(
             { 
               error: 'Invalid upgrade request',
@@ -279,7 +279,7 @@ export async function GET(request: NextRequest) {
     // Determine available payment options
     const paymentOptions = [];
 
-    if (session.user.role === UserRole.SUBSCRIBER) {
+    if (session.user.role === UserRole.subscriber) {
       paymentOptions.push({
         type: 'membership_upgrade',
         title: 'Upgrade to Member',

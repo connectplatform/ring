@@ -1,0 +1,17 @@
+{
+    "startedAt": "2026-06-18T14:17:47.973Z",
+    "model": "grok-imagine-video",
+    "baseUrl": "https://api.x.ai/v1",
+    "clips": [
+      {
+        "id": "01_hoa_video_call_pains",
+        "duration": 10,
+        "status": "done",
+        "requestId": "b13f69f3-69f9-928c-ba4b-ab52fba62b36",
+        "url": "https://vidgen.x.ai/xai-vidgen-bucket/xai-video-26122e86-7d14-412a-b16c-931e47df9f9a.mp4",
+        "respectModeration": true,
+        "actualDuration": 10
+      }
+    ],
+    "finishedAt": "2026-06-18T14:19:53.951Z"
+  }

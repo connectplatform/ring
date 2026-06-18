@@ -8,7 +8,8 @@ import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale, supportedLocales } from '@/i18n/shared'
-import { buildDocsHref, getDocsLocaleRoot, readSectionMeta } from '@/lib/docs/docs-path'
+import { buildDocsLinkPath, getDocsLocaleRoot, readSectionMeta } from '@/lib/docs/docs-path'
+import { pathnameWithoutLocale } from '@/lib/seo-metadata'
 
 type DocsLinkHref = ComponentProps<typeof Link>['href']
 
@@ -23,6 +24,7 @@ interface NavItem {
 
 interface NavigationSection {
   title: string
+  href: string
   items: NavItem[]
 }
 
@@ -64,11 +66,36 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
 
   const buildHref = (sectionSlug: string | null, pageSlug: string): string => {
     if (sectionSlug === null) {
-      if (pageSlug === 'index') return buildDocsHref(docsLocale, [])
-      return buildDocsHref(docsLocale, [pageSlug])
+      if (pageSlug === 'index') return buildDocsLinkPath([])
+      return buildDocsLinkPath([pageSlug])
     }
-    if (pageSlug === 'index') return buildDocsHref(docsLocale, [sectionSlug])
-    return buildDocsHref(docsLocale, [sectionSlug, pageSlug])
+    if (pageSlug === 'index') return buildDocsLinkPath([sectionSlug])
+    return buildDocsLinkPath([sectionSlug, pageSlug])
+  }
+
+  const sectionHasIndex = (sectionDir: string): boolean =>
+    fs.existsSync(path.join(sectionDir, 'index.mdx'))
+
+  const loadTopPinnedLinks = (): NavItem[] => {
+    const pinned: NavItem[] = []
+
+    const welcomePath = path.join(docsRoot, 'welcome.mdx')
+    if (fs.existsSync(welcomePath)) {
+      pinned.push({
+        href: buildHref(null, 'welcome'),
+        label: getTitleFromMdx(welcomePath, 'Welcome to Ring'),
+      })
+    }
+
+    const indexPath = path.join(docsRoot, 'index.mdx')
+    if (fs.existsSync(indexPath)) {
+      pinned.push({
+        href: buildHref(null, 'index'),
+        label: pt('linkQuickReference'),
+      })
+    }
+
+    return pinned
   }
 
   const loadHierarchicalNavigation = (): NavigationSection[] => {
@@ -77,35 +104,7 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
     const sectionSlugs = rootMeta.pages ?? []
 
     for (const entry of sectionSlugs) {
-      if (entry === 'index') {
-        const indexPath = path.join(docsRoot, 'index.mdx')
-        if (fs.existsSync(indexPath)) {
-          sections.push({
-            title: pt('linkLibrary'),
-            items: [
-              {
-                href: buildHref(null, 'index'),
-                label: getTitleFromMdx(indexPath, 'Overview'),
-              },
-            ],
-          })
-        }
-        continue
-      }
-
-      if (entry === 'welcome') {
-        const welcomePath = path.join(docsRoot, 'welcome.mdx')
-        if (fs.existsSync(welcomePath)) {
-          sections.push({
-            title: pt('linkWelcome'),
-            items: [
-              {
-                href: buildHref(null, 'welcome'),
-                label: getTitleFromMdx(welcomePath, 'Welcome'),
-              },
-            ],
-          })
-        }
+      if (entry === 'index' || entry === 'welcome') {
         continue
       }
 
@@ -117,9 +116,16 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
       const sectionMeta = readSectionMeta(path.join(sectionDir, 'meta.json'))
       const sectionTitle = sectionMeta.title ?? slugToLabel(entry)
       const pageSlugs = sectionMeta.pages ?? ['index']
+      const sectionHref = sectionHasIndex(sectionDir)
+        ? buildDocsLinkPath([entry])
+        : buildDocsLinkPath([entry, pageSlugs.find((s) => s !== 'index') ?? 'index'])
 
       const items: NavItem[] = []
       for (const pageSlug of pageSlugs) {
+        if (pageSlug === 'index') {
+          continue
+        }
+
         const nestedDir = path.join(sectionDir, pageSlug)
         const nestedMetaPath = path.join(nestedDir, 'meta.json')
 
@@ -127,94 +133,127 @@ export default async function DocsNavigationTree({ locale }: DocsNavigationTreeP
           const nestedMeta = readSectionMeta(nestedMetaPath)
           const nestedPages = nestedMeta.pages ?? ['index']
           for (const nestedPageSlug of nestedPages) {
-            const nestedFileName = nestedPageSlug === 'index' ? 'index.mdx' : `${nestedPageSlug}.mdx`
+            if (nestedPageSlug === 'index') {
+              continue
+            }
+
+            const nestedFileName = `${nestedPageSlug}.mdx`
             const nestedFilePath = path.join(nestedDir, nestedFileName)
             if (!fs.existsSync(nestedFilePath)) continue
-            const nestedHref =
-              nestedPageSlug === 'index'
-                ? buildDocsHref(docsLocale, [entry, pageSlug])
-                : buildDocsHref(docsLocale, [entry, pageSlug, nestedPageSlug])
+
             items.push({
-              href: nestedHref,
-              label: getTitleFromMdx(
-                nestedFilePath,
-                nestedPageSlug === 'index'
-                  ? (nestedMeta.title ?? slugToLabel(pageSlug))
-                  : slugToLabel(nestedPageSlug),
-              ),
+              href: buildDocsLinkPath([entry, pageSlug, nestedPageSlug]),
+              label: getTitleFromMdx(nestedFilePath, slugToLabel(nestedPageSlug)),
             })
           }
           continue
         }
 
-        const fileName = pageSlug === 'index' ? 'index.mdx' : `${pageSlug}.mdx`
+        const fileName = `${pageSlug}.mdx`
         const filePath = path.join(sectionDir, fileName)
         if (!fs.existsSync(filePath)) continue
 
         items.push({
           href: buildHref(entry, pageSlug),
-          label: getTitleFromMdx(filePath, pageSlug === 'index' ? sectionTitle : slugToLabel(pageSlug)),
+          label: getTitleFromMdx(filePath, slugToLabel(pageSlug)),
         })
       }
 
-      if (items.length > 0) {
-        sections.push({ title: sectionTitle, items })
-      }
+      sections.push({ title: sectionTitle, href: sectionHref, items })
     }
 
     return sections
   }
 
+  const topPinnedLinks = loadTopPinnedLinks()
   const navSections = loadHierarchicalNavigation()
 
   const quickLinks: { href: string; label: string; external?: boolean }[] = [
-    { href: buildDocsHref(docsLocale, []), label: pt('linkLibrary') },
-    { href: buildDocsHref(docsLocale, ['welcome']), label: pt('linkWelcome') },
-    { href: buildDocsHref(docsLocale, ['getting-started']), label: pt('linkGettingStarted') },
-    { href: buildDocsHref(docsLocale, ['architecture']), label: pt('linkArchitecture') },
-    { href: buildDocsHref(docsLocale, ['architecture', 'backend-modes-and-databases']), label: pt('linkBackendModes') },
-    { href: buildDocsHref(docsLocale, ['deployment', 'self-hosted']), label: 'Self-hosted' },
-    { href: buildDocsHref(docsLocale, ['development', 'ring-mcp']), label: 'Ring MCP' },
-    { href: buildDocsHref(docsLocale, ['deployment']), label: pt('linkDeployment') },
-    { href: buildDocsHref(docsLocale, ['features', 'security']), label: pt('linkSecurity') },
+    { href: buildDocsLinkPath(['welcome']), label: pt('linkWelcome') },
+    { href: buildDocsLinkPath([]), label: pt('linkQuickReference') },
+    { href: buildDocsLinkPath(['getting-started']), label: pt('linkGettingStarted') },
+    { href: buildDocsLinkPath(['architecture']), label: pt('linkArchitecture') },
+    { href: buildDocsLinkPath(['architecture', 'backend-modes-and-databases']), label: pt('linkBackendModes') },
+    { href: buildDocsLinkPath(['deployment', 'self-hosted']), label: 'Self-hosted' },
+    { href: buildDocsLinkPath(['mcp']), label: 'Ring MCP Tools' },
+    { href: buildDocsLinkPath(['development', 'ring-mcp']), label: 'Ring MCP Server' },
+    { href: buildDocsLinkPath(['customization', 'token-economics']), label: 'Token economics' },
+    { href: buildDocsLinkPath(['web3', 'token-launch-jurisdictions']), label: 'Token launch jurisdictions' },
+    { href: buildDocsLinkPath(['deployment']), label: pt('linkDeployment') },
+    { href: buildDocsLinkPath(['features', 'security']), label: pt('linkSecurity') },
     { href: 'https://ringdom.org', label: pt('linkRingdom'), external: true },
     { href: 'https://github.com/connectplatform/ring', label: pt('linkGithub'), external: true },
   ]
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const pathWithoutLocale = pathnameWithoutLocale(pathname)
+  const isActive = (href: string) =>
+    pathWithoutLocale === href || pathWithoutLocale.startsWith(href + '/')
+
+  const linkClass = (href: string, emphasized = false) =>
+    `text-sm hover:text-primary transition-colors block py-0.5 px-2 rounded-md hover:bg-muted/50 flex-1 leading-snug ${
+      isActive(href)
+        ? 'text-primary font-medium bg-primary/5'
+        : emphasized
+          ? 'text-foreground font-medium'
+          : 'text-muted-foreground'
+    }`
+
+  const sectionTitleClass = (href: string) =>
+    `font-semibold text-xs uppercase tracking-wider hover:text-primary transition-colors ${
+      isActive(href) ? 'text-primary' : 'text-muted-foreground'
+    }`
 
   return (
     <div className="space-y-4">
       <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
+        {topPinnedLinks.length > 0 && (
+          <div className="space-y-0.5 pl-1 pb-2 border-b border-border/60">
+            {topPinnedLinks.map((item) => (
+              <div key={item.href} className="flex items-center gap-2">
+                <div
+                  className={`w-1 h-2 rounded-full shrink-0 ${
+                    isActive(item.href) ? 'bg-primary' : 'bg-primary/50'
+                  }`}
+                />
+                <Link href={item.href as DocsLinkHref} className={linkClass(item.href, true)}>
+                  {item.label}
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+
         {navSections.map((section) => (
           <div key={section.title} className="space-y-2">
             <div className="flex items-center gap-2 pb-1 border-b border-border/60">
-              <div className="w-1 h-3 rounded-full bg-primary/70" />
-              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+              <div
+                className={`w-1 h-3 rounded-full shrink-0 ${
+                  isActive(section.href) ? 'bg-primary' : 'bg-primary/70'
+                }`}
+              />
+              <Link
+                href={section.href as DocsLinkHref}
+                className={sectionTitleClass(section.href)}
+              >
                 {section.title}
-              </h3>
+              </Link>
             </div>
-            <div className="space-y-0.5 pl-1">
-              {section.items.map((item) => (
-                <div key={item.href} className="flex items-center gap-2">
-                  <div
-                    className={`w-1 h-2 rounded-full shrink-0 ${
-                      isActive(item.href) ? 'bg-primary' : 'bg-muted-foreground/20'
-                    }`}
-                  />
-                  <Link
-                    href={item.href as DocsLinkHref}
-                    className={`text-sm hover:text-primary transition-colors block py-0.5 px-2 rounded-md hover:bg-muted/50 flex-1 leading-snug ${
-                      isActive(item.href)
-                        ? 'text-primary font-medium bg-primary/5'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                </div>
-              ))}
-            </div>
+            {section.items.length > 0 && (
+              <div className="space-y-0.5 pl-1">
+                {section.items.map((item) => (
+                  <div key={item.href} className="flex items-center gap-2">
+                    <div
+                      className={`w-1 h-2 rounded-full shrink-0 ${
+                        isActive(item.href) ? 'bg-primary' : 'bg-muted-foreground/20'
+                      }`}
+                    />
+                    <Link href={item.href as DocsLinkHref} className={linkClass(item.href)}>
+                      {item.label}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

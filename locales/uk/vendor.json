@@ -18,6 +18,8 @@
       "storeDescription": "Опис магазину",
       "storeDescriptionHint": "Короткий опис вашої ферми та продуктів (макс. 500 символів)",
       "storeDescriptionPlaceholder": "Ми сімейна органічна ферма, що спеціалізується на свіжих овочах та зелені...",
+      "categoriesSelected": "{count, plural, one {# категорію обрано} few {# категорії обрано} many {# категорій обрано} other {# категорії обрано}}",
+      "categoriesSelectHint": "Оберіть принаймні одну категорію",
       "storeCategories": "Категорії магазину",
       "storeCategoriesHint": "Оберіть всі категорії, що підходять до ваших продуктів",
       "storeLogo": "Логотип магазину",

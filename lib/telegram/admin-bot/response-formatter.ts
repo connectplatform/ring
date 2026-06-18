@@ -1,5 +1,5 @@
 /**
- * ADMIN TELEGRAM BOT - Response Formatter
+ * admin TELEGRAM BOT - Response Formatter
  * Formats execution results into Telegram-safe HTML messages
  * 
  * Truth Lens:

@@ -352,7 +352,5 @@ export {
 }
 
 /**
- * Legacy aliases for backward compatibility
+ * Legacy aliases removed — use useRealtimeConnection / useRealtimeNotifications.
  */
-export const useWebSocket = useRealtimeConnection
-export const useWebSocketSystem = useRealtimeSystemStatus

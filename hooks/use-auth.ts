@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AuthUser, UserRole } from '@/features/auth/types'
+import { hasConfidentialAccess, hasRoleAtLeast, resolveSessionUserRole } from '@/features/auth/user-role'
 import type { Locale } from '@/i18n/shared'
 
 /**
@@ -30,17 +31,6 @@ interface UseAuthReturn {
 }
 
 /**
- * Role hierarchy for access control
- */
-const ROLE_HIERARCHY = {
-  [UserRole.VISITOR]: 0,
-  [UserRole.SUBSCRIBER]: 1,
-  [UserRole.MEMBER]: 2,
-  [UserRole.CONFIDENTIAL]: 3,
-  [UserRole.ADMIN]: 4,
-} as const
-
-/**
  * Auth hook with type-safe role checking and status page integration
  * 
  * Provides user state, loading status, role validation, and auth flow navigation.
@@ -52,7 +42,7 @@ const ROLE_HIERARCHY = {
  *   const { user, hasRole, navigateToAuthStatus, getKycStatus } = useAuth()
  *   
  *   // Check user permissions
- *   if (!hasRole(UserRole.MEMBER)) return <AccessDenied />
+ *   if (!hasRole(UserRole.member)) return <AccessDenied />
  *   
  *   // Navigate to KYC flow
  *   const handleKyc = () => {
@@ -79,8 +69,9 @@ export function useAuth(): UseAuthReturn {
   // Authentication state
   const isAuthenticated = status === 'authenticated' && !!session?.user
   
-  // Extract user role from session
-  const role = (session?.user as any)?.role as UserRole || null
+  const role = session?.user
+    ? resolveSessionUserRole((session.user as { role?: string }).role)
+    : null
   
   // Map Auth.js session to AuthUser type
   const user: AuthUser | null = isAuthenticated && session?.user ? {
@@ -89,7 +80,7 @@ export function useAuth(): UseAuthReturn {
     email: session.user.email || '',
     emailVerified: (session.user as any).emailVerified || null,
     name: session.user.name || null,
-    role: role || UserRole.SUBSCRIBER,
+    role: role || UserRole.subscriber,
     photoURL: session.user.image || null,
     wallets: [], // Will be populated from server/database
     authProvider: (session.user as any).provider || 'credentials',
@@ -99,8 +90,8 @@ export function useAuth(): UseAuthReturn {
     lastLogin: new Date((session.user as any).lastLogin || Date.now()),
     accountStatus: (session.user as any).accountStatus || 'ACTIVE',
     bio: (session.user as any).bio || '',
-    canPostconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
-    canViewconfidentialOpportunities: role ? ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[UserRole.CONFIDENTIAL] : false,
+    canPostconfidentialOpportunities: role ? hasConfidentialAccess(role) : false,
+    canViewconfidentialOpportunities: role ? hasConfidentialAccess(role) : false,
     postedopportunities: (session.user as any).postedopportunities || [],
     savedopportunities: (session.user as any).savedopportunities || [],
     notificationPreferences: {
@@ -129,7 +120,7 @@ export function useAuth(): UseAuthReturn {
    */
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!isAuthenticated || !role) return false
-    return ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[requiredRole]
+    return hasRoleAtLeast(role, requiredRole)
   }
 
   /**

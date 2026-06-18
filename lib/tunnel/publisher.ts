@@ -1,23 +1,30 @@
 /**
  * Tunnel Publisher
- * PHASE 1: Server-side tunnel publishing for real-time updates
  *
- * - `publishToChannel`: topic channels (e.g. conversation:xyz) + event + payload (matches platform docs)
- * - `publishToUserTunnel` / `publishToTunnel`: per-connected-user delivery (unread counts, credit balance, etc.)
+ * - `publishToChannel`: topic channels (conversation:xyz, matcher, …)
+ * - `publishToUserTunnel` / `publishToTunnel`: per-user inbox (unread counts, credit balance)
+ *
+ * Server: TunnelHub (InMemoryHub today → ConnectPlatformHub gated).
+ * Client: TransportManager when connected.
  */
 
 import { getTunnelTransportManager } from './transport-manager';
+import { getTunnelHub, buildTunnelMessage } from './hub';
+import { TunnelMessageType } from './types';
 
-/**
- * Fan-out on a named channel with an event (e.g. conversation:abc + message:new).
- * Use this for messaging, entities, and other topic subscriptions.
- */
 export async function publishToChannel(
   channel: string,
   event: string,
-  data: unknown
+  data: unknown,
 ): Promise<void> {
   try {
+    if (typeof window === 'undefined') {
+      const hub = getTunnelHub();
+      const message = buildTunnelMessage(channel, event, data);
+      hub.publishToChannel(channel, message);
+      return;
+    }
+
     const manager = getTunnelTransportManager({
       debug: process.env.NODE_ENV === 'development',
     });
@@ -27,85 +34,84 @@ export async function publishToChannel(
   }
 }
 
-/**
- * Publish a message to a specific connected user's tunnel (inbox-style).
- */
 export async function publishToUserTunnel(
   userId: string,
   channel: string,
-  data: any
+  data: unknown,
 ): Promise<void> {
   try {
-    const manager = getTunnelTransportManager({
-      debug: process.env.NODE_ENV === 'development'
-    });
+    const event = 'update';
 
-    // Check if tunnel is available for this user
-    if (!manager.isUserConnected(userId)) {
-      console.log(`TunnelPublisher: User ${userId} not connected, skipping publish`);
+    if (typeof window === 'undefined') {
+      const hub = getTunnelHub();
+      const message = buildTunnelMessage(channel, event, data, {
+        userId,
+        type: TunnelMessageType.NOTIFICATION,
+      });
+      const { sseDelivered, wsDelivered } = hub.publishToUser(userId, message);
+      console.log(
+        `TunnelPublisher: Published to user ${userId} on channel ${channel} (sse=${sseDelivered}, ws=${wsDelivered})`,
+      );
       return;
     }
 
-    // Publish message to user's tunnel
-    await manager.publishToUser(userId, channel, {
-      id: `msg-${Date.now()}`,
-      type: 'notification' as any,
-      channel,
-      payload: data,
-      metadata: {
-        timestamp: Date.now(),
-        userId
-      }
+    const manager = getTunnelTransportManager({
+      debug: process.env.NODE_ENV === 'development',
     });
 
-    console.log(`TunnelPublisher: Published to user ${userId} on channel ${channel}`);
+    if (!manager.isConnected()) {
+      console.log(`TunnelPublisher: Client not connected, skipping publish for ${userId}`);
+      return;
+    }
+
+    await manager.publish(channel, event, data);
   } catch (error) {
     console.error('TunnelPublisher: Failed to publish message:', error);
-    // Don't throw - publishing failures shouldn't break business logic
   }
 }
 
-/** @deprecated Use publishToUserTunnel; kept as alias for existing imports */
+/** @deprecated Use publishToUserTunnel */
 export const publishToTunnel = publishToUserTunnel;
 
-/**
- * Publish a message to multiple users' tunnels
- */
 export async function publishToUsers(
   userIds: string[],
   channel: string,
-  data: any
+  data: unknown,
 ): Promise<void> {
-  const publishPromises = userIds.map(userId =>
-    publishToUserTunnel(userId, channel, data)
-  );
-
-  await Promise.allSettled(publishPromises);
+  await Promise.allSettled(userIds.map((userId) => publishToUserTunnel(userId, channel, data)));
 }
 
-/**
- * Broadcast a message to all connected users
- */
 export async function broadcastToAll(
   channel: string,
-  data: any,
-  excludeUserId?: string
+  data: unknown,
+  excludeUserId?: string,
 ): Promise<void> {
   try {
+    if (typeof window === 'undefined') {
+      const hub = getTunnelHub();
+      const message = buildTunnelMessage(channel, 'broadcast', data);
+      hub.publishToChannel(channel, message);
+      return;
+    }
+
     const manager = getTunnelTransportManager({
-      debug: process.env.NODE_ENV === 'development'
+      debug: process.env.NODE_ENV === 'development',
     });
 
-    await manager.broadcast(channel, {
-      id: `broadcast-${Date.now()}`,
-      type: 'broadcast' as any,
+    await manager.broadcast(
       channel,
-      payload: data,
-      metadata: {
-        timestamp: Date.now(),
-        excludeUserId
-      }
-    }, excludeUserId);
+      {
+        id: `broadcast-${Date.now()}`,
+        type: 'broadcast' as TunnelMessageType,
+        channel,
+        payload: data,
+        metadata: {
+          timestamp: Date.now(),
+          excludeUserId,
+        },
+      },
+      excludeUserId,
+    );
 
     console.log(`TunnelPublisher: Broadcasted to all users on channel ${channel}`);
   } catch (error) {

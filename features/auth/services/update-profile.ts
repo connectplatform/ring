@@ -44,8 +44,8 @@ export async function updateProfile(data: Partial<ProfileFormData>): Promise<boo
     console.log(`Services: updateProfile - User authenticated with ID ${userId} and role ${userRole}`);
 
     // Step 2: Apply role validation (if needed)
-    if (data.role && userRole !== UserRole.ADMIN) {
-      throw new Error('Only ADMIN users can update the role field.');
+    if (data.role && userRole !== UserRole.admin) {
+      throw new Error('Only admin users can update the role field.');
     }
 
     // Step 4: Prepare update data

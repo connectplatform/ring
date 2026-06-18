@@ -2,6 +2,7 @@
   "title": "Навигация",
   "menu": {
     "title": "Ring Platform",
+    "subtitle": "Open-source white-label платформа для коллективных задач с ИИ-оркестрацией.",
     "version": "Ring Platform v{version}",
     "wallet": {
       "description": "Управляйте своими RING токенами и крипто активами"
@@ -124,8 +125,9 @@
       "treeSectionTitle": "Ring Platform · указатель библиотеки",
       "quickLinksTitle": "Быстрый вход (CTO · аудиторы · агенты)",
       "linkLibrary": "Хаб библиотеки",
+      "linkQuickReference": "Краткий справочник",
       "linkWelcome": "Приветствие — миссия и аудитории",
-      "linkGettingStarted": "Начало работы",
+      "linkGettingStarted": "С чего начать",
       "linkArchitecture": "Архитектура и Auth.js",
       "linkBackendModes": "Режимы бэкенда и БД (DB_BACKEND_MODE)",
       "linkDeployment": "Деплой (Docker · k8s)",
@@ -136,7 +138,7 @@
       "linkGithub": "Исходники — лицензия MIT (GitHub)",
       "sectionLibrary": "Библиотека и миссия",
       "sectionRingdom": "Ringdom · LegioX · self-construct",
-      "sectionGettingStarted": "Начало работы",
+      "sectionGettingStarted": "С чего начать",
       "sectionArchitecture": "Архитектура и платформа",
       "sectionDeploy": "Деплой и эксплуатация",
       "sectionWhiteLabel": "Клон · токены · экономика",
@@ -148,7 +150,7 @@
       "footerYear": "© 2026 Ring Platform OSS"
     },
     "sidebar": {
-      "gettingStarted": "Начало работы",
+      "gettingStarted": "С чего начать",
       "installation": "Установка",
       "prerequisites": "Предпосылки",
       "firstSuccess": "Первый успех",

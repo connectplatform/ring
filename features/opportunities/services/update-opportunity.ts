@@ -7,7 +7,7 @@
 
 import { Opportunity } from '@/features/opportunities/types'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { hasConfidentialAccess, hasMemberPrivileges, isPlatformAdmin, assertKnownUserRole } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 import { mapDbDocumentToOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
@@ -33,7 +33,7 @@ import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportuni
  * 3. If authorized, system updates the opportunity with provided data.
  * 4. System confirms successful update or returns error if unauthorized.
  * 
- * Note: Only the opportunity creator, users with ADMIN role, or users with appropriate roles for confidential opportunities can update opportunities.
+ * Note: Only the opportunity creator, users with admin role, or users with appropriate roles for confidential opportunities can update opportunities.
  */
 export async function updateOpportunity(id: string, data: Partial<Opportunity>): Promise<Opportunity> {
   try {
@@ -46,7 +46,7 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
       throw new Error('Unauthorized access');
     }
 
-    const userRole = session.user.role as UserRole;
+    const userRole = assertKnownUserRole(session.user.role);
     const userId = session.user.id;
 
     console.log(`Services: updateOpportunity - User authenticated with role ${userRole} and ID ${userId}`);
@@ -63,12 +63,12 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
     // Step 4: Get the current opportunity data and check permissions
     const currentOpportunity = currentResult.data
     if (currentOpportunity) {
-      if (userRole !== UserRole.ADMIN && userId !== currentOpportunity.createdBy) {
-        if (currentOpportunity.isConfidential && userRole !== UserRole.CONFIDENTIAL) {
+      if (!isPlatformAdmin(userRole) && userId !== currentOpportunity.createdBy) {
+        if (currentOpportunity.isConfidential && !hasConfidentialAccess(userRole)) {
           console.error('Services: updateOpportunity - Access denied for confidential opportunity');
           throw new Error('Access denied. Only the opportunity creator, an admin, or a confidential user can update this confidential opportunity.');
         }
-        if (!currentOpportunity.isConfidential && userRole !== UserRole.MEMBER) {
+        if (!currentOpportunity.isConfidential && !hasMemberPrivileges(userRole)) {
           console.error('Services: updateOpportunity - Access denied for non-confidential opportunity');
           throw new Error('Access denied. Only the opportunity creator, an admin, or a member can update this opportunity.');
         }

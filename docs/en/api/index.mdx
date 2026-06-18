@@ -1,92 +1,68 @@
 ---
 title: Index
-description: Index documentation for Ring Platform
+description: Ring Platform HTTP API reference (alpha)
+last_modified: "2026-06-14"
 ---
 
 # API Reference
 
-Welcome to the **Ring Platform API** — **132 route handlers** across entities, opportunities, store, payments (PaymentConductor), news, wallet, tunnel, and more (v1.6.0).
+Ring Platform exposes **132 route handlers** across entities, opportunities, store, payments (PaymentConductor), news, wallet, tunnel, MCP, and more (v1.6.0).
 
-## 🚀 Quick Start
+<Callout type="info" title="Authentication model">
+**Browser / same-app clients** — Auth.js v5 **session cookie** on same-origin `fetch` (`credentials: 'include'`). No manual `Bearer` header in React client code.
+
+**Automation** — `Authorization: Bearer` for cron (`CRON_SECRET`), webhooks, email ingest, and **`/api/mcp/v1/*`** (`RING_MCP_SERVICE_TOKENS`). See [Ring MCP](/en/docs/development/ring-mcp).
+</Callout>
+
+## Quick start
 
 ### Base URL
+
+Use your clone origin — local dev:
+
 ```
-https://ring.ck.ua/api
+http://localhost:3000/api
 ```
 
-### Authentication
-All API requests require authentication using Auth.js v5:
+White-label examples: [connect.software](https://connect.software) (A2B MCP Marketplace), [ring-platform.org](https://ring-platform.org) (Ring community portal).
 
-<Code language="bash" title="curl -H "Authorization: Bearer YOUR_TOKEN" \">
-{`https://ring.ck.ua/api/entities`}
+### Example (session cookie)
+
+Sign in via the browser, then:
+
+<Code language="bash" title="terminal">
+{`curl -s "http://localhost:3000/api/entities?limit=5" \\
+  -H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
-## 📚 API Domains
+Integration patterns: [API integration examples](/en/docs/examples/api-integration).
 
-### 🔐 Authentication
-**3 endpoints** - Multi-provider OAuth, magic links, crypto wallets
-- [Authentication Guide](/en/docs/api/authentication)
+## API domains
 
-### 🏢 Entities  
-**8 endpoints** - Organization management with role-based access
-- [Entities API](/en/docs/api/entities)
+| Domain | Doc | Notes |
+|--------|-----|-------|
+| Authentication | [Authentication](/en/docs/api/authentication) | Auth.js providers, `auth()` session |
+| Entities | [Entities](/en/docs/api/entities) | `GET /api/entities`, `POST /api/entities/create` |
+| Opportunities | [Opportunities](/en/docs/api/opportunities) | `GET` list; create via Server Actions |
+| Messaging | [Messaging](/en/docs/api/messaging) | `/api/conversations` + Tunnel realtime |
+| Notifications | [Notifications](/en/docs/api/notifications) | `/api/notifications` + FCM |
+| Wallet | [Wallet](/en/docs/api/wallet) | Web3 wallet routes |
+| Store | [Store](/en/docs/api/store) | Multi-vendor marketplace |
+| Admin | [Admin](/en/docs/api/admin) | Platform administration |
+| Email AI-CRM | [Email AI-CRM](/en/docs/api/email-ai-crm) | Cron/webhook Bearer secrets |
+| Tunnel | [Tunnel protocol](/en/docs/features/tunnel-protocol) | `/api/tunnel/*` |
 
-### 💼 Opportunities
-**7 endpoints** - Dual-type marketplace (offers/requests)
-- [Opportunities API](/en/docs/api/opportunities)
+## Realtime
 
-### 💬 Messaging
-**8 endpoints** - Real-time communication system
-- [Messaging API](/en/docs/api/messaging)
+In-app live updates use **Tunnel Protocol** (native WSS on k8s, SSE/poll on Vercel). See [Tunnel protocol](/en/docs/features/tunnel-protocol) and [Realtime architecture](/en/docs/architecture/real-time).
 
-### 🔔 Notifications
-**9 endpoints** - Push notifications and preferences
-- [Notifications API](/en/docs/api/notifications)
+## Security
 
-### 💰 Wallet
-**10 endpoints** - Web3 wallet and token management
-- [Wallet API](/en/docs/api/wallet)
-
-### 🏪 Store
-**7 endpoints** - Multi-vendor marketplace
-- [Store API](/en/docs/api/store)
-
-### ⚙️ Admin
-**5 endpoints** - Platform administration
-- [Admin API](/en/docs/api/admin)
-
-### 📧 Email AI-CRM
-**Admin + cron + webhook** — IMAP ingest, draft review, contacts, tasks, analytics (v1.6.0, 2026-06)
-- [Email AI-CRM API](/en/docs/api/email-ai-crm)
-
-## 🛠️ Interactive Features
-
-### Live API Testing
-Test endpoints directly in the documentation with our interactive API explorer.
-
-### Code Generation
-Generate code examples in multiple languages:
-- cURL commands
-- JavaScript/TypeScript
-- Python
-- PHP
-
-### Postman Collection
-Download our complete Postman collection with pre-configured environments.
-
-## 📊 API Statistics
-
-- **77 Total Endpoints** across 9 domains
-- **< 150ms** average response time
-- **Rate Limited** at 1000 requests/hour per user
-
-## 🔒 Security
-
-- **OAuth 2.0** with multiple providers
-- **JWT Tokens** with automatic refresh
-- **Role-based Access Control** (RBAC)
-- **Rate Limiting** and DDoS protection
+- Auth.js v5 sessions (cookie in browser; JWT strategy server-side)
+- Role-based access control (VISITOR → ADMIN)
+- Rate limiting on sensitive routes (e.g. notifications API)
+- Webhook/cron/MCP routes use explicit Bearer secrets
 
 ---
 
-*Ready to build with Ring Platform? Start with our [Getting Started](/en/docs/getting-started) guide.*
+*New to Ring? Start with [Getting Started](/en/docs/getting-started) and [API integration examples](/en/docs/examples/api-integration).*

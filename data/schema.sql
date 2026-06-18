@@ -102,7 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_users_data_gin ON users USING GIN (data);
 
 COMMENT ON TABLE users IS 'User accounts with profile data, preferences, and settings';
 COMMENT ON COLUMN users.id IS 'User ID (Firebase UID or UUID)';
-COMMENT ON COLUMN users.data IS 'User data: email, role, displayName, avatar, preferences, credit_balance, etc.';
+COMMENT ON COLUMN users.data IS 'User data: email, role (lowercase enum: visitor|subscriber|member|confidential|admin|superadmin), displayName, avatar, preferences, credit_balance, etc.';
 
 -- Usernames table (Username reservation system with expiration)
 -- Reference: docs/en/library/features/username-reservation.mdx
@@ -1104,7 +1104,7 @@ FROM pg_tables
 WHERE schemaname = 'public';
 
 -- ============================================================================
--- TELEGRAM ADMIN BOT AUDIT TABLE
+-- TELEGRAM admin BOT AUDIT TABLE
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS telegram_admin_audit (
@@ -1127,14 +1127,14 @@ CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users ((data->'communication
 
 COMMENT ON TABLE telegram_admin_audit IS 'Audit log for Admin Telegram Bot operations (PALADIN security layer)';
 COMMENT ON COLUMN telegram_admin_audit.telegram_id IS 'Telegram Chat ID of sender';
-COMMENT ON COLUMN telegram_admin_audit.user_id IS 'Ring Platform user ID (ADMIN/SUPERADMIN)';
+COMMENT ON COLUMN telegram_admin_audit.user_id IS 'Ring Platform user ID (admin/superadmin)';
 COMMENT ON COLUMN telegram_admin_audit.raw_message IS 'Original message text from Telegram';
 COMMENT ON COLUMN telegram_admin_audit.parsed_intent IS 'Anthropic Claude parsed intent and tool calls';
 COMMENT ON COLUMN telegram_admin_audit.action_taken IS 'Ring API operations executed';
 COMMENT ON COLUMN telegram_admin_audit.result IS 'Operation results and response data';
 COMMENT ON COLUMN telegram_admin_audit.error IS 'Error message if operation failed';
 
--- Platform Settings (SUPERADMIN — AI/LLM, branding, integrations)
+-- Platform Settings (SUPERadmin — AI/LLM, branding, integrations)
 CREATE TABLE IF NOT EXISTS platform_settings (
     id VARCHAR(64) PRIMARY KEY,
     data JSONB NOT NULL DEFAULT '{}',
@@ -1146,4 +1146,4 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 
 CREATE INDEX IF NOT EXISTS idx_platform_settings_data_gin ON platform_settings USING GIN (data);
 
-COMMENT ON TABLE platform_settings IS 'SUPERADMIN platform settings by namespace id (ai, branding, …)';
+COMMENT ON TABLE platform_settings IS 'SUPERadmin platform settings by namespace id (ai, branding, …)';

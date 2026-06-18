@@ -7,13 +7,17 @@ import { SerializedEntity, EntityType } from '@/features/entities/types'
 import {
   mapDbDocumentToSerializedEntity,
 } from '@/features/entities/lib/entity-db-mapper'
-import { UserRole } from '@/features/auth/types'
+import { UserRole, assertKnownUserRole } from '@/features/auth/user-role'
 import { auth } from '@/auth'
+import { getMcpActor } from '@/lib/auth/mcp-actor-context'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityQueryError, logRingError } from '@/lib/errors'
 import { db } from '@/lib/database'
 import { getEntityTypeConfig } from '@/components/entities/entity-type-icons'
-import { filterEntitiesForDiscovery } from '@/features/entities/lib/entity-visibility-filter'
+import {
+  buildEntityVisibilityFilters,
+  filterEntitiesForDiscovery,
+} from '@/features/entities/lib/entity-visibility-filter'
 import { getUserBlockedEntityIds } from '@/features/entities/services/entity-moderation'
 import { cache } from 'react'
 /**
@@ -27,7 +31,6 @@ export interface EntitySearchParams {
   includeServices?: boolean
   includeIndustries?: boolean
   fuzzyMatch?: boolean
-  userRole?: UserRole
 }
 
 /**
@@ -95,25 +98,21 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
       location: params.location 
     })
 
-    // Step 1: Authenticate user if role not provided
-    let userRole = params.userRole
-    let userId: string | undefined
-    let blockedEntityIds: string[] = []
+    const session = await auth()
+    const mcpActor = getMcpActor()
 
-    if (!userRole) {
-      const session = await auth()
-      if (!session || !session.user) {
-        throw new EntityAuthError('Unauthorized access', undefined, {
-          timestamp: Date.now(),
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          operation: 'searchEntities'
-        })
-      }
-      userRole = session.user.role as UserRole
-      userId = session.user.id
-      blockedEntityIds = await getUserBlockedEntityIds(session.user.id)
+    if (!session?.user && !mcpActor) {
+      throw new EntityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'searchEntities'
+      })
     }
+
+    const userRole = assertKnownUserRole(session?.user?.role ?? mcpActor!.role)
+    const userId = session?.user?.id ?? mcpActor?.id
+    const blockedEntityIds = userId ? await getUserBlockedEntityIds(userId) : []
 
     // Step 2: Validate search parameters
     if (!params.query || params.query.trim().length < 2) {
@@ -128,16 +127,15 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
     const maxResults = params.maxResults || 50
     const query = params.query.trim().toLowerCase()
 
-    // Build filters for role-based visibility
-    const filters: any[] = []
-    if (userRole === UserRole.VISITOR) {
-      filters.push({ field: 'visibility', operator: '=', value: 'public' })
-    } else if (userRole === UserRole.SUBSCRIBER) {
-      // For subscriber, we need multiple queries or use JSONB contains
-      // Simplified: fetch all and filter in-memory for now
-    } else if (userRole === UserRole.MEMBER) {
-      // Similar approach
-    }
+    const visibilityFilters = buildEntityVisibilityFilters(userRole).map((condition) => ({
+      field: condition.field,
+      operator: condition.operator === '==' ? '=' : condition.operator,
+      value: condition.value,
+    }))
+
+    const filters: Array<{ field: string; operator: string; value: unknown }> = [
+      ...visibilityFilters,
+    ]
 
     // Apply type filtering if specified
     if (params.types && params.types.length === 1) {
@@ -171,13 +169,6 @@ export const searchEntities = cache(async (params: EntitySearchParams): Promise<
       userRole,
       blockedEntityIds,
     }).filter((entity) => {
-      if (userRole === UserRole.VISITOR && entity.visibility !== 'public') return false
-      if (userRole === UserRole.SUBSCRIBER && !['public', 'subscriber'].includes(entity.visibility || 'public')) {
-        return false
-      }
-      if (userRole === UserRole.MEMBER && !['public', 'subscriber', 'member'].includes(entity.visibility || 'public')) {
-        return false
-      }
       if (params.types && params.types.length > 1 && !params.types.includes(entity.type)) return false
       return true
     })
@@ -463,16 +454,16 @@ export const getEntitySearchSuggestions = cache(async (
   try {
     // This could be enhanced with actual analytics data
     const popularSearches = [
-      'software development',
+      'technology software',
       'manufacturing',
-      'biotechnology',
-      'AI machine learning',
+      'healthcare',
+      'financial services',
       'cybersecurity',
-      'clean energy',
-      'robotics',
-      'blockchain',
-      '3D printing',
-      'IoT development'
+      'renewable energy',
+      'logistics',
+      'consulting',
+      'education',
+      'real estate',
     ]
     
     const query = partialQuery.toLowerCase()

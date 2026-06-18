@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth'; // Fixed import to use auth
 import { getEntitiesForRole } from '@/features/entities/services/get-entities';
-import { UserRole } from '@/features/auth/types';
+import { resolveSessionUserRole } from '@/features/auth/user-role';
 
 /**
  * Handles GET requests for fetching entities.
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Determine user role for filtering
-    const userRole: UserRole = (session.user.role as UserRole) || UserRole.SUBSCRIBER;
+    const userRole = resolveSessionUserRole(session.user.role)
     console.log('API: /api/entities - User role:', userRole);
 
     // Get pagination parameters from the request

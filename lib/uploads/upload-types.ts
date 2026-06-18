@@ -7,7 +7,7 @@ export const UPLOAD_PURPOSES = [
   'vendor:logo',
   'vendor:product-media',
   'refmagic:temp-docx',
-  'refmagic:output-docx',
+  'verification:document',
 ] as const
 
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number]

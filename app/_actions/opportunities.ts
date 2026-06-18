@@ -3,15 +3,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { UserRole } from '@/features/auth/types'
-
-// Role hierarchy for access control
-const ROLE_HIERARCHY = {
-  [UserRole.VISITOR]: 0,
-  [UserRole.SUBSCRIBER]: 1,
-  [UserRole.MEMBER]: 2,
-  [UserRole.CONFIDENTIAL]: 3,
-  [UserRole.ADMIN]: 4,
-} as const
+import { hasRoleAtLeast } from '@/features/auth/user-role'
+import { canCreateOpportunityType } from '@/features/opportunities/lib/opportunity-permissions'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
@@ -61,29 +54,19 @@ export async function createOpportunity(
   const tagsString = formData.get('tags') as string
   const requiredSkillsString = formData.get('requiredSkills') as string
 
-  // Role-based validation
-  if (!userRole || ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
-    return { error: 'Only SUBSCRIBER users and above can create opportunities' }
+  if (!canCreateOpportunityType(userRole, type)) {
+    return { error: 'You do not have permission to create this opportunity type' }
   }
 
-  // Type-specific validation based on the enhanced type system
-  const requestTypes = ['request', 'ring_customization'];
-  const organizationalTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event'];
+  const requestTypes = ['request']
+  const organizationalTypes = ['offer', 'partnership', 'volunteer', 'mentorship', 'resource', 'event', 'ring_customization']
   
   if (requestTypes.includes(type)) {
-    // Requests can be created by SUBSCRIBER+, no entity required
-    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.SUBSCRIBER]) {
-      return { 
-        error: 'Only SUBSCRIBER users and above can create requests' 
-      }
-    }
-    // For requests, we set organizationId to null to indicate it's from an individual
     entityId = null
   } else if (organizationalTypes.includes(type)) {
-    // Organizational opportunities require MEMBER role and entity
-    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[UserRole.MEMBER]) {
+    if (!hasRoleAtLeast(userRole, UserRole.member)) {
       return { 
-        error: `Only MEMBER users and above can create ${type} opportunities. Upgrade your membership to create organizational opportunities.` 
+        error: `Only member users and above can create ${type} opportunities. Upgrade your membership to create organizational opportunities.` 
       }
     }
     
@@ -276,8 +259,8 @@ export async function updateOpportunity(
 
     // Check ownership and permissions
     const isOwner = existingOpportunity.createdBy === userId
-    const isAdmin = userRole === UserRole.ADMIN
-    const isConfidentialUser = userRole === UserRole.CONFIDENTIAL
+    const isAdmin = userRole === UserRole.admin
+    const isConfidentialUser = userRole === UserRole.confidential
     
     if (!isOwner && !isAdmin && !isConfidentialUser) {
       return {
@@ -338,7 +321,7 @@ export async function updateOpportunity(
 
     // Role-based validation for confidential opportunities
     if (isConfidential && !isAdmin && !isConfidentialUser) {
-      fieldErrors.isConfidential = 'Only ADMIN or CONFIDENTIAL users can create confidential opportunities'
+      fieldErrors.isConfidential = 'Only admin or confidential users can create confidential opportunities'
     }
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -511,8 +494,8 @@ export async function deleteOpportunity(
 
     // Check ownership and permissions
     const isOwner = existingOpportunity.createdBy === userId
-    const isAdmin = userRole === UserRole.ADMIN
-    const isConfidentialUser = userRole === UserRole.CONFIDENTIAL
+    const isAdmin = userRole === UserRole.admin
+    const isConfidentialUser = userRole === UserRole.confidential
     
     if (!isOwner && !isAdmin && !isConfidentialUser) {
       return {

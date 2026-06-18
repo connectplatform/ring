@@ -57,6 +57,14 @@ export class MessageConverter {
   /**
    * Convert WebSocket message to tunnel message
    */
+  static fromNativeWs(data: unknown): TunnelMessage {
+    if (data && typeof data === 'object' && 'id' in data && 'type' in data) {
+      return data as TunnelMessage;
+    }
+    return MessageConverter.fromWebSocket(data);
+  }
+
+  /** @deprecated Use fromNativeWs */
   static fromWebSocket(data: any): TunnelMessage {
     // If already in tunnel format
     if (data.id && data.type) {
@@ -264,7 +272,7 @@ export class MessageConverter {
   /**
    * Convert tunnel message to provider-specific format
    */
-  static toWebSocket(message: TunnelMessage): string {
+  static toNativeWs(message: TunnelMessage): string {
     return JSON.stringify(message);
   }
 

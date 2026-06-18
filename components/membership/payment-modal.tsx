@@ -196,7 +196,7 @@ export function PaymentModal({ onClose, returnTo }: PaymentModalProps) {
                   </Alert>
                 )}
 
-                <input type="hidden" name="targetRole" value={UserRole.MEMBER} />
+                <input type="hidden" name="targetRole" value={UserRole.member} />
                 {returnTo && <input type="hidden" name="returnUrl" value={returnTo} />}
 
                 <SubmitCardButton label={t('payment.fiat_details.proceed', { defaultValue: 'Proceed to Card Payment' })} />

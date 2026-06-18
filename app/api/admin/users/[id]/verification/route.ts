@@ -1,71 +1,58 @@
-import { NextRequest, NextResponse, connection} from 'next/server';
-import { auth } from '@/auth';
-import { db } from '@/lib/database';
+import { NextRequest, NextResponse, connection } from 'next/server'
+import { z } from 'zod'
+import { EntityPermissionError } from '@/lib/errors'
+import { VerificationProcedureError } from '@/features/verification/services/create-verification-procedure'
+import {
+  assertAdminManualVerificationAccess,
+  setAdminManualUserVerification,
+} from '@/features/verification/services/admin-manual-user-verification'
 
-type UserRow = Record<string, unknown> & { id: string };
+const bodySchema = z.object({
+  isVerified: z.boolean(),
+  verifiedAtLocal: z.string().optional(),
+  verifiedAtLocalDisplay: z.string().optional(),
+})
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
-    const { id } = await params;
-    const session = await auth();
+    const { id } = await params
+    const admin = await assertAdminManualVerificationAccess()
+    const body = bodySchema.parse(await request.json())
 
-    // Check authentication and admin/superadmin role
-    if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const result = await setAdminManualUserVerification({
+      targetUserId: id,
+      isVerified: body.isVerified,
+      adminUserId: admin.adminUserId,
+      adminName: admin.adminName,
+      adminEmail: admin.adminEmail,
+      verifiedAtLocal: body.verifiedAtLocal,
+      verifiedAtLocalDisplay: body.verifiedAtLocalDisplay,
+    })
 
-    const { isVerified } = await request.json();
-
-    // Validate input
-    if (typeof isVerified !== 'boolean') {
-      return NextResponse.json(
-        { error: 'Invalid verification status' },
-        { status: 400 }
-      );
-    }
-
-    const userResult = await db().readDoc<UserRow>('users', id);
-    if (!userResult.success || !userResult.data) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    const userData = userResult.data;
-
-    const updatedUserData = {
-      ...userData,
-      is_verified: isVerified,
-      updated_at: new Date()
-    };
-
-    const updateResult = await db().updateDoc('users', id, updatedUserData);
-    if (!updateResult.success) {
-      return NextResponse.json(
-        { error: 'Failed to update user verification status' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'User verification status updated successfully' 
-    });
-
+    return NextResponse.json({
+      success: true,
+      message: body.isVerified
+        ? 'User verified manually by admin'
+        : 'User verification cleared',
+      ...result,
+    })
   } catch (error) {
-    console.error('Error updating user verification:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (error instanceof EntityPermissionError) {
+      const status = error.message.includes('Authentication') ? 401 : 403
+      return NextResponse.json({ error: error.message }, { status })
+    }
+    if (error instanceof VerificationProcedureError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+    console.error('Error updating user verification:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

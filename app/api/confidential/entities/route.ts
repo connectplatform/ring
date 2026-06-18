@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getConfidentialEntities } from '@/features/entities/services/get-confidential-entities';
-import { UserRole } from '@/features/auth/types';
+import { assertKnownUserRole, hasConfidentialAccess } from '@/features/auth/user-role'
 
 export async function GET(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Additional role-based access check for confidential entities
-    if (session.user.role !== UserRole.CONFIDENTIAL && session.user.role !== UserRole.ADMIN) {
+    if (!hasConfidentialAccess(session.user.role)) {
       console.log('API: /api/confidential/entities - Permission denied', {
         userId: session.user.id,
         role: session.user.role
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       filter,
       startAfter,
       userId: session.user.id,
-      userRole: session.user.role
+      userRole: assertKnownUserRole(session.user.role),
     });
 
     console.log('API: /api/confidential/entities - entities retrieved:', { 

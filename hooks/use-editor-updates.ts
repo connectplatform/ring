@@ -7,6 +7,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
+import type { TunnelMessage } from '@/lib/tunnel/types'
 import { useSync, UseSyncTunnelAction } from './use-sync'
 
 type UseEditorUpdatesOptions = {
@@ -69,6 +70,21 @@ export function useEditorUpdates({
     enabledRef.current = enabled
   }, [currentVersion, enabled])
 
+  const handleTunnelMessage = useCallback((message: TunnelMessage): UseSyncTunnelAction<void> | void => {
+    const incomingVersion = getDocumentVersionFromMessage(message.payload)
+    if (!incomingVersion) {
+      return { shouldRefetch: true }
+    }
+    const knownVersion = versionRef.current
+    if (knownVersion == null) {
+      return { shouldRefetch: true }
+    }
+    if (incomingVersion > knownVersion) {
+      return { shouldRefetch: true }
+    }
+    return { shouldRefetch: false }
+  }, [])
+
   const sync = useSync<void>({
     enabled: Boolean(enabled && publicationId),
     autoRefresh,
@@ -80,20 +96,7 @@ export function useEditorUpdates({
     tunnel: {
       channel: publicationId ? `document:${publicationId}` : undefined,
       enabled: Boolean(publicationId && enabledRef.current),
-      onMessage: (message): UseSyncTunnelAction<void> | void => {
-        const incomingVersion = getDocumentVersionFromMessage(message.payload)
-        if (!incomingVersion) {
-          return { shouldRefetch: true }
-        }
-        const knownVersion = versionRef.current
-        if (knownVersion == null) {
-          return { shouldRefetch: true }
-        }
-        if (incomingVersion > knownVersion) {
-          return { shouldRefetch: true }
-        }
-        return { shouldRefetch: false }
-      }
+      onMessage: handleTunnelMessage,
     }
   })
 

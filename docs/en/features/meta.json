@@ -3,6 +3,7 @@
   "description": "Ring Platform v1.6.0 features (EN canonical). UK/RU: see LOCALE-GAPS.md.",
   "pages": [
     "index",
+    "doc-system",
     "authentication",
     "email-ai-crm",
     "entities",

@@ -1,0 +1,44 @@
+{
+  "startedAt": "2026-06-18T14:19:57.730Z",
+  "model": "grok-imagine-video",
+  "baseUrl": "https://api.x.ai/v1",
+  "clips": [
+    {
+      "id": "02_ringize_audio_upload_prompt",
+      "duration": 10,
+      "status": "done",
+      "requestId": "f6e985e3-db99-9f2f-a245-4c08a6767443",
+      "url": "https://vidgen.x.ai/xai-vidgen-bucket/xai-video-98abe6b1-825a-4650-a327-380bf1043b9b.mp4",
+      "respectModeration": true,
+      "actualDuration": 10
+    },
+    {
+      "id": "03_sf_nightclub_ring_opener",
+      "duration": 12,
+      "status": "done",
+      "requestId": "750037c9-2068-9bec-8fb0-9bea6cef7493",
+      "url": "https://vidgen.x.ai/xai-vidgen-bucket/xai-video-040db01d-4446-4388-8dc3-53b0df303e2e.mp4",
+      "respectModeration": true,
+      "actualDuration": 12
+    },
+    {
+      "id": "04_sf_nightclub_guy_notices_ring",
+      "duration": 12,
+      "status": "done",
+      "requestId": "0aa95449-cd4f-90f6-8ae7-ebeb0c2929de",
+      "url": "https://vidgen.x.ai/xai-vidgen-bucket/xai-video-9630d511-e948-45e8-9afd-b319e7f635d4.mp4",
+      "respectModeration": true,
+      "actualDuration": 12
+    },
+    {
+      "id": "05_sf_nightclub_ringize_payoff",
+      "duration": 15,
+      "status": "done",
+      "requestId": "98c5521b-924c-9bc9-b6c7-4d062abe9c57",
+      "url": "https://vidgen.x.ai/xai-vidgen-bucket/xai-video-2dceb242-ddfa-49c1-8007-b37fb9161348.mp4",
+      "respectModeration": true,
+      "actualDuration": 15
+    }
+  ],
+  "finishedAt": "2026-06-18T14:32:39.028Z"
+}

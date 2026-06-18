@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Step 3: Determine user role for filtering
-    const userRole: UserRole = (session.user.role as UserRole) || UserRole.SUBSCRIBER;
+    const userRole: UserRole = (session.user.role as UserRole) || UserRole.subscriber;
     console.log('API: /api/opportunities - User role:', userRole);
 
     // Step 4: Parse query parameters for pagination

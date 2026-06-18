@@ -1,53 +1,99 @@
 {
-  "aboutUsText": {
-    "title": "About Ring Platform",
-    "introduction": {
-      "title": "Introduction",
-      "content": "Ring is a community platform designed to connect innovators, entrepreneurs, and organizations in the Cherkasy region of Ukraine. Our mission is to foster collaboration, knowledge sharing, and business opportunities within the local tech ecosystem."
+  "title": "О проекте",
+  "description": "Узнайте, что это за Ring-проект, для кого он создан, как начать и где найти издателя платформы.",
+  "hero": {
+    "badge": "Ваш Ring-клон",
+    "title": "О проекте",
+    "description": "Этот сайт работает на Ring — открытой платформе для сообществ, возможностей и маркетплейсов. Вот что строит этот проект и как принять участие."
+  },
+  "badges": {
+    "openSource": "Открытый код",
+    "community": "Сообщество",
+    "modular": "Модульная архитектура"
+  },
+  "sections": {
+    "origin": {
+      "title": "Как всё начиналось",
+      "subtitle": "От идеи к живой платформе",
+      "content": "Каждый Ring-клон начинается с конкретной потребности: объединить людей, показать возможности и вести повседневную работу в одном месте. Этот проект настраивает эти возможности для своего сообщества — через ring-config.json и собственный контент, без привязки к вендору."
     },
-    "forWhom": {
-      "title": "For Whom",
-      "content": "Ring is designed for various stakeholders in the Cherkasy tech ecosystem:",
-      "item1": "Startups and entrepreneurs looking for partnerships and resources",
-      "item2": "Established companies seeking innovation and talent"
+    "founders": {
+      "title": "Кто стоит за платформой",
+      "subtitle": "Издатель и проект",
+      "description": "Эта страница описывает проект, которым вы пользуетесь. Юридический издатель и команда, развивающая Ring, имеют отдельную страницу с историей и контактами.",
+      "ctaLabel": "Об издателе",
+      "ctaHint": "История, юридическое лицо и контакты команды",
+      "contactTitle": "Основатель / издатель",
+      "contactSubtitle": "Архитектор этого Ring-деплоя — Sonoratek LLC и Ringdom"
     },
-    "howToUse": {
-      "title": "How to Use",
-      "content": "Follow these steps to get the most out of Ring:",
-      "item1": "Create an account and complete your profile",
-      "item2": "Explore organizations and opportunities in the ecosystem",
-      "item3": "Connect with other members and start conversations",
-      "item4": "Post opportunities or find collaborators for your projects",
-      "item5": "Participate in community discussions and events",
-      "item6": "Stay updated with notifications and newsletters",
-      "item7": "Contribute to the growth of the local tech community"
+    "goals": {
+      "title": "Наши цели",
+      "subtitle": "Куда движется этот деплой",
+      "items": {
+        "connect": {
+          "title": "Соединять нужных людей",
+          "description": "Профили, организации и сообщения — чтобы участники быстрее находили партнёров, чем в разрозненных чатах."
+        },
+        "opportunities": {
+          "title": "Делать возможности видимыми",
+          "description": "Структурированные объявления, матчинг и уведомления — релевантная работа без лишнего шума."
+        },
+        "sovereignty": {
+          "title": "Владеть своим стеком",
+          "description": "Self-hosted, white-label и гибкая настройка — развивайте продукт по своему плану, а не по SaaS-roadmap."
+        }
+      },
+      "roadmapTitle": "Дорожная карта платформы",
+      "roadmapDescription": "Что уже сделано, планы токеномики и этапы документации для этого Ring-деплоя.",
+      "roadmapCta": "Смотреть roadmap"
     },
-    "techFields": {
-      "title": "Technology Fields",
-      "content": "Ring covers a wide range of technology fields including software development, artificial intelligence, blockchain, IoT, cybersecurity, and more. We welcome all technology enthusiasts and professionals."
+    "audience": {
+      "title": "Для кого это",
+      "subtitle": "Типичные участники",
+      "items": [
+        "Основатели и операторы нишевых сообществ и маркетплейсов",
+        "Участники, ищущие партнёров, поставщиков или экспертизу",
+        "Организации, публикующие entities, opportunities и новости",
+        "Контрибуторы, подключающие модули (store, Web3, AI matching)"
+      ]
     },
-    "userInfo": {
-      "title": "Welcome",
-      "content": "Welcome to Ring, {name}! We're excited to have you as part of our community."
+    "gettingStarted": {
+      "title": "Как начать",
+      "subtitle": "Первые шаги на сайте",
+      "steps": [
+        "Создайте аккаунт и заполните профиль",
+        "Просмотрите организации и возможности",
+        "Напишите участникам, с которыми хотите сотрудничать",
+        "Опубликуйте opportunity или entity, когда будете готовы",
+        "Изучите docs и настройки уведомлений и приватности"
+      ]
+    },
+    "capabilities": {
+      "title": "Что можно делать здесь",
+      "description": "Ring объединяет профили, матчинг возможностей, опциональный store и Web3, а также AI-подсказки — включайте только то, что нужно этому деплою."
     }
   },
+  "actions": {
+    "contact": "Связаться с командой",
+    "documentation": "Документация"
+  },
   "sidebar": {
-    "platformInfo": "Platform Info",
-    "platformInfoDesc": "Ring Platform is an open-source solution for building decentralized communities and marketplaces.",
-    "version": "Version",
-    "license": "License",
-    "quickLinks": "Quick Links",
-    "aboutUs": "About Us",
-    "tokenEconomy": "Token Economy",
-    "aiWeb3": "AI & Web3",
-    "globalImpact": "Global Impact",
-    "contact": "Contact",
-    "community": "Community",
+    "platformInfo": "О платформе",
+    "platformInfoDesc": "Ring Platform — открытое решение для децентрализованных сообществ и маркетплейсов.",
+    "version": "Версия",
+    "license": "Лицензия",
+    "quickLinks": "Быстрые ссылки",
+    "aboutUs": "О нас",
+    "tokenEconomy": "Токеномика",
+    "aiWeb3": "AI и Web3",
+    "globalImpact": "Глобальное влияние",
+    "contact": "Контакты",
+    "community": "Сообщество",
     "github": "GitHub",
     "discord": "Discord",
-    "needHelp": "Need Help?",
-    "needHelpDesc": "Have questions? Check our documentation or reach out.",
-    "documentation": "Documentation →",
-    "contactSupport": "Contact Support →"
+    "needHelp": "Нужна помощь?",
+    "needHelpDesc": "Есть вопросы? Смотрите документацию или напишите нам.",
+    "documentation": "Документация →",
+    "contactSupport": "Поддержка →"
   }
 }

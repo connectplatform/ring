@@ -1,5 +1,5 @@
 /**
- * ADMIN TELEGRAM BOT - Ring API Executor
+ * admin TELEGRAM BOT - Ring API Executor
  * Executes Ring API operations from parsed Anthropic tool calls
  * 
  * Truth Lens:
@@ -7,8 +7,8 @@
  * - @legiox/postgres-db-specialist.json
  * 
  * Security:
- * - ADMIN can CRUD on most entities, restricted from users delete and settings write
- * - SUPERADMIN has full access
+ * - admin can CRUD on most entities, restricted from users delete and settings write
+ * - SUPERadmin has full access
  * - All operations logged to audit table
  */
 
@@ -40,7 +40,7 @@ export interface ExecutionContext {
  * Maps Anthropic tool calls to DatabaseService API
  * 
  * @param toolInput - Parsed tool input from Anthropic
- * @param userRole - User role (ADMIN or SUPERADMIN)
+ * @param userRole - User role (admin or SUPERADMIN)
  * @returns Execution result with data or error
  */
 async function executeRingCrud(
@@ -49,21 +49,21 @@ async function executeRingCrud(
 ): Promise<ExecutionResult> {
   const { operation, entity, id, data, filters, limit } = toolInput
 
-  if (operation === 'delete' && entity === 'users' && userRole !== UserRole.SUPERADMIN) {
+  if (operation === 'delete' && entity === 'users' && userRole !== UserRole.superadmin) {
     return {
       success: false,
-      error: 'ADMIN role cannot delete users. SUPERADMIN required.',
+      error: 'admin role cannot delete users. SUPERadmin required.',
     }
   }
 
   if (
     (operation === 'create' || operation === 'update') &&
     entity === 'settings' &&
-    userRole !== UserRole.SUPERADMIN
+    userRole !== UserRole.superadmin
   ) {
     return {
       success: false,
-      error: 'ADMIN role cannot modify settings. SUPERADMIN required.',
+      error: 'admin role cannot modify settings. SUPERadmin required.',
     }
   }
 

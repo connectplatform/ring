@@ -10,12 +10,13 @@ import {
   mapDbDocumentToSerializedEntity,
 } from '@/features/entities/lib/entity-db-mapper'
 import { UserRole } from '@/features/auth/types'
-import { normalizeUserRole } from '@/features/auth/user-role'
+import { assertKnownUserRole, hasConfidentialAccess } from '@/features/auth/user-role'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
 import { db } from '@/lib/database'
-import { filterEntitiesForDiscovery } from '@/features/entities/lib/entity-visibility-filter'
+import { filterEntitiesForDiscovery, buildEntityVisibilityFilters, canViewEntity } from '@/features/entities/lib/entity-visibility-filter'
+import { entityMatchesVerificationFilter } from '@/features/entities/lib/entity-verification-resolver'
 import { getUserBlockedEntityIds } from '@/features/entities/services/entity-moderation'
 import { cache } from 'react'
 
@@ -72,28 +73,11 @@ export const getEntitiesForRole = cache(async (
   }
 ): Promise<{ entities: SerializedEntity[]; lastVisible: string | null; totalCount?: number }> => {
   const { userRole: rawRole, limit = 20, startAfter, filters } = params
-  const userRole = normalizeUserRole(rawRole)
+  const userRole = assertKnownUserRole(rawRole)
   try {
     console.log('Services: getEntitiesForRole - Starting...', { userRole, rawRole, limit, startAfter, filters })
 
-    // Validate role before proceeding to ensure only authenticated users with valid roles can access entities
-    const validRoles: UserRole[] = [
-      UserRole.VISITOR,
-      UserRole.SUBSCRIBER,
-      UserRole.MEMBER,
-      UserRole.ADMIN,
-      UserRole.SUPERADMIN,
-      UserRole.CONFIDENTIAL
-    ]
-
-    if (!userRole || !validRoles.includes(userRole)) {
-      throw new EntityPermissionError('Invalid or missing user role', undefined, {
-        timestamp: Date.now(),
-        hasRole: !!userRole,
-        role: userRole,
-        operation: 'role_validation'
-      });
-    }
+    assertKnownUserRole(userRole)
 
     // Step 2: Build optimized query configuration based on user role and filters
     const queryConfig: any = {
@@ -104,16 +88,11 @@ export const getEntitiesForRole = cache(async (
     // Initialize where conditions array
     const whereConditions: any[] = [];
 
-    // Apply role-based filtering for non-admin users
-    // Visitors see only public. Subscribers see public + subscriber. Members see public + subscriber + member.
-    if (userRole === UserRole.VISITOR) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public'] });
-    } else if (userRole === UserRole.SUBSCRIBER) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber'] });
-    } else if (userRole === UserRole.MEMBER) {
-      whereConditions.push({ field: 'visibility', operator: 'in', value: ['public', 'subscriber', 'member'] });
+    // Role-based visibility (SSOT: entity-visibility-filter)
+    const visibilityFilters = buildEntityVisibilityFilters(userRole)
+    for (const vf of visibilityFilters) {
+      whereConditions.push(vf)
     }
-    // ADMIN and CONFIDENTIAL users see all entities (no filter applied)
 
     // Apply advanced filters if provided
     if (filters) {
@@ -266,23 +245,11 @@ export const getEntitiesForRole = cache(async (
         );
       }
 
-      // Verification status filtering (client-side for complex logic)
+      // Verification status filtering (SSOT: verificationStatus + storeVerification)
       if (filters.verificationStatus && filters.verificationStatus !== 'all') {
-        entities = entities.filter(entity => {
-          const hasCertifications = entity.certifications && entity.certifications.length > 0;
-          const hasPartnerships = entity.partnerships && entity.partnerships.length > 0;
-          
-          switch (filters.verificationStatus) {
-            case 'verified':
-              return hasCertifications;
-            case 'unverified':
-              return !hasCertifications;
-            case 'premium':
-              return hasCertifications && hasPartnerships;
-            default:
-              return true;
-          }
-        });
+        entities = entities.filter((entity) =>
+          entityMatchesVerificationFilter(entity, filters.verificationStatus!),
+        )
       }
     }
 
@@ -349,7 +316,7 @@ export const getEntities = cache(async (
       operation: 'getEntities'
     });
   }
-  const userRole = normalizeUserRole(session.user.role)
+  const userRole = assertKnownUserRole(session.user.role)
   return getEntitiesForRole({ userRole, limit, startAfter, filters })
 });
 
@@ -379,17 +346,17 @@ export const getConfidentialEntities = cache(async (): Promise<SerializedEntity[
       });
     }
 
-    const userRole = normalizeUserRole(session.user.role)
+    const userRole = assertKnownUserRole(session.user.role)
 
     // Step 2: Validate user role and permissions
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.CONFIDENTIAL) {
+    if (!hasConfidentialAccess(userRole)) {
       throw new EntityPermissionError(
-        'Access denied. Only ADMIN or CONFIDENTIAL users can fetch confidential entities.',
+        'Access denied. Only admin, superadmin or confidential users can fetch confidential entities.',
         undefined,
         {
           timestamp: Date.now(),
           userRole,
-          requiredRoles: [UserRole.ADMIN, UserRole.CONFIDENTIAL],
+          requiredRoles: [UserRole.admin, UserRole.superadmin, UserRole.confidential],
           operation: 'getConfidentialEntities'
         }
       );
@@ -494,7 +461,9 @@ export const getEntitiesByIds = cache(async (
           operation: 'getEntitiesByIds'
         });
       }
-      role = session.user.role as UserRole;
+      role = assertKnownUserRole(session.user.role);
+    } else {
+      role = assertKnownUserRole(role);
     }
 
     if (!entityIds || entityIds.length === 0) {
@@ -547,8 +516,7 @@ export const getEntitiesByIds = cache(async (
     const entities: SerializedEntity[] = []
     
     documents.forEach((entity) => {
-      const canView = canUserViewEntity(entity, role)
-      if (canView) {
+      if (canViewEntity(entity, { userRole: role })) {
         entities.push(entity)
       }
     })
@@ -581,32 +549,3 @@ export const getEntitiesByIds = cache(async (
     );
   }
 });
-
-/**
- * Helper function to determine if a user can view a specific entity
- * based on their role and the entity's visibility settings.
- */
-function canUserViewEntity(entity: SerializedEntity, userRole: UserRole): boolean {
-  // ADMIN and CONFIDENTIAL users can see all entities
-  if ([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.CONFIDENTIAL].includes(userRole)) {
-    return true;
-  }
-
-  // Check confidential entities
-  if (entity.isConfidential) {
-    return false; // Only ADMIN and CONFIDENTIAL can see these
-  }
-
-  // Check visibility based on role hierarchy
-  switch (userRole) {
-    case UserRole.VISITOR:
-      return entity.visibility === 'public';
-    case UserRole.SUBSCRIBER:
-      return ['public', 'subscriber'].includes(entity.visibility || 'public');
-    case UserRole.MEMBER:
-      return ['public', 'subscriber', 'member'].includes(entity.visibility || 'public');
-    default:
-      return false;
-  }
-}
-

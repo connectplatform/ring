@@ -29,7 +29,7 @@ export async function saveArticle(
 
     // Check admin role
     const userRole = (session.user as any)?.role as UserRole
-    if (!userRole || userRole !== UserRole.ADMIN) {
+    if (!userRole || userRole !== UserRole.admin) {
       return {
         error: 'Admin access required to manage news articles'
       }

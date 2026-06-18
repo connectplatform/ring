@@ -23,7 +23,7 @@ Ringdom ships per-clone MCP under **`AI-RING/`** — operator tooling for indivi
 
 | Package | Path | Role |
 |---------|------|------|
-| **ring-mcp** | `AI-RING/ring-mcp/` | stdio MCP server, 57 `ring-*` tools |
+| **ring-mcp** | `AI-RING/ring-mcp/` | stdio MCP server, 58 `ring-*` tools |
 | Operator manual | This page | Full tool reference + troubleshooting |
 | Package README | `AI-RING/ring-mcp/README.md` | Install, config, smoke test |
 | Roadmap | `AI-RING/ring-mcp/ROADMAP.md` | v1.1 polish, multi-clone profiles |
@@ -49,6 +49,7 @@ Gateway code lives in the Ring app (`app/api/mcp/v1/`, `lib/auth/service-token.t
 | **Read & search** | Entity/opportunity search, news categories, payment/credit lookup |
 | **Messaging** | In-app notifications, FCM push, conversations, chat messages |
 | **Image generation** | `ring-image-create` via ImageConductor (xAI / Google Imagen) → ring-filebase CDN URL |
+| **Video generation** | `ring-video-create` via VideoConductor (xAI Grok Imagine Video) — draft 480p or production 720p |
 | **Autonomous newsroom** | `ring-news-generate` via TextConductor + ImageConductor + AudioConductor → cited draft article |
 | **Per-clone tenancy** | One `ring-mcp` entry per clone via `RING_API_BASE_URL` + `RING_SERVICE_TOKEN` |
 | **Safety guards** | Destructive tools require `confirm: true` |
@@ -200,7 +201,7 @@ Once connected, use natural language; the agent picks the right `ring-*` tool.
 
 ---
 
-## Tool reference (57 tools)
+## Tool reference (58 tools)
 
 All tools are prefixed `ring-`. Sensitive mutations require **`confirm: true`** in tool arguments.
 
@@ -320,6 +321,22 @@ ring-image-create prompt "professional tech referral banner, vibrant gradient" a
 
 **Full reference:** [Generative images (generative-images)](/en/docs/development/generative-images) — providers, OG presets, env block, `GenerateImageDialog`, migration `006_generated_images_schema.sql`.
 
+### Video generation
+
+| Tool | Description |
+|------|-------------|
+| `ring-video-create` | Generate video via VideoConductor (xAI Grok Imagine). **draft** = 480p (~$0.05/s). **production** = 720p. Set `remaster: true` to lock a draft prompt at 720p. |
+
+**Quick examples:**
+
+```
+ring-video-create prompt "HOA neighbors frustrated on video call, documentary" qualityMode draft duration 6 purpose viral-ad
+
+ring-video-create prompt "…same prompt…" remaster true remasterFromRequestId <draft-request-id> qualityMode production
+```
+
+**Full reference:** [Generative videos (generative-videos)](/en/docs/development/generative-videos) — draft vs production, CLI manifest, remaster flow, env block.
+
 ---
 
 ## Configuration
@@ -353,7 +370,7 @@ Add **separate** MCP entries, e.g. `ring-mcp-platform` and `ring-mcp-connect`, e
 Ring's 130+ user-facing API routes use **Auth.js session cookies**, not bearer tokens. Retrofitting every route was avoided by introducing **`/api/mcp/v1/*`**:
 
 1. `Authorization: Bearer <token>` checked against `RING_MCP_SERVICE_TOKENS`
-2. `AsyncLocalStorage` injects a SUPERADMIN actor into `auth()` for that request
+2. `AsyncLocalStorage` injects a SUPERadmin actor into `auth()` for that request
 3. Handlers call existing `features/*/services/*` code
 4. Uniform JSON: `{ success, data?, error? }`
 
@@ -402,7 +419,7 @@ Source: `AI-RING/ring-mcp/` (stdio server), `ring-platform.org/app/api/mcp/v1/` 
 
 ## Security
 
-- **SUPERADMIN power**: service token equals full operator access — treat like a root API key
+- **SUPERadmin power**: service token equals full operator access — treat like a root API key
 - Never commit tokens; use per-environment secrets (k8s secrets, `.env.local` gitignored)
 - Rotate immediately if leaked
 - Prefer **one token per clone per environment** (dev/staging/prod)

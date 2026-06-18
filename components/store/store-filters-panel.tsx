@@ -245,9 +245,9 @@ export default function StoreFiltersPanel({
   }, [])
 
   return (
-    <div className="h-screen flex flex-col bg-background border-l border-border relative">
+    <div className="flex flex-col relative min-h-0 text-foreground">
       {/* Fixed Header - Top Controls */}
-      <div className="flex-shrink-0 p-4 border-b border-border">
+      <div className="flex-shrink-0 pb-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Store className="w-5 h-5" />
           {t('filters.searchLabel')}
@@ -267,8 +267,8 @@ export default function StoreFiltersPanel({
       </div>
 
       {/* Scrollable Content Area - Fills remaining vertical space */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-4 p-4">
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="space-y-4">
           {/* Search Bar */}
           <div className="space-y-2">
             <div className="relative">

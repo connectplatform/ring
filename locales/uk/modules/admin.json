@@ -135,6 +135,8 @@
       "chartDesc": "Показує обсяг та якість збігів"
     }
   },
+  "createArticle": "Створити статтю",
+  "securityCenter": "Центр безпеки",
   "dashboard": "Панель керування",
   "users": "Користувачі",
   "news": "Новини",
@@ -144,8 +146,16 @@
   "moderation": "Модерація",
   "performance": "Продуктивність",
   "security": "Безпека",
+  "settingsNav": "Налаштування",
+  "matcherNav": "Matcher",
+  "verificationNav": "Верифікація",
   "store": "Магазин",
   "refcodes": "Реферальні винагороди",
+  "emailInbox": "Вхідні листи",
+  "emailDrafts": "Чернетки",
+  "emailContacts": "Контакти",
+  "emailAnalytics": "Аналітика email",
+  "emailTasks": "Завдання email",
   "bulkImport": "Масовий імпорт",
   "exportData": "Експорт даних",
   "userReports": "Звіти користувачів",
@@ -159,6 +169,11 @@
   "cacheClear": "Очистити кеш",
   "viewLogs": "Переглянути логи",
   "quickNav": "Швидка навігація",
+  "navGroupOverview": "Огляд",
+  "navGroupCommunity": "Спільнота та контент",
+  "navGroupPlatform": "Операції платформи",
+  "navGroupCommerce": "Магазин і винагороди",
+  "navGroupEmail": "Email і CRM",
   "systemStats": "Статистика системи",
   "totalUsers": "Загальна кількість користувачів",
   "publishedArticles": "Опубліковано статей",
@@ -229,7 +244,7 @@
   },
   "storeHub": {
     "orders": "Замовлення",
-    "stock": "Склад",
+    "stock": "Залишок",
     "commissions": "Комісії",
     "stockTitle": "Складський облік",
     "commissionsTitle": "Комісії та виплати продавцям",
@@ -239,7 +254,6 @@
     "lowStock": "Низький залишок",
     "movements": "Останні рухи",
     "product": "Товар",
-    "stock": "Залишок",
     "movementType": "Тип",
     "quantityChange": "Зміна",
     "timestamp": "Коли",
@@ -307,7 +321,25 @@
         "canceled": "Скасовано"
       }
     }
+  },
+  "verificationQueue": {
+    "pageTitle": "Identity Verification",
+    "pageSubtitle": "Review submitted KYC and entity identity procedures",
+    "title": "Verification queue",
+    "subtitle": "Procedures awaiting admin review",
+    "refresh": "Refresh",
+    "empty": "No verification procedures in the queue.",
+    "documentCount": "{count} documents",
+    "applicant": "Applicant: {id}",
+    "submittedAt": "Submitted: {at}",
+    "subjectType": "Subject: {type}",
+    "viewEntity": "View entity profile",
+    "notePlaceholder": "Rejection reason or info request note",
+    "approve": "Approve",
+    "reject": "Reject",
+    "requestInfo": "Request info",
+    "rejectReasonRequired": "Rejection reason is required",
+    "requestInfoNoteRequired": "A note is required to request more information",
+    "actionFailed": "Verification action failed"
   }
 }
-
-

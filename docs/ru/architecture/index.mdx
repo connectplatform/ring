@@ -20,7 +20,7 @@ Ring Platform v1.6.0 — **мультитенантное Next.js приложе
 | **Данные (продакшен)** | `DB_BACKEND_MODE=k8s-postgres-fcm` — Postgres + PostGIS, JSONB-first |
 | **Аутентификация** | Auth.js v5 — `auth()` на уровне layout, тонкий `proxy.ts` только для локали |
 | **Платежи** | PaymentConductor — WayForPay, Stripe, ledger + webhooks |
-| **Realtime** | Tunnel protocol — WebSocket / SSE / опциональный канал Supabase |
+| **Realtime** | TunnelHub — native WSS / SSE / poll; `RING_DEPLOY_TARGET` |
 | **Файлы** | Vercel Blob или хранилище клона |
 | **Деплой** | k3s (кольца ringdom.org) — не Vercel Postgres |
 | **Расширение** | White-label env, portal config, токен-контракты на клон |

@@ -74,10 +74,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     logger.error('api.entities.create.error', { error: error instanceof Error ? error.message : String(error) })
     if (error instanceof Error) {
       // Handle specific errors
-      if (error.message.includes('Only ADMIN or CONFIDENTIAL users')) {
+      if (error.message.includes('Only admin or confidential users')) {
         return NextResponse.json({ error: error.message }, { status: 403 });
       }
-      if (error.message.includes('Only ADMIN, MEMBER, or CONFIDENTIAL users')) {
+      if (error.message.includes('Only admin, member, or confidential users')) {
         return NextResponse.json({ error: error.message }, { status: 403 });
       }
       // Log any other known errors

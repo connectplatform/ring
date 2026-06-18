@@ -10,35 +10,35 @@ export interface StepProps {
   children: React.ReactNode
 }
 
+const stepContentClass =
+  'min-w-0 flex-1 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0 [&_h4:first-child]:mt-0 [&_p:first-child]:mt-0'
+
 export function Steps({ children }: StepsProps) {
   const steps = React.Children.toArray(children)
-  
+
   return (
-    <div className="my-8 space-y-6">
+    <ol className="my-8 list-none space-y-0">
       {steps.map((step, index) => (
-        <div key={index} className="relative flex gap-4">
-          {/* Step number/indicator */}
-          <div className="flex flex-col items-center flex-shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary bg-primary/10 font-semibold text-primary text-sm shrink-0">
-              {index + 1}
-            </div>
-            {/* Connector line */}
-            {index < steps.length - 1 && (
-              <div className="mt-2 h-full w-0.5 bg-border" />
-            )}
-          </div>
-          
-          {/* Step content - MDXRemote handles all styling, no prose needed */}
-          <div className="flex-1 pb-8 min-w-0">
-            {step}
-          </div>
-        </div>
+        <li key={index} className="relative flex gap-3 pb-4 last:pb-0">
+          {index < steps.length - 1 ? (
+            <span
+              aria-hidden
+              className="absolute left-4 top-8 bottom-0 w-px -translate-x-1/2 bg-border"
+            />
+          ) : null}
+          <span
+            aria-hidden
+            className="relative z-[1] flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background text-sm font-semibold leading-none text-primary"
+          >
+            {index + 1}
+          </span>
+          <div className={stepContentClass}>{step}</div>
+        </li>
       ))}
-    </div>
+    </ol>
   )
 }
 
 export function Step({ children }: StepProps) {
-  return <div className="space-y-3">{children}</div>
+  return <div className="space-y-2">{children}</div>
 }
-

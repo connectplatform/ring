@@ -1,0 +1,344 @@
+---
+title: Doc System
+description: Ring-docs MDX component library — Callout, Steps, Mermaid, Tabs, Cards, Code, and visual authoring patterns for ring-platform.org documentation
+keywords:
+  - documentation
+  - MDX
+  - ring-docs
+  - Callout
+  - Mermaid
+last_modified: "2026-06-15"
+---
+
+# Doc System
+
+**Ring-docs** is the MDX component layer behind every page at `/docs/*`. Authors write `.mdx` under `docs/{locale}/`; the app renders them with `next-mdx-remote/rsc` and the shared map in `components/docs/mdx-docs-shared.tsx`.
+
+<Callout type="info" title="Who this is for">
+Technical writers, feature owners, and contributors who publish Ring Platform documentation with consistent visuals — without importing third-party doc UI kits.
+</Callout>
+
+## Render pipeline
+
+<Mermaid title="From MDX file to browser">
+{`flowchart LR
+  File["docs/en/.../*.mdx"]
+  Resolver["lib/docs/docs-path.ts"]
+  RSC["MDXRemote + remark-gfm"]
+  Rehype["Code + Mermaid fences"]
+  Map["docsMdxComponents"]
+  URL["/docs/..."]
+
+  File --> Resolver --> RSC
+  Rehype --> RSC --> Map --> URL`}
+</Mermaid>
+
+| Piece | Path | Role |
+|-------|------|------|
+| Content | `docs/{locale}/**/*.mdx` | Frontmatter + MDX body |
+| Resolver | `lib/docs/docs-path.ts` | Slug → file; `buildDocsHref()` |
+| Components | `components/docs/mdx-docs-shared.tsx` | Registers all JSX tags below |
+| Highlighting | Shiki (`nord` / `tokyo-night`) | Server `<Code>` blocks |
+
+<Callout type="development" title="Under active development">
+New diagram types and sandbox presets are added incrementally. If a component is marked development in product docs, use this callout so readers know APIs may change before the next release.
+</Callout>
+
+---
+
+## Callout
+
+Highlighted prose for executives, warnings, tips, and product status. **Seven types** — unknown types fall back to `info`.
+
+| `type` | Use when |
+|--------|----------|
+| `info` | Context, paths, policy |
+| `tip` | Best practice, positioning |
+| `success` | Validation passed, outcome summary |
+| `warning` | Security, irreversible ops |
+| `error` | Broken config, hard failure |
+| `development` | Feature in flux, preview APIs |
+| `financing` | Grants, RING treasury, vendor funding |
+
+### Live gallery
+
+<Callout type="info" title="Info">
+Canonical EN paths live under `docs/en/`. UK/RU summaries follow `scripts/LOCALE-GAPS.md` unless a page is fully translated.
+</Callout>
+
+<Callout type="tip" title="Tip">
+Hub pages work best with **one** architecture diagram and **Cards** linking every child in `meta.json`.
+</Callout>
+
+<Callout type="success" title="Success">
+Your doc page renders when `npm run dev` serves `/docs/features/doc-system` without MDX parse errors.
+</Callout>
+
+<Callout type="warning" title="Warning">
+Never commit production secrets (`WAYFORPAY_SECRET_KEY`, `AUTH_SECRET`) into MDX or code blocks.
+</Callout>
+
+<Callout type="error" title="Error">
+Missing Callout `type` values crash render — stick to the seven types above or omit `type` (defaults to `info`).
+</Callout>
+
+<Callout type="development" title="Under active development">
+Scientific editor collaboration CRDT and multi-replica tunnel hubs are evolving — check feature flags and implementation logs before shipping dependent docs.
+</Callout>
+
+<Callout type="financing" title="Financing opportunity">
+Ring-powered marketplaces can surface **vendor growth** and **cooperative funding** programs — link opportunities and wallet docs when describing token or grant mechanics for sellers.
+</Callout>
+
+```mdx
+<Callout type="financing" title="Financing opportunity">
+  Describe grants, revenue share, or treasury programs here.
+</Callout>
+```
+
+---
+
+## Steps and Step
+
+Numbered walkthroughs for install, onboarding, and checklists.
+
+<Callout type="warning" title="MDX blank lines">
+Leave **blank lines** before `<Steps>`, before each `<Step>`, after each `</Step>`, and after `</Steps>` — otherwise MDX parsing fails.
+</Callout>
+
+<Steps>
+
+<Step>
+
+Add the page slug to `docs/en/{section}/meta.json` → `pages[]`.
+
+</Step>
+
+<Step>
+
+Author content with components from this page.
+
+</Step>
+
+<Step>
+
+Verify at `http://localhost:3000/docs/features/your-page`.
+
+</Step>
+
+</Steps>
+
+---
+
+## Tabs and Tab
+
+Split audiences on the same URL — developers vs operators, or Do vs Avoid.
+
+<Tabs items={['Authors', 'Readers']}>
+
+<Tab value="Authors">
+
+- Use `value` on each `<Tab>` (not `title`)
+- Optional `items={['A','B']}` on `<Tabs>` for trigger order
+
+</Tab>
+
+<Tab value="Readers">
+
+- Scan Callout summaries first
+- Follow Cards to deep dives
+- Use Steps for procedural pages
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Cards and Card
+
+Hub navigation — every child page in a section `meta.json` should have a card on that section's `index.mdx`.
+
+<Cards>
+  <Card title="Vendor Guide" href="/docs/vendor-guide">
+    Seller-first marketplace onboarding on ring-platform.org.
+  </Card>
+  <Card title="Multi-Vendor Store" href="/docs/features/store">
+    Payments, trust tiers, and catalog architecture.
+  </Card>
+  <Card title="Development components" href="/docs/development/docs-components">
+    Authoring rules, hub checklist, and contributor workflow.
+  </Card>
+</Cards>
+
+---
+
+## Mermaid
+
+Client-rendered diagrams. Pass diagram source as a **template literal child**:
+
+<Mermaid title="Doc component relationships">
+{`flowchart TB
+  Callout --> Hub[Hub index.mdx]
+  Mermaid --> Hub
+  Cards --> Hub
+  Tabs --> Article[Feature article]
+  Steps --> Article
+  Code --> Article`}
+</Mermaid>
+
+Fenced blocks also work — rehype converts ` ```mermaid ` to `<Mermaid>` automatically.
+
+---
+
+## MindMap
+
+Mermaid `mindmap` syntax via the `MindMap` alias — use **once per hub**, not on every page.
+
+<MindMap title="Ring-docs building blocks">
+{`mindmap
+  root((Ring-docs))
+    Prose
+      GFM tables
+      Styled headings
+    Interactive
+      Callout
+      Tabs
+      Steps
+    Visual
+      Mermaid
+      MindMap
+      Timeline
+    Code
+      Code block
+      Inline backticks`}
+</MindMap>
+
+---
+
+## Code
+
+Server-rendered Shiki highlighting. Use `language` and optional `title`:
+
+<Code language="typescript" title="Register a docs page">
+{`// docs/en/features/meta.json
+{
+  "pages": ["index", "doc-system", "store"]
+}`}
+</Code>
+
+Inline code uses single backticks: `docsMdxComponents`, `resolveDocFilePath()`.
+
+---
+
+## Timeline
+
+Client-only (`react-chrono`). Ideal for roadmaps and migration history.
+
+<Timeline
+  items={[
+    {
+      title: '2025-Q4',
+      cardTitle: 'Ring-docs baseline',
+      cardSubtitle: 'MDXRemote + Shiki',
+      cardDetailedText: 'Callout, Mermaid, Cards, Steps shipped for EN canonical docs.',
+    },
+    {
+      title: '2026-Q2',
+      cardTitle: 'Doc System feature page',
+      cardSubtitle: 'Component gallery',
+      cardDetailedText: 'development + financing Callouts; Features → Doc System reference.',
+    },
+  ]}
+/>
+
+---
+
+## UiCard (shadcn)
+
+Layout cards inside MDX — distinct from doc navigation `Card`. Use for grouped settings or API panels:
+
+<UiCard className="my-6">
+  <UiCardHeader>
+    <UiCardTitle>Example panel</UiCardTitle>
+    <UiCardDescription>UiCard* components mirror shadcn Card for dense reference blocks.</UiCardDescription>
+  </UiCardHeader>
+  <UiCardContent className="text-sm text-muted-foreground">
+    Prefer <strong>Callout</strong> for alerts and <strong>Card</strong> for navigation links.
+  </UiCardContent>
+</UiCard>
+
+---
+
+## Math and MathBlock
+
+KaTeX for tokenomics and scientific editor docs.
+
+Inline: commission rate <Math>{`r = 0.20 - 0.02 \times tier`}</Math> (example).
+
+Display:
+
+<MathBlock>{`\text{payout} = \text{gross} \times (1 - r)`}</MathBlock>
+
+---
+
+## Heavy / specialized components
+
+| Component | When to use | Embed on dense reference pages? |
+|-----------|-------------|----------------------------------|
+| **CodeSandbox** | `/examples` — live Sandpack previews | Sparingly |
+| **RingAISynapseFlow** | AI matching marketing visuals | No — large bundle |
+| **Image** (via `img`) | Screenshots with border radius | Yes |
+
+<Callout type="financing" title="Financing opportunity">
+Documentation that explains **marketplace revenue**, **affiliate programs**, or **treasury participation** should cross-link [Wallet](/docs/features/wallet) and [Affiliate enablement](/docs/features/affiliate-enablement) using the financing callout where funding mechanics matter.
+</Callout>
+
+---
+
+## GFM markdown (automatic)
+
+These elements need no JSX — `remark-gfm` styles them via the MDX map:
+
+| Element | Styled behavior |
+|---------|-----------------|
+| Headings `##` | Scroll margin, border on `h2` |
+| Tables | Bordered rows, hover |
+| Lists | Disc / decimal with spacing |
+| Blockquote | Primary left border |
+| Links | Primary color underline |
+
+---
+
+## Component quick reference
+
+| Component | Import map key | Client? |
+|-----------|----------------|---------|
+| Callout | `Callout` | Yes |
+| Steps / Step | `Steps`, `Step` | Yes |
+| Tabs / Tab | `Tabs`, `Tab` | Yes |
+| Cards / Card | `Cards`, `Card` | Server-friendly |
+| Mermaid | `Mermaid` | Yes |
+| MindMap | `MindMap` | Yes |
+| Code | `Code` | Server async |
+| Timeline | `Timeline` | Yes |
+| Math / MathBlock | `Math`, `MathBlock` | Yes |
+| UiCard* | `UiCard`, … | Server-friendly |
+| CodeSandbox | `CodeSandbox` | Yes |
+| RingAISynapseFlow | `RingAISynapseFlow` | Yes |
+
+---
+
+## Related
+
+<Cards>
+  <Card title="Docs components (Development)" href="/docs/development/docs-components">
+    Hub checklist, authoring rules, and contributor workflow.
+  </Card>
+  <Card title="Contributing" href="/docs/development/contributing">
+  PR guidelines and review expectations for docs changes.
+  </Card>
+  <Card title="Architecture hub" href="/docs/architecture">
+    Reference layout using these same primitives.
+  </Card>
+</Cards>

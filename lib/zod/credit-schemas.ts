@@ -60,7 +60,7 @@ export const UserProfileWithCreditsSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string().optional(),
-  role: z.enum(['VISITOR', 'SUBSCRIBER', 'MEMBER', 'CONFIDENTIAL', 'ADMIN']),
+  role: z.enum(['visitor', 'subscriber', 'member', 'confidential', 'admin', 'superadmin']),
   created_at: z.number().int().positive(),
   updated_at: z.number().int().positive(),
   

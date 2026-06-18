@@ -1,0 +1,9 @@
+{
+  "title": "MCP",
+  "description": "Ring MCP tool reference — per-clone Model Context Protocol gateway and operator tools",
+  "pages": [
+    "index",
+    "ring-image-create",
+    "ring-video-create"
+  ]
+}

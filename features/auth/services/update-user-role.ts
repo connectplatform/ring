@@ -34,7 +34,7 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
     // Step 1: Authenticate and get admin user session
     const session = await auth();
     const role = session?.user?.role as UserRole | undefined
-    if (!session?.user || ![UserRole.ADMIN, UserRole.SUPERADMIN].includes(role as UserRole)) {
+    if (!session?.user || ![UserRole.admin, UserRole.superadmin].includes(role as UserRole)) {
       throw new Error('Unauthorized access: Admin privileges required');
     }
 

@@ -18,7 +18,7 @@ export function buildMcpServiceActor(): McpActor {
     id: SERVICE_ACTOR_ID,
     email: SERVICE_ACTOR_EMAIL,
     name: SERVICE_ACTOR_NAME,
-    role: UserRole.SUPERADMIN,
+    role: UserRole.superadmin,
   }
 }
 

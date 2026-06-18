@@ -9,7 +9,7 @@ import { UserRole } from '@/features/auth/types';
  * User Flow:
  * 1. User makes GET request to /api/confidential/opportunities
  * 2. System authenticates the user's session
- * 3. System verifies user has appropriate role (CONFIDENTIAL or ADMIN)
+ * 3. System verifies user has appropriate role (confidential or admin)
  * 4. System processes query parameters for pagination, sorting, and filtering
  * 5. System retrieves and returns filtered confidential opportunities
  * 
@@ -36,7 +36,7 @@ import { UserRole } from '@/features/auth/types';
  * 
  * Security:
  * - Requires authenticated session
- * - Requires CONFIDENTIAL or ADMIN role
+ * - Requires confidential or admin role
  * - Dynamic rendering (no caching)
  */
 export async function GET(request: NextRequest) {
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 2: Authorization
-    if (session.user.role !== UserRole.CONFIDENTIAL && session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.confidential && session.user.role !== UserRole.admin) {
       console.log('API: /api/confidential/opportunities - Permission denied', {
         userId: session.user.id,
         role: session.user.role
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       filter,
       startAfter,
       userId: session.user.id,
-      userRole: session.user.role as UserRole.CONFIDENTIAL | UserRole.ADMIN
+      userRole: session.user.role as UserRole.confidential | UserRole.admin
     });
 
     console.log('API: /api/confidential/opportunities - opportunities retrieved:', {

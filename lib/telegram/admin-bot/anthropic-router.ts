@@ -1,5 +1,5 @@
 /**
- * ADMIN TELEGRAM BOT - Anthropic Router
+ * admin TELEGRAM BOT - Anthropic Router
  * Routes admin commands through Anthropic Claude with decision tree
  * 
  * Truth Lens:

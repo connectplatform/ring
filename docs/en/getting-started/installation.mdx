@@ -1,19 +1,102 @@
 ---
 title: Installation
-description: Installation documentation for Ring Platform
+description: Install Ring Platform locally — clone, PostgreSQL-primary backend, Auth.js v5, schema migrations, and the unified custom server
+last_modified: "2026-06-15"
 ---
 
 # Installation
 
-This guide walks you through a complete setup of Ring Platform for local development.
+Install Ring Platform on your machine for local development. This guide matches the open-source repo ([connectplatform/ring](https://github.com/connectplatform/ring)) and the **PostgreSQL-primary** default (`DB_BACKEND_MODE=k8s-postgres-fcm`).
 
-## Prerequisites
+<Callout type="info" title="Estimated time">
+**45–90 minutes** for a full Postgres-primary install (first time). **`./install.sh --quick`** plus an existing PostgreSQL instance can be faster.
+</Callout>
 
-- Node.js 22.9+ and npm 10.8+
-- Firebase project (Firestore + Auth)
-- Google Cloud OAuth credentials
+<Cards>
+  <Card title="Prerequisites" href="/docs/getting-started/prerequisites">
+    Node.js 20+, Git, hardware, and optional Docker
+  </Card>
+  <Card title="Database migrations" href="/docs/getting-started/migrations">
+    `data/schema.sql` v4+ and kingdom migration order
+  </Card>
+  <Card title="Database backend selection" href="/docs/customization/database-selection">
+    `k8s-postgres-fcm`, `supabase-fcm`, or `firebase-full`
+  </Card>
+  <Card title="First success validation" href="/docs/getting-started/first-success">
+    Smoke-test checklist after `npm run dev`
+  </Card>
+</Cards>
 
-## 1) Initialize the project
+## What you are installing
+
+| Component | Version / entry |
+|-----------|-----------------|
+| **Framework** | Next.js 16 App Router + React 19 |
+| **Auth** | Auth.js v5 (`auth.ts`, `AUTH_SECRET`, OAuth providers) |
+| **Default data plane** | PostgreSQL (`k8s-postgres-fcm`) — not Firestore for app data |
+| **Dev server** | Custom `server.ts` — Next.js + native WebSocket tunnel (`/api/tunnel/ws`) |
+| **White-label config** | `ring-config.json` (created by `install.sh`) |
+
+<Mermaid title="Installation flow">
+{`flowchart LR
+  A[Clone ring] --> B[install.sh or manual env]
+  B --> C[PostgreSQL + schema]
+  C --> D[Auth + ring-config]
+  D --> E[npm run dev]
+  E --> F[localhost:3000]`}
+</Mermaid>
+
+## Install paths
+
+<Tabs items={['Path 1 — install.sh (recommended)', 'Path 2 — Manual']}>
+
+<Tab value="Path 1 — install.sh (recommended)">
+
+<Callout type="success" title="Recommended for first clone">
+`install.sh` v2.0 scaffolds `ring-config.json`, copies `env.local.template` → `.env.local`, generates secrets, and runs `npm install`.
+</Callout>
+
+<Steps>
+
+<Step>
+
+### Clone and run the installer
+
+<Code language="bash" title="terminal">
+{`git clone https://github.com/connectplatform/ring.git
+cd ring
+chmod +x install.sh
+./install.sh --quick`}
+</Code>
+
+Useful flags:
+
+- `--clone-name my-ring` — white-label slug in `ring-config.json`
+- `--quick` — non-interactive defaults
+- `dev` / `prod` — explicit setup mode
+- `--help` — full option list
+
+</Step>
+
+<Step>
+
+### Finish required `.env.local` values
+
+The template is copied automatically. At minimum, set database connection vars and one OAuth provider before first boot (see [Configure environment](#configure-environment) below).
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab value="Path 2 — Manual">
+
+<Steps>
+
+<Step>
+
+### Clone and install dependencies
 
 <Code language="bash" title="terminal">
 {`git clone https://github.com/connectplatform/ring.git
@@ -21,41 +104,285 @@ cd ring
 npm install`}
 </Code>
 
-## 2) Configure environment
+<Tabs items={['npm', 'pnpm', 'yarn']}>
+  <Tab value="npm">
+    <Code language="bash" title="terminal">
+{`npm install`}
+</Code>
+  </Tab>
+  <Tab value="pnpm">
+    <Code language="bash" title="terminal">
+{`pnpm install`}
+</Code>
+  </Tab>
+  <Tab value="yarn">
+    <Code language="bash" title="terminal">
+{`yarn install`}
+</Code>
+  </Tab>
+</Tabs>
 
-cp env.local.template .env.local
+</Step>
+
+<Step>
+
+### Create environment and clone config
 
 <Code language="bash" title="terminal">
-{`npm run setup:env`}
+{`cp env.local.template .env.local
+cp ring-config.template.json ring-config.json
+# or interactive:
+npm run setup:env`}
 </Code>
 
-Essential keys (see `env.local.template`):
+Edit `ring-config.json` — `clone.displayName`, `domains.development`, and `features` for your white-label instance.
 
-<Code language="dotenv" title="AUTH_FIREBASE_PROJECT_ID=">
-{`AUTH_FIREBASE_CLIENT_EMAIL=
-AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_APP_ID=
-AUTH_GOOGLE_ID=
-AUTH_GOOGLE_SECRET=
-WALLET_ENCRYPTION_KEY=`}
+</Step>
+
+</Steps>
+
+</Tab>
+
+</Tabs>
+
+## PostgreSQL setup
+
+Production-style local dev uses database **`ring_platform`** with user **`ring_user`**. App schema lives in `data/schema.sql` (v4.0.1+).
+
+<Callout type="warning" title="Required for k8s-postgres-fcm">
+`DB_BACKEND_MODE` is **mandatory**. The platform expects PostgreSQL when set to `k8s-postgres-fcm` (the template default). See [Database migrations](/docs/getting-started/migrations) for the full apply order.
+</Callout>
+
+<Tabs items={['Docker Postgres', 'Existing server', 'Ringdom monorepo']}>
+
+<Tab value="Docker Postgres">
+
+Start PostgreSQL 16 locally (standalone clone — no Ringdom monorepo required):
+
+<Code language="bash" title="terminal">
+{`docker run -d --name ring-postgres-dev \\
+  -e POSTGRES_USER=ring_user \\
+  -e POSTGRES_PASSWORD=ring_password_2024 \\
+  -e POSTGRES_DB=ring_platform \\
+  -p 5432:5432 \\
+  postgres:16-alpine`}
 </Code>
 
-## 3) Firebase setup
+Apply schema and kingdom migrations:
 
-1. Enable Authentication (Google provider)
-2. Create Firestore DB (test mode for local)
-3. Optional: configure Storage and Cloud Messaging (VAPID key)
+<Code language="bash" title="terminal">
+{`export DATABASE_URL="postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform"
+psql "$DATABASE_URL" -f data/schema.sql
+psql "$DATABASE_URL" -f data/migrations/002_news_content_schema.sql
+psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
+psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
+psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
+psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql`}
+</Code>
 
-## 4) Run
+<Callout type="tip" title="Full migration matrix">
+Incremental files `005`–`008` and `011` are idempotent when already merged into `schema.sql`. See [Database migrations](/docs/getting-started/migrations) — do **not** apply deprecated `001_email_crm_schema.sql`.
+</Callout>
 
-✅ http://localhost:3000
+</Tab>
+
+<Tab value="Existing server">
+
+Point `.env.local` at your PostgreSQL 14+ instance (18 recommended), create `ring_platform`, then run the same `psql` commands as the Docker tab using your `DATABASE_URL`.
+
+</Tab>
+
+<Tab value="Ringdom monorepo">
+
+If you develop inside the [Ringdom](https://github.com/connectplatform/ring) kingdom checkout with multiple Ring clones:
+
+<Code language="bash" title="from ringdom repo root">
+{`docker compose -f docker-compose.dev.yml up -d postgres
+# or Homebrew:
+brew install postgresql@18 postgis
+brew services start postgresql@18
+./infrastructure/postgres/bootstrap-brew-dev.sh ring-platform.org`}
+</Code>
+
+Container **`ring-postgres-dev`** + volume **`ringdom_postgres_data`** bootstraps `ring_platform` via `infrastructure/postgres/init/`. See `infrastructure/postgres/init/README.md` in the monorepo.
+
+</Tab>
+
+</Tabs>
+
+## Configure environment
+
+Set these in `.env.local` (from `env.local.template`). Values shown are local dev defaults.
+
+### Backend mode and database
+
+<Code language="bash" title=".env.local — database">
+{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
+DB_SSL=false`}
+</Code>
+
+<Tabs items={['k8s-postgres-fcm', 'firebase-full (prototype)', 'supabase-fcm']}>
+
+<Tab value="k8s-postgres-fcm">
+
+<Callout type="success" title="Recommended">
+Application data on PostgreSQL; Firebase Admin used **only for FCM push** when configured. Matches ring-platform.org production.
+</Callout>
+
+</Tab>
+
+<Tab value="firebase-full (prototype)">
+
+<Code language="bash" title=".env.local">
+{`DB_BACKEND_MODE=firebase-full`}
+</Code>
+
+Fastest Vercel-edge prototype — Firestore holds app data. Not recommended for PaymentConductor, News Kingdom, or ERP features. Details: [Database selection](/docs/customization/database-selection).
+
+</Tab>
+
+<Tab value="supabase-fcm">
+
+<Code language="bash" title=".env.local">
+{`DB_BACKEND_MODE=supabase-fcm
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key`}
+</Code>
+
+Managed PostgreSQL — same SQL schema as self-hosted clones.
+
+</Tab>
+
+</Tabs>
+
+### Auth.js and URLs
+
+<Code language="bash" title=".env.local — auth">
+{`AUTH_SECRET=   # openssl rand -base64 32
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NODE_ENV=development`}
+</Code>
+
+<Callout type="warning" title="OAuth redirect URI">
+In [Google Cloud Console](https://console.cloud.google.com/), add authorized redirect URI:
+`http://localhost:3000/api/auth/callback/google`
+</Callout>
+
+### Real-time tunnel (local dev)
+
+<Code language="bash" title=".env.local — tunnel">
+{`RING_DEPLOY_TARGET=self-hosted
+NEXT_PUBLIC_RING_DEPLOY_TARGET=self-hosted`}
+</Code>
+
+`npm run dev` starts the unified custom server (`server.ts`) with native WebSocket at `/api/tunnel/ws`. On Vercel, set `RING_DEPLOY_TARGET=vercel` for SSE-only mode.
+
+### Firebase (FCM — optional for Postgres mode)
+
+For push notifications, add Firebase Admin + client keys from the template. **Not required** to load the homepage or browse entities with Postgres-only auth.
+
+<Code language="bash" title=".env.local — Firebase excerpt">
+{`AUTH_FIREBASE_PROJECT_ID=your_firebase_project_id
+AUTH_FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+AUTH_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id`}
+</Code>
+
+<Callout type="warning" title="Private key formatting">
+Keep `AUTH_FIREBASE_PRIVATE_KEY` in double quotes with literal `\\n` newlines (or real newlines inside quotes). Never commit `.env.local`.
+</Callout>
+
+### Locales
+
+Defaults match ring-platform.org community portal:
+
+<Code language="bash" title=".env.local — locales">
+{`NEXT_PUBLIC_SUPPORTED_LOCALES=en,uk,ru
+NEXT_PUBLIC_DEFAULT_LOCALE=en`}
+</Code>
+
+## Run the development server
+
+<Steps>
+
+<Step>
+
+### Start the app
 
 <Code language="bash" title="terminal">
 {`npm run dev`}
 </Code>
 
+Expected log line:
 
-<Callout type="warning">Keep private keys quoted and with literal newlines.</Callout>
+```text
+> Ready on http://localhost:3000 [self-hosted]
+[server] Native WSS attached at /api/tunnel/ws (RING_DEPLOY_TARGET=self-hosted)
+```
 
+First compile may take 30–60 seconds.
 
+</Step>
+
+<Step>
+
+### Open the portal
+
+Visit [http://localhost:3000](http://localhost:3000) — home renders via `HomeWrapper` and locale files under `locales/{en,uk,ru}/`.
+
+<Callout type="success" title="Installation complete">
+If the homepage loads without database adapter errors, proceed to [First success validation](/docs/getting-started/first-success).
+</Callout>
+
+</Step>
+
+<Step>
+
+### Optional checks
+
+<Code language="bash" title="terminal">
+{`npm run type-check
+npm run portal:health`}
+</Code>
+
+</Step>
+
+</Steps>
+
+## Common install issues
+
+| Symptom | Fix |
+|---------|-----|
+| Port **3000** in use | `lsof -ti:3000 \| xargs kill` or `PORT=3001 npm run dev` |
+| **Database connection failed** | Verify Postgres is running, `DB_*` vars match, and `data/schema.sql` was applied |
+| **Google sign-in** fails | Check `AUTH_GOOGLE_*`, Firebase/Google redirect URI, and `AUTH_SECRET` |
+| **Module not found** | Re-run `npm install` from repo root |
+| Tunnel errors in console | Confirm `RING_DEPLOY_TARGET=self-hosted` for local WSS |
+
+More: [Troubleshooting](/docs/getting-started/troubleshooting).
+
+## Next steps
+
+<Cards>
+  <Card title="First success validation" href="/docs/getting-started/first-success">
+    Auth, entities, opportunities smoke tests
+  </Card>
+  <Card title="Local development setup" href="/docs/development/local-setup">
+    Project structure, testing, and dev tools
+  </Card>
+  <Card title="Customization quick start" href="/docs/customization/quick-start">
+    White-label clone checklist beyond install
+  </Card>
+  <Card title="Deployment" href="/docs/deployment">
+    k3s, Docker, and production hardening
+  </Card>
+</Cards>

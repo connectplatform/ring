@@ -7,7 +7,7 @@ import { queryInt, queryString, readJsonBody } from '@/app/api/mcp/v1/_lib/query
 
 export const GET = withMcpGuard(async (request) => {
   const result = await getOpportunitiesForRole({
-    userRole: UserRole.SUPERADMIN,
+    userRole: UserRole.superadmin,
     limit: queryInt(request, 'limit', 20),
     startAfter: queryString(request, 'startAfter'),
     query: queryString(request, 'search'),

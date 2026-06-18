@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     let vendorName: string
 
     // Admin/Superadmin: Use Ring Portal Store
-    if (userRole === UserRole.ADMIN || userRole === UserRole.SUPERADMIN) {
+    if (userRole === UserRole.admin || userRole === UserRole.superadmin) {
       vendorId = 'vendor_ring_portal_store'
       vendorName = 'Ring Portal Store'
     } else {

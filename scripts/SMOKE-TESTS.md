@@ -82,6 +82,7 @@ Probed routes: `POST /api/payments/wayforpay/webhook`, `POST /api/refcodes/track
 | `smoke-refcodes-http.cts` | `smk8_` | `trackRefcodeVisit`, cron mint service + optional HTTP auth |
 | `smoke-erp-ops.cts` | `smk9_` | `processDueSettlements` simulated payout batch |
 | `smoke-entity-moderation-pipeline.cts` | `smk10_` | Entity report/block visibility, matcher suppression, moderation events (requires `011_entity_moderation.sql`) |
+| `smoke-verification-pipeline.cts` | `smk11_` | Verification procedures SSOT: create, attach, submit, approve/reject, entity request contract, blob read (requires `012_verification_procedures.sql`) |
 
 ## Authoring standard
 

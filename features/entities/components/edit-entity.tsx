@@ -24,6 +24,8 @@ import { Badge } from '@/components/ui/badge'
 import { X } from 'lucide-react'
 import Link from 'next/link'
 import { ROUTES } from '@/constants/routes'
+import { entityTypeConfigs } from '@/components/entities/entity-type-icons'
+import { resolveEntityType } from '@/lib/entities/legacy-entity-type-map'
 
 function SubmitButton() {
   const t = useTranslations('modules.entities')
@@ -58,6 +60,11 @@ export default function EditEntityForm({
     }
   }
 
+  const sortedEntityTypes = [...entityTypeConfigs].sort((a, b) =>
+    t(`types.${a.id}`).localeCompare(t(`types.${b.id}`))
+  )
+  const resolvedType = resolveEntityType(entity.type)
+
   return (
     <Card>
       <CardHeader>
@@ -87,15 +94,16 @@ export default function EditEntityForm({
 
             <div>
               <Label htmlFor="type">{t('type')} *</Label>
-              <Select name="type" defaultValue={entity.type} required>
+              <Select name="type" defaultValue={resolvedType} required>
                 <SelectTrigger>
                   <SelectValue placeholder={t('selectType')} />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="softwareDevelopment">{t('categories.softwareDevelopment')}</SelectItem>
-                  <SelectItem value="manufacturing">{t('categories.manufacturing')}</SelectItem>
-                  <SelectItem value="technologyCenter">{t('categories.technologyCenter')}</SelectItem>
-                  <SelectItem value="other">{t('categories.other')}</SelectItem>
+                <SelectContent className="max-h-[min(24rem,70vh)]">
+                  {sortedEntityTypes.map((config) => (
+                    <SelectItem key={config.id} value={config.id}>
+                      {t(`types.${config.id}`)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

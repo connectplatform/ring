@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useCallback } from 'react'
+import { useState, useTransition, useCallback, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -58,15 +58,17 @@ interface EntitiesFiltersPanelProps {
   onFiltersApplied?: (filters: EntityFilterState) => void
 }
 
+const ANY_VERIFICATION = '__any__'
+
 const FILTER_ENTITY_TYPE_IDS: EntityType[] = [
-  'softwareDevelopment',
-  'aiMachineLearning',
-  'cloudComputing',
-  'cybersecurity',
-  'blockchainDevelopment',
-  'iotDevelopment',
-  'robotics',
-  'technologyCenter',
+  'technologySoftware',
+  'financialServices',
+  'healthcareMedical',
+  'educationTraining',
+  'professionalServices',
+  'manufacturingIndustry',
+  'researchDevelopment',
+  'other',
 ]
 
 const entityTypes = FILTER_ENTITY_TYPE_IDS.map((id) => {
@@ -90,6 +92,8 @@ export default function EntitiesFiltersPanel({
   // React 19 useTransition for non-blocking filter updates
   const [isPending, startTransition] = useTransition()
 
+  const isApplyingFilters = useRef(false)
+
   const [filters, setFilters] = useState<EntityFilterState>({
     search: '',
     types: [],
@@ -106,6 +110,13 @@ export default function EntitiesFiltersPanel({
     ...initialFilters
   })
 
+  useEffect(() => {
+    if (isApplyingFilters.current && onFiltersApplied) {
+      onFiltersApplied(filters)
+      isApplyingFilters.current = false
+    }
+  }, [filters, onFiltersApplied])
+
   const toggleSection = (section: string) => {
     setOpenSections(prev => {
       const newSet = new Set(prev)
@@ -120,7 +131,10 @@ export default function EntitiesFiltersPanel({
 
   const updateFilters = useCallback((updates: Partial<EntityFilterState>) => {
     startTransition(() => {
-      setFilters(prev => ({ ...prev, ...updates }))
+      setFilters((prev) => {
+        isApplyingFilters.current = true
+        return { ...prev, ...updates }
+      })
     })
   }, [startTransition])
 
@@ -436,14 +450,16 @@ export default function EntitiesFiltersPanel({
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 px-3">
             <Select
-              value={filters.verificationStatus}
-              onValueChange={(value) => updateFilters({ verificationStatus: value })}
+              value={filters.verificationStatus || ANY_VERIFICATION}
+              onValueChange={(value) =>
+                updateFilters({ verificationStatus: value === ANY_VERIFICATION ? '' : value })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder={t('filters.verification.anyStatus', { defaultValue: 'Any status' })} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem value={ANY_VERIFICATION}>
                   {t('filters.verification.anyStatus', { defaultValue: 'Any status' })}
                 </SelectItem>
                 <SelectItem value="verified">

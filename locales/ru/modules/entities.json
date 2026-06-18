@@ -4,6 +4,11 @@
   "entitiesTitle": "Каталог организаций",
   "confidentialEntitiesTitle": "Конфиденциальные организации",
   "loadingMessage": "Загрузка организаций...",
+  "wrapper": {
+    "loginRequired": "Войдите, чтобы просмотреть эту страницу.",
+    "preparingDirectory": "Подготовка каталога организаций",
+    "loadingDirectory": "Загрузка каталога организаций"
+  },
   "visitWebsite": "Посетить сайт",
   "foundedIn": "Основана в {year}",
   "employees": "{count} сотрудников",
@@ -15,6 +20,8 @@
   "previous": "Previous",
   "next": "Next",
   "filters": {
+    "title": "Фильтры",
+    "subtitle": "Уточните по типу организации, локации и другим параметрам",
     "search": {
       "label": "Поиск организаций",
       "placeholder": "Введите название организации, отрасль или местоположение..."
@@ -129,36 +136,58 @@
   "showingResults": "Showing {count} results",
   "companySize": "Company Size",
   "types": {
-    "3dPrinting": "3D Printing",
-    "aiMachineLearning": "AI & Machine Learning",
-    "biotechnology": "Biotechnology",
-    "blockchainDevelopment": "Blockchain Development",
-    "cleanEnergy": "Clean Energy",
-    "cloudComputing": "Cloud Computing",
-    "cncMachining": "CNC Machining",
-    "compositeManufacturing": "Composite Manufacturing",
-    "cybersecurity": "Cybersecurity",
-    "droneTechnology": "Drone Technology",
-    "electronicManufacturing": "Electronic Manufacturing",
-    "industrialDesign": "Industrial Design",
-    "iotDevelopment": "IoT Development",
-    "laserCutting": "Laser Cutting",
-    "manufacturing": "Manufacturing",
-    "metalFabrication": "Metal Fabrication",
-    "other": "Other",
-    "plasticInjectionMolding": "Plastic Injection Molding",
-    "precisionEngineering": "Precision Engineering",
-    "quantumComputing": "Quantum Computing",
-    "robotics": "Robotics",
-    "semiconductorProduction": "Semiconductor Production",
-    "smartMaterials": "Smart Materials",
-    "softwareDevelopment": "Разработка программного обеспечения",
-    "softwareDevelopmentDesc": "Технологические компании, стартапы, агентства разработки",
-    "technologyCenter": "Технологический центр",
-    "technologyCenterDesc": "Исследовательские центры, инновационные хабы, технопарки",
-    "manufacturingDesc": "Производственные компании и заводы",
-    "otherDesc": "Консалтинг, услуги и другие организации",
-    "virtualReality": "Виртуальная реальность"
+    "technologySoftware": "Технологии и программное обеспечение",
+    "technologySoftwareDesc": "ПО, SaaS, ИИ, облако, кибербезопасность и цифровые продукты",
+    "manufacturingIndustry": "Производство и промышленность",
+    "manufacturingIndustryDesc": "Производство, промышленная автоматизация и цепочки поставок",
+    "financialServices": "Финансовые услуги",
+    "financialServicesDesc": "Банки, финтех, страхование, инвестиции и финансовый консалтинг",
+    "healthcareMedical": "Здравоохранение и медицина",
+    "healthcareMedicalDesc": "Больницы, клиники, медтех и поставщики медицинских услуг",
+    "educationTraining": "Образование и обучение",
+    "educationTrainingDesc": "Университеты, школы, edtech и профессиональное обучение",
+    "realEstateConstruction": "Недвижимость и строительство",
+    "realEstateConstructionDesc": "Девелоперы, подрядчики, архитектура и управление недвижимостью",
+    "retailEcommerce": "Розница и электронная коммерция",
+    "retailEcommerceDesc": "Розничные бренды, маркетплейсы и омниканальная торговля",
+    "professionalServices": "Профессиональные услуги",
+    "professionalServicesDesc": "Бухгалтерия, HR, дизайн, инженерия и B2B-сервисы",
+    "mediaEntertainment": "Медиа и развлечения",
+    "mediaEntertainmentDesc": "Студии, издательства, стриминг, игры и креативные медиа",
+    "transportationLogistics": "Транспорт и логистика",
+    "transportationLogisticsDesc": "Грузоперевозки, мобильность, склады и доставка",
+    "energyUtilities": "Энергетика и коммунальные услуги",
+    "energyUtilitiesDesc": "Энергоснабжение, возобновляемая энергия и инфраструктура",
+    "agricultureFood": "Сельское хозяйство и питание",
+    "agricultureFoodDesc": "Фермы, производители продуктов, агротех и агропродовольственные цепочки",
+    "governmentPublicSector": "Государственный и публичный сектор",
+    "governmentPublicSectorDesc": "Государственные учреждения, муниципалитеты и государственные программы",
+    "nonProfitNgo": "Некоммерческие и общественные организации",
+    "nonProfitNgoDesc": "Благотворительные фонды, фонды и организации гражданского общества",
+    "researchDevelopment": "Исследования и разработки",
+    "researchDevelopmentDesc": "Лаборатории, инновационные центры и НИИ",
+    "consultingAdvisory": "Консалтинг и консультирование",
+    "consultingAdvisoryDesc": "Управленческий консалтинг и стратегическое консультирование",
+    "legalServices": "Юридические услуги",
+    "legalServicesDesc": "Юридические фирмы, комплаенс и legal tech",
+    "marketingAdvertising": "Маркетинг и реклама",
+    "marketingAdvertisingDesc": "Агентства, mar-tech и специалисты по развитию брендов",
+    "hospitalityTourism": "Гостеприимство и туризм",
+    "hospitalityTourismDesc": "Отели, путешествия, площадки и организаторы впечатлений",
+    "sportsRecreation": "Спорт и отдых",
+    "sportsRecreationDesc": "Клубы, лиги, фитнес и рекреационный бизнес",
+    "artsCulture": "Искусство и культура",
+    "artsCultureDesc": "Музеи, галереи, культурные учреждения и художники",
+    "environmentalServices": "Экологические услуги",
+    "environmentalServicesDesc": "Устойчивое развитие, ремедиация и экологический консалтинг",
+    "telecommunications": "Телекоммуникации",
+    "telecommunicationsDesc": "Операторы связи, провайдеры и инфраструктура подключения",
+    "aerospaceDefense": "Авиация и оборона",
+    "aerospaceDefenseDesc": "Авиация, космос, оборонные подрядчики и dual-use технологии",
+    "pharmaceuticals": "Фармацевтика",
+    "pharmaceuticalsDesc": "Разработка лекарств, фармпроизводство и поставщики life science",
+    "other": "Другое",
+    "otherDesc": "Организации, не подходящие ни к одной из категорий выше"
   },
   "verification": {
     "requirements": "Требования",
@@ -170,6 +199,7 @@
     "officialDesc": "Подавайте только информацию об организациях, которые вы официально представляете",
     "accurate": "Актуальная информация",
     "accurateDesc": "Обновляйте контактную информацию и детали при их изменении",
+    "complete": "Полный профиль",
     "completeDesc": "Заполните все поля для лучшей видимости и доверия",
     "unique": "Одна организация на заявку",
     "uniqueDesc": "Создавайте отдельные заявки для разных организаций"
@@ -371,12 +401,6 @@
   "name": "Название",
   "type": "Тип",
   "selectType": "Выберите тип...",
-  "categories": {
-    "softwareDevelopment": "Разработка ПО",
-    "manufacturing": "Производство",
-    "technologyCenter": "Технологический центр",
-    "other": "Другое"
-  },
   "shortDescription": "Краткое описание",
   "fullDescription": "Полное описание",
   "website": "Веб-сайт",
@@ -393,5 +417,67 @@
   "saving": "Сохранение...",
   "save": "Сохранить организацию",
   "loading": "Загрузка...",
-  "redirecting": "Перенаправление..."
+  "redirecting": "Перенаправление...",
+  "error": "Ошибка",
+  "breadcrumb": {
+    "home": "Главная",
+    "entities": "Организации",
+    "addEntity": "Добавить организацию"
+  },
+  "addEntity": {
+    "title": "Добавить организацию",
+    "description": "Создайте профиль вашей организации на Ring Platform",
+    "formTitle": "Форма добавления организации",
+    "formDescription": "Добавьте новую организацию в экосистему Ring",
+    "onboarding": {
+      "title": "Зарегистрируйте вашу организацию",
+      "lead": "Организация на Ring — это публичная студия вашей компании: точная в деталях, видимая нужным партнёрам. Заполните три раздела ниже; витрину можно доработать после публикации.",
+      "step1": "Идентичность — официальное название, отрасль и миссия понятным языком",
+      "step2": "Присутствие — где вы работаете, как связаться и ваш бренд",
+      "step3": "Видимость — теги, уровень доступа и опциональная конфиденциальность"
+    },
+    "form": {
+      "sectionIdentity": "Идентичность",
+      "sectionPresence": "Присутствие",
+      "sectionDiscovery": "Видимость"
+    },
+    "rail": {
+      "whatIsEntity": {
+        "title": "Что такое организация (entity)?",
+        "description": "Организация — это живой профиль вашей компании на Ring Platform, а не просто строка в каталоге. Он питает витрину, видимость команды, значок верификации и связи с возможностями, сообщениями и опциональным магазином.",
+        "connectNote": "Клоны на базе Ring (например Connect.Software) используют ту же модель. Ring Platform предоставляет полную таксономию из 26 отраслей и экосистемные интеграции; маркетплейс-клоны могут упрощать форму создания."
+      },
+      "unlocks": {
+        "title": "Что вы получаете",
+        "showcase": {
+          "title": "Витрина",
+          "description": "Многосекционный профиль с аналитикой, продуктами и контактами"
+        },
+        "opportunities": {
+          "title": "Возможности",
+          "description": "Публикуйте и получайте бизнес-возможности, привязанные к организации"
+        },
+        "store": {
+          "title": "Магазин продавца",
+          "description": "Активируйте магазин от имени организации, когда будете готовы продавать"
+        },
+        "messaging": {
+          "title": "Прямые сообщения",
+          "description": "Участники могут отправлять запросы и общаться с владельцами верифицированных организаций"
+        }
+      },
+      "industryTypes": {
+        "title": "Отраслевые типы",
+        "subtitle": "26 специализированных категорий для поиска и фильтров",
+        "moreInForm": "Все типы доступны в поле «Тип» — выберите ближайшее совпадение."
+      },
+      "fieldTips": {
+        "shortDescription": "Одно краткое предложение для карточек и поиска (обязательно)",
+        "location": "Город и страна помогают находить вас на карте и в фильтрах",
+        "contactEmail": "Публичный контакт для запросов; может отличаться от email входа",
+        "visibility": "Публичные профили в поиске; только для участников ограничивает видимость верифицированными"
+      },
+      "confidentialNote": "Отмечайте конфиденциальной только для доверенных партнёров (роль CONFIDENTIAL). Большинство организаций должны быть публичными."
+    }
+  }
 }

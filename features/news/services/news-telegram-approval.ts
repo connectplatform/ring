@@ -8,7 +8,7 @@ export async function getAdminTelegramChatIds(): Promise<string[]> {
   const result = await db().queryDocs<Record<string, unknown>>({
     collection: 'users',
     filters: [
-      { field: 'role', operator: 'in', value: [UserRole.ADMIN, UserRole.SUPERADMIN] },
+      { field: 'role', operator: 'in', value: [UserRole.admin, UserRole.superadmin] },
     ],
     pagination: { limit: 100 },
   })

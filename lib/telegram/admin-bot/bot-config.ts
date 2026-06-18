@@ -1,5 +1,5 @@
 /**
- * ADMIN TELEGRAM BOT - Configuration
+ * admin TELEGRAM BOT - Configuration
  * Ring Platform Admin Bot Configuration and Webhook Management
  * 
  * Truth Lens:
@@ -136,7 +136,7 @@ export async function sendMessage(
 export function validateWebhookSecret(headerSecret: string | null): boolean {
   if (!headerSecret) return false
   if (!BOT_CONFIG.webhookSecret) {
-    console.error('[ADMIN BOT] ADMIN_BOT_WEBHOOK_SECRET not configured!')
+    console.error('[admin BOT] ADMIN_BOT_WEBHOOK_SECRET not configured!')
     return false
   }
   return headerSecret === BOT_CONFIG.webhookSecret

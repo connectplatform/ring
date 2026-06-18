@@ -17,7 +17,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import Link from 'next/link'
+import { Link, toAppHref } from '@/i18n/routing'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -76,7 +76,7 @@ function GridItem({
   onNavigate 
 }: GridItemProps) {
   return (
-    <Link href={href} onClick={onNavigate}>
+    <Link href={toAppHref(href)} onClick={onNavigate}>
       <motion.div
         initial={{ opacity: 0, scale: 0.8, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

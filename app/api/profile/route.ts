@@ -309,7 +309,7 @@ export async function POST(req: NextRequest) {
           error: "Not authenticated",
           context: errorResponse.context
         }, { status: 401 });
-      } else if (error.message.includes('Only ADMIN users can update')) {
+      } else if (error.message.includes('Only admin users can update')) {
         return NextResponse.json({ 
           error: error.message,
           context: errorResponse.context

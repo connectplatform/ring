@@ -83,7 +83,7 @@ const signature = await signer.signMessage(listingData)`}
 export async function createNFTListing(formData: FormData) {
   const session = await auth()
 
-  if (!session?.user.role || session.user.role < UserRole.MEMBER) {
+  if (!session?.user.role || session.user.role < UserRole.member) {
     throw new Error('Требуется роль MEMBER для NFT листингов')
   }
 

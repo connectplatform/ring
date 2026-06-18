@@ -65,7 +65,7 @@ List products with advanced filtering, search, and pagination.
 #### Example Request
 
 <Code language="bash" title="curl -X GET "http://localhost:3000/api/store/products?page=1&limit=12&category=software&minPrice=10&maxPrice=500&sortBy=popularity&sortOrder=desc" \">
-{`-H "Authorization: Bearer your-session-token"`}
+{`-H "Cookie: authjs.session-token=YOUR_SESSION_COOKIE"`}
 </Code>
 
 #### Response

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { version } from '../../package.json'
+import { clone } from '@/ring-config.json'
 
 /**
  * Root API route handler - returns API status/health check
@@ -7,8 +9,8 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
-    name: 'Ring Platform API',
-    version: '1.50',
+    name: clone.displayName,
+    version: version,
     timestamp: new Date().toISOString(),
   })
 }

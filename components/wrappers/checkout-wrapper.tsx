@@ -24,9 +24,9 @@
  * - UI/UX Optimization Agent (mobile excellence)
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,18 +40,16 @@ import {
   HelpCircle,
   Lock,
   CheckCircle,
-  Clock,
   Phone,
   MessageCircle,
   BookOpen,
   Award,
-  Globe
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 
 interface CheckoutWrapperProps {
   children: React.ReactNode
-  locale: string
+  locale: Locale
 }
 
 export default function CheckoutWrapper({
@@ -60,13 +58,7 @@ export default function CheckoutWrapper({
 }: CheckoutWrapperProps) {
   const router = useRouter()
   const t = useTranslations('modules.store.checkout')
-  const tCommon = useTranslations('common')
-  const [mounted, setMounted] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // Mock order summary (will be dynamic later)
   const orderSummary = {
@@ -291,7 +283,7 @@ export default function CheckoutWrapper({
           <Button
             variant="link"
             className="w-full p-0 h-auto"
-            onClick={() => router.push(`/${locale}/docs/shipping`)}
+            onClick={() => router.push(`${ROUTES.DOCS(locale)}/shipping`)}
           >
             {t('shippingPolicy', { defaultValue: 'Shipping Policy' })} →
           </Button>
@@ -326,7 +318,7 @@ export default function CheckoutWrapper({
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => router.push(`/${locale}/support`)}
+            onClick={() => router.push(ROUTES.CONTACT(locale))}
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             {t('contactSupport', { defaultValue: 'Contact Support' })}

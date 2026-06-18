@@ -53,6 +53,15 @@ export class PostgreSQLAdapter implements IDatabaseService {
     matcher_moderation_events: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    matcher_verification_events: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    verification_procedures: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    verification_counters: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     // --- Fully-normalized tables (no 'data' column) ---
     // Note: include both snake_case (DB columns) and camelCase (app code) so
     // getFieldReference() recognises either form as a real column.

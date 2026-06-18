@@ -1,16 +1,16 @@
 ---
 title: API повідомлень
-description: Повна документація API системи повідомлень платформи Ring у режимі реального часу з інтеграцією WebSocket, управлінням розмовами та вкладеннями файлів
+description: Повна документація API системи повідомлень платформи Ring з Tunnel Protocol realtime
 last_modified: "2025-10-16"
 ---
 
 
 # API повідомлень
 
-Платформа Ring надає комплексну систему повідомлень у режимі реального часу із **8 REST кінцевими точками** та інтеграцією WebSocket. Система підтримує розмови, прямі повідомлення, вкладення файлів, індикатори набору тексту, та квитанції прочитання з надійністю корпоративного рівня.
+Платформа Ring поєднує **REST** (`/api/conversations`) з **Tunnel Protocol** для live-подій.
 
 <Callout type="info" title="⚡ Архітектура реального часу">
-Побудовано на **Tunnel Transport** з автоматичним фолбеком: WebSocket → SSE → Long-polling для універсальної сумісності у всіх середовищах розгортання.
+`publishToChannel` на `conversation:${id}`, клієнт `useTunnel().subscribe()`. k8s: native WSS; Vercel: SSE → poll.
 </Callout>
 
 ## 🏗️ Архітектура системи
@@ -25,7 +25,9 @@ last_modified: "2025-10-16"
 
 ### Транспортний шар стратегії
 
-- **WebSocket (Первинний)**: Бінарна комунікація у режимі реального часу
+- **Native WSS** — первинний при `RING_DEPLOY_TARGET=k8s|self-hosted` (`/api/tunnel/ws`)
+- **SSE** — первинний на Vercel; фолбек після WSS
+- **Long-polling** — `/api/tunnel/poll`
 - **Server-Sent Events (SSE)**: Фолбек для Vercel Edge Runtime
 - **Long-polling**: Універсальний фолбек для обмежувальних середовищ
 - **HTTP REST**: Стандартні CRUD операції із синхронізацією реального часу
@@ -380,48 +382,31 @@ last_modified: "2025-10-16"
 
 ## 🔄 Повідомлення у режимі реального часу
 
-### Інтеграція WebSocket
+### Інтеграція Tunnel (native WSS + SSE)
 
-Платформа Ring використовує **Tunnel Transport** для повідомлень у режимі реального часу:
-
-// Клієнтське WebSocket з'єднання
+Платформа Ring використовує **Tunnel Transport** — сервер `publishToChannel` на `conversation:${id}`, клієнт `useTunnel().subscribe()`. На k8s/self-hosted первинний транспорт — **native WSS** (`/api/tunnel/ws`); на Vercel — SSE → long-polling.
 
 <Code language="typescript" title="TypeScript">
-{`import { io } from 'socket.io-client'
+{`'use client'
 
-const socket = io('/messaging', {
-  auth: {
-    token: sessionToken
-  }
-})
+import { useEffect } from 'react'
+import { useTunnel } from '@/hooks/use-tunnel'
 
-// Приєднатися до кімнати розмови
-socket.emit('join-conversation', conversationId)
+export function ConversationRealtime({ conversationId }: { conversationId: string }) {
+  const { subscribe, isConnected } = useTunnel()
+  const channel = \`conversation:\${conversationId}\`
 
-// Прослуховування нових повідомлень
-socket.on('message', (message) => {
-  console.log('Нове повідомлення:', message)
-  addMessageToUI(message)
-})
+  useEffect(() => {
+    return subscribe(channel, (message) => {
+      if (message.event === 'message:new') addMessageToUI(message.payload)
+      if (message.event === 'typing') showTypingIndicator(message.payload)
+      if (message.event === 'read-receipt') updateReadStatus(message.payload)
+    })
+  }, [channel, subscribe])
 
-// Прослуховування індикаторів набору
-socket.on('typing', (data) => {
-  if (data.userId !== currentUserId) {
-    showTypingIndicator(data.userId, data.isTyping)
-  }
-})
-
-// Прослуховування квитанцій прочитання
-socket.on('read-receipt', (data) => {
-  updateReadStatus(data.messageIds, data.userId)
-})
-
-// Надіслати повідомлення через WebSocket
-socket.emit('send-message', {
-  conversationId,
-  content: messageText,
-  type: 'text'
-})`}
+  // Надсилання — REST POST; сервер розсилає через TunnelHub
+  return <span>{isConnected ? 'live' : 'polling'}</span>
+}`}
 </Code>
 
 ### Фолбек Server-Sent Events (SSE)
@@ -591,7 +576,7 @@ const handleSendMessage = async (content: string, files: File[]) => {
 
 <Code language="typescript" title="TypeScript">
 {`import { useState, useEffect, useRef } from 'react'
-import { io, Socket } from 'socket.io-client'
+import { useTunnel } from '@/hooks/use-tunnel'
 
 interface Message {
   id: string
@@ -599,73 +584,40 @@ interface Message {
   senderId: string
   timestamp: string
   type: string
-  attachments?: Attachment[]
 }
 
 export function MessagingInterface({ conversationId }: { conversationId: string }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
-  const [socket, setSocket] = useState<Socket | null>(null)
+  const { subscribe } = useTunnel()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Отримати повідомлення розмови
     fetchMessages()
-
-    // Налаштувати WebSocket з'єднання
-    const newSocket = io('/messaging')
-    setSocket(newSocket)
-
-    newSocket.emit('join-conversation', conversationId)
-
-    newSocket.on('message', (message: Message) => {
-      setMessages(prev => [...prev, message])
-      scrollToBottom()
+    const channel = \`conversation:\${conversationId}\`
+    return subscribe(channel, (message) => {
+      if (message.event === 'message:new') {
+        setMessages(prev => [...prev, message.payload as Message])
+        scrollToBottom()
+      }
     })
-
-    newSocket.on('typing', handleTyping)
-    newSocket.on('read-receipt', handleReadReceipt)
-
-    return () => {
-      newSocket.disconnect()
-    }
-  }, [conversationId])
+  }, [conversationId, subscribe])
 
   const fetchMessages = async () => {
-    try {
-      const response = await fetch(`/api/conversations/${conversationId}/messages`)
-      const data = await response.json()
-      setMessages(data.messages)
-      scrollToBottom()
-    } catch (error) {
-      console.error('Не вдалося отримати повідомлення:', error)
-    }
+    const response = await fetch(\`/api/conversations/\${conversationId}/messages\`)
+    const data = await response.json()
+    setMessages(data.messages)
+    scrollToBottom()
   }
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return
-
-    try {
-      if (socket) {
-        // Надіслати через WebSocket для реального часу
-        socket.emit('send-message', {
-          conversationId,
-          content: newMessage,
-          type: 'text'
-        })
-      } else {
-        // Фолбек до HTTP
-        await fetch(`/api/conversations/${conversationId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: newMessage, type: 'text' })
-        })
-      }
-
-      setNewMessage('')
-    } catch (error) {
-      console.error('Не вдалося надіслати повідомлення:', error)
-    }
+    await fetch(\`/api/conversations/\${conversationId}/messages\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: newMessage, type: 'text' })
+    })
+    setNewMessage('')
   }
 
   const scrollToBottom = () => {
@@ -680,7 +632,6 @@ export function MessagingInterface({ conversationId }: { conversationId: string 
         ))}
         <div ref={messagesEndRef} />
       </div>
-
       <div className="message-input">
         <input
           value={newMessage}
@@ -737,13 +688,13 @@ export function MessagingInterface({ conversationId }: { conversationId: string 
 
 ### Аутентифікація
 - Усі кінцеві точки повідомлень вимагають дійсної аутентифікації сесії
-- WebSocket з'єднання аутентифікуються з токенами сесій
+- Tunnel-з'єднання автентифікуються через `/api/tunnel/token` (JWT)
 - Завантаження файлів вимагають додаткової перевірки власності
 
 ### Обмеження швидкості
 - Надсилання повідомлень: 30 повідомлень/хвилину на користувача
 - Завантаження файлів: 10 файлів/годину на користувача
-- WebSocket з'єднання: 5 одночасних з'єднань на користувача
+- Tunnel: керується `TransportManager` з автоматичним фолбеком
 
 ### Безпека контенту
 - Вміст повідомлень санітізується для запобігання XSS атакам
@@ -763,25 +714,14 @@ export function MessagingInterface({ conversationId }: { conversationId: string 
 
 <Code language="typescript" title="TypeScript">
 {`import { trackEvent } from '@/lib/analytics'
+import { useTunnel } from '@/hooks/use-tunnel'
 
-socket.on('message', (message) => {
-  trackEvent('message_sent', {
-    conversationType: message.conversationType,
-    messageType: message.type,
-    hasAttachments: message.attachments?.length > 0,
-    deliveryMethod: 'websocket'
-  })
-})
+// useTunnel subscribe on conversation channel
+trackEvent('message_sent', { deliveryMethod: 'tunnel' })
 
-// Моніторинг часу доставки повідомлень
-const sendTime = Date.now()
-
-socket.emit('send-message', messageData, (ack) => {
-  const deliveryTime = Date.now() - sendTime
-  trackEvent('message_delivery_time', {
-    deliveryTime,
-    transport: 'websocket'
-  })
+trackEvent('message_delivery_time', {
+  deliveryTime: Date.now() - sendTime,
+  transport: 'tunnel'
 })`}
 </Code>
 
@@ -789,21 +729,19 @@ socket.emit('send-message', messageData, (ack) => {
 
 ### Змінні середовища
 
-Налаштування повідомлень Налаштування WebSocket Сховище файлів Redis (для pub/sub)
+Налаштування повідомлень RING_DEPLOY_TARGET Сховище файлів
 
 <Code language="bash" title="terminal">
 {`MESSAGING_RATE_LIMIT=30
 MESSAGING_FILE_SIZE_LIMIT=10485760
 MESSAGING_RETENTION_DAYS=365
 
-WS_HEARTBEAT_INTERVAL=30000
-WS_CONNECTION_TIMEOUT=10000
+RING_DEPLOY_TARGET=k8s
+NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
 
 FILE_STORAGE_PROVIDER=cloudflare_r2
 FILE_STORAGE_BUCKET=messaging-files
-FILE_CDN_URL=https://cdn.ring-platform.org
-
-REDIS_URL=redis://localhost:6379`}
+FILE_CDN_URL=https://cdn.ring-platform.org`}
 </Code>
 
 ### Схема бази даних

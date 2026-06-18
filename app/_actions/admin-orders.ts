@@ -18,7 +18,7 @@ export async function updateOrderStatus(formData: FormData) {
       throw new Error('Authentication required')
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.admin) {
       throw new Error('Admin access required')
     }
 
@@ -59,7 +59,7 @@ export async function refreshOrders() {
       throw new Error('Authentication required')
     }
 
-    if (session.user.role !== UserRole.ADMIN) {
+    if (session.user.role !== UserRole.admin) {
       throw new Error('Admin access required')
     }
 

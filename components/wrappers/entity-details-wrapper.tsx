@@ -24,14 +24,15 @@ export default function EntityDetailsWrapper({
   locale,
 }: EntityDetailsWrapperProps) {
   const { data: session, status } = useSession()
-  const t = useTranslations('common')
+  const t = useTranslations('modules.entities.wrapper')
+  const tCommon = useTranslations('common')
 
   if (status === 'loading') {
-    return <div>{t('loading')}</div>
+    return <div>{tCommon('loading')}</div>
   }
 
   if (!session) {
-    return <div>Please log in to view this page.</div>
+    return <div>{t('loginRequired')}</div>
   }
 
   const chatComponent = initialEntity ? (
@@ -45,7 +46,7 @@ export default function EntityDetailsWrapper({
 
   return (
     <div className="ring-content-panel min-w-0 min-h-full">
-    <Suspense fallback={<div>{t('loading')}</div>}>
+    <Suspense fallback={<div>{tCommon('loading')}</div>}>
       <EntityDetails 
         initialEntity={initialEntity} 
         initialError={initialError} 
