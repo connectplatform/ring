@@ -347,6 +347,7 @@ RUN npx esbuild server.ts \
     --format=esm \
     --outfile=server.mjs \
     --external:next \
+    --external:ws \
     --tsconfig=tsconfig.json
 
 # Runtime Stage
@@ -384,6 +385,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy bundled custom server (native WSS + Next handler)
 COPY --from=builder --chown=nextjs:nodejs /app/server.mjs ./server.mjs
+
+# ws is external to esbuild bundle (CJS dynamic requires); not always in standalone trace
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
 
 # Copy lib directory for auth and utilities
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
