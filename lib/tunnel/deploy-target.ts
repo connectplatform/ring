@@ -17,6 +17,8 @@ export function getDeployTarget(): RingDeployTarget {
   if (!raw) {
     if (process.env.VERCEL === '1') return 'vercel';
     if (process.env.NODE_ENV === 'development') return 'self-hosted';
+    // Production default: ring-platform.org k8s (also covers SSG/build when env not passed)
+    if (process.env.NODE_ENV === 'production') return 'k8s';
     throw new Error(
       'RING_DEPLOY_TARGET is required (vercel | k8s | self-hosted). Example: RING_DEPLOY_TARGET=k8s',
     );

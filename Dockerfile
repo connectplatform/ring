@@ -311,6 +311,14 @@ ENV LLM_PROVIDER=${LLM_PROVIDER}
 ENV POLYGON_RPC_URL=${POLYGON_RPC_URL}
 # ENV WALLET_ENCRYPTION_KEY=${WALLET_ENCRYPTION_KEY}  # Runtime injection via K8s secrets
 
+# Tunnel deploy target (NEXT_PUBLIC_* must be set at build for client bundle)
+ARG RING_DEPLOY_TARGET=k8s
+ARG NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+ARG NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED=true
+ENV RING_DEPLOY_TARGET=${RING_DEPLOY_TARGET}
+ENV NEXT_PUBLIC_RING_DEPLOY_TARGET=${NEXT_PUBLIC_RING_DEPLOY_TARGET}
+ENV NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED=${NEXT_PUBLIC_TUNNEL_WEBSOCKET_ENABLED}
+
 # Install system dependencies required for native npm modules (align with ring-connect-software / ring-zemna-ai)
 RUN apk add --no-cache \
     libc6-compat \
