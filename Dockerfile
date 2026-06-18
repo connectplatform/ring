@@ -347,7 +347,6 @@ RUN npx esbuild server.ts \
     --format=esm \
     --outfile=server.mjs \
     --external:next \
-    --external:ws \
     --tsconfig=tsconfig.json
 
 # Runtime Stage
