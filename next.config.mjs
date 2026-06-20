@@ -149,11 +149,16 @@ const nextConfig = {
     '@auth/firebase-adapter'
   ],
   // Note: serverRuntimeConfig removed in Next.js 16 - use process.env instead
-  output: 'standalone',
-  outputFileTracingRoot: path.join(__dirname, './'),
-  outputFileTracingIncludes: {
-    '**/*': ['./i18n/**/*', './lib/**/*', './server.ts', './server.js']
-  },
+  // Custom server (server.ts): omit standalone unless explicitly requested (e.g. legacy CI).
+  ...(process.env.NEXT_OUTPUT_STANDALONE === '1' ? { output: 'standalone' as const } : {}),
+  ...(process.env.NEXT_OUTPUT_STANDALONE === '1'
+    ? {
+        outputFileTracingRoot: path.join(__dirname, './'),
+        outputFileTracingIncludes: {
+          '**/*': ['./i18n/**/*', './lib/**/*', './server.ts', './server.js'],
+        },
+      }
+    : {}),
   serverExternalPackages: ['google-auth-library', 'gaxios', 'gtoken'],
   experimental: {
     serverActions: {

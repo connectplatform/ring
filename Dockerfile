@@ -348,12 +348,12 @@ ENV SKIP_TYPE_CHECK=1
 RUN --mount=type=cache,target=/app/.next/cache \
     NODE_OPTIONS="--no-deprecation --max-old-space-size=8192" npm run build:skip-types
 
-# Runtime Stage
+# Runtime Stage — custom server (server.ts + tsx); native WSS via attachTunnelWss
 FROM node:25-alpine AS runtime
 
 LABEL maintainer="Ring Platform Team <team@ring-platform.org>"
-LABEL version="1.70.0"
-LABEL description="Ring Platform Runtime - AI-powered Platform with Web3 Integration"
+LABEL version="1.89.0"
+LABEL description="Ring Platform Runtime - custom server with native WSS tunnel"
 
 # Runtime environment variables
 ENV NODE_ENV=production
@@ -363,52 +363,53 @@ ENV HOSTNAME="0.0.0.0"
 ENV NODE_OPTIONS="--no-deprecation"
 ENV RING_DEPLOY_TARGET=k8s
 ENV NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+ENV TUNNEL_HUB_MODE=k8s-postgres
 
 # Install runtime dependencies
 RUN apk add --no-cache \
     libc6-compat \
     dumb-init \
     curl \
+    python3 \
+    make \
+    g++ \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
-# Create app directory
 WORKDIR /app
 
-# Copy built application from builder stage
-# Standalone output already includes traced node_modules — no second npm install (avoids double install and Docker npm ci failures)
+# Package manifests for production install
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json ./package-lock.json
+
+# Production dependencies (includes tsx, ws, next — required for custom server.ts)
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --omit=dev --legacy-peer-deps && npm cache clean --force && \
+    chown -R nextjs:nodejs /app/node_modules
+
+# Next build output (non-standalone) + static assets
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy lib directory for auth and utilities
+# Custom server entry + runtime source paths
+COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.mjs ./next.config.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
-
-# next-intl request config + routing (required at runtime; same pattern as ring-connect-software / ring-zemna-ai)
 COPY --from=builder --chown=nextjs:nodejs /app/i18n ./i18n
-
-# Copy docs directory for MDX documentation
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
-
-# Copy environment template
 COPY --from=builder --chown=nextjs:nodejs /app/env.local.template ./env.local.template
 
-# Create necessary directories
 RUN mkdir -p /app/log /app/tmp && \
     chown -R nextjs:nodejs /app/log /app/tmp
 
-# Switch to non-root user
 USER nextjs
 
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Next standalone server (SSE tunnel via API routes; native WSS uses server.ts in dev/k8s custom deploy later)
-CMD ["node", "server.js"]
+# Custom server: Next handler + native WSS at /api/tunnel/ws (TUNNEL_HUB_MODE=k8s-postgres)
+CMD ["node", "--import", "tsx", "server.ts"]

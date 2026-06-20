@@ -6,15 +6,18 @@ last_modified: "2026-06-15"
 
 # Tunnel Protocol
 
-Ring Platform's realtime layer for per-user inbox updates (notifications, balances) and topic channels (chat, discovery, matcher). The server runs a **custom Node entrypoint** (`server.ts`) that serves Next.js and, when `RING_DEPLOY_TARGET` is `k8s` or `self-hosted`, attaches **native WSS** at `/api/tunnel/ws`. Vercel deployments use serverless route handlers with **SSE + long-polling only**.
+Ring Platform's realtime layer for per-user inbox updates (notifications, balances) and topic channels (chat, discovery, matcher). Production on k8s runs a **custom Node entrypoint** (`server.ts` via `node --import tsx server.ts`) — not Next standalone `server.js` — so native WSS can attach to the same HTTP server. When `RING_DEPLOY_TARGET` is `k8s` or `self-hosted`, the server exposes **native WSS** at `/api/tunnel/ws`. Vercel deployments use serverless route handlers with **SSE + long-polling only**.
+
+Hub fan-out is selected by **`TUNNEL_HUB_MODE`** (env-driven, like `DB_BACKEND_MODE`). For single-replica k8s, use `k8s-postgres`: in-process `InMemoryTunnelHub` with Postgres used for persistence only (not LISTEN/NOTIFY yet).
 
 Pair with [Push notifications (FCM)](/en/docs/features/push-notifications-fcm) when the browser tab is closed or the tunnel is offline — `lib/tunnel/disconnected-tunnel-context.ts` keeps the UI usable while disconnected.
 
 ## Architecture
 
 ```
-server.ts → Next request handler + attachTunnelWss (k8s/self-hosted)
-Server services → lib/tunnel/publisher.ts → getTunnelHub() → InMemoryTunnelHub
+server.ts (prod + dev) → Next request handler + attachTunnelWss (k8s/self-hosted)
+TUNNEL_HUB_MODE=k8s-postgres → getTunnelHub() → InMemoryTunnelHub (single replica)
+Server services → lib/tunnel/publisher.ts → getTunnelHub()
 Next.js routes (/api/tunnel/*) → getTunnelHub()
 Client → TunnelProvider / useTunnel → TransportManager → WSS | SSE | poll
 ```
@@ -99,9 +102,15 @@ Chat and typing use `publishToChannel` on the server; clients subscribe to `conv
 
 ```bash
 # Deploy target (required) — drives primary transport
-# Docker image bakes RING_DEPLOY_TARGET=k8s; override in .env.local for dev
 RING_DEPLOY_TARGET=k8s                    # vercel | k8s | self-hosted
 NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
+
+# Hub broker mode (server-side fan-out)
+TUNNEL_HUB_MODE=k8s-postgres            # memory | k8s-postgres | redis | connect
+# memory / k8s-postgres → InMemoryTunnelHub (single process; 1 replica)
+# redis / connect → multi-replica (not implemented yet)
+
+# Docker image bakes RING_DEPLOY_TARGET=k8s and TUNNEL_HUB_MODE=k8s-postgres
 
 # Optional explicit WS URL (default: same host /api/tunnel/ws)
 # NEXT_PUBLIC_TUNNEL_WS_URL=wss://your-host/api/tunnel/ws
@@ -132,7 +141,7 @@ curl "http://localhost:3000/api/tunnel/test"
 
 ## Alpha limitations
 
-- **Single-process hub** — `InMemoryTunnelHub` does not share state across k8s replicas; horizontal scale requires a shared broker implementation behind `getTunnelHub()`.
+- **Single-process hub** — `memory` and `k8s-postgres` modes use `InMemoryTunnelHub`; correct for **one replica** (`strategy: Recreate`). Horizontal scale requires `TUNNEL_HUB_MODE=redis` or `connect` (future).
 - **Channel SSE fan-out** — `publishToChannel` delivers to connected SSE sessions; poll clients receive messages for subscribed channels via the poll inbox.
 
 ## Related
