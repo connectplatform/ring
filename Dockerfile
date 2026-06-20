@@ -348,6 +348,9 @@ ENV SKIP_TYPE_CHECK=1
 RUN --mount=type=cache,target=/app/.next/cache \
     NODE_OPTIONS="--no-deprecation --max-old-space-size=8192" npm run build:skip-types
 
+# Trim devDependencies for runtime copy (avoids second npm ci in runtime stage)
+RUN npm prune --omit=dev
+
 # Runtime Stage — custom server (server.ts + tsx); native WSS via attachTunnelWss
 FROM node:25-alpine AS runtime
 
@@ -365,26 +368,19 @@ ENV RING_DEPLOY_TARGET=k8s
 ENV NEXT_PUBLIC_RING_DEPLOY_TARGET=k8s
 ENV TUNNEL_HUB_MODE=k8s-postgres
 
-# Install runtime dependencies
+# Install runtime dependencies (no npm ci — node_modules copied from builder after prune)
 RUN apk add --no-cache \
     libc6-compat \
     dumb-init \
     curl \
-    python3 \
-    make \
-    g++ \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
 WORKDIR /app
 
-# Package manifests for production install
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/package-lock.json ./package-lock.json
-
-# Production dependencies (includes tsx, ws, next — required for custom server.ts)
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm ci --omit=dev --legacy-peer-deps && npm cache clean --force && \
-    chown -R nextjs:nodejs /app/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Next build output (non-standalone) + static assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
