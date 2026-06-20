@@ -92,9 +92,20 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
   useEffect(() => {
     if (!gisLoaded || gisInitialized) return
 
-    // Skip if user is authenticated
-    if (status === 'authenticated' || (session && 'user' in session)) {
+    // Wait for session resolution — avoid One Tap while loading or when user is signed in
+    if (status === 'loading') {
+      return
+    }
+
+    if (status === 'authenticated' || session?.user?.email || session?.user?.id) {
       console.log('🟢 Skipping GIS One Tap - user already authenticated')
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.cancel()
+        } catch {
+          // ignore
+        }
+      }
       return
     }
 
