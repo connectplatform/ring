@@ -352,7 +352,7 @@ RUN --mount=type=cache,target=/app/.next/cache \
 FROM node:25-alpine AS runtime
 
 LABEL maintainer="Ring Platform Team <team@ring-platform.org>"
-LABEL version="1.89.0"
+LABEL version="1.89.1"
 LABEL description="Ring Platform Runtime - custom server with native WSS tunnel"
 
 # Runtime environment variables
