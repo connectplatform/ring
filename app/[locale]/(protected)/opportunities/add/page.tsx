@@ -222,30 +222,15 @@ export default async function AddOpportunityPage(props: PageProps) {
       />
 
       <OpportunityFormWrapper locale={validLocale} opportunityType={type}>
-        {/* Content Header - Opportunity Creation Style */}
-        <div className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-sm">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">
-                  {t('createOpportunity')}
-                </h1>
-                <p className="text-muted-foreground">{t('opportunitiesDescription')}</p>
-              </div>
+        <Suspense
+          fallback={
+            <div className="flex min-h-[40vh] items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--davinci-beam)] border-t-transparent" />
             </div>
-          </div>
-        </div>
-
-        {/* Main Content - Opportunity Form */}
-        <div className="flex-1 container mx-auto px-6 py-8 max-w-6xl">
-          <Suspense fallback={
-            <div className="flex justify-center items-center h-screen">
-              <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
-            </div>
-          }>
-            <AddOpportunityForm opportunityType={type} />
-          </Suspense>
-        </div>
+          }
+        >
+          <AddOpportunityForm opportunityType={type} />
+        </Suspense>
       </OpportunityFormWrapper>
     </>
   );

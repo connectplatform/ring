@@ -1,0 +1,21 @@
+{
+  "suspended": {
+    "title": "Suspended account",
+    "description": "Your account has been suspended pending review. Submit a restore request for a video verification call with our team.",
+    "reasonLabel": "Reason",
+    "formIntro": "Provide contact details and your preferred channel for a staff video verification call.",
+    "email": "Email",
+    "phone": "Phone",
+    "telegram": "Telegram username",
+    "whatsapp": "WhatsApp number",
+    "videoChannel": "Preferred video verification channel",
+    "videoChannelHelp": "Staff may reach you via Telegram, WhatsApp, Email+Zoom, Email+Meet, or Skype.",
+    "message": "Explain your situation",
+    "messagePlaceholder": "Briefly describe why your account should be restored…",
+    "submit": "Submit restore request",
+    "submitting": "Submitting…",
+    "submitSuccess": "Request submitted ({procedure}). Our team will review it in the verification queue.",
+    "submitError": "Failed to submit restore request",
+    "pendingReview": "Your restore request {procedure} is pending admin review."
+  }
+}

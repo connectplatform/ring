@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { getConfidentialOpportunities } from '@/features/opportunities/services/get-confidential-opportunities';
-import { UserRole } from '@/features/auth/types';
+import { hasConfidentialAccess } from '@/features/auth/user-role';
 
 /**
  * API endpoint for retrieving confidential opportunities
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 2: Authorization
-    if (session.user.role !== UserRole.confidential && session.user.role !== UserRole.admin) {
+    if (!hasConfidentialAccess(session.user.role)) {
       console.log('API: /api/confidential/opportunities - Permission denied', {
         userId: session.user.id,
         role: session.user.role
@@ -82,8 +82,6 @@ export async function GET(request: NextRequest) {
       sort,
       filter,
       startAfter,
-      userId: session.user.id,
-      userRole: session.user.role as UserRole.confidential | UserRole.admin
     });
 
     console.log('API: /api/confidential/opportunities - opportunities retrieved:', {

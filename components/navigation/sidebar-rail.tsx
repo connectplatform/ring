@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Link, toAppHref } from '@/i18n/routing'
 import { usePathname, useRouter, replaceLocalePath } from '@/i18n/routing'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
+import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import {
   Home,
   Users,
@@ -16,6 +17,7 @@ import {
   Sun,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
@@ -71,15 +73,19 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
   const router = useRouter()
   const locale = useLocale() as Locale
   const { data: session } = useSession()
-  const { setTheme, theme, systemTheme } = useTheme()
+  const { setTheme, theme, resolvedTheme } = useTheme()
   const { currency, toggleCurrency } = useCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const tEntities = useTranslations('modules.entities')
   const tOpp = useTranslations('modules.opportunities')
   const tStore = useTranslations('modules.store')
   const tNav = useTranslations('navigation')
+  const [mounted, setMounted] = useState(false)
 
-  const currentTheme = theme === 'system' ? systemTheme : theme
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
 
   const switchLocale = useCallback(() => {
     persistRingLocalePreference(nextLocale)
@@ -119,7 +125,7 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
               active={isActive(item.href)}
             />
           ))}
-          {session?.user && (session.user.role === 'admin' || session.user.role === 'superadmin') && (
+          {session?.user && isPlatformAdmin(session.user.role) && (
             <RailLink
               href={ROUTES.ADMIN(locale)}
               label={tNav('sidebar.admin')}
@@ -164,11 +170,15 @@ export function SidebarRail({ onOpenAside, overlayMode, embedded }: SidebarRailP
         )}
         <button
           type="button"
-          onClick={() => setTheme(currentTheme === 'dark' ? 'light' : 'dark')}
+          onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
           className={cn(railLinkClass, 'border-0 bg-transparent cursor-pointer')}
-          title={currentTheme === 'dark' ? 'Light mode' : 'Dark mode'}
+          title={mounted ? (resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode') : 'Toggle theme'}
+          aria-label="Toggle theme"
+          suppressHydrationWarning
         >
-          {currentTheme === 'dark' ? (
+          {!mounted ? (
+            <Sun className="size-[18px]" strokeWidth={1.5} />
+          ) : resolvedTheme === 'dark' ? (
             <Moon className="size-[18px]" strokeWidth={1.5} />
           ) : (
             <Sun className="size-[18px]" strokeWidth={1.5} />

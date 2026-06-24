@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
 import { getEmailProcessor } from '@/services/email/email-processor'
-import { validateEmailConfig } from '@/services/email/imap/config'
 import { getEmailTaskService } from '@/services/email/crm/task-service'
+import { ProcessConductor } from '@/lib/processes'
+import { getPipelineDefinition } from '@/lib/processes/registry'
 
 type CronAction = 'poll' | 'start' | 'stop' | 'status' | 'mark-overdue-tasks'
 
@@ -23,12 +24,18 @@ export async function POST(request: NextRequest) {
   try {
     switch (action) {
       case 'poll': {
-        const configCheck = validateEmailConfig()
-        if (!configCheck.valid) {
-          return NextResponse.json({ error: 'Invalid email config', details: configCheck.errors }, { status: 500 })
+        const handler = getPipelineDefinition('email-processor')?.handler
+        if (!handler) {
+          return NextResponse.json({ error: 'Pipeline not registered' }, { status: 500 })
         }
-        const result = await processor.pollInboundBatch()
-        return NextResponse.json({ success: true, action, ...result, stats: processor.getStats() })
+        const { result, run } = await ProcessConductor.recordRun('email-processor', 'cron', handler)
+        if (run.status === 'error') {
+          return NextResponse.json(
+            { success: false, action, error: run.error, runId: run.id },
+            { status: 500 },
+          )
+        }
+        return NextResponse.json({ success: true, action, ...(result as object), runId: run.id })
       }
       case 'start': {
         if (process.env.EMAIL_PROCESSOR_ALLOW_HTTP_START !== 'true') {

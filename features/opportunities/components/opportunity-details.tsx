@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSession, SessionProvider } from 'next-auth/react'
+import { hasConfidentialAccess, resolveSessionUserRole } from '@/features/auth/user-role'
 import { SerializedOpportunity, OpportunityVisibility } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { useTranslations } from 'next-intl'
 import { getOpportunityById } from '@/features/opportunities/services'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useRealtimeOpportunities } from '@/hooks/use-realtime-opportunities'
 import {
   Calendar,
@@ -149,7 +150,7 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
 }) => {
   const { data: session, status } = useSession()
   const t = useTranslations('modules.opportunities')
-  const { balance: tokenBalance } = useCreditBalance()
+  const { balance: tokenBalance } = useCreditBalanceContext()
 
   // Real-time updates
   const realtime = useRealtimeOpportunities({
@@ -191,8 +192,8 @@ const OpportunityDetailsContent: React.FC<OpportunityDetailsProps> = ({
     )
   }
 
-  const userRole = session.user?.role || 'subscriber'
-  const canViewConfidential = userRole === 'confidential' || userRole === 'admin'
+  const userRole = resolveSessionUserRole(session.user?.role)
+  const canViewConfidential = hasConfidentialAccess(userRole)
 
   if (isConfidential && !canViewConfidential) {
     return <div>{t('noPermission')}</div>

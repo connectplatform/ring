@@ -33,6 +33,8 @@ import { connection } from 'next/server'
 import type { Locale } from '@/i18n/shared';
 import { defaultLocale } from '@/i18n/shared';
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
+import { auth } from '@/auth';
+import { UserRole } from '@/features/auth/user-role';
 
 
 export async function generateMetadata({
@@ -72,6 +74,8 @@ export default async function AdminDashboardPage({
   setRequestLocale(validLocale);
   const t = await getTranslations('modules.admin');
   const adminLabels = buildModulesAdminLabels(t);
+  const session = await auth();
+  const isSuperadmin = session?.user?.role === UserRole.superadmin;
 
   // Auth is enforced by app/[locale]/admin/layout.tsx → AdminAuthGuard
 
@@ -127,7 +131,19 @@ export default async function AdminDashboardPage({
       icon: Lock,
       color: 'bg-red-500',
       stats: 'Authentication monitoring, permission audits, security events'
-    }
+    },
+    ...(isSuperadmin
+      ? [
+          {
+            title: t('processes.dashboardTitle'),
+            description: t('processes.dashboardDescription'),
+            href: ROUTES.ADMIN_PROCESSES(validLocale),
+            icon: Activity,
+            color: 'bg-indigo-500',
+            stats: t('processes.dashboardStats'),
+          },
+        ]
+      : []),
   ];
 
   return (

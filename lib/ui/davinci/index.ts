@@ -13,3 +13,9 @@ export { HeroAmbient } from './hero-ambient'
 export { HeroMobileLogo } from './hero-mobile-logo'
 export { DavinciCtaLink, type DavinciCtaLinkProps } from './davinci-cta-link'
 export { DavinciRailLink, type DavinciRailLinkProps } from './rail-link'
+export { DavinciGlassStatBlock, type DavinciGlassStatBlockProps } from './glass-stat-block'
+export {
+  DavinciGlassPanel,
+  DavinciGlassChip,
+  type DavinciGlassPanelProps,
+} from './glass-panel'

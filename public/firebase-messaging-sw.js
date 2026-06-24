@@ -1,6 +1,6 @@
 // Import Firebase scripts
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js')
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/12.9.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/12.9.0/firebase-messaging-compat.js')
 
 // Firebase configuration - conditionally initialized based on environment
 // In hybrid mode, Firebase config may be injected at runtime via environment variables

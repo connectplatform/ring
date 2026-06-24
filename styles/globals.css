@@ -131,6 +131,7 @@
 }
 
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @import "./davinci.css";
  
 @layer base {
@@ -275,6 +276,27 @@
         hsl(var(--app-frame)) 50%,
         hsl(var(--app-rail-to)) 100%
       );
+  }
+
+  /* Theme toggle — View Transitions API root crossfade (Chrome/Safari/Firefox 133+) */
+  @media (prefers-reduced-motion: no-preference) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation-duration: 320ms;
+      animation-timing-function: ease;
+    }
+  }
+
+  /* Fallback when startViewTransition is unavailable — animates computed colors */
+  @media (prefers-reduced-motion: no-preference) {
+    html.ring-theme-transition,
+    html.ring-theme-transition *,
+    html.ring-theme-transition *::before,
+    html.ring-theme-transition *::after {
+      transition-property: background-color, border-color, color, fill, stroke, outline-color;
+      transition-duration: 320ms;
+      transition-timing-function: ease;
+    }
   }
 
   .ring-app-frame {

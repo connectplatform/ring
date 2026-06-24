@@ -1,9 +1,12 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useCallback } from 'react'
+import { useSession, signOut as nextAuthSignOut, type SignOutParams } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AuthUser, UserRole } from '@/features/auth/types'
 import { hasConfidentialAccess, hasRoleAtLeast, resolveSessionUserRole } from '@/features/auth/user-role'
+import { unregisterCurrentDeviceFcmToken } from '@/lib/notifications/fcm-client-cleanup'
+import { clearSessionCache } from '@/hooks/use-session-cache'
 import type { Locale } from '@/i18n/shared'
 
 /**
@@ -28,6 +31,8 @@ interface UseAuthReturn {
   }) => void
   getKycStatus: () => 'not_started' | 'pending' | 'under_review' | 'approved' | 'rejected' | 'expired' | null
   refreshSession: () => Promise<void>
+  /** Unregisters this device's FCM token, then Auth.js sign-out. */
+  signOut: (options?: SignOutParams) => Promise<void>
 }
 
 /**
@@ -39,20 +44,9 @@ interface UseAuthReturn {
  * @example
  * ```tsx
  * function MyComponent() {
- *   const { user, hasRole, navigateToAuthStatus, getKycStatus } = useAuth()
- *   
- *   // Check user permissions
- *   if (!hasRole(UserRole.member)) return <AccessDenied />
- *   
- *   // Navigate to KYC flow
- *   const handleKyc = () => {
- *     const status = getKycStatus()
- *     if (status === 'not_started') {
- *       navigateToAuthStatus('kyc', 'not_started', { 
- *         returnTo: '/profile' 
- *       })
- *     }
- *   }
+ *   const { user, hasRole, signOut, navigateToAuthStatus, getKycStatus } = useAuth()
+ *
+ *   await signOut({ redirectTo: '/en/login' })
  * }
  * ```
  * 
@@ -101,7 +95,7 @@ export function useAuth(): UseAuthReturn {
     },
     settings: {
       language: (session.user as any).settings?.language || 'en',
-      theme: (session.user as any).settings?.theme || 'light',
+      theme: (session.user as any).settings?.theme || 'system',
       notifications: (session.user as any).settings?.notifications ?? true,
       notificationPreferences: {
         email: (session.user as any).settings?.notificationPreferences?.email ?? true,
@@ -191,6 +185,12 @@ export function useAuth(): UseAuthReturn {
     }
   }
 
+  const signOut = useCallback(async (options?: SignOutParams) => {
+    await unregisterCurrentDeviceFcmToken()
+    clearSessionCache()
+    return nextAuthSignOut(options)
+  }, [])
+
   return {
     user,
     role,
@@ -200,6 +200,7 @@ export function useAuth(): UseAuthReturn {
     navigateToAuthStatus,
     getKycStatus,
     refreshSession,
+    signOut,
   }
 }
 

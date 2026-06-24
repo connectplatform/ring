@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,122 +14,167 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Send,
-  ArrowRight,
   AlertTriangle,
   Check,
   Loader2,
   Users,
-  Search,
-  Plus
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { getCurrentWalletService } from '@/features/wallet/services'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
-import ContactList from './contact-list'
-import type { WalletAccount, WalletContact, WalletTransaction } from '@/features/wallet/types'
+import { ContactPicker, type ContactPickerSelection } from '@/components/contacts'
+import type { Locale } from '@/i18n/shared'
+import type { WalletTransaction } from '@/features/wallet/types'
+
+interface WalletListItem {
+  address: string
+  isPrimary: boolean
+  label?: string
+  chain?: string
+}
 
 interface SendTokensProps {
+  locale: Locale
   embedded?: boolean
   onTransactionComplete?: (transaction: WalletTransaction) => void
 }
 
-/**
- * SendTokens component - Allows users to send tokens to other recipients
- * Includes contact selection, balance checking, and transaction processing
- */
-export default function SendTokens({ embedded = false, onTransactionComplete }: SendTokensProps) {
-  const t = useTranslations('modules.wallet')
+export default function SendTokens({ locale, embedded = false, onTransactionComplete }: SendTokensProps) {
+  const t = useTranslations('modules.wallet.send')
   const tCommon = useTranslations('common')
-  const router = useRouter()
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const contactParam = searchParams.get('contact')
 
   const [isLoading, setIsLoading] = useState(false)
+  const [isResolving, setIsResolving] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showContactSelector, setShowContactSelector] = useState(false)
-  const [selectedContact, setSelectedContact] = useState<WalletContact | null>(null)
 
-  // Form state
+  const [recipientLabel, setRecipientLabel] = useState<string | null>(null)
+  const [recipientLocked, setRecipientLocked] = useState(false)
+  const [contactUserId, setContactUserId] = useState<string | null>(null)
+  const [ringContactId, setRingContactId] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     recipient: '',
     amount: '',
-    tokenSymbol: 'RING',
-    notes: ''
+    notes: '',
   })
 
-  const [userWallets, setUserWallets] = useState<WalletAccount[]>([])
-  const [selectedWallet, setSelectedWallet] = useState<WalletAccount | null>(null)
-  const [balance, setBalance] = useState<string>('0')
+  const [userWallets, setUserWallets] = useState<WalletListItem[]>([])
+  const [selectedWallet, setSelectedWallet] = useState<WalletListItem | null>(null)
+  const [ringBalance, setRingBalance] = useState('0')
+  const [balanceLoading, setBalanceLoading] = useState(true)
 
-  const walletService = getCurrentWalletService()
-
-  // Load user wallets and balance on mount
-  useEffect(() => {
-    loadUserWallets()
-  }, [session?.user?.id])
-
-  // Update balance when wallet changes
-  useEffect(() => {
-    if (selectedWallet) {
-      loadWalletBalance(selectedWallet.address)
-    }
-  }, [selectedWallet])
-
-  const loadUserWallets = async () => {
+  const loadWallets = useCallback(async () => {
     if (!session?.user?.id) return
 
     try {
-      const wallets = await walletService.getProjectWallets(session.user.id)
+      const res = await fetch('/api/wallet/list', { cache: 'no-store' })
+      if (!res.ok) throw new Error('Failed to load wallets')
+      const data = (await res.json()) as { wallets?: WalletListItem[] }
+      const wallets = data.wallets ?? []
       setUserWallets(wallets)
-      if (wallets.length > 0) {
-        setSelectedWallet(wallets[0])
-      }
+      const primary = wallets.find((w) => w.isPrimary) ?? wallets[0] ?? null
+      setSelectedWallet(primary)
     } catch (error) {
       console.error('Failed to load wallets:', error)
       toast({
         title: tCommon('error'),
-        description: 'Failed to load wallets',
-        variant: 'destructive'
+        description: t('loadWalletsError'),
+        variant: 'destructive',
       })
     }
-  }
+  }, [session?.user?.id, t, tCommon])
 
-  const loadWalletBalance = async (address: string) => {
+  const loadBalance = useCallback(async () => {
+    if (!session?.user?.id) return
+
     try {
-      // Use the existing credit balance hook for RING tokens
-      const balanceData = await useCreditBalance()
-      setBalance(balanceData?.balance?.amount || '0')
-    } catch (error) {
-      console.error('Failed to load balance:', error)
-      setBalance('0')
+      setBalanceLoading(true)
+      const res = await fetch('/api/wallet/ring/balance', { cache: 'no-store' })
+      if (!res.ok) throw new Error('balance failed')
+      const data = (await res.json()) as { balance?: string }
+      setRingBalance(data.balance ?? '0')
+    } catch {
+      setRingBalance('0')
+    } finally {
+      setBalanceLoading(false)
     }
-  }
+  }, [session?.user?.id])
 
-  const handleContactSelect = (contact: WalletContact) => {
-    setSelectedContact(contact)
-    setFormData(prev => ({ ...prev, recipient: contact.address }))
+  const resolveRecipient = useCallback(
+    async (targetUserId: string, displayName?: string, savedContactId?: string) => {
+      setIsResolving(true)
+      try {
+        const res = await fetch('/api/ring/contacts/resolve-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactUserId: targetUserId }),
+        })
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as { error?: string }
+          throw new Error(err.error || 'resolve failed')
+        }
+        const data = (await res.json()) as { address?: string }
+        if (!data.address) throw new Error('No wallet address')
+
+        setContactUserId(targetUserId)
+        setRingContactId(savedContactId ?? null)
+        setRecipientLabel(displayName ?? null)
+        setRecipientLocked(true)
+        setFormData((prev) => ({ ...prev, recipient: data.address! }))
+      } catch (error) {
+        toast({
+          title: tCommon('error'),
+          description: error instanceof Error ? error.message : t('resolveWalletError'),
+          variant: 'destructive',
+        })
+      } finally {
+        setIsResolving(false)
+      }
+    },
+    [t, tCommon],
+  )
+
+  useEffect(() => {
+    void loadWallets()
+    void loadBalance()
+  }, [loadWallets, loadBalance])
+
+  useEffect(() => {
+    if (contactParam && session?.user?.id) {
+      void resolveRecipient(contactParam)
+    }
+  }, [contactParam, session?.user?.id, resolveRecipient])
+
+  const handleContactPickerSelect = (selection: ContactPickerSelection) => {
     setShowContactSelector(false)
+
+    if (selection.kind === 'user') {
+      const user = selection.user
+      void resolveRecipient(user.id, user.name || user.username || user.id)
+      return
+    }
+
+    const contact = selection.contact
+    void resolveRecipient(contact.contactUserId, contact.displayName, contact.id)
   }
 
   const validateForm = (): string | null => {
     if (!formData.recipient.trim()) {
-      return 'Recipient address is required'
+      return t('recipientRequired')
     }
 
     if (!formData.amount.trim() || parseFloat(formData.amount) <= 0) {
-      return 'Valid amount is required'
+      return t('amountRequired')
     }
 
-    if (parseFloat(formData.amount) > parseFloat(balance)) {
-      return 'Insufficient balance'
+    if (parseFloat(formData.amount) > parseFloat(ringBalance)) {
+      return t('insufficientBalance')
     }
 
     if (!selectedWallet) {
-      return 'No wallet selected'
-    }
-
-    // Basic Ethereum address validation
-    if (!formData.recipient.startsWith('0x') || formData.recipient.length !== 42) {
-      return 'Invalid recipient address format'
+      return t('noWalletSelected')
     }
 
     return null
@@ -143,7 +188,7 @@ export default function SendTokens({ embedded = false, onTransactionComplete }: 
       toast({
         title: tCommon('error'),
         description: validationError,
-        variant: 'destructive'
+        variant: 'destructive',
       })
       return
     }
@@ -151,252 +196,238 @@ export default function SendTokens({ embedded = false, onTransactionComplete }: 
     try {
       setIsLoading(true)
 
-      const transaction = await walletService.sendTokens({
-        globalUserId: session.user.id,
-        fromAddress: selectedWallet.address,
-        toAddress: formData.recipient,
-        amount: formData.amount,
-        tokenSymbol: formData.tokenSymbol,
-        notes: formData.notes.trim() || undefined
+      const res = await fetch('/api/wallet/ring/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toAddress: formData.recipient,
+          amount: formData.amount,
+          contactUserId: contactUserId ?? undefined,
+          ringContactId: ringContactId ?? undefined,
+          notes: formData.notes.trim() || undefined,
+        }),
       })
+
+      const data = (await res.json()) as {
+        error?: string
+        txHash?: string
+        fromAddress?: string
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Transfer failed')
+      }
 
       toast({
         title: tCommon('success'),
-        description: `Successfully sent ${formData.amount} ${formData.tokenSymbol} to ${selectedContact?.name || 'recipient'}`
+        description: t('sendSuccess', {
+          amount: formData.amount,
+          name: recipientLabel || t('recipientFallback'),
+        }),
       })
 
-      // Reset form
-      setFormData({
-        recipient: '',
-        amount: '',
-        tokenSymbol: 'RING',
-        notes: ''
-      })
-      setSelectedContact(null)
+      setFormData({ recipient: '', amount: '', notes: '' })
+      setRecipientLabel(null)
+      setRecipientLocked(false)
+      setContactUserId(null)
+      setRingContactId(null)
       setShowConfirmDialog(false)
 
-      // Reload balance
-      await loadWalletBalance(selectedWallet.address)
+      await loadBalance()
 
-      // Notify parent component
-      if (onTransactionComplete) {
-        onTransactionComplete(transaction)
+      if (onTransactionComplete && data.txHash) {
+        onTransactionComplete({
+          id: data.txHash,
+          timestamp: new Date().toISOString(),
+          walletAddress: data.fromAddress ?? selectedWallet.address,
+          txHash: data.txHash,
+          recipient: formData.recipient,
+          amount: formData.amount,
+          tokenSymbol: 'RING',
+          status: 'success',
+          networkId: 137,
+          type: 'send',
+          notes: formData.notes,
+        })
       }
-
     } catch (error) {
       console.error('Failed to send tokens:', error)
       toast({
         title: tCommon('error'),
-        description: 'Failed to send tokens. Please try again.',
-        variant: 'destructive'
+        description: error instanceof Error ? error.message : t('sendFailed'),
+        variant: 'destructive',
       })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const availableBalance = parseFloat(balance)
+  const availableBalance = parseFloat(ringBalance) || 0
   const sendAmount = parseFloat(formData.amount) || 0
   const hasInsufficientBalance = sendAmount > availableBalance
 
   return (
-    <div className={embedded ? "space-y-6" : "container mx-auto px-4 py-8"}>
+    <div className={embedded ? 'space-y-6' : 'container mx-auto px-4 py-8'}>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-3">
             <Send className="h-8 w-8" />
-            Send Tokens
+            {t('title')}
           </h2>
-          <p className="text-muted-foreground mt-2">
-            Transfer tokens to another wallet address
-          </p>
+          <p className="text-muted-foreground mt-2">{t('subtitle')}</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Transfer Details</CardTitle>
+          <CardTitle>{t('transferDetails')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Wallet Selection */}
           <div className="space-y-2">
-            <Label>From Wallet</Label>
+            <Label>{t('fromWallet')}</Label>
             <Select
               value={selectedWallet?.address || ''}
               onValueChange={(address) => {
-                const wallet = userWallets.find(w => w.address === address)
+                const wallet = userWallets.find((w) => w.address === address)
                 setSelectedWallet(wallet || null)
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select wallet" />
+                <SelectValue placeholder={t('selectWallet')} />
               </SelectTrigger>
               <SelectContent>
                 {userWallets.map((wallet) => (
                   <SelectItem key={wallet.address} value={wallet.address}>
-                    {wallet.label} - {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
+                    {wallet.label || t('walletLabel')} — {wallet.address.slice(0, 6)}...
+                    {wallet.address.slice(-4)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {selectedWallet && (
               <p className="text-sm text-muted-foreground">
-                Balance: {balance} {formData.tokenSymbol}
+                {balanceLoading ? (
+                  <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
+                ) : null}
+                {t('ringBalance', { balance: ringBalance })}
               </p>
             )}
           </div>
 
-          {/* Recipient Selection */}
           <div className="space-y-2">
-            <Label>To Address</Label>
+            <Label>{t('toAddress')}</Label>
             <div className="flex gap-2">
               <Input
-                placeholder="0x..."
+                placeholder={t('recipientPlaceholder')}
                 value={formData.recipient}
-                onChange={(e) => setFormData(prev => ({ ...prev, recipient: e.target.value }))}
-                className="flex-1"
+                readOnly={recipientLocked}
+                onChange={(e) => {
+                  if (!recipientLocked) {
+                    setFormData((prev) => ({ ...prev, recipient: e.target.value }))
+                  }
+                }}
+                className="flex-1 font-mono text-sm"
               />
               <Button
                 variant="outline"
                 onClick={() => setShowContactSelector(true)}
-                title="Select from contacts"
+                title={t('pickContact')}
+                disabled={isResolving}
               >
-                <Users className="h-4 w-4" />
+                {isResolving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Users className="h-4 w-4" />
+                )}
               </Button>
             </div>
-            {selectedContact && (
-              <p className="text-sm text-muted-foreground">
-                Sending to: {selectedContact.name}
-              </p>
+            {recipientLocked && recipientLabel && (
+              <p className="text-sm text-muted-foreground">{t('sendingTo', { name: recipientLabel })}</p>
             )}
           </div>
 
-          {/* Amount and Token */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={formData.amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Token</Label>
-              <Select
-                value={formData.tokenSymbol}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, tokenSymbol: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="RING">RING</SelectItem>
-                  <SelectItem value="USDT">USDT</SelectItem>
-                  <SelectItem value="USDC">USDC</SelectItem>
-                  <SelectItem value="POL">POL</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>{t('amount')}</Label>
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={(e) => setFormData((prev) => ({ ...prev, amount: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">{t('tokenRingOnly')}</p>
           </div>
 
-          {/* Balance Warning */}
           {hasInsufficientBalance && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Insufficient balance. You need {sendAmount - availableBalance} more {formData.tokenSymbol}.
-              </AlertDescription>
+              <AlertDescription>{t('insufficientBalanceDetail', { deficit: sendAmount - availableBalance })}</AlertDescription>
             </Alert>
           )}
 
-          {/* Notes */}
           <div className="space-y-2">
-            <Label>Notes (Optional)</Label>
+            <Label>{t('notes')}</Label>
             <Textarea
-              placeholder="Add a note to this transaction..."
+              placeholder={t('notesPlaceholder')}
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
               rows={3}
             />
           </div>
 
-          {/* Send Button */}
           <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
             <DialogTrigger asChild>
               <Button
                 className="w-full"
                 size="lg"
-                disabled={!formData.recipient || !formData.amount || hasInsufficientBalance}
+                disabled={!formData.recipient || !formData.amount || hasInsufficientBalance || isResolving}
               >
                 <Send className="h-4 w-4 mr-2" />
-                Send {formData.amount || '0'} {formData.tokenSymbol}
+                {t('sendButton', { amount: formData.amount || '0' })}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Confirm Transaction</DialogTitle>
+                <DialogTitle>{t('confirmTitle')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">From:</span>
-                    <span className="font-mono text-sm">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">{t('fromWallet')}</span>
+                    <span className="font-mono">
                       {selectedWallet?.address.slice(0, 6)}...{selectedWallet?.address.slice(-4)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">To:</span>
-                    <span className="font-mono text-sm">
-                      {selectedContact?.name || `${formData.recipient.slice(0, 6)}...${formData.recipient.slice(-4)}`}
-                    </span>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">{t('toAddress')}</span>
+                    <span>{recipientLabel || `${formData.recipient.slice(0, 6)}...${formData.recipient.slice(-4)}`}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount:</span>
-                    <span className="font-medium">
-                      {formData.amount} {formData.tokenSymbol}
-                    </span>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">{t('amount')}</span>
+                    <span className="font-medium">{formData.amount} RING</span>
                   </div>
-                  {formData.notes && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Notes:</span>
-                      <span className="text-sm">{formData.notes}</span>
-                    </div>
-                  )}
                 </div>
 
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Please verify the recipient address. Transactions cannot be reversed.
-                  </AlertDescription>
+                  <AlertDescription>{t('confirmWarning')}</AlertDescription>
                 </Alert>
 
                 <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowConfirmDialog(false)}
-                    className="flex-1"
-                  >
-                    Cancel
+                  <Button variant="outline" onClick={() => setShowConfirmDialog(false)} className="flex-1">
+                    {tCommon('actions.cancel')}
                   </Button>
-                  <Button
-                    onClick={handleSendTokens}
-                    disabled={isLoading}
-                    className="flex-1"
-                  >
+                  <Button onClick={handleSendTokens} disabled={isLoading} className="flex-1">
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
+                        {t('sending')}
                       </>
                     ) : (
                       <>
                         <Check className="h-4 w-4 mr-2" />
-                        Confirm Send
+                        {t('confirmSend')}
                       </>
                     )}
                   </Button>
@@ -407,15 +438,17 @@ export default function SendTokens({ embedded = false, onTransactionComplete }: 
         </CardContent>
       </Card>
 
-      {/* Contact Selector Dialog */}
       <Dialog open={showContactSelector} onOpenChange={setShowContactSelector}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Select Recipient from Contacts</DialogTitle>
+            <DialogTitle>{t('pickContactTitle')}</DialogTitle>
           </DialogHeader>
-          <ContactList
-            embedded={true}
-            onContactSelect={handleContactSelect}
+          <ContactPicker
+            locale={locale}
+            mode="send"
+            onSelect={handleContactPickerSelect}
+            excludeUserIds={session?.user?.id ? [session.user.id] : []}
+            showSaved
           />
         </DialogContent>
       </Dialog>

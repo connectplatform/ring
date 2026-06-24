@@ -5,6 +5,7 @@
 // - Intelligent data strategies per environment
 
 import { UserRole, AuthUser } from '@/features/auth/types';
+import { assertKnownUserRole, hasConfidentialAccess, isPlatformAdmin, parseUserRole } from '@/features/auth/user-role';
 
 import { cache } from 'react';
 import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
@@ -40,7 +41,8 @@ export async function getUsersByRole(
   try {
     // Step 1: Authenticate and get user session
     const session = await auth();
-    if (!session || !session.user || (session.user.role !== UserRole.admin && session.user.role !== UserRole.confidential)) {
+    const sessionRole = assertKnownUserRole(session?.user?.role)
+    if (!session?.user || (!isPlatformAdmin(sessionRole) && !hasConfidentialAccess(sessionRole))) {
       throw new Error('Unauthorized access: Admin or Confidential privileges required');
     }
 
@@ -75,7 +77,7 @@ export async function getUsersByRole(
         id: row.id,
         name: row.name as string | undefined,
         email: row.email as string | undefined,
-        role: row.role as UserRole | undefined,
+        role: parseUserRole(row.role) ?? undefined,
         photoURL: (row.photoURL as string | undefined) || (row.image as string | undefined),
         createdAt: row.createdAt as Date | undefined,
       });

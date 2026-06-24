@@ -8,6 +8,7 @@ import {
   generateDocsStaticParams,
   renderDocsPage,
 } from '@/components/docs/docs-page-renderer'
+import { DocsNotFound } from '@/components/docs/docs-not-found'
 
 type PageParams = {
   locale: string
@@ -31,5 +32,19 @@ export default async function DocPage({ params }: LocalePageProps<PageParams>) {
     ? (rawLocale as Locale)
     : routing.defaultLocale) as Locale
 
-  return renderDocsPage({ locale, slug: normalizeDocsSlug(slug) })
+  const result = await renderDocsPage({ locale, slug: normalizeDocsSlug(slug) })
+
+  if (result.status === 'not_found') {
+    return (
+      <DocsNotFound
+        locale={result.locale}
+        slug={result.slug}
+        reason={result.reason}
+        categoryValid={result.categoryValid}
+        path={result.path}
+      />
+    )
+  }
+
+  return result.content
 }

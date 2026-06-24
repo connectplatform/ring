@@ -1,28 +1,20 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useSession } from 'next-auth/react'
 import { useRouter } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Wallet, 
-  Plus, 
-  ArrowUpDown, 
-  History, 
-  Copy, 
-  Check, 
-  AlertTriangle,
-  Loader2,
-  TrendingUp,
-  DollarSign
-} from 'lucide-react'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { Wallet, AlertTriangle, Loader2, TrendingUp } from 'lucide-react'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
+import { useCreditHistoryContext } from '@/components/providers/credit-history-provider'
+import { useWalletListContext } from '@/components/providers/wallet-list-provider'
+import { useWalletActivityContext } from '@/components/providers/wallet-activity-provider'
+import { getClientCreditFiatCurrency } from '@/lib/ring-config-client'
 import { toast } from '@/hooks/use-toast'
-import { MultiChainWalletDashboard } from '@/components/web3/multi-chain-wallet-dashboard'
-import { GasOptimization } from '@/components/web3/gas-optimization'
+import WalletTransactionFeed from '@/features/wallet/components/wallet-transaction-feed'
+import DeskWidget from '@/features/wallet/components/desk-widget'
+import { WalletBalanceHero } from '@/features/wallet/components/wallet-balance-hero'
+import { cn } from '@/lib/utils'
 import type { Locale } from '@/i18n/shared'
 
 interface WalletPageClientProps {
@@ -31,262 +23,116 @@ interface WalletPageClientProps {
   embedded?: boolean
 }
 
-export default function WalletPageClient({ locale, searchParams, embedded = false }: WalletPageClientProps) {
+export default function WalletPageClient({
+  locale,
+  embedded = false,
+}: WalletPageClientProps) {
   const t = useTranslations('modules.wallet')
-  const tCommon = useTranslations('common')
-  const { data: session } = useSession()
   const router = useRouter()
-  const [copied, setCopied] = useState(false)
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
 
-  // Get wallet balance data
-  const { 
-    balance: tokenBalance, 
-    subscription,
-    limits,
-    isLoading: balanceLoading, 
+  const {
+    balance: tokenBalance,
+    isLoading: balanceLoading,
+    isRefreshing,
     error: balanceError,
-    refresh: refetchBalance
-  } = useCreditBalance()
+    refresh: refetchBalance,
+  } = useCreditBalanceContext()
+  const { isRefreshing: isHistoryRefreshing } = useCreditHistoryContext()
+  const { wallets, isLoading: walletsLoading, refresh: refreshWallets } = useWalletListContext()
+  const { scope, setScope } = useWalletActivityContext()
 
+  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
 
-  // Wallet address copy functionality
-  const handleCopyAddress = async () => {
-    if (session?.user?.wallets?.[0]?.address) {
-      try {
-        await navigator.clipboard.writeText(session.user.wallets[0].address)
-        setCopied(true)
-        toast({
-          title: "Address copied",
-          description: "Wallet address copied to clipboard"
-        })
-        setTimeout(() => setCopied(false), 2000)
-      } catch (error) {
-        toast({
-          title: "Copy failed",
-          description: "Failed to copy address",
-          variant: "destructive"
-        })
-      }
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address)
+      setCopiedAddress(address)
+      toast({
+        title: t('addressCopied'),
+        description: t('addressCopiedDescription'),
+      })
+      setTimeout(() => setCopiedAddress(null), 2000)
+    } catch {
+      toast({ title: t('copyFailed'), variant: 'destructive' })
     }
   }
 
-  // Format wallet address for display
-  const formatAddress = (address: string) => {
-    if (!address) return ''
-    return `${address.slice(0, 8)}...${address.slice(-6)}`
+  const handleRefreshAll = async () => {
+    await Promise.all([refetchBalance(), refreshWallets()])
   }
-
-  // Format RING balance for display
-  const formatBalance = (balance: string | null) => {
-    if (!balance || balance === '0') return '0.00'
-    const num = parseFloat(balance)
-    return num.toFixed(2)
-  }
-
-  // Check if balance is low
-  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
-  const displayBalance = formatBalance(tokenBalance?.amount)
-  const walletAddress = session?.user?.wallets?.[0]?.address
 
   if (balanceLoading) {
     return (
-      <div className="container mx-auto px-0 py-0">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading wallet...</p>
-          </div>
-        </div>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--davinci-beam)]" />
       </div>
     )
   }
 
   if (balanceError) {
     return (
-      <div className="container mx-auto px-0 py-0">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Wallet Error</h2>
-          <p className="text-muted-foreground mb-4">{balanceError}</p>
-          <Button onClick={refetchBalance}>
-            Try Again
-          </Button>
-        </div>
+      <div className="py-12 text-center">
+        <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+        <h2 className="mb-2 text-xl font-semibold">{t('walletError')}</h2>
+        <p className="mb-4 text-muted-foreground">{balanceError}</p>
+        <Button onClick={() => void refetchBalance()}>{t('tryAgain')}</Button>
       </div>
     )
   }
 
   return (
-    <div className={embedded ? "space-y-6" : "min-h-screen"}>
-      <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
-        {/* Header - Only show in non-embedded mode */}
-        {!embedded && (
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
-                  <Wallet className="h-6 w-6 text-white" />
-                </div>
-                {t('title') || 'Wallet'}
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                {t('description') || 'Manage your RING tokens and view transaction history'}
-              </p>
-            </div>
-            <Button onClick={refetchBalance} variant="outline" size="sm">
-              <ArrowUpDown className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        )}
-
-        {/* Balance Overview Card */}
-        <Card className="mb-8 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 dark:from-green-950/30 dark:to-blue-950/30 dark:hover:from-green-900/40 dark:hover:to-blue-900/40 border border-green-200/50 dark:border-green-800/30 transition-all duration-200">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">R</span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">RING Balance</span>
-                  {hasLowBalance && (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Low Balance
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-4xl font-bold mb-1">
-                  {displayBalance} <span className="text-2xl text-muted-foreground">RING</span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  ≈ ${tokenBalance?.usd_equivalent || '0.00'} USD
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <Button
-                  onClick={() => router.push('/wallet/topup')}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Top Up RING
-                </Button>
-
-                {walletAddress && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyAddress}
-                    className="font-mono text-xs"
-                  >
-                    <Wallet className="h-3 w-3 mr-2" />
-                    {formatAddress(walletAddress)}
-                    {copied ? (
-                      <Check className="h-3 w-3 ml-2 text-green-500" />
-                    ) : (
-                      <Copy className="h-3 w-3 ml-2" />
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Multi-Chain Web3 Dashboard */}
-        <MultiChainWalletDashboard />
-
-        {/* Gas Optimization */}
-        <GasOptimization />
-
-        {/* Wallet Overview */}
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Subscription Status */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Subscription
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Status</span>
-                    <Badge variant={subscription?.active ? "default" : "secondary"}>
-                      {subscription?.active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                  {subscription?.next_payment && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Next Payment</span>
-                      <span className="text-sm">
-                        {new Date(subscription.next_payment).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Spending Limits */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Monthly Limits
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Limit</span>
-                    <span className="text-sm font-medium">
-                      {limits?.monthly_spend_limit || '0'} RING
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Remaining</span>
-                    <span className="text-sm font-medium">
-                      {limits?.remaining_monthly_limit || '0'} RING
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => router.push('/wallet/topup')}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add RING Tokens
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => router.push('/wallet/history')}
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  View History
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+    <div className={cn('relative space-y-6', embedded && 'p-0')}>
+      {!embedded && (
+        <div>
+          <h1 className="flex items-center gap-3 text-2xl font-bold sm:text-3xl">
+            <span
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-xl',
+                'border border-[color-mix(in_oklch,var(--davinci-beam)_35%,transparent)]',
+              )}
+            >
+              <Wallet className="h-5 w-5 text-[var(--davinci-beam)]" />
+            </span>
+            {t('title')}
+          </h1>
+          <p className="mt-2 text-muted-foreground">{t('description')}</p>
         </div>
-      </div>
+      )}
+
+      <WalletBalanceHero
+        creditAmount={tokenBalance?.amount ?? '0'}
+        creditCurrency={getClientCreditFiatCurrency()}
+        wallets={wallets}
+        walletsLoading={walletsLoading}
+        selectedScope={scope}
+        onSelectScope={setScope}
+        copiedAddress={copiedAddress}
+        onCopyAddress={(address) => void handleCopyAddress(address)}
+        hasLowBalance={hasLowBalance}
+        isRefreshing={isRefreshing || walletsLoading}
+        onRefresh={() => void handleRefreshAll()}
+        onTopUp={() => router.push('/wallet/topup')}
+      />
+
+      <DeskWidget />
+
+      <section className="space-y-3" aria-labelledby="wallet-transaction-history">
+        <div className="flex items-center justify-between gap-3">
+          <h2
+            id="wallet-transaction-history"
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
+            <TrendingUp className="h-4 w-4 text-[var(--davinci-beam)]" />
+            {t('transactionHistory')}
+          </h2>
+          {isHistoryRefreshing && (
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+          )}
+        </div>
+        <WalletTransactionFeed locale={locale} hideHeading hideFilterTabs />
+      </section>
     </div>
   )
 }
+

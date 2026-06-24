@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import DocsNavigationTree from '@/components/docs/docs-navigation-tree'
+import DocsSidebarControls from '@/components/docs/docs-sidebar-controls'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import { RingContentPanel } from '@/components/layout/ring-app-shell'
+import { DocsAudienceProvider } from '@/components/docs/docs-audience-context'
+import { DocsPoolProvider } from '@/components/docs/docs-pool-context'
 
 /** Left nav is the global `DesktopSidebar` from `Navigation` (fixed, 280px). This shell only reserves space + right TOC. */
 
@@ -13,6 +16,8 @@ interface DocsLayoutShellProps {
 
 export default async function DocsLayoutShell({ children, locale }: DocsLayoutShellProps) {
   return (
+    <DocsAudienceProvider>
+    <DocsPoolProvider>
     <div className="min-h-full text-foreground">
       <div className="hidden min-h-full gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_270px] lg:pr-1">
         <RingContentPanel className="min-w-0 overflow-hidden">
@@ -20,7 +25,11 @@ export default async function DocsLayoutShell({ children, locale }: DocsLayoutSh
         </RingContentPanel>
 
         <div className="min-w-0 py-5 pr-2">
-          <RightSidebar title="Documentation">
+          <RightSidebar
+            title="Documentation"
+            actions={<DocsSidebarControls />}
+            showControls={false}
+          >
             <DocsNavigationTree locale={locale} />
           </RightSidebar>
         </div>
@@ -32,7 +41,10 @@ export default async function DocsLayoutShell({ children, locale }: DocsLayoutSh
 
         <FloatingSidebarToggle>
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Documentation</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-lg">Documentation</h3>
+              <DocsSidebarControls />
+            </div>
             <DocsNavigationTree locale={locale} />
           </div>
         </FloatingSidebarToggle>
@@ -45,12 +57,17 @@ export default async function DocsLayoutShell({ children, locale }: DocsLayoutSh
 
         <FloatingSidebarToggle>
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Documentation</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-lg">Documentation</h3>
+              <DocsSidebarControls />
+            </div>
             <DocsNavigationTree locale={locale} />
           </div>
         </FloatingSidebarToggle>
         </RingContentPanel>
       </div>
     </div>
+    </DocsPoolProvider>
+    </DocsAudienceProvider>
   )
 }

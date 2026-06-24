@@ -92,6 +92,8 @@
     "myProducts": "Мои продукты",
     "addProduct": "Добавить продукт",
     "editProduct": "Редактировать продукт",
+    "createSubtitle": "Добавьте новый продукт в ваш магазин",
+    "editSubtitle": "Обновите данные продукта",
     "noProducts": "У вас еще нет добавленных продуктов",
     "addFirstProduct": "Добавьте первый продукт, чтобы начать продажу",
     "totalProducts": "{count} продуктов",
@@ -144,6 +146,9 @@
     },
 
     "form": {
+      "productDetails": "Детали продукта",
+      "mainPhoto": "Главное фото",
+      "addPhoto": "Добавить фото",
       "photo": "Фото продукта",
       "photoHint": "Загрузите 1-5 качественных фото. Первое фото будет главным.",
       "photoPlaceholder": "Перетащите фото или нажмите для выбора",
@@ -155,8 +160,9 @@
       "category": "Категория",
       "categoryHint": "Выберите наиболее подходящую категорию",
       "categoryPlaceholder": "Выберите категорию...",
+      "priceLabel": "Цена ({currency})",
       "priceUAH": "Цена (грн)",
-      "priceHint": "Цена в украинских гривнах",
+      "priceHint": "Введите цену в {currency}",
       "pricePlaceholder": "100.00",
       "stock": "Количество на складе",
       "stockHint": "Доступные единицы",
@@ -176,8 +182,11 @@
       "updating": "Обновление...",
       "cancel": "Отменить",
       "referralCommission": "Реферальная комиссия %",
-      "referralCommissionHint": "Необязательно. Оставьте пустым, чтобы унаследовать ставку продавца или платформы.",
-      "referralCommissionPlaceholder": "Унаследовать ({percent}%)"
+      "referralCommissionHint": "Необязательно. Оставьте пустым, чтобы использовать ставку по умолчанию ({percent}%).",
+      "referralCommissionPlaceholder": "По умолчанию ({percent}%)",
+      "rep": "Представитель товара",
+      "repHint": "Необязательно. Назначьте пользователя Ring по имени пользователя.",
+      "repPlaceholder": "Поиск по username…"
     },
 
     "validation": {

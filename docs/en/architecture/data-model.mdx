@@ -1,21 +1,125 @@
 ---
 title: Data Model
-description: Data Model documentation for Ring Platform
+description: How Ring stores users, entities, opportunities, commerce, and wallet data — JSONB-first PostgreSQL for founders and integrators
+last_modified: "2026-06-22"
+audience: both
 ---
 
 # Data Model
 
-## PostgreSQL Primary Schema
+<Callout type="info">
+  **One article, two lenses.** Use the **Founder** / **Developer** tabs in the docs sidebar to filter this page. Shared sections stay visible for both audiences; wrapped blocks show concepts or integration detail respectively.
+</Callout>
 
-### Complete Database Architecture
+Ring Platform stores almost all application data in **PostgreSQL** using a **JSONB-first document shape**: every row is `id` + `data` + timestamps. That gives founders a flexible product model (add fields without migrations for every tweak) and gives developers a single `DatabaseService` contract across every Ring clone.
 
-<Mermaid>
+## What lives in the database?
+
+| Domain | What founders configure | Typical clone scenarios |
+|--------|-------------------------|-------------------------|
+| **Users & auth** | Roles, profiles, credit balance | Member portals, gated content, admin consoles |
+| **Entities** | Organizations, vendor profiles, verified listings | Directory, marketplace sellers, NGO profiles |
+| **Opportunities** | Jobs, grants, bounties, RFPs | Job board, grant matcher, project marketplace |
+| **Store & orders** | Multi-vendor catalog, inventory, checkout | White-label shop, B2B catalog, subscription boxes |
+| **Wallet & payments** | Ledger, WayForPay/Stripe, membership credits | Token-gated perks, prepaid credits, affiliate payouts |
+| **Messaging & notify** | Conversations, in-app + FCM push | Buyer–seller chat, opportunity alerts |
+| **Content & CRM** | News, email sequences, AI matcher hooks | Community hub, publisher ring, opportunity notifications |
+
+<Audience for="founder">
+
+## Why this model matters for your Ring clone
+
+When you **ringize** a deployment, you are not buying a rigid CRM schema. You inherit a **proven marketplace + community skeleton** that already connects:
+
+- **People** (users with roles from visitor → superadmin)
+- **Organizations** (entities — your “vendor”, “partner”, or “chapter” records)
+- **Demand** (opportunities — anything you’d post as a listing others apply to)
+- **Commerce** (store products, orders, PaymentConductor settlements)
+- **Trust** (reviews, verification flags, confidential tiers)
+
+### Founder scenarios (generalized)
+
+<Cards>
+  <Card title="Regional opportunity network" href="/docs/features/opportunities">
+    Entities represent local businesses; opportunities are grants and contracts; AI matcher notifies relevant members.
+  </Card>
+  <Card title="Multi-vendor marketplace" href="/docs/features/store">
+    Each entity can sell through the store module; orders and inventory share one Postgres cluster per clone.
+  </Card>
+  <Card title="Membership + credits" href="/docs/features/membership">
+    User JSONB holds `credit_balance`; wallet transactions provide an audit trail for top-ups and spends.
+  </Card>
+  <Card title="Confidential deal room" href="/docs/features/security">
+    Role `confidential` plus entity/opportunity visibility flags — same tables, stricter layout gates.
+  </Card>
+</Cards>
+
+<Callout type="tip" title="Operator takeaway">
+  You do **not** need separate databases per feature. Postgres + JSONB lets each clone emphasize store, opportunities, or community without forking the codebase. Schema SSOT: `data/schema.sql` (v4.0.2).
+</Callout>
+
+</Audience>
+
+<Audience for="developer">
+
+## JSONB document contract
+
+Every core collection table follows the same physical layout (see `data/schema.sql`):
+
+<Code language="sql" title="Canonical row shape (users example)">{`CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_data_gin ON users USING GIN (data);`}</Code>
+
+**Design rules:**
+
+- **`id`** — Firebase UID, UUID string, or domain key (e.g. lowercase username in `usernames`).
+- **`data`** — all domain fields; query with `data->>'field'` and GIN indexes for hot paths.
+- **Triggers** — `updated_at` maintained cluster-wide; LISTEN/NOTIFY hooks for realtime adapters.
+
+### DatabaseService (application API)
+
+All server code goes through `DatabaseService` — never raw SQL in route handlers.
+
+<Code language="typescript" title="Read / write pattern">{`import { initializeDatabase, getDatabaseService } from '@/lib/database/DatabaseService'
+
+await initializeDatabase()
+const db = getDatabaseService()
+
+const user = await db.findById('users', userId)
+if (!user.success) throw user.error
+
+await db.create('entities', {
+  name: 'Acme Cooperative',
+  userId,
+  type: 'organization',
+  status: 'active',
+  verified: false,
+})
+
+const list = await db.query({
+  collection: 'opportunities',
+  filters: [{ field: 'status', operator: '==', value: 'open' }],
+  orderBy: [{ field: 'created_at', direction: 'desc' }],
+  pagination: { limit: 20 },
+})`}</Code>
+
+<Callout type="warning">
+  `findById` / `query` return `{ success, data, error }`. **`error` is an `Error` object**, not a string. Throw on failure in services; Server Actions may map to `{ error: string }` for forms only.
+</Callout>
+
+### Entity-relationship map (logical)
+
+<Mermaid title="Ring Platform — core Postgres collections">
 {`erDiagram
     USERS ||--o{ ENTITIES : creates
     USERS ||--o{ OPPORTUNITIES : posts
     USERS ||--o{ ORDERS : places
     USERS ||--o{ WALLET_TRANSACTIONS : initiates
-    USERS ||--o{ NFT_LISTINGS : owns
 
     ENTITIES ||--o{ OPPORTUNITIES : offers
     ENTITIES ||--o{ REVIEWS : receives
@@ -30,58 +134,107 @@ description: Data Model documentation for Ring Platform
     ORDERS ||--o{ ORDER_ITEMS : includes
     ORDERS ||--o{ PAYMENTS : requires
 
-    WALLET_TRANSACTIONS ||--|| USERS : affects
-    WALLET_TRANSACTIONS }o--|| SMART_CONTRACTS : executes
-
-    NFT_LISTINGS ||--o{ NFT_TRADES : traded_in
-    NFT_LISTINGS }o--|| USERS : owned_by
-
     USERS {
-        uuid id PK
-        string email
-        string name
-        string role
-        jsonb metadata
-        timestamp created_at
+        varchar id PK
+        jsonb data
+        timestamptz created_at
     }
 
     ENTITIES {
-        uuid id PK
-        uuid user_id FK
-        string name
-        string industry_type
-        boolean verified
-        jsonb showcase_data
+        varchar id PK
+        jsonb data
+        timestamptz created_at
     }
 
     OPPORTUNITIES {
-        uuid id PK
-        uuid entity_id FK
-        string type
-        string category
-        numeric budget
-        date deadline
-        jsonb requirements
+        varchar id PK
+        jsonb data
+        timestamptz created_at
     }
 
     STORE_PRODUCTS {
-        uuid id PK
-        uuid vendor_id FK
-        string name
-        numeric price
-        integer stock
-        jsonb specifications
+        varchar id PK
+        jsonb data
+        timestamptz created_at
     }
 
     WALLET_TRANSACTIONS {
-        uuid id PK
-        uuid user_id FK
-        numeric amount
-        string type
-        string tx_hash
-        timestamp created_at
+        varchar id PK
+        jsonb data
+        timestamptz created_at
     }`}
 </Mermaid>
 
+### Apply schema to a fresh database
 
-<Callout type="info">PostgreSQL provides ACID transactions, full-text search, and JSONB support for flexible metadata storage.</Callout>
+<Steps>
+<Step>
+
+### Locate SSOT
+
+Single file: `data/schema.sql` (v4.0.2). Do not use deprecated `scripts/postgres-schema.sql`.
+
+</Step>
+<Step>
+
+### Apply on cluster or local Postgres
+
+<Code language="bash" title="psql apply">{`export DATABASE_URL="postgresql://user:pass@host:5432/ring_platform"
+psql "$DATABASE_URL" -f data/schema.sql`}</Code>
+
+</Step>
+<Step>
+
+### Set backend mode
+
+Production rings use `DB_BACKEND_MODE=k8s-postgres-fcm`. See [Backend modes and databases](./backend-modes-and-databases).
+
+</Step>
+</Steps>
+
+### Query and index patterns
+
+- Filter JSONB: `(data->>'status') = 'open'` with btree expression indexes on hot keys.
+- Full-text: opportunities table includes search vectors (see schema comments).
+- Geospatial: optional PostGIS columns propagated from location-heavy clones (pet-friendly places, delivery radius).
+
+Deep dive: `AI-CONTEXT/concepts/database/query-patterns.json` and [Discovery & mutation sync](./discovery-mutation-sync).
+
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
+    When Postgres is primary vs Firebase-full; FCM-only Firebase paths.
+  </Card>
+  <Card title="Authentication" href="/docs/architecture/authentication">
+    Auth.js tables (`accounts`, `sessions`, `verification_tokens`) in the same JSONB model.
+  </Card>
+  <Card title="PaymentConductor" href="/docs/architecture/payment-conductor">
+    Orders, payments JSONB, webhook idempotency.
+  </Card>
+  <Card title="Entities feature" href="/docs/features/entities">
+    Product-facing entity profiles and verification flows.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — data model (TBD)">
+
+<FutureFeatureWidget
+  name="Dedicated search-index service"
+  description="Optional OpenSearch/Elasticsearch layer beyond Postgres JSONB + GIN indexes for cross-clone federated search."
+  implementationCost={120}
+  labels={['database', 'search']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Schema drift CLI"
+  description="Compare live clone database against data/schema.sql v4 and emit idempotent patch suggestions for operators."
+  implementationCost={48}
+  labels={['database', 'ops']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

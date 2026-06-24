@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
+import { useAuth } from '@/hooks/use-auth'
 import { useLocale, useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -116,7 +117,7 @@ function MobileMenuGuestAuth({
 
 import { Session } from 'next-auth'
 import { UserRole } from '@/features/auth/types'
-import { hasConfidentialAccess, hasRoleAtLeast } from '@/features/auth/user-role'
+import { hasConfidentialAccess, hasRoleAtLeast, isPlatformAdmin } from '@/features/auth/user-role'
 
 // Client-side constant for default locale
 const DEFAULT_LOCALE = 'en' as const
@@ -132,7 +133,6 @@ interface MobileMenuProps {
   user: Session['user'] | null
   loading: boolean
   handleGoogleSignIn: () => void
-  handleSignOut: () => void
   onClose: () => void
 }
 
@@ -178,10 +178,15 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   user,
   loading,
   handleGoogleSignIn,
-  handleSignOut,
   onClose,
 }) => {
   const t = useTranslations('navigation')
+  const { signOut } = useAuth()
+
+  const handleSignOut = React.useCallback(async () => {
+    onClose()
+    await signOut({ redirectTo: ROUTES.LOGIN(locale) })
+  }, [locale, onClose, signOut])
   
   const userRole = getUserRole(user)
   
@@ -349,10 +354,10 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 <p className="font-semibold text-sm truncate">{user.name || user.email}</p>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-muted-foreground capitalize">{userRole}</span>
-                  {userRole === UserRole.confidential || userRole === UserRole.superadmin && (
+                  {hasConfidentialAccess(userRole) && (
                     <Crown className="w-3 h-3 text-yellow-500" />
                   )}
-                  {(userRole === UserRole.admin || userRole === UserRole.superadmin) && (
+                  {isPlatformAdmin(userRole) && (
                     <Shield className="w-3 h-3 text-red-500" />
                   )}
                 </div>

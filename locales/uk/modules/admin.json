@@ -6,6 +6,7 @@
     "title": "Керування категоріями",
     "subtitle": "Керуйте категоріями новин, кольорами та організацією"
   },
+  "fraudDeskNav": "Антифрод",
   "bulkOperations": {
     "title": "Масові операції",
     "subtitle": "Керуйте кількома статтями новин одночасно за допомогою пакетних операцій"
@@ -135,11 +136,64 @@
       "chartDesc": "Показує обсяг та якість збігів"
     }
   },
+  "webAnalytics": {
+    "title": "Веб-аналітика {projectName}",
+    "subtitle": "Моніторинг і оптимізація продуктивності екосистеми та трендів користувачів",
+    "tabs": {
+      "overview": "Огляд",
+      "webvitals": "Web Vitals",
+      "users": "Користувачі",
+      "errors": "Помилки",
+      "system": "Стан системи"
+    },
+    "empty": {
+      "noEvents": "Події ще не записані",
+      "noVitals": "Немає даних Web Vitals за цей період",
+      "noErrors": "Помилок за цей період не зафіксовано",
+      "noTraffic": "Джерела трафіку з'являться після збору переглядів сторінок",
+      "noActivity": "Остання активність з'явиться після запису подій",
+      "noDevices": "Розподіл пристроїв з'явиться після відстеження сесій"
+    },
+    "overview": {
+      "activeSessions": "Активні сесії",
+      "pageViews": "Перегляди сторінок",
+      "avgResponseTime": "Сер. час відповіді",
+      "errorRate": "Частота помилок",
+      "fromYesterday": "від учора",
+      "thisWeek": "цього тижня"
+    },
+    "webvitals": {
+      "title": "Продуктивність Core Web Vitals",
+      "subtitle": "Агреговані метрики продуктивності з клієнтських сесій"
+    },
+    "errors": {
+      "title": "Помилки клієнта",
+      "subtitle": "Помилки JavaScript та API, зафіксовані в браузерах",
+      "last24h": "За останні 24 години",
+      "recent": "Останні помилки",
+      "docsNotFound": "404 документації",
+      "docsNotFound24h": "Docs 404 (24 год)",
+      "docsNotFoundPeriod": "Docs 404 (період)"
+    },
+    "forensics": {
+      "pageUrl": "URL сторінки",
+      "referer": "Referer (звідки перейшли)",
+      "copyTrace": "Копіювати trace",
+      "copied": "Скопійовано"
+    },
+    "system": {
+      "title": "Огляд платформи",
+      "entities": "Сутності",
+      "opportunities": "Можливості",
+      "subtitle": "Основні лічильники платформи з бази даних"
+    }
+  },
   "createArticle": "Створити статтю",
   "securityCenter": "Центр безпеки",
   "dashboard": "Панель керування",
   "users": "Користувачі",
   "news": "Новини",
+  "dao": "Публічні пули",
   "newsManagement": "Керування новинами",
   "newsManagementDescription": "Керуйте статтями новин, категоріями та публікаціями на платформі",
   "analytics": "Аналітика",
@@ -243,6 +297,7 @@
     "adminBlockReason": "Заблоковано адміністратором з черги модерації matcher"
   },
   "storeHub": {
+    "products": "Товари",
     "orders": "Замовлення",
     "stock": "Залишок",
     "commissions": "Комісії",
@@ -296,6 +351,50 @@
       "default": "Платформний дефолт",
       "env": "Дефолт з env"
     },
+    "productsPage": {
+      "title": "Товари магазину",
+      "subtitle": "Каталог маркетплейсу, лістинги продавців і схвалення Main Store",
+      "tableTitle": "Каталог товарів",
+      "empty": "Немає товарів за цим фільтром.",
+      "approve": "Схвалити",
+      "reject": "Відхилити",
+      "rejectPrompt": "Причина відхилення (обовʼязково)",
+      "approvalError": "Не вдалося оновити схвалення товару",
+      "addProduct": "Додати товар",
+      "addTitle": "Додати товар магазину",
+      "addSubtitle": "Створити лістинг від імені продавця",
+      "editTitle": "Редагувати товар",
+      "editSubtitle": "Оновити деталі та лістинг Main Store",
+      "edit": "Редагувати",
+      "delist": "Зняти з продажу",
+      "delistConfirm": "Зняти товар з Main Store? Вітрина продавця може залишитися активною.",
+      "delistError": "Не вдалося зняти товар з продажу",
+      "form": {
+        "vendorOwner": "Продавець-власник",
+        "vendorOwnerPlaceholder": "Оберіть активного продавця"
+      },
+      "filters": {
+        "all": "Усі",
+        "pending": "Очікує",
+        "approved": "Схвалено",
+        "rejected": "Відхилено"
+      },
+      "approval": {
+        "none": "Не подано",
+        "pending": "Очікує",
+        "approved": "Схвалено",
+        "rejected": "Відхилено"
+      },
+      "columns": {
+        "name": "Товар",
+        "vendor": "Сутність продавця",
+        "price": "Ціна",
+        "stock": "Залишок",
+        "status": "Статус",
+        "approval": "Схвалення",
+        "actions": "Дії"
+      }
+    },
     "ordersPage": {
       "title": "Замовлення",
       "allStatuses": "Усі статуси",
@@ -341,5 +440,73 @@
     "rejectReasonRequired": "Rejection reason is required",
     "requestInfoNoteRequired": "A note is required to request more information",
     "actionFailed": "Verification action failed"
+  },
+  "processesNav": "Фонові процеси",
+  "processes": {
+    "title": "Фонові процеси",
+    "subtitle": "Моніторинг cron-пайплайнів і ручний запуск",
+    "refresh": "Оновити",
+    "loading": "Завантаження пайплайнів…",
+    "loadError": "Не вдалося завантажити пайплайни",
+    "runError": "Не вдалося запустити пайплайн",
+    "runNow": "Запустити зараз",
+    "lastRun": "Останній запуск",
+    "duration": "Тривалість",
+    "trigger": "Джерело",
+    "showHistory": "Показати історію",
+    "hideHistory": "Приховати історію",
+    "noHistory": "Запусків ще немає.",
+    "dashboardTitle": "Фонові процеси",
+    "dashboardDescription": "Моніторинг cron-завдань, історія запусків і ручний тригер",
+    "dashboardStats": "6 cron-пайплайнів · журнал запусків · SUPERADMIN",
+    "categories": {
+      "email": "Email",
+      "cleanup": "Очищення",
+      "rewards": "Винагороди",
+      "ai": "ШІ"
+    },
+    "status": {
+      "running": "Виконується",
+      "success": "Успіх",
+      "error": "Помилка",
+      "never": "Не запускався"
+    },
+    "triggers": {
+      "manual": "Вручну",
+      "cron": "Cron",
+      "autostart": "Автостарт"
+    },
+    "pipelines": {
+      "email-processor": {
+        "label": "Обробник email",
+        "description": "Опитування вхідної IMAP-скриньки та пакетна обробка листів",
+        "schedule": "Кожні 1–5 хвилин (зовнішній cron)"
+      },
+      "email-analytics": {
+        "label": "Аналітика email",
+        "description": "Агрегація метрик email CRM за останні 7 днів",
+        "schedule": "Щодня або за запитом"
+      },
+      "refcodes-mint": {
+        "label": "Мінт реферальних винагород",
+        "description": "Мінт схвалених реферальних винагород у блокчейні (пакет 20)",
+        "schedule": "Кожні 15–60 хвилин"
+      },
+      "cleanup-reservations": {
+        "label": "Очищення резервів інвентарю",
+        "description": "Звільнення прострочених резервів товарів (TTL)",
+        "schedule": "Кожні 5–15 хвилин"
+      },
+      "cleanup-usernames": {
+        "label": "Очищення резервів імен користувачів",
+        "description": "Видалення прострочених резервів username",
+        "schedule": "Кожні 5 хвилин"
+      },
+      "train": {
+        "label": "Навчання AI Matcher",
+        "description": "Збір тренувальних даних, витяг патернів і оновлення matcher",
+        "schedule": "Щоночі або щотижня"
+      }
+    }
   }
 }

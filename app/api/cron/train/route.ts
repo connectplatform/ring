@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AITrainingPipeline } from '@/lib/ai/training-pipeline'
+import { ProcessConductor } from '@/lib/processes'
+import { getPipelineDefinition } from '@/lib/processes/registry'
 
 
 export async function POST(req: NextRequest) {
@@ -10,12 +11,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const pipeline = new AITrainingPipeline()
-    const data = await pipeline.collectTrainingData()
-    const patterns = await pipeline.extractPatterns(data)
-    await pipeline.updateModels(patterns)
-    await pipeline.deployUpdates()
-    return NextResponse.json({ ok: true, examples: data.length, patterns: patterns.patterns.length })
+    const handler = getPipelineDefinition('train')?.handler
+    if (!handler) {
+      return NextResponse.json({ error: 'Pipeline not registered' }, { status: 500 })
+    }
+
+    const { result, run } = await ProcessConductor.recordRun('train', 'cron', handler)
+    if (run.status === 'error') {
+      return NextResponse.json({ ok: false, error: run.error, runId: run.id }, { status: 500 })
+    }
+
+    return NextResponse.json({ ...(result as object), runId: run.id })
   } catch (e) {
     console.error('cron/train error', e)
     return NextResponse.json({ ok: false }, { status: 500 })

@@ -1,540 +1,217 @@
 ---
 title: Prerequisites
-description: Complete prerequisites and setup requirements for Ring Platform development and deployment
-last_modified: "2025-10-16"
+description: Verified system, Node, PostgreSQL, and environment requirements before installing a Ring Platform clone
+last_modified: "2026-06-22"
+audience: both
 ---
-
 
 # Prerequisites
 
-This comprehensive guide covers all requirements for setting up Ring Platform for development and production deployment. Ring Platform is built with modern web technologies and requires specific system configurations for optimal performance.
-
-<Callout type="info" title="⏱️ Estimated Setup Time">
-**15-30 minutes** for complete setup, depending on your experience level and internet connection.
+<Callout type="info">
+  Filter with **Founder** / **Developer** in the docs sidebar. This page lists what you need **before** [Installation](/docs/getting-started/installation). Versions match `INSTALL.md`, `install.sh`, and `env.local.template` — not legacy Node 18 guidance.
 </Callout>
 
-## 🖥️ System Requirements
+Ring Platform v1.6+ is a **Next.js 16 + React 19** app with a **mandatory** `DB_BACKEND_MODE`. Production-parity local dev uses **PostgreSQL-primary** (`k8s-postgres-fcm`); Firestore-only (`firebase-full`) is a narrower prototype path.
 
-### Minimum Hardware Requirements
+## At a glance
 
-| Component | Development | Production |
-|-----------|-------------|------------|
-| **CPU** | 4 cores (Intel i5/AMD Ryzen 5) | 8+ cores (Intel i7/AMD Ryzen 7) |
-| **RAM** | 8GB | 16GB+ |
-| **Storage** | 10GB free space | 50GB+ SSD |
-| **Network** | 10 Mbps | 100 Mbps+ |
+| Requirement | Verified baseline | Notes |
+|-------------|-------------------|--------|
+| **Node.js** | **v20+** (`install.sh` check; v22+ recommended in `INSTALL.md`) | Custom dev server: `node --import tsx server.ts` |
+| **npm** | **10+** | `pnpm` / `yarn` also work per installation guide |
+| **Git** | Any recent version | Clone [connectplatform/ring](https://github.com/connectplatform/ring) |
+| **PostgreSQL** | **14+** (16 Docker image; **18** recommended for Homebrew dev) | DB `ring_platform`, user `ring_user` |
+| **PostGIS** | Optional | Location-heavy clones; safe to skip initially |
+| **Disk / RAM** | ~4 GB RAM, ~10 GB free disk for dev | Full monorepo + `node_modules` |
+| **Ports** | `3000` (app), `5432` (Postgres) | Native WSS on same host via `server.ts` when self-hosted |
 
-### Supported Operating Systems
+<Audience for="founder">
 
-- **macOS**: 12.0+ (Monterey or later)
-- **Linux**: Ubuntu 20.04+, CentOS 8+, Debian 11+
-- **Windows**: 10/11 with WSL2 (Windows Subsystem for Linux)
-- **Docker**: For containerized development and deployment
+## What founders need before ringizing
 
-<Callout type="warning" title="Windows Users">
-While Ring Platform works on Windows with WSL2, we recommend using Linux or macOS for the best development experience. Some features may have limited Windows support.
+You are preparing a **white-label clone** — branding in `ring-config.json`, secrets in `.env.local`, and (for production features) a Postgres database with schema applied.
+
+### MVP vs production-ready
+
+<Cards>
+  <Card title="Explore UI locally" href="/docs/getting-started/installation">
+    Node 20+, `install.sh --quick`, Postgres **or** short-lived `firebase-full` prototype — see [Database selection](/docs/customization/database-selection).
+  </Card>
+  <Card title="Production-parity clone" href="/docs/getting-started/migrations">
+    **Postgres-primary** + `data/schema.sql` v4+ + kingdom migrations — required for store, PaymentConductor, News Kingdom depth.
+  </Card>
+  <Card title="Sign-in for testers" href="/docs/features/authentication">
+    At least one Auth.js provider: Google OAuth, Apple, or Resend magic link (`AUTH_RESEND_KEY`).
+  </Card>
+  <Card title="Payments later" href="/docs/features/payment-conductor">
+    WayForPay / Stripe credentials — **not** required for first `npm run dev`; add before checkout.
+  </Card>
+</Cards>
+
+### Honest time budget
+
+| Path | Time | Outcome |
+|------|------|---------|
+| `./install.sh --quick` + existing Postgres | ~20–40 min | Env scaffold; you still apply schema + OAuth |
+| Full Postgres-primary bootstrap | 45–90 min | Matches ring-platform.org dev stack |
+| `firebase-full` prototype | ~15–30 min | Skips ERP / conductor depth |
+
+<Callout type="warning">
+  **Ringdom-managed hosting** skips most of this checklist — settlers receive a configured cluster. Self-hosters on GitHub follow this section ([OSS vs enterprise](/docs/development/oss-vs-enterprise)).
 </Callout>
 
-## 🟢 Node.js & Package Management
+</Audience>
 
-### Required Versions
+<Audience for="developer">
 
-Ring Platform requires **Node.js 18.17+** and **npm 8.19+** (or equivalent package managers).
+## Toolchain
 
-Check current versions
+### Node.js and package manager
 
-<Code language="bash" title="terminal">
-{`node --version    # Should show v18.17.0 or higher
-npm --version     # Should show 8.19.0 or higher`}
-</Code>
+<Code language="bash" title="Verify versions">{`node --version   # v20.0.0+ (v22+ recommended)
+npm --version    # 10+`}</Code>
 
-### Recommended Setup
+`install.sh` fails early if Node is below v20. Use nvm, fnm, or official installers — see `INSTALL.md`.
 
-#### Option 1: Node Version Manager (Recommended)
+### PostgreSQL
 
-**macOS/Linux with nvm:**
+Default connection (from `env.local.template`):
 
-Install nvm:
+<Code language="bash" title=".env.local excerpt">{`DB_BACKEND_MODE=k8s-postgres-fcm
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ring_platform
+DB_USER=ring_user
+DB_PASSWORD=ring_password_2024
+# or: DATABASE_URL=postgresql://ring_user:ring_password_2024@localhost:5432/ring_platform`}</Code>
 
-<Code language="bash" title="terminal">
-{`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash`}
-</Code>
+Quick Docker dev database (matches [Installation](/docs/getting-started/installation)):
 
-Restart terminal or run:
+<Code language="bash" title="postgres:16-alpine">{`docker run -d --name ring-postgres-dev \\
+  -e POSTGRES_USER=ring_user \\
+  -e POSTGRES_PASSWORD=ring_password_2024 \\
+  -e POSTGRES_DB=ring_platform \\
+  -p 5432:5432 \\
+  postgres:16-alpine`}</Code>
 
-<Code language="bash" title="terminal">
-{`source ~/.bashrc`}
-</Code>
+Apply `data/schema.sql` then kingdom migrations — [Database migrations](/docs/getting-started/migrations).
 
-Install and use Node.js 18:
+### Backend mode (required)
 
-<Code language="bash" title="terminal">
-{`nvm install 18
-nvm use 18
-nvm alias default 18`}
-</Code>
+Set **`DB_BACKEND_MODE`** before first boot:
 
-**Windows with nvm-windows:**
+| Value | When |
+|-------|------|
+| `k8s-postgres-fcm` | **Default** — Postgres app data + optional FCM push |
+| `supabase-fcm` | Postgres on Supabase |
+| `firebase-full` | Firestore prototype only |
 
-Download and install from https://github.com/coreybutler/nvm-windows/releases
+See [Backend modes](/docs/architecture/backend-modes-and-databases). **`DATABASE_MODE` is removed** — do not document or set it.
 
-Then install Node.js 18:
+### Minimum environment variables
 
-<Code language="powershell" title="terminal">
-{`nvm install 18
-nvm use 18`}
-</Code>
+<Code language="bash" title="First boot minimum">{`cp env.local.template .env.local
+# install.sh generates AUTH_SECRET and WALLET_ENCRYPTION_KEY
 
-#### Option 2: Official Installers
+AUTH_SECRET=...                    # required — npx @better-auth/cli secret
+DB_BACKEND_MODE=k8s-postgres-fcm
+DB_* or DATABASE_URL               # required for postgres modes
 
-Download from [nodejs.org](https://nodejs.org/) and install Node.js 18 LTS.
+# At least one sign-in path:
+AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
+# and/or AUTH_APPLE_* 
+# and/or AUTH_RESEND_KEY (+ Postgres adapter for magic link)`}</Code>
 
-#### Option 3: Package Managers
+Providers registered in `auth.ts`: **Resend** (when adapter + key), **Google** OAuth, **Google One Tap** (Credentials), **Apple**, wallet/crypto credentials. GitHub/Discord OAuth are **not** in the default `auth.ts` provider list.
 
-**macOS with Homebrew:**
-<Code language="bash" title="terminal">
-{`brew install node@18
-brew link node@18`}
-</Code>
+Optional for later features:
 
-**Ubuntu/Debian:**
-<Code language="bash" title="terminal">
-{`curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs`}
-</Code>
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob uploads  
+- `WAYFORPAY_*` / `STRIPE_*` — PaymentConductor  
+- `NEXT_PUBLIC_FIREBASE_*` + service account — FCM push (not Firestore DB on postgres-primary)  
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` — AI matcher / Email CRM  
 
-### Package Manager Configuration
+Never commit `.env.local`. See [Environment configuration](/docs/deployment/environment).
 
-Configure npm for better performance Optional: Use yarn for faster installs
-
-<Code language="bash" title="terminal">
-{`npm config set fund false
-npm config set audit false
-
-npm install -g yarn`}
-</Code>
-
-## 🗄️ Database Setup
-
-Ring Platform supports multiple database backends with **PostgreSQL as the primary recommendation**.
-
-### Option 1: PostgreSQL (Recommended for Production)
-
-#### Local Development Setup
-
-**macOS with Homebrew:**
-Create database
-
-<Code language="bash" title="terminal">
-{`brew install postgresql@15
-brew services start postgresql@15
-
-createdb ring_platform`}
-</Code>
-
-**Ubuntu/Debian:**
-Start service Create database
-
-<Code language="bash" title="terminal">
-{`sudo apt update
-sudo apt install postgresql postgresql-contrib
-
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-sudo -u postgres createdb ring_platform`}
-</Code>
-
-**Docker (Cross-platform):**
-Run PostgreSQL in Docker:
-
-For persistent data:
-
-<Code language="bash" title="terminal">
-{`docker run --name ring-postgres \
-  -e POSTGRES_DB=ring_platform \
-  -e POSTGRES_USER=ring_user \
-  -e POSTGRES_PASSWORD=your_password \
-  -p 5432:5432 \
-  -d postgres:15
-
-docker run --name ring-postgres \
-  -e POSTGRES_DB=ring_platform \
-  -e POSTGRES_USER=ring_user \
-  -e POSTGRES_PASSWORD=your_password \
-  -v ring_data:/var/lib/postgresql/data \
-  -p 5432:5432 \
-  -d postgres:15`}
-</Code>
-
-#### Cloud PostgreSQL Options
-
-- **Supabase**: Managed PostgreSQL with real-time features
-- **Neon**: Serverless PostgreSQL
-- **AWS RDS**: Enterprise PostgreSQL hosting
-- **Google Cloud SQL**: Managed PostgreSQL service
-- **Azure Database**: Microsoft PostgreSQL offering
-
-### Option 2: Firebase (Development/Legacy)
-
-While Firebase is still supported for compatibility, **PostgreSQL is strongly recommended** for new deployments.
-
-<Code language="bash" title="terminal">
-{`# Firebase setup will be covered in environment configuration`}
-</Code>
-
-## 🔐 Authentication Providers
-
-Ring Platform uses **Auth.js v5** with multiple OAuth providers for secure authentication.
-
-### Google OAuth Setup
-
-1. **Create Google Cloud Project**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
-
-2. **Enable Google+ API**
-   - Navigate to "APIs & Services" > "Library"
-   - Search for "Google+ API" and enable it
-
-3. **Create OAuth Credentials**
-   - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
-   - Choose "Web application"
-   - Add authorized origins:
-     - `http://localhost:3000` (development)
-     - `https://yourdomain.com` (production)
-   - Add authorized redirect URIs:
-     - `http://localhost:3000/api/auth/callback/google`
-     - `https://yourdomain.com/api/auth/callback/google`
-
-4. **Get Client ID and Secret**
-   - Copy the Client ID and Client Secret
-
-### Apple Sign-in Setup (Optional)
-
-Required for iOS app integration:
-
-1. **Apple Developer Account**
-   - Paid developer account ($99/year)
-   - Access to [Apple Developer Portal](https://developer.apple.com/)
-
-2. **Create App ID**
-   - Certificates, Identifiers & Profiles > Identifiers
-   - Create new App ID with Sign in with Apple capability
-
-3. **Create Service ID**
-   - Create Services ID for web authentication
-   - Configure return URLs for your domain
-
-4. **Generate Private Key**
-   - Create new key with Sign in with Apple capability
-   - Download the `.p8` file (keep secure!)
-
-### Additional OAuth Providers (Optional)
-
-- **GitHub**: Developer-focused authentication
-- **Discord**: Community platform integration
-- **Twitter/X**: Social media authentication
-
-## 🔑 Web3 Wallet Integration
-
-For blockchain features including NFT marketplace and RING token operations.
-
-### MetaMask Setup
-
-Install MetaMask browser extension:
-
-Visit: https://metamask.io/download/
-
-Or install via package manager:
-
-**macOS/Linux:**
-
-Download from official website
-
-<Code language="bash" title="terminal">
-{`brew install --cask metamask`}
-</Code>
-
-### Wallet Encryption Key
-
-Generate a secure encryption key for wallet operations:
-
-Generate 256-bit (32-byte) hex key Example output: a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef
-
-<Code language="bash" title="terminal">
-{`openssl rand -hex 32`}
-</Code>
-
-## 💰 Payment Integration (WayForPay)
-
-Required for store checkout and premium features.
-
-### WayForPay Account Setup
-
-1. **Create Merchant Account**
-   - Visit [WayForPay](https://wayforpay.com/)
-   - Register as a merchant
-   - Complete KYC verification
-
-2. **Get API Credentials**
-   - Login to merchant dashboard
-   - Navigate to API settings
-   - Copy Merchant Account and Secret Key
-
-3. **Configure Payment Methods**
-   - Enable card payments
-   - Configure Apple Pay / Google Pay
-   - Set up currency support (UAH, USD, EUR)
-
-## 🛠️ Development Tools
-
-### Essential Tools
-
-Install Git (if not already installed):
-
-Install development dependencies:
-
-Optional: Install VS Code extensions:
-- TypeScript and JavaScript Language Features
-- Tailwind CSS IntelliSense
-- Prettier - Code formatter
-- ESLint
-
-<Code language="bash" title="terminal">
-{`git --version
-
-npm install -g typescript @types/node`}
-</Code>
-
-### Recommended IDE Setup
-
-**Visual Studio Code** with these extensions:
-- `ms-vscode.vscode-typescript-next`
-- `bradlc.vscode-tailwindcss`
-- `esbenp.prettier-vscode`
-- `dbaeumer.vscode-eslint`
-- `ms-vscode.vscode-json`
-
-### Environment File Template
-
-Create `.env.local` from the provided template:
-
-<Code language="bash" title="terminal">
-{`# cp env.local.template .env.local`}
-</Code>
-
-## 🌐 Network Requirements
-
-### Development
-- **Internet Connection**: Required for package installation and OAuth testing
-- **Local Ports**: 3000 (Next.js), 5432 (PostgreSQL)
-- **Firewall**: Allow outbound HTTPS connections
-
-### Production
-- **SSL Certificate**: Required for HTTPS (Let's Encrypt recommended)
-- **Domain**: Custom domain recommended
-- **CDN**: Optional but recommended for static assets
-- **WebSocket Support**: Required for real-time features
-
-## 🔒 Security Considerations
-
-### Environment Variables
-
-Never commit sensitive data to version control:
-
-.env.local (development - keep local) .env.production (production - set via deployment platform) Same variables but with production values
-
-<Code language="bash" title="terminal">
-{`AUTH_SECRET=your-auth-secret
-AUTH_GOOGLE_ID=your-google-client-id
-AUTH_GOOGLE_SECRET=your-google-client-secret
-WALLET_ENCRYPTION_KEY=your-32-byte-hex-key`}
-</Code>
-
-### File Permissions
-
-Secure environment files Secure private keys
-
-<Code language="bash" title="terminal">
-{`chmod 600 .env.local
-chmod 600 .env.production
-
-chmod 400 path/to/private-key.pem`}
-</Code>
-
-## 🧪 Validation Checklist
-
-Run these commands to verify your setup:
+### Validation checklist
 
 <Steps>
 <Step>
 
-### System Validation
+### System
 
-Check Node.js and npm:
-
-Check system resources:
-
-Check network connectivity:
-
-<Code language="bash" title="terminal">
-{`node --version        # v18.17.0+
-npm --version         # 8.19.0+
-
-df -h                 # Disk space
-free -h              # Memory (Linux)
-vm_stat              # Memory (macOS)
-
-curl -I https://registry.npmjs.org/`}
-</Code>
+<Code language="bash" title="terminal">{`node --version && npm --version
+curl -fsS -o /dev/null https://registry.npmjs.org/ || echo "npm registry unreachable"`}</Code>
 
 </Step>
-
 <Step>
 
-### Database Validation
+### Database
 
-**PostgreSQL:**
-Test connection Or with Docker
-
-<Code language="bash" title="terminal">
-{`psql -h localhost -U ring_user -d ring_platform -c "SELECT version();"
-
-docker exec -it ring-postgres psql -U ring_user -d ring_platform -c "SELECT 1;"`}
-</Code>
-
-**Firebase (if using):**
-Check Firebase CLI:
-
-Login to Firebase:
-
-<Code language="bash" title="terminal">
-{`firebase --version
-
-firebase login`}
-</Code>
+<Code language="bash" title="terminal">{`psql "$DATABASE_URL" -c "SELECT version();"
+# or:
+docker exec ring-postgres-dev psql -U ring_user -d ring_platform -c "SELECT 1;"`}</Code>
 
 </Step>
-
 <Step>
 
-### OAuth Validation
+### Health (after install)
 
-Test Google OAuth credentials format:
+<Code language="bash" title="after npm run dev">{`curl -sS http://localhost:3000/api/health | jq .status`}</Code>
 
-Test Apple credentials (if using):
-
-Validate URLs are accessible:
-
-<Code language="bash" title="terminal">
-{`echo $AUTH_GOOGLE_ID | grep -E "^[0-9]+\-[a-zA-Z0-9_]+\.apps\.googleusercontent\.com$"
-
-echo $AUTH_APPLE_ID | grep -E "^com\."
-
-curl -s -o /dev/null -w "%{http_code}" https://accounts.google.com`}
-</Code>
-
-</Step>
-
-<Step>
-
-### Web3 Validation
-
-Check wallet encryption key format:
-
-Test MetaMask installation (manual):
-
-Open browser and check for MetaMask extension:
-
-<Code language="bash" title="terminal">
-{`echo $WALLET_ENCRYPTION_KEY | grep -E "^[a-f0-9]{64}$"`}
-</Code>
+Expect `"healthy"` when `AUTH_SECRET` is set. See [Monitoring](/docs/deployment/monitoring).
 
 </Step>
 </Steps>
 
-## 🐛 Troubleshooting Common Issues
+### Optional: Docker-only stack
 
-### Node.js Version Issues
+Docker Compose can run the app + Redis; Postgres is often a separate container or host service. Monitoring profile adds Prometheus/Grafana — see caveats in [Monitoring](/docs/deployment/monitoring).
 
-If you see "Node.js version not supported":
+</Audience>
 
-<Code language="bash" title="terminal">
-{`nvm install 18
-nvm use 18
+## Next steps
 
-# Clear npm cache
-npm cache clean --force
-rm -rf node_modules package-lock.json
-npm install`}
-</Code>
+<Cards>
+  <Card title="Installation" href="/docs/getting-started/installation">
+    `install.sh`, schema apply, `npm run dev`
+  </Card>
+  <Card title="First success" href="/docs/getting-started/first-success">
+    Smoke-test checklist after boot
+  </Card>
+  <Card title="Troubleshooting" href="/docs/getting-started/troubleshooting">
+    Common install failures
+  </Card>
+</Cards>
 
-### Database Connection Issues
-
-**PostgreSQL:**
-Check if PostgreSQL is running:
-
-Reset PostgreSQL password:
-
-<Code language="bash" title="terminal">
-{`sudo systemctl status postgresql  # Linux
-brew services list | grep postgresql  # macOS
-
-sudo -u postgres psql
-ALTER USER ring_user PASSWORD 'new_password';`}
-</Code>
-
-**Firebase:**
-Re-authenticate Firebase Check project access
-
-<Code language="bash" title="terminal">
-{`firebase logout
-firebase login
-
-firebase projects:list`}
-</Code>
-
-### OAuth Configuration Issues
-
-<Code language="bash" title="terminal">
-{`# Google OAuth errors
-# 1. Check authorized origins include your domain
-# 2. Verify redirect URIs match exactly
-# 3. Ensure Google+ API is enabled
-
-# Apple Sign-in errors
-# 1. Verify App ID and Service ID match
-# 2. Check private key format and permissions
-# 3. Validate return URLs in Apple Developer portal`}
-</Code>
-
-### Network and Firewall Issues
-
-Test connectivity to required services Check DNS resolution Test on different network if issues persist
-
-<Code language="bash" title="terminal">
-{`curl -I https://accounts.google.com
-curl -I https://api.github.com
-curl -I https://registry.npmjs.org/
-
-nslookup accounts.google.com`}
-</Code>
-
-## 📚 Next Steps
-
-Once all prerequisites are met:
-
-1. **[Installation Guide](/en/docs/getting-started/installation)** - Clone and set up the project
-2. **[Environment Configuration](/en/docs/getting-started/installation#3-configure-environment)** - Complete your `.env.local` setup
-3. **[First Success Validation](/en/docs/getting-started/first-success)** - Test your installation
-4. **[Development Workflow](/en/docs/development/workflow)** - Start contributing
-
-<Callout type="success" title="✅ Ready to Proceed">
-If all validations pass, you're ready to install Ring Platform! Head to the [Installation Guide](/en/docs/getting-started/installation) to get started.
+<Callout type="success">
+  Prerequisites met? Continue to [Installation](/docs/getting-started/installation).
 </Callout>
 
----
+<FutureFeatureBacklog title="Backlog — prerequisites (TBD)">
 
-*Need help with setup? Join our [Discord Community](https://discord.gg/ring-platform) for support.*
+<FutureFeatureWidget
+  name="GitHub OAuth as default provider"
+  description="Pre-wired GitHub sign-in in env.local.template — legacy doc listed it as required; clone uses Google/Apple/email per ring-config."
+  implementationCost={8}
+  labels={['auth', 'onboarding']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Discord community gate"
+  description="Mandatory Discord join before first login — removed fictional onboarding requirement."
+  implementationCost={16}
+  labels={['community', 'onboarding']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Node 18 LTS pin"
+  description="Document and CI matrix for Node 18 — platform baseline is Node 20+ (engines in package.json)."
+  implementationCost={4}
+  labels={['tooling']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

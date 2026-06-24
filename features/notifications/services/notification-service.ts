@@ -36,38 +36,86 @@ import { FCMService } from './fcm-service';
 const fcmService = new FCMService();
 
 /**
- * PHASE 1: Publish unread count updates via tunnel for real-time UI updates
+ * PHASE 1: Publish unread count + inbox push via tunnel for real-time UI updates
  */
+async function publishUnreadCountForUser(userId: string): Promise<void> {
+  try {
+    const { publishToUserTunnel } = await import('@/lib/tunnel/publisher');
+    const countResult = await db().countDocs('notifications', [
+      { field: 'user_id', operator: '==', value: userId },
+      { field: 'read_at', operator: '==', value: null },
+    ]);
+    const unreadCount = countResult.success ? (countResult.data ?? 0) : 0;
+    await publishToUserTunnel(userId, 'notifications:unread', {
+      unreadCount,
+      timestamp: Date.now(),
+    });
+  } catch (userError) {
+    console.warn(`NotificationService: Failed to publish unread count for user ${userId}:`, userError);
+  }
+}
+
 async function publishUnreadCountUpdates(notifications: Notification[]): Promise<void> {
   try {
-    // Get unique user IDs from notifications
-    const userIds = [...new Set(notifications.map(n => n.userId))];
+    const userIds = [...new Set(notifications.map((n) => n.userId))];
+    await Promise.allSettled(userIds.map((userId) => publishUnreadCountForUser(userId)));
+  } catch (error) {
+    console.error('NotificationService: Error publishing tunnel unread updates:', error);
+  }
+}
 
-    // For each user, calculate unread count and publish via tunnel
-    for (const userId of userIds) {
-      try {
-        // Get current unread count for this user
-        const countResult = await db().countDocs('notifications', [
-          { field: 'user_id', operator: '==', value: userId },
-          { field: 'read_at', operator: '==', value: null }
-        ]);
-        const unreadCount = countResult.success ? (countResult.data ?? 0) : 0;
+function toInboxNotificationPayload(notification: Notification) {
+  return {
+    id: notification.id,
+    userId: notification.userId,
+    title: notification.title,
+    body: notification.body,
+    type: notification.type,
+    priority: notification.priority,
+    status: notification.status,
+    trigger: notification.trigger,
+    channels: notification.channels,
+    actionText: notification.actionText,
+    actionUrl: notification.actionUrl,
+    createdAt: notification.createdAt,
+    readAt: notification.readAt ?? null,
+    data: notification.data ?? {},
+  };
+}
 
-        // Publish update via tunnel
-        const { publishToUserTunnel } = await import('@/lib/tunnel/publisher');
-        await publishToUserTunnel(userId, 'notifications:unread', {
-          unreadCount,
-          timestamp: Date.now()
-        });
+type InboxTunnelAction = 'notification' | 'read' | 'read_all' | 'delete';
 
-        console.log(`NotificationService: Published unread count ${unreadCount} for user ${userId}`);
-      } catch (userError) {
-        console.warn(`NotificationService: Failed to publish for user ${userId}:`, userError);
-      }
+async function publishInboxEvent(
+  userId: string,
+  event: {
+    action: InboxTunnelAction;
+    notificationId?: string;
+    notification?: Notification;
+  },
+): Promise<void> {
+  try {
+    const { publishToUserTunnel } = await import('@/lib/tunnel/publisher');
+    await publishToUserTunnel(userId, 'notifications:inbox', {
+      action: event.action,
+      notificationId: event.notificationId,
+      notification: event.notification ? toInboxNotificationPayload(event.notification) : undefined,
+      timestamp: Date.now(),
+    });
+  } catch (userError) {
+    console.warn(`NotificationService: Failed to publish inbox event for user ${userId}:`, userError);
+  }
+}
+
+async function publishInboxUpdates(notifications: Notification[]): Promise<void> {
+  try {
+    for (const notification of notifications) {
+      await publishInboxEvent(notification.userId, {
+        action: 'notification',
+        notification,
+      });
     }
   } catch (error) {
-    console.error('NotificationService: Error publishing tunnel updates:', error);
-    // Don't throw - tunnel publishing failure shouldn't break notifications
+    console.error('NotificationService: Error publishing tunnel inbox updates:', error);
   }
 }
 
@@ -159,6 +207,7 @@ export async function createNotification(
     // PHASE 1: Publish unread count updates via tunnel for real-time updates
     try {
       await publishUnreadCountUpdates(notifications);
+      await publishInboxUpdates(notifications);
     } catch (tunnelError) {
       console.warn('NotificationService: Failed to publish tunnel updates:', tunnelError);
       // Don't fail the notification creation if tunnel publishing fails
@@ -308,6 +357,16 @@ export async function markNotificationAsRead(
       throw new Error('Failed to update notification');
     }
 
+    try {
+      await publishUnreadCountForUser(userId);
+      await publishInboxEvent(userId, {
+        action: 'read',
+        notificationId,
+      });
+    } catch (tunnelError) {
+      console.warn('NotificationService: Failed to publish tunnel updates after mark read:', tunnelError);
+    }
+
   } catch (error) {
     console.error('NotificationService: Error marking notification as read:', error);
     throw new Error(`Failed to mark notification as read: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -349,6 +408,14 @@ export async function markAllNotificationsAsRead(userId: string): Promise<number
     await Promise.all(updatePromises);
 
     console.log(`NotificationService: Marked ${queryResult.data.length} notifications as read`);
+
+    try {
+      await publishUnreadCountForUser(userId);
+      await publishInboxEvent(userId, { action: 'read_all' });
+    } catch (tunnelError) {
+      console.warn('NotificationService: Failed to publish tunnel updates after mark all read:', tunnelError);
+    }
+
     return queryResult.data.length;
 
   } catch (error) {
@@ -385,6 +452,13 @@ export async function deleteNotification(
     const deleteResult = await db().deleteDoc('notifications', notificationId);
     if (!deleteResult.success) {
       throw new Error('Failed to delete notification');
+    }
+
+    try {
+      await publishUnreadCountForUser(userId);
+      await publishInboxEvent(userId, { action: 'delete', notificationId });
+    } catch (tunnelError) {
+      console.warn('NotificationService: Failed to publish tunnel updates after delete:', tunnelError);
     }
 
   } catch (error) {

@@ -1,4 +1,4 @@
-import { UserRole } from '@/features/auth/types'
+import { parseUserRole, resolveSessionUserRole } from '@/features/auth/user-role'
 import { createUser } from '@/features/auth/services/create-user'
 import { db } from '@/lib/database'
 import { withMcpGuard } from '@/app/api/mcp/v1/_lib/guard'
@@ -31,10 +31,12 @@ export const POST = withMcpGuard(async (request) => {
   const body = await readJsonBody(request)
   if (!body?.email || !body?.name) return mcpError('email and name are required', 400)
 
+  const role = parseUserRole(body.role) ?? resolveSessionUserRole(body.role)
+
   const user = await createUser({
     email: String(body.email),
     name: String(body.name),
-    role: (body.role as UserRole) || UserRole.subscriber,
+    role,
   })
 
   if (!user) return mcpError('Failed to create user', 400)

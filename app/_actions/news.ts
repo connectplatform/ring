@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 import { NewsArticle, NewsCategory, NewsStatus, NewsVisibility, NewsSEO } from '@/features/news/types'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin, assertKnownUserRole } from '@/features/auth/user-role'
 
 export interface ArticleFormState {
   success?: boolean
@@ -28,8 +28,8 @@ export async function saveArticle(
     }
 
     // Check admin role
-    const userRole = (session.user as any)?.role as UserRole
-    if (!userRole || userRole !== UserRole.admin) {
+    const userRole = assertKnownUserRole(session.user.role)
+    if (!isPlatformAdmin(userRole)) {
       return {
         error: 'Admin access required to manage news articles'
       }

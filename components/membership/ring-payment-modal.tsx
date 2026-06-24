@@ -15,14 +15,26 @@ import {
   AlertTriangle,
   Loader2,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
+import { useRouter } from 'next/navigation'
+import {
+  getMembershipRingUpgradeAmount,
+  getMembershipRingRenewalAmount,
+} from '@/lib/membership/pricing'
+import { ROUTES } from '@/constants/routes'
+import type { Locale } from '@/i18n/shared'
+
+import { getClientCreditCurrencyCode } from '@/lib/payments/credit-currency-client'
+
+export type MembershipPaymentRail = 'account_credit' | 'on_chain_ring'
 
 interface RingPaymentModalProps {
   onClose: () => void
   onSuccess?: () => void
   paymentType: 'membership_upgrade' | 'subscription_renewal' | 'membership_fee'
+  paymentRail?: MembershipPaymentRail
   returnTo?: string
 }
 
@@ -42,9 +54,13 @@ export function RingPaymentModal({
   onClose, 
   onSuccess, 
   paymentType,
+  paymentRail = 'account_credit',
   returnTo 
 }: RingPaymentModalProps) {
   const t = useTranslations('modules.membership')
+  const locale = useLocale() as Locale
+  const router = useRouter()
+  const creditCurrency = getClientCreditCurrencyCode()
   const { balance, refresh } = useCreditBalanceContext()
   
   const [autoSubscribe, setAutoSubscribe] = useState(true)
@@ -52,6 +68,7 @@ export function RingPaymentModal({
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string; benefits?: string[] } | null>(null)
   const [paymentInfo, setPaymentInfo] = useState<any>(null)
   const [isLoadingInfo, setIsLoadingInfo] = useState(true)
+  const [onChainBalance, setOnChainBalance] = useState('0')
 
   // Load payment information
   useEffect(() => {
@@ -72,6 +89,21 @@ export function RingPaymentModal({
     loadPaymentInfo()
   }, [paymentType])
 
+  useEffect(() => {
+    if (paymentRail !== 'on_chain_ring') return
+    void (async () => {
+      try {
+        const res = await fetch('/api/wallet/ring/balance', { cache: 'no-store' })
+        if (res.ok) {
+          const data = (await res.json()) as { balance?: string }
+          setOnChainBalance(data.balance ?? '0')
+        }
+      } catch {
+        setOnChainBalance('0')
+      }
+    })()
+  }, [paymentRail])
+
   const memberBenefits = [
     t('benefits.confidential_access', { defaultValue: 'Access to confidential opportunities' }),
     t('benefits.priority_support', { defaultValue: 'Priority customer support' }),
@@ -80,12 +112,18 @@ export function RingPaymentModal({
     t('benefits.analytics', { defaultValue: 'Analytics dashboard access' }),
   ]
 
+  const upgradeRingAmount = getMembershipRingUpgradeAmount()
+  const renewalRingAmount = getMembershipRingRenewalAmount()
+
   const paymentOptions: Record<string, PaymentOption> = {
     membership_upgrade: {
       type: 'membership_upgrade',
       title: t('payment.upgrade.title', { defaultValue: 'Upgrade to Member' }),
       description: t('payment.upgrade.description', { defaultValue: 'Unlock all Member features with RING tokens' }),
-      cost: { ring_amount: '1.0', usd_equivalent: '1.00' },
+      cost: {
+        ring_amount: upgradeRingAmount.toFixed(2),
+        usd_equivalent: paymentInfo?.pricing?.membership_fee?.usd_equivalent ?? upgradeRingAmount.toFixed(2),
+      },
       benefits: memberBenefits,
       recommended: true,
     },
@@ -93,22 +131,33 @@ export function RingPaymentModal({
       type: 'subscription_renewal',
       title: t('payment.renewal.title', { defaultValue: 'Renew Subscription' }),
       description: t('payment.renewal.description', { defaultValue: 'Extend your membership for another month' }),
-      cost: { ring_amount: '1.0', usd_equivalent: '1.00' },
+      cost: {
+        ring_amount: renewalRingAmount.toFixed(2),
+        usd_equivalent: paymentInfo?.pricing?.membership_fee?.usd_equivalent ?? renewalRingAmount.toFixed(2),
+      },
       benefits: [t('payment.renewal.restore_access', { defaultValue: 'Restore full Member access' })],
     },
     membership_fee: {
       type: 'membership_fee',
       title: t('payment.fee.title', { defaultValue: 'Pay Membership Fee' }),
       description: t('payment.fee.description', { defaultValue: 'One-time membership payment' }),
-      cost: { ring_amount: '1.0', usd_equivalent: '1.00' },
+      cost: {
+        ring_amount: upgradeRingAmount.toFixed(2),
+        usd_equivalent: paymentInfo?.pricing?.membership_fee?.usd_equivalent ?? upgradeRingAmount.toFixed(2),
+      },
       benefits: [t('payment.fee.no_subscription', { defaultValue: 'No automatic renewals' })],
     },
   }
 
   const currentOption = paymentOptions[paymentType]
-  const currentBalance = parseFloat(balance?.amount || '0')
+  const currentBalance =
+    paymentRail === 'on_chain_ring'
+      ? parseFloat(onChainBalance || '0')
+      : parseFloat(balance?.amount || '0')
   const requiredAmount = parseFloat(currentOption.cost.ring_amount)
   const hasSufficientBalance = currentBalance >= requiredAmount
+  const balanceLabel =
+    paymentRail === 'on_chain_ring' ? 'RING' : creditCurrency
 
   const handlePayment = async () => {
     if (!hasSufficientBalance) return
@@ -119,6 +168,7 @@ export function RingPaymentModal({
     try {
       const requestBody = {
         type: paymentType,
+        rail: paymentRail,
         auto_subscribe: autoSubscribe && paymentType === 'membership_upgrade',
       }
 
@@ -248,7 +298,7 @@ export function RingPaymentModal({
                         {t('payment.current_balance', { defaultValue: 'Current Balance' })}
                       </p>
                       <p className="font-medium">
-                        {balance?.amount || '0'} RING
+                        {balance?.amount || onChainBalance || '0'} {balanceLabel}
                       </p>
                     </div>
                     <div className="text-right">
@@ -266,8 +316,9 @@ export function RingPaymentModal({
                       <AlertTriangle className="h-4 w-4 text-orange-600" />
                       <AlertDescription className="text-orange-800">
                         {t('payment.insufficient_balance', { 
-                          defaultValue: 'Insufficient balance. You need {shortfall} more RING tokens.',
-                          shortfall: (requiredAmount - currentBalance).toFixed(2)
+                          defaultValue: 'Insufficient balance. You need {shortfall} more {unit}.',
+                          shortfall: (requiredAmount - currentBalance).toFixed(2),
+                          unit: balanceLabel,
                         })}
                       </AlertDescription>
                     </Alert>
@@ -353,10 +404,7 @@ export function RingPaymentModal({
                   </Button>
                 ) : (
                   <Button 
-                    onClick={() => {
-                      // TODO: Open top-up modal
-                      window.location.href = '/profile/wallet'
-                    }}
+                    onClick={() => router.push(ROUTES.WALLET_TOPUP(locale))}
                     className="flex-1"
                     variant="default"
                   >

@@ -17,6 +17,17 @@ import {
   UserProjectFeedback
 } from '@/features/auth/types';
 import { db } from '@/lib/database';
+import {
+  toAchievementDbRow,
+  toCartHistoryDbRow,
+  toEngagementDbRow,
+  toFavoriteDbRow,
+  toFeedbackDbRow,
+  toInteractionDbRow,
+  toNotificationDbRow,
+  toSearchHistoryDbRow,
+  toSessionDbRow,
+} from '@/features/auth/services/project-user-data-mappers';
 
 /**
  * Project-specific user data service implementation
@@ -44,7 +55,7 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         createdAt: new Date()
       };
 
-      const result = await db().createDoc('user_project_sessions', session);
+      const result = await db().createDoc('user_project_sessions', toSessionDbRow(session, this.projectSlug));
       if (!result.success) {
         throw new Error(`Failed to create session: ${result.error}`);
       }
@@ -99,7 +110,7 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         createdAt: new Date()
       };
 
-      const result = await db().createDoc('user_product_interactions', interaction);
+      const result = await db().createDoc('user_product_interactions', toInteractionDbRow(interaction, this.projectSlug));
       if (!result.success) {
         throw new Error(`Failed to record interaction: ${result.error}`);
       }
@@ -158,7 +169,7 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         createdAt: new Date()
       };
 
-      const result = await db().createDoc('user_favorites', favorite);
+      const result = await db().createDoc('user_favorites', toFavoriteDbRow(favorite, this.projectSlug));
       if (!result.success) {
         throw new Error(`Failed to add favorite: ${result.error}`);
       }
@@ -247,7 +258,7 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         addedAt: new Date()
       };
 
-      const result = await db().createDoc('user_cart_history', cartAction);
+      const result = await db().createDoc('user_cart_history', toCartHistoryDbRow(cartAction, this.projectSlug));
       if (!result.success) {
         throw new Error(`Failed to track cart action: ${result.error}`);
       }
@@ -306,7 +317,7 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         createdAt: new Date()
       };
 
-      const result = await db().createDoc('user_search_history', search);
+      const result = await db().createDoc('user_search_history', toSearchHistoryDbRow(search, this.projectSlug));
       if (!result.success) {
         throw new Error(`Failed to record search: ${result.error}`);
       }
@@ -360,7 +371,7 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         createdAt: new Date()
       };
 
-      const result = await db().createDoc('user_content_engagement', engagement);
+      const result = await db().createDoc('user_content_engagement', toEngagementDbRow(engagement, this.projectSlug));
       if (!result.success) {
         throw new Error(`Failed to record engagement: ${result.error}`);
       }
@@ -433,17 +444,21 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
       const findResult = await db().queryDocs(findQuery);
 
       if (findResult.success && findResult.data && findResult.data.length > 0) {
-        const updateResult = await db().updateDoc('user_project_notifications', findResult.data[0].id, {
-          ...settings,
-          updated_at: new Date().toISOString()
-        });
+        const updateResult = await db().updateDoc(
+          'user_project_notifications',
+          findResult.data[0].id,
+          toNotificationDbRow({ ...settings, updatedAt: new Date() }, this.projectSlug),
+        );
 
         if (updateResult.success && updateResult.data) {
-          return updateResult.data as UserProjectNotification;
+          return settings;
         }
       }
 
-      const createResult = await db().createDoc('user_project_notifications', settings);
+      const createResult = await db().createDoc(
+        'user_project_notifications',
+        toNotificationDbRow(settings, this.projectSlug),
+      );
       if (!createResult.success) {
         throw new Error(`Failed to update notification settings: ${createResult.error}`);
       }
@@ -496,7 +511,10 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         updatedAt: new Date()
       };
 
-      const result = await db().createDoc('user_project_achievements', achievement);
+      const result = await db().createDoc(
+        'user_project_achievements',
+        toAchievementDbRow(achievement, this.projectSlug),
+      );
       if (!result.success) {
         throw new Error(`Failed to unlock achievement: ${result.error}`);
       }
@@ -549,7 +567,10 @@ class ProjectUserDataServiceImpl implements IProjectUserDataService {
         createdAt: new Date()
       };
 
-      const result = await db().createDoc('user_project_feedback', feedback);
+      const result = await db().createDoc(
+        'user_project_feedback',
+        toFeedbackDbRow(feedback, this.projectSlug),
+      );
       if (!result.success) {
         throw new Error(`Failed to submit feedback: ${result.error}`);
       }

@@ -1,19 +1,21 @@
 /**
  * Tunnel Transport Demo Component
- * Demonstrates usage of the tunnel transport abstraction layer
+ * Demonstrates usage of the tunnel transport abstraction layer (SSOT: useTunnelChannel).
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useTunnel, useTunnelNotifications, useTunnelMessages } from '@/hooks/use-tunnel';
-import { TunnelProvider } from '@/lib/tunnel/types';
+import { useCallback, useState } from 'react';
+import { useTunnel } from '@/hooks/use-tunnel';
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel';
+import { TunnelProvider, type TunnelMessage } from '@/lib/tunnel/types';
 
 export function TunnelDemo() {
   const [testChannel] = useState('demo-channel');
   const [messageText, setMessageText] = useState('');
-  
-  // Main tunnel hook - disable autoConnect to prevent conflicts with TunnelProvider
+  const [messages, setMessages] = useState<TunnelMessage[]>([]);
+  const [notifications, setNotifications] = useState<TunnelMessage[]>([]);
+
   const {
     isConnected,
     connectionState,
@@ -22,36 +24,33 @@ export function TunnelDemo() {
     latency,
     availableProviders,
     publish,
-    subscribe,
     switchProvider,
     error,
   } = useTunnel({
-    autoConnect: false, // Let TunnelProvider handle connection
+    autoConnect: false,
     debug: true,
   });
 
-  // Notifications hook - use existing connection from TunnelProvider
-  const { notifications, clearNotifications } = useTunnelNotifications();
+  const handleDemoMessage = useCallback((message: TunnelMessage) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
 
-  // Messages hook - use existing connection from TunnelProvider
-  const { messages, sendMessage } = useTunnelMessages(testChannel);
+  const handleInboxMessage = useCallback((message: TunnelMessage) => {
+    setNotifications((prev) => [...prev, message]);
+  }, []);
 
-  // Subscribe to test channel - prevent duplicate subscriptions
-  useEffect(() => {
-    if (!isConnected) return;
+  useTunnelChannel({
+    channel: testChannel,
+    enabled: true,
+    onTunnelMessage: handleDemoMessage,
+  });
 
-    console.log(`[TunnelDemo] Subscribing to channel: ${testChannel}`);
-    const unsubscribe = subscribe(testChannel, (message) => {
-      console.log('[TunnelDemo] Received message:', message);
-    });
+  useTunnelChannel({
+    channel: 'notifications:inbox',
+    enabled: true,
+    onTunnelMessage: handleInboxMessage,
+  });
 
-    return () => {
-      console.log(`[TunnelDemo] Unsubscribing from channel: ${testChannel}`);
-      unsubscribe?.();
-    };
-  }, [isConnected, testChannel, subscribe]);
-
-  // Send test message
   const handleSendMessage = async () => {
     if (!messageText.trim()) return;
 
@@ -61,14 +60,13 @@ export function TunnelDemo() {
         timestamp: Date.now(),
         user: 'demo-user',
       });
-      
+
       setMessageText('');
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch (sendError) {
+      console.error('Failed to send message:', sendError);
     }
   };
 
-  // Send notification
   const handleSendNotification = async () => {
     try {
       await publish('notifications', 'notification', {
@@ -77,26 +75,26 @@ export function TunnelDemo() {
         timestamp: Date.now(),
         priority: 'normal',
       });
-    } catch (error) {
-      console.error('Failed to send notification:', error);
+    } catch (sendError) {
+      console.error('Failed to send notification:', sendError);
     }
   };
 
-  // Switch transport provider
   const handleSwitchProvider = async (newProvider: TunnelProvider) => {
     try {
       await switchProvider(newProvider);
-    } catch (error) {
-      console.error('Failed to switch provider:', error);
+    } catch (switchError) {
+      console.error('Failed to switch provider:', switchError);
     }
   };
+
+  const clearNotifications = () => setNotifications([]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h2 className="text-2xl font-bold mb-4">Tunnel Transport Demo</h2>
-        
-        {/* Connection Status */}
+
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded">
           <h3 className="font-semibold mb-2">Connection Status</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
@@ -112,7 +110,6 @@ export function TunnelDemo() {
           )}
         </div>
 
-        {/* Provider Selection */}
         <div className="mb-6">
           <h3 className="font-semibold mb-2">Available Providers</h3>
           <div className="flex flex-wrap gap-2">
@@ -133,7 +130,6 @@ export function TunnelDemo() {
           </div>
         </div>
 
-        {/* Message Sending */}
         <div className="mb-6">
           <h3 className="font-semibold mb-2">Send Message</h3>
           <div className="flex gap-2">
@@ -156,7 +152,6 @@ export function TunnelDemo() {
           </div>
         </div>
 
-        {/* Messages Display */}
         <div className="mb-6">
           <h3 className="font-semibold mb-2">Messages ({messages.length})</h3>
           <div className="h-40 overflow-y-auto border rounded p-2 dark:bg-gray-900 dark:border-gray-700">
@@ -174,7 +169,6 @@ export function TunnelDemo() {
           </div>
         </div>
 
-        {/* Notifications */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Notifications ({notifications.length})</h3>
@@ -205,7 +199,6 @@ export function TunnelDemo() {
           </div>
         </div>
 
-        {/* Health Metrics */}
         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded">
           <h3 className="font-semibold mb-2">Health Metrics</h3>
           <div className="grid grid-cols-3 gap-2 text-sm">

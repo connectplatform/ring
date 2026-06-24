@@ -16,7 +16,7 @@ import {
 import { Avatar } from '@/components/ui/avatar'
 import { ROUTES } from '@/constants/routes'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { useUnreadCount } from '@/hooks/use-unread-count'
+import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
@@ -103,7 +103,7 @@ export function SidebarIdentityPanel({ variant = 'split', className }: SidebarId
   const tFav = useTranslations('modules.store.favorites')
 
   const { balance: tokenBalance, isLoading: balanceLoading } = useCreditBalanceContext()
-  const { unreadCount: notificationCount } = useUnreadCount()
+  const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
   const [messagesCount] = useState(0)

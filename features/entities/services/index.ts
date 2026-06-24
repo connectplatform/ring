@@ -1,5 +1,4 @@
-export { getEntities } from './get-entities';
-export { getConfidentialEntities } from './get-confidential-entities';
+export { getEntities, getConfidentialEntities } from './get-entities';
 export { createEntity } from './create-entity';
 export { deleteEntity } from './delete-entity';
 export { getEntitiesBySlug } from './get-entities-by-slug';

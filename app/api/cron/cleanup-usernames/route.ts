@@ -17,7 +17,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
-import { cleanupExpiredUsernameReservations } from '@/app/_actions/users'
+import { ProcessConductor } from '@/lib/processes'
+import { getPipelineDefinition } from '@/lib/processes/registry'
 
 
 export async function GET(request: NextRequest) {
@@ -36,17 +37,33 @@ export async function GET(request: NextRequest) {
     }
     
     // Execute cleanup
-    const startTime = Date.now()
-    const result = await cleanupExpiredUsernameReservations()
-    const duration = Date.now() - startTime
-    
-    console.log(`Cron: Cleaned ${result.cleaned} expired username reservations in ${duration}ms`)
-    
+    const handler = getPipelineDefinition('cleanup-usernames')?.handler
+    if (!handler) {
+      return NextResponse.json({ error: 'Pipeline not registered' }, { status: 500 })
+    }
+
+    const { result, run } = await ProcessConductor.recordRun('cleanup-usernames', 'cron', handler)
+    if (run.status === 'error') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: run.error,
+          runId: run.id,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 500 },
+      )
+    }
+
+    const payload = result as { cleaned?: number; duration?: number }
+    console.log(
+      `Cron: Cleaned ${payload.cleaned ?? 0} expired username reservations in ${payload.duration ?? 0}ms`,
+    )
+
     return NextResponse.json({
-      success: true,
-      cleaned: result.cleaned,
-      duration,
-      timestamp: new Date().toISOString()
+      ...(result as object),
+      runId: run.id,
+      timestamp: new Date().toISOString(),
     })
     
   } catch (error) {

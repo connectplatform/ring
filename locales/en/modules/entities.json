@@ -1,6 +1,8 @@
 {
   "title": "Entities",
   "subtitle": "Explore organizations in our ecosystem",
+  "browseEntities": "Browse Entities",
+  "myEntities": "My Entities",
   "entitiesTitle": "Entities Directory",
   "confidentialEntitiesTitle": "Confidential Entities",
   "loadingMessage": "Loading entities...",

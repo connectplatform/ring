@@ -23,8 +23,7 @@ import {
 import {
   Briefcase,
   HandHeart,
-  Users2,
-  GraduationCap,
+  Sparkles,
   Package,
   Calendar as CalendarIcon,
   MapPin,
@@ -37,6 +36,11 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react'
+import {
+  OPPORTUNITY_FILTER_CATEGORY_IDS,
+  OPPORTUNITY_FILTER_CURRENCIES,
+} from '@/features/opportunities/lib/opportunity-filter-presets'
+import { davinciTerminalSurface } from '@/lib/ui/davinci'
 
 interface FilterState {
   search: string
@@ -62,40 +66,27 @@ interface OpportunitiesFiltersPanelProps {
 }
 
 const opportunityTypes = [
-  { id: 'ring_customization', icon: Package, color: 'bg-gradient-to-r from-violet-500 to-purple-500', label: 'Ring Customization' },
-  { id: 'request', icon: HandHeart, color: 'bg-blue-500', label: 'Technology Request' },
-  { id: 'offer', icon: Briefcase, color: 'bg-green-500', label: 'Technology Offer' },
-  { id: 'mentorship', icon: GraduationCap, color: 'bg-indigo-500', label: 'Developer CV' }
-]
+  { id: 'request', icon: HandHeart, color: 'bg-blue-500' },
+  { id: 'offer', icon: Briefcase, color: 'bg-green-500' },
+  { id: 'cv', icon: Sparkles, color: 'bg-indigo-500' },
+  {
+    id: 'ring_customization',
+    icon: Package,
+    color: 'bg-gradient-to-r from-violet-500 to-purple-500',
+  },
+] as const
 
-const categories = [
-  'technology',
-  'business',
-  'education',
-  'healthcare',
-  'finance',
-  'platform_deployment',
-  'module_development',
-  'branding_customization',
-  'database_migration',
-  'localization',
-  'payment_integration',
-  'smart_contracts',
-  'ai_customization',
-  'token_economics',
-  'documentation_training',
-  'other'
-]
+const categories = [...OPPORTUNITY_FILTER_CATEGORY_IDS]
+
+const currencies = [...OPPORTUNITY_FILTER_CURRENCIES]
 
 const ANY_PRIORITY = '__any__'
 
 const priorities = [
-  { id: 'urgent', icon: AlertTriangle, label: 'Urgent', color: 'text-red-600' },
-  { id: 'normal', icon: CheckCircle, label: 'Normal', color: 'text-gray-600' },
-  { id: 'low', icon: Clock, label: 'Low', color: 'text-gray-500' }
-]
-
-const currencies = ['USD', 'EUR', 'UAH', 'GBP']
+  { id: 'urgent', icon: AlertTriangle, color: 'text-red-600' },
+  { id: 'normal', icon: CheckCircle, color: 'text-gray-600' },
+  { id: 'low', icon: Clock, color: 'text-gray-500' },
+] as const
 
 export default function OpportunitiesFiltersPanel({
   initialFilters,
@@ -105,6 +96,7 @@ export default function OpportunitiesFiltersPanel({
   onOptimisticUpdate
 }: OpportunitiesFiltersPanelProps) {
   const t = useTranslations('modules.opportunities')
+  const tf = useTranslations('modules.opportunities.filters')
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['types']))
 
   // React 19 useTransition for non-blocking filter updates
@@ -178,11 +170,11 @@ export default function OpportunitiesFiltersPanel({
 
   // Get translated type name
   const getTypeTranslation = (type: string) => {
-    const typeMap: { [key: string]: string } = {
-      ring_customization: t('ring_customization') || 'Ring Customization',
-      request: t('request') || 'Technology Request',
-      offer: t('offer') || 'Technology Offer',
-      mentorship: t('mentorship') || 'Developer CV'
+    const typeMap: Record<string, string> = {
+      ring_customization: t('ring_customization'),
+      request: t('request'),
+      offer: t('offer'),
+      cv: t('type_selector.cv.title'),
     }
     return typeMap[type] || type
   }
@@ -208,6 +200,15 @@ export default function OpportunitiesFiltersPanel({
       other: t('other')
     }
     return categoryMap[category] || category
+  }
+
+  const getPriorityTranslation = (priorityId: string) => {
+    const priorityMap: Record<string, string> = {
+      urgent: tf('priorityUrgent'),
+      normal: tf('priorityNormal'),
+      low: tf('priorityLow'),
+    }
+    return priorityMap[priorityId] || priorityId
   }
 
   const toggleSection = (section: string) => {
@@ -296,15 +297,17 @@ export default function OpportunitiesFiltersPanel({
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="space-y-2">
-        <Label htmlFor="search" className="text-sm font-medium">Search Opportunities</Label>
+        <Label htmlFor="search" className="text-sm font-medium text-muted-foreground">
+          {t('searchOpportunities')}
+        </Label>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--davinci-beam)]" />
           <Input
             id="search"
             placeholder={t('searchOpportunities')}
             value={filters.search}
             onChange={(e) => updateFilters({ search: e.target.value })}
-            className="pl-9"
+            className={cn('pl-9', davinciTerminalSurface)}
           />
         </div>
       </div>
@@ -313,7 +316,7 @@ export default function OpportunitiesFiltersPanel({
       {hasActiveFilters() && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Active Filters</Label>
+            <Label className="text-sm font-medium">{tf('activeFilters')}</Label>
             <Button
               variant="ghost"
               size="sm"
@@ -321,7 +324,7 @@ export default function OpportunitiesFiltersPanel({
               className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <X className="h-3 w-3 mr-1" />
-              Clear all
+              {tf('clearAll')}
             </Button>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -390,7 +393,7 @@ export default function OpportunitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Opportunity Types</span>
+              <span className="text-sm font-medium">{tf('sectionTypes')}</span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('types') && "transform rotate-180"
@@ -431,7 +434,7 @@ export default function OpportunitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Categories</span>
+              <span className="text-sm font-medium">{tf('sectionCategories')}</span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('categories') && "transform rotate-180"
@@ -467,7 +470,7 @@ export default function OpportunitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Location</span>
+              <span className="text-sm font-medium">{tf('sectionLocation')}</span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('location') && "transform rotate-180"
@@ -476,7 +479,7 @@ export default function OpportunitiesFiltersPanel({
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 px-3">
             <Input
-              placeholder="Enter city or country"
+              placeholder={tf('locationPlaceholder')}
               value={filters.location}
               onChange={(e) => updateFilters({ location: e.target.value })}
             />
@@ -492,7 +495,7 @@ export default function OpportunitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Budget Range</span>
+              <span className="text-sm font-medium">{tf('sectionBudget')}</span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('budget') && "transform rotate-180"
@@ -502,7 +505,7 @@ export default function OpportunitiesFiltersPanel({
           <CollapsibleContent className="space-y-3 px-3">
             {/* Currency Selector */}
             <div>
-              <Label className="text-xs text-muted-foreground">Currency</Label>
+              <Label className="text-xs text-muted-foreground">{tf('currency')}</Label>
               <Select
                 value={filters.currency}
                 onValueChange={(value) => updateFilters({ currency: value })}
@@ -522,7 +525,7 @@ export default function OpportunitiesFiltersPanel({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs text-muted-foreground">Min</Label>
+                <Label className="text-xs text-muted-foreground">{tf('min')}</Label>
                 <Input
                   type="number"
                   placeholder="0"
@@ -531,7 +534,7 @@ export default function OpportunitiesFiltersPanel({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Max</Label>
+                <Label className="text-xs text-muted-foreground">{tf('max')}</Label>
                 <Input
                   type="number"
                   placeholder="∞"
@@ -552,7 +555,7 @@ export default function OpportunitiesFiltersPanel({
         >
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="w-full justify-between p-3 h-auto">
-              <span className="text-sm font-medium">Priority</span>
+              <span className="text-sm font-medium">{tf('priority')}</span>
               <ChevronDown className={cn(
                 "h-4 w-4 transition-transform",
                 openSections.has('priority') && "transform rotate-180"
@@ -565,17 +568,17 @@ export default function OpportunitiesFiltersPanel({
               onValueChange={(value) => updateFilters({ priority: value === ANY_PRIORITY ? '' : value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Any priority" />
+                <SelectValue placeholder={tf('anyPriority')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ANY_PRIORITY}>Any priority</SelectItem>
+                <SelectItem value={ANY_PRIORITY}>{tf('anyPriority')}</SelectItem>
                 {priorities.map((priority) => {
                   const IconComponent = priority.icon
                   return (
                     <SelectItem key={priority.id} value={priority.id}>
                       <div className="flex items-center gap-2">
                         <IconComponent className={cn("w-4 h-4", priority.color)} />
-                        {priority.label}
+                        {getPriorityTranslation(priority.id)}
                       </div>
                     </SelectItem>
                   )
@@ -595,13 +598,13 @@ export default function OpportunitiesFiltersPanel({
           
           {hasActiveFilters() && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{t('activeFilters') || 'Active filters'}:</span>
+              <span className="text-xs text-muted-foreground">{tf('activeFilters')}:</span>
               <Badge variant="secondary" className="text-xs">
                 {[
-                  filters.types.length > 0 && `${filters.types.length} ${t('filters.types') || 'types'}`,
-                  filters.categories.length > 0 && `${filters.categories.length} ${t('filters.categories') || 'categories'}`,
-                  filters.location && t('filters.location') || 'location',
-                  filters.priority && t('filters.priority') || 'priority',
+                  filters.types.length > 0 && `${filters.types.length} ${tf('types')}`,
+                  filters.categories.length > 0 && `${filters.categories.length} ${tf('categories')}`,
+                  filters.location && tf('location'),
+                  filters.priority && tf('priority'),
                   filters.budgetMin && t('filters.budget') || 'budget'
                 ].filter(Boolean).join(', ')}
               </Badge>

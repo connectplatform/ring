@@ -7,7 +7,6 @@
 
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
 import { assertKnownUserRole, hasConfidentialAccess, isPlatformAdmin } from '@/features/auth/user-role'
 import { Opportunity } from '@/features/opportunities/types'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
@@ -33,37 +32,28 @@ import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportuni
  * 4. The user receives confirmation of successful deletion or an error message.
  * 
  * @param {string} id - The ID of the opportunity to delete.
- * @param {string} [userId] - Optional user ID to bypass session lookup
- * @param {UserRole} [userRole] - Optional user role to bypass session lookup
  * @returns {Promise<boolean>} A promise that resolves to a boolean indicating whether the deletion was successful.
  * @throws {OpportunityAuthError} If the user is not authenticated
  * @throws {OpportunityPermissionError} If the user lacks necessary permissions
  * @throws {OpportunityDatabaseError} If there's an error accessing the database
  * @throws {OpportunityQueryError} If there's an error executing the deletion
  */
-export async function deleteOpportunity(id: string, userId?: string, userRole?: UserRole): Promise<boolean> {
+export async function deleteOpportunity(id: string): Promise<boolean> {
   try {
-    logger.info('Services: deleteOpportunity - Starting deletion of opportunity:', { id, userId, userRole });
+    logger.info('Services: deleteOpportunity - Starting deletion of opportunity:', { id });
 
-    // Step 1: Authenticate and get user session (if not provided)
-    let currentUserId = userId;
-    let currentUserRole = userRole;
-    
-    if (!currentUserId || !currentUserRole) {
-      const session = await auth();
-      if (!session || !session.user) {
-        throw new OpportunityAuthError('Unauthorized access', undefined, {
-          timestamp: Date.now(),
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          operation: 'deleteOpportunity'
-        });
-      }
-      currentUserId = session.user.id;
-      currentUserRole = assertKnownUserRole(session.user.role);
-    } else {
-      currentUserRole = assertKnownUserRole(currentUserRole);
+    // Step 1: Authenticate and get user session
+    const session = await auth();
+    if (!session || !session.user) {
+      throw new OpportunityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'deleteOpportunity'
+      });
     }
+    const currentUserId = session.user.id;
+    const currentUserRole = assertKnownUserRole(session.user.role);
 
     logger.info(`Services: deleteOpportunity - User authenticated with ID ${currentUserId} and role ${currentUserRole}`);
 

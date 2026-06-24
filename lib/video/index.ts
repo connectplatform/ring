@@ -11,9 +11,11 @@ export {
   estimateVideoCostUsd,
   getPollIntervalMs,
   getPollTimeoutMs,
+  getRemasterEditModel,
   getStoragePrefix,
   getVideoDefaults,
   getVideoPreset,
   getXaiVideoConfig,
+  resolveEffectiveQualityMode,
   resolveQualityMode,
 } from '@/lib/video/video.config'

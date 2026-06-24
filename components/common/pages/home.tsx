@@ -29,6 +29,125 @@ interface HomeContentProps {
   session: Session | null
 }
 
+const pathCardBase =
+  'flex items-center gap-4 rounded-xl border p-5 text-left no-underline text-foreground transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5'
+
+const pathCardSurface = {
+  amber: cn(
+    pathCardBase,
+    'border-amber-500/40 bg-gradient-to-br from-amber-500/16 to-orange-600/16',
+    'dark:border-amber-500/35 dark:from-amber-500/12 dark:to-orange-600/12',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-amber-500/20',
+  ),
+  blue: cn(
+    pathCardBase,
+    'border-blue-500/40 bg-gradient-to-br from-blue-500/14 to-indigo-500/14',
+    'dark:border-blue-500/30 dark:from-blue-500/10 dark:to-indigo-500/10',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-blue-500/20',
+  ),
+  blueSoft: cn(
+    pathCardBase,
+    'border-blue-500/35 bg-gradient-to-br from-blue-500/12 to-indigo-500/12',
+    'dark:border-blue-500/25 dark:from-blue-500/8 dark:to-indigo-500/8',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-blue-500/15',
+  ),
+  emerald: cn(
+    pathCardBase,
+    'border-emerald-500/35 bg-gradient-to-br from-emerald-500/12 to-emerald-600/12',
+    'dark:border-emerald-500/25 dark:from-emerald-500/8 dark:to-emerald-600/8',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-emerald-500/20',
+  ),
+  violet: cn(
+    pathCardBase,
+    'border-violet-500/40 bg-gradient-to-br from-violet-500/14 to-violet-600/14',
+    'dark:border-violet-500/35 dark:from-violet-500/10 dark:to-violet-600/10',
+  ),
+  fuchsia: cn(
+    pathCardBase,
+    'border-fuchsia-500/35 bg-gradient-to-br from-fuchsia-500/12 to-pink-500/12',
+    'dark:border-fuchsia-500/25 dark:from-fuchsia-500/8 dark:to-pink-500/8',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-fuchsia-500/20',
+  ),
+  blueMuted: cn(
+    pathCardBase,
+    'border-blue-500/30 bg-gradient-to-br from-blue-500/8 to-violet-500/8',
+    'dark:border-blue-500/20 dark:from-blue-500/5 dark:to-violet-500/5',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-blue-500/15',
+  ),
+  amberSoft: cn(
+    pathCardBase,
+    'border-amber-500/40 bg-gradient-to-br from-amber-400/12 to-orange-500/12',
+    'dark:border-amber-500/30 dark:from-amber-400/8 dark:to-orange-500/8',
+    'shadow-sm dark:shadow-none hover:shadow-lg dark:hover:shadow-amber-500/25',
+  ),
+} as const
+
+const pathCardIconBg = {
+  amber: 'linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(234, 88, 12) 100%)',
+  blue: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(99, 102, 241) 100%)',
+  emerald: 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)',
+  violet: 'linear-gradient(135deg, rgb(139, 92, 246) 0%, rgb(124, 58, 237) 100%)',
+  fuchsia: 'linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(236, 72, 153) 100%)',
+  amberSoft: 'linear-gradient(135deg, rgb(234, 179, 8) 0%, rgb(217, 119, 6) 100%)',
+} as const
+
+type PathCardSurface = keyof typeof pathCardSurface
+
+function HomePathCard({
+  href,
+  external,
+  surface,
+  iconBg,
+  icon,
+  title,
+  description,
+  extra,
+}: {
+  href: string
+  external?: boolean
+  surface: PathCardSurface
+  iconBg: keyof typeof pathCardIconBg
+  icon: React.ReactNode
+  title: React.ReactNode
+  description: React.ReactNode
+  extra?: React.ReactNode
+}) {
+  const content = (
+    <>
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-xl text-white"
+        style={{ background: pathCardIconBg[iconBg] }}
+      >
+        {icon}
+      </div>
+      <div className="flex-1">
+        <div className="mb-1 text-base font-semibold text-foreground">{title}</div>
+        <div className="text-sm leading-snug text-muted-foreground">{description}</div>
+        {extra}
+      </div>
+    </>
+  )
+
+  if (external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={pathCardSurface[surface]}
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <Link href={href} className={pathCardSurface[surface]}>
+      {content}
+    </Link>
+  )
+}
+
 /**
  * HomeContent Component
  * 
@@ -357,380 +476,90 @@ const HomeContent: React.FC<HomeContentProps> = ({ session }) => {
             {tPages('hero.cta')}
           </h3>
         </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gap: '0.75rem',
-          width: '100%',
-          maxWidth: '500px',
-          margin: '0 auto'
-        }}>
-          <Link
+        <div className="mx-auto grid w-full max-w-[500px] grid-cols-1 gap-3">
+          <HomePathCard
             href={ROUTES.ADD_OPPORTUNITY(currentLocale)}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 88, 12, 0.12) 100%)'
-                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(234, 88, 12, 0.16) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(245, 158, 11, 0.35)'
-                : 'rgba(245, 158, 11, 0.45)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(245, 158, 11) 0%, rgb(234, 88, 12) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0,
-              color: 'white',
-            }}>&#9998;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>{tPages('hero.ctaCards.postOpportunity.title')}</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.postOpportunity.description')}</div>
-            </div>
-          </Link>
-          <Link
+            surface="amber"
+            iconBg="amber"
+            icon={<span>&#9998;</span>}
+            title={tPages('hero.ctaCards.postOpportunity.title')}
+            description={tPages('hero.ctaCards.postOpportunity.description')}
+          />
+          <HomePathCard
             href={ROUTES.OPPORTUNITIES(currentLocale)}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, rgba(99, 102, 241, 0.14) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(59, 130, 246, 0.3)'
-                : 'rgba(59, 130, 246, 0.4)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(99, 102, 241) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0,
-              color: 'white',
-            }}>&#128188;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>{tPages('hero.ctaCards.browseContractor.title')}</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.browseContractor.description')}</div>
-            </div>
-          </Link>
-          <Link
+            surface="blue"
+            iconBg="blue"
+            icon={<span>&#128188;</span>}
+            title={tPages('hero.ctaCards.browseContractor.title')}
+            description={tPages('hero.ctaCards.browseContractor.description')}
+          />
+          <HomePathCard
             href={`${ROUTES.DOCS(currentLocale)}/getting-started`}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(59, 130, 246, 0.25)'
-                : 'rgba(59, 130, 246, 0.35)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
-              position: 'relative'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(59, 130, 246, 0.2)'
-                : '0 8px 24px rgba(0,0,0,0.12)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(99, 102, 241) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>{'>'}_</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.clone.title')}</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.clone.description')}</div>
-            </div>
-          </Link>
-          <Link
+            surface="blueSoft"
+            iconBg="blue"
+            icon={<span>{'>'}_</span>}
+            title={tPages('hero.ctaCards.clone.title')}
+            description={tPages('hero.ctaCards.clone.description')}
+          />
+          <HomePathCard
             href={ROUTES.ENTITIES(currentLocale)}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.12) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(16, 185, 129, 0.25)'
-                : 'rgba(16, 185, 129, 0.35)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(16, 185, 129, 0.2)'
-                : '0 8px 24px rgba(0,0,0,0.12)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(16, 185, 129) 0%, rgb(5, 150, 105) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>&#127970;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.entities.title')}</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.entities.description')}</div>
-            </div>
-          </Link>
-          <a
+            surface="emerald"
+            iconBg="emerald"
+            icon={<span>&#127970;</span>}
+            title={tPages('hero.ctaCards.entities.title')}
+            description={tPages('hero.ctaCards.entities.description')}
+          />
+          <HomePathCard
             href={CONNECT_SOFTWARE_LINKS.marketplace}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%)'
-                : 'linear-gradient(135deg, rgba(139, 92, 246, 0.14) 0%, rgba(124, 58, 237, 0.14) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(139, 92, 246, 0.35)'
-                : 'rgba(139, 92, 246, 0.45)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              textDecoration: 'none',
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(139, 92, 246) 0%, rgb(124, 58, 237) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-              flexShrink: 0,
-              color: 'white',
-            }}>&#129302;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>
-                {tPages('hero.ctaCards.connectSoftware.title')} <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>&#8599;</span>
-              </div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>
-                {tPages('hero.ctaCards.connectSoftware.description')}
-              </div>
-              <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <span style={{ color: 'hsl(var(--primary))' }}>{tPages('hero.ctaCards.connectSoftware.skillsetsLink')}</span>
+            external
+            surface="violet"
+            iconBg="violet"
+            icon={<span className="text-lg">&#129302;</span>}
+            title={
+              <>
+                {tPages('hero.ctaCards.connectSoftware.title')}{' '}
+                <span className="text-[0.7rem] opacity-70">&#8599;</span>
+              </>
+            }
+            description={tPages('hero.ctaCards.connectSoftware.description')}
+            extra={
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="text-primary">{tPages('hero.ctaCards.connectSoftware.skillsetsLink')}</span>
                 <span>·</span>
-                <span style={{ color: 'hsl(var(--primary))' }}>{tPages('hero.ctaCards.connectSoftware.mcpLink')}</span>
+                <span className="text-primary">{tPages('hero.ctaCards.connectSoftware.mcpLink')}</span>
               </div>
-            </div>
-          </a>
-          <Link
-            href={ROUTES.WALLET(currentLocale) + '/topup'}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(236, 72, 153, 0.12) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(168, 85, 247, 0.25)'
-                : 'rgba(168, 85, 247, 0.35)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(168, 85, 247, 0.2)'
-                : '0 8px 24px rgba(0,0,0,0.12)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(236, 72, 153) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>&#129689;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.wallet.title')}</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.wallet.description')}</div>
-            </div>
-          </Link>
-          <Link
+            }
+          />
+          <HomePathCard
+            href={`${ROUTES.WALLET(currentLocale)}/topup`}
+            surface="fuchsia"
+            iconBg="fuchsia"
+            icon={<span>&#129689;</span>}
+            title={tPages('hero.ctaCards.wallet.title')}
+            description={tPages('hero.ctaCards.wallet.description')}
+          />
+          <HomePathCard
             href={ROUTES.DOCS(currentLocale)}
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(59, 130, 246, 0.2)'
-                : 'rgba(59, 130, 246, 0.3)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(59, 130, 246, 0.15)'
-                : '0 8px 24px rgba(0,0,0,0.1)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(147, 51, 234) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>&#128214;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.docs.title')}</div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.docs.description')}</div>
-            </div>
-          </Link>
-          <a
+            surface="blueMuted"
+            iconBg="blue"
+            icon={<span>&#128214;</span>}
+            title={tPages('hero.ctaCards.docs.title')}
+            description={tPages('hero.ctaCards.docs.description')}
+          />
+          <HomePathCard
             href="https://ringdom.org/en/settler"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              ...linkStyle,
-              background: currentTheme === 'dark'
-                ? 'linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, rgba(217, 119, 6, 0.08) 100%)'
-                : 'linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(217, 119, 6, 0.12) 100%)',
-              border: '1px solid',
-              borderColor: currentTheme === 'dark'
-                ? 'rgba(234, 179, 8, 0.3)'
-                : 'rgba(234, 179, 8, 0.4)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              color: 'hsl(var(--foreground))',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' 
-                ? '0 8px 24px rgba(234, 179, 8, 0.25)'
-                : '0 8px 24px rgba(0,0,0,0.12)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = currentTheme === 'dark' ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, rgb(234, 179, 8) 0%, rgb(217, 119, 6) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              flexShrink: 0
-            }}>&#128081;</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>{tPages('hero.ctaCards.settler.title')} <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>&#8599;</span></div>
-              <div style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', lineHeight: '1.4' }}>{tPages('hero.ctaCards.settler.description')}</div>
-            </div>
-          </a>
+            external
+            surface="amberSoft"
+            iconBg="amberSoft"
+            icon={<span>&#128081;</span>}
+            title={
+              <>
+                {tPages('hero.ctaCards.settler.title')}{' '}
+                <span className="text-[0.7rem] opacity-70">&#8599;</span>
+              </>
+            }
+            description={tPages('hero.ctaCards.settler.description')}
+          />
         </div>
       </motion.div>
       {session && (

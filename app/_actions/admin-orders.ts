@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 
 /**
@@ -18,7 +18,7 @@ export async function updateOrderStatus(formData: FormData) {
       throw new Error('Authentication required')
     }
 
-    if (session.user.role !== UserRole.admin) {
+    if (!isPlatformAdmin(session.user.role)) {
       throw new Error('Admin access required')
     }
 
@@ -59,7 +59,7 @@ export async function refreshOrders() {
       throw new Error('Authentication required')
     }
 
-    if (session.user.role !== UserRole.admin) {
+    if (!isPlatformAdmin(session.user.role)) {
       throw new Error('Admin access required')
     }
 

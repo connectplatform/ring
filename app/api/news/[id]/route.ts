@@ -8,6 +8,7 @@ import {
 } from '@/lib/services/firebase-service-manager';
 import { NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 import { FieldValue } from 'firebase-admin/firestore';
 
 /**
@@ -96,7 +97,7 @@ export async function PUT(
 
     // Check if user is admin
     const userRole = (session.user as any).role;
-    if (userRole !== 'admin') {
+    if (!isPlatformAdmin(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -202,7 +203,7 @@ export async function DELETE(
 
     // Check if user is admin
     const userRole = (session.user as any).role;
-    if (userRole !== 'admin') {
+    if (!isPlatformAdmin(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

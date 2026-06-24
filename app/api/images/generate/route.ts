@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { ImageConductor } from '@/lib/images/conductor/image-conductor'
 import type { GenerateImageContext, ImageProviderId } from '@/lib/images/conductor/types'
 
@@ -8,8 +8,8 @@ type GenerateImageBody = Partial<GenerateImageContext> & {
   prompt?: string
 }
 
-function canGenerateImages(role?: UserRole): boolean {
-  return role === UserRole.admin || role === UserRole.superadmin
+function canGenerateImages(role?: string | null): boolean {
+  return isPlatformAdmin(role)
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const role = (session.user as { role?: UserRole }).role
+  const role = session.user.role
   if (!canGenerateImages(role)) {
     return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
   }

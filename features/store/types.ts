@@ -96,6 +96,7 @@ export interface StoreProduct {
   commissionRate?: number // Platform commission % (12-20)
   referralCommission?: number // Per-product referral reward % (vendor override)
   approvalStatus?: ApprovalStatus // Main Store moderation status
+  rep?: string // Product representative username
   approvedBy?: string // Admin who approved
   approvedAt?: string // Approval timestamp
   rejectionReason?: string // Rejection reason if rejected

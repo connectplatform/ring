@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/user-role'
+import { isSuperadmin } from '@/features/auth/user-role'
 import {
   platformAIDataSchema,
   platformAISecretsSchema,
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   await connection()
 
   const session = await auth()
-  if (!session?.user || session.user.role !== UserRole.superadmin) {
+  if (!session?.user || !isSuperadmin(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
   await connection()
 
   const session = await auth()
-  if (!session?.user || session.user.role !== UserRole.superadmin) {
+  if (!session?.user || !isSuperadmin(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

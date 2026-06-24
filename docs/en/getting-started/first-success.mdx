@@ -1,451 +1,214 @@
 ---
 title: First Success Validation
-description: Comprehensive validation checklist to verify your Ring Platform installation and ensure all features work correctly
-last_modified: "2025-10-16"
+description: Smoke-test checklist after npm run dev — health, auth, Postgres, entities, opportunities, and tunnel readiness
+last_modified: "2026-06-22"
+audience: both
 ---
 
+# First Success Validation
 
-# First Success Validation ✅
-
-This comprehensive validation guide ensures your Ring Platform installation is working correctly. Follow each step systematically to verify all core features before proceeding with customization or deployment.
-
-<Callout type="info" title="⏱️ Estimated Validation Time">
-**10-15 minutes** to complete all validation steps.
+<Callout type="info">
+  Filter with **Founder** / **Developer** in the docs sidebar. Run this **after** [Installation](/docs/getting-started/installation) and [Migrations](/docs/getting-started/migrations). Estimated time: **10–15 minutes** for core checks; Web3 and payments are optional follow-ups.
 </Callout>
 
-## 🎯 Pre-Validation Setup
+**First success** means the dev server serves pages, **Auth.js** can establish a session, **DatabaseService** reads/writes without adapter errors, and core marketplace routes load. It does not require WayForPay, FCM, or wallet connectivity on day one.
 
-Before starting validation, ensure:
+## Success levels
 
-1. **Ring Platform is running**: `npm run dev` should show "Ready - started server on 0.0.0.0:3000"
-2. **Database is accessible**: PostgreSQL or Firebase connection established
-3. **Environment variables are set**: `.env.local` contains all required keys
-4. **Browser cache cleared**: Hard refresh (Ctrl+F5) to avoid cached issues
+| Level | Criteria | Good enough to… |
+|-------|----------|-----------------|
+| **Core** | Homepage + `/api/health` + sign-in + one CRUD path | Customize branding, invite testers |
+| **Extended** | Tunnel test `ready`, entities + opportunities UI | Demo realtime notifications |
+| **Optional** | Wallet balance, Web3 connect, payments sandbox | Token / checkout features |
 
-## 🔍 Step-by-Step Validation
+<Audience for="founder">
+
+## What founders should validate
+
+Before showing the clone to stakeholders, confirm the **happy path** a member would take:
+
+<Cards>
+  <Card title="Land on the homepage" href="/docs/getting-started/installation">
+    No blank screen or “database adapter” errors in the terminal.
+  </Card>
+  <Card title="Sign in" href="/docs/features/authentication">
+    Google, Apple, or Resend magic link — whichever you configured in Google Cloud / Resend.
+  </Card>
+  <Card title="Create an entity" href="/docs/features/entities">
+    Proves Postgres JSONB writes and your role gates work.
+  </Card>
+  <Card title="Browse opportunities" href="/docs/features/opportunities">
+    Confirms list pages and discovery caches are wired.
+  </Card>
+</Cards>
+
+<Callout type="tip" title="Partial success is OK">
+  If auth and one CRUD flow work but push notifications or wallet are not configured yet, you still have a **valid dev clone**. Add FCM and PaymentConductor before production checkout ([Environment](/docs/deployment/environment)).
+</Callout>
+
+### When to stop and fix
+
+- Terminal shows repeated Postgres connection failures → revisit [Prerequisites](/docs/getting-started/prerequisites) `DB_*` vars.
+- Login redirects loop → `AUTH_SECRET` and OAuth redirect URIs (`http://localhost:3000/api/auth/callback/google`).
+- Entity save fails with 403 → expected for **visitor** role; sign in as **member** or adjust test account role.
+
+</Audience>
+
+<Audience for="developer">
+
+## Smoke-test procedure
 
 <Steps>
 <Step>
 
-### Phase 1: Application Startup
+### 1 — Dev server
 
-**Goal**: Verify the application starts correctly and serves the homepage.
+<Code language="bash" title="terminal">{`npm run dev`}</Code>
 
-#### 1.1 Check Application Logs
-
-In your Ring Platform directory
-
-<Code language="bash" title="terminal">
-{`npm run dev`}
-</Code>
-
-**Expected output:**
-```
-▲ Next.js 16.x.x
-- Local:        http://localhost:3000
-- Environments: .env.local
-- Ready - started server on 0.0.0.0:3000
-```
-
-**❌ Common Issues:**
-- "Port 3000 already in use" → Kill other processes: `lsof -ti:3000 | xargs kill`
-- "Module not found" → Run `npm install` to install dependencies
-- "Database connection failed" → Check database credentials in `.env.local`
-
-#### 1.2 Test Homepage Access
-
-Test HTTP response
-
-<Code language="bash" title="terminal">
-{`curl -I http://localhost:3000`}
-</Code>
-
-**Expected:** `HTTP/1.1 200 OK`
-
-Test page content
-
-<Code language="bash" title="terminal">
-{`curl -s http://localhost:3000 | head -20`}
-</Code>
-
-**Expected:** HTML content with Ring Platform branding
-
-#### 1.3 Browser Validation
-
-1. Open `http://localhost:3000` in your browser
-2. Verify the page loads without JavaScript errors
-3. Check browser console (F12) for any error messages
-4. Confirm the Ring Platform logo and hero section appear
+Expect Next.js ready on `http://localhost:3000`. Custom `server.ts` may log native WSS when `RING_DEPLOY_TARGET=self-hosted`.
 
 </Step>
-
 <Step>
 
-### Phase 2: Authentication System
+### 2 — Health endpoint
 
-**Goal**: Verify Auth.js v5 setup and OAuth providers work correctly.
+<Code language="bash" title="curl">{`curl -sS http://localhost:3000/api/health | jq .
+curl -I http://localhost:3000/api/health   # HEAD → 200 when alive`}</Code>
 
-#### 2.1 Test Authentication Page
-
-Visit `http://localhost:3000/login`
-
-**Expected:**
-- Clean login page with provider buttons
-- No JavaScript errors in console
-- Responsive design on mobile/desktop
-
-#### 2.2 Google OAuth Flow
-
-1. Click "Sign in with Google"
-2. Complete Google OAuth flow
-3. Verify redirect to dashboard/profile page
-4. Check session persistence (refresh page)
-
-**Validation Commands:**
-Test OAuth callback endpoint Expected: HTTP/1.1 302 Found (redirect)
-
-<Code language="bash" title="terminal">
-{`curl -I "http://localhost:3000/api/auth/callback/google"`}
-</Code>
-
-#### 2.3 Session Validation
-
-**API Test:**
-Test session endpoint
-
-<Code language="bash" title="terminal">
-{`curl -X GET "http://localhost:3000/api/auth/session" \
-  -H "Cookie: $(curl -c cookies.txt -b cookies.txt http://localhost:3000/api/auth/session | grep -o 'next-auth.session-token=[^;]*')"`}
-</Code>
-
-**Expected Response:**
-<Code language="json" title="{">
-{`"user": {
-    "id": "user-id",
-    "name": "User Name",
-    "email": "user@example.com",
-    "image": "https://...",
-    "role": "member"
-  },
-  "expires": "2025-..."
-}`}
-</Code>
-
-#### 2.4 Profile Access
-
-1. Visit `/profile` or `/[locale]/profile`
-2. Verify user information displays correctly
-3. Check profile picture loads from Google
-4. Confirm logout functionality works
+Real shape (`app/api/health/route.ts`): `status` is `healthy` | `degraded` | `unhealthy` (not `"ok"`). `services.database` is `postgresql` or `firebase`. Missing `AUTH_SECRET` → `degraded` and HTTP **503**.
 
 </Step>
-
 <Step>
 
-### Phase 3: Database Connectivity
+### 3 — Homepage
 
-**Goal**: Verify database operations work correctly.
+<Code language="bash" title="terminal">{`curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3000/`}</Code>
 
-#### 3.1 API Health Check
-
-Test health endpoint
-
-<Code language="bash" title="terminal">
-{`curl http://localhost:3000/api/health`}
-</Code>
-
-**Expected Response:**
-<Code language="json" title="{">
-{`"status": "ok",
-  "timestamp": "2025-10-16T...",
-  "database": "connected",
-  "version": "0.9.18"
-}`}
-</Code>
-
-#### 3.2 Entities System
-
-**Create Test Entity:**
-1. Visit `http://localhost:3000/entities`
-2. Click "Create Entity" or "Add Entity"
-3. Fill form: Name, Type, Description
-4. Submit and verify entity appears in list
-
-**API Validation:**
-List entities Expected: Array of entities or empty array
-
-<Code language="bash" title="terminal">
-{`curl "http://localhost:3000/api/entities"`}
-</Code>
-
-#### 3.3 Database Connection Test
-
-**PostgreSQL Test:**
-Direct database test (if using local PostgreSQL) Expected: Count >= 1 (your user account)
-
-<Code language="bash" title="terminal">
-{`psql -h localhost -U ring_user -d ring_platform -c "SELECT COUNT(*) FROM users;"`}
-</Code>
-
-**Firebase Test (if using Firebase):**
-Test Firestore connection Expected: Success message
-
-<Code language="bash" title="terminal">
-{`curl "http://localhost:3000/api/test-db"`}
-</Code>
+Expect **200**. Open in browser; check console for red errors (ignore dev-only Auth.js JWT noise documented in `lib/logger.ts` filters).
 
 </Step>
-
 <Step>
 
-### Phase 4: Core Features
+### 4 — Authentication
 
-**Goal**: Validate opportunities, messaging, and real-time features.
+1. Visit `/login` (locale prefix may apply: `/en/login`).
+2. Complete **one** configured provider from `auth.ts`: Google OAuth, Apple, Resend magic link, Google One Tap, or crypto wallet — not GitHub/Discord (not in default provider list).
+3. Confirm session: `/profile` shows user data; refresh persists session.
 
-#### 4.1 Opportunities System
-
-1. Visit `http://localhost:3000/opportunities`
-2. Verify opportunities list loads
-3. Create a test opportunity
-4. Test search and filtering
-
-**API Test:**
-Test opportunities endpoint
-
-<Code language="bash" title="terminal">
-{`curl "http://localhost:3000/api/opportunities?limit=5"`}
-</Code>
-
-**Expected:** Array of opportunities or empty array
-
-#### 4.2 Real-time Features
-
-**Tunnel diagnostics:**
-
-<Code language="bash" title="terminal">
-{`curl "http://localhost:3000/api/tunnel/test"`}
-</Code>
-
-**Expected:** JSON with `availableProviders`, `environment`, and `status: "ready"`.
-
-**Notification test:**
-1. Sign in and confirm SSE connects (browser devtools → Network → `/api/tunnel/sse`)
-2. Create an opportunity or trigger a notification
-3. Verify unread badge updates without waiting for the poll interval
-
-#### 4.3 Messaging System (Optional)
-
-1. Visit messaging interface
-2. Start a conversation
-3. Send test messages
-4. Verify real-time delivery
+Optional: `GET /api/auth/session` with browser cookies returns `{ user: { id, email, role, … } }`.
 
 </Step>
-
 <Step>
 
-### Phase 5: Web3 & Wallet Features
+### 5 — PostgreSQL (postgres-primary)
 
-**Goal**: Validate blockchain integration and wallet functionality.
+<Code language="bash" title="psql">{`psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM users;"`}</Code>
 
-#### 5.1 Wallet Creation
+Expect count ≥ 1 after first sign-in. No `/api/test-db` route in this tree — use `psql` or authenticated API calls.
 
-1. Visit `/profile` or `/wallet`
-2. Check if wallet is auto-created
-3. Verify wallet address display
+</Step>
+<Step>
 
-**API Test:**
-Test wallet endpoint Expected: Wallet balance information
+### 6 — Authenticated APIs
 
-<Code language="bash" title="terminal">
-{`curl "http://localhost:3000/api/wallet/balance"`}
-</Code>
+`/api/entities` and `/api/opportunities` require a session — **401 without cookies is expected**.
 
-#### 5.2 MetaMask Integration (Optional)
+After browser login, DevTools → copy session cookie, or test in UI:
 
-1. Install MetaMask extension
-2. Connect wallet to Ring Platform
-3. Test wallet operations
-4. Verify transaction signing
+1. `/entities` — list + create entity form submits.
+2. `/opportunities` — list loads for your role.
 
-#### 5.3 RING Token Features (Optional)
+</Step>
+<Step>
 
-1. Check token balance display
-2. Test token transfer functionality
-3. Verify transaction history
+### 7 — Tunnel readiness
+
+<Code language="bash" title="curl">{`curl -sS http://localhost:3000/api/tunnel/test | jq .status, .availableProviders`}</Code>
+
+Expect `"ready"` and provider list from `lib/tunnel/config`. For live SSE: Network tab → `/api/tunnel/sse` after sign-in. See [Tunnel protocol](/docs/features/tunnel-protocol).
+
+</Step>
+<Step>
+
+### 8 — Optional checks
+
+| Check | Command / action | Expected |
+|-------|------------------|----------|
+| TypeScript | `npm run type-check` | Exit 0 |
+| Wallet API | `GET /api/wallet/balance` (logged in) | `{ balance }` or 404 until wallet created |
+| Build | `npm run build` | Completes (runs type-check by default) |
 
 </Step>
 </Steps>
 
-## 🧪 Advanced Validation Tests
+<Mermaid title="First-success flow">
+{`flowchart LR
+  Dev[npm run dev] --> Health[/api/health]
+  Health --> Login[/login]
+  Login --> PG[(PostgreSQL)]
+  Login --> Ent[/entities CRUD]
+  Login --> Opp[/opportunities]
+  Login --> Tun[/api/tunnel/test]`}
+</Mermaid>
 
-### Performance Testing
+</Audience>
 
-Test response times
+## Checklist summary
 
-<Code language="bash" title="terminal">
-{`curl -w "@curl-format.txt" -o /dev/null -s "http://localhost:3000/api/health"`}
-</Code>
+| Check | Pass? |
+|-------|-------|
+| `npm run dev` starts without DB adapter crash | ☐ |
+| `GET /api/health` → `healthy` or fix `AUTH_SECRET` | ☐ |
+| Sign-in completes for one Auth.js provider | ☐ |
+| Entity create/list works in UI | ☐ |
+| Opportunities list loads | ☐ |
+| `GET /api/tunnel/test` → `status: ready` | ☐ |
 
-Create `curl-format.txt`:
-```
-     time_namelookup:  %{time_namelookup}\n
-        time_connect:  %{time_connect}\n
-     time_appconnect:  %{time_appconnect}\n
-    time_pretransfer:  %{time_pretransfer}\n
-       time_redirect:  %{time_redirect}\n
-  time_starttransfer:  %{time_starttransfer}\n
-                     ----------\n
-          time_total:  %{time_total}\n
-```
+## Next steps
 
-**Expected:** Total time < 2 seconds
+<Cards>
+  <Card title="Customize branding" href="/docs/customization/branding">
+    `ring-config.json` and themes after smoke pass.
+  </Card>
+  <Card title="Next steps hub" href="/docs/getting-started/next-steps">
+    Feature exploration and deployment pointers.
+  </Card>
+  <Card title="Monitoring" href="/docs/deployment/monitoring">
+    Wire health checks and analytics after deploy.
+  </Card>
+  <Card title="Troubleshooting" href="/docs/getting-started/troubleshooting">
+    Common auth and database fixes.
+  </Card>
+</Cards>
 
-### Load Testing
-
-Simple load test
-
-<Code language="bash" title="terminal">
-{`for i in {1..10}; do
-  curl -s "http://localhost:3000/api/health" &
-done
-wait`}
-</Code>
-
-**Expected:** All requests return 200 OK
-
-### Error Handling Test
-
-Test 404 handling Expected: 404 Not Found Test API error handling Expected: Proper error response
-
-<Code language="bash" title="terminal">
-{`curl -I "http://localhost:3000/nonexistent-page"
-
-curl "http://localhost:3000/api/entities/invalid-id"`}
-</Code>
-
-## 🚨 Troubleshooting Guide
-
-### Authentication Issues
-
-**"Sign in failed" or OAuth errors:**
-- Check Google Cloud Console OAuth configuration
-- Verify redirect URIs match exactly
-- Ensure Google+ API is enabled
-- Check `.env.local` credentials format
-
-**Session not persisting:**
-- Verify `AUTH_SECRET` is set (32+ characters)
-- Check cookie settings in browser
-- Clear browser cache and cookies
-
-### Database Issues
-
-**"Database connection failed":**
-PostgreSQL Test connection
-
-<Code language="bash" title="terminal">
-{`sudo systemctl status postgresql  # Linux
-brew services list | grep postgresql  # macOS
-
-psql -h localhost -U ring_user -d ring_platform`}
-</Code>
-
-**Firebase connection issues:**
-Check Firebase config
-
-<Code language="bash" title="terminal">
-{`firebase projects:list
-firebase use your-project-id`}
-</Code>
-
-### API Issues
-
-**"API endpoint not found":**
-- Verify Next.js server is running
-- Check API route file exists
-- Review server logs for errors
-
-**CORS errors:**
-- Check `NEXTAUTH_URL` matches your domain
-- Verify API routes have proper CORS headers
-
-### Real-time Issues
-
-**Tunnel not connecting:**
-- Set `RING_DEPLOY_TARGET` and `NEXT_PUBLIC_RING_DEPLOY_TARGET` (k8s/self-hosted for WSS)
-- Check browser network tab for `/api/tunnel/ws` or `/api/tunnel/sse`
-- Verify `/api/tunnel/test` returns `status: "ready"`
-
-**Notifications not appearing:**
-- Check browser notification permissions
-- Verify user is logged in
-- Test with different trigger events
-
-### Performance Issues
-
-**Slow page loads:**
-Check bundle size Profile with browser dev tools Network tab: Check for large assets Performance tab: Record and analyze
-
-<Code language="bash" title="terminal">
-{`npm run build
-ls -lh .next/static/chunks/`}
-</Code>
-
-**Memory issues:**
-Monitor Node.js process Or use PM2: pm2 monit
-
-<Code language="bash" title="terminal">
-{`top -p $(pgrep -f "next-server")`}
-</Code>
-
-## 📊 Validation Checklist Summary
-
-| Component | Status | Notes |
-|-----------|--------|-------|
-| **Application Startup** | ☐ | Server starts, homepage loads |
-| **Authentication** | ☐ | Google OAuth works, sessions persist |
-| **Database** | ☐ | Connections work, data operations succeed |
-| **Entities** | ☐ | CRUD operations function correctly |
-| **Opportunities** | ☐ | Listing, creation, search works |
-| **Real-time** | ☐ | Tunnel connected (WSS or SSE), notifications |
-| **Wallet** | ☐ | Address creation, balance display |
-| **API Health** | ☐ | All endpoints respond correctly |
-| **Performance** | ☐ | Response times < 2s |
-| **Error Handling** | ☐ | Proper error responses |
-
-## 🎯 Success Criteria
-
-**✅ FULL SUCCESS** - All checkboxes above are checked
-- Application runs without errors
-- All core features work end-to-end
-- Performance meets expectations
-- No critical issues remain
-
-**⚠️ PARTIAL SUCCESS** - 70%+ of features work
-- Core authentication and database work
-- Most features functional with minor issues
-- Can proceed with development/customization
-
-**❌ NEEDS ATTENTION** - < 70% functional
-- Review troubleshooting section
-- Check prerequisites setup
-- Revisit installation steps
-
-## 🚀 Next Steps After Success
-
-<Callout type="success" title="🎉 All Validations Passed!">
-Congratulations! Your Ring Platform installation is fully functional. You're now ready to:
-
-1. **[Explore Features](/en/docs/features)** - Discover all platform capabilities
-2. **[Customize Branding](/en/docs/customization/branding)** - Make it your own
-3. **[Add New Features](/en/docs/examples)** - Extend functionality
-4. **[Deploy to Production](/en/docs/deployment)** - Share with the world
-5. **[Join Community](https://discord.gg/ring-platform)** - Connect with other developers
-
-**Need help customizing?** Check our [Customization section](/docs/customization) for operator and branding guides.
+<Callout type="success">
+  Core checks green? Explore features with [Welcome](/docs/welcome) or open the admin analytics path once you have an admin account ([Monitoring](/docs/deployment/monitoring)).
 </Callout>
 
----
+<FutureFeatureBacklog title="Backlog — first success (TBD)">
 
-*Having issues? Check our [troubleshooting guide](/en/docs/getting-started/troubleshooting) or join our [Discord community](https://discord.gg/ring-platform) for support.*
+<FutureFeatureWidget
+  name="GET /api/test-db smoke route"
+  description="Dedicated database ping endpoint — use GET /api/health db section instead (legacy doc referenced /api/test-db)."
+  implementationCost={8}
+  labels={['ops', 'health']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="portal:health npm script"
+  description="Single command wrapping curl checks — not in package.json; operators run curl/k6 manually."
+  implementationCost={4}
+  labels={['tooling', 'onboarding']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Automated load-test pass gate"
+  description="npm run load-test with SLA thresholds on first boot — removed fictional onboarding step."
+  implementationCost={32}
+  labels={['performance', 'onboarding']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

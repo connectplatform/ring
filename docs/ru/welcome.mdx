@@ -90,7 +90,7 @@ cd ring && npm install && npm run dev`}
 - **Кастомизация на Уровне Компонентов**: [Изменение любого UI компонента](/docs/customization/components) или функции
 - **Расширение Схемы Базы Данных**: Добавление пользовательских полей и связей
 - **API Интеграция**: Подключение к [сторонним сервисам](/docs/examples/integrations) и системам
-- **Мульти-Тенантная Архитектура**: Развертывание [отдельных экземпляров](/docs/examples/multi-tenant) на отдел или клиента
+- **Отдельные клоны Ring**: [Развертывание экземпляра на отдел или клиента](/docs/customization/quick-start)
 
 ### Быстрое Время до Ценности
 
@@ -159,69 +159,13 @@ npm run dev`}
 </Step>
 </Steps>
 
-## 🗺️ Полная Карта Функций: 20+ Интегрированных Модулей
+## Полная экосистема функций: 20+ интегрированных модулей
 
-Ring Platform предоставляет комплексный набор готовых к производству функций. Исследуйте нашу полную экосистему:
+Ring Platform предоставляет комплексный набор готовых к производству функций, которые работают вместе безупречно.
 
-<Mermaid>
-{`graph TB
-    Ring[Ring Platform<br/>20+ Функций]
-    
-    Ring --> Core[Основные Функции]
-    Ring --> Ecom[E-Commerce и Платежи]
-    Ring --> AI[ИИ и Интеллект]
-    Ring --> Infra[Инфраструктура]
-    Ring --> Dev[Опыт Разработчика]
-    
-    Core --> Auth[Аутентификация<br/>Auth.js v5, OAuth]
-    Core --> Entities[Система Организаций<br/>26 Отраслей]
-    Core --> Opp[Возможности<br/>AI Подбор]
-    Core --> Msg[Сообщения<br/>WebSocket/SSE]
-    Core --> Notif[Уведомления<br/>Push, Email]
-    
-    Ecom --> Store[Мульти-вендорный Магазин<br/>Скоринг Доверия]
-    Ecom --> Pay[Платежи<br/>WayForPay, RING]
-    Ecom --> Wallet[Кошелек<br/>Баланс, Пополнение]
-    Ecom --> NFT[NFT Маркетплейс<br/>EVM]
-    Ecom --> Stake[Стейкинг<br/>DAAR/DAARION]
-    
-    AI --> Matcher[AI Matcher<br/>8-факторный]
-    AI --> Search[Расширенный Поиск<br/>10+ Фильтров]
-    AI --> Analytics[Аналитика<br/>Бизнес-аналитика]
-    
-    Infra --> DB[База Данных<br/>PostgreSQL]
-    Infra --> RT[Реальное Время<br/>WebSocket]
-    Infra --> Web3[Web3<br/>Мульти-токены]
-    
-    Dev --> Stack[Современный Стек<br/>React 19]
-    Dev --> API[API и CLI<br/>RESTful]
-    Dev --> Deploy[Развертывание<br/>Kubernetes]
-    Dev --> Custom[Кастомизация<br/>White-label]
-    
-    style Ring fill:#6366f1,stroke:#4f46e5,stroke-width:3px,color:#fff
-    style Core fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-    style Ecom fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
-    style AI fill:#ec4899,stroke:#db2777,stroke-width:2px,color:#fff
-    style Infra fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
-    style Dev fill:#06b6d4,stroke:#0891b2,stroke-width:2px,color:#fff`}
-</Mermaid>
+<RingWelcomeFeatureExplorer locale="ru" />
 
-<Callout type="info" title="💡 Документация Функций">
-
-Каждая функция включает комплексную документацию, справочники API и примеры кода. Исследуйте детальные руководства для:
-
-- [Система Аутентификации](/docs/features/authentication) - Безопасное управление пользователями с Auth.js v5
-- [Возможности и AI Подбор](/docs/features/opportunities) - Революционное открытие возможностей
-- [Управление Организациями](/docs/features/entities) - Профили организаций и страницы презентации
-- [Мульти-вендорный Магазин](/docs/features/store) - Полное решение для электронной коммерции
-- [Кошелек и Платежи](/docs/features/wallet) - RING токены и интеграция платежей
-- [NFT Маркетплейс](/docs/features/nft-market) - White-label NFT платформа
-- [Система Обмена Сообщениями](/docs/features/messaging) - Коммуникация в реальном времени
-- [Уведомления](/docs/features/notifications) - Многоканальные оповещения
-- [Стейкинг Токенов](/docs/features/staking) - DeFi стейкинг пулы
-- [Обзор Архитектуры](/docs/architecture) - Дизайн системы и поток данных
-
-</Callout>
+---
 
 ## 💡 Почему Ring Platform Отличается
 

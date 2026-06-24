@@ -4,14 +4,17 @@ import { z } from 'zod';
  * Credit transaction type enum
  */
 export const CreditTransactionType = z.enum([
-  'payment',        // Direct payment/purchase with RING tokens
-  'airdrop',        // Free tokens given to user
-  'reimbursement',  // Refund or compensation  
-  'purchase',       // Store purchase using credits
-  'membership_fee', // Monthly membership fee deduction
-  'top_up',         // User-initiated balance top-up
-  'bonus',          // Loyalty/referral bonuses
-  'penalty',        // Administrative deductions
+  'payment',
+  'airdrop',
+  'reimbursement',
+  'purchase',
+  'membership_fee',
+  'top_up',
+  'bonus',
+  'penalty',
+  'desk_buy',
+  'desk_sell',
+  'desk_refund',
 ]);
 
 export type CreditTransactionType = z.infer<typeof CreditTransactionType>;
@@ -41,8 +44,11 @@ export type CreditTransaction = z.infer<typeof CreditTransactionSchema>;
  * User credit balance schema - stored in user profile
  */
 export const UserCreditBalanceSchema = z.object({
+  /** Fiat balance amount (USD on ring-platform.org) — never RING denomination */
   amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a positive number string'),
   usd_equivalent: z.string().regex(/^\d+(\.\d+)?$/, 'USD equivalent must be a positive number string'),
+  /** Fiat currency code — defaults to USD when absent on legacy rows */
+  fiat_currency: z.string().optional(),
   last_updated: z.number().int().positive(),
   last_transaction_id: z.string().optional(),
   subscription_active: z.boolean().default(false),
@@ -122,7 +128,7 @@ export type CreditBalanceResponse = z.infer<typeof CreditBalanceResponseSchema>;
 export const CreditHistoryRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
   after_id: z.string().optional(),
-  type: CreditTransactionType.optional(),
+  type: CreditTransactionType.nullish().optional(),
   start_date: z.number().int().optional(),
   end_date: z.number().int().optional(),
 });

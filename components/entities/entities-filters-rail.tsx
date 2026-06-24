@@ -65,7 +65,12 @@ function filtersToSearchParams(filters: EntityFilterState, current: URLSearchPar
   return params
 }
 
-export default function EntitiesFiltersRail() {
+interface EntitiesFiltersRailProps {
+  /** Hide filter section title/subtitle (nav rail provides page context). */
+  hideHeader?: boolean
+}
+
+export default function EntitiesFiltersRail({ hideHeader = false }: EntitiesFiltersRailProps) {
   const t = useTranslations('modules.entities')
   const router = useRouter()
   const pathname = usePathname()
@@ -93,15 +98,17 @@ export default function EntitiesFiltersRail() {
   }, [searchParams])
 
   return (
-    <div className="flex flex-col min-h-0 text-foreground">
-      <div className="flex-shrink-0 pb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Filter className="h-5 w-5 shrink-0" />
-          {t('filters.title')}
-        </h2>
-        <p className="text-xs text-muted-foreground mt-1">{t('filters.subtitle')}</p>
-      </div>
-      <div className="flex-1 overflow-y-auto min-h-0">
+    <div className="flex min-h-0 flex-col text-foreground">
+      {!hideHeader && (
+        <div className="shrink-0 pb-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Filter className="h-5 w-5 shrink-0" />
+            {t('filters.title')}
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('filters.subtitle')}</p>
+        </div>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <EntitiesFiltersPanel initialFilters={initialFilters} onFiltersApplied={handleFiltersApplied} />
       </div>
     </div>

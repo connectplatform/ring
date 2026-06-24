@@ -122,9 +122,14 @@ export default function VerificationQueuePanel({ locale }: { locale: Locale }) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{item.status}</Badge>
-                <Badge variant="secondary">
-                  {t('documentCount', { count: item.documentCount })}
-                </Badge>
+                {item.subjectType === 'account_restore' && (
+                  <Badge variant="destructive">{t('accountRestore')}</Badge>
+                )}
+                {item.subjectType !== 'account_restore' && (
+                  <Badge variant="secondary">
+                    {t('documentCount', { count: item.documentCount })}
+                  </Badge>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -154,7 +159,7 @@ export default function VerificationQueuePanel({ locale }: { locale: Locale }) {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="default" onClick={() => runAction(item.procedureNumber, 'approve')}>
                 <Check className="w-3 h-3 mr-1" />
-                {t('approve')}
+                {item.subjectType === 'account_restore' ? t('restoreApprove') : t('approve')}
               </Button>
               <Button size="sm" variant="destructive" onClick={() => runAction(item.procedureNumber, 'reject')}>
                 <X className="w-3 h-3 mr-1" />

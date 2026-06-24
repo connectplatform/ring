@@ -1,17 +1,47 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
+import { auth } from '@/auth'
+import {
+  appAnalyticsBatchSchema,
+  insertAnalyticsEventBatch,
+  isAnalyticsStorageDisabled,
+} from '@/features/analytics/lib/analytics-db'
 
-// Minimal analytics endpoint - avoid heavy imports to reduce compilation time
-export async function POST() {
-  // In development, just acknowledge the request
-  // In production, this would forward to analytics service
-  if (process.env.NODE_ENV === 'development') {
-    return NextResponse.json({ ok: true })
+/**
+ * POST /api/analytics/app
+ * Batched client telemetry from app-analytics.js
+ */
+export async function POST(request: NextRequest) {
+  await connection()
+
+  try {
+    const session = await auth().catch(() => null)
+    const raw = await request.json()
+    const parsed = appAnalyticsBatchSchema.safeParse(raw)
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid payload' },
+        { status: 400 },
+      )
+    }
+
+    const userId = session?.user?.id ?? parsed.data.userId ?? null
+    const { inserted, skipped } = await insertAnalyticsEventBatch(
+      parsed.data.sessionId,
+      userId,
+      parsed.data.events,
+    )
+
+    return NextResponse.json({
+      success: true,
+      inserted,
+      storageSkipped: skipped || isAnalyticsStorageDisabled(),
+    })
+  } catch (error) {
+    console.error('[analytics/app] POST failed:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to store analytics events' },
+      { status: 500 },
+    )
   }
-  
-  // TODO: Implement production analytics forwarding
-  return NextResponse.json({ ok: true })
 }
-
-// Use edge runtime for faster cold starts and lower compilation overhead
-
-

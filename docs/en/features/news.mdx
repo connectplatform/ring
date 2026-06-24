@@ -2,28 +2,35 @@
 title: News Module - Digital Newspaper Experience
 description: News Kingdom — promotion, member blogs, Telegram approval, OpenRouter scoring (v1.6.0)
 icon: Newspaper
-last_modified: "2026-06-06"
+last_modified: "2026-06-20"
 ---
-
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, Users, Globe, Zap, Share2, Rss, Eye, Heart } from 'lucide-react'
 
 # News Module - Digital Newspaper Experience
 
 The Ring Platform News module transforms content management into a professional digital newspaper experience, featuring author-centric workflows, advanced publishing tools, and enterprise-grade content distribution.
 
+<Callout type="success" title="v1.6.0 News Kingdom">
+React 19, Next.js 16, PaymentConductor promotion, member blogs at `/blog/[username]/[slug]`, content favorites API, and autonomous newsroom drafts (Grok + ImageConductor + Telegram approval).
+</Callout>
+
+<Cards>
+  <Card title="News Kingdom architecture" href="/docs/architecture/news-kingdom">
+    Migrations, promotion workflow, scoring, and Telegram callbacks.
+  </Card>
+  <Card title="Member blogs" href="/docs/features/member-blog">
+  Per-user blog paths, `blogUsername`, and public article URLs.
+  </Card>
+  <Card title="Generative newsroom" href="/docs/development/generative-newsroom">
+    Autonomous draft pipeline, featured images, TTS, and locale fan-out.
+  </Card>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    WayForPay/Stripe promotion payments and webhook handlers.
+  </Card>
+</Cards>
+
 ## 🎯 Overview
 
 The News module provides a complete content management system that rivals professional publishing platforms. Built with modern web technologies and designed for scale, it enables communities to create, manage, and distribute high-quality content.
-
-<Alert>
-  <CheckCircle className="h-4 w-4" />
-  <AlertDescription>
-    **v1.6.0 News Kingdom** — React 19, Next.js 16, PaymentConductor promotion, member blogs at `/blog/[username]/[slug]`, content favorites API.
-  </AlertDescription>
-</Alert>
 
 ## News Kingdom (2026-05-21)
 
@@ -138,7 +145,7 @@ The module supports 9 predefined categories:
 
 <Mermaid title="Article lifecycle">
 {`flowchart LR
-  Draft["Draft<br/>Author edits"] --> Published["Published<br/>Public visibility"] --> Archived["Archived<br/>Hidden from lists"]`}
+  Draft["Draft\nAuthor edits"] --> Published["Published\nPublic visibility"] --> Archived["Archived\nHidden from lists"]`}
 </Mermaid>
 
 ## 🎨 User Interface
@@ -148,12 +155,14 @@ The module supports 9 predefined categories:
 The news interface uses a professional 3-column layout:
 
 <Mermaid title="Desktop news layout">
-{`flowchart LR
-  Nav["280px<br/>Categories & RSS<br/>Navigation"]
-  Main["Main Content"]
-  Widgets["320px<br/>Trending & Popular<br/>Widgets"]
-
-  Nav --- Main --- Widgets`}
+{`flowchart TB
+  subgraph desktop["3-column desktop layout"]
+    Nav["280px sidebar\nCategories & RSS"]
+    Main["Main content"]
+    Widgets["320px widgets\nTrending & popular"]
+  end
+  Nav --- Main
+  Main --- Widgets`}
 </Mermaid>
 
 **Desktop**: Full 3-column layout with fixed sidebars
@@ -508,9 +517,6 @@ This News module represents the pinnacle of modern content management, combining
 
 The module transforms Ring Platform into a comprehensive content management powerhouse, enabling communities to create, manage, and distribute high-quality content at scale.
 
-<div className="mt-8">
-  <Badge variant="secondary" className="text-sm">
-    <CheckCircle className="h-4 w-4 mr-2" />
-    Ready for production deployment
-  </Badge>
-</div>
+<Callout type="tip" title="Production ready">
+News Kingdom migrations, promotion workflow, and member blogs are deployed on production Ring clones. Run `002` and `003` news migrations before enabling promotion features.
+</Callout>

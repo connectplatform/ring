@@ -4,9 +4,9 @@ import React, { useState, useCallback, useEffect, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import StoreFiltersPanel from '@/components/store/store-filters-panel'
 import FloatingButtons from '@/components/store/floating-buttons'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
 import VendorCTACard from '@/components/vendor/vendor-cta-card'
-import { RingContentPanel } from '@/components/layout/ring-app-shell'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
 import type { Locale } from '@/i18n/shared'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
@@ -117,60 +117,25 @@ export default function StoreWrapper({ children, locale }: StoreWrapperProps) {
 
   if (!isHydrated) {
     return (
-      <div className="min-h-full">
-        <RingContentPanel className="flex min-h-[50vh] items-center justify-center">
+      <RingRightRailLayout flushCenterPane showRightRail={false}>
+        <DavinciCenterPane contentClassName="flex min-h-[50vh] items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-        </RingContentPanel>
-      </div>
+        </DavinciCenterPane>
+      </RingRightRailLayout>
     )
   }
 
   return (
-    <div className="min-h-full">
-      <div className="hidden min-h-full gap-3 lg:flex" key={`desktop-${currentLocale}`}>
-        <RingContentPanel className="relative flex-1 min-w-0">
-          {childrenWithProps}
-          <FloatingButtons
-            key={`floating-${currentLocale}`}
-            locale={locale}
-            currentSort={filters.sortBy}
-            onSortChange={handleSortChange}
-          />
-        </RingContentPanel>
-        <aside className="ring-right-rail w-[300px] shrink-0 self-stretch min-h-0">
-          <div className="sticky top-0 px-3 pt-4 pb-6 pr-4">{filtersRail}</div>
-        </aside>
-      </div>
-
-      <div className="hidden min-h-full md:block lg:hidden" key={`ipad-${currentLocale}`}>
-        <RingContentPanel className="relative min-h-full">
-          {childrenWithProps}
-          <FloatingButtons
-            key={`floating-ipad-${currentLocale}`}
-            locale={locale}
-            currentSort={filters.sortBy}
-            onSortChange={handleSortChange}
-          />
-          <FloatingSidebarToggle key={`toggle-ipad-${currentLocale}`}>
-            <div className="space-y-4">{filtersRail}</div>
-          </FloatingSidebarToggle>
-        </RingContentPanel>
-      </div>
-
-      <div className="md:hidden px-1 pb-4" key={`mobile-${currentLocale}`}>
-        <RingContentPanel className="relative min-h-full">
-          {childrenWithProps}
-          <FloatingButtons
-            key={`floating-mobile-${currentLocale}`}
-            locale={locale}
-            currentSort={filters.sortBy}
-            onSortChange={handleSortChange}
-          />
-          <FloatingSidebarToggle key={`toggle-mobile-${currentLocale}`}>
-            <div className="space-y-4">{filtersRail}</div>
-          </FloatingSidebarToggle>
-        </RingContentPanel>
-      </div>
-    </div>
+    <RingRightRailLayout flushCenterPane rightRail={filtersRail}>
+      <DavinciCenterPane className="relative">
+        {childrenWithProps}
+        <FloatingButtons
+          key={`floating-${currentLocale}`}
+          locale={locale}
+          currentSort={filters.sortBy}
+          onSortChange={handleSortChange}
+        />
+      </DavinciCenterPane>
+    </RingRightRailLayout>
   )
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ensureWallet } from '@/features/wallet/services/ensure-wallet'
+import { ensureWallets } from '@/features/wallet/services/ensure-wallet'
 
 /**
  * POST handler for ensuring a user has a wallet
@@ -19,9 +19,18 @@ export async function POST(request: NextRequest) {
   console.log('API: /api/wallet/ensure - Starting POST request')
 
   try {
-    const address = await ensureWallet()
-    console.log(`API: /api/wallet/ensure - Wallet ensured successfully: ${address}`)
-    return NextResponse.json({ address })
+    const result = await ensureWallets()
+    console.log(`API: /api/wallet/ensure - Wallet ensured successfully: ${result.native.address}`)
+    return NextResponse.json({
+      address: result.native.address,
+      chain: result.native.chain ?? 'solana',
+      wallets: result.wallets.map((w) => ({
+        address: w.address,
+        chain: w.chain ?? 'evm',
+        isDefault: w.isDefault,
+        label: w.label,
+      })),
+    })
   } catch (error) {
     console.error('API: /api/wallet/ensure - Error ensuring user wallet:', error)
     

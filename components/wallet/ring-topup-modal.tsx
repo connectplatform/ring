@@ -20,6 +20,10 @@ import {
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
+import {
+  formatClientCreditAmount,
+  getClientCreditCurrencyCode,
+} from '@/lib/payments/credit-currency-client'
 
 interface RingTopUpModalProps {
   onClose: () => void
@@ -41,6 +45,7 @@ interface TopUpMethod {
 
 export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingTopUpModalProps) {
   const t = useTranslations('modules.wallet')
+  const creditCurrency = getClientCreditCurrencyCode()
   
   const [selectedMethod, setSelectedMethod] = useState<string>('blockchain_transfer')
   const [amount, setAmount] = useState(initialAmount)
@@ -75,7 +80,7 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
     {
       id: 'fiat_purchase',
       name: t('topup.methods.fiat.name', { defaultValue: 'Buy with Fiat' }),
-      description: t('topup.methods.fiat.description', { defaultValue: 'Purchase RING tokens with credit card' }),
+      description: t('topup.methods.fiat.description', { defaultValue: 'Purchase account credit with credit card' }),
       icon: CreditCard,
       min_amount: '25',
       max_amount: '2000',
@@ -98,9 +103,10 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
       setSubmitResult({
         success: false,
         message: t('topup.error.invalid_amount', {
-          defaultValue: `Amount must be between ${minAmount} and ${maxAmount} RING`,
+          defaultValue: `Amount must be between ${formatClientCreditAmount(minAmount, creditCurrency)} and ${formatClientCreditAmount(maxAmount, creditCurrency)}`,
           min: minAmount,
           max: maxAmount,
+          currency: creditCurrency,
         })
       })
       return
@@ -137,12 +143,12 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
       setSubmitResult({
         success: true,
         message: result.message || t('topup.success', { 
-          defaultValue: 'Successfully added {amount} RING to your balance',
-          amount 
+          defaultValue: 'Successfully added {amount} to your credit balance',
+          amount: formatClientCreditAmount(amount, creditCurrency),
         })
       })
 
-      logger.info('RING top-up successful', { 
+      logger.info('Credit top-up successful', { 
         amount, 
         method: selectedMethod,
         transactionId: result.transaction_id 
@@ -160,7 +166,7 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
         message: errorMessage
       })
       
-      logger.error('RING top-up failed', { amount, method: selectedMethod, error })
+      logger.error('Credit top-up failed', { amount, method: selectedMethod, error })
     } finally {
       setIsSubmitting(false)
     }
@@ -174,7 +180,7 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Coins className="h-5 w-5 text-primary" />
-            {t('topup.title', { defaultValue: 'Top Up RING Balance' })}
+            {t('topup.title', { defaultValue: 'Top Up Credit Balance' })}
           </DialogTitle>
         </DialogHeader>
         
@@ -235,7 +241,10 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
                               {method.description}
                             </p>
                             <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{method.min_amount} - {method.max_amount} RING</span>
+                              <span>
+                                {formatClientCreditAmount(method.min_amount, creditCurrency)} -{' '}
+                                {formatClientCreditAmount(method.max_amount, creditCurrency)}
+                              </span>
                               <span>{method.estimated_time}</span>
                             </div>
                           </div>
@@ -251,7 +260,10 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
                   {/* Amount Input */}
                   <div className="space-y-2">
                     <Label htmlFor="amount" className="text-sm font-medium">
-                      {t('topup.amount_label', { defaultValue: 'Amount (RING)' })}
+                      {t('topup.amount_label', {
+                        defaultValue: 'Amount ({currency})',
+                        currency: creditCurrency,
+                      })}
                     </Label>
                     <div className="relative">
                       <Input
@@ -266,16 +278,16 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
                         step="0.01"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        RING
+                        {creditCurrency}
                       </div>
                     </div>
                     {amount && selectedMethodData && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>
                           {t('topup.range', { 
-                            defaultValue: 'Range: {min} - {max} RING',
-                            min: selectedMethodData.min_amount,
-                            max: selectedMethodData.max_amount 
+                            defaultValue: 'Range: {min} - {max}',
+                            min: formatClientCreditAmount(selectedMethodData.min_amount, creditCurrency),
+                            max: formatClientCreditAmount(selectedMethodData.max_amount, creditCurrency),
                           })}
                         </span>
                         <span>
@@ -332,7 +344,9 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span>{t('topup.amount', { defaultValue: 'Amount' })}</span>
-                          <span className="font-medium">{amount} RING</span>
+                          <span className="font-medium">
+                            {formatClientCreditAmount(amount, creditCurrency)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>{t('topup.method', { defaultValue: 'Method' })}</span>
@@ -348,7 +362,9 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
                         </div>
                         <div className="border-t pt-2 flex justify-between font-medium">
                           <span>{t('topup.total', { defaultValue: 'You will receive' })}</span>
-                          <span className="text-primary">{amount} RING</span>
+                          <span className="text-primary">
+                            {formatClientCreditAmount(amount, creditCurrency)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -401,7 +417,7 @@ export function RingTopUpModal({ onClose, onSuccess, initialAmount = '' }: RingT
                   <Wallet className="h-4 w-4" />
                   <AlertDescription className="text-sm">
                     {t('topup.blockchain_help', { 
-                      defaultValue: 'If you\'ve already sent RING tokens to your wallet, enter the amount and transaction hash to update your balance. Otherwise, first send tokens to your wallet address.' 
+                      defaultValue: 'If you\'ve already sent RING tokens on-chain, enter the credit amount and transaction hash to update your account credit balance.' 
                     })}
                   </AlertDescription>
                 </Alert>

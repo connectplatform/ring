@@ -1,18 +1,19 @@
 ---
 title: Протокол Tunnel
-description: Брокер TunnelHub з native WSS, SSE та long-polling (alpha)
-last_modified: "2026-06-15"
+description: Брокер TunnelHub с native WSS, SSE и long-polling (alpha)
+last_modified: "2026-06-23"
 ---
 
 # Протокол Tunnel
 
-Realtime-шар Ring Platform: inbox на користувача (сповіщення, баланс) і topic-канали (чат, discovery, matcher).
+Realtime-шар Ring Platform: inbox на пользователя (уведомления, баланс) и topic-каналы (чат, discovery, matcher).
 
 - **Сервер:** `server.ts` — Next.js + native WSS (`/api/tunnel/ws`) при `RING_DEPLOY_TARGET=k8s|self-hosted`
 - **Брокер:** `lib/tunnel/hub/` → `InMemoryTunnelHub`
-- **Клієнт:** `TunnelProvider` / `useTunnel` → WSS → SSE → poll
+- **Клиент:** `TunnelProvider` / `useTunnel` → WSS → SSE → poll
+- **Провайдеры (2026-06-23):** `CreditBalanceProvider` и `GlobalTunnelListeners` (`AccountStatusTunnelListener`) — внутри `TunnelProvider` в `AppClientShell`; один registry на сессию
 
-## Маршрути API
+## Маршруты API
 
 | Маршрут | Метод | Призначення |
 |---------|-------|-------------|

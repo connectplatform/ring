@@ -1,6 +1,8 @@
 {
   "project": "ring-platform-viral-hoa-nightclub",
   "created": "2026-06-18",
+  "updated": "2026-06-18",
+  "workflow": "LEGACY — prefer scripted-video-generation-request-hoa-nightclub.json + run-scripted-video.mjs",
   "defaultQualityMode": "draft",
   "modes": {
     "draft": {
@@ -8,10 +10,20 @@
       "resolution": "480p",
       "estimatedUsdPerSecond": 0.05
     },
+    "draft_i2v": {
+      "model": "grok-imagine-video-1.5",
+      "resolution": "480p",
+      "estimatedUsdPerSecond": 0.08
+    },
     "production": {
       "model": "grok-imagine-video",
       "resolution": "720p",
       "estimatedUsdPerSecond": 0.05
+    },
+    "production_i2v": {
+      "model": "grok-imagine-video-1.5",
+      "resolution": "720p",
+      "estimatedUsdPerSecond": 0.14
     }
   },
   "clips": [
@@ -31,19 +43,22 @@
       "id": "03_sf_nightclub_ring_opener",
       "duration": 12,
       "aspect_ratio": "16:9",
-      "prompt": "San Francisco nightclub interior at night, neon magenta and cobalt lights, crowded bar, loud club music energy, attractive woman early 30s with Jennifer Lawrence energy—witty relaxed smile, casual chic black dress, silver ring on right hand—standing with cocktail. Handsome man late 30s with Ryan Gosling calm charm blended with Ryan Reynolds playful smirk, dark fitted jacket, subtle stubble, confident lean-in at bar, leaning close to talk over music, flirtatious but wholesome, he gestures warmly as if explaining a community platform, she listens amused, bokeh lights, haze, realistic cinematic 35mm, no subtitles, no readable signage, vibrant SF nightlife atmosphere."
+      "imageUrl": "",
+      "prompt": "Animate this nightclub bar scene. San Francisco nightclub at night, neon magenta and cobalt lights, crowded bar, loud club music energy. Woman early 30s Jennifer Lawrence energy, witty relaxed smile, black dress, silver ring on right hand, holds cocktail. Handsome man late 30s Ryan Gosling calm charm with Ryan Reynolds playful smirk, dark fitted jacket, leans in close over music. ACTION: he gestures warmly explaining a community platform while she listens amused. DIALOGUE (mouth movement, speaking over music): Man says warmly: \"So your HOA actually uses Ring?\" Woman laughs and replies: \"Yeah — we finally stopped fighting over parking.\" Camera: cinematic 35mm, bokeh, haze, realistic lip movement, no subtitles, no readable signage."
     },
     {
       "id": "04_sf_nightclub_guy_notices_ring",
       "duration": 12,
       "aspect_ratio": "16:9",
-      "prompt": "Same San Francisco nightclub bar continuity, camera now medium close-up on handsome man late 30s Ryan Gosling-Reynolds hybrid look, dark jacket, playful warm eyes, he glances down at her hand and smiles, mouth moves as if saying compliment about her ring, then looks up engaged, club lights rim-light his face, shallow depth of field, background soft crowd blur, she partially in frame smiling, silver ring catches light, cinematic realistic dialogue scene, no on-screen text, no subtitles, energetic bass-heavy nightclub mood."
+      "imageUrl": "",
+      "prompt": "Continue same SF nightclub bar. Medium close-up handsome man late 30s Ryan Gosling-Reynolds hybrid, dark jacket, playful warm eyes. ACTION: he glances down at her silver ring, smiles, looks up engaged. DIALOGUE (clear lip sync attempt): Man says flirtatiously: \"That ring looks incredible on you.\" Woman partially in frame, smiles. Silver ring catches neon light. Cinematic realistic dialogue scene, energetic bass-heavy nightclub mood, no on-screen text."
     },
     {
       "id": "05_sf_nightclub_ringize_payoff",
       "duration": 15,
       "aspect_ratio": "16:9",
-      "prompt": "San Francisco nightclub bar two-shot, handsome man gesturing enthusiastically explaining open source community software, woman with Jennifer Lawrence type warmth and quick humor nodding genuinely interested, both wearing simple silver rings, he talks over music with animated hands then grins saying ringize, she laughs satisfied and toasts, club neon bokeh, realistic lip movement implied, wholesome flirt ending, cinematic 35mm, no burned-in captions, no logos, upbeat viral ad energy, friends-found-common-ground vibe."
+      "imageUrl": "",
+      "prompt": "SF nightclub bar two-shot payoff. Handsome man gestures enthusiastically explaining open source community software. Woman with Jennifer Lawrence warmth nods genuinely interested, both wearing simple silver rings. DIALOGUE sequence: Man says over music: \"You can literally ringize your whole network — clone, customize, deploy.\" Woman laughs satisfied and says: \"Ringize? I need that for my board.\" They toast. ACTION: he grins, she toasts, wholesome flirt ending. Cinematic 35mm, neon bokeh, realistic lip movement, upbeat viral ad energy, no burned-in captions, no logos."
     }
   ]
 }

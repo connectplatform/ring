@@ -1,0 +1,23 @@
+{
+  "title": "Project Contacts",
+  "description": "Your Ring contacts in this project — message or send tokens to people you know.",
+  "savedContacts": "Saved contacts",
+  "searchToAdd": "Search by username or name to add a contact",
+  "addContact": "Add contact",
+  "addContactTitle": "Add Ring contact",
+  "noContacts": "No contacts yet",
+  "noContactsHint": "Search for Ring users and add them to your project address book.",
+  "noSearchResults": "No contacts match your search",
+  "searchPlaceholder": "Search your contacts…",
+  "message": "Message",
+  "send": "Send",
+  "favorite": "Favorite",
+  "unfavorite": "Unfavorite",
+  "remove": "Remove",
+  "added": "Contact added",
+  "removed": "Contact removed",
+  "favoriteUpdated": "Favorite updated",
+  "loadError": "Failed to load contacts",
+  "addError": "Failed to add contact",
+  "removeError": "Failed to remove contact"
+}

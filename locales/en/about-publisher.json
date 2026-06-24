@@ -109,5 +109,29 @@
     "cloneRing": "Clone Ring Now",
     "learnTokens": "Learn About RING Tokens",
     "viewSource": "View Source Code"
+  },
+  "sidebar": {
+    "publisher_title": "Sonoratek LLC — publisher",
+    "publisher_desc": "Legal publisher of Ring Platform. Built in Ukraine, free for the world.",
+    "quick_actions": "Get started",
+    "clone_hint": "install.sh → ring-config → first deploy",
+    "tokens_hint": "RING utility token & membership economics",
+    "source_hint": "connectplatform/ring on GitHub",
+    "help_title": "Documentation",
+    "help_desc": "Clone Ring, customize ring-config.json, and deploy your white-label instance.",
+    "view_docs": "Open documentation",
+    "docs_hint": "Architecture, modules, and deployment guides",
+    "impact": {
+      "deployments": "Active Ring clones and white-label communities",
+      "value": "Economic value unlocked across deployments",
+      "benefiting": "People reached through Ring-powered platforms",
+      "countries": "Countries with live or pilot Ring instances"
+    },
+    "flow": {
+      "step_install": "install.sh",
+      "step_config": "ring-config",
+      "step_deploy": "first deploy",
+      "quick_start": "Quick Start"
+    }
   }
 }

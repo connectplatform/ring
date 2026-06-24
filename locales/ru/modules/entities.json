@@ -1,6 +1,8 @@
 {
   "title": "Организации",
   "subtitle": "Исследуйте организации в экосистеме",
+  "browseEntities": "Просмотреть организации",
+  "myEntities": "Мои организации",
   "entitiesTitle": "Каталог организаций",
   "confidentialEntitiesTitle": "Конфиденциальные организации",
   "loadingMessage": "Загрузка организаций...",

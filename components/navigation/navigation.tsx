@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useRouter, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 import { useTranslations, useLocale } from 'next-intl'
-import { useTheme } from 'next-themes'
 import {
   Moon,
   Sun,
@@ -26,7 +25,8 @@ import { ROUTES } from '@/constants/routes'
 import UnifiedLoginComponent from '@/features/auth/components/unified-login-component'
 import { NotificationCenter } from '@/features/notifications/components/notification-center'
 
-import { signIn, signOut, useSession } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
+import { useAuth } from "@/hooks/use-auth"
 
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
@@ -78,7 +78,6 @@ export default function Navigation() {
   const tOpp = useTranslations('modules.opportunities')
   const tStore = useTranslations('modules.store')
   const locale = useLocale() as Locale
-  const { setTheme, theme, systemTheme } = useTheme()
   const router = useRouter()
   
   const { data: session, status } = useSession()
@@ -166,8 +165,6 @@ export default function Navigation() {
     }
   ]
 
-  const currentTheme = theme === 'system' ? systemTheme : theme
-
   useEffect(() => {
     let lastScrollY = window.scrollY
     let ticking = false
@@ -205,20 +202,17 @@ export default function Navigation() {
     setIsLoginDialogOpen(true)
   }, [])
 
+  const { signOut } = useAuth()
+
   const handleSignOut = useCallback(async () => {
     setIsOpen(false)
     try {
-      // Native Auth.js v5 single-hop sign-out + redirect (no /auth/signout status hop)
       await signOut({ redirectTo: ROUTES.LOGIN(locale) })
     } catch (error) {
       console.error('Sign out error:', error)
       setError(tCommon('status.error'))
     }
-  }, [tCommon, locale])
-
-  const toggleTheme = useCallback(() => {
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark')
-  }, [setTheme, currentTheme])
+  }, [tCommon, locale, signOut])
 
   // Wallet address copy functionality
   const handleCopyAddress = useCallback(async () => {

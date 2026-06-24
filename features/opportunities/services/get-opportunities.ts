@@ -17,6 +17,7 @@ import { auth } from '@/auth'
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityQueryError, OpportunityDatabaseError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { db } from '@/lib/database'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 
 
 /**
@@ -158,13 +159,21 @@ export const getOpportunitiesForRole = cache(async (
       queryConfig.where = whereConditions;
     }
 
-    // Apply pagination if provided
+    // Apply cursor pagination when continuing from a previous page
     if (startAfter) {
       try {
         const result = await db().findDocById('opportunities', startAfter)
 
         if (result.success && result.data) {
-          queryConfig.startAfter = result.data;
+          const cursorDate =
+            (result.data as { dateCreated?: string; date_created?: string }).dateCreated ??
+            (result.data as { date_created?: string }).date_created
+
+          if (cursorDate) {
+            whereConditions.push({ field: 'dateCreated', operator: '<', value: cursorDate })
+          } else {
+            whereConditions.push({ field: 'id', operator: '!=', value: startAfter })
+          }
         }
       } catch (error) {
         throw new OpportunityQueryError(
@@ -189,7 +198,6 @@ export const getOpportunitiesForRole = cache(async (
         orderBy: queryConfig.orderBy || [{ field: 'dateCreated', direction: 'desc' }],
         pagination: {
           limit: queryConfig.limit || 20,
-          offset: startAfter ? 1 : 0 // Simple offset for pagination
         }
       };
 
@@ -216,8 +224,12 @@ export const getOpportunitiesForRole = cache(async (
       }
     }
 
-    // Get the ID of the last visible document for pagination
-    const lastVisible = opportunities.length > 0 ? opportunities[opportunities.length - 1].id : null;
+    // Cursor for next page only when this batch is full (short page = end of feed)
+    const { nextCursor: lastVisible } = computePaginationCursor(
+      opportunities,
+      limit,
+      (item) => item.id,
+    )
 
     logger.info('Services: getOpportunitiesForRole - Total opportunities fetched:', { opportunities: opportunities.length, lastVisible } );
 
@@ -260,7 +272,7 @@ export const getOpportunities = cache(async (
       operation: 'getOpportunities'
     });
   }
-  const userRole = session.user.role as UserRole;
+  const userRole = assertKnownUserRole(session.user.role);
   return getOpportunitiesForRole({ userRole, limit, startAfter });
 });
 

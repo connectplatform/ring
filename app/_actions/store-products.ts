@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { getVendorByUserId } from '@/features/store/services/get-vendor-by-user'
 import { getStoreAdapter } from '@/features/store/config'
 import { StoreFilterState } from '@/lib/store-constants'
@@ -11,6 +11,7 @@ import {
   computeCatalogPriceBounds,
   type CatalogPriceBounds,
 } from '@/lib/store-price-range'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 
 export interface StoreProductsResult {
   success: boolean
@@ -29,6 +30,7 @@ export async function getStoreProducts(
   filters: StoreFilterState & {
     limit?: number
     afterId?: string
+    startAfter?: string
   },
 ): Promise<StoreProductsResult> {
   try {
@@ -40,7 +42,7 @@ export async function getStoreProducts(
     if (session?.user) {
       const userRole = session.user.role
 
-      if (userRole === UserRole.admin || userRole === UserRole.superadmin) {
+      if (isPlatformAdmin(userRole)) {
         vendorId = 'vendor_ring_portal_store'
         vendorName = 'Ring Portal Store'
       } else {
@@ -100,26 +102,25 @@ export async function getStoreProducts(
     })
 
     const limit = filters.limit || 24
-    const afterId = filters.afterId
+    const afterId = filters.startAfter ?? filters.afterId
     let paginatedProducts = filteredProducts
-    let lastVisible: string | null = null
 
     if (afterId) {
       const afterIndex = filteredProducts.findIndex((p) => p.id === afterId)
       if (afterIndex >= 0) {
         paginatedProducts = filteredProducts.slice(afterIndex + 1, afterIndex + 1 + limit)
+      } else {
+        paginatedProducts = []
       }
     } else {
       paginatedProducts = filteredProducts.slice(0, limit)
     }
 
-    if (
-      paginatedProducts.length === limit &&
-      filteredProducts.length >
-        (afterId ? filteredProducts.findIndex((p) => p.id === afterId) + 1 + limit : limit)
-    ) {
-      lastVisible = paginatedProducts[paginatedProducts.length - 1].id
-    }
+    const { nextCursor: lastVisible } = computePaginationCursor(
+      paginatedProducts,
+      limit,
+      (product) => product.id,
+    )
 
     return {
       success: true,

@@ -10,7 +10,7 @@ import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { resolveSessionUserRole } from '@/features/auth/user-role'
 import MembershipContent from '@/features/auth/components/membership-content'
 import type { AuthUser } from '@/features/auth/types'
-import AboutWrapper from '@/components/wrappers/about-wrapper'
+import MembershipWrapper from '@/components/wrappers/membership-wrapper'
 import { connection } from 'next/server'
 
 interface MembershipPageProps {
@@ -59,8 +59,8 @@ export default async function MembershipPage(props: MembershipPageProps) {
   }
 
   return (
-    <AboutWrapper locale={locale}>
+    <MembershipWrapper locale={locale}>
       <MembershipContent user={user} locale={locale} />
-    </AboutWrapper>
+    </MembershipWrapper>
   )
 }

@@ -21,9 +21,10 @@ import {
   Upload,
   MessageSquare
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // Opportunity action and status types
-type OpportunityAction = 'create' | 'apply' | 'submit' | 'approve' | 'publish'
+type OpportunityAction = 'create' | 'update' | 'delete' | 'apply' | 'submit' | 'approve' | 'publish'
 type OpportunityStatus = string // Will be validated by the page component
 
 interface OpportunityStatusPageProps {
@@ -64,8 +65,8 @@ const STATUS_CONFIG = {
   'create-success': {
     icon: CheckCircle,
     iconColor: 'text-green-500',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200'
+    bgColor: 'bg-green-500/10',
+    borderColor: 'border-green-500/30'
   },
   'create-failed': {
     icon: XCircle,
@@ -76,8 +77,34 @@ const STATUS_CONFIG = {
   'create-rejected': {
     icon: XCircle,
     iconColor: 'text-red-500',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200'
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30'
+  },
+
+  'update-success': {
+    icon: CheckCircle,
+    iconColor: 'text-green-500',
+    bgColor: 'bg-green-500/10',
+    borderColor: 'border-green-500/30'
+  },
+  'update-failed': {
+    icon: XCircle,
+    iconColor: 'text-red-500',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30'
+  },
+
+  'delete-success': {
+    icon: CheckCircle,
+    iconColor: 'text-green-500',
+    bgColor: 'bg-green-500/10',
+    borderColor: 'border-green-500/30'
+  },
+  'delete-failed': {
+    icon: XCircle,
+    iconColor: 'text-red-500',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500/30'
   },
 
   // Apply statuses
@@ -211,7 +238,6 @@ export default function OpportunityStatusPage({
   nextStep
 }: OpportunityStatusPageProps) {
   const t = useTranslations('modules.opportunities.status')
-  const tCommon = useTranslations('common')
   
   const configKey = `${action}-${status}` as keyof typeof STATUS_CONFIG
   const config = STATUS_CONFIG[configKey]
@@ -226,6 +252,8 @@ export default function OpportunityStatusPage({
   
   const finalConfig = config || fallbackConfig
   const IconComponent = finalConfig.icon
+  const isOwnerSuccess =
+    status === 'success' && (action === 'create' || action === 'update' || action === 'delete')
 
   // Handle special animated icons
   const iconClassName = (
@@ -237,13 +265,16 @@ export default function OpportunityStatusPage({
   const translationKey = `${action}.${status}`
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center">
-        {/* Status Card */}
-        <div className={`
-          p-8 rounded-lg border-2 ${finalConfig.bgColor} ${finalConfig.borderColor}
-          shadow-sm
-        `}>
+    <div className="flex min-h-full items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md text-center">
+        <div
+          className={cn(
+            'rounded-xl border-2 p-8 shadow-sm',
+            finalConfig.bgColor,
+            finalConfig.borderColor,
+            'bg-card/60 backdrop-blur-sm',
+          )}
+        >
           {/* Status Icon */}
           <div className="flex justify-center mb-6">
             <IconComponent 
@@ -264,7 +295,7 @@ export default function OpportunityStatusPage({
 
           {/* Opportunity Title Display (if provided) */}
           {opportunityTitle && (
-            <div className="bg-white/80 rounded-lg p-4 mb-6 border">
+            <div className="mb-6 rounded-lg border bg-muted/50 p-4">
                 <p className="text-sm text-muted-foreground mb-1">
                 {t('opportunityTitle')}
               </p>
@@ -364,19 +395,28 @@ export default function OpportunityStatusPage({
             {/* Success states - View/Continue */}
             {(status === 'success' || status === 'published' || status === 'approved' || status === 'accepted') && (
               <>
-                {opportunityId && (
+                {opportunityId && !isOwnerSuccess && (
                   <Link 
                     href={ROUTES.OPPORTUNITY(opportunityId, locale)}
-                    className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                    className="block w-full rounded-lg bg-primary py-3 px-6 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     {action === 'apply' ? t('actions.viewApplication') : t('actions.viewOpportunity')}
                   </Link>
                 )}
                 <Link 
-                  href={returnTo || ROUTES.OPPORTUNITIES(locale)}
-                  className="block w-full bg-gray-100 hover:bg-gray-200 text-foreground font-medium py-3 px-6 rounded-lg transition-colors"
+                  href={
+                    isOwnerSuccess
+                      ? ROUTES.MY_OPPORTUNITIES(locale)
+                      : (returnTo || ROUTES.OPPORTUNITIES(locale))
+                  }
+                  className={cn(
+                    'block w-full rounded-lg py-3 px-6 font-medium transition-colors',
+                    isOwnerSuccess
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-foreground hover:bg-muted/80',
+                  )}
                 >
-                  {t('actions.backToOpportunities')}
+                  {isOwnerSuccess ? t('actions.continue') : t('actions.backToOpportunities')}
                 </Link>
               </>
             )}
@@ -555,7 +595,7 @@ export default function OpportunityStatusPage({
         <div className="mt-6">
           <Link 
             href={ROUTES.CONTACT(locale)}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             {t('needHelp')}
           </Link>

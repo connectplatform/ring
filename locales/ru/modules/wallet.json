@@ -53,5 +53,38 @@
     "error": {
       "invalid_amount": "Введите корректную сумму больше нуля."
     }
+  },
+  "send": {
+    "title": "Отправить RING",
+    "subtitle": "Переведите токены RING другому пользователю Ring или на адрес кошелька",
+    "transferDetails": "Детали перевода",
+    "fromWallet": "С кошелька",
+    "selectWallet": "Выберите кошелёк",
+    "walletLabel": "Ring Wallet",
+    "ringBalance": "Баланс: {balance} RING",
+    "toAddress": "Адрес получателя",
+    "recipientPlaceholder": "Адрес получателя",
+    "pickContact": "Выбрать из контактов",
+    "pickContactTitle": "Выберите получателя",
+    "sendingTo": "Отправка: {name}",
+    "amount": "Сумма",
+    "tokenRingOnly": "Только токен RING",
+    "notes": "Заметка (необязательно)",
+    "notesPlaceholder": "Добавьте заметку к переводу…",
+    "sendButton": "Отправить {amount} RING",
+    "confirmTitle": "Подтвердите перевод",
+    "confirmWarning": "Проверьте получателя. Ончейн-переводы необратимы.",
+    "confirmSend": "Подтвердить",
+    "sending": "Отправка…",
+    "recipientRequired": "Требуется адрес получателя",
+    "amountRequired": "Введите корректную сумму",
+    "insufficientBalance": "Недостаточно RING",
+    "insufficientBalanceDetail": "Нужно ещё {deficit} RING",
+    "noWalletSelected": "Кошелёк не выбран",
+    "loadWalletsError": "Не удалось загрузить кошельки",
+    "resolveWalletError": "Не удалось определить кошелёк получателя",
+    "sendSuccess": "Отправлено {amount} RING — {name}",
+    "sendFailed": "Не удалось отправить RING. Попробуйте снова.",
+    "recipientFallback": "получателю"
   }
 }

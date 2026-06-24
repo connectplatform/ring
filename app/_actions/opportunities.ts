@@ -2,9 +2,19 @@
 
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
-import { hasRoleAtLeast } from '@/features/auth/user-role'
-import { canCreateOpportunityType } from '@/features/opportunities/lib/opportunity-permissions'
+import {
+  UserRole,
+  assertKnownUserRole,
+  hasRoleAtLeast,
+  isPlatformAdmin,
+} from '@/features/auth/user-role'
+import {
+  canCreateOpportunityType,
+  canCreateOpportunityConfidential,
+  canEditOpportunity,
+  canDeleteOpportunity,
+  assertOpportunityVisibilityPatch,
+} from '@/features/opportunities/lib/opportunity-permissions'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
@@ -30,7 +40,7 @@ export async function createOpportunity(
     }
   }
 
-  const userRole = (session.user as any)?.role as UserRole
+  const userRole = assertKnownUserRole(session.user.role)
   
   // Extract form data
   const title = formData.get('title') as string
@@ -56,6 +66,10 @@ export async function createOpportunity(
 
   if (!canCreateOpportunityType(userRole, type)) {
     return { error: 'You do not have permission to create this opportunity type' }
+  }
+
+  if (isConfidential && !canCreateOpportunityConfidential(userRole)) {
+    return { error: 'Only admin, superadmin, or confidential users can create confidential opportunities' }
   }
 
   const requestTypes = ['request']
@@ -211,7 +225,7 @@ export async function createOpportunity(
     return {
       success: true,
       message: 'Opportunity created successfully!',
-      redirectUrl: `/${locale}/opportunities/status/create/success?id=${newOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
+      redirectUrl: `/${locale}/opportunities/status/create/success?opportunityId=${newOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
     }
   } catch (error) {
     console.error('Error creating opportunity:', error)
@@ -243,7 +257,7 @@ export async function updateOpportunity(
     }
   }
 
-  const userRole = (session.user as any)?.role as UserRole
+  const userRole = assertKnownUserRole(session.user.role)
   const userId = session.user.id
 
   try {
@@ -257,12 +271,7 @@ export async function updateOpportunity(
       }
     }
 
-    // Check ownership and permissions
-    const isOwner = existingOpportunity.createdBy === userId
-    const isAdmin = userRole === UserRole.admin
-    const isConfidentialUser = userRole === UserRole.confidential
-    
-    if (!isOwner && !isAdmin && !isConfidentialUser) {
+    if (!canEditOpportunity(userRole, existingOpportunity.createdBy, userId)) {
       return {
         error: 'You do not have permission to update this opportunity'
       }
@@ -319,9 +328,17 @@ export async function updateOpportunity(
       fieldErrors.deadline = 'Deadline must be in the future'
     }
 
-    // Role-based validation for confidential opportunities
-    if (isConfidential && !isAdmin && !isConfidentialUser) {
+    if (isConfidential && !canCreateOpportunityConfidential(userRole)) {
       fieldErrors.isConfidential = 'Only admin or confidential users can create confidential opportunities'
+    }
+
+    try {
+      assertOpportunityVisibilityPatch(userRole, {
+        visibility: visibility as 'public' | 'subscriber' | 'member' | 'confidential' | undefined,
+        isConfidential,
+      })
+    } catch {
+      fieldErrors.visibility = 'Your role cannot set this visibility level'
     }
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -445,7 +462,7 @@ export async function updateOpportunity(
     return {
       success: true,
       message: 'Opportunity updated successfully!',
-      redirectUrl: `/${locale}/opportunities/status/update/success?id=${updatedOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
+      redirectUrl: `/${locale}/opportunities/status/update/success?opportunityId=${updatedOpportunity.id}&type=${type}&opportunityTitle=${encodeURIComponent(title)}`
     }
     
   } catch (error) {
@@ -478,7 +495,7 @@ export async function deleteOpportunity(
     }
   }
 
-  const userRole = (session.user as any)?.role as UserRole
+  const userRole = assertKnownUserRole(session.user.role)
   const userId = session.user.id
 
   try {
@@ -492,18 +509,14 @@ export async function deleteOpportunity(
       }
     }
 
-    // Check ownership and permissions
-    const isOwner = existingOpportunity.createdBy === userId
-    const isAdmin = userRole === UserRole.admin
-    const isConfidentialUser = userRole === UserRole.confidential
-    
-    if (!isOwner && !isAdmin && !isConfidentialUser) {
+    if (!canDeleteOpportunity(userRole, existingOpportunity.createdBy, userId)) {
       return {
         error: 'You do not have permission to delete this opportunity'
       }
     }
 
-    if (isOwner && !isAdmin && existingOpportunity.status !== 'archived') {
+    const isOwner = existingOpportunity.createdBy === userId
+    if (isOwner && !isPlatformAdmin(userRole) && existingOpportunity.status !== 'archived') {
       return {
         error: 'Only archived opportunities can be deleted. Archive the listing first.',
       }
@@ -513,7 +526,7 @@ export async function deleteOpportunity(
     const { deleteOpportunity: deleteOpportunityService } = await import('@/features/opportunities/services/delete-opportunity')
     
     // Perform soft delete with ownership checks
-    await deleteOpportunityService(opportunityId, userId, userRole)
+    await deleteOpportunityService(opportunityId)
     
     console.log('Opportunity deleted successfully:', { 
       id: opportunityId, 
@@ -525,7 +538,7 @@ export async function deleteOpportunity(
     return {
       success: true,
       message: 'Opportunity deleted successfully!',
-      redirectUrl: `/${locale}/opportunities/status/delete/success?id=${opportunityId}&opportunityTitle=${encodeURIComponent(existingOpportunity.title)}`
+      redirectUrl: `/${locale}/opportunities/status/delete/success?opportunityId=${opportunityId}&opportunityTitle=${encodeURIComponent(existingOpportunity.title)}`
     }
     
   } catch (error) {

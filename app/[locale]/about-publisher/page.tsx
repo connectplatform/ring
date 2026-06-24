@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import { setRequestLocale } from 'next-intl/server'
 import { AboutPublisherClient } from './about-publisher-client'
-import AboutWrapper from '@/components/wrappers/about-wrapper'
+import AboutPublisherWrapper from '@/components/wrappers/about-publisher-wrapper'
 import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { buildLocalizedMetadata } from '@/lib/seo-metadata'
@@ -41,8 +41,8 @@ export default async function AboutPublisherPage(props: LocalePageProps<AboutPub
   const primaryFounder = getPrimaryFounderContact()
 
   return (
-    <AboutWrapper locale={locale}>
+    <AboutPublisherWrapper locale={locale}>
       <AboutPublisherClient key={locale} primaryFounder={primaryFounder} />
-    </AboutWrapper>
+    </AboutPublisherWrapper>
   )
 }

@@ -1,169 +1,141 @@
 /**
  * Get Confidential Opportunities Service
- * 
+ *
  * Ring-native: DatabaseService + React 19 cache()
- * Role-based access control (confidential/admin only)
+ * Session-based access control (confidential/admin/superadmin)
  * READ operation - cached for performance
  */
 
 import { cache } from 'react'
+import { auth } from '@/auth'
 import { SerializedOpportunity } from '@/features/opportunities/types'
 import {
   mapDbDocumentToSerializedOpportunity,
 } from '@/features/opportunities/lib/opportunity-db-mapper'
-import { UserRole } from '@/features/auth/types'
-import { hasConfidentialAccess } from '@/features/auth/user-role'
+import { UserRole, assertKnownUserRole, hasConfidentialAccess } from '@/features/auth/user-role'
+import {
+  OpportunityAuthError,
+  OpportunityPermissionError,
+  logRingError,
+} from '@/lib/errors'
 import { db } from '@/lib/database'
+import { logger } from '@/lib/logger'
 
-/**
- * Interface defining the parameters required to fetch confidential opportunities
- * @interface Getconfidential-opportunitiesParams
- * @property {number} page - Current page number for pagination
- * @property {number} limit - Number of records to return per page
- * @property {string} sort - Sorting criteria in format 'field:direction' (e.g., 'createdAt:desc')
- * @property {string} filter - Filter criteria for opportunity status
- * @property {string} [startAfter] - Optional document ID to start pagination after
- * @property {string} userId - ID of the user making the request
- * @property {UserRole.confidential | UserRole.admin | UserRole.superadmin} userRole - Role of the requesting user
- */
-interface getConfidentialOpportunitiesParams {
-  page: number;
-  limit: number;
-  sort: string;
-  filter: string;
-  startAfter?: string;
-  userId: string;
-  userRole: UserRole.confidential | UserRole.admin | UserRole.superadmin;
+export interface GetConfidentialOpportunitiesParams {
+  page: number
+  limit: number
+  sort: string
+  filter: string
+  startAfter?: string
 }
 
-/**
- * Interface defining the structure of the response when fetching confidential opportunities
- * @interface getConfidentialOpportunitiesResult
- * @property {Opportunity[]} opportunities - Array of fetched opportunities
- * @property {string | null} lastVisible - ID of the last document in current page, used for pagination
- * @property {number} totalPages - Total number of available pages
- * @property {number} totalOpportunities - Total count of matching opportunities
- */
-interface getConfidentialOpportunitiesResult {
-  opportunities: SerializedOpportunity[];
-  lastVisible: string | null;
-  totalPages: number;
-  totalOpportunities: number;
+export interface GetConfidentialOpportunitiesResult {
+  opportunities: SerializedOpportunity[]
+  lastVisible: string | null
+  totalPages: number
+  totalOpportunities: number
 }
 
-/**
- * Fetches confidential opportunities from Firestore with pagination, sorting, and filtering
- * 
- * Usage example:
- * ```typescript
- * const result = await getconfidential-opportunities({
- *   page: 1,
- *   limit: 10,
- *   sort: 'createdAt:desc',
- *   filter: 'active',
- *   userId: 'user123',
- *   userRole: UserRole.confidential || UserRole.admin || UserRole.superadmin
- * });
- * ```
- * 
- * User flow:
- * 1. User requests confidential opportunities with specific criteria
- * 2. System validates user has appropriate role (confidential, admin or superadmin)
- * 3. System fetches opportunities matching criteria with pagination
- * 4. System returns formatted results with pagination metadata
- * 
- * @param {getConfidentialOpportunitiesParams} params - Parameters for fetching opportunities
- * @returns {Promise<getConfidentialOpportunitiesResult>} Paginated opportunities and metadata
- * @throws {Error} If database operation fails or parameters are invalid
- */
 export const getConfidentialOpportunities = cache(async (
-  params: getConfidentialOpportunitiesParams
-): Promise<getConfidentialOpportunitiesResult> => {
+  params: GetConfidentialOpportunitiesParams,
+): Promise<GetConfidentialOpportunitiesResult> => {
   try {
-    console.log('Services: getconfidential-opportunities - Starting...', params);
-    const { limit, startAfter, sort, filter, userRole } = params;
+    logger.info('Services: getConfidentialOpportunities - Starting...', { ...params })
 
-    // Validate role: only CONFIDENTIAL or admin allowed here
+    const session = await auth()
+    if (!session?.user?.id) {
+      throw new OpportunityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'getConfidentialOpportunities',
+      })
+    }
+
+    const userRole = assertKnownUserRole(session.user.role)
+
     if (!hasConfidentialAccess(userRole)) {
-      throw new Error('Invalid or missing user role for confidential access');
+      throw new OpportunityPermissionError(
+        'Access denied. Only admin, superadmin or confidential users can fetch confidential opportunities.',
+        undefined,
+        {
+          timestamp: Date.now(),
+          userRole,
+          requiredRoles: [UserRole.admin, UserRole.superadmin, UserRole.confidential],
+          operation: 'getConfidentialOpportunities',
+        },
+      )
     }
 
-    // Step 1: Build filters for confidential opportunities
-    const filters: Array<{ field: string; operator: string; value: any }> = [
-      { field: 'isConfidential', operator: '=', value: true }
-    ];
+    const { limit, startAfter, sort, filter, page } = params
 
-    // Apply additional status filter if provided
+    const filters: Array<{ field: string; operator: string; value: unknown }> = [
+      { field: 'isConfidential', operator: '=', value: true },
+    ]
+
     if (filter) {
-      filters.push({ field: 'status', operator: '=', value: filter });
+      filters.push({ field: 'status', operator: '=', value: filter })
     }
 
-    // Step 2: Parse sorting criteria
-    const [sortField, sortDirection] = sort.split(':');
+    const [sortField, sortDirection] = sort.split(':')
 
-    // Step 3: Get total count for pagination
     const countResult = await db().countDocs('opportunities', filters)
-
-    const totalOpportunities = countResult.success ? (countResult.data ?? 0) : 0;
-    const totalPages = Math.ceil(totalOpportunities / limit);
-
-    const dbQuery = {
-      collection: 'opportunities',
-      filters: filters,
-      orderBy: [{ field: sortField, direction: sortDirection as 'asc' | 'desc' }],
-      pagination: {
-        limit: limit,
-        offset: startAfter ? 1 : 0 // Simple offset for pagination
-      }
-    };
+    const totalOpportunities = countResult.success ? (countResult.data ?? 0) : 0
+    const totalPages = Math.ceil(totalOpportunities / limit)
 
     if (startAfter) {
-      console.log(`Services: getconfidential-opportunities - Paginating after opportunity ID: ${startAfter}`);
+      logger.info(`Services: getConfidentialOpportunities - Paginating after opportunity ID: ${startAfter}`)
       try {
         const startAfterResult = await db().findDocById('opportunities', startAfter)
-
-        if (startAfterResult.success && startAfterResult.data) {
-          // For now, use simple offset-based pagination
-          // TODO: Implement proper cursor-based pagination when db.command() supports it
+        if (!startAfterResult.success || !startAfterResult.data) {
+          logger.warn(`Services: getConfidentialOpportunities - Start-after document ${startAfter} not found`)
         }
       } catch (error) {
-        console.warn(`Services: getconfidential-opportunities - Start-after document ${startAfter} error:`, error);
+        logger.warn(`Services: getConfidentialOpportunities - Start-after document ${startAfter} error:`, error)
       }
     }
 
-    // Step 5: Execute query and process results
-    const queryResult = await db().queryDocs(dbQuery);
+    const queryResult = await db().queryDocs({
+      collection: 'opportunities',
+      filters,
+      orderBy: [{ field: sortField, direction: sortDirection as 'asc' | 'desc' }],
+      pagination: { limit, offset: (page - 1) * limit },
+    })
 
-    const opportunities: SerializedOpportunity[] = [];
+    const opportunities: SerializedOpportunity[] = []
     if (queryResult.success && queryResult.data) {
       for (const item of queryResult.data) {
-        opportunities.push(mapDbDocumentToSerializedOpportunity(item));
+        opportunities.push(mapDbDocumentToSerializedOpportunity(item))
       }
     }
 
-    // Get the ID of the last visible document for next page pagination
     const lastVisible = opportunities.length > 0
       ? opportunities[opportunities.length - 1].id
-      : null;
+      : null
 
-    console.log('Services: getconfidential-opportunities - Results:', {
+    logger.info('Services: getConfidentialOpportunities - Results:', {
       opportunitiesCount: opportunities.length,
       totalOpportunities,
       totalPages,
-      lastVisible
-    });
+      lastVisible,
+    })
 
     return {
       opportunities,
       lastVisible,
       totalPages,
-      totalOpportunities
-    };
-
+      totalOpportunities,
+    }
   } catch (error) {
-    console.error('getConfidentialOpportunities: Error:', error);
+    logRingError(error, 'Services: getConfidentialOpportunities - Error')
+    if (
+      error instanceof OpportunityAuthError ||
+      error instanceof OpportunityPermissionError
+    ) {
+      throw error
+    }
     throw error instanceof Error
       ? error
-      : new Error('Unknown error occurred while fetching confidential opportunities');
+      : new Error('Unknown error occurred while fetching confidential opportunities')
   }
-});
+})

@@ -5,8 +5,8 @@
  * Admin-only operation with authentication checks
  */
 
-import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 
 /**
@@ -34,7 +34,7 @@ export async function deleteUser(userIdToDelete: string): Promise<boolean> {
 
     const { id: currentUserId, role: currentUserRole } = session.user
 
-    if (![UserRole.admin, UserRole.superadmin].includes(currentUserRole as UserRole)) {
+    if (!isPlatformAdmin(assertKnownUserRole(currentUserRole))) {
       throw new Error('Unauthorized access: Admin privileges required')
     }
 

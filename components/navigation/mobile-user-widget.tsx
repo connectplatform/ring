@@ -35,7 +35,7 @@ import {
 import { Avatar } from '@/components/ui/avatar'
 import { ROUTES } from '@/constants/routes'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { useUnreadCount } from '@/hooks/use-unread-count'
+import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { cn } from '@/lib/utils'
@@ -177,7 +177,7 @@ export default function MobileUserWidget({ className }: MobileUserWidgetProps) {
   
   // Real-time data from shared context
   const { balance: tokenBalance } = useCreditBalanceContext()
-  const { unreadCount: notificationCount } = useUnreadCount()
+  const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
   

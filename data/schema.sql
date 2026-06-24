@@ -1,8 +1,8 @@
 -- ============================================================================
 -- PostgreSQL Schema for Ring Platform
 -- ============================================================================
--- Version: 4.0.2
--- Date: 2026-06-10
+-- Version: 4.0.3
+-- Date: 2026-06-22
 -- Database: ring_platform (or project-specific: ring_zemna_ai, ring_greenfood_live, etc.)
 -- Purpose: SINGLE SOURCE OF TRUTH for all Ring Platform database schemas
 -- Includes: Core, Auth.js adapter tables (accounts/sessions/verification_tokens), social, marketplace, store, content, FCM, reference data
@@ -22,6 +22,8 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS postgis_topology;
 -- ============================================================================
+-- Changes from v4.0.2:
+--   - Added public_pools, public_pool_signals, public_pool_contributions (community jars / future-feature DAO)
 -- Changes from v4.0.1:
 --   - Merged 008_inventory_schema.sql (inventory_levels, inventory_reservations)
 -- Changes from v3.0.0:
@@ -352,6 +354,147 @@ CREATE INDEX IF NOT EXISTS idx_wallet_tx_data_gin ON wallet_transactions USING G
 
 COMMENT ON TABLE wallet_transactions IS 'Blockchain wallet transactions (deposits, withdrawals, transfers)';
 
+-- Per-project wallet contacts (address book)
+CREATE TABLE IF NOT EXISTS project_wallet_contacts (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pwc_user_project ON project_wallet_contacts ((data->>'global_user_id'), (data->>'project_slug'));
+CREATE INDEX IF NOT EXISTS idx_pwc_address ON project_wallet_contacts ((data->>'global_user_id'), (data->>'project_slug'), (data->>'address'));
+CREATE INDEX IF NOT EXISTS idx_pwc_favorite ON project_wallet_contacts ((data->>'global_user_id'), (data->>'project_slug'), (data->>'is_favorite'));
+CREATE INDEX IF NOT EXISTS idx_pwc_last_used ON project_wallet_contacts ((data->>'last_used') DESC);
+CREATE INDEX IF NOT EXISTS idx_pwc_data_gin ON project_wallet_contacts USING GIN (data);
+
+COMMENT ON TABLE project_wallet_contacts IS 'Per-project wallet address book — JSONB; scoped by global_user_id + project_slug';
+
+-- Per-project wallet accounts
+CREATE TABLE IF NOT EXISTS project_wallets (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pw_user_project ON project_wallets ((data->>'global_user_id'), (data->>'project_slug'));
+CREATE INDEX IF NOT EXISTS idx_pw_data_gin ON project_wallets USING GIN (data);
+
+COMMENT ON TABLE project_wallets IS 'Per-project wallet accounts — JSONB; scoped by global_user_id + project_slug';
+
+-- Per-project wallet transfer history
+CREATE TABLE IF NOT EXISTS project_wallet_transactions (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pwt_user_project ON project_wallet_transactions ((data->>'global_user_id'), (data->>'project_slug'));
+CREATE INDEX IF NOT EXISTS idx_pwt_timestamp ON project_wallet_transactions ((data->>'timestamp') DESC);
+CREATE INDEX IF NOT EXISTS idx_pwt_data_gin ON project_wallet_transactions USING GIN (data);
+
+COMMENT ON TABLE project_wallet_transactions IS 'Per-project wallet transfer history — JSONB';
+
+-- Ring contacts (user-linked address book per project)
+CREATE TABLE IF NOT EXISTS ring_contacts (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ring_contacts_owner_project ON ring_contacts (
+    (data->>'owner_user_id'),
+    (data->>'project_slug')
+);
+CREATE INDEX IF NOT EXISTS idx_ring_contacts_contact_user ON ring_contacts ((data->>'contact_user_id'));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ring_contacts_owner_project_contact_unique ON ring_contacts (
+    (data->>'owner_user_id'),
+    (data->>'project_slug'),
+    (data->>'contact_user_id')
+);
+CREATE INDEX IF NOT EXISTS idx_ring_contacts_favorite ON ring_contacts (
+    (data->>'owner_user_id'),
+    (data->>'project_slug'),
+    (data->>'is_favorite')
+);
+CREATE INDEX IF NOT EXISTS idx_ring_contacts_data_gin ON ring_contacts USING GIN (data);
+
+COMMENT ON TABLE ring_contacts IS 'Per-project Ring user address book — JSONB; scoped by owner_user_id + project_slug';
+
+-- ============================================================================
+-- PUBLIC POOLS (community jars — likes + native RING chip-ins per clone)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public_pools (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_public_pools_clone_slug ON public_pools (
+    (data->>'clone_id'),
+    (data->>'pool_slug')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pools_clone_kind_status ON public_pools (
+    (data->>'clone_id'),
+    (data->>'pool_kind'),
+    (data->>'status')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pools_data_gin ON public_pools USING GIN (data);
+
+COMMENT ON TABLE public_pools IS 'Per-clone community jars (future_feature, city_dao, etc.) — JSONB';
+
+CREATE TABLE IF NOT EXISTS public_pool_signals (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_public_pool_signals_pool ON public_pool_signals (
+    (data->>'clone_id'),
+    (data->>'pool_id')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pool_signals_user ON public_pool_signals (
+    (data->>'clone_id'),
+    (data->>'pool_id'),
+    (data->>'user_id')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pool_signals_data_gin ON public_pool_signals USING GIN (data);
+
+COMMENT ON TABLE public_pool_signals IS 'Likes/votes on public pools — one active like per user per pool';
+
+CREATE TABLE IF NOT EXISTS public_pool_contributions (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_public_pool_contrib_idempotency ON public_pool_contributions (
+    (data->>'clone_id'),
+    (data->>'idempotency_key')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pool_contrib_pool ON public_pool_contributions (
+    (data->>'clone_id'),
+    (data->>'pool_id')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pool_contrib_user ON public_pool_contributions (
+    (data->>'clone_id'),
+    (data->>'user_id')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pool_contrib_status ON public_pool_contributions (
+    (data->>'pool_id'),
+    (data->>'status')
+);
+CREATE INDEX IF NOT EXISTS idx_public_pool_contrib_data_gin ON public_pool_contributions USING GIN (data);
+
+COMMENT ON TABLE public_pool_contributions IS 'Native-token chip-ins for public pools — JSONB';
+
 -- NFT Listings table
 CREATE TABLE IF NOT EXISTS nft_listings (
     id VARCHAR(255) PRIMARY KEY,
@@ -587,6 +730,29 @@ CREATE INDEX IF NOT EXISTS idx_generated_images_data_gin ON generated_images USI
 
 COMMENT ON TABLE generated_images IS 'AI-generated images stored in ring-filebase via ImageConductor';
 
+-- Generated videos (VideoConductor — xAI Grok Imagine Video)
+CREATE TABLE IF NOT EXISTS generated_videos (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_videos_actor_id ON generated_videos ((data->>'actorId'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_provider ON generated_videos ((data->>'provider'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_purpose ON generated_videos ((data->>'purpose'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_ref_code ON generated_videos ((data->>'refCode'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_clip_id ON generated_videos ((data->>'clipId'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_pipeline_request_id ON generated_videos ((data->>'pipelineRequestId'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_quality_mode ON generated_videos ((data->>'qualityMode'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_request_id ON generated_videos ((data->>'requestId'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_generation_kind ON generated_videos ((data->>'generationKind'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_remaster_from_request_id ON generated_videos ((data->>'remasterFromRequestId'));
+CREATE INDEX IF NOT EXISTS idx_generated_videos_created_at ON generated_videos (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_generated_videos_data_gin ON generated_videos USING GIN (data);
+
+COMMENT ON TABLE generated_videos IS 'AI-generated videos stored in ring-filebase via VideoConductor';
+
 -- Certifications (Quality certifications, badges)
 CREATE TABLE IF NOT EXISTS certifications (
     id VARCHAR(255) PRIMARY KEY,
@@ -636,6 +802,9 @@ CREATE INDEX IF NOT EXISTS idx_store_products_status ON store_products ((data->>
 CREATE INDEX IF NOT EXISTS idx_store_products_price ON store_products (((data->'price')::numeric));
 CREATE INDEX IF NOT EXISTS idx_store_products_created_at ON store_products (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_store_products_data_gin ON store_products USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_store_products_rep ON store_products ((data->>'rep'));
+CREATE INDEX IF NOT EXISTS idx_store_products_approval_status ON store_products ((data->>'approvalStatus'));
+CREATE INDEX IF NOT EXISTS idx_store_products_list_stores ON store_products USING GIN ((data->'listStores'));
 
 -- Full-text search for store products
 CREATE INDEX IF NOT EXISTS idx_store_products_search ON store_products 
@@ -724,30 +893,70 @@ CREATE INDEX IF NOT EXISTS idx_news_data_gin ON news USING GIN (data);
 COMMENT ON TABLE news IS 'Ring Platform news and content articles';
 
 -- ============================================================================
--- FCM PUSH NOTIFICATION TOKENS
+-- FCM PUSH NOTIFICATION TOKENS (JSONB)
 -- ============================================================================
+-- data: userId, token, deviceFingerprint, deviceInfo, status, lastSeen, invalidatedAt, ...
+-- One row per (userId, deviceFingerprint); no UNIQUE on token (FCM rotation).
 
 CREATE TABLE IF NOT EXISTS fcm_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id VARCHAR(255),
-    token VARCHAR(255) NOT NULL UNIQUE,
-    device_info JSONB NOT NULL,
-    platform VARCHAR(50),
-    browser VARCHAR(100),
-    user_agent TEXT,
-    is_active BOOLEAN DEFAULT true,
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_user_id ON fcm_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_token ON fcm_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_is_active ON fcm_tokens(is_active);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_last_seen ON fcm_tokens(last_seen DESC);
-CREATE INDEX IF NOT EXISTS idx_fcm_tokens_platform ON fcm_tokens(platform);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fcm_tokens_user_device
+    ON fcm_tokens ((data->>'userId'), (data->>'deviceFingerprint'));
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_data_user_id ON fcm_tokens ((data->>'userId'));
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_data_is_active ON fcm_tokens (((data->>'isActive')::boolean));
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_created_at ON fcm_tokens (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_data_gin ON fcm_tokens USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_fcm_tokens_active_user ON fcm_tokens ((data->>'userId'))
+    WHERE (data->>'status') = 'active';
 
-COMMENT ON TABLE fcm_tokens IS 'Firebase Cloud Messaging push notification tokens per device';
+COMMENT ON TABLE fcm_tokens IS 'FCM push tokens — JSONB; one row per (userId, deviceFingerprint)';
+
+-- ============================================================================
+-- RING ANALYTICS (JSONB)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session_id ON analytics_events ((data->>'sessionId'));
+CREATE INDEX IF NOT EXISTS idx_analytics_events_event_type ON analytics_events ((data->>'eventType'));
+CREATE INDEX IF NOT EXISTS idx_analytics_events_data_gin ON analytics_events USING GIN (data);
+
+CREATE TABLE IF NOT EXISTS web_vitals (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_vitals_created_at ON web_vitals (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_web_vitals_session_id ON web_vitals ((data->>'sessionId'));
+CREATE INDEX IF NOT EXISTS idx_web_vitals_data_gin ON web_vitals USING GIN (data);
+
+CREATE TABLE IF NOT EXISTS analytics_errors (
+    id VARCHAR(255) PRIMARY KEY DEFAULT (gen_random_uuid()::text),
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_errors_created_at ON analytics_errors (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_errors_severity ON analytics_errors ((data->>'severity'));
+CREATE INDEX IF NOT EXISTS idx_analytics_errors_data_gin ON analytics_errors USING GIN (data);
+
+COMMENT ON TABLE analytics_events IS 'Client app/navigation telemetry — JSONB; one row per event';
+COMMENT ON TABLE web_vitals IS 'Core Web Vitals batches — JSONB';
+COMMENT ON TABLE analytics_errors IS 'Client-side error logs — JSONB';
 
 -- ============================================================================
 -- SCHEMA VERSION TRACKING
@@ -1147,3 +1356,18 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 CREATE INDEX IF NOT EXISTS idx_platform_settings_data_gin ON platform_settings USING GIN (data);
 
 COMMENT ON TABLE platform_settings IS 'SUPERadmin platform settings by namespace id (ai, branding, …)';
+
+-- Process runs ledger — ProcessConductor audit trail for cron / background pipelines
+CREATE TABLE IF NOT EXISTS process_runs (
+    id VARCHAR(255) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_process_runs_pipeline_id ON process_runs ((data->>'pipelineId'));
+CREATE INDEX IF NOT EXISTS idx_process_runs_status ON process_runs ((data->>'status'));
+CREATE INDEX IF NOT EXISTS idx_process_runs_created_at ON process_runs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_process_runs_data_gin ON process_runs USING GIN (data);
+
+COMMENT ON TABLE process_runs IS 'Background pipeline run history (ProcessConductor)';

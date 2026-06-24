@@ -46,6 +46,7 @@ export type LocaleFileId =
   | 'modEntities'
   | 'modOpp'
   | 'modMessenger'
+  | 'modContacts'
   | 'modWallet'
   | 'modStore'
   | 'modProfile'
@@ -56,6 +57,8 @@ export type LocaleFileId =
   | 'modNews'
   | 'modNotifications'
   | 'modRefcodes'
+  | 'modDao'
+  | 'modAccount'
   | 'vendor'
   | 'confidential'
 
@@ -90,6 +93,7 @@ const PUBLIC_CONTENT: LocaleFileId[] = [
   'ai-web3',
   'contact',
   'docs',
+  'modDao',
 ]
 
 const PUBLIC_STORE_EXTRA: LocaleFileId[] = ['vendor']
@@ -100,8 +104,10 @@ const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'modProfile',
   'modSettings',
   'modWallet',
+  'modAccount',
   'modRefcodes',
   'modMessenger',
+  'modContacts',
   'modNft',
   'modNotifications',
   'vendor',
@@ -113,7 +119,7 @@ const AUTHENTICATED_EXTRA: LocaleFileId[] = [
   'reviews',
 ]
 
-const ADMIN_EXTRA: LocaleFileId[] = ['modAdmin', 'modRefcodes', 'emails', 'editor', 'modNews']
+const ADMIN_EXTRA: LocaleFileId[] = ['modAdmin', 'modRefcodes', 'modDao', 'emails', 'editor', 'modNews']
 
 const CONFIDENTIAL_EXTRA: LocaleFileId[] = ['confidential']
 
@@ -148,6 +154,7 @@ const ALL_FILES: LocaleFileId[] = [
   'modEntities',
   'modOpp',
   'modMessenger',
+  'modContacts',
   'modWallet',
   'modStore',
   'modProfile',
@@ -158,6 +165,8 @@ const ALL_FILES: LocaleFileId[] = [
   'modNews',
   'modNotifications',
   'modRefcodes',
+  'modDao',
+  'modAccount',
   'vendor',
   'confidential',
 ]
@@ -195,6 +204,7 @@ export function resolveMessageScope(pathname: string): MessageScope {
   const p = pathnameWithoutLocale(pathname || '/')
   const normalized = p === '' ? '/' : p
 
+  if (normalized.startsWith('/account/')) return 'authenticated'
   if (normalized.startsWith('/admin')) return 'admin'
   if (normalized.startsWith('/confidential')) return 'confidential'
   if (normalized.startsWith('/docs/roadmap')) return 'confidential'
@@ -216,5 +226,6 @@ export function resolveMessageScope(pathname: string): MessageScope {
   if (normalized === '/') return 'public-home'
   if (normalized.startsWith('/store')) return 'public-store'
   if (normalized.startsWith('/news')) return 'public-news'
+  if (normalized.startsWith('/dao')) return 'public'
   return 'public'
 }

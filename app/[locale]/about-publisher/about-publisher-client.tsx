@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/docs/callout';
-import { RingWidgetsContact } from '@/components/ring-widgets/ring-widgets-contact';
+import { RingWidgetsContact } from '@/components/ring-widgets/contact';
 import type { RingWidgetsContactProps } from '@/lib/ring-widgets/contact-schema';
 import { Heart, Users, Globe, Code, Target, Sparkles, MapPin, Award, Github, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
@@ -19,7 +19,7 @@ export function AboutPublisherClient({ primaryFounder }: AboutPublisherClientPro
   const t = useTranslations('about-publisher');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-background dark:from-gray-900 dark:via-gray-800 dark:to-purple-900">
+    <div className="mx-4">
       {/* Hero Section */}
       <section className="relative py-20 px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary/10"></div>

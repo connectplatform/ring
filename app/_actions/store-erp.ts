@@ -98,7 +98,7 @@ export const getProductsByVendor = cache(async (
       collection: 'store_products',
       filters: [
         {
-          field: 'productOwner',
+          field: 'entity_id',
           operator: '==',
           value: vendorId,
         },

@@ -1,7 +1,7 @@
 import { file as fileService } from '@/lib/file'
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth' // Auth.js session handler
-import { UserRole } from '@/features/auth/types'
+import { resolveSessionUserRole } from '@/features/auth/user-role'
 import { cookies, headers } from 'next/headers'
 
 /**
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
      * Extract user role from session for authorization
      * Falls back to UserRole.subscriber if role is undefined
      */
-    const userRole = session.user.role as UserRole || UserRole.subscriber
+    const userRole = resolveSessionUserRole(session.user.role)
     console.log('API: /api/entities/upload - Authorized access', {
       userId: session.user.id,
       role: userRole,

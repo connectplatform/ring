@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel'
 import { useTunnel } from '@/hooks/use-tunnel'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
 import { normalizeMessagePayload } from '@/features/chat/lib/normalize-message'
@@ -284,13 +285,14 @@ export function useConversation(conversationId: string, options?: { enabled?: bo
 
 export function useMessages(conversationId: string, pagination?: PaginationOptions) {
   const { data: session } = useSession()
-  const { subscribe, isConnected } = useTunnel()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
 
   const cursorRef = useRef<string | null>(null)
+  const conversationIdRef = useRef(conversationId)
+  conversationIdRef.current = conversationId
   const limit = pagination?.limit ?? 50
   const direction = pagination?.direction
 
@@ -368,44 +370,44 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
     void fetchMessages(true)
   }, [fetchMessages])
 
-  useEffect(() => {
-    if (!session?.user?.id || !conversationId) return
-    const channel = `conversation:${conversationId}`
-
-    const onTunnelMessage = (msg: TunnelMessage) => {
-      const event = msg.event
-      if (event === 'message:new' && msg.payload) {
-        const incoming = normalizeMessagePayload(msg.payload, conversationId)
-        if (!incoming) return
-        setMessages((prev) => {
-          if (prev.some((p) => p.id === incoming.id)) return prev
-          return [...prev, incoming]
-        })
-        return
-      }
-      if (event === 'message:deleted' && msg.payload && typeof msg.payload === 'object') {
-        const id = (msg.payload as { id?: string }).id
-        if (!id) return
-        setMessages((prev) =>
-          prev.map((m) => (m.id === id ? { ...m, content: '[Message deleted]' } : m)),
-        )
-        return
-      }
-      if (event === 'message:update' && msg.payload) {
-        const incoming = normalizeMessagePayload(msg.payload, conversationId)
-        if (!incoming) return
-        setMessages((prev) => {
-          const idx = prev.findIndex((p) => p.id === incoming.id)
-          if (idx === -1) return [...prev, incoming]
-          const next = [...prev]
-          next[idx] = { ...next[idx], ...incoming }
-          return next
-        })
-      }
+  const handleConversationMessage = useCallback((msg: TunnelMessage) => {
+    const cid = conversationIdRef.current
+    const event = msg.event
+    if (event === 'message:new' && msg.payload) {
+      const incoming = normalizeMessagePayload(msg.payload, cid)
+      if (!incoming) return
+      setMessages((prev) => {
+        if (prev.some((p) => p.id === incoming.id)) return prev
+        return [...prev, incoming]
+      })
+      return
     }
+    if (event === 'message:deleted' && msg.payload && typeof msg.payload === 'object') {
+      const id = (msg.payload as { id?: string }).id
+      if (!id) return
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, content: '[Message deleted]' } : m)),
+      )
+      return
+    }
+    if (event === 'message:update' && msg.payload) {
+      const incoming = normalizeMessagePayload(msg.payload, cid)
+      if (!incoming) return
+      setMessages((prev) => {
+        const idx = prev.findIndex((p) => p.id === incoming.id)
+        if (idx === -1) return [...prev, incoming]
+        const next = [...prev]
+        next[idx] = { ...next[idx], ...incoming }
+        return next
+      })
+    }
+  }, [])
 
-    return subscribe(channel, onTunnelMessage)
-  }, [session?.user?.id, conversationId, subscribe, isConnected])
+  useTunnelChannel({
+    channel: `conversation:${conversationId}`,
+    enabled: Boolean(session?.user?.id && conversationId),
+    onTunnelMessage: handleConversationMessage,
+  })
 
   const sendMessage = useCallback(
     async (content: string, options?: Partial<SendMessageRequest>): Promise<Message | null> => {
@@ -478,10 +480,15 @@ export function useMessages(conversationId: string, pagination?: PaginationOptio
 
 export function useTyping(conversationId: string) {
   const { data: session } = useSession()
-  const { subscribe, isConnected } = useTunnel()
+  const { isConnected } = useTunnel()
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const lastTrueSentRef = useRef(0)
+
+  const conversationIdRef = useRef(conversationId)
+  conversationIdRef.current = conversationId
+  const selfIdRef = useRef(session?.user?.id)
+  selfIdRef.current = session?.user?.id
 
   const postTyping = useCallback(
     async (typing: boolean) => {
@@ -511,38 +518,41 @@ export function useTyping(conversationId: string) {
     void postTyping(false)
   }, [postTyping])
 
+  const handleTypingMessage = useCallback((msg: TunnelMessage) => {
+    if (msg.event !== 'typing:update' || !msg.payload || typeof msg.payload !== 'object') {
+      return
+    }
+    const payload = msg.payload as { userId?: string; userName?: string; isTyping?: boolean }
+    const selfId = selfIdRef.current
+    if (!payload.userId || payload.userId === selfId) return
+
+    const cid = conversationIdRef.current
+    setTypingUsers((prev) => {
+      const without = prev.filter((u) => u.userId !== payload.userId)
+      if (!payload.isTyping) return without
+      return [
+        ...without,
+        {
+          conversationId: cid,
+          userId: payload.userId!,
+          userName: payload.userName || 'User',
+          timestamp: new Date(),
+        },
+      ]
+    })
+  }, [])
+
+  useTunnelChannel({
+    channel: `conversation:${conversationId}`,
+    enabled: Boolean(session?.user?.id && conversationId),
+    onTunnelMessage: handleTypingMessage,
+  })
+
   useEffect(() => {
     if (!conversationId || !session?.user?.id) {
       setTypingUsers([])
       return
     }
-
-    const channel = `conversation:${conversationId}`
-    const selfId = session.user.id
-
-    const onTunnelMessage = (msg: TunnelMessage) => {
-      if (msg.event !== 'typing:update' || !msg.payload || typeof msg.payload !== 'object') {
-        return
-      }
-      const payload = msg.payload as { userId?: string; userName?: string; isTyping?: boolean }
-      if (!payload.userId || payload.userId === selfId) return
-
-      setTypingUsers((prev) => {
-        const without = prev.filter((u) => u.userId !== payload.userId)
-        if (!payload.isTyping) return without
-        return [
-          ...without,
-          {
-            conversationId,
-            userId: payload.userId!,
-            userName: payload.userName || 'User',
-            timestamp: new Date(),
-          },
-        ]
-      })
-    }
-
-    const unsubTunnel = subscribe(channel, onTunnelMessage)
 
     const cid = conversationId
     let cancelled = false
@@ -567,14 +577,13 @@ export function useTyping(conversationId: string) {
     return () => {
       cancelled = true
       clearInterval(id)
-      unsubTunnel()
       void apiClient.post(
         `${API_BASE}/conversations/${cid}/typing`,
         { isTyping: false },
         { timeout: 3000, retries: 0 },
       )
     }
-  }, [conversationId, session?.user?.id, subscribe, isConnected])
+  }, [conversationId, session?.user?.id, isConnected])
 
   return {
     typingUsers,

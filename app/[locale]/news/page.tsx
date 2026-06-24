@@ -8,7 +8,10 @@ import Link from 'next/link';
 import { NewsList } from '@/features/news/components/news-list';
 import { FeaturedCarousel } from '@/features/news/components/featured-carousel';
 import NewsPageWrapper from '@/components/wrappers/news-page-wrapper';
-import { db } from '@/lib/database';
+import { db } from '@/lib/database'
+import { auth } from '@/auth'
+import { buildNewsVisibilityFilters } from '@/features/news/lib/news-visibility-filter'
+import { assertKnownUserRole, UserRole } from '@/features/auth/user-role'
 import { mapNewsDocument, mapNewsCategoryDocument } from '@/lib/news/map-news-document';
 import { NewsArticle, NewsCategory, NewsCategoryInfo } from '@/features/news/types';
 import { LocalePageProps, LocaleMetadataProps } from '@/utils/page-props';
@@ -106,11 +109,16 @@ type NewsParams = {};
  */
 async function getInitialNews(): Promise<NewsArticle[]> {
   try {
+    const session = await auth()
+    const userRole = session?.user
+      ? assertKnownUserRole(session.user.role)
+      : UserRole.visitor
+
     const result = await db().queryDocs({
       collection: 'news',
       filters: [
         { field: 'status', operator: '==', value: 'published' },
-        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },
+        ...buildNewsVisibilityFilters(userRole),
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
       pagination: { limit: 12 },

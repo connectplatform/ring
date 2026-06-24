@@ -1,6 +1,6 @@
 ---
 title: Backend modes and databases
-description: DB_BACKEND_MODE, PostgreSQL vs Firebase vs Supabase, FCM-only Firebase, Tunnel transports, and how this differs from DB_HYBRID_MODE
+description: DB_BACKEND_MODE, PostgreSQL vs Firebase vs Supabase, FCM-only Firebase, Tunnel transports.
 last_modified: "2026-05-15"
 ---
 
@@ -26,7 +26,7 @@ This page is the **canonical reference** for operators and clone maintainers. Im
 - **`lib/firebase-admin.server.ts`** explicitly avoids real Firestore when `shouldUseFirebaseForDatabase()` is false (see comments around `getAdminDb()` / `getAdminAuth()`).
 - **FCM** still uses Firebase project credentials where enabled (`shouldInitializeFirebaseFCM()`, `NEXT_PUBLIC_FIREBASE_*`, service account vars). That is **push delivery**, not the primary transactional store.
 
-So “we moved off Firebase for the database” is accurate for Postgres‑primary modes; **Firebase is not gone** from the repo — it remains the **standard FCM path** unless you disable push.
+So “we moved off Firebase for the database” is accurate for Postgres‑primary modes; **Firebase remains the standard FCM path** if you need push.
 
 ## Supabase: two different roles
 
@@ -37,14 +37,7 @@ So “we moved off Firebase for the database” is accurate for Postgres‑prima
 
 Ring Platform does **not** use **`@vercel/postgres`** as the primary database driver in this tree. **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) is used for file/blob storage where configured — that is **not** the relational database.
 
-## `DB_HYBRID_MODE` — not the same as `DB_BACKEND_MODE`
-
-**`DB_HYBRID_MODE`** is a **legacy / feature-level** toggle still referenced in a few places (for example `features/store/config.ts`, `features/notifications/services/notification-service-loader.ts`, `scripts/inject-firebase-config.js`). It does **not** replace and is **not** synonymous with **`DB_BACKEND_MODE`**.
-
 - **`DB_BACKEND_MODE`** — global deployment mode (Postgres‑primary vs full Firebase vs Supabase Postgres).
-- **`DB_HYBRID_MODE`** — older “hybrid” wording for **partial** Firebase vs Postgres behavior in specific features.
-
-**Recommendation:** Prefer documenting and setting **`DB_BACKEND_MODE`** for all new deployments. If you rename documentation from “hybrid” to “self‑hosted,” apply it to **prose and variable names in new code**, not to the **`DB_BACKEND_MODE` enum** without a migration plan.
 
 ## Auth.js and PostgreSQL
 

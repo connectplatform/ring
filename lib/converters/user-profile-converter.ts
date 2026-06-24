@@ -221,6 +221,7 @@ export const userProfileWithCreditsConverter: FirestoreDataConverter<UserProfile
       credit_balance: data.credit_balance ? {
         amount: data.credit_balance.amount || '0',
         usd_equivalent: data.credit_balance.usd_equivalent || '0',
+        fiat_currency: data.credit_balance.fiat_currency || 'USD',
         last_updated: data.credit_balance.last_updated?.toMillis() || Date.now(),
         last_transaction_id: data.credit_balance.last_transaction_id,
         subscription_active: data.credit_balance.subscription_active || false,
@@ -282,6 +283,7 @@ export function createNewUserProfileWithCredits(
     credit_balance: {
       amount: '0',
       usd_equivalent: '0',
+      fiat_currency: 'USD',
       last_updated: now,
       subscription_active: false,
     },

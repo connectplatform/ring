@@ -2,29 +2,27 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 
-export type StoreHubTab = 'orders' | 'stock' | 'commissions'
+export type StoreHubTab = 'products' | 'orders' | 'stock' | 'commissions'
 
 interface StoreHubTabsProps {
   locale: Locale
   active: StoreHubTab
-  labels: {
-    orders: string
-    stock: string
-    commissions: string
-  }
 }
 
-export default function StoreHubTabs({ locale, active, labels }: StoreHubTabsProps) {
+export default function StoreHubTabs({ locale, active }: StoreHubTabsProps) {
   const pathname = usePathname()
+  const t = useTranslations('modules.admin.storeHub')
 
   const tabs: { id: StoreHubTab; href: string; label: string }[] = [
-    { id: 'orders', href: ROUTES.ADMIN_STORE_ORDERS(locale), label: labels.orders },
-    { id: 'stock', href: ROUTES.ADMIN_STORE_STOCK(locale), label: labels.stock },
-    { id: 'commissions', href: ROUTES.ADMIN_STORE_COMMISSIONS(locale), label: labels.commissions },
+    { id: 'products', href: ROUTES.ADMIN_STORE_PRODUCTS(locale), label: t('products') },
+    { id: 'orders', href: ROUTES.ADMIN_STORE_ORDERS(locale), label: t('orders') },
+    { id: 'stock', href: ROUTES.ADMIN_STORE_STOCK(locale), label: t('stock') },
+    { id: 'commissions', href: ROUTES.ADMIN_STORE_COMMISSIONS(locale), label: t('commissions') },
   ]
 
   return (

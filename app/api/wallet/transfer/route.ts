@@ -23,6 +23,10 @@ import { decryptPrivateKey } from '@/lib/crypto'
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
 
+  console.warn(
+    '[DEPRECATED] POST /api/wallet/transfer — use POST /api/wallet/ring/transfer for RING sends',
+  )
+
   const startTime = Date.now()
   console.log('🚀 API: /api/wallet/transfer - Starting native token transfer')
 

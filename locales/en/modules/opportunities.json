@@ -81,7 +81,20 @@
     "location": "location",
     "priority": "priority",
     "budget": "budget",
-    "activeFilters": "Active filters"
+    "activeFilters": "Active filters",
+    "clearAll": "Clear all",
+    "sectionTypes": "Opportunity types",
+    "sectionCategories": "Categories",
+    "sectionLocation": "Location",
+    "sectionBudget": "Budget range",
+    "locationPlaceholder": "Enter city or country",
+    "currency": "Currency",
+    "min": "Min",
+    "max": "Max",
+    "anyPriority": "Any priority",
+    "priorityUrgent": "Urgent",
+    "priorityNormal": "Normal",
+    "priorityLow": "Low"
   },
   "sortBy": "Sort by",
   "newest": "Newest",
@@ -372,6 +385,7 @@
       "viewOpportunity": "View Opportunity",
       "viewApplication": "View Application",
       "backToOpportunities": "Back to Opportunities",
+      "continue": "Continue",
       "continueEditing": "Continue Editing",
       "createNew": "Create New Opportunity",
       "contactSupport": "Contact Support",
@@ -397,6 +411,10 @@
         "title": "Opportunity Published!",
         "description": "Your opportunity has been successfully published and is now visible to potential applicants on the platform."
       },
+      "success": {
+        "title": "Opportunity Created!",
+        "description": "Your opportunity was saved successfully. You can continue managing it from My Opportunities."
+      },
       "failed": {
         "title": "Opportunity Creation Failed",
         "description": "We couldn't create your opportunity due to a technical issue. Please try again or contact support for assistance."
@@ -404,6 +422,26 @@
       "rejected": {
         "title": "Opportunity Rejected",
         "description": "Your opportunity submission was rejected during the review process. Please review the feedback and make necessary corrections."
+      }
+    },
+    "update": {
+      "success": {
+        "title": "Changes Saved!",
+        "description": "Your opportunity was updated successfully. Continue managing it from My Opportunities."
+      },
+      "failed": {
+        "title": "Update Failed",
+        "description": "We could not save your changes. Please try again or contact support."
+      }
+    },
+    "delete": {
+      "success": {
+        "title": "Opportunity Deleted",
+        "description": "Your opportunity was removed from the platform."
+      },
+      "failed": {
+        "title": "Deletion Failed",
+        "description": "We could not delete this opportunity. Please try again or contact support."
       }
     },
     "apply": {
@@ -532,6 +570,116 @@
     "event": {
       "title": "Create Event",
       "description": "Organize events and invite community participation."
+    },
+    "ring_customization": {
+      "title": "Ring Customization Project",
+      "description": "Describe a Ring Platform deployment, module, or branding customization scope."
+    }
+  },
+  "form": {
+    "optionalDetails": "Optional details",
+    "show": "Show",
+    "hide": "Hide",
+    "optional": "Optional",
+    "editTitle": "Edit opportunity",
+    "editDescription": "Update your listing details and save changes.",
+    "saveChanges": "Save changes",
+    "descriptionPlaceholder": "Describe your opportunity in detail...",
+    "requirementsPlaceholder": "List any specific requirements or qualifications...",
+    "titlePlaceholders": {
+      "request": "What do you need help with?",
+      "offer": "Job title or position name",
+      "partnership": "Partnership opportunity title",
+      "volunteer": "Volunteer opportunity title",
+      "mentorship": "Mentorship program title",
+      "resource": "Resource or equipment name",
+      "event": "Event title",
+      "ring_customization": "Ring customization project title"
+    },
+    "budgetLabels": {
+      "request": "Budget available",
+      "offer": "Salary/payment range",
+      "partnership": "Investment range",
+      "volunteer": "Stipend (if any)",
+      "mentorship": "Fee (if any)",
+      "resource": "Cost/fee",
+      "event": "Ticket price",
+      "ring_customization": "Project budget"
+    }
+  },
+  "formRail": {
+    "backToBrowse": "Back to opportunities",
+    "checklistTitle": "Before you publish",
+    "guideTitle": "Documentation",
+    "guideDescription": "Learn how opportunities are matched, moderated, and discovered.",
+    "docsOverview": "Opportunities overview",
+    "docsMatching": "AI matching",
+    "docsEntities": "Entity profiles",
+    "memberNoteTitle": "Member posting",
+    "memberNoteBody": "Offers and Ring customization projects are published on behalf of a verified entity.",
+    "memberBadge": "Member+",
+    "visibilityTitle": "Visibility",
+    "request": {
+      "tipsTitle": "Request tips",
+      "tip1Title": "Be specific",
+      "tip1Body": "State deliverables, timeline, and success criteria so responders know if they fit.",
+      "tip2Title": "Set a realistic budget",
+      "tip2Body": "A budget range helps the matcher surface relevant professionals faster.",
+      "tip3Title": "Choose the right category",
+      "tip3Body": "Category and tags drive discovery in browse and AI matching.",
+      "visibilityBody": "Requests are visible to subscribers browsing opportunities unless marked confidential.",
+      "check1": "Clear, actionable title",
+      "check2": "Category and location",
+      "check3": "Detailed description",
+      "check4": "Optional budget or deadline"
+    },
+    "offer": {
+      "tipsTitle": "Offer tips",
+      "tip1Title": "Link your entity",
+      "tip1Body": "Official offers must be tied to an organization profile you manage.",
+      "tip2Title": "Salary or contract range",
+      "tip2Body": "Transparent compensation ranges improve match quality and applicant trust.",
+      "tip3Title": "Application deadline",
+      "tip3Body": "Set a deadline so listings auto-expire and stay fresh in search.",
+      "check1": "Entity selected",
+      "check2": "Role title and category",
+      "check3": "Requirements and skills",
+      "check4": "Compensation or deadline"
+    },
+    "cv": {
+      "tipsTitle": "Developer CV tips",
+      "tip1Title": "Highlight Ring stack",
+      "tip1Body": "Rate Ring Platform, React 19, and Next.js skills — these power matcher ranking.",
+      "tip2Title": "Portfolio links",
+      "tip2Body": "GitHub and live project URLs matter more than generic summaries.",
+      "tip3Title": "Availability",
+      "tip3Body": "State when you can start; urgent projects filter on availability.",
+      "check1": "Contact and location",
+      "check2": "Professional summary",
+      "check3": "Skill ratings completed",
+      "check4": "Resume or portfolio attached"
+    },
+    "ring": {
+      "tipsTitle": "Customization scope",
+      "tip1Title": "Define modules",
+      "tip1Body": "List modules, integrations, or white-label surfaces you need customized.",
+      "tip2Title": "Deployment target",
+      "tip2Body": "Note cloud vs self-hosted, locales, and expected traffic tier.",
+      "tip3Title": "Budget and timeline",
+      "tip3Body": "Ring projects vary widely — a range helps partners respond accurately.",
+      "check1": "Entity or brand context",
+      "check2": "Scope summary",
+      "check3": "Technical requirements",
+      "check4": "Budget or milestone timeline"
+    },
+    "picker": {
+      "tipsTitle": "Choose a type",
+      "tip1Title": "Match intent to type",
+      "tip1Body": "Requests seek help; offers post roles; CV shares your profile; Ring type scopes platform work.",
+      "tip2Title": "Member-only types",
+      "tip2Body": "Offers and Ring customization require Member privileges or higher.",
+      "check1": "Pick the collaboration style",
+      "check2": "Confirm your account role"
     }
   }
 }

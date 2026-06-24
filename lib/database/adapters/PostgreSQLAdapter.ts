@@ -62,15 +62,27 @@ export class PostgreSQLAdapter implements IDatabaseService {
     verification_counters: new Set([
       'id', 'created_at', 'updated_at'
     ]),
+    fcm_tokens: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    analytics_events: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    web_vitals: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    analytics_errors: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    user_device_telemetry: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    account_status_audit: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
     // --- Fully-normalized tables (no 'data' column) ---
     // Note: include both snake_case (DB columns) and camelCase (app code) so
     // getFieldReference() recognises either form as a real column.
-    fcm_tokens: new Set([
-      'id', 'user_id', 'userId', 'token', 'device_info', 'deviceInfo',
-      'platform', 'browser', 'user_agent', 'userAgent',
-      'is_active', 'isActive', 'last_seen', 'lastSeen',
-      'created_at', 'createdAt', 'updated_at', 'updatedAt'
-    ]),
     comment_likes: new Set([
       'id', 'comment_id', 'commentId', 'user_id', 'userId',
       'user_name', 'userName', 'user_avatar', 'userAvatar',
@@ -110,7 +122,22 @@ export class PostgreSQLAdapter implements IDatabaseService {
     store_orders: new Set([
       'id', 'created_at', 'updated_at'
     ]),
-    products: new Set([
+    orders: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    settlements: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    stock_movements: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    process_runs: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    generated_images: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    generated_videos: new Set([
       'id', 'created_at', 'updated_at'
     ]),
     conversations: new Set([
@@ -129,6 +156,15 @@ export class PostgreSQLAdapter implements IDatabaseService {
       'id', 'data', 'secrets', 'updated_by', 'created_at', 'updated_at',
       'updatedBy', 'createdAt', 'updatedAt',
     ]),
+    public_pools: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    public_pool_signals: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
+    public_pool_contributions: new Set([
+      'id', 'created_at', 'updated_at'
+    ]),
   };
 
   constructor(config: DatabaseBackendConfig) {
@@ -138,7 +174,25 @@ export class PostgreSQLAdapter implements IDatabaseService {
   async connect(): Promise<DatabaseResult<void>> {
     try {
       const startTime = monotime();
-      
+
+      // Reuse existing pool — connect() must be idempotent (parallel initialize() races).
+      if (this.pool) {
+        const health = await this.healthCheck();
+        if (health.success && health.data) {
+          return {
+            success: true,
+            metadata: {
+              operation: 'connect',
+              duration: monotime() - startTime,
+              backend: 'postgresql',
+              timestamp: new Date(),
+            },
+          };
+        }
+        await this.pool.end().catch(() => undefined);
+        this.pool = null;
+      }
+
       const poolConfig = {
         host: this.config.connection.host || 'localhost',
         port: this.config.connection.port || 5432,

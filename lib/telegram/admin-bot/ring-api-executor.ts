@@ -13,7 +13,7 @@
  */
 
 import { db } from '@/lib/database'
-import { UserRole } from '@/features/auth/types'
+import { UserRole, isSuperadmin } from '@/features/auth/user-role'
 import { ParsedCommand } from './anthropic-router'
 import { generateNewsArticle } from '@/features/news/services/article-generator'
 import { sendArticleDraftApprovalToChat } from '@/features/news/services/news-telegram-approval'
@@ -49,21 +49,21 @@ async function executeRingCrud(
 ): Promise<ExecutionResult> {
   const { operation, entity, id, data, filters, limit } = toolInput
 
-  if (operation === 'delete' && entity === 'users' && userRole !== UserRole.superadmin) {
+  if (operation === 'delete' && entity === 'users' && !isSuperadmin(userRole)) {
     return {
       success: false,
-      error: 'admin role cannot delete users. SUPERadmin required.',
+      error: 'admin role cannot delete users. Superadmin required.',
     }
   }
 
   if (
     (operation === 'create' || operation === 'update') &&
     entity === 'settings' &&
-    userRole !== UserRole.superadmin
+    !isSuperadmin(userRole)
   ) {
     return {
       success: false,
-      error: 'admin role cannot modify settings. SUPERadmin required.',
+      error: 'admin role cannot modify settings. Superadmin required.',
     }
   }
 

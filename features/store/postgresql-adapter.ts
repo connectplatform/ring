@@ -1,6 +1,7 @@
 import { StoreAdapter, StoreProduct, CartItem, CheckoutInfo } from './types'
 import { db } from '@/lib/database'
 import { logger } from '@/lib/logger'
+import { isVisibleOnMainStore } from '@/features/store/lib/product-document'
 
 type ProductRow = Record<string, unknown> & { id: string }
 
@@ -132,9 +133,8 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
     try {
       const queryResult = await db().queryDocs<ProductRow>({
         collection: 'store_products',
-        filters: [
-          { field: 'status', operator: '==', value: 'active' }
-        ]
+        orderBy: [{ field: 'created_at', direction: 'desc' }],
+        pagination: { limit: 500 },
       })
 
       if (!queryResult.success) {
@@ -142,7 +142,9 @@ export class PostgreSQLStoreAdapter implements StoreAdapter {
         return []
       }
 
-      return queryResult.data.map(mapProductRow)
+      return queryResult.data
+        .filter((row) => isVisibleOnMainStore(row))
+        .map(mapProductRow)
     } catch (error: unknown) {
       logger.error('PostgreSQLStoreAdapter: Error listing products:', {
         error: error instanceof Error ? error.message : String(error),

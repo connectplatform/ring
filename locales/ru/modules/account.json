@@ -1,0 +1,21 @@
+{
+  "suspended": {
+    "title": "Аккаунт приостановлен",
+    "description": "Ваш аккаунт приостановлен до проверки. Отправьте запрос на восстановление для видеоверификации с нашей командой.",
+    "reasonLabel": "Причина",
+    "formIntro": "Укажите контакты и предпочтительный канал для видеозвонка со специалистом.",
+    "email": "Email",
+    "phone": "Телефон",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "videoChannel": "Канал видеоверификации",
+    "videoChannelHelp": "Команда может связаться через Telegram, WhatsApp, Email+Zoom, Email+Meet или Skype.",
+    "message": "Пояснение",
+    "messagePlaceholder": "Кратко опишите, почему аккаунт следует восстановить…",
+    "submit": "Отправить запрос",
+    "submitting": "Отправка…",
+    "submitSuccess": "Запрос отправлен ({procedure}). Команда рассмотрит его в очереди верификации.",
+    "submitError": "Не удалось отправить запрос",
+    "pendingReview": "Ваш запрос {procedure} ожидает рассмотрения."
+  }
+}

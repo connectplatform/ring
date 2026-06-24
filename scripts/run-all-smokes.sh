@@ -32,6 +32,8 @@ SUITES=(
   "scripts/smoke-erp-ops.cts"
   "scripts/smoke-entity-moderation-pipeline.cts"
   "scripts/smoke-verification-pipeline.cts"
+  "scripts/smoke-product-moderation-pipeline.cts"
+  "scripts/smoke-ring-analytics-pipeline.cts"
 )
 
 failures=0

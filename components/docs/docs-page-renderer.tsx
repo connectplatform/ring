@@ -1,13 +1,19 @@
 import React from 'react'
-import { MDXRemote } from 'next-mdx-remote/rsc'
-import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import fs from 'fs'
 import matter from 'gray-matter'
+import { MDXRemote } from 'next-mdx-remote/rsc'
 import type { Metadata } from 'next'
 import { resolveDocFilePath, scanDocsStaticParams } from '@/lib/docs/docs-path'
+import {
+  buildDocsPublicPath,
+  docExists,
+  isValidDocsSection,
+} from '@/lib/docs/docs-sections'
 import type { Locale } from '@/i18n/shared'
 import { docsMdxComponents, getDocsMdxRemoteOptions } from '@/components/docs/mdx-docs-shared'
+import { DocsNotFound } from '@/components/docs/docs-not-found'
+import { recordDocsPageView } from '@/features/analytics/lib/docs-analytics'
 
 type RenderArgs = {
   locale: Locale
@@ -16,6 +22,26 @@ type RenderArgs = {
 
 type DocRenderContext = RenderArgs & {
   confidential?: boolean
+}
+
+export type DocsPageRenderResult =
+  | { status: 'ok'; content: React.ReactNode }
+  | {
+      status: 'not_found'
+      locale: Locale
+      slug: string[]
+      reason: 'missing_file' | 'invalid_path'
+      categoryValid: boolean
+      path: string
+    }
+
+function missingDocsMetadata(confidential: boolean): Metadata {
+  const titlePrefix = confidential ? 'Confidential Documentation' : 'Ring Platform Documentation'
+  return {
+    title: `Page not found | ${titlePrefix}`,
+    description: 'The requested documentation page could not be found in the Ring docs library.',
+    robots: { index: false, follow: false },
+  }
 }
 
 export async function generateDocsMetadata({
@@ -30,23 +56,11 @@ export async function generateDocsMetadata({
     ? 'Secure documentation for authorized Ring users.'
     : 'Complete documentation for the Ring Platform - a free open-source platform for solving human needs collectively with AI orchestration.'
 
-  if (!filePath) {
-    return {
-      title: titlePrefix,
-      description: confidential ? 'Secure documentation section for authorized Ring users.' : 'Complete documentation for the Ring Platform',
-    }
+  if (!filePath || !docExists(locale, slug)) {
+    return missingDocsMetadata(confidential)
   }
 
   try {
-    if (!fs.existsSync(filePath)) {
-      return {
-        title: titlePrefix,
-        description: confidential
-          ? 'The requested confidential documentation page could not be found.'
-          : 'The requested documentation page could not be found.',
-      }
-    }
-
     const fileContents = fs.readFileSync(filePath, 'utf8')
     const { data } = matter(fileContents)
 
@@ -80,38 +94,77 @@ export async function renderDocsPage({
   locale,
   slug,
   confidential = false,
-}: DocRenderContext) {
+}: DocRenderContext): Promise<DocsPageRenderResult> {
   await connection()
 
-  const { filePath } = resolveDocFilePath(locale, slug)
+  const path = buildDocsPublicPath(locale, slug)
+  const category = slug[0]
+  const categoryValid = category ? isValidDocsSection(locale, category) : slug.length === 0
 
+  if (!resolveDocFilePath(locale, slug).filePath) {
+    return {
+      status: 'not_found',
+      locale,
+      slug,
+      reason: 'invalid_path',
+      categoryValid: false,
+      path,
+    }
+  }
+
+  if (!docExists(locale, slug)) {
+    return {
+      status: 'not_found',
+      locale,
+      slug,
+      reason: 'missing_file',
+      categoryValid,
+      path,
+    }
+  }
+
+  const { filePath } = resolveDocFilePath(locale, slug)
   if (!filePath) {
-    notFound()
+    return {
+      status: 'not_found',
+      locale,
+      slug,
+      reason: 'invalid_path',
+      categoryValid,
+      path,
+    }
   }
 
   try {
-    if (!fs.existsSync(filePath)) {
-      console.error(`Doc file not found: ${filePath}`)
-      notFound()
-    }
-
     const fileContents = fs.readFileSync(filePath, 'utf8')
     const { content } = matter(fileContents)
 
-    return (
-      <div className="w-full h-full py-8 px-4 md:px-6 lg:px-8">
-        <div className="w-full max-w-full">
-          <MDXRemote
-            source={content}
-            components={docsMdxComponents}
-            options={getDocsMdxRemoteOptions()}
-          />
+    await recordDocsPageView({ locale, slug, path })
+
+    return {
+      status: 'ok',
+      content: (
+        <div className="w-full h-full py-8 px-4 md:px-6 lg:px-8">
+          <div className="w-full max-w-full">
+            <MDXRemote
+              source={content}
+              components={docsMdxComponents}
+              options={getDocsMdxRemoteOptions()}
+            />
+          </div>
         </div>
-      </div>
-    )
+      ),
+    }
   } catch (error) {
-    console.error('Error loading doc:', error)
-    notFound()
+    console.error('Error loading doc:', filePath, error)
+    return {
+      status: 'not_found',
+      locale,
+      slug,
+      reason: 'missing_file',
+      categoryValid,
+      path,
+    }
   }
 }
 

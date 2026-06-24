@@ -33,30 +33,11 @@ New to the vision first? Read [Welcome to Ring](/docs/welcome), then return here
 | **Auth** | Auth.js v5 (`auth.ts`) | `AUTH_SECRET` + at least one OAuth provider for login |
 | **Dev runtime** | `server.ts` | `npm run dev` — Next.js 16 + React 19 + native WSS when `RING_DEPLOY_TARGET=self-hosted` |
 
-<Mermaid title="Getting Started journey">
-{`flowchart TB
-  subgraph GS[This section]
-    P[Prerequisites]
-    I[Installation]
-    M[Migrations]
-    F[First success]
-    T[Troubleshooting]
-    N[Next steps]
-  end
-  subgraph Bootstrap[Bootstrap artifacts]
-    IC[install.sh]
-    RC[ring-config.json]
-    ENV[.env.local]
-    PG[(PostgreSQL)]
-    SCH[schema.sql + migrations]
-  end
-  P --> I
-  I --> IC --> RC --> ENV
-  I --> PG --> SCH --> M
-  M --> F
-  F --> T
-  F --> N`}
-</Mermaid>
+## Three ways to obtain Ring Platform
+
+Interactive paths with **copyable install commands** — self-deploy from GitHub, LegioX-guided customization, or Promptor partnership.
+
+<RingDeploymentPaths />
 
 ## Recommended bootstrap (Postgres-primary)
 

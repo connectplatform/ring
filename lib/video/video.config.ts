@@ -24,8 +24,33 @@ export function getVideoPreset(mode: VideoQualityMode): VideoPreset {
 export function resolveQualityMode(raw?: string): VideoQualityMode {
   const value = String(raw ?? presets.defaults.qualityMode).trim().toLowerCase()
   if (value === 'production' || value === 'prod' || value === '720p') return 'production'
-  if (value === 'production_i2v' || value === 'i2v') return 'production_i2v'
+  if (value === 'production_i2v' || value === 'i2v_prod' || value === 'i2v-720') return 'production_i2v'
+  if (value === 'draft_i2v' || value === 'i2v_draft' || value === 'i2v-480') return 'draft_i2v'
   return 'draft'
+}
+
+/** Pick preset: draft + imageUrl → draft_i2v (1.5 @ 480p); remaster + imageUrl → production_i2v */
+export function resolveEffectiveQualityMode(ctx: {
+  qualityMode?: VideoQualityMode
+  imageUrl?: string
+  remaster?: boolean
+  sourceVideoUrl?: string
+}): VideoQualityMode {
+  if (ctx.remaster && ctx.sourceVideoUrl?.trim()) {
+    return 'production'
+  }
+  if (ctx.remaster) {
+    return ctx.imageUrl?.trim() ? 'production_i2v' : 'production'
+  }
+  const mode = ctx.qualityMode ?? resolveQualityMode()
+  if (mode === 'draft' && ctx.imageUrl?.trim()) {
+    return 'draft_i2v'
+  }
+  return mode
+}
+
+export function getRemasterEditModel(): string {
+  return presets.defaults.remasterEditModel?.trim() || 'grok-imagine-video'
 }
 
 export function getPollTimeoutMs(): number {

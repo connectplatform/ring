@@ -5,7 +5,9 @@ import { Link, usePathname, toAppHref } from '@/i18n/routing'
 import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
+import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { useSession } from 'next-auth/react'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import {
   BarChart3,
   Bell,
@@ -38,7 +40,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ROUTES } from '@/constants/routes'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
-import { useUnreadCount } from '@/hooks/use-unread-count'
+import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import {
@@ -125,7 +127,7 @@ export function SidebarSyncedLayout({
   const router = useRouter()
   const locale = useLocale() as Locale
   const { data: session } = useSession()
-  const { setTheme, theme, systemTheme } = useTheme()
+  const { setTheme, theme, resolvedTheme } = useTheme()
   const { currency, toggleCurrency } = useCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const [mounted, setMounted] = useState(false)
@@ -138,12 +140,11 @@ export function SidebarSyncedLayout({
   const tFav = useTranslations('modules.store.favorites')
 
   const { balance: tokenBalance, isLoading: balanceLoading } = useCreditBalanceContext()
-  const { unreadCount: notificationCount } = useUnreadCount()
+  const { unreadCount: notificationCount } = useNotificationContext()
   const store = useOptionalStore()
   const [favorites] = useLocalStorage<string[]>('ring_favorites', [])
   const [messagesCount] = useState(0)
 
-  const currentTheme = theme === 'system' ? systemTheme : theme
   const cartCount = store?.totalItems || 0
   const displayBalance = formatBalance(tokenBalance?.amount)
 
@@ -298,7 +299,7 @@ export function SidebarSyncedLayout({
       })
     }
 
-    if (session?.user && (session.user.role === 'admin' || session.user.role === 'superadmin')) {
+    if (session?.user && isPlatformAdmin(session.user.role)) {
       list.push({
         kind: 'pair',
         key: 'admin-entry',
@@ -514,13 +515,13 @@ export function SidebarSyncedLayout({
           )}
           <button
             type="button"
-            onClick={() => setTheme(currentTheme === 'dark' ? 'light' : 'dark')}
+            onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
             className={FOOTER_BTN}
             aria-label="Toggle theme"
           >
             {!mounted ? (
               <Sun className="size-4" strokeWidth={1.5} />
-            ) : currentTheme === 'dark' ? (
+            ) : resolvedTheme === 'dark' ? (
               <Moon className="size-4" strokeWidth={1.5} />
             ) : (
               <Sun className="size-4" strokeWidth={1.5} />

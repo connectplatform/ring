@@ -1,18 +1,18 @@
 'use client'
 
-import React, { Suspense } from 'react'
+import React, { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { usePathname } from '@/i18n/routing'
-import { SerializedOpportunity, OpportunityVisibility, Attachment, type OpportunitySubmenuTab } from '@/features/opportunities/types'
+import { SerializedOpportunity, OpportunityVisibility, Attachment } from '@/features/opportunities/types'
 import { SerializedEntity } from '@/features/entities/types'
 import { useAppContext } from '@/contexts/app-context'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { OpportunitySuspenseBoundary } from '@/components/suspense/enhanced-suspense-boundary'
-import OpportunitiesSubmenu from '@/components/navigation/opportunities-submenu'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
-import OpportunitiesFiltersRail from '@/components/opportunities/opportunities-filters-rail'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
+import OpportunitiesBrowseRail from '@/components/opportunities/opportunities-browse-rail'
 
 
 // Dynamically import components
@@ -50,7 +50,7 @@ export default function OpportunitiesWrapper({
   initialLimit
 }: OpportunitiesWrapperProps) {
   const [isClient, setIsClient] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState<OpportunitySubmenuTab>('all')
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
 
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -60,7 +60,6 @@ export default function OpportunitiesWrapper({
   // Restore useTranslations hook
   const t = useTranslations('modules.opportunities')
 
-  const isMyOpportunitiesPage = pathname === '/opportunities/my'
   const isBrowseListPage = pathname === '/opportunities'
 
   const limit = parseInt(searchParams.get('limit') || (initialLimit || 20).toString(), 10)
@@ -102,24 +101,7 @@ export default function OpportunitiesWrapper({
   }
 
   const listContent = (
-    <div className="min-w-0 min-h-full px-4 py-4 sm:px-6">
-      {isMyOpportunitiesPage && (
-        <OpportunitiesSubmenu
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          counts={{
-            all: initialOpportunities.length,
-            saved: 0,
-            applied: 0,
-            posted: 0,
-            drafts: 0,
-            expired: initialOpportunities.filter(opp =>
-              opp.expirationDate && new Date(opp.expirationDate) < new Date()
-            ).length
-          }}
-        />
-      )}
-
+    <DavinciCenterPane>
       <OpportunitySuspenseBoundary
         level="page"
         showProgress={true}
@@ -134,19 +116,22 @@ export default function OpportunitiesWrapper({
           limit={limit}
         />
       </OpportunitySuspenseBoundary>
-    </div>
+    </DavinciCenterPane>
   )
 
   if (isBrowseListPage) {
     return (
       <RingRightRailLayout
         showRightRail
+        flushCenterPane
+        isOpen={rightSidebarOpen}
+        onToggle={setRightSidebarOpen}
         rightRail={
-          <Suspense fallback={<div className="h-32 animate-pulse rounded-md bg-muted/40" />}>
-            <OpportunitiesFiltersRail />
-          </Suspense>
+          <OpportunitiesBrowseRail
+            locale={locale}
+            onNavigate={() => setRightSidebarOpen(false)}
+          />
         }
-        contentClassName="pb-24 lg:pb-8"
       >
         {listContent}
       </RingRightRailLayout>

@@ -102,6 +102,29 @@ export function isPlatformAdmin(role: string | undefined | null): boolean {
   return parsed === UserRole.admin || parsed === UserRole.superadmin
 }
 
+/** Strict superadmin-only operations (platform settings, telegram user delete). */
+export function isSuperadmin(role: string | null | undefined): boolean {
+  return parseUserRole(role) === UserRole.superadmin
+}
+
+/** Fail-closed platform admin check for server services. */
+export function assertPlatformAdmin(role: unknown): UserRole {
+  const parsed = assertKnownUserRole(role)
+  if (!isPlatformAdmin(parsed)) {
+    throw new Error('Platform admin access required')
+  }
+  return parsed
+}
+
+/** Fail-closed superadmin check for server services. */
+export function assertSuperadmin(role: unknown): UserRole {
+  const parsed = assertKnownUserRole(role)
+  if (!isSuperadmin(parsed)) {
+    throw new Error('Superadmin access required')
+  }
+  return parsed
+}
+
 export function hasConfidentialAccess(role: string | null | undefined): boolean {
   const parsed = parseUserRole(role)
   return (

@@ -36,6 +36,7 @@ import {
   Users,
   BarChart3,
   Shield,
+  ShieldAlert,
   FileText,
   Wrench,
   HelpCircle,
@@ -48,7 +49,9 @@ import {
   Plus,
   Archive,
   Mail,
-  ListTodo
+  ListTodo,
+  Activity,
+  Coins,
 } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
@@ -58,10 +61,12 @@ export type ModulesAdminLabels = Partial<{
   dashboard: string
   users: string
   news: string
+  dao: string
   analytics: string
   moderation: string
   performance: string
   security: string
+  fraudDesk: string
   settings: string
   matcher: string
   verification: string
@@ -72,6 +77,7 @@ export type ModulesAdminLabels = Partial<{
   emailContacts: string
   emailAnalytics: string
   emailTasks: string
+  processes: string
   quickNav: string
   navGroupOverview: string
   navGroupCommunity: string
@@ -110,7 +116,7 @@ export type ModulesAdminLabels = Partial<{
 interface AdminWrapperProps {
   children: React.ReactNode
   locale: Locale
-  pageContext?: 'dashboard' | 'users' | 'news' | 'analytics' | 'moderation' | 'performance' | 'security' | 'settings' | 'matcher' | 'verification' | 'store' | 'refcodes' | 'email-inbox' | 'email-drafts' | 'email-contacts' | 'email-analytics' | 'email-tasks'
+  pageContext?: 'dashboard' | 'users' | 'news' | 'dao' | 'analytics' | 'moderation' | 'performance' | 'security' | 'fraud-desk' | 'settings' | 'matcher' | 'verification' | 'store' | 'refcodes' | 'email-inbox' | 'email-drafts' | 'email-contacts' | 'email-analytics' | 'email-tasks' | 'processes'
   translations?: { modules?: { admin?: ModulesAdminLabels } }
   /** Flat admin labels (e.g. from `buildModulesAdminLabels`) — merged over `translations.modules.admin`. */
   labels?: ModulesAdminLabels
@@ -131,10 +137,12 @@ export default function AdminWrapper({
     dashboard: 'Dashboard',
     users: 'Users',
     news: 'News',
+    dao: 'Public pools',
     analytics: 'Analytics',
     moderation: 'Moderation',
     performance: 'Performance',
     security: 'Security',
+    fraudDesk: 'Fraud desk',
     settings: 'Settings',
     matcher: 'Matcher',
     verification: 'Verification',
@@ -145,6 +153,7 @@ export default function AdminWrapper({
     emailContacts: 'Email Contacts',
     emailAnalytics: 'Email Analytics',
     emailTasks: 'Email Tasks',
+    processes: 'Background Processes',
     quickNav: 'Quick Navigation',
     navGroupOverview: 'Overview',
     navGroupCommunity: 'Community & content',
@@ -227,6 +236,7 @@ export default function AdminWrapper({
         items: [
           item('users', t.users, Users, ROUTES.ADMIN_USERS(locale), pageContext === 'users'),
           item('news', t.news, FileText, ROUTES.ADMIN_NEWS(locale), pageContext === 'news'),
+          item('dao', t.dao, Coins, ROUTES.ADMIN_DAO(locale), pageContext === 'dao'),
           item('moderation', t.moderation, Shield, ROUTES.ADMIN_MODERATION(locale), pageContext === 'moderation'),
           item('analytics', t.analytics, TrendingUp, ROUTES.ADMIN_ANALYTICS(locale), pageContext === 'analytics'),
         ],
@@ -237,7 +247,9 @@ export default function AdminWrapper({
         items: [
           item('performance', t.performance, Zap, ROUTES.ADMIN_PERFORMANCE(locale), pageContext === 'performance'),
           item('security', t.security, Shield, ROUTES.ADMIN_SECURITY(locale), pageContext === 'security'),
+          item('fraud-desk', t.fraudDesk, ShieldAlert, ROUTES.ADMIN_FRAUD_DESK(locale), pageContext === 'fraud-desk'),
           item('settings', t.settings, Settings, ROUTES.ADMIN_SETTINGS(locale), pageContext === 'settings'),
+          item('processes', t.processes, Activity, ROUTES.ADMIN_PROCESSES(locale), pageContext === 'processes'),
           item('matcher', t.matcher, Database, ROUTES.ADMIN_MATCHER(locale), pageContext === 'matcher'),
           item('verification', t.verification, Shield, ROUTES.ADMIN_VERIFICATION(locale), pageContext === 'verification'),
         ],

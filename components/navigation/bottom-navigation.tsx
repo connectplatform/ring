@@ -25,6 +25,7 @@ import { ROUTES } from '@/constants/routes'
 import { OpportunityTypeSelector } from '@/components/opportunities/opportunity-type-selector'
 import { useAuth } from '@/hooks/use-auth'
 import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import type { Locale } from '@/i18n/shared'
 import { useRouter as useNextRouter } from 'next/navigation'
 import {
@@ -39,6 +40,7 @@ import {
 } from '@/lib/locale-pref'
 import { signIn } from 'next-auth/react'
 import { useTheme } from 'next-themes'
+import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { ChevronRight, Languages, Moon, Sun, LogIn } from 'lucide-react'
 import { eventBus } from '@/lib/event-bus.client'
 import { cn } from '@/lib/utils'
@@ -242,9 +244,7 @@ function BottomNavFullscreenMenu({
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
   const isLoggedIn = !!session?.user
-  const isAdmin =
-    session?.user?.role === UserRole.admin ||
-    session?.user?.role === UserRole.superadmin
+  const isAdmin = isPlatformAdmin(session?.user?.role)
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -280,11 +280,6 @@ function BottomNavFullscreenMenu({
     },
     [intlPathname, intlRouter, onClose]
   )
-
-  const toggleTheme = useCallback(() => {
-    const current = theme === 'system' ? resolvedTheme : theme
-    setTheme(current === 'dark' ? 'light' : 'dark')
-  }, [setTheme, theme, resolvedTheme])
 
   const handleItemClick = (href: string) => {
     nextRouter.push(href)
@@ -457,11 +452,11 @@ function BottomNavFullscreenMenu({
             </button>
             <button
               type="button"
-              onClick={toggleTheme}
+              onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-medium"
               aria-label={t('toggleTheme')}
             >
-              {(theme === 'system' ? resolvedTheme : theme) === 'dark' ? (
+              {resolvedTheme === 'dark' ? (
                 <Moon className="h-4 w-4" />
               ) : (
                 <Sun className="h-4 w-4" />
@@ -484,9 +479,7 @@ export default function BottomNavigation() {
   const [showFullscreenMenu, setShowFullscreenMenu] = useState(false)
 
   const isLoggedIn = !!session?.user
-  const isAdmin =
-    session?.user?.role === UserRole.admin ||
-    session?.user?.role === UserRole.superadmin
+  const isAdmin = isPlatformAdmin(session?.user?.role)
 
   const isActive = (href: string) => {
     if (href === `/${locale}`) {

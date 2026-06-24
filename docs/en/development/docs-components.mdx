@@ -48,7 +48,8 @@ Ring docs are **MDX files** rendered by `next-mdx-remote/rsc` with a shared comp
 | **Code** | Shiki-highlighted config snippets | Server (async) |
 | **MindMap** | Concept trees — use sparingly on hubs | Client |
 | **Timeline** | Release / migration history | Client |
-| **RingAISynapseFlow** | Marketing / AI demos only — heavy bundle | Client |
+| **RingMatcherOrchestration** | Docs hub default — lightweight AI matcher loop (SVG, locale-aware) | Client |
+| **RingAISynapseFlow** | Legacy heavy demo (Three.js) — preserved, avoid on reference pages | Client |
 | **CodeSandbox** | Runnable examples in `/examples` | Client |
 | **Math / MathBlock** | Scientific editor, tokenomics equations | Client |
 
@@ -242,9 +243,17 @@ Client-only (`react-chrono`). Use for migration timelines and release notes.
 
 Document release history in prose + table if `Timeline` props are awkward in pure MDX; prefer Timeline on marketing or roadmap pages.
 
-## RingAISynapseFlow
+## RingMatcherOrchestration
 
-Animated AI-matching visualization. **Do not** embed on dense reference pages — large client bundle (Three.js / motion). Reserve for welcome, opportunities, or feature marketing docs.
+Symbolic AI-matcher hub for docs welcome pages: users orbit the matcher with **offer-type badges** (same taxonomy as the legacy synapse viz), a request icon flies in, the matcher routes to a provider via a **joint line**, the line **straightens**, then **DM bubbles** exchange. Props: `locale` (`en` | `uk` | `ru`), `autoPlay`, optional `title` / `subtitle`. Respects `prefers-reduced-motion`.
+
+```mdx
+<RingMatcherOrchestration locale="uk" autoPlay={true} />
+```
+
+## RingAISynapseFlow (legacy)
+
+Heavy animated AI-matching visualization (Three.js logo, quantum lasers). **Preserved** in `components/docs/ring-ai-synapse-flow.tsx` but removed from docs index pages in favor of `RingMatcherOrchestration`. Do not embed on dense reference pages.
 
 ## CodeSandbox and Math
 

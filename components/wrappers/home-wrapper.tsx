@@ -12,7 +12,7 @@ import { BookOpen, Briefcase, Building2 } from 'lucide-react'
 import HomeContent from '@/components/common/pages/home'
 import RightSidebar from '@/features/layout/components/right-sidebar'
 import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
-import { DavinciRailLink } from '@/lib/ui/davinci'
+import { DavinciRailLink, DavinciGlassStatBlock } from '@/lib/ui/davinci'
 import { davinciPanelSurface } from '@/lib/ui/davinci/glass-surface'
 import { cn } from '@/lib/utils'
 
@@ -43,13 +43,14 @@ function HomeRightRail({ locale }: { locale: Locale }) {
     <div className="space-y-6">
       <div className="space-y-4">
         <h3 className="font-semibold text-lg">{tRail('ecosystemTitle')}</h3>
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {STAT_KEYS.map((key) => (
-            <div key={key} className="bg-muted/30 p-4 rounded-lg text-center">
-              <div className="text-2xl font-bold text-primary">{tRail(`stats.${key}.value`)}</div>
-              <div className="text-sm text-muted-foreground">{tRail(`stats.${key}.label`)}</div>
-              <div className="text-xs text-muted-foreground mt-1">{tRail(`stats.${key}.hint`)}</div>
-            </div>
+            <DavinciGlassStatBlock
+              key={key}
+              value={tRail(`stats.${key}.value`)}
+              label={tRail(`stats.${key}.label`)}
+              hint={tRail(`stats.${key}.hint`)}
+            />
           ))}
         </div>
       </div>

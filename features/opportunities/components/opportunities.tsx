@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useCallback, useTransition } from 'react'
+import React, { useEffect, useTransition } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations, useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
@@ -13,10 +13,9 @@ import { useSession } from "next-auth/react"
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useInView } from '@/hooks/use-intersection-observer'
-import { formatDateValue, truncateDescription, fetchOpportunities, formatBudget } from '@/lib/utils'
+import { formatDateValue, truncateDescription, formatBudget } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { useAppContext } from '@/contexts/app-context'
-import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
 import { usePathname, useSearchParams } from 'next/navigation'
 import type { Locale } from '@/i18n/shared'
 import OpportunityList from './opportunity-list'
@@ -44,8 +43,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   const [opportunities, setOpportunities] = React.useState<SerializedOpportunity[]>(initialOpportunities)
   const [entities, setEntities] = React.useState<{ [key: string]: Entity }>({})
   const [loading, setLoading] = React.useState(false)
-  const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
-  const { ref, inView } = useInView()
 
   // React 19 useTransition for non-blocking filter updates
   const [isPending, startTransition] = useTransition()
@@ -80,30 +77,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
     setOpportunities(initialOpportunities)
     setError(initialError)
   }, [initialOpportunities, initialError, setError])
-
-  const fetchMoreOpportunities = useCallback(async () => {
-    if (loading || !lastVisible) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const data = await fetchOpportunities('/api/opportunities', limit, lastVisible)
-      setOpportunities(prev => [...prev, ...data.opportunities])
-      setLastVisible(data.lastVisible)
-    } catch (error) {
-      console.error('Error fetching more opportunities:', error)
-      setError(t('errorFetchingMoreOpportunities'))
-    } finally {
-      setLoading(false)
-    }
-  }, [loading, lastVisible, limit, t, setError])
-
-  useEffect(() => {
-    if (inView) {
-      fetchMoreOpportunities()
-    }
-  }, [inView, fetchMoreOpportunities])
 
   useEffect(() => {
     const fetchEntities = async () => {
@@ -284,50 +257,44 @@ const Opportunities: React.FC<OpportunitiesProps> = ({
   }, [realtimeOpportunities, filters])
 
   return (
-    <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
-      {/* Real-time Status Indicator */}
-      <div className="bg-background border-b">
-        <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
-                realtime.isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`} />
-              <span className="text-sm text-muted-foreground">
-                {realtime.isConnected ? 'Live Updates Active' : 'Offline Mode'}
-              </span>
-              {realtime.lastUpdate && (
-                <span className="text-xs text-muted-foreground">
-                  • Last update: {realtime.lastUpdate.toLocaleTimeString()}
-                </span>
-              )}
-            </div>
-            {realtime.provider && (
-              <span className="text-xs text-muted-foreground">
-                via {realtime.provider}
-              </span>
+    <div className="min-h-full text-foreground">
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-[color-mix(in_oklch,var(--davinci-beam)_18%,transparent)] bg-[color-mix(in_oklch,var(--davinci-surface-bg)_88%,transparent)] px-3 py-2 backdrop-blur-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          <div
+            className={cn(
+              'h-2 w-2 shrink-0 rounded-full',
+              realtime.isConnected ? 'bg-emerald-500' : 'bg-amber-500',
             )}
-          </div>
+          />
+          <span className="truncate text-sm text-muted-foreground">
+            {realtime.isConnected ? 'Live Updates Active' : 'Offline Mode'}
+          </span>
+          {realtime.lastUpdate ? (
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              · {realtime.lastUpdate.toLocaleTimeString()}
+            </span>
+          ) : null}
         </div>
+        {realtime.provider ? (
+          <span className="shrink-0 text-xs text-muted-foreground">via {realtime.provider}</span>
+        ) : null}
       </div>
 
       <OpportunityList
         initialOpportunities={realtimeOpportunities}
         initialEntities={entities}
         initialError={error}
-        lastVisible={lastVisible}
+        lastVisible={initialLastVisible}
         limit={limit}
         totalCount={filteredOpportunities.length}
         locale={locale}
       />
-      {loading && <LoadingMessage message={t('loadingMoreOpportunities')} />}
-      {!loading && lastVisible && <div ref={ref} className="h-10" />}
     </div>
   )
 }
 
 const LoadingMessage: React.FC<{ message: string }> = ({ message }) => (
-  <div className="container mx-auto px-4 py-12 text-center">
+  <div className="px-4 py-12 text-center">
     <motion.p
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -340,7 +307,7 @@ const LoadingMessage: React.FC<{ message: string }> = ({ message }) => (
 )
 
 const ErrorMessage: React.FC<{ message: string }> = ({ message }) => (
-  <div className="container mx-auto px-4 py-12 text-center">
+  <div className="px-4 py-12 text-center">
     <motion.p
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

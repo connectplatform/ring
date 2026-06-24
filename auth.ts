@@ -37,6 +37,16 @@ import {
   normalizeAuthEmail,
   resolveCanonicalUser,
 } from "@/features/auth/services/user-resolve"
+import {
+  isAccountLoginAllowed,
+  normalizeAccountStatus,
+} from "@/features/auth/lib/account-status"
+import { getUserAccountStatus } from "@/features/auth/services/user-account-status"
+import {
+  applyUserRowToJwt,
+  accountStatusFromJwt,
+  suspensionReasonFromJwt,
+} from "@/lib/auth/session-user-status"
 
 const googleOAuthClientId = getGoogleOAuthClientId()
 
@@ -287,10 +297,12 @@ const nextAuthApp = NextAuth({
       }
 
       // Only fetch fresh role data when necessary - optimize JWT caching
-      const needsUserData = trigger === 'update' ||
-                           (user && account) ||
-                           (user && !token.name) ||
-                           (token.userId && !token.role) // Only fetch if role not cached
+      const needsUserData =
+        trigger === 'update' ||
+        (user && account) ||
+        (user && !token.name) ||
+        (token.userId && !token.role) ||
+        (token.userId && token.accountStatus === undefined)
 
       if (needsUserData) {
         if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
@@ -319,15 +331,8 @@ const nextAuthApp = NextAuth({
                 if (process.env.NODE_ENV === 'development' || process.env.DB_DEBUG === 'true') {
                   authLog('Found user data in PostgreSQL:', { name: userData?.name, email: userData?.email, role: userData?.role })
                 }
-                
-                token.username = userData.username as string | undefined
-                token.phoneNumber = userData.phoneNumber as string | undefined
-                token.bio = userData.bio as string | undefined
-                token.organization = userData.organization as string | undefined
-                token.position = userData.position as string | undefined
-                token.photoURL = (userData.photoURL || userData.image) as string | undefined
-                token.role = (userData.role as UserRole | undefined) ?? UserRole.subscriber
-                token.isVerified = Boolean(userData.isVerified ?? userData.is_verified)
+
+                applyUserRowToJwt(token, userData)
               } else {
                 authLog('User document not found in PostgreSQL for ID:', userId)
                 const repairEmail = normalizeAuthEmail(
@@ -338,14 +343,7 @@ const nextAuthApp = NextAuth({
                   if (canonical) {
                     authLog('JWT repair: remapping userId to canonical email match:', canonical.id)
                     token.userId = canonical.id
-                    token.username = canonical.username as string | undefined
-                    token.phoneNumber = canonical.phoneNumber as string | undefined
-                    token.bio = canonical.bio as string | undefined
-                    token.organization = canonical.organization as string | undefined
-                    token.position = canonical.position as string | undefined
-                    token.photoURL = (canonical.photoURL || canonical.image) as string | undefined
-                    token.role = (canonical.role as UserRole | undefined) ?? UserRole.subscriber
-                    token.isVerified = Boolean(canonical.isVerified)
+                    applyUserRowToJwt(token, canonical)
                   }
                 }
               }
@@ -442,6 +440,11 @@ const nextAuthApp = NextAuth({
         session.user.isVerified = token.isVerified as boolean
         session.user.needsOnboarding = token.needsOnboarding as boolean
         session.user.provider = token.provider as string
+
+        ;(session.user as { accountStatus?: string }).accountStatus =
+          accountStatusFromJwt(token)
+        ;(session.user as { suspensionReason?: string }).suspensionReason =
+          suspensionReasonFromJwt(token)
 
         // Add custom fields from database
         ;(session.user as any).username = token.username as string
@@ -554,6 +557,15 @@ const nextAuthApp = NextAuth({
         // We only need to handle special cases here
         
         if (usePostgreSQL) {
+          const loginUserId = user.id
+          if (loginUserId) {
+            const { status } = await getUserAccountStatus(loginUserId)
+            if (!isAccountLoginAllowed(status)) {
+              console.warn('Sign-in blocked for account status:', status, loginUserId)
+              return false
+            }
+            ;(user as { accountStatus?: string }).accountStatus = status
+          }
           console.log('✅ Using PostgreSQL adapter - user creation handled by adapter')
           return true
         } else if (useFirebase) {

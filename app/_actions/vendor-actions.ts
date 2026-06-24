@@ -23,6 +23,8 @@ import { file } from '@/lib/file'
 import { db } from '@/lib/database'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import { createVendorProfile } from '@/features/store/services/vendor-lifecycle'
+import { buildMainStoreListingPatch, flattenProductDocumentForWrite, resolveVendorEntityId } from '@/features/store/lib/product-document'
+import { normalizePriceToUah, type StoreCurrency } from '@/lib/zod/store-product'
 import type { Locale } from '@/i18n/shared'
 import { defaultLocale } from '@/i18n/shared'
 
@@ -271,10 +273,14 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
     // Extract form data
     const name = (formData.get('name') as string)?.trim()
     const category = formData.get('category') as string
-    const priceUAH = parseFloat(formData.get('priceUAH') as string)
+    const currencyRaw = (formData.get('currency') as string)?.trim() || 'UAH'
+    const currency: StoreCurrency = currencyRaw === 'DAAR' ? 'DAAR' : 'UAH'
+    const rawPrice = parseFloat(formData.get('priceUAH') as string)
+    const priceUAH = normalizePriceToUah(rawPrice, currency)
     const stock = parseInt(formData.get('stock') as string, 10)
     const daarPrice = formData.get('daarPrice') ? parseFloat(formData.get('daarPrice') as string) : null
     const description = (formData.get('description') as string)?.trim() || ''
+    const rep = ((formData.get('rep') as string) ?? '').trim()
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
     const locale = (formData.get('locale') as Locale) || defaultLocale as Locale
@@ -458,50 +464,47 @@ export async function createVendorProduct(prevState: any, formData: FormData) {
       daarionRewardReason: null
     }
 
-    // Prepare product data
-    const productData = {
+    // Prepare flat JSONB product document (SSOT — no nested data.approvalStatus)
+    const listingPatch = buildMainStoreListingPatch({ submitToMainStore, existing: null })
+
+    const productData: Record<string, unknown> = {
       id: productId,
-      name: name,
-      description: description,
+      name,
+      description,
       price: priceUAH,
-      currency: 'UAH',
-      category: category,
+      currency,
+      category,
       images: photoUrls,
       stock_quantity: stock,
+      stock,
       status: activeInMyStore ? 'active' : 'inactive',
       vendor_id: session.user.id,
       entity_id: vendorEntity.id,
-      data: {
-        vendorId: vendorEntity.id,
-        vendorName: vendorEntity.name,
-        vendorTier: (vendorEntity as any).vendorTier || 'NEW',
-        commissionRate: (vendorEntity as any).commission || 20,
-        daarPrice: daarPrice,
-        videoUrl: videoUrl,
-        listStores: submitToMainStore ? ['1'] : [], // '1' = Main Store
-        approvalStatus: submitToMainStore ? 'pending' : null, // Auto-pending for Main Store
-        activeInVendorStore: activeInMyStore,
-        slug: `${vendorEntity.storeSlug}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        longDescription: '', // Future: AI enrichment
-        tags: [], // Future: AI enrichment
-        
-        // Phase 2: Agricultural ERP fields
-        agriculturalData: agriculturalData,
-        certifications: certifications,
-        sustainabilityMetrics: sustainabilityMetrics,
-        freshness: freshness,
-        tokenEconomy: tokenEconomy,
-        referralCommission,
-        
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      created_at: new Date(),
-      updated_at: new Date()
+      vendorId: vendorEntity.id,
+      vendorName: vendorEntity.name,
+      vendorTier: (vendorEntity as any).vendorTier || 'NEW',
+      commissionRate: (vendorEntity as any).commission || 20,
+      daarPrice: calculatedDaarPrice,
+      videoUrl,
+      activeInVendorStore: activeInMyStore,
+      slug: `${(vendorEntity as any).storeSlug ?? vendorEntity.id}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      longDescription: '',
+      tags: [],
+      agriculturalData,
+      certifications,
+      sustainabilityMetrics,
+      freshness,
+      tokenEconomy,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...listingPatch,
     }
 
     if (referralCommission !== undefined) {
-      ;(productData as { referralCommission?: number }).referralCommission = referralCommission
+      productData.referralCommission = referralCommission
+    }
+    if (rep) {
+      productData.rep = rep
     }
 
     // Create product in database
@@ -557,17 +560,21 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
 
     // Verify ownership
     const vendorEntity = await getVendorEntity(session.user.id)
-    if (!vendorEntity || existingProduct.entity_id !== vendorEntity.id) {
+    if (!vendorEntity || resolveVendorEntityId(existingProduct) !== vendorEntity.id) {
       return { error: 'Unauthorized: This product does not belong to you' }
     }
 
     // Extract updated data
     const name = (formData.get('name') as string)?.trim()
     const category = formData.get('category') as string
-    const priceUAH = parseFloat(formData.get('priceUAH') as string)
+    const currencyRaw = (formData.get('currency') as string)?.trim() || 'UAH'
+    const currency: StoreCurrency = currencyRaw === 'DAAR' ? 'DAAR' : 'UAH'
+    const rawPrice = parseFloat(formData.get('priceUAH') as string)
+    const priceUAH = normalizePriceToUah(rawPrice, currency)
     const stock = parseInt(formData.get('stock') as string, 10)
     const daarPrice = formData.get('daarPrice') ? parseFloat(formData.get('daarPrice') as string) : null
     const description = (formData.get('description') as string)?.trim() || ''
+    const rep = ((formData.get('rep') as string) ?? '').trim()
     const activeInMyStore = formData.get('activeInMyStore') === 'true'
     const submitToMainStore = formData.get('submitToMainStore') === 'true'
     const referralCommissionRaw = (formData.get('referralCommission') as string)?.trim()
@@ -724,45 +731,37 @@ export async function updateVendorProduct(prevState: any, formData: FormData) {
       daarRewardReason: certifications.regenerative ? 'REGENERATIVE_AGRICULTURE_10PCT' : null
     }
 
-    // Update product data
-    const updatedData = {
-      name: name,
-      description: description,
+    const listingPatch = buildMainStoreListingPatch({
+      submitToMainStore,
+      existing: existingProduct,
+    })
+
+    const updatedData = flattenProductDocumentForWrite(existingProduct, {
+      name,
+      description,
       price: priceUAH,
-      category: category,
+      currency,
+      category,
       images: photoUrls,
       stock_quantity: stock,
+      stock,
       status: activeInMyStore ? 'active' : 'inactive',
-      data: {
-        ...existingProduct.data,
-        daarPrice: recalculatedDaarPrice,
-        videoUrl: videoUrl,
-        listStores: submitToMainStore ? ['1'] : [],
-        approvalStatus: submitToMainStore ? (existingProduct.data?.approvalStatus || 'pending') : null,
-        activeInVendorStore: activeInMyStore,
-        
-        // Phase 2: Agricultural ERP fields
-        agriculturalData: agriculturalData,
-        certifications: certifications,
-        sustainabilityMetrics: sustainabilityMetrics,
-        freshness: freshness,
-        tokenEconomy: tokenEconomy,
-        referralCommission:
-          referralCommissionRaw === ''
-            ? undefined
-            : referralCommission ?? existingProduct.data?.referralCommission,
-        
-        updatedAt: new Date().toISOString()
-      },
-      updated_at: new Date()
-    }
-
-    if (referralCommissionRaw === '') {
-      delete (updatedData.data as { referralCommission?: number }).referralCommission
-      delete (updatedData as { referralCommission?: number }).referralCommission
-    } else if (referralCommission !== undefined) {
-      ;(updatedData as { referralCommission?: number }).referralCommission = referralCommission
-    }
+      daarPrice: recalculatedDaarPrice,
+      videoUrl,
+      activeInVendorStore: activeInMyStore,
+      agriculturalData,
+      certifications,
+      sustainabilityMetrics,
+      freshness,
+      tokenEconomy,
+      ...listingPatch,
+      ...(referralCommissionRaw === ''
+        ? { referralCommission: undefined }
+        : referralCommission !== undefined
+          ? { referralCommission }
+          : {}),
+      ...(rep ? { rep } : { rep: undefined }),
+    })
 
     const updateResult = await db().updateDoc('store_products', productId, updatedData)
     

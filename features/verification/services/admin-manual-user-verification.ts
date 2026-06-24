@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertVerificationAdmin } from '@/features/verification/lib/assert-verification-admin'
 import { db } from '@/lib/database'
 import { EntityPermissionError } from '@/lib/errors'
 import {
@@ -30,12 +30,12 @@ export async function assertAdminManualVerificationAccess(): Promise<{
   adminEmail: string
 }> {
   const session = await auth()
-  const role = session?.user?.role as UserRole | undefined
-  if (!session?.user?.id || (role !== UserRole.admin && role !== UserRole.superadmin)) {
+  const adminUserId = await assertVerificationAdmin()
+  if (!session?.user) {
     throw new EntityPermissionError('Admin access required')
   }
   return {
-    adminUserId: session.user.id,
+    adminUserId,
     adminName: session.user.name,
     adminEmail: session.user.email || '',
   }
@@ -142,6 +142,17 @@ export async function setAdminManualUserVerification(
 
   if (!updateResult.success) {
     throw new VerificationProcedureError('Failed to update user verification status')
+  }
+
+  if (input.isVerified) {
+    const userData = userResult.data as Record<string, unknown>
+    const { enqueueAirdrop } = await import('@/lib/wallet/airdrop-service')
+    void enqueueAirdrop({
+      userId: input.targetUserId,
+      trigger: 'admin_verify',
+      username: (userData.username as string) ?? null,
+      isVerified: true,
+    }).catch(() => undefined)
   }
 
   return { success: true, procedureNumber: approved.procedureNumber, isVerified: true }

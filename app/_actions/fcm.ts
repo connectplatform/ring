@@ -2,7 +2,9 @@
 
 import { auth } from '@/auth'
 import {
+  unregisterFcmTokenForUser,
   upsertFcmTokenForUser,
+  type UnregisterFcmTokenParams,
   type UpsertFcmTokenParams,
   type UpsertFcmTokenResult,
 } from '@/lib/notifications/fcm-token-db'
@@ -18,4 +20,17 @@ export async function upsertFcmToken(params: UpsertFcmTokenParams): Promise<Upse
     return { error: 'Authentication required' }
   }
   return upsertFcmTokenForUser(session.user.id, params)
+}
+
+/**
+ * Server Action: unregister FCM token on logout (deviceFingerprint preferred).
+ */
+export async function unregisterFcmToken(
+  params: UnregisterFcmTokenParams,
+): Promise<UpsertFcmTokenResult> {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { error: 'Authentication required' }
+  }
+  return unregisterFcmTokenForUser(session.user.id, params)
 }

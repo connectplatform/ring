@@ -41,8 +41,11 @@ export function resolveDocFilePath(
     return { filePath: path.join(localeRoot, 'index.mdx') }
   }
 
-  const directPath = path.join(localeRoot, ...slug) + '.mdx'
-  const hubPath = path.join(localeRoot, ...slug, 'index.mdx')
+  // Instead of path.join(localeRoot, ...slug) + '.mdx', join manually to avoid
+  // dynamic spread patterns in build tooling
+  const slugPath = slug.join('/')
+  const directPath = path.join(localeRoot, slugPath + '.mdx')
+  const hubPath = path.join(localeRoot, slugPath, 'index.mdx')
 
   if (fs.existsSync(directPath)) {
     return { filePath: directPath }

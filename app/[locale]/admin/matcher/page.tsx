@@ -163,7 +163,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
 };
 
 const MatcherAnalyticsDashboard: React.FC = () => {
-  const t = useTranslations('admin.matcherAnalytics');
+  const t = useTranslations('modules.admin.matcher');
   const tAdmin = useTranslations('modules.admin');
   const locale = (useLocale() as Locale) || 'en';
   const adminLabels = buildModulesAdminLabels(tAdmin);

@@ -1,10 +1,14 @@
 ---
 title: Real Time
 description: TunnelHub broker and native WSS client transport for Ring Platform realtime
-last_modified: "2026-06-15"
+last_modified: "2026-06-23"
 ---
 
 # Realtime Transport
+
+<Callout type="info" title="One connection per session">
+`TunnelProvider` (in `app-client-shell.tsx`) owns the shared WSS/SSE connection and `channel-subscription-registry`. Tunnel consumers — including `CreditBalanceProvider` and `GlobalTunnelListeners` — must mount **inside** `TunnelProvider`. Feature hooks such as `useSync` and `useUnreadCount` should run **once** inside `NotificationProvider` — nav widgets consume `useNotificationContext()`, not duplicate `useUnreadCount()` calls.
+</Callout>
 
 Ring Platform delivers realtime updates through **Tunnel Protocol**:
 
@@ -13,6 +17,18 @@ Ring Platform delivers realtime updates through **Tunnel Protocol**:
 - **TunnelTransport** — client-side WSS → SSE → long-polling fallback chain
 - **TunnelProvider** — shared React connection with progressive connect after auth
 - **Discovery mutations** — `lib/discovery/sync-discovery.ts` publishes `opportunity:*` and `entity:*` on topic channels after CRUD ([Discovery mutation sync](./discovery-mutation-sync))
+
+<Cards>
+  <Card title="Tunnel protocol" href="/docs/features/tunnel-protocol">
+    Routes, auth frames, `RING_DEPLOY_TARGET`, and alpha limitations.
+  </Card>
+  <Card title="Notifications feature" href="/docs/features/notifications">
+    In-app alerts, preferences, and FCM push when the tab is closed.
+  </Card>
+  <Card title="Hooks reference" href="/docs/development/code-structure#hooks-and-providers">
+    Provider matrix and subscription dedup backlog.
+  </Card>
+</Cards>
 
 ## Request flow
 
@@ -46,7 +62,9 @@ Ring Platform delivers realtime updates through **Tunnel Protocol**:
 
 | Feature | Server publish | Client subscribe |
 |---------|----------------|------------------|
-| Notifications | `publishToUserTunnel` → `notifications:unread` | `useSync` / `useUnreadCount` |
+| Notifications | `publishToUserTunnel` → `notifications:unread` | `NotificationProvider` → `useNotificationContext()` |
+| Credit balance | `publishToUserTunnel` → `credit:balance` | `CreditBalanceProvider` → `useCreditBalanceContext()` |
+| Account status | `publishToUserTunnel` → `account:status` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` |
 | Chat | `publishToChannel` → `conversation:${id}` | `useTunnel().subscribe` |
 | Discovery | `syncDiscovery` → `opportunities` / `entities` | Topic channel subscriptions |
 | Matcher | `publishToChannel` → `matcher` | Admin/matcher UI |

@@ -15,6 +15,7 @@ import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { EntityAuthError, EntityPermissionError, EntityQueryError, EntityDatabaseError, logRingError } from '@/lib/errors'
 import { db } from '@/lib/database'
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination'
 import { filterEntitiesForDiscovery, buildEntityVisibilityFilters, canViewEntity } from '@/features/entities/lib/entity-visibility-filter'
 import { entityMatchesVerificationFilter } from '@/features/entities/lib/entity-verification-resolver'
 import { getUserBlockedEntityIds } from '@/features/entities/services/entity-moderation'
@@ -154,7 +155,26 @@ export const getEntitiesForRole = cache(async (
       queryConfig.where = whereConditions;
     }
 
-    // Note: Pagination with startAfter is handled via offset in DatabaseService query
+    // Cursor pagination — continue after last seen entity
+    if (startAfter) {
+      try {
+        const cursorResult = await db().findDocById('entities', startAfter)
+        if (cursorResult.success && cursorResult.data) {
+          const cursorDate =
+            (cursorResult.data as { dateAdded?: string; date_added?: string }).dateAdded ??
+            (cursorResult.data as { date_added?: string }).date_added
+          if (cursorDate) {
+            whereConditions.push({ field: 'dateAdded', operator: '<', value: cursorDate })
+            queryConfig.where = whereConditions
+          } else {
+            whereConditions.push({ field: 'id', operator: '!=', value: startAfter })
+            queryConfig.where = whereConditions
+          }
+        }
+      } catch {
+        /* fall through — first page semantics */
+      }
+    }
 
     // Step 3: Execute database query
     let entities: SerializedEntity[] = []
@@ -264,7 +284,11 @@ export const getEntitiesForRole = cache(async (
       blockedEntityIds,
     })
 
-    const lastVisible = entities.length > 0 ? entities[entities.length - 1].id : null
+    const { nextCursor: lastVisible } = computePaginationCursor(
+      entities,
+      limit,
+      (entity) => entity.id,
+    )
 
     logger.info('Services: getEntitiesForRole - Total entities fetched:', { 
       entities: entities.length, 
@@ -321,34 +345,42 @@ export const getEntities = cache(async (
 });
 
 /**
- * Fetch all confidential entities.
- * 
- * React 19 cache() wrapper applied for request deduplication.
- * 
- * @returns {Promise<Entity[]>} A promise that resolves to an array of confidential entities.
- * @throws {EntityAuthError} If the user is not authenticated
- * @throws {EntityPermissionError} If the user lacks sufficient permissions
- * @throws {EntityDatabaseError} If there's an error accessing the database
- * @throws {EntityQueryError} If there's an error executing the query
+ * Paginated confidential entity list — filters from `entities` collection.
  */
-export const getConfidentialEntities = cache(async (): Promise<SerializedEntity[]> => {
-  try {
-    logger.info('Services: getConfidentialEntities - Starting...')
+export interface GetConfidentialEntitiesParams {
+  page: number
+  limit: number
+  sort: string
+  filter: string
+  startAfter?: string
+}
 
-    // Step 1: Authenticate and get user session
+export interface GetConfidentialEntitiesResult {
+  entities: SerializedEntity[]
+  lastVisible: string | null
+  totalPages: number
+  totalEntities: number
+}
+
+export const getConfidentialEntities = cache(async (
+  params: GetConfidentialEntitiesParams,
+): Promise<GetConfidentialEntitiesResult> => {
+  try {
+    logger.info('Services: getConfidentialEntities - Starting...', { ...params })
+
     const session = await auth()
     if (!session || !session.user) {
       throw new EntityAuthError('Unauthorized access', undefined, {
         timestamp: Date.now(),
         hasSession: !!session,
         hasUser: !!session?.user,
-        operation: 'getConfidentialEntities'
-      });
+        operation: 'getConfidentialEntities',
+      })
     }
 
     const userRole = assertKnownUserRole(session.user.role)
+    const userId = session.user.id
 
-    // Step 2: Validate user role and permissions
     if (!hasConfidentialAccess(userRole)) {
       throw new EntityPermissionError(
         'Access denied. Only admin, superadmin or confidential users can fetch confidential entities.',
@@ -357,72 +389,89 @@ export const getConfidentialEntities = cache(async (): Promise<SerializedEntity[
           timestamp: Date.now(),
           userRole,
           requiredRoles: [UserRole.admin, UserRole.superadmin, UserRole.confidential],
-          operation: 'getConfidentialEntities'
-        }
-      );
-    }
-
-    logger.info(`Services: getConfidentialEntities - User authenticated with role ${userRole}`)
-
-    let confidentialEntities: SerializedEntity[] = []
-    try {
-      const result = await db().queryDocs({
-        collection: 'entities',
-        filters: [{ field: 'isConfidential', operator: '=', value: true }],
-        orderBy: [{ field: 'dateAdded', direction: 'desc' }],
-      })
-
-      if (!result.success || !result.data) {
-        throw new EntityQueryError(
-          'Failed to execute confidential entities query',
-          result.error || new Error('Unknown error'),
-          {
-            timestamp: Date.now(),
-            userRole,
-            operation: 'confidential_query_execution'
-          }
-        )
-      }
-
-      confidentialEntities = result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
-
-    } catch (error) {
-      throw new EntityQueryError(
-        'Failed to execute confidential entities query',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          timestamp: Date.now(),
-          userRole,
-          operation: 'confidential_query_execution'
-        }
+          operation: 'getConfidentialEntities',
+        },
       )
     }
 
-    // Step 5: Return resulting confidential entities
+    const { limit, sort, filter, page } = params
 
-    logger.info('Services: getConfidentialEntities - Total confidential entities fetched:', { confidentialEntities: confidentialEntities.length })
+    const dbFilters: Array<{ field: string; operator: string; value: unknown }> = [
+      { field: 'isConfidential', operator: '=', value: true },
+    ]
 
-    return confidentialEntities
-  } catch (error) {
-    // Enhanced error logging with cause information using centralized logger
-    logRingError(error, 'Services: getConfidentialEntities - Error')
-    
-    // Re-throw known errors, wrap unknown errors
-    if (error instanceof EntityAuthError || 
-        error instanceof EntityPermissionError ||
-        error instanceof EntityQueryError ||
-        error instanceof EntityDatabaseError) {
-      throw error;
+    if (filter) {
+      dbFilters.push({ field: 'status', operator: '=', value: filter })
     }
-    
+
+    const [sortField, sortDirection] = sort.split(':')
+
+    const countResult = await db().countDocs('entities', dbFilters)
+    const totalEntities = countResult.success ? (countResult.data || 0) : 0
+    const totalPages = Math.ceil(totalEntities / limit)
+
+    const result = await db().queryDocs({
+      collection: 'entities',
+      filters: dbFilters,
+      orderBy: [{ field: sortField, direction: sortDirection as 'asc' | 'desc' }],
+      pagination: { limit, offset: (page - 1) * limit },
+    })
+
+    if (!result.success || !result.data) {
+      throw new EntityQueryError(
+        'Failed to execute confidential entities query',
+        result.error || new Error('Unknown error'),
+        {
+          timestamp: Date.now(),
+          userRole,
+          operation: 'confidential_query_execution',
+        },
+      )
+    }
+
+    const blockedEntityIds = await getUserBlockedEntityIds(userId)
+    const mapped = result.data.map((doc) => mapDbDocumentToSerializedEntity(doc))
+    const entities = filterEntitiesForDiscovery(mapped, {
+      userRole,
+      userId,
+      blockedEntityIds,
+    })
+
+    const lastVisible = entities.length > 0 ? entities[entities.length - 1].id : null
+
+    logger.info('Services: getConfidentialEntities - Results:', {
+      entitiesCount: entities.length,
+      totalEntities,
+      totalPages,
+      lastVisible,
+    })
+
+    return {
+      entities,
+      lastVisible,
+      totalPages,
+      totalEntities,
+    }
+  } catch (error) {
+    logRingError(error, 'Services: getConfidentialEntities - Error')
+
+    if (
+      error instanceof EntityAuthError ||
+      error instanceof EntityPermissionError ||
+      error instanceof EntityQueryError ||
+      error instanceof EntityDatabaseError
+    ) {
+      throw error
+    }
+
     throw new EntityQueryError(
       'Unknown error occurred while fetching confidential entities',
       error instanceof Error ? error : new Error(String(error)),
       {
         timestamp: Date.now(),
-        operation: 'getConfidentialEntities'
-      }
-    );
+        operation: 'getConfidentialEntities',
+      },
+    )
   }
 });
 
@@ -436,7 +485,6 @@ export const getConfidentialEntities = cache(async (): Promise<SerializedEntity[
  * React 19 cache() wrapper applied for request deduplication.
  * 
  * @param entityIds - Array of entity IDs to fetch
- * @param userRole - The role of the requesting user
  * @returns Promise<Entity[]> - Array of entities the user can access
  * @throws {EntityAuthError} If the user is not authenticated
  * @throws {EntityPermissionError} If the user lacks sufficient permissions
@@ -444,27 +492,20 @@ export const getConfidentialEntities = cache(async (): Promise<SerializedEntity[
  */
 export const getEntitiesByIds = cache(async (
   entityIds: string[],
-  userRole?: UserRole
 ): Promise<SerializedEntity[]> => {
   try {
-    logger.info('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole })
-
-    // If no userRole provided, get from session
-    let role = userRole;
-    if (!role) {
-      const session = await auth();
-      if (!session || !session.user) {
-        throw new EntityAuthError('Unauthorized access', undefined, {
-          timestamp: Date.now(),
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          operation: 'getEntitiesByIds'
-        });
-      }
-      role = assertKnownUserRole(session.user.role);
-    } else {
-      role = assertKnownUserRole(role);
+    const session = await auth();
+    if (!session || !session.user) {
+      throw new EntityAuthError('Unauthorized access', undefined, {
+        timestamp: Date.now(),
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        operation: 'getEntitiesByIds'
+      });
     }
+    const role = assertKnownUserRole(session.user.role);
+
+    logger.info('Services: getEntitiesByIds - Starting batch fetch...', { entityIds: entityIds.length, userRole: role })
 
     if (!entityIds || entityIds.length === 0) {
       return [];

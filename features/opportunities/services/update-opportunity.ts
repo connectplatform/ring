@@ -8,6 +8,7 @@
 import { Opportunity } from '@/features/opportunities/types'
 import { auth } from '@/auth'
 import { hasConfidentialAccess, hasMemberPrivileges, isPlatformAdmin, assertKnownUserRole } from '@/features/auth/user-role'
+import { assertOpportunityVisibilityPatch } from '@/features/opportunities/lib/opportunity-permissions'
 import { db } from '@/lib/database'
 import { mapDbDocumentToOpportunity } from '@/features/opportunities/lib/opportunity-db-mapper'
 import { syncOpportunityDiscovery } from '@/features/opportunities/lib/opportunity-mutation-sync'
@@ -73,6 +74,11 @@ export async function updateOpportunity(id: string, data: Partial<Opportunity>):
           throw new Error('Access denied. Only the opportunity creator, an admin, or a member can update this opportunity.');
         }
       }
+
+      assertOpportunityVisibilityPatch(userRole, {
+        visibility: data.visibility,
+        isConfidential: data.isConfidential,
+      });
 
       // Step 5: Prepare the update data
       const updateData = {

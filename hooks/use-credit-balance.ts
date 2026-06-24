@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use, useMemo, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { logger } from '@/lib/logger'
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client'
-import { useTunnelSubscription } from './use-tunnel-subscription'
+import { useTunnelChannel } from './use-tunnel-channel'
 
 interface CreditBalanceData {
   balance: {
@@ -44,7 +44,7 @@ interface UseCreditBalancePromiseReturn {
 }
 
 /**
- * Hook for managing user's RING credit balance
+ * Hook for managing user's credit balance
  * 
  * OPTIMIZED: Uses Tunnel push updates instead of polling
  * - Initial fetch via API (one-time)
@@ -77,11 +77,12 @@ export function useCreditBalance(): UseCreditBalanceReturn {
   const {
     data: tunnelData,
     isConnected: isTunnelConnected,
-    error: tunnelError
-  } = useTunnelSubscription<CreditBalanceData>({
+    error: tunnelError,
+  } = useTunnelChannel<CreditBalanceData>({
     channel: 'credit:balance',
+    userScoped: false,
     enabled: status === 'authenticated' && !!session?.user,
-    onMessage: handleTunnelMessage
+    onMessage: handleTunnelMessage,
   })
 
   // Update data when tunnel pushes updates

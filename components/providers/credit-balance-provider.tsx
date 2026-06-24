@@ -3,14 +3,14 @@
 /**
  * Credit Balance Context Provider
  * Provides shared credit balance state across the entire application
- * 
+ *
  * Architecture: Single tunnel subscription, multiple consumers
  * - ONE call to useCreditBalance() hook
- * - ONE tunnel subscription to 'credit:balance' channel
+ * - ONE tunnel subscription to 'credit:balance' channel (userScoped: false)
  * - Shared state distributed via React Context
- * 
- * Eliminates 7+ duplicate subscriptions from multiple components
- * 
+ * - MUST mount inside TunnelProvider (AppClientShell) — standalone useTunnel bypasses registry SSOT
+ *
+ * @see lib/tunnel/SUBSCRIPTION-SSOT.md (provider mount order 2026-06-23)
  * @see AI-CONTEXT: ring-platform_tunnel-subscription-loop-fix_emperor_ray_2025-11-24
  */
 

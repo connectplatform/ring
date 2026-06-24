@@ -30,6 +30,20 @@
       "submit": "Create My Vendor Store",
       "submitting": "Creating your store..."
     },
+    "categories": {
+      "organic-produce": "Organic produce",
+      "honey-sweets": "Honey & sweets",
+      "essential-oils": "Essential oils",
+      "dairy-eggs": "Dairy & eggs",
+      "meat-poultry": "Meat & poultry",
+      "herbs-spices": "Herbs & spices",
+      "grains-legumes": "Grains & legumes",
+      "baked-goods": "Baked goods",
+      "preserves-pickles": "Preserves & pickles",
+      "beverages": "Beverages",
+      "nuts-seeds": "Nuts & seeds",
+      "handmade-crafts": "Handmade crafts"
+    },
     "validation": {
       "slugRequired": "Store slug is required",
       "slugInvalid": "Slug can only contain lowercase letters, numbers, and hyphens",
@@ -78,6 +92,8 @@
     "myProducts": "My Products",
     "addProduct": "Add Product",
     "editProduct": "Edit Product",
+    "createSubtitle": "Add a new product to your store",
+    "editSubtitle": "Update product details",
     "noProducts": "You haven't added any products yet",
     "addFirstProduct": "Add your first product to start selling",
     "totalProducts": "{count} products",
@@ -130,6 +146,9 @@
     },
 
     "form": {
+      "productDetails": "Product Details",
+      "mainPhoto": "Main Photo",
+      "addPhoto": "Add Photo",
       "photo": "Product Photos",
       "photoHint": "Upload 1-5 high-quality photos. First photo will be the main image.",
       "photoPlaceholder": "Drag & drop photos or click to browse",
@@ -141,8 +160,9 @@
       "category": "Category",
       "categoryHint": "Select the most appropriate category",
       "categoryPlaceholder": "Select category...",
+      "priceLabel": "Price ({currency})",
       "priceUAH": "Price (UAH)",
-      "priceHint": "Price in Ukrainian Hryvnia",
+      "priceHint": "Enter price in {currency}",
       "pricePlaceholder": "100.00",
       "stock": "Stock Quantity",
       "stockHint": "Available units",
@@ -163,7 +183,10 @@
       "cancel": "Cancel",
       "referralCommission": "Referral commission %",
       "referralCommissionHint": "Optional. Leave empty to inherit your merchant or platform rate.",
-      "referralCommissionPlaceholder": "Inherit ({percent}%)"
+      "referralCommissionPlaceholder": "Inherit ({percent}%)",
+      "rep": "Product representative",
+      "repHint": "Optional. Assign a Ring user by username to represent this product.",
+      "repPlaceholder": "Search by username…"
     },
 
     "validation": {

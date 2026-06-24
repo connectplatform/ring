@@ -12,6 +12,8 @@ import { notFound } from 'next/navigation'
 // Valid opportunity action types
 const VALID_ACTIONS = [
   'create',
+  'update',
+  'delete',
   'apply',
   'submit',
   'approve',
@@ -21,6 +23,8 @@ const VALID_ACTIONS = [
 // Valid status types per action
 const VALID_STATUSES = {
   create: ['draft', 'pending_review', 'published', 'success', 'failed', 'rejected'],
+  update: ['success', 'failed'],
+  delete: ['success', 'failed'],
   apply: ['submitted', 'under_review', 'accepted', 'rejected', 'pending_documents'],
   submit: ['received', 'processing', 'approved', 'requires_changes', 'rejected'],
   approve: ['pending', 'approved', 'rejected', 'needs_revision'],
@@ -79,7 +83,12 @@ export default async function OpportunityStatusDynamicPage({
 
   
   // Extract relevant query parameters
-  const opportunityId = typeof resolvedSearchParams.opportunityId === 'string' ? resolvedSearchParams.opportunityId : undefined
+  const opportunityId =
+    typeof resolvedSearchParams.opportunityId === 'string'
+      ? resolvedSearchParams.opportunityId
+      : typeof resolvedSearchParams.id === 'string'
+        ? resolvedSearchParams.id
+        : undefined
   const opportunityTitle = typeof resolvedSearchParams.opportunityTitle === 'string' ? resolvedSearchParams.opportunityTitle : undefined
   const applicationId = typeof resolvedSearchParams.applicationId === 'string' ? resolvedSearchParams.applicationId : undefined
   const submissionId = typeof resolvedSearchParams.submissionId === 'string' ? resolvedSearchParams.submissionId : undefined

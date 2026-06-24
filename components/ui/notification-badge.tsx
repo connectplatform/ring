@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Bell } from 'lucide-react';
-import { useUnreadCount } from '@/hooks/use-unread-count';
+import { useNotificationContext } from '@/features/notifications/components/notification-provider';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -26,11 +26,11 @@ export function NotificationBadge({
   variant = 'destructive',
   onClick
 }: NotificationBadgeProps) {
-  const { unreadCount, loading, error } = useUnreadCount({
-    autoRefresh: true,
-    refreshInterval: 180000, // 3 minutes
-    cacheTimeout: 120000 // 2 minutes cache TTL
-  });
+  const {
+    unreadCount,
+    unreadLoading: loading,
+    unreadError: error,
+  } = useNotificationContext();
 
   const sizeClasses = {
     sm: 'h-6 w-6',

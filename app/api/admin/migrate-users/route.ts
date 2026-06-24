@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
+import { isSuperadmin } from '@/features/auth/user-role'
 
 type UserRow = Record<string, unknown> & { id: string }
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication and admin role
     const session = await auth()
-    if (!session?.user?.role || session.user.role !== 'superadmin') {
+    if (!session?.user?.role || !isSuperadmin(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

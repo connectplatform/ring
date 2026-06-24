@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import { collectDiagramSource } from '@/components/docs/diagram-source'
+import { DiagramViewer } from '@/components/docs/diagram-viewer'
 import { normalizeMermaidSource, renderMermaidDiagram } from '@/lib/mermaid-render'
 
 export interface MermaidProps {
@@ -165,25 +166,23 @@ export function Mermaid({ children, source: sourceProp, title, type = 'diagram' 
     )
   }
 
+  const diagramBody = showLoading ? (
+    <div
+      className="h-40 w-full animate-pulse rounded-md bg-muted"
+      aria-busy="true"
+      aria-label="Rendering diagram"
+    />
+  ) : svg ? (
+    <div
+      ref={containerRef}
+      className="w-full min-w-0 [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:w-full"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  ) : null
+
   return (
-    <figure className="my-6 w-full min-w-0">
-      {title && <figcaption className="mb-2 font-semibold text-foreground">{title}</figcaption>}
-      <div className="flex w-full min-h-[12rem] min-w-0 items-center justify-center overflow-x-auto rounded-lg border border-border bg-background p-4 md:p-6">
-        {showLoading ? (
-          <div
-            className="h-40 w-full animate-pulse rounded-md bg-muted"
-            aria-busy="true"
-            aria-label="Rendering diagram"
-          />
-        ) : null}
-        {svg ? (
-          <div
-            ref={containerRef}
-            className="w-full min-w-0 [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:w-full"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
-        ) : null}
-      </div>
-    </figure>
+    <DiagramViewer title={title} diagramLabel={type === 'mindmap' ? 'Mind map' : 'Diagram'}>
+      {diagramBody}
+    </DiagramViewer>
   )
 }

@@ -109,5 +109,29 @@
     "cloneRing": "Клонувати Ring Зараз",
     "learnTokens": "Дізнатися про Токени RING",
     "viewSource": "Переглянути Вихідний Код"
+  },
+  "sidebar": {
+    "publisher_title": "Sonoratek LLC — видавець",
+    "publisher_desc": "Юридичний видавець Ring Platform. Створено в Україні, безкоштовно для світу.",
+    "quick_actions": "Почати",
+    "clone_hint": "install.sh → ring-config → перший деплой",
+    "tokens_hint": "Токен RING та економіка членства",
+    "source_hint": "connectplatform/ring на GitHub",
+    "help_title": "Документація",
+    "help_desc": "Клонуйте Ring, налаштуйте ring-config.json і розгорніть white-label.",
+    "view_docs": "Відкрити документацію",
+    "docs_hint": "Архітектура, модулі та гайди з розгортання",
+    "impact": {
+      "deployments": "Активні клони Ring та white-label спільноти",
+      "value": "Економічна цінність, створена на платформі",
+      "benefiting": "Люди, яких охоплюють Ring-платформи",
+      "countries": "Країни з живими або пілотними інстансами Ring"
+    },
+    "flow": {
+      "step_install": "install.sh",
+      "step_config": "ring-config",
+      "step_deploy": "перший деплой",
+      "quick_start": "Швидкий старт"
+    }
   }
 }

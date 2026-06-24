@@ -1,19 +1,7 @@
 'use client'
 
-import React, { useCallback, useEffect } from 'react'
-import { useRouter, usePathname, replaceLocalePath } from '@/i18n/routing'
-import { useLocale } from 'next-intl'
-import { useTheme } from 'next-themes'
+import React, { useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Languages, Moon, Sun } from 'lucide-react'
-import type { Locale } from '@/i18n/shared'
-import {
-  localeDisplayLabel,
-  localeNativeTitle,
-  nextLocaleInRoutingOrder,
-  persistRingLocalePreference,
-} from '@/lib/locale-pref'
 
 interface RightSidebarProps {
   children: React.ReactNode
@@ -21,8 +9,9 @@ interface RightSidebarProps {
   actions?: React.ReactNode
   className?: string
   sticky?: boolean
-  showControls?: boolean // Show theme/lang controls at bottom
-  onLinkClick?: () => void // Callback when link is clicked (for auto-hide on mobile/iPad)
+  /** @deprecated Bottom theme/lang bar removed — pass controls via `actions` (docs sidebar). */
+  showControls?: boolean
+  onLinkClick?: () => void
 }
 
 export default function RightSidebar({
@@ -31,30 +20,8 @@ export default function RightSidebar({
   actions,
   className,
   sticky = true,
-  showControls = true,
-  onLinkClick
+  onLinkClick,
 }: RightSidebarProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const locale = useLocale() as Locale
-  const { setTheme, theme, resolvedTheme } = useTheme()
-
-  const nextLang = nextLocaleInRoutingOrder(locale)
-
-  const switchLocale = useCallback(
-    (newLocale: Locale) => {
-      persistRingLocalePreference(newLocale)
-      replaceLocalePath(router, pathname, newLocale)
-    },
-    [pathname, router],
-  )
-
-  const toggleTheme = useCallback(() => {
-    const currentTheme = theme === 'system' ? resolvedTheme : theme
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark')
-  }, [setTheme, theme, resolvedTheme])
-
-  // Listen for link clicks to trigger auto-hide
   useEffect(() => {
     if (!onLinkClick) return
 
@@ -72,8 +39,6 @@ export default function RightSidebar({
     return () => sidebar.removeEventListener('click', handleLinkClick)
   }, [onLinkClick])
 
-  const currentTheme = theme === 'system' ? resolvedTheme : theme
-
   return (
     <div 
       className={cn(
@@ -87,12 +52,12 @@ export default function RightSidebar({
       {/* Header */}
       {(title || actions) && (
         <div className="border-b border-border/40 bg-transparent p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 min-w-0">
             {title && (
-              <h3 className="font-semibold text-lg">{title}</h3>
+              <h3 className="font-semibold text-lg truncate min-w-0">{title}</h3>
             )}
             {actions && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 shrink-0">
                 {actions}
               </div>
             )}
@@ -106,47 +71,6 @@ export default function RightSidebar({
           {children}
         </div>
       </div>
-
-      {/* Bottom Controls (Theme & Language Toggle) - Only show on docs pages */}
-      {showControls && pathname.includes('/docs') && (
-        <div className="border-t border-border/40 bg-transparent p-4">
-          <div className="flex items-center justify-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => switchLocale(nextLang)}
-              className="h-8 px-2 text-xs hover:bg-accent flex-1"
-              title={`Switch to ${localeNativeTitle(nextLang)}`}
-            >
-              <Languages className="h-3 w-3 mr-1" />
-              {localeDisplayLabel(locale)}
-              <span className="mx-1">↔</span>
-              {localeDisplayLabel(nextLang)}
-            </Button>
-
-            {/* Theme Toggle */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleTheme}
-              className="h-8 px-2 text-xs hover:bg-accent flex-1"
-              title={`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} mode`}
-            >
-              {currentTheme === 'dark' ? (
-                <>
-                  <Sun className="h-3 w-3 mr-1" />
-                  Light
-                </>
-              ) : (
-                <>
-                  <Moon className="h-3 w-3 mr-1" />
-                  Dark
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

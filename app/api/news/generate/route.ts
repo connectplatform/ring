@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { generateNewsArticle } from '@/features/news/services/article-generator'
 
 type GenerateNewsBody = {
@@ -12,8 +12,8 @@ type GenerateNewsBody = {
   enableImage?: boolean
 }
 
-function canGenerateNews(role?: UserRole): boolean {
-  return role === UserRole.admin || role === UserRole.superadmin
+function canGenerateNews(role?: string | null): boolean {
+  return isPlatformAdmin(role)
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const role = (session.user as { role?: UserRole }).role
+  const role = session.user.role
   if (!canGenerateNews(role)) {
     return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
   }

@@ -22,6 +22,7 @@ import { cache } from 'react';
 import { db } from '@/lib/database';
 
 import { auth } from '@/auth'; // Auth.js v5 session handler
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role';
 
 /**
  * Process enhanced user profiling data from database JSONB format
@@ -221,7 +222,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     console.log(`Services: getUserById - Requesting user authenticated with ID ${requestingUserId} and role ${requestingUserRole}`);
 
     // Step 2: Check authorization
-    if (requestingUserId !== userId && requestingUserRole !== UserRole.admin) {
+    if (requestingUserId !== userId && !isPlatformAdmin(assertKnownUserRole(requestingUserRole))) {
       console.log(`Services: getUserById - Unauthorized access attempt to user ${userId} by user ${requestingUserId}`);
       return null; // Only allow users to access their own profile or admins to access any profile
     }
@@ -297,7 +298,7 @@ export async function getUserById(userId: string): Promise<Partial<AuthUser> | n
     // Users can always see their own full profile data (including privacy settings)
     const isOwnProfile = requestingUserId === userId;
     
-    if (requestingUserRole === UserRole.admin || isOwnProfile) {
+    if (isPlatformAdmin(assertKnownUserRole(requestingUserRole)) || isOwnProfile) {
       console.log(`Services: getUserById - ${isOwnProfile ? 'User accessing own profile' : 'Admin user'} retrieved full enhanced profile for ID: ${userId}`);
       return enhancedUserProfile;
     } else {

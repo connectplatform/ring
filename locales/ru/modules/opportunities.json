@@ -81,7 +81,20 @@
     "location": "локация",
     "priority": "приоритет",
     "budget": "бюджет",
-    "activeFilters": "Активные фильтры"
+    "activeFilters": "Активные фильтры",
+    "clearAll": "Очистить все",
+    "sectionTypes": "Типы возможностей",
+    "sectionCategories": "Категории",
+    "sectionLocation": "Локация",
+    "sectionBudget": "Диапазон бюджета",
+    "locationPlaceholder": "Введите город или страну",
+    "currency": "Валюта",
+    "min": "Мин.",
+    "max": "Макс.",
+    "anyPriority": "Любой приоритет",
+    "priorityUrgent": "Срочно",
+    "priorityNormal": "Обычный",
+    "priorityLow": "Низкий"
   },
   "sortBy": "Sort by",
   "newest": "Newest",
@@ -354,6 +367,7 @@
       "viewOpportunity": "View Opportunity",
       "viewApplication": "View Application",
       "backToOpportunities": "Back to Opportunities",
+      "continue": "Продолжить",
       "continueEditing": "Continue Editing",
       "createNew": "Create New Opportunity",
       "contactSupport": "Contact Support",
@@ -379,6 +393,10 @@
         "title": "Opportunity Published!",
         "description": "Your opportunity has been successfully published and is now visible to potential applicants on the platform."
       },
+      "success": {
+        "title": "Возможность создана!",
+        "description": "Ваша возможность успешно сохранена. Управляйте ею в разделе «Мои возможности»."
+      },
       "failed": {
         "title": "Opportunity Creation Failed",
         "description": "We couldn't create your opportunity due to a technical issue. Please try again or contact support for assistance."
@@ -386,6 +404,26 @@
       "rejected": {
         "title": "Opportunity Rejected",
         "description": "Your opportunity submission was rejected during the review process. Please review the feedback and make necessary corrections."
+      }
+    },
+    "update": {
+      "success": {
+        "title": "Изменения сохранены!",
+        "description": "Ваша возможность успешно обновлена. Продолжайте управлять ею в разделе «Мои возможности»."
+      },
+      "failed": {
+        "title": "Ошибка обновления",
+        "description": "Не удалось сохранить изменения. Попробуйте снова или обратитесь в поддержку."
+      }
+    },
+    "delete": {
+      "success": {
+        "title": "Возможность удалена",
+        "description": "Ваша возможность успешно удалена с платформы."
+      },
+      "failed": {
+        "title": "Ошибка удаления",
+        "description": "Не удалось удалить возможность. Попробуйте снова или обратитесь в поддержку."
       }
     },
     "apply": {
@@ -485,5 +523,145 @@
     "cvTypeDescription": "Поделитесь своим профилем разработчика и навыками, чтобы подключиться к возможностям платформы.",
     "confidentialOpportunities": "Конфиденциальные возможности",
     "confidentialOpportunitiesDescription": "Частные возможности, видимые только участникам с конфиденциальным доступом. Требуется специальный доступ."
+  },
+  "types": {
+    "request": {
+      "title": "Создать запрос",
+      "description": "Ищу услуги, советы или сотрудничество от сообщества."
+    },
+    "offer": {
+      "title": "Создать предложение",
+      "description": "Опубликуйте официальную возможность от вашей организации."
+    },
+    "partnership": {
+      "title": "Создать партнёрство",
+      "description": "Ищите стратегические партнёрства и бизнес-сотрудничество."
+    },
+    "volunteer": {
+      "title": "Создать волонтёрскую возможность",
+      "description": "Публикуйте волонтёрские возможности для общественных дел."
+    },
+    "mentorship": {
+      "title": "Создать менторство",
+      "description": "Предлагайте или ищите менторские возможности."
+    },
+    "resource": {
+      "title": "Создать ресурс",
+      "description": "Делитесь или запрашивайте ресурсы, инструменты и оборудование."
+    },
+    "event": {
+      "title": "Создать событие",
+      "description": "Организуйте события и приглашайте участие сообщества."
+    },
+    "ring_customization": {
+      "title": "Проект кастомизации Ring",
+      "description": "Опишите развёртывание Ring Platform, модуль или брендинг."
+    }
+  },
+  "form": {
+    "optionalDetails": "Дополнительные детали",
+    "show": "Показать",
+    "hide": "Скрыть",
+    "optional": "Необязательно",
+    "editTitle": "Редактировать возможность",
+    "editDescription": "Обновите детали объявления и сохраните изменения.",
+    "saveChanges": "Сохранить изменения",
+    "descriptionPlaceholder": "Подробно опишите вашу возможность...",
+    "requirementsPlaceholder": "Перечислите конкретные требования или квалификацию...",
+    "titlePlaceholders": {
+      "request": "С чем вам нужна помощь?",
+      "offer": "Название должности или позиции",
+      "partnership": "Название партнёрской возможности",
+      "volunteer": "Название волонтёрской возможности",
+      "mentorship": "Название программы менторства",
+      "resource": "Название ресурса или оборудования",
+      "event": "Название события",
+      "ring_customization": "Название проекта кастомизации Ring"
+    },
+    "budgetLabels": {
+      "request": "Доступный бюджет",
+      "offer": "Диапазон зарплаты/оплаты",
+      "partnership": "Диапазон инвестиций",
+      "volunteer": "Стипендия (при наличии)",
+      "mentorship": "Плата (при наличии)",
+      "resource": "Стоимость/плата",
+      "event": "Стоимость билета",
+      "ring_customization": "Бюджет проекта"
+    }
+  },
+  "formRail": {
+    "backToBrowse": "Назад к возможностям",
+    "checklistTitle": "Перед публикацией",
+    "guideTitle": "Документация",
+    "guideDescription": "Как возможности находят, модерируют и подбирают с помощью AI.",
+    "docsOverview": "Обзор возможностей",
+    "docsMatching": "AI-подбор",
+    "docsEntities": "Профили организаций",
+    "memberNoteTitle": "Публикация для участников",
+    "memberNoteBody": "Предложения и проекты Ring публикуются от имени верифицированной организации.",
+    "memberBadge": "Участник+",
+    "visibilityTitle": "Видимость",
+    "request": {
+      "tipsTitle": "Советы для запроса",
+      "tip1Title": "Будьте конкретны",
+      "tip1Body": "Укажите результат, сроки и критерии успеха.",
+      "tip2Title": "Реалистичный бюджет",
+      "tip2Body": "Диапазон бюджета ускоряет подбор релевантных специалистов.",
+      "tip3Title": "Правильная категория",
+      "tip3Body": "Категория и теги влияют на поиск и AI-матчинг.",
+      "visibilityBody": "Запросы видны подписчикам, если не отмечены конфиденциальными.",
+      "check1": "Понятное название",
+      "check2": "Категория и локация",
+      "check3": "Подробное описание",
+      "check4": "Бюджет или дедлайн (по желанию)"
+    },
+    "offer": {
+      "tipsTitle": "Советы для предложения",
+      "tip1Title": "Привяжите организацию",
+      "tip1Body": "Официальные вакансии должны быть от профиля организации.",
+      "tip2Title": "Диапазон оплаты",
+      "tip2Body": "Прозрачная компенсация повышает доверие кандидатов.",
+      "tip3Title": "Дедлайн подачи",
+      "tip3Body": "Срок закрытия сохраняет список актуальным.",
+      "check1": "Организация выбрана",
+      "check2": "Название роли и категория",
+      "check3": "Требования и навыки",
+      "check4": "Оплата или дедлайн"
+    },
+    "cv": {
+      "tipsTitle": "Советы для CV разработчика",
+      "tip1Title": "Стек Ring",
+      "tip1Body": "Оцените Ring Platform, React 19 и Next.js — это важно для матчера.",
+      "tip2Title": "Ссылки на портфолио",
+      "tip2Body": "GitHub и живые проекты важнее общих фраз.",
+      "tip3Title": "Доступность",
+      "tip3Body": "Укажите, когда можете начать работу.",
+      "check1": "Контакты и локация",
+      "check2": "Профессиональное резюме",
+      "check3": "Оценки навыков",
+      "check4": "Резюме или портфолио"
+    },
+    "ring": {
+      "tipsTitle": "Объём кастомизации",
+      "tip1Title": "Определите модули",
+      "tip1Body": "Перечислите модули, интеграции или white-label поверхности.",
+      "tip2Title": "Среда развёртывания",
+      "tip2Body": "Облако или self-hosted, локали, ожидаемая нагрузка.",
+      "tip3Title": "Бюджет и сроки",
+      "tip3Body": "Диапазон помогает партнёрам оценить проект.",
+      "check1": "Контекст бренда/организации",
+      "check2": "Краткое описание объёма",
+      "check3": "Технические требования",
+      "check4": "Бюджет или этапы"
+    },
+    "picker": {
+      "tipsTitle": "Выберите тип",
+      "tip1Title": "Соответствие цели",
+      "tip1Body": "Запрос — поиск помощи; предложение — роль; CV — профиль; Ring — работа с платформой.",
+      "tip2Title": "Только для участников",
+      "tip2Body": "Предложения и Ring требуют статуса Участника или выше.",
+      "check1": "Выбран тип сотрудничества",
+      "check2": "Проверена роль аккаунта"
+    }
   }
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname, replaceLocalePath } from '@/i18n/routing'
 import { useLocale } from 'next-intl'
 import { useTheme } from 'next-themes'
+import { toggleThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { ChevronLeft, ChevronRight, Languages, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -83,12 +84,6 @@ export default function FloatingSidebarToggle({
     [pathname, router],
   )
 
-  const toggleTheme = useCallback(() => {
-    const currentTheme = theme === 'system' ? resolvedTheme : theme
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark')
-  }, [setTheme, theme, resolvedTheme])
-
-  const currentTheme = theme === 'system' ? resolvedTheme : theme
   const nextLocale = getNextCyclingLocale()
 
   return (
@@ -155,11 +150,11 @@ export default function FloatingSidebarToggle({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={toggleTheme}
+                  onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
                   className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                  title={`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} mode`}
+                  title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
                 >
-                  {currentTheme === 'dark' ? (
+                  {resolvedTheme === 'dark' ? (
                     <>
                       <Sun className="h-3 w-3 mr-1" />
                       Light
@@ -206,11 +201,11 @@ export default function FloatingSidebarToggle({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={toggleTheme}
+                  onClick={() => toggleThemeWithTransition(setTheme, theme, resolvedTheme)}
                   className="h-8 px-2 text-xs hover:bg-accent flex-1"
-                  title={`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} mode`}
+                  title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
                 >
-                  {currentTheme === 'dark' ? (
+                  {resolvedTheme === 'dark' ? (
                     <>
                       <Sun className="h-3 w-3 mr-1" />
                       Light

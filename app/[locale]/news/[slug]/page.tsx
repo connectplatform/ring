@@ -26,6 +26,8 @@ import { TableOfContents } from '@/features/news/components/table-of-contents';
 import { NewsArticleHeader } from '@/features/news/components/news-article-header';
 import { calculateReadingTimeWithImages } from '@/features/news/utils/reading-time';
 import { auth } from '@/auth';
+import { canViewNewsArticle, buildNewsVisibilityFilters } from '@/features/news/lib/news-visibility-filter';
+import { assertKnownUserRole, UserRole } from '@/features/auth/user-role';
 import { connection } from 'next/server'
 
 interface NewsArticlePageParams {
@@ -81,14 +83,14 @@ async function getArticleBySlug(slug: string): Promise<NewsArticle | null> {
  * Get related articles
  * Server Component - native async/await (React 19 pattern)
  */
-async function getRelatedArticles(currentArticle: NewsArticle): Promise<NewsArticle[]> {
+async function getRelatedArticles(currentArticle: NewsArticle, userRole: UserRole, userId?: string): Promise<NewsArticle[]> {
   try {
     const result = await db().queryDocs({
       collection: 'news',
       filters: [
         { field: 'status', operator: '==', value: 'published' },
         { field: 'category', operator: '==', value: currentArticle.category },
-        { field: 'visibility', operator: 'in', value: ['public', 'subscriber'] },
+        ...buildNewsVisibilityFilters(userRole),
       ],
       orderBy: [{ field: 'publishedAt', direction: 'desc' }],
       pagination: { limit: 4 },
@@ -101,6 +103,7 @@ async function getRelatedArticles(currentArticle: NewsArticle): Promise<NewsArti
     return result.data
       .map((row) => mapNewsDocument(row))
       .filter((article) => article.id !== currentArticle.id)
+      .filter((article) => canViewNewsArticle(article, { userRole, userId }))
       .slice(0, 3)
   } catch (error) {
     console.error('Error fetching related articles:', error);
@@ -199,10 +202,17 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
   
   // Get current user session for like button
   const session = await auth();
+  const userRole = session?.user
+    ? assertKnownUserRole(session.user.role)
+    : UserRole.visitor;
 
   const article = await getArticleBySlug(slug);
   
   if (!article) {
+    notFound();
+  }
+
+  if (!canViewNewsArticle(article, { userRole, userId: session?.user?.id })) {
     notFound();
   }
 
@@ -217,7 +227,7 @@ export default async function NewsArticlePage(props: LocalePageProps<NewsArticle
   // Calculate reading time
   const readingTime = calculateReadingTimeWithImages(article.content);
 
-  const relatedArticles = await getRelatedArticles(article);
+  const relatedArticles = await getRelatedArticles(article, userRole, session?.user?.id);
   
   // Check if current user has liked this article
   let userHasLiked = false;

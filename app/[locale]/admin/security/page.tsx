@@ -17,6 +17,7 @@ import { connection } from 'next/server';
 import { Shield, AlertTriangle, Lock, Unlock, Eye, KeyRound, Globe, User, Server, Database, Wifi, Activity, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown, Filter, Search, Download, RefreshCw, AlertCircle, UserCheck, FileText, Settings } from 'lucide-react';
 import { buildModulesAdminLabels } from '@/features/admin/admin-labels';
 import { isPlatformAdmin } from '@/features/auth/user-role';
+import { getRecentDocsSecurityEvents } from '@/features/analytics/lib/docs-analytics';
 
 
 // Types for security system
@@ -120,6 +121,8 @@ export default async function SecurityPage({
   }
 
   // Mock data - In production, this would come from your security monitoring service
+  const liveDocsSecurityEvents = await getRecentDocsSecurityEvents(10)
+
   const securityMetrics: SecurityMetric[] = [
     {
       name: 'Failed Login Attempts',
@@ -172,6 +175,18 @@ export default async function SecurityPage({
   ];
 
   const securityEvents: SecurityEvent[] = [
+    ...liveDocsSecurityEvents.map((event) => ({
+      id: event.id,
+      type: 'security_violation' as const,
+      severity: (event.severity === 'critical' || event.severity === 'high' || event.severity === 'low'
+        ? event.severity
+        : 'medium') as SecurityEvent['severity'],
+      details: event.details,
+      timestamp: event.timestamp,
+      status: (event.status === 'resolved' || event.status === 'investigating'
+        ? event.status
+        : 'open') as SecurityEvent['status'],
+    })),
     {
       id: '1',
       type: 'failed_login',

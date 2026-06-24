@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertVerificationAdmin } from '@/features/verification/lib/assert-verification-admin'
 import { EntityPermissionError } from '@/lib/errors'
 import { db } from '@/lib/database'
 import { mapRowToVerificationProcedure, toClientView } from '@/features/verification/lib/procedure-mapper'
@@ -21,11 +21,7 @@ export interface VerificationQueueItem {
 }
 
 export async function getVerificationQueue(): Promise<VerificationQueueItem[]> {
-  const session = await auth()
-  const role = session?.user?.role as UserRole | undefined
-  if (!session?.user || (role !== UserRole.admin && role !== UserRole.superadmin)) {
-    throw new EntityPermissionError('Admin access required')
-  }
+  await assertVerificationAdmin()
 
   const result = await db().queryDocs<Record<string, unknown>>({
     collection: 'verification_procedures',

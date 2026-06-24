@@ -11,6 +11,8 @@
   "searchUsersPlaceholder": "Пошук за іменем або @username…",
   "searchingUsers": "Пошук…",
   "noUsersFound": "Користувачів не знайдено",
+  "fromContacts": "З контактів",
+  "fromContactsTitle": "Написати контакту",
   "messageUser": "Написати {name}",
   "messageUserFallback": "користувачу",
   "entityChatEmpty": "Ще немає розмови. Відвідувачі можуть почати чат про цей об'єкт."

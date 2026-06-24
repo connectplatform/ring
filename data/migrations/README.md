@@ -12,6 +12,7 @@ psql "$DATABASE_URL" -f data/migrations/003_news_kingdom_upgrade.sql
 psql "$DATABASE_URL" -f data/migrations/004_payment_transactions.sql
 psql "$DATABASE_URL" -f data/migrations/005_refcodes_schema.sql
 psql "$DATABASE_URL" -f data/migrations/006_generated_images_schema.sql
+psql "$DATABASE_URL" -f data/migrations/018_generative_media_conductor_schema.sql
 psql "$DATABASE_URL" -f data/migrations/009_email_crm_jsonb.sql
 psql "$DATABASE_URL" -f data/migrations/010_email_crm_tasks_jsonb.sql
 ```
@@ -29,12 +30,19 @@ Or use [`scripts/run-migration.sh`](../scripts/run-migration.sh) when configured
 | `004_payment_transactions.sql` | `payment_transactions` ledger for PaymentConductor |
 | `005_refcodes_schema.sql` | `refcodes` + `referral_rewards` for referral module |
 | `006_generated_images_schema.sql` | `generated_images` ledger for ImageConductor (xAI / Google Imagen) |
+| `007_generated_videos_schema.sql` | Superseded by `018` — `generated_videos` ledger for VideoConductor |
+| `018_generative_media_conductor_schema.sql` | Idempotent `generated_images` + `generated_videos` + VideoConductor v2 indexes |
+| `008_process_runs_schema.sql` | `process_runs` ledger for ProcessConductor (cron / background pipelines) |
 | `008_inventory_schema.sql` | `inventory_levels` + `inventory_reservations` (also in `schema.sql` v4.0.1+) |
 | `009_email_crm_jsonb.sql` | Email CRM JSONB tables: contacts, threads, messages, drafts |
 | `010_email_crm_tasks_jsonb.sql` | Email CRM tasks + `email_api_usage` cost ledger |
 | `012_verification_procedures.sql` | Verification procedures SSOT + matcher events |
 | `013_users_email_unique.sql` | Unique index on `lower(users.data->>'email')` — **run dedupe script first** |
 | `014_user_roles_lowercase.sql` | Lowercase all `users.data` role strings + nested upgrade fields; idempotent |
+| `015_store_product_rep_index.sql` | `store_products` indexes for `rep`, `approvalStatus`, `listStores` JSONB paths |
+| `016_fcm_jsonb_schema.sql` | `fcm_tokens` JSONB table — one row per `(userId, deviceFingerprint)`; status lifecycle indexes |
+| `017_ring_analytics_schema.sql` | `analytics_events`, `web_vitals`, `analytics_errors` JSONB telemetry |
+| `023_user_device_telemetry_schema.sql` | `user_device_telemetry` last-known device snapshots (fraud forensics + UX) |
 
 **Dev DB name:** `ring_platform` (`DATABASE_URL` in `.env.local`). Clone DBs use their own names (e.g. `ring_ringdom_org`).
 

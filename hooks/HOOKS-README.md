@@ -1,157 +1,193 @@
-# Ring App - Custom Hooks Reference
+# Ring App — Custom Hooks Reference
 
-This document provides a reference for using the custom hooks in the Ring main web app project.
+SSOT for root-level hooks in `ring-platform.org/hooks/`. Prefer **provider context** when a hook opens tunnel connections, polls APIs, or registers push tokens — see [Provider matrix](#provider-matrix) and [Remediation TODOs](#remediation-todos).
 
 ## Table of Contents
 
 1. [useAuth](#useauth)
-2. [useLocalStorage](#uselocalstorage)
-3. [useDebounce](#usedebounce)
-4. [useLanguage](#uselanguage)
+2. [useFCM](#usefcm)
+3. [Realtime & notifications](#realtime--notifications)
+4. [Wallet & credits](#wallet--credits)
+5. [Utility hooks](#utility-hooks)
+6. [Provider matrix](#provider-matrix)
+7. [Remediation TODOs](#remediation-todos)
+
+---
 
 ## useAuth
 
-The `useAuth` hook manages authentication state and provides login, logout, and registration functions.
+**File:** `hooks/use-auth.ts`  
+**Provider:** `SessionProvider` (next-auth) in `app-client-shell.tsx`
 
-### Usage
+Session state, role checks, auth navigation helpers, and **canonical sign-out** (FCM unregister + session cache clear + Auth.js `signOut`).
 
 ```typescript
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/use-auth'
 
-function MyComponent() {
-  const { user, loading, login, register, logout } = useAuth()
+function ProfileMenu() {
+  const { user, loading, hasRole, signOut, isAuthenticated } = useAuth()
 
-  const handleLogin = async (email: string, password: string) => {
-    const result = await login(email, password)
-    if (result.success) {
-      console.log('Logged in successfully')
-    } else {
-      console.error('Login failed:', result.error)
-    }
-  }
-
-  const handleLogout = async () => {
-    const result = await logout()
-    if (result.success) {
-      console.log('Logged out successfully')
-    } else {
-      console.error('Logout failed:', result.error)
-    }
-  }
-
-  if (loading) {
-    return <div>Loading...</div>
-  }
+  if (loading) return null
 
   return (
-    <div>
-      {user ? (
-        <div>
-          <p>Welcome, {user.email}</p>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      ) : (
-        <button onClick={() => handleLogin('user@example.com', 'password')}>Login</button>
-      )}
-    </div>
+    <button type="button" onClick={() => signOut({ redirectTo: '/login' })}>
+      Sign out
+    </button>
   )
 }
 ```
 
-## useLocalStorage
+| Export | Purpose |
+|--------|---------|
+| `user` | Mapped `AuthUser` from Auth.js session |
+| `role` | Resolved `UserRole` |
+| `hasRole(required)` | Role ladder check |
+| `signOut(options?)` | Unregisters FCM for this device, clears session cache, then Auth.js sign-out |
+| `navigateToAuthStatus` | Type-safe redirects to unified auth status pages |
+| `refreshSession` | Calls `useSession().update()` |
 
-The `useLocalStorage` hook provides a way to easily use localStorage with React state, including automatic JSON parsing and stringifying.
+**Do not** import `signOut` from `next-auth/react` in UI chrome — use `useAuth().signOut()` so push tokens are invalidated.
 
-### Usage
+---
+
+## useFCM
+
+**File:** `hooks/use-fcm.ts`  
+**Provider:** `FCMProvider` in `app-client-shell.tsx` (wraps `useFCM` internally)
+
+Browser push: permission, token lifecycle, foreground `onMessage`, and registration via **`upsertFcmToken` Server Action** (not raw `fetch` to the API from React).
 
 ```typescript
-import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useFCM } from '@/hooks/use-fcm'
 
-function MyComponent() {
-  const [theme, setTheme] = useLocalStorage('theme', 'light')
-
-  return (
-    <div>
-      <p>Current theme: {theme}</p>
-      <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-        Toggle Theme
-      </button>
-    </div>
-  )
+function NotificationSettings() {
+  const { permission, token, requestPermission, isSupported, error } = useFCM()
+  // ...
 }
 ```
 
-## useDebounce
+| Concern | SSOT |
+|---------|------|
+| Device fingerprint | `lib/notifications/device-fingerprint.ts` → `getOrCreateDeviceFingerprint()` |
+| Token upsert | `app/_actions/fcm.ts` → `upsertFcmToken` |
+| Logout cleanup | `useAuth().signOut()` → `unregisterCurrentDeviceFcmToken()` |
+| Service worker | `public/firebase-messaging-sw.js` (Firebase 12.x compat) |
 
-The `useDebounce` hook creates a debounced value, which is useful for reducing the frequency of expensive operations like API calls in response to user input.
+---
 
-### Usage
+## Realtime & notifications
 
-```typescript
-import { useState } from 'react'
-import { useDebounce } from '@/hooks/useDebounce'
+| Hook | File | Provider / owner | Notes |
+|------|------|------------------|-------|
+| `useTunnel` | `use-tunnel.ts` | `TunnelProvider` | Uses context when inside provider; else standalone manager |
+| `useSync` | `use-sync.ts` | via tunnel | Channel subscription helper |
+| `useUnreadCount` | `use-unread-count.ts` | **`NotificationProvider`** | Poll + tunnel `notifications:unread` |
+| `useNotifications` | `use-notifications.ts` | list + `notifications:inbox` tunnel | `unreadCount` from `useNotificationContext()` |
+| `useTunnelChannel` | `use-tunnel-channel.ts` | via `TunnelProvider` | SSOT channel subscribe |
+| `useTunnelConnectionStatus` | `use-tunnel-connection-status.ts` | via `TunnelProvider` | Nav dot / latency; wraps `useRealtimeConnection()` |
+| `useRealtimeData` | `use-realtime-data.ts` | via `TunnelProvider` | Bidirectional telemetry (`telemetry:{domain}`) |
+| `useRealtime` | `use-realtime.ts` | per feature | Opportunity/entity streams + `useRealtimeNotifications` |
+| `useMessaging` | `use-messaging.ts` | per conversation | Chat channel subscribe |
 
-function SearchComponent() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+**Rule:** Nav badges and layout chrome must use `useNotificationContext()` from `notification-provider.tsx`, not direct `useUnreadCount()`.
 
-  // Use debouncedSearchTerm for API calls
-  useEffect(() => {
-    if (debouncedSearchTerm) {
-      // Perform search operation
-      console.log('Searching for:', debouncedSearchTerm)
-    }
-  }, [debouncedSearchTerm])
+---
 
-  return (
-    <input
-      type="text"
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      placeholder="Search..."
-    />
-  )
-}
+## Wallet & credits
+
+| Hook | File | Provider / owner |
+|------|------|------------------|
+| `useCreditBalance` | `use-credit-balance.ts` | **`CreditBalanceProvider`** — use `useCreditBalanceContext()` in UI |
+| `useCreditHistory` | `use-credit-history.ts` | **`CreditHistoryProvider`** (wallet shell) — use `useCreditHistoryContext()` in UI |
+| `useWalletBalance` | `use-wallet-balance.ts` | Web3Provider tree |
+| `useTokenBalance` | `use-token-balance.ts` | on-chain reads |
+| `useWalletActions` | `use-wallet-actions.ts` | wallet mutations |
+
+---
+
+## Utility hooks
+
+| Hook | File | Purpose |
+|------|------|---------|
+| `useDebounce` | `use-debounce.ts` | Debounced value for search inputs |
+| `useLocalStorage` | `use-local-storage.ts` | JSON-aware localStorage state |
+| `useMediaQuery` | `use-media-query.ts` | Responsive breakpoints |
+| `useToast` | `use-toast.ts` | Shadcn toast helper |
+| `useSessionCache` | `use-session-cache.ts` | Client session cache (cleared on sign-out) |
+
+> **Note:** i18n uses `next-intl` (`useTranslations`) — there is no `useLanguage` hook in this tree.
+
+---
+
+## Provider matrix
+
+```
+app-client-shell.tsx
+├── SessionProvider
+├── CreditBalanceProvider    → useCreditBalanceContext()
+├── FCMProvider              → useFCM() (internal)
+├── TunnelProvider           → useTunnel() with shared connection
+├── Web3Provider
+└── StoreProvider
+
+WalletWrapper (wallet routes)
+├── CreditHistoryProvider    → useCreditHistoryContext()  [scoped, not app-global]
+├── I18nProvider
+└── NotificationProvider   → useNotificationContext()
 ```
 
-## useLanguage
+Hooks that **open network subscriptions** should have exactly one owner provider per session. Feature pages may subscribe to scoped channels (e.g. one conversation) but must not duplicate global badge/balance streams.
 
-The `useLanguage` hook provides access to the current language and translation functions.
+---
 
-### Usage
+## Remediation TODOs
 
-```typescript
-import { useLanguage } from '@/hooks/useLanguage'
+Tracked in `AI-CONTEXT/ring-platform.org/concepts/hooks-provider-subscription-matrix.json`.
 
-function MyComponent() {
-  const { language, setLanguage, t } = useLanguage()
+### P0 — correctness
 
-  return (
-    <div>
-      <p>{t('currentLanguage')}: {language}</p>
-      <button onClick={() => setLanguage('en')}>English</button>
-      <button onClick={() => setLanguage('uk')}>Ukrainian</button>
-      <h1>{t('welcomeMessage')}</h1>
-    </div>
-  )
-}
-```
+- [x] **`features/wallet/components/send-tokens.tsx`** — use `useCreditBalanceContext()`; removed invalid `await useCreditBalance()`; refresh via context after send.
 
-Remember to wrap your app with the `LanguageProvider` in your `_app.tsx` or root layout component:
+### P1 — duplicate subscriptions
 
-```typescript
-import { LanguageProvider } from '@/components/providers/LanguageProvider'
+- [x] **Unread count** — nav widgets + notification-badge + notification-center now use `useNotificationContext()`:
+  - `components/navigation/sidebar-identity-panel.tsx`
+  - `components/navigation/mobile-user-widget.tsx`
+  - `components/navigation/sidebar-synced-layout.tsx`
+  - `components/navigation/user-widget.tsx`
+  - `components/ui/notification-badge.tsx`
+  - `features/notifications/components/notification-center.tsx`
+- [x] **Credit balance** — wallet/opportunity surfaces use `useCreditBalanceContext()`:
+  - `app/[locale]/(protected)/wallet/wallet-client.tsx`
+  - `features/wallet/components/wallet-section.tsx`
+  - `features/opportunities/components/opportunity-details.tsx`
+  - `features/opportunities/components/opportunity-list.tsx`
+  - `features/wallet/components/send-tokens.tsx`
 
-function MyApp({ Component, pageProps }) {
-  return (
-    <LanguageProvider>
-      <Component {...pageProps} />
-    </LanguageProvider>
-  )
-}
+### P2 — architecture
 
-export default MyApp
-```
+- [x] `useTunnelChannel` SSOT hook — `hooks/use-tunnel-channel.ts` (TunnelProvider path A).
+- [x] `useCreditBalance` migrated off `useTunnelSubscription`.
+- [x] Server publishes `notifications:inbox` on notification create.
+- [x] `useNotifications` + `useRealtimeNotifications` use tunnel inbox + context unread SSOT.
+- [ ] Wire `scripts/validate-provider-ssot.sh` into CI.
+- [ ] Remove deprecated `use-tunnel-subscription.ts` after soak period.
+- [ ] Distributed TunnelHub (Redis) for multi-pod — see `2026-06-20-tunnel-channel-consolidation-p2.json`.
 
-These custom hooks provide powerful functionality to manage authentication, local storage, debounced values, and internationalization in your Ring main web app. Use them to simplify your component logic and improve the overall structure of your application.
+### P3 — docs (in progress)
 
+- [x] `docs/en/features/news.mdx` — Callout/Cards widgets; fix Mermaid
+- [x] `docs/en/features/index.mdx` — replace broken mindmap
+- [x] `docs/en/features/push-notifications-fcm.mdx` — `useFCM` SSOT
+- [x] `docs/en/architecture/real-time.mdx` — provider callouts
+- [x] `docs/en/development/code-structure.mdx` — hooks section
+- [x] `docs/en/api/notifications.mdx` — FCM register contract
+
+---
+
+## Related docs
+
+- [Push notifications (FCM)](/docs/features/push-notifications-fcm)
+- [Realtime architecture](/docs/architecture/real-time)
+- [Tunnel protocol](/docs/features/tunnel-protocol)
+- [Code structure](/docs/development/code-structure)

@@ -135,6 +135,58 @@
       "chartDesc": "Shows match volume and quality trends"
     }
   },
+  "webAnalytics": {
+    "title": "{projectName} Web Analytics",
+    "subtitle": "Monitor and optimize ecosystem performance and user trends",
+    "tabs": {
+      "overview": "Overview",
+      "webvitals": "Web Vitals",
+      "users": "User Analytics",
+      "errors": "Errors",
+      "system": "System Health"
+    },
+    "empty": {
+      "noEvents": "No events recorded yet",
+      "noVitals": "No Web Vitals data for this period",
+      "noErrors": "No errors recorded for this period",
+      "noTraffic": "Traffic source data will appear once page views are collected",
+      "noActivity": "Recent activity will appear as events are recorded",
+      "noDevices": "Device breakdown will appear once sessions are tracked"
+    },
+    "overview": {
+      "activeSessions": "Active Sessions",
+      "pageViews": "Page Views",
+      "avgResponseTime": "Avg. Response Time",
+      "errorRate": "Error Rate",
+      "fromYesterday": "from yesterday",
+      "thisWeek": "this week"
+    },
+    "webvitals": {
+      "title": "Core Web Vitals Performance",
+      "subtitle": "Aggregated performance metrics from client sessions"
+    },
+    "errors": {
+      "title": "Client Errors",
+      "subtitle": "JavaScript and API errors captured from browsers",
+      "last24h": "Last 24 hours",
+      "recent": "Recent errors",
+      "docsNotFound": "Documentation 404s",
+      "docsNotFound24h": "Docs 404 (24h)",
+      "docsNotFoundPeriod": "Docs 404 (period)"
+    },
+    "forensics": {
+      "pageUrl": "Page URL",
+      "referer": "Referer (originating page)",
+      "copyTrace": "Copy trace",
+      "copied": "Copied"
+    },
+    "system": {
+      "title": "Platform Overview",
+      "entities": "Entities",
+      "opportunities": "Opportunities",
+      "subtitle": "Core platform counts from the database"
+    }
+  },
   "newsManagement": "News Management",
   "newsManagementDescription": "Manage news articles, categories, and publications on the platform",
   "createArticle": "Create Article",
@@ -216,10 +268,12 @@
   "dashboard": "Dashboard",
   "users": "Users",
   "news": "News",
+  "dao": "Public pools",
   "analytics": "Analytics",
   "moderation": "Moderation",
   "performance": "Performance",
   "security": "Security",
+  "fraudDeskNav": "Fraud desk",
   "settingsNav": "Settings",
   "matcherNav": "Matcher",
   "verificationNav": "Verification",
@@ -243,6 +297,7 @@
     "adminBlockReason": "Blocked by administrator from matcher moderation queue"
   },
   "storeHub": {
+    "products": "Products",
     "orders": "Orders",
     "stock": "Stock",
     "commissions": "Commissions",
@@ -296,6 +351,50 @@
       "default": "Platform default",
       "env": "Environment default"
     },
+    "productsPage": {
+      "title": "Store Products",
+      "subtitle": "Review marketplace catalog, vendor listings, and Main Store approvals",
+      "tableTitle": "Product catalog",
+      "empty": "No products match this filter.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectPrompt": "Rejection reason (required)",
+      "approvalError": "Failed to update product approval",
+      "addProduct": "Add product",
+      "addTitle": "Add store product",
+      "addSubtitle": "Create a catalog listing on behalf of a vendor",
+      "editTitle": "Edit store product",
+      "editSubtitle": "Update product details and Main Store listing",
+      "edit": "Edit",
+      "delist": "Delist",
+      "delistConfirm": "Delist this product from the Main Store? The vendor storefront may remain active.",
+      "delistError": "Failed to delist product",
+      "form": {
+        "vendorOwner": "Vendor owner",
+        "vendorOwnerPlaceholder": "Select active vendor"
+      },
+      "filters": {
+        "all": "All approvals",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "approval": {
+        "none": "Not submitted",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "columns": {
+        "name": "Product",
+        "vendor": "Vendor entity",
+        "price": "Price",
+        "stock": "Stock",
+        "status": "Status",
+        "approval": "Approval",
+        "actions": "Actions"
+      }
+    },
     "ordersPage": {
       "title": "Orders",
       "allStatuses": "All statuses",
@@ -340,6 +439,106 @@
     "requestInfo": "Request info",
     "rejectReasonRequired": "Rejection reason is required",
     "requestInfoNoteRequired": "A note is required to request more information",
-    "actionFailed": "Verification action failed"
+    "actionFailed": "Verification action failed",
+    "accountRestore": "Account restore",
+    "restoreApprove": "Restore account",
+    "restoreNotePreview": "Video channel & contact in procedure note"
+  },
+  "fraudDesk": {
+    "title": "Fraud desk",
+    "subtitle": "Device telemetry abuse probability — review candidates before suspending",
+    "refresh": "Refresh",
+    "candidatesTitle": "Abuse probability monitor",
+    "candidatesDesc": "Ranked by rule-based score (shared fingerprints, device churn, UA/screen mismatch)",
+    "empty": "No elevated-risk candidates in the current window.",
+    "colScore": "Score",
+    "colUser": "User",
+    "colSignals": "Top signals",
+    "colDevices": "Devices",
+    "colActions": "Actions",
+    "detail": "Telemetry",
+    "suspend": "Suspend",
+    "suspendTitle": "Suspend account",
+    "suspendReasonPlaceholder": "Reason shown to the user on the suspended screen",
+    "defaultSuspendReason": "Fraud desk review: {signals}",
+    "confirmSuspend": "Suspend & revoke sessions",
+    "cancel": "Cancel",
+    "suspendSuccess": "Suspended {email} — sessions revoked",
+    "telemetryTitle": "Device telemetry",
+    "verificationHint": "Restore requests appear in",
+    "verificationLink": "Verification queue"
+  },
+  "processesNav": "Background Processes",
+  "processes": {
+    "title": "Background Processes",
+    "subtitle": "Monitor cron pipelines and trigger manual runs",
+    "refresh": "Refresh",
+    "loading": "Loading pipelines…",
+    "loadError": "Failed to load pipelines",
+    "runError": "Failed to run pipeline",
+    "runNow": "Run now",
+    "lastRun": "Last run",
+    "duration": "Duration",
+    "trigger": "Trigger",
+    "showHistory": "Show run history",
+    "hideHistory": "Hide run history",
+    "noHistory": "No runs recorded yet.",
+    "dashboardTitle": "Background Processes",
+    "dashboardDescription": "Monitor cron jobs, view run history, and trigger pipelines manually",
+    "dashboardStats": "6 cron pipelines · run ledger · SUPERADMIN",
+    "categories": {
+      "email": "Email",
+      "cleanup": "Cleanup",
+      "rewards": "Rewards",
+      "ai": "AI"
+    },
+    "status": {
+      "running": "Running",
+      "success": "Success",
+      "error": "Error",
+      "never": "Never run"
+    },
+    "triggers": {
+      "manual": "Manual",
+      "cron": "Cron",
+      "autostart": "Autostart"
+    },
+    "pipelines": {
+      "email-processor": {
+        "label": "Email Processor",
+        "description": "Poll inbound IMAP mailbox and process email batches",
+        "schedule": "Every 1–5 minutes (external cron)"
+      },
+      "email-analytics": {
+        "label": "Email Analytics",
+        "description": "Aggregate email CRM dashboard metrics for the last 7 days",
+        "schedule": "Daily or on demand"
+      },
+      "refcodes-mint": {
+        "label": "Referral Rewards Mint",
+        "description": "Mint approved referral rewards on-chain (batch of 20)",
+        "schedule": "Every 15–60 minutes"
+      },
+      "cleanup-reservations": {
+        "label": "Inventory Reservation Cleanup",
+        "description": "Release expired store inventory reservations (TTL)",
+        "schedule": "Every 5–15 minutes"
+      },
+      "cleanup-usernames": {
+        "label": "Username Reservation Cleanup",
+        "description": "Remove expired username reservations",
+        "schedule": "Every 5 minutes"
+      },
+      "train": {
+        "label": "AI Matcher Training",
+        "description": "Collect training data, extract patterns, and deploy matcher updates",
+        "schedule": "Nightly or weekly"
+      },
+      "settlement-payout": {
+        "label": "Settlement Payout Batch",
+        "description": "Process due vendor settlements and record payout batches",
+        "schedule": "Daily or hourly"
+      }
+    }
   }
 }

@@ -26,8 +26,7 @@ Successfully implemented a comprehensive, production-ready tunnel transport abst
 
 ### Phase 3: React Integration & Production Security
 - **useTunnel Hook**: Primary React hook for tunnel transport usage
-- **useTunnelNotifications**: Specialized hook for notification handling
-- **useTunnelMessages**: Specialized hook for messaging
+- **useTunnelChannel**: App subscription SSOT (replaces removed useTunnelNotifications / useTunnelMessages / useTunnelPresence)
 - **Production JWT Authentication**: Full JWT verification for Edge Runtime
 - **Token Management**: Secure token generation and refresh
 
@@ -45,6 +44,7 @@ Successfully implemented a comprehensive, production-ready tunnel transport abst
 - `lib/tunnel/transports/websocket-transport.ts` - WebSocket wrapper
 - `lib/tunnel/transports/sse-transport.ts` - SSE implementation
 - `lib/tunnel/transports/supabase-transport.ts` - Supabase real-time
+- `lib/tunnel/transports/polling-transport.ts` - Long-polling implementation
 
 #### API Endpoints
 - `app/api/tunnel/sse/route.ts` - SSE streaming endpoint
@@ -132,22 +132,34 @@ function MyComponent() {
 }
 ```
 
-### Notifications
+### Notifications (SSOT — useTunnelChannel)
 ```typescript
-import { useTunnelNotifications } from '@/hooks/use-tunnel';
+import { useCallback } from 'react';
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel';
 
 function NotificationCenter() {
-  const { notifications, clearNotifications } = useTunnelNotifications();
+  const [notifications, setNotifications] = useState<TunnelMessage[]>([]);
+
+  const handleInbox = useCallback((payload: { title?: string }) => {
+    setNotifications((prev) => [...prev, { payload } as TunnelMessage]);
+  }, []);
+
+  useTunnelChannel({
+    channel: 'notifications:inbox',
+    onMessage: handleInbox,
+  });
 
   return (
     <div>
-      {notifications.map(notif => (
-        <div key={notif.id}>{notif.payload.title}</div>
+      {notifications.map((notif) => (
+        <div key={notif.id}>{notif.payload?.title}</div>
       ))}
     </div>
   );
 }
 ```
+
+> **Removed (2026-06-22):** `useTunnelNotifications`, `useTunnelMessages`, `useTunnelPresence` — see `lib/tunnel/SUBSCRIPTION-SSOT.md`.
 
 ### Configuration
 ```typescript

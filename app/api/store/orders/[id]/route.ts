@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -13,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const order = await StoreOrdersService.getOrderById(params.id)
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const data: any = order
-    if (data?.userId !== session.user.id && session.user.role !== 'admin') {
+    if (data?.userId !== session.user.id && !isPlatformAdmin(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     return NextResponse.json(order)

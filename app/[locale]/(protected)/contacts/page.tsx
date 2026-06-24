@@ -10,7 +10,7 @@ import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { getTranslations } from 'next-intl/server'
 import WalletWrapper from '@/components/wrappers/wallet-wrapper'
-import ContactList from '@/features/wallet/components/contact-list'
+import { RingContactList } from '@/features/contacts/components'
 import { connection } from 'next/server'
 import { logger } from '@/lib/logger'
 
@@ -64,9 +64,9 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
   logger.info('ContactsPage: Using locale', { locale: validLocale });
 
   // Basic metadata for authenticated page
-  const translations = await getTranslations('modules.wallet');
-  const title = `Contacts | ${(translations as any).modules?.wallet?.title || 'Zemna AI'}`;
-  const description = 'Manage your wallet contacts and address book for easy token transfers.';
+  const translations = await getTranslations('modules.contacts');
+  const title = `${translations('title')} | Ring Platform`;
+  const description = translations('description');
   const canonicalUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://zemna.ai"}${ROUTES.CONTACTS(validLocale)}`;
 
   const headersList = await headers()
@@ -119,7 +119,7 @@ export default async function ContactsPage(props: LocalePageProps<ContactsParams
               <div className="h-64 bg-muted rounded"></div>
             </div>
           }>
-            <ContactList locale={validLocale} />
+            <RingContactList locale={validLocale} />
           </Suspense>
         </WalletWrapper>
       </>

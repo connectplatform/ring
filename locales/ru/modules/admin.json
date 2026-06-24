@@ -135,6 +135,58 @@
       "chartDesc": "Shows match volume and quality trends"
     }
   },
+  "webAnalytics": {
+    "title": "Веб-аналитика {projectName}",
+    "subtitle": "Мониторинг и оптимизация производительности экосистемы и трендов пользователей",
+    "tabs": {
+      "overview": "Обзор",
+      "webvitals": "Web Vitals",
+      "users": "Аналитика пользователей",
+      "errors": "Ошибки",
+      "system": "Состояние системы"
+    },
+    "empty": {
+      "noEvents": "События ещё не записаны",
+      "noVitals": "Нет данных Web Vitals за этот период",
+      "noErrors": "Ошибок за этот период не зафиксировано",
+      "noTraffic": "Источники трафика появятся после сбора просмотров страниц",
+      "noActivity": "Недавняя активность появится после записи событий",
+      "noDevices": "Распределение устройств появится после отслеживания сессий"
+    },
+    "overview": {
+      "activeSessions": "Активные сессии",
+      "pageViews": "Просмотры страниц",
+      "avgResponseTime": "Сред. время ответа",
+      "errorRate": "Частота ошибок",
+      "fromYesterday": "с вчера",
+      "thisWeek": "за эту неделю"
+    },
+    "webvitals": {
+      "title": "Производительность Core Web Vitals",
+      "subtitle": "Агрегированные метрики производительности из клиентских сессий"
+    },
+    "errors": {
+      "title": "Ошибки клиента",
+      "subtitle": "Ошибки JavaScript и API, зафиксированные в браузерах",
+      "last24h": "За последние 24 часа",
+      "recent": "Последние ошибки",
+      "docsNotFound": "404 документации",
+      "docsNotFound24h": "Docs 404 (24 ч)",
+      "docsNotFoundPeriod": "Docs 404 (период)"
+    },
+    "forensics": {
+      "pageUrl": "URL страницы",
+      "referer": "Referer (откуда перешли)",
+      "copyTrace": "Копировать trace",
+      "copied": "Скопировано"
+    },
+    "system": {
+      "title": "Обзор платформы",
+      "entities": "Сущности",
+      "opportunities": "Возможности",
+      "subtitle": "Основные счётчики платформы из базы данных"
+    }
+  },
   "description": "Централизованная панель безопасности и контроля доступа",
   "refresh": "Обновить",
   "events": "События",
@@ -216,6 +268,7 @@
   "dashboard": "Панель управления",
   "users": "Пользователи",
   "news": "Новости",
+  "dao": "Публичные пулы",
   "analytics": "Аналитика",
   "moderation": "Модерация",
   "performance": "Производительность",
@@ -243,6 +296,7 @@
     "adminBlockReason": "Заблокировано администратором из очереди модерации matcher"
   },
   "storeHub": {
+    "products": "Товары",
     "orders": "Заказы",
     "stock": "Остаток",
     "commissions": "Комиссии",
@@ -296,6 +350,50 @@
       "default": "Дефолт платформы",
       "env": "Дефолт из env"
     },
+    "productsPage": {
+      "title": "Товары магазина",
+      "subtitle": "Каталог маркетплейса, листинги продавцов и одобрение Main Store",
+      "tableTitle": "Каталог товаров",
+      "empty": "Нет товаров по этому фильтру.",
+      "approve": "Одобрить",
+      "reject": "Отклонить",
+      "rejectPrompt": "Причина отклонения (обязательно)",
+      "approvalError": "Не удалось обновить одобрение товара",
+      "addProduct": "Добавить товар",
+      "addTitle": "Добавить товар магазина",
+      "addSubtitle": "Создать листинг от имени продавца",
+      "editTitle": "Редактировать товар",
+      "editSubtitle": "Обновить детали и листинг Main Store",
+      "edit": "Редактировать",
+      "delist": "Снять с продажи",
+      "delistConfirm": "Снять товар с Main Store? Витрина продавца может остаться активной.",
+      "delistError": "Не удалось снять товар с продажи",
+      "form": {
+        "vendorOwner": "Продавец-владелец",
+        "vendorOwnerPlaceholder": "Выберите активного продавца"
+      },
+      "filters": {
+        "all": "Все",
+        "pending": "Ожидает",
+        "approved": "Одобрено",
+        "rejected": "Отклонено"
+      },
+      "approval": {
+        "none": "Не подано",
+        "pending": "Ожидает",
+        "approved": "Одобрено",
+        "rejected": "Отклонено"
+      },
+      "columns": {
+        "name": "Товар",
+        "vendor": "Сущность продавца",
+        "price": "Цена",
+        "stock": "Остаток",
+        "status": "Статус",
+        "approval": "Одобрение",
+        "actions": "Действия"
+      }
+    },
     "ordersPage": {
       "title": "Заказы",
       "allStatuses": "Все статусы",
@@ -341,5 +439,73 @@
     "rejectReasonRequired": "Rejection reason is required",
     "requestInfoNoteRequired": "A note is required to request more information",
     "actionFailed": "Verification action failed"
+  },
+  "processesNav": "Фоновые процессы",
+  "processes": {
+    "title": "Фоновые процессы",
+    "subtitle": "Мониторинг cron-пайплайнов и ручной запуск",
+    "refresh": "Обновить",
+    "loading": "Загрузка пайплайнов…",
+    "loadError": "Не удалось загрузить пайплайны",
+    "runError": "Не удалось запустить пайплайн",
+    "runNow": "Запустить сейчас",
+    "lastRun": "Последний запуск",
+    "duration": "Длительность",
+    "trigger": "Источник",
+    "showHistory": "Показать историю",
+    "hideHistory": "Скрыть историю",
+    "noHistory": "Запусков пока нет.",
+    "dashboardTitle": "Фоновые процессы",
+    "dashboardDescription": "Мониторинг cron-задач, история запусков и ручной триггер",
+    "dashboardStats": "6 cron-пайплайнов · журнал запусков · SUPERADMIN",
+    "categories": {
+      "email": "Email",
+      "cleanup": "Очистка",
+      "rewards": "Награды",
+      "ai": "ИИ"
+    },
+    "status": {
+      "running": "Выполняется",
+      "success": "Успех",
+      "error": "Ошибка",
+      "never": "Не запускался"
+    },
+    "triggers": {
+      "manual": "Вручную",
+      "cron": "Cron",
+      "autostart": "Автостарт"
+    },
+    "pipelines": {
+      "email-processor": {
+        "label": "Обработчик email",
+        "description": "Опрос входящего IMAP-ящика и пакетная обработка писем",
+        "schedule": "Каждые 1–5 минут (внешний cron)"
+      },
+      "email-analytics": {
+        "label": "Аналитика email",
+        "description": "Агрегация метрик email CRM за последние 7 дней",
+        "schedule": "Ежедневно или по запросу"
+      },
+      "refcodes-mint": {
+        "label": "Минт реферальных наград",
+        "description": "Минт одобренных реферальных наград в блокчейне (пакет 20)",
+        "schedule": "Каждые 15–60 минут"
+      },
+      "cleanup-reservations": {
+        "label": "Очистка резервов инвентаря",
+        "description": "Освобождение просроченных резервов товаров (TTL)",
+        "schedule": "Каждые 5–15 минут"
+      },
+      "cleanup-usernames": {
+        "label": "Очистка резервов имён пользователей",
+        "description": "Удаление просроченных резервов username",
+        "schedule": "Каждые 5 минут"
+      },
+      "train": {
+        "label": "Обучение AI Matcher",
+        "description": "Сбор обучающих данных, извлечение паттернов и обновление matcher",
+        "schedule": "Ночью или еженедельно"
+      }
+    }
   }
 }

@@ -1,5 +1,5 @@
 import type { XaiVideoPollResult } from '@/lib/video/conductor/types'
-import { getXaiVideoConfig } from '@/lib/video/video.config'
+import { getRemasterEditModel, getXaiVideoConfig } from '@/lib/video/video.config'
 
 export interface StartXaiVideoInput {
   prompt: string
@@ -9,6 +9,12 @@ export interface StartXaiVideoInput {
   aspectRatio?: string
   resolution?: string
   imageUrl?: string
+}
+
+export interface StartXaiVideoEditInput {
+  prompt: string
+  sourceVideoUrl: string
+  model?: string
 }
 
 export async function startXaiVideoGeneration(input: StartXaiVideoInput): Promise<string> {
@@ -36,10 +42,35 @@ export async function startXaiVideoGeneration(input: StartXaiVideoInput): Promis
     body.image = { url: input.imageUrl.trim() }
   }
 
-  const response = await fetch(`${config.baseUrl}/videos/generations`, {
+  return postXaiVideoJob(`${config.baseUrl}/videos/generations`, config.apiKey, body)
+}
+
+export async function startXaiVideoEdit(input: StartXaiVideoEditInput): Promise<string> {
+  const config = getXaiVideoConfig({})
+  if (!config.apiKey) {
+    throw new Error('XAI_API_KEY is not configured')
+  }
+  if (!input.sourceVideoUrl?.trim()) {
+    throw new Error('sourceVideoUrl is required for video edit/remaster')
+  }
+  if (!input.prompt?.trim()) {
+    throw new Error('prompt is required for video edit/remaster')
+  }
+
+  const body: Record<string, unknown> = {
+    model: input.model?.trim() || getRemasterEditModel(),
+    prompt: input.prompt.trim(),
+    video: { url: input.sourceVideoUrl.trim() },
+  }
+
+  return postXaiVideoJob(`${config.baseUrl}/videos/edits`, config.apiKey, body)
+}
+
+async function postXaiVideoJob(url: string, apiKey: string, body: Record<string, unknown>): Promise<string> {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${config.apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },

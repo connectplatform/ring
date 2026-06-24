@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Callout } from '@/components/docs/callout'
 import { Link } from '@/i18n/routing'
-import { RingWidgetsContact } from '@/components/ring-widgets/ring-widgets-contact'
+import { RingWidgetsContact } from '@/components/ring-widgets/contact'
 import type { RingWidgetsContactProps } from '@/lib/ring-widgets/contact-schema'
 import {
   BookOpen,

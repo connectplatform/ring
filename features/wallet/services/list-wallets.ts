@@ -1,84 +1,73 @@
-// 🚀 OPTIMIZED SERVICE: Migrated to use Firebase optimization patterns
-// - Centralized service manager
-// - React 19 cache() for request deduplication
-// - Build-time phase detection and caching
-// - Intelligent data strategies per environment
+import { auth } from '@/auth'
+import { selectDefaultWallet } from '@/features/wallet/services/utils'
+import { getUserWallets } from '@/lib/wallet/user-wallet-db'
+import { getEvmRingBalance } from '@/features/wallet/chains/evm/ring-transfer'
+import { getSolanaRingBalance } from '@/features/wallet/chains/solana/ring-transfer'
+import { getRingConfigSnapshot } from '@/lib/ring-config-core'
+import { getRingCreditFiatCurrency } from '@/lib/ring-config-chain'
 
-import { auth } from "@/auth"
-import { UserRole } from '@/features/auth/types'
-
-import { cache } from 'react';
-import { getCurrentPhase, shouldUseCache, shouldUseMockData } from '@/lib/build-cache/phase-detector';
-import { db } from '@/lib/database';
-
-/**
- * Interface for wallet information returned by the service
- */
 export interface WalletInfo {
-  address: string;
-  isPrimary: boolean;
-  label?: string;
-  createdAt?: string;
-  balance?: string;
+  address: string
+  isPrimary: boolean
+  label?: string
+  createdAt?: string
+  balance?: string
+  nativeBalance?: string
+  tokenSymbol?: string
+  creditFiatCurrency?: string
+  chain?: 'solana' | 'evm'
+}
+
+async function fetchNativeBalance(
+  address: string,
+  chain: 'solana' | 'evm',
+): Promise<string> {
+  try {
+    if (chain === 'solana') {
+      return await getSolanaRingBalance(address)
+    }
+    return await getEvmRingBalance(address)
+  } catch {
+    return '0'
+  }
 }
 
 /**
- * Lists all wallets for the authenticated user
- * 
- * This service function retrieves all wallets associated with the authenticated user.
- * 
- * User steps:
- * 1. User must be authenticated before this function is called
- * 2. The function retrieves the user's data from Firestore
- * 3. The function formats and returns the list of wallets
- * 
- * @returns {Promise<WalletInfo[]>} A promise that resolves to an array of wallet objects
- * @throws {Error} If the user is not authenticated or if there's an error retrieving the wallets
+ * Lists custodial wallets for the authenticated user from users.wallets[].
  */
 export async function listWallets(): Promise<WalletInfo[]> {
-  console.log('Services: listWallets - Starting wallet listing process')
-
-  // Step 1: Authenticate the user
   const session = await auth()
-  if (!session || !session.user) {
-    console.log('Services: listWallets - Unauthorized access attempt')
+  if (!session?.user?.id) {
     throw new Error('Unauthorized: Please log in to list wallets')
   }
 
   const userId = session.user.id
-  const userRole = session.user.role as UserRole
+  const wallets = await getUserWallets(userId)
 
-  console.log(`Services: listWallets - User authenticated with ID: ${userId} and role: ${userRole}`)
-
-  // Step 2: Retrieve user data from database abstraction layer
-  console.log('Services: listWallets - Fetching user document');
-  const userResult = await db().findDocById<{
-    walletAddress?: string
-    additionalWallets?: Array<{ address: string; label?: string; createdAt?: string; balance?: string }>
-  } & Record<string, unknown>>('users', userId);
-
-  if (!userResult.success) {
-    if (userResult.metadata?.operation === 'initialize') {
-      console.error('Services: listWallets - Database initialization failed:', userResult.error);
-      throw new Error('Database initialization failed');
-    }
-    console.log(`Services: listWallets - User not found for ID: ${userId}`);
-    throw new Error('User not found');
+  if (wallets.length === 0) {
+    return []
   }
 
-  if (!userResult.data) {
-    console.log(`Services: listWallets - User not found for ID: ${userId}`);
-    throw new Error('User not found');
-  }
+  const defaultWallet = selectDefaultWallet(wallets)
+  const config = getRingConfigSnapshot()
+  const tokenSymbol = config.tokens?.ring?.symbol ?? 'RING'
+  const creditFiatCurrency = getRingCreditFiatCurrency()
 
-  const userData = userResult.data;
-
-  // Step 3: Format and return the list of wallets
-  const wallets: WalletInfo[] = [
-    { address: userData.walletAddress, isPrimary: true },
-    ...(userData.additionalWallets || []).map((wallet: any) => ({ ...wallet, isPrimary: false }))
-  ]
-
-  console.log(`Services: listWallets - Retrieved ${wallets.length} wallets for user ${userId}`)
-  return wallets
+  return Promise.all(
+    wallets.map(async (wallet) => {
+      const chain = wallet.chain ?? 'evm'
+      const nativeBalance = await fetchNativeBalance(wallet.address, chain)
+      return {
+        address: wallet.address,
+        isPrimary: defaultWallet?.address === wallet.address,
+        label: wallet.label,
+        createdAt: wallet.createdAt,
+        balance: wallet.balance,
+        nativeBalance,
+        tokenSymbol,
+        creditFiatCurrency,
+        chain,
+      }
+    }),
+  )
 }

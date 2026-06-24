@@ -31,6 +31,7 @@ import { useRouter, usePathname, routing } from '@/i18n/routing'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { useTheme } from 'next-themes'
+import { setThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { ProfileContentProps } from '@/types/profile'
 import { LanguageSwitcher } from '@/components/common/language-switcher'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,10 +55,13 @@ import { useActionState } from 'react'
 import { UserRole, KYCStatus, KYCLevel, KYCDocumentType } from '@/features/auth/types'
 import KYCUpload from './kyc-upload'
 import WalletSection from '@/features/wallet/components/wallet-section'
+import ProfileAccountTokenWidgets from '@/features/wallet/components/profile-account-token-widgets'
 import { useAuth } from '@/hooks/use-auth'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { ROUTES } from '@/constants/routes'
-import FloatingSidebarToggle from '@/components/common/floating-sidebar-toggle'
+import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
+import ProfileNavRail from '@/components/profile/profile-nav-rail'
 import {
   User,
   Mail,
@@ -143,10 +147,9 @@ export default function ProfileContent({
   const tCommon = useTranslations('common')
   const router = useRouter()
   const pathname = usePathname()
-  const { getKycStatus, refreshSession } = useAuth()
+  const { getKycStatus, refreshSession, signOut } = useAuth()
   const { update: updateSession } = useSession()
-  const { setTheme, theme, systemTheme } = useTheme()
-  const currentTheme = theme === 'system' ? systemTheme : theme
+  const { setTheme, theme } = useTheme()
   const [isEditing, setIsEditing] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -752,11 +755,27 @@ export default function ProfileContent({
     { id: 'security', label: t('security'), icon: Shield },
   ]
 
+  const profileRail = (
+    <ProfileNavRail
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      profileMenuItems={profileMenuItems}
+      profileCompletion={calculateProfileCompletion()}
+      communicationsForm={communicationsForm}
+      kycStatus={kycStatus}
+      user={user as Record<string, unknown>}
+      onNavigate={() => setRightSidebarOpen(false)}
+    />
+  )
+
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-hidden relative transition-colors duration-300">
-      <div className="flex gap-6 min-h-screen">
-        {/* Center Content Area */}
-        <div className="ring-content-panel flex-1 min-w-0 pb-24 lg:pb-8">
+    <RingRightRailLayout
+      flushCenterPane
+      isOpen={rightSidebarOpen}
+      onToggle={setRightSidebarOpen}
+      rightRail={profileRail}
+    >
+      <DavinciCenterPane>
           {/* Success/Error Message Display */}
           {saveMessage && (
             <div className="mb-4">
@@ -906,7 +925,12 @@ export default function ProfileContent({
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => signOut({ redirect: true, redirectTo: `/${locale.toLowerCase()}/login` })}
+                      onClick={() =>
+                        signOut({
+                          redirect: true,
+                          redirectTo: `/${locale.toLowerCase()}/login`,
+                        })
+                      }
                       className="w-full md:w-auto"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -1154,7 +1178,7 @@ export default function ProfileContent({
                           <Monitor className="h-4 w-4" />
                           <span className="text-sm">{t('theme')}</span>
                         </div>
-                        <Select value={currentTheme} onValueChange={setTheme}>
+                        <Select value={theme ?? 'system'} onValueChange={(v) => setThemeWithTransition(setTheme, v)}>
                           <SelectTrigger className="w-32">
                             <SelectValue />
                           </SelectTrigger>
@@ -1673,7 +1697,7 @@ export default function ProfileContent({
 
                       <div className="space-y-2">
                         <Label>{t('theme')}</Label>
-                        <Select defaultValue={theme || 'system'} onValueChange={setTheme}>
+                        <Select value={theme ?? 'system'} onValueChange={(v) => setThemeWithTransition(setTheme, v)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -1729,6 +1753,7 @@ export default function ProfileContent({
               {/* Wallet Section */}
               {activeTab === 'wallet' && (
                 <div className="space-y-6">
+                <ProfileAccountTokenWidgets />
                 <WalletSection
                   locale={locale.toLowerCase() as Locale}
                   embedded={true}
@@ -1815,248 +1840,7 @@ export default function ProfileContent({
 
         </div>
           )}
-        </div>
-
-        {/* Right Sidebar - Profile Submenu */}
-        
-        {/* Desktop: Fixed visible sidebar */}
-        <div className="hidden lg:block w-[240px] flex-shrink-0">
-          <div className="sticky top-8 space-y-2">
-            {/* Profile Completion & RING Rewards Widget */}
-            <div className="mb-6 p-4 bg-gradient-to-br from-yellow-500/10 via-primary/10 to-purple-500/10 rounded-lg border border-yellow-500/30">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-500" />
-                  <span className="text-sm font-bold">{t('earnRing')}</span>
-                </div>
-                <Badge variant="default" className="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30">
-                  💰
-                </Badge>
-              </div>
-
-              {/* Progress */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
-                  {calculateProfileCompletion()}%
-                </span>
-                <Badge variant="secondary" className="text-xs">
-                  {calculateProfileCompletion() === 100 ? '✨ ' + t('maxRewards') : '⭐ ' + t('keepGoing')}
-                </Badge>
-              </div>
-              <Progress value={calculateProfileCompletion()} className="h-2 mb-4" />
-
-              {/* Reward Opportunities */}
-              <div className="space-y-2 text-xs">
-                <div className="text-muted-foreground font-medium mb-2">{t('completeToEarn')}:</div>
-                
-                {/* Telegram Verification */}
-                {!communicationsForm.telegramUsername && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Send className="w-3 h-3 text-blue-500" />
-                      <span>{t('addTelegram')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+5</Badge>
-                  </div>
-                )}
-
-                {/* WhatsApp Verification */}
-                {!communicationsForm.whatsappNumber && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-3 h-3 text-green-500" />
-                      <span>{t('addWhatsApp')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+5</Badge>
-                  </div>
-                )}
-
-                {/* Phone Verification */}
-                {!(user as any)?.phoneNumber && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3 h-3 text-purple-500" />
-                      <span>{t('addPhone')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+10</Badge>
-                  </div>
-                )}
-
-                {/* KYC Verification */}
-                {kycStatus !== 'approved' && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-3 h-3 text-red-500" />
-                      <span>{t('completeKyc')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+50</Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* Total Potential Earnings */}
-              {calculateProfileCompletion() < 100 && (
-                <div className="mt-3 pt-3 border-t border-yellow-500/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">{t('potentialEarnings')}:</span>
-                    <span className="text-sm font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
-                      {700 - (communicationsForm.telegramUsername ? 50 : 0) - (communicationsForm.whatsappNumber ? 50 : 0) - ((user as any)?.phoneNumber ? 100 : 0) - (kycStatus === 'approved' ? 500 : 0)} RING
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Profile Section Selector */}
-            <div className="mb-4">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-                {t('profileSections')}
-              </div>
-              <div className="flex flex-col gap-2 px-3">
-                {profileMenuItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id)
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border w-full ${
-                      activeTab === item.id
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background text-muted-foreground hover:text-foreground border-border hover:border-accent'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    <span className="whitespace-nowrap">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile/Tablet: Floating toggle sidebar - Matches desktop menu exactly */}
-        <FloatingSidebarToggle
-          isOpen={rightSidebarOpen}
-          onToggle={setRightSidebarOpen}
-          mobileWidth="90%"
-                  >
-          <div className="space-y-2">
-            {/* Profile Completion & RING Rewards Widget */}
-            <div className="mb-6 p-4 bg-gradient-to-br from-yellow-500/10 via-primary/10 to-purple-500/10 rounded-lg border border-yellow-500/30">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-500" />
-                  <span className="text-sm font-bold">{t('earnRing')}</span>
-                </div>
-                <Badge variant="default" className="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30">
-                  💰
-                </Badge>
-              </div>
-
-              {/* Progress */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
-                  {calculateProfileCompletion()}%
-                </span>
-                <Badge variant="secondary" className="text-xs">
-                  {calculateProfileCompletion() === 100 ? '✨ ' + t('maxRewards') : '⭐ ' + t('keepGoing')}
-                </Badge>
-              </div>
-              <Progress value={calculateProfileCompletion()} className="h-2 mb-4" />
-
-              {/* Reward Opportunities */}
-              <div className="space-y-2 text-xs">
-                <div className="text-muted-foreground font-medium mb-2">{t('completeToEarn')}:</div>
-                
-                {/* Telegram Verification */}
-                {!communicationsForm.telegramUsername && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Send className="w-3 h-3 text-blue-500" />
-                      <span>{t('addTelegram')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+5</Badge>
-                  </div>
-                )}
-
-                {/* WhatsApp Verification */}
-                {!communicationsForm.whatsappNumber && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-3 h-3 text-green-500" />
-                      <span>{t('addWhatsApp')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+5</Badge>
-                  </div>
-                )}
-
-                {/* Phone Verification */}
-                {!(user as any)?.phoneNumber && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3 h-3 text-purple-500" />
-                      <span>{t('addPhone')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+10</Badge>
-                  </div>
-                )}
-
-                {/* KYC Verification */}
-                {kycStatus !== 'approved' && (
-                  <div className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-3 h-3 text-red-500" />
-                      <span>{t('completeKyc')}</span>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-600 border-yellow-500/30 text-xs">+50</Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* Total Potential Earnings */}
-              {calculateProfileCompletion() < 100 && (
-                <div className="mt-3 pt-3 border-t border-yellow-500/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">{t('potentialEarnings')}:</span>
-                    <span className="text-sm font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
-                      {70 - (communicationsForm.telegramUsername ? 5 : 0) - (communicationsForm.whatsappNumber ? 5 : 0) - ((user as any)?.phoneNumber ? 10 : 0) - (kycStatus === 'approved' ? 50 : 0)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Profile Section Selector */}
-            <div className="mb-4">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-                {t('profileSections')}
-              </div>
-              <div className="flex flex-col gap-2 px-3">
-                {profileMenuItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id)
-                      setRightSidebarOpen(false) // Close sidebar after selection on mobile
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors border w-full ${
-                      activeTab === item.id
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background text-muted-foreground hover:text-foreground border-border hover:border-accent'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    <span className="whitespace-nowrap">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </FloatingSidebarToggle>
+      </DavinciCenterPane>
 
         {/* Mobile Floating Save/Cancel Controls - Appears when there are unsaved changes */}
         {hasUnsavedChanges && activeTab !== 'overview' && activeTab !== 'wallet' && (
@@ -2138,8 +1922,7 @@ export default function ProfileContent({
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </RingRightRailLayout>
   )
 }
 

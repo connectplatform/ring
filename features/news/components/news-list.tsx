@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, useCallback } from 'react';
+import React, { useCallback, useMemo, useTransition } from 'react';
 import { NewsCard } from './news-card';
 import { NewsArticle, NewsFilters, NewsCategoryInfo } from '@/features/news/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Search, Filter, Loader2 } from 'lucide-react';
+import { useCursorFeed } from '@/hooks/use-cursor-feed';
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint';
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response';
 
 interface NewsListProps {
   initialArticles?: NewsArticle[];
@@ -28,53 +30,33 @@ export function NewsList({
   className = '',
   locale = 'en'
 }: NewsListProps) {
-  // React 19 useTransition for non-blocking filter updates
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  const [articles, setArticles] = useState<NewsArticle[]>(initialArticles);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<NewsFilters>({
+  const [filters, setFilters] = React.useState<NewsFilters>({
     status: 'published',
-    limit: limit,
-    offset: 0,
+    limit,
     sortBy: 'publishedAt',
     sortOrder: 'desc',
   });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [hasMore, setHasMore] = useState(true);
+  const [searchTerm, setSearchTerm] = React.useState('');
 
-  // Search and filter change handlers - wrapped in useTransition for non-blocking updates
-  const handleSearchChange = useCallback((value: string) => {
-    startTransition(() => {
-      setSearchTerm(value);
-    });
-  }, [startTransition]);
+  const filterFingerprint = useMemo(
+    () =>
+      buildFilterFingerprint('news', {
+        ...filters,
+        search: searchTerm,
+      } as Record<string, unknown>),
+    [filters, searchTerm],
+  );
 
-  const handleFilterChange = useCallback((key: keyof NewsFilters, value: any) => {
-    startTransition(() => {
-      setFilters(prev => ({
-        ...prev,
-        [key]: value,
-        offset: 0 // Reset offset when filters change
-      }));
-    });
-  }, [startTransition]);
-
-  const handleSearch = useCallback(() => {
-    startTransition(() => {
-      setFilters(prev => ({ ...prev, offset: 0 }));
-    });
-  }, [startTransition]);
-
-  // Fetch articles based on current filters
-  const fetchArticles = async (reset = false) => {
-    setLoading(true);
-    try {
+  const fetchNewsPage = useCallback(
+    async (cursor: string | null) => {
       const queryParams = new URLSearchParams();
-      
-      // Add filters to query params
+      queryParams.set('pagination', 'cursor');
+      queryParams.set('limit', String(filters.limit ?? limit));
+
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
+        if (value !== undefined && value !== null && value !== '' && key !== 'offset') {
           if (Array.isArray(value)) {
             queryParams.set(key, value.join(','));
           } else {
@@ -87,45 +69,64 @@ export function NewsList({
         queryParams.set('search', searchTerm);
       }
 
+      if (cursor) {
+        queryParams.set('startAfter', cursor);
+      }
+
       const response = await fetch(`/api/news?${queryParams.toString()}`);
       const data = await response.json();
 
-      if (data.success) {
-        if (reset) {
-          setArticles(data.data);
-        } else {
-          setArticles(prev => [...prev, ...data.data]);
-        }
-        setHasMore(data.data.length === filters.limit);
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch news articles');
       }
-    } catch (error) {
-      console.error('Error fetching articles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // Load more articles
-  const loadMore = () => {
-    setFilters(prev => ({
-      ...prev,
-      offset: (prev.offset || 0) + (prev.limit || 10)
-    }));
-  };
+      const items = (data.items ?? data.data ?? []) as NewsArticle[];
+      return normalizePaginatedResponse<NewsArticle>(
+        { items, cursor: data.cursor, hasMore: data.hasMore },
+        filters.limit ?? limit,
+      );
+    },
+    [filters, limit, searchTerm],
+  );
 
+  const {
+    items: articles,
+    loading,
+    hasMore,
+    sentinelRef,
+  } = useCursorFeed<NewsArticle>({
+    moduleId: 'news',
+    locale,
+    limit: filters.limit ?? limit,
+    filterFingerprint,
+    initialItems: initialArticles,
+    initialCursor: null,
+    fetchPage: fetchNewsPage,
+  });
 
-  // Effect to fetch articles when filters change
-  useEffect(() => {
-    if (filters.offset === 0) {
-      fetchArticles(true);
-    } else {
-      fetchArticles(false);
-    }
-  }, [filters, searchTerm]);
+  const handleSearchChange = useCallback((value: string) => {
+    startTransition(() => {
+      setSearchTerm(value);
+    });
+  }, [startTransition]);
+
+  const handleFilterChange = useCallback((key: keyof NewsFilters, value: unknown) => {
+    startTransition(() => {
+      setFilters((prev) => ({
+        ...prev,
+        [key]: value,
+      }));
+    });
+  }, [startTransition]);
+
+  const handleSearch = useCallback(() => {
+    startTransition(() => {
+      setSearchTerm((current) => current.trim());
+    });
+  }, [startTransition]);
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Search and Filters */}
       {(showSearch || showFilters) && (
         <div className="space-y-4">
           {showSearch && (
@@ -195,7 +196,6 @@ export function NewsList({
         </div>
       )}
 
-      {/* Articles Grid */}
       {articles.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles.map((article) => (
@@ -210,26 +210,13 @@ export function NewsList({
         </div>
       )}
 
-      {/* Load More Button */}
-      {hasMore && articles.length > 0 && (
-        <div className="text-center">
-          <Button
-            onClick={loadMore}
-            disabled={loading}
-            variant="outline"
-            size="lg"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              'Load More Articles'
-            )}
-          </Button>
+      {loading && articles.length > 0 && (
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
+
+      {hasMore && <div ref={sentinelRef} className="h-10" />}
     </div>
   );
 }

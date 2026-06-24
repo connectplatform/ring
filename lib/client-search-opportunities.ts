@@ -18,8 +18,6 @@ export interface SearchOpportunitiesParams {
   limit?: number
   sortBy?: 'relevance' | 'dateCreated' | 'dateUpdated' | 'budget' | 'deadline' | 'location'
   sortOrder?: 'asc' | 'desc'
-  userRole?: string
-  userId?: string
 }
 
 export interface Attachment {

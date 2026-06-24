@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { getVerificationProcedureByNumber } from '@/features/verification/services/get-verification-procedure'
 import { EntityPermissionError } from '@/lib/errors'
 
@@ -20,8 +20,8 @@ export async function assertVerificationBlobAccess(procedureNumber: string): Pro
     throw new EntityPermissionError('Verification procedure not found')
   }
 
-  const role = session.user.role as UserRole
-  const isAdmin = role === UserRole.admin || role === UserRole.superadmin
+  const role = assertKnownUserRole(session.user.role)
+  const isAdmin = isPlatformAdmin(role)
   const isApplicant = procedure.applicantUserId === session.user.id
 
   if (!isAdmin && !isApplicant) {

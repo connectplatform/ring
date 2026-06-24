@@ -61,7 +61,34 @@ function mergeDeep(base: RingConfig, override: Partial<RingConfig>): RingConfig 
     domains: { ...base.domains, ...override.domains },
     clone: { ...base.clone, ...override.clone },
     matcher: { ...base.matcher, ...override.matcher },
+    publicPools: { ...base.publicPools, ...override.publicPools },
     founders: override.founders ?? base.founders,
+    chains: {
+      ...base.chains,
+      ...override.chains,
+      solana: { ...base.chains?.solana, ...override.chains?.solana },
+      evm: { ...base.chains?.evm, ...override.chains?.evm },
+      base: { ...base.chains?.base, ...override.chains?.base },
+      enabled: override.chains?.enabled ?? base.chains?.enabled,
+      native: override.chains?.native ?? base.chains?.native,
+    },
+  }
+}
+
+/** Install-time public pool defaults — clone scope + queue/funding thresholds. */
+export function getPublicPoolConfig(): {
+  cloneId: string
+  minGoalHours: number
+  ringPerMachineHour: number
+  likeQueueThreshold: number
+} {
+  const config = getRingConfigSnapshot()
+  const pp = config.publicPools ?? {}
+  return {
+    cloneId: config.clone.name,
+    minGoalHours: pp.minGoalHours ?? 1,
+    ringPerMachineHour: pp.ringPerMachineHour ?? 1,
+    likeQueueThreshold: pp.likeQueueThreshold ?? 100,
   }
 }
 

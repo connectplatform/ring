@@ -76,6 +76,16 @@ export interface RingHeroConfig {
   showOnHome?: boolean
 }
 
+/** Install-time defaults for docs future-feature public pools (per-clone jars). */
+export interface RingPublicPoolsConfig {
+  /** Minimum machine-hours (and RING goal floor) for any future-feature pool. */
+  minGoalHours?: number
+  /** RING per machine-hour when deriving goal_ring from goal_hours. */
+  ringPerMachineHour?: number
+  /** Likes required to queue (OR 100% RING pledged). */
+  likeQueueThreshold?: number
+}
+
 /** Install-time matcher defaults — seeds platform_settings.ai and env-disabled resolution. */
 export interface RingMatcherConfig {
   /** Match score floor for notifications / matching (0–1). Mirrors platform_settings.matcher.scoreThreshold. */
@@ -144,11 +154,90 @@ export interface RingMembershipTierConfig {
   duration: string
 }
 
+export interface RingMembershipRingPricing {
+  /** RING tokens required for subscriber → member upgrade */
+  memberUpgradeAmount: number
+  /** Monthly subscription renewal in RING (defaults to memberUpgradeAmount) */
+  subscriptionRenewalAmount?: number
+}
+
 export interface RingMembershipConfig {
   tiers: {
     subscriber: RingMembershipTierConfig
     member: RingMembershipTierConfig
   }
+  ring?: RingMembershipRingPricing
+}
+
+export type RingNativeChain = 'solana' | 'evm'
+
+export interface RingSolanaChainConfig {
+  network?: string
+  decimals?: number
+  sponsorAllRingTransfers?: boolean
+  mintAddress?: string
+  tokenProgram?: string
+  rpcUrlEnv?: string
+  commitment?: 'processed' | 'confirmed' | 'finalized'
+}
+
+export interface RingEvmChainConfig {
+  enabled?: boolean
+  chainId?: number
+  decimals?: number
+  tokenAddress?: string
+  legacyReferralRewards?: boolean
+}
+
+export interface RingBaseChainConfig {
+  enabled?: boolean
+  chainId?: number
+  decimals?: number
+  note?: string
+}
+
+export interface RingChainsConfig {
+  native?: RingNativeChain
+  enabled?: RingNativeChain[]
+  solana?: RingSolanaChainConfig
+  evm?: RingEvmChainConfig
+  base?: RingBaseChainConfig
+}
+
+export interface RingDeskConfig {
+  supplyPolicy?: 'treasury_transfer' | 'mint'
+  sellTaxBps?: number
+  sellTaxDestination?: 'treasury_ata' | 'burn'
+  firstSettlerDiscountBps?: number
+  firstSettlerOneTime?: boolean
+  firstSettlerGates?: Array<'wallet' | 'username' | 'dob' | 'verified'>
+  quoteTtlSeconds?: number
+  maxSlippageBps?: number
+}
+
+export interface RingAirdropRuleConfig {
+  amount?: string
+  enabled?: boolean
+  requireUsername?: boolean
+  requireVerified?: boolean
+}
+
+export interface RingAirdropsConfig {
+  adminVerify?: RingAirdropRuleConfig
+  ringUsername?: RingAirdropRuleConfig
+}
+
+export interface RingTokensConfig {
+  ring?: {
+    symbol?: string
+    name?: string
+    decimals?: number
+  }
+  /** Fiat currency for user credit_balance (USD on ring-platform.org). */
+  creditUnit?: string
+  creditFiatCurrency?: string
+  airdrops?: RingAirdropsConfig
+  desk?: RingDeskConfig
 }
 
 export interface RingConfig {
@@ -205,13 +294,7 @@ export interface RingConfig {
   platform?: {
     baseUrl?: string
   }
-  tokens?: {
-    ring?: {
-      symbol?: string
-      name?: string
-      decimals?: number
-    }
-  }
+  tokens?: RingTokensConfig
   sidebar?: {
     quickLinks?: SidebarLinkConfig[]
     community?: SidebarCommunityLinkConfig[]
@@ -239,8 +322,12 @@ export interface RingConfig {
   }
   /** Clone install defaults for AI matcher + auto-approval (runtime: platform_settings.ai). */
   matcher?: RingMatcherConfig
+  /** Future-feature public pool thresholds (docs backlog chip-ins / likes). */
+  publicPools?: RingPublicPoolsConfig
   /** WayForPay purchasable membership tiers (subscriber + member only). */
   membership?: RingMembershipConfig
+  /** Multi-chain wallet + RING token rails (Solana native, EVM legacy, Base stub). */
+  chains?: RingChainsConfig
   /** Founder / publisher contacts for RingWidgetsContact on /about and /about-publisher. */
   founders?: {
     primary?: RingWidgetsContactConfig

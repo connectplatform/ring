@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ring-platform.org/schemas/scripted-video-generation.schema.json",
+  "title": "Scripted Video Generation Request",
+  "description": "Provider-neutral scripted media pipeline request — cast bible, clips, first-frame stills, I2V scenes, optional thumbnails.",
+  "type": "object",
+  "required": ["schemaVersion", "requestId", "clips"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "project": { "type": "string" },
+    "purpose": { "type": "string" },
+    "refCode": { "type": "string" },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string", "enum": ["xai", "google"] },
+        "qualityMode": {
+          "type": "string",
+          "enum": ["draft", "draft_i2v", "production", "production_i2v"]
+        },
+        "aspectRatio": { "type": "string" },
+        "imageResolution": { "type": "string", "enum": ["1k", "2k"] },
+        "videoResolution": { "type": "string", "enum": ["480p", "720p", "1080p"] },
+        "imageProvider": { "type": "string", "enum": ["xai", "google"] },
+        "videoProvider": { "type": "string", "enum": ["xai"] },
+        "duration": { "type": "integer", "minimum": 1, "maximum": 15 }
+      },
+      "additionalProperties": false
+    },
+    "cast": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "description": { "type": "string", "minLength": 1 },
+          "label": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "setting": { "type": "string" },
+    "clips": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/clip" }
+    }
+  },
+  "definitions": {
+    "dialogueLine": {
+      "type": "object",
+      "required": ["speaker", "line"],
+      "properties": {
+        "speaker": { "type": "string" },
+        "line": { "type": "string" },
+        "tone": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "scene": {
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "camera": { "type": "string" },
+        "dialogue": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/dialogueLine" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "firstFrame": {
+      "type": "object",
+      "properties": {
+        "imagePrompt": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "imageProvider": { "type": "string", "enum": ["xai", "google"] },
+        "imageModel": { "type": "string" },
+        "imageResolution": { "type": "string", "enum": ["1k", "2k"] }
+      },
+      "additionalProperties": false
+    },
+    "videoConfig": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string", "enum": ["xai"] },
+        "model": { "type": "string" },
+        "qualityMode": {
+          "type": "string",
+          "enum": ["draft", "draft_i2v", "production", "production_i2v"]
+        },
+        "resolution": { "type": "string", "enum": ["480p", "720p", "1080p"] }
+      },
+      "additionalProperties": false
+    },
+    "thumbnailOverlay": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "role": { "type": "string", "enum": ["title", "subtitle", "cta", "caption"] },
+        "position": {
+          "type": "string",
+          "enum": ["top", "center", "bottom", "top-left", "bottom-left", "bottom-right"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "thumbnail": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "sourceFrame": { "type": "string", "enum": ["firstFrame", "generated"] },
+        "template": { "type": "string", "enum": ["default", "title_card", "cta_bar"] },
+        "aspectRatio": { "type": "string" },
+        "overlays": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/thumbnailOverlay" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "clip": {
+      "type": "object",
+      "required": ["id", "duration"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "duration": { "type": "integer", "minimum": 1, "maximum": 15 },
+        "aspectRatio": { "type": "string" },
+        "prompt": { "type": "string", "description": "Raw I2V/T2V prompt override — skips scene compiler when set" },
+        "firstFrame": { "$ref": "#/definitions/firstFrame" },
+        "scene": { "$ref": "#/definitions/scene" },
+        "video": { "$ref": "#/definitions/videoConfig" },
+        "thumbnail": { "$ref": "#/definitions/thumbnail" },
+        "remaster": {
+          "type": "object",
+          "properties": {
+            "sourceVideoUrl": { "type": "string", "format": "uri" },
+            "remasterFromRequestId": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

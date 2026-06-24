@@ -8,6 +8,7 @@ import { getTranslations } from 'next-intl/server'
 import { getVendorEntity } from '@/features/entities/services/vendor-entity'
 import VendorProductsWrapper from '@/components/wrappers/vendor-products-wrapper'
 import VendorProductsList from './vendor-products-list'
+import { getProductsByVendor } from '@/app/_actions/store-erp'
 import { connection } from 'next/server'
 import { logger } from '@/lib/logger'
 
@@ -65,10 +66,16 @@ export default async function VendorProductsPage({
       redirect(ROUTES.VENDOR_START(validLocale));
     }
 
+    const products = await getProductsByVendor(vendorEntity.id)
+
     return (
       <VendorProductsWrapper locale={validLocale}>
         <div className="container mx-auto px-6 max-w-6xl">
-          <VendorProductsList locale={validLocale} vendorEntityId={vendorEntity.id} />
+          <VendorProductsList
+            locale={validLocale}
+            vendorEntityId={vendorEntity.id}
+            initialProducts={products}
+          />
         </div>
       </VendorProductsWrapper>
     );

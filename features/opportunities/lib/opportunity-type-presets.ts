@@ -38,7 +38,7 @@ export interface OpportunityFormTypePreset {
 
 /** Visual presets for add-opportunity form header (client-safe SSOT). */
 export const opportunityFormTypePresets: Record<
-  Exclude<OpportunityFormTypeKey, 'cv' | 'ring_customization'>,
+  Exclude<OpportunityFormTypeKey, 'cv'>,
   OpportunityFormTypePreset
 > = {
   request: {
@@ -110,6 +110,16 @@ export const opportunityFormTypePresets: Record<
     icon: Calendar,
     titleKey: 'event.title',
     descriptionKey: 'event.description',
+  },
+  ring_customization: {
+    id: 'ring_customization',
+    color: 'from-violet-500 to-purple-500',
+    bgColor: 'bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20',
+    borderColor: 'border-violet-200 dark:border-violet-800',
+    textColor: 'text-violet-700 dark:text-violet-300',
+    icon: Zap,
+    titleKey: 'ring_customization.title',
+    descriptionKey: 'ring_customization.description',
   },
 }
 

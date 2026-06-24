@@ -8,6 +8,7 @@
 
 import React, { useEffect } from 'react';
 import { prefetchDNS, preconnect, preload } from 'react-dom';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 
 // Extend Window interface for gtag
 declare global {
@@ -162,7 +163,7 @@ export function SmartNotificationPreloader({
     }
 
     // Role-based preloading
-    if (userRole === 'admin') {
+    if (isPlatformAdmin(userRole)) {
       // Admin users likely to access admin notification features
       preload('/api/admin/notifications', { 
         as: 'fetch'

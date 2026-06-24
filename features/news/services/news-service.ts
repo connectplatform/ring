@@ -11,7 +11,17 @@ import {
   MainPageStatus,
   NewsContentType,
 } from '@/features/news/types'
-import { UserRole } from '@/features/auth/user-role'
+import { UserRole, assertKnownUserRole, resolveSessionUserRole } from '@/features/auth/user-role'
+import {
+  canCreateNewsArticle,
+  canDeleteNewsArticle,
+  canEditNewsArticle,
+  assertNewsVisibilityPatch,
+} from '@/features/news/lib/news-permissions'
+import {
+  buildNewsVisibilityFilters,
+  filterNewsForDiscovery,
+} from '@/features/news/lib/news-visibility-filter'
 import { logger } from '@/lib/logger'
 import { translitSlug } from '@/lib/news/translit-slug'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
@@ -30,22 +40,7 @@ interface UpdateNewsResult {
   message?: string
 }
 
-// Author permission helper functions
-function canCreateArticles(userRole: UserRole): boolean {
-  return [UserRole.member, UserRole.confidential, UserRole.admin, UserRole.superadmin].includes(userRole)
-}
-
-function canEditArticle(userRole: UserRole, articleAuthorId: string, currentUserId: string): boolean {
-  const isAdmin = [UserRole.admin, UserRole.superadmin].includes(userRole)
-  const isAuthor = articleAuthorId === currentUserId
-  return isAdmin || isAuthor
-}
-
-function canDeleteArticle(userRole: UserRole, articleAuthorId: string, currentUserId: string): boolean {
-  const isAdmin = [UserRole.admin, UserRole.superadmin].includes(userRole)
-  const isAuthor = articleAuthorId === currentUserId
-  return isAdmin || isAuthor
-}
+// Author permission helpers live in news-permissions.ts
 
 export interface NewsArticleAuthor {
   id: string
@@ -167,8 +162,8 @@ export async function createNewsArticle(formData: NewsFormData): Promise<CreateN
       }
     }
 
-    const userRole = (session.user as { role?: UserRole }).role as UserRole
-    if (!canCreateArticles(userRole)) {
+    const userRole = assertKnownUserRole(session.user.role)
+    if (!canCreateNewsArticle(userRole)) {
       return {
         success: false,
         error: 'Member, confidential, admin or superadmin role required to create articles',
@@ -199,7 +194,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
       }
     }
 
-    const userRole = (session.user as { role?: UserRole }).role as UserRole
+    const userRole = assertKnownUserRole(session.user.role)
     const articleResult = await db().readDoc<Record<string, unknown>>('news', articleId)
 
     if (!articleResult.success || !articleResult.data) {
@@ -210,7 +205,7 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
     }
 
     const articleData = articleResult.data
-    if (!canEditArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
+    if (!canEditNewsArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
       return {
         success: false,
         error: 'Not authorized to edit this article',
@@ -223,6 +218,8 @@ export async function updateNewsArticle(articleId: string, formData: NewsFormDat
         error: 'Title, content, and excerpt are required',
       }
     }
+
+    assertNewsVisibilityPatch(userRole, { visibility: formData.visibility })
 
     const slug = formData.slug || formData.title
       .toLowerCase()
@@ -297,6 +294,12 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
   error?: string
 }> => {
   try {
+    const session = await auth()
+    const userRole = session?.user
+      ? assertKnownUserRole(session.user.role)
+      : UserRole.visitor
+    const userId = session?.user?.id
+
     const queryFilters: { field: string; operator: string; value: unknown }[] = []
 
     if (filters.category) {
@@ -307,6 +310,8 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
     }
     if (filters.visibility) {
       queryFilters.push({ field: 'visibility', operator: '==', value: filters.visibility })
+    } else {
+      queryFilters.push(...buildNewsVisibilityFilters(userRole))
     }
     if (filters.featured !== undefined) {
       queryFilters.push({ field: 'featured', operator: '==', value: filters.featured })
@@ -343,6 +348,8 @@ export const getNewsArticles = cache(async (filters: NewsFilters = {}): Promise<
         filters.tags!.some(tag => article.tags.includes(tag))
       )
     }
+
+    articles = filterNewsForDiscovery(articles, { userRole, userId })
 
     return {
       success: true,
@@ -563,7 +570,7 @@ export async function deleteNewsArticle(articleId: string): Promise<{
       }
     }
 
-    const userRole = (session.user as { role?: UserRole }).role as UserRole
+    const userRole = assertKnownUserRole(session.user.role)
     const articleResult = await db().readDoc<Record<string, unknown>>('news', articleId)
 
     if (!articleResult.success || !articleResult.data) {
@@ -574,7 +581,7 @@ export async function deleteNewsArticle(articleId: string): Promise<{
     }
 
     const articleData = articleResult.data
-    if (!canDeleteArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
+    if (!canDeleteNewsArticle(userRole, String(articleData.authorId ?? ''), session.user.id)) {
       return {
         success: false,
         error: 'Not authorized to delete this article',

@@ -7,6 +7,11 @@
 
 import { AuthUser, UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
+import {
+  assertKnownUserRole,
+  hasConfidentialAccess,
+  isPlatformAdmin,
+} from '@/features/auth/user-role'
 import { AuthError, AuthPermissionError, EntityDatabaseError, ValidationError, logRingError } from '@/lib/errors'
 import { db } from '@/lib/database'
 import { findUserByEmail, normalizeAuthEmail } from '@/features/auth/services/user-resolve'
@@ -69,11 +74,11 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
     
     // If there's a session, validate permissions for admin-created users
     if (session && session.user) {
-      const requestingUserRole = session.user.role as UserRole;
+      const requestingUserRole = assertKnownUserRole(session.user.role);
       
-      // Only admins can create users with roles other than SUBSCRIBER
+      // Only platform admins can create users with roles other than SUBSCRIBER
       if (userData.role && userData.role !== UserRole.subscriber) {
-        if (requestingUserRole !== UserRole.admin) {
+        if (!isPlatformAdmin(requestingUserRole)) {
           throw new AuthPermissionError(
             'Only admin users can create users with non-SUBSCRIBER roles',
             undefined,
@@ -144,8 +149,8 @@ export async function createUser(userData: Partial<AuthUser>): Promise<AuthUser 
           sms: false,
         },
       },
-      canPostconfidentialOpportunities: userData.role === UserRole.admin || userData.role === UserRole.superadmin || userData.role === UserRole.confidential,
-      canViewconfidentialOpportunities: userData.role === UserRole.admin || userData.role === UserRole.superadmin || userData.role === UserRole.confidential,
+      canPostconfidentialOpportunities: hasConfidentialAccess(userData.role),
+      canViewconfidentialOpportunities: hasConfidentialAccess(userData.role),
       postedopportunities: userData.postedopportunities || [],
       savedopportunities: userData.savedopportunities || [],
       notificationPreferences: userData.notificationPreferences || {

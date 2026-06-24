@@ -23,6 +23,10 @@ import {
   DISCONNECTED_TUNNEL_CONTEXT,
   type TunnelContextValue,
 } from '@/lib/tunnel/disconnected-tunnel-context';
+import {
+  createChannelSubscriptionRegistry,
+  type ChannelSubscriptionRegistry,
+} from '@/lib/tunnel/channel-subscription-registry';
 
 export type TunnelContextType = Omit<TunnelContextValue, 'health' | 'publish' | 'subscribe'> & {
   health: TunnelHealth | null
@@ -75,7 +79,7 @@ function TunnelProviderRuntime({
   debug = false,
   timingStrategy = TunnelTimingStrategy.PROGRESSIVE
 }: TunnelProviderProps) {
-  const { status: sessionStatus } = useSession();
+  const { status: sessionStatus, data: session } = useSession();
   const pathname = usePathname();
   
   // State
@@ -91,10 +95,11 @@ function TunnelProviderRuntime({
   
   // Refs
   const managerRef = useRef<TunnelTransportManager | null>(null);
-  const subscriptionsRef = useRef<Map<string, Map<symbol, (message: TunnelMessage) => void>>>(new Map());
-  const channelSubscriptionsRef = useRef<Map<string, any>>(new Map());
+  const registryRef = useRef<ChannelSubscriptionRegistry | null>(null);
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
+  const sessionUserIdRef = useRef<string | null>(null);
+  sessionUserIdRef.current = session?.user?.id ?? null;
 
   // Track authentication state changes for racing protection
   useEffect(() => {
@@ -117,8 +122,25 @@ function TunnelProviderRuntime({
 
     managerRef.current = manager;
 
-    const currentSubscriptions = subscriptionsRef.current;
-    const currentChannelSubscriptions = channelSubscriptionsRef.current;
+    registryRef.current = createChannelSubscriptionRegistry({
+      subscribeTransport: ({ channel }) => manager.subscribe({ channel }),
+      debug,
+      onError: (err, channel) => {
+        const isSystemChannel = channel === 'system' || channel === 'presence';
+        const isAuthError = err.message?.includes('401') || err.message?.includes('Unauthorized');
+
+        if (isSystemChannel && isAuthError) {
+          if (debug) {
+            console.log(`[TunnelProvider] Anonymous user cannot subscribe to ${channel} channel`);
+          }
+        } else {
+          console.error(`[TunnelProvider] Failed to subscribe to ${channel}:`, err);
+          setError(err);
+        }
+      },
+    });
+
+    const registry = registryRef.current;
 
     setIsConnected(manager.isConnected());
     setConnectionState(manager.getConnectionState());
@@ -171,11 +193,21 @@ function TunnelProviderRuntime({
     };
 
     const handleMessage = (message: TunnelMessage) => {
-      if (message.channel) {
-        const handlers = subscriptionsRef.current.get(message.channel);
-        if (handlers) {
-          handlers.forEach(handler => handler(message));
-        }
+      if (!message.channel) {
+        return
+      }
+
+      const dispatch = (channel: string) => {
+        registry?.dispatch(channel, message)
+      }
+
+      dispatch(message.channel)
+
+      // User inbox messages use base channel on wire; legacy subscribers may use :userId suffix
+      const userId = sessionUserIdRef.current
+      const metaUserId = message.metadata?.userId as string | undefined
+      if (userId && metaUserId === userId) {
+        dispatch(`${message.channel}:${userId}`)
       }
     };
 
@@ -198,13 +230,8 @@ function TunnelProviderRuntime({
       manager.off('transport:switch', handleTransportSwitch);
       manager.off('message', handleMessage);
 
-      for (const [, subscription] of currentChannelSubscriptions) {
-        if (subscription && typeof subscription.unsubscribe === 'function') {
-          subscription.unsubscribe();
-        }
-      }
-      currentSubscriptions.clear();
-      currentChannelSubscriptions.clear();
+      registry?.clearAll();
+      registryRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, debug, timingStrategy]);
@@ -273,14 +300,7 @@ function TunnelProviderRuntime({
     if (!managerRef.current) return;
     
     try {
-      // Clean up subscriptions
-      for (const [channel, subscription] of channelSubscriptionsRef.current) {
-        if (subscription && typeof subscription.unsubscribe === 'function') {
-          await subscription.unsubscribe();
-        }
-      }
-      subscriptionsRef.current.clear();
-      channelSubscriptionsRef.current.clear();
+      registryRef.current?.clearAll();
       
       await managerRef.current.disconnect();
     } catch (err) {
@@ -302,74 +322,15 @@ function TunnelProviderRuntime({
     await managerRef.current.publish(channel, event, data);
   }, []);
 
-  // Subscribe method with deduplication
+  // Subscribe method — delegates to channel subscription registry (SSOT dedup)
   const subscribe = useCallback((channel: string, handler: (message: TunnelMessage) => void) => {
-    if (!managerRef.current) {
+    if (!registryRef.current) {
       console.error('[TunnelProvider] Transport manager not initialized');
       return () => {};
     }
-    
-    // Create a unique symbol for this handler
-    const handlerKey = Symbol('handler');
-    
-    // Add handler to local registry
-    if (!subscriptionsRef.current.has(channel)) {
-      subscriptionsRef.current.set(channel, new Map());
-    }
-    subscriptionsRef.current.get(channel)!.set(handlerKey, handler);
-    
-    // Subscribe to channel if not already subscribed
-    if (!channelSubscriptionsRef.current.has(channel)) {
-      if (debug) {
-        console.log(`[TunnelProvider] Creating new subscription for channel: ${channel}`);
-      }
-      
-      managerRef.current
-        .subscribe({ channel })
-        .then(subscription => {
-          channelSubscriptionsRef.current.set(channel, subscription);
-        })
-        .catch(err => {
-          // Don't log errors for system/presence channels on anonymous connections
-          const isSystemChannel = channel === 'system' || channel === 'presence';
-          const isAuthError = err.message?.includes('401') || err.message?.includes('Unauthorized');
-          
-          if (isSystemChannel && isAuthError) {
-            if (debug) {
-              console.log(`[TunnelProvider] Anonymous user cannot subscribe to ${channel} channel`);
-            }
-          } else {
-            console.error(`[TunnelProvider] Failed to subscribe to ${channel}:`, err);
-            setError(err);
-          }
-        });
-    } else if (debug) {
-      console.log(`[TunnelProvider] Reusing existing subscription for channel: ${channel}`);
-    }
-    
-    // Return unsubscribe function
-    return () => {
-      const handlers = subscriptionsRef.current.get(channel);
-      if (handlers) {
-        handlers.delete(handlerKey);
-        
-        // If no more handlers, unsubscribe from channel
-        if (handlers.size === 0) {
-          if (debug) {
-            console.log(`[TunnelProvider] Unsubscribing from channel: ${channel}`);
-          }
-          
-          subscriptionsRef.current.delete(channel);
-          
-          const subscription = channelSubscriptionsRef.current.get(channel);
-          if (subscription && typeof subscription.unsubscribe === 'function') {
-            subscription.unsubscribe();
-            channelSubscriptionsRef.current.delete(channel);
-          }
-        }
-      }
-    };
-  }, [debug]);
+
+    return registryRef.current.subscribe(channel, handler);
+  }, []);
 
   // Switch provider method
   const switchProvider = useCallback(async (newProvider: TunnelProviderType) => {

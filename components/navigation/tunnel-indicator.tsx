@@ -11,7 +11,7 @@
  * @see AI-CONTEXT: tunnel-protocol-firebase-rtdb-analog-2025-11-07
  */
 
-import { useTunnelStatus } from '@/hooks/use-tunnel-subscription'
+import { useTunnelConnectionStatus } from '@/hooks/use-tunnel-connection-status'
 import { TunnelConnectionState } from '@/lib/tunnel/types'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -28,7 +28,7 @@ export function TunnelIndicator({
   showLabel = false,
   size = 'sm' 
 }: TunnelIndicatorProps) {
-  const { isConnected, connectionState, latency } = useTunnelStatus()
+  const { isConnected, connectionState, latency } = useTunnelConnectionStatus()
 
   const getStatusColor = () => {
     switch (connectionState) {
@@ -135,7 +135,7 @@ export function TunnelIndicator({
  * Compact tunnel indicator for bottom row of sidebar
  */
 export function TunnelIndicatorCompact({ className }: { className?: string }) {
-  const { isConnected, connectionState } = useTunnelStatus()
+  const { isConnected, connectionState } = useTunnelConnectionStatus()
 
   const getStatusColor = () => {
     switch (connectionState) {

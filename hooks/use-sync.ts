@@ -73,6 +73,9 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
   const tunnelChannel = tunnel?.channel
   const tunnelEnabled = tunnel?.enabled ?? false
 
+  const subscribeRef = useRef(subscribe)
+  subscribeRef.current = subscribe
+
   const [data, setData] = useState<T | null>(initialData)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError)
@@ -196,7 +199,7 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
 
     let unsubscribe: (() => void) | null = null
     try {
-      unsubscribe = subscribe(tunnelChannel, async (message: TunnelMessage) => {
+      unsubscribe = subscribeRef.current(tunnelChannel, async (message: TunnelMessage) => {
         const action = tunnelOnMessageRef.current?.(message, { data: dataRef.current })
         if (!action) {
           return
@@ -225,7 +228,7 @@ export function useSync<T>(options: UseSyncOptions<T>): UseSyncReturn<T> {
       }
       setUsingTunnel((prev) => (prev ? false : prev))
     }
-  }, [enabled, tunnelChannel, tunnelEnabled, tunnelConnected, subscribe, refresh, applyData])
+  }, [enabled, tunnelChannel, tunnelEnabled, tunnelConnected])
 
   useEffect(() => {
     if (!enabled) {

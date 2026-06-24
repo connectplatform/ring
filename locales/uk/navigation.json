@@ -125,6 +125,14 @@
     "verified": "Перевірений {role}"
   },
   "docs_sidebar": {
+    "searchPlaceholder": "Фільтр документації за назвою…",
+    "audience": {
+      "title": "Читаю як",
+      "founder": "Засновник",
+      "developer": "Розробник",
+      "founderHint": "Концепції, цінність і типові сценарії",
+      "developerHint": "Схема, API, команди та інтеграції."
+    },
     "portal": {
       "treeSectionTitle": "Ring Platform · покажчик бібліотеки",
       "quickLinksTitle": "Швидкий вхід (CTO · аудитори · агенти)",
@@ -223,7 +231,6 @@
       "apiExamples": "Приклади API",
       "customBranding": "Власний брендинг",
       "whiteLabel": "White Label",
-      "multiTenant": "Мультитенант",
       "web3Integration": "Web3 інтеграція",
       "appleSignin": "Вхід через Apple",
       "integrations": "Інтеграції третіх сторін",
@@ -233,7 +240,6 @@
       "customizationGuide": "Посібник з налаштування",
       "databaseSelection": "Вибір бази даних",
       "tokenEconomics": "Токеноміка",
-      "multiTenantSetup": "Налаштування мультитенант",
       "aiCustomization": "AI налаштування",
       "successStories": "Історії успіху",
       "multiVendorStore": "Мультивендорний магазин",

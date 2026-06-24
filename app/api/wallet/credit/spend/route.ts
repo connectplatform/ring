@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditSpendRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
+import { formatCreditAmount, getCreditCurrencyCode } from '@/lib/payments/credit-currency';
 import { UserCreditBalanceSchema } from '@/lib/zod/credit-schemas';
 
 /**
@@ -52,19 +53,20 @@ export async function POST(request: NextRequest) {
 
     // Validate amount limits
     const amount = parseFloat(validatedRequest.amount);
-    const maxSpendAmount = 1000; // 1,000 RING maximum per transaction
-    const minSpendAmount = 0.01; // 0.01 RING minimum
+    const creditCurrency = getCreditCurrencyCode();
+    const maxSpendAmount = 1000;
+    const minSpendAmount = 0.01;
 
     if (amount > maxSpendAmount) {
       return NextResponse.json(
-        { error: `Maximum spend amount is ${maxSpendAmount} RING per transaction` },
+        { error: `Maximum spend amount is ${formatCreditAmount(maxSpendAmount, creditCurrency)} per transaction` },
         { status: 400 }
       );
     }
 
     if (amount < minSpendAmount) {
       return NextResponse.json(
-        { error: `Minimum spend amount is ${minSpendAmount} RING` },
+        { error: `Minimum spend amount is ${formatCreditAmount(minSpendAmount, creditCurrency)}` },
         { status: 400 }
       );
     }
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
       new_balance: result.newBalance,
       amount_spent: validatedRequest.amount,
       usd_equivalent: Math.abs(parseFloat(result.transaction.usd_equivalent)).toString(),
-      message: `Successfully spent ${validatedRequest.amount} RING`,
+      message: `Successfully spent ${formatCreditAmount(validatedRequest.amount, creditCurrency)}`,
     });
 
   } catch (error) {

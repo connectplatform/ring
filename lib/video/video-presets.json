@@ -1,30 +1,44 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "updated": "2026-06-18",
   "notes": {
-    "cheapest_draft": "grok-imagine-video @ 480p — $0.05/s, supports text-to-video",
-    "production": "grok-imagine-video @ 720p — $0.05/s per xAI model page",
-    "i2v_premium": "grok-imagine-video-1.5 — image-to-video only; 480p $0.08/s, 720p $0.14/s; no text-to-video"
+    "draft_t2v": "grok-imagine-video @ 480p — $0.05/s, text-to-video only (no imageUrl)",
+    "draft_i2v": "grok-imagine-video-1.5 @ 480p — $0.08/s, image-to-video + prompt for motion/script (preferred for dialogue scenes)",
+    "production": "grok-imagine-video @ 720p — $0.05/s text-to-video remaster",
+    "production_i2v": "grok-imagine-video-1.5 @ 720p — $0.14/s image-to-video + prompt",
+    "remaster_source": "remaster + sourceVideoUrl → POST /v1/videos/edits (inherits source resolution, capped 720p)",
+    "script_truth": "1.5 is NOT text-only T2V — requires imageUrl as starting frame; prompt controls motion and implied dialogue. For exact spoken lines add VO in post."
   },
   "modes": {
     "draft": {
       "model": "grok-imagine-video",
       "resolution": "480p",
       "estimatedUsdPerSecond": 0.05,
-      "supportsTextToVideo": true
+      "supportsTextToVideo": true,
+      "requiresImageUrl": false
+    },
+    "draft_i2v": {
+      "model": "grok-imagine-video-1.5",
+      "resolution": "480p",
+      "estimatedUsdPerSecond": 0.08,
+      "supportsTextToVideo": false,
+      "requiresImageUrl": true,
+      "supportsImageToVideo": true
     },
     "production": {
       "model": "grok-imagine-video",
       "resolution": "720p",
       "estimatedUsdPerSecond": 0.05,
-      "supportsTextToVideo": true
+      "supportsTextToVideo": true,
+      "requiresImageUrl": false
     },
     "production_i2v": {
       "model": "grok-imagine-video-1.5",
       "resolution": "720p",
       "estimatedUsdPerSecond": 0.14,
       "supportsTextToVideo": false,
-      "requiresImageUrl": true
+      "requiresImageUrl": true,
+      "supportsImageToVideo": true
     }
   },
   "defaults": {
@@ -32,6 +46,7 @@
     "duration": 6,
     "aspectRatio": "16:9",
     "pollIntervalMs": 5000,
-    "pollTimeoutMs": 900000
+    "pollTimeoutMs": 900000,
+    "remasterEditModel": "grok-imagine-video"
   }
 }

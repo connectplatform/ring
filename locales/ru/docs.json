@@ -8,6 +8,27 @@
       "title": "Быстрый доступ"
     }
   },
+  "article": {
+    "back": "Назад",
+    "docsRoot": "Документация",
+    "lastModified": "Обновлено {date}",
+    "listenMinutes": "{minutes} мин прослушивания",
+    "playNarration": "Озвучка",
+    "watchVideo": "Видео",
+    "narrationComingSoon": "Аудиоозвучка документации — в планах (интеграция AudioConductor).",
+    "videoComingSoon": "Видеообзоры документации — в планах."
+  },
+  "notFound": {
+    "badge": "Документация",
+    "title": "Страница документации не найдена",
+    "description": "Этот URL отсутствует в библиотеке документации Ring Platform. Возможно, страницу переименовали, переместили или она никогда не существовала.",
+    "unknownSection": "Раздел «{section}» не входит в дерево документации — мы зафиксировали это для проверки.",
+    "backToDocs": "На главную документации",
+    "browseSection": "Открыть раздел",
+    "popularInSection": "Популярное в {section}",
+    "popularDocs": "Начните здесь",
+    "readArticle": "Читать статью"
+  },
   "comingSoon": {
     "title": "Документация скоро",
     "description": "Документация Ring Platform доступна на /docs. Откройте библиотеку для настройки, развёртывания и функций."

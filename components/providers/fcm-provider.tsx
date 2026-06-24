@@ -2,7 +2,8 @@
 
 import React, { createContext, use, useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
-import { useFCM, useFCMMessages } from '@/hooks/useFCM'
+import { useFCM, useFCMMessages } from '@/hooks/use-fcm'
+import { unregisterCurrentDeviceFcmToken } from '@/lib/notifications/fcm-client-cleanup'
 import { getBrowserNotificationPermission } from '@/lib/browser/notification-api'
 import { toast } from '@/hooks/use-toast'
 
@@ -129,24 +130,15 @@ function FCMProviderRuntime({ children }: FCMProviderProps) {
 
   const disableNotifications = async (): Promise<void> => {
     try {
-      if (token) {
-        // Remove token from server
-        await fetch('/api/notifications/fcm/register', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token })
-        })
+      await unregisterCurrentDeviceFcmToken()
 
-        toast({
-          title: 'Notifications Disabled',
-          description: 'You will no longer receive push notifications.',
-          duration: 3000,
-        })
+      toast({
+        title: 'Notifications Disabled',
+        description: 'You will no longer receive push notifications.',
+        duration: 3000,
+      })
 
-        setTokenCount(0)
-      }
+      setTokenCount(0)
     } catch (error) {
       console.error('Error disabling notifications:', error)
       toast({
@@ -279,11 +271,11 @@ export function FCMPermissionPrompt() {
   }
 
   return (
-    <div className="fixed top-4 right-4 max-w-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-50">
+    <div className="fixed top-4 right-4 max-w-sm bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-4 z-50">
       <div className="flex items-start space-x-3">
         <div className="flex-shrink-0">
-          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+            <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 2L3 9v9h4v-6h6v6h4V9l-7-7z"/>
             </svg>
           </div>
@@ -292,19 +284,19 @@ export function FCMPermissionPrompt() {
             <h3 className="text-sm font-medium text-foreground">
             Enable Push Notifications
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Get real-time updates about opportunities, messages, and important news.
           </p>
           <div className="mt-3 flex space-x-2">
             <button
               onClick={handleEnable}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
               Enable
             </button>
             <button
               onClick={handleDismiss}
-              className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-xs font-medium rounded text-muted-foreground bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-3 py-1.5 border border-border text-xs font-medium rounded-md text-foreground bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
               Not now
             </button>
@@ -312,7 +304,7 @@ export function FCMPermissionPrompt() {
         </div>
         <button
           onClick={handleDismiss}
-          className="flex-shrink-0 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+          className="flex-shrink-0 text-muted-foreground hover:text-foreground"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>

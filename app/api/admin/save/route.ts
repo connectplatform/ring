@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/user-role'
+import { isSuperadmin } from '@/features/auth/user-role'
 import { platformBrandingDataSchema } from '@/features/admin/platform-settings/types'
 import {
   getPlatformBrandingData,
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   await connection()
 
   const session = await auth()
-  if (!session?.user || session.user.role !== UserRole.superadmin) {
+  if (!session?.user || !isSuperadmin(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

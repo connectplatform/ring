@@ -1,0 +1,76 @@
+{
+  "listingTitle": "Публічні пули",
+  "listingDescription": "Лайкайте та вносьте {token}, щоб поставити майбутні функції в чергу для цього клону.",
+  "detailBack": "Усі пули",
+  "listingEmpty": "Пулів ще немає. Лайкайте та вносьте {token} у віджетах беклогу документації.",
+  "fundingSummary": "{pledged} / {goal} {token}",
+  "admin": {
+    "list": {
+      "title": "Публічні пули (DAO)",
+      "description": "Створюйте, редагуйте та керуйте пулами майбутніх функцій — черга, статус доставки та публічні посилання.",
+      "createPool": "Створити пул",
+      "totalPools": "Усього пулів",
+      "queuedInProgress": "У черзі / в роботі",
+      "completed": "Завершено",
+      "allPools": "Усі пули",
+      "allPoolsDescription": "Зміни статусу поширюються на віджети документації та",
+      "empty": "Пулів ще немає — створіть вручну або через віджети беклогу в документації.",
+      "tableTitle": "Назва",
+      "tableKind": "Тип",
+      "tableLikes": "Лайки",
+      "tableFunding": "Фінансування",
+      "tableStatus": "Статус",
+      "tableActions": "Дії",
+      "edit": "Редагувати",
+      "view": "Переглянути",
+      "statusUpdated": "Статус пулу оновлено",
+      "updateFailed": "Не вдалося оновити",
+      "deleteConfirm": "Видалити пул \"{title}\"? Сигнали та внески буде видалено.",
+      "deleted": "Пул видалено",
+      "deleteFailed": "Не вдалося видалити"
+    },
+    "form": {
+      "titleLabel": "Назва",
+      "descriptionLabel": "Опис",
+      "poolSlugOptional": "Slug пулу (необов'язково)",
+      "poolSlugPlaceholder": "manual:my-feature — автогенерація з назви, якщо порожньо",
+      "poolSlugReadonly": "Slug пулу",
+      "kindLabel": "Тип",
+      "goalHoursLabel": "Цільові години",
+      "fundingModeLabel": "Режим фінансування",
+      "statusLabel": "Статус",
+      "docPathLabel": "Шлях документації (необов'язково)",
+      "docPathPlaceholder": "en/architecture/data-model",
+      "labelsLabel": "Мітки (через кому)",
+      "labelsPlaceholder": "platform, wallet",
+      "likesCount": "Лайки: {count}",
+      "pledgedSummary": "Зібрано: {pledged} / {goal} {token}",
+      "saving": "Збереження…",
+      "createPool": "Створити пул",
+      "saveChanges": "Зберегти зміни",
+      "cancel": "Скасувати",
+      "saveFailed": "Не вдалося зберегти"
+    },
+    "create": {
+      "title": "Створити публічний пул",
+      "description": "Ручний пул — з'являється на /dao та може бути вбудований через віджет future-feature."
+    },
+    "edit": {
+      "title": "Редагувати публічний пул"
+    },
+    "kind": {
+      "future_feature": "Майбутня функція"
+    },
+    "fundingMode": {
+      "donation": "Донат",
+      "escrow": "Ескроу"
+    },
+    "status": {
+      "open": "Відкрито",
+      "queued": "У черзі",
+      "in_progress": "В роботі",
+      "completed": "Завершено",
+      "cancelled": "Скасовано"
+    }
+  }
+}

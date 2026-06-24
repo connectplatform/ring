@@ -57,51 +57,13 @@ export default async function AdminStoreCommissionsPage({
     listProductReferralRates(50),
   ])
 
-  const tabLabels = {
-    orders: t('storeHub.orders'),
-    stock: t('storeHub.stock'),
-    commissions: t('storeHub.commissions'),
-  }
-
-  const commissionLabels = {
-    title: t('storeHub.commissionsTitle'),
-    processPayouts: t('storeHub.processPayouts'),
-    processing: t('storeHub.processingPayouts'),
-    pending: t('storeHub.pendingSettlements'),
-    vendor: t('storeHub.vendor'),
-    amount: t('storeHub.netPayout'),
-    commission: t('storeHub.commission'),
-    status: t('storeHub.status'),
-    scheduled: t('storeHub.scheduledFor'),
-    noSettlements: t('storeHub.noSettlements'),
-    settlementsTable: t('storeHub.settlementsTable'),
-    confirmProcessPayouts: t('storeHub.confirmProcessPayouts'),
-    noSettlementsDueMessage: t('storeHub.noSettlementsDueMessage'),
-    batchComplete: t('storeHub.batchComplete'),
-    processSettlementsError: t('storeHub.processSettlementsError'),
-    inclReferral: t('storeHub.inclReferral'),
-    referralRatesTitle: t('storeHub.referralRatesTitle'),
-    referralRatesProduct: t('storeHub.referralRatesProduct'),
-    referralRatesVendor: t('storeHub.referralRatesVendor'),
-    referralRatesPercent: t('storeHub.referralRatesPercent'),
-    referralRatesSource: t('storeHub.referralRatesSource'),
-    referralRatesEmpty: t('storeHub.referralRatesEmpty'),
-    referralSourceProduct: t('storeHub.referralSource.product'),
-    referralSourceMerchant: t('storeHub.referralSource.merchant'),
-    referralSourceDefault: t('storeHub.referralSource.default'),
-    referralSourceEnv: t('storeHub.referralSource.env'),
-    effectiveReferralRate: t('storeHub.effectiveReferralRate'),
-    simulatedBadge: t('storeHub.simulatedBadge'),
-  }
-
   return (
     <AdminWrapper locale={locale} pageContext="store" labels={adminLabels}>
-      <StoreHubTabs locale={locale} active="commissions" labels={tabLabels} />
+      <StoreHubTabs locale={locale} active="commissions" />
       <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded-lg" />}>
         <AdminCommissionsClient
           settlements={settlements}
           productReferralRates={productReferralRates}
-          labels={commissionLabels}
         />
       </Suspense>
     </AdminWrapper>

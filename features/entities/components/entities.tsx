@@ -1,24 +1,22 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useLocale, useTranslations } from 'next-intl'
-import { useTheme } from 'next-themes'
+import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { SerializedEntity } from '@/features/entities/types'
-import { deserializeEntities } from '@/lib/converters/entity-serializer'
 import Link from 'next/link'
-import { Building2, MapPin, Tag, Globe, Calendar, Users, Award, Plus, ArrowUp } from 'lucide-react'
+import { Building2, MapPin, Tag, Globe, Calendar, Users, Award, Plus, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { UserRole } from '@/features/auth/types'
-import { routing } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
-import SlidingPopup from '@/components/common/widgets/modal'
 import { EntityLogo } from '@/components/ui/safe-image'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
-import { EntityType } from '@/features/entities/types'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { fingerprintFromSearchParams } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
 
 
 
@@ -37,64 +35,65 @@ interface EntitiesContentProps {
 export const EntitiesContent: React.FC<EntitiesContentProps> = ({ 
   initialEntities, 
   initialError, 
-  page, 
-  totalPages, 
-  totalEntities, 
   lastVisible: initialLastVisible,
   limit,
-  sort,
-  filter
 }) => {
   const tEntities = useTranslations('modules.entities')
   const tCommon = useTranslations('common')
   const { data: session, status } = useSession({ required: false })
-  const [entities, setentities] = useState<SerializedEntity[]>(initialEntities)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(initialError)
-  const [lastVisible, setLastVisible] = useState<string | null>(initialLastVisible)
   const locale = useLocale() as Locale
-  const fetchEntities = useCallback(async () => {
-    if (!session) {
-      return
-    }
-    if (initialError || initialEntities.length > 0) {
-      return
-    }
+  const searchParams = useSearchParams()
 
-    setLoading(true)
-    setError(null)
-    try {
+  const filterFingerprint = useMemo(
+    () => fingerprintFromSearchParams('entities', searchParams),
+    [searchParams],
+  )
+
+  const fetchEntitiesPage = useCallback(
+    async (cursor: string | null) => {
+      const queryParams = new URLSearchParams(searchParams.toString())
+      queryParams.set('limit', limit.toString())
+      if (cursor) queryParams.set('startAfter', cursor)
+      else queryParams.delete('startAfter')
+
       const { apiClient } = await import('@/lib/api-client')
-      const response = await apiClient.get(
-        `/api/entities?page=${page}&limit=${limit}&sort=${sort}&filter=${filter}`,
-        {
-          timeout: 8000,
-          retries: 1
-        }
-      )
-      
+      const response = await apiClient.get(`/api/entities?${queryParams.toString()}`, {
+        timeout: 8000,
+        retries: 1,
+      })
+
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch entities')
       }
-      
-      const apiEntities = Array.isArray(response.data?.entities) ? response.data.entities : []
-      setentities(apiEntities)
-    } catch (error) {
-      console.error('Error fetching entities:', error)
-      setError(tCommon('status.error'))
-    } finally {
-      setLoading(false)
-    }
-  }, [session, initialEntities, initialError, tCommon, page, lastVisible, limit, sort, filter])
 
-  useEffect(() => {
-    fetchEntities()
-  }, [fetchEntities])
+      return normalizePaginatedResponse<SerializedEntity>(response.data, limit)
+    },
+    [limit, searchParams],
+  )
+
+  const {
+    items: entities,
+    loading,
+    hasMore,
+    error: feedError,
+    sentinelRef,
+  } = useCursorFeed<SerializedEntity>({
+    moduleId: 'entities',
+    locale,
+    limit,
+    filterFingerprint,
+    initialItems: initialEntities,
+    initialCursor: initialLastVisible,
+    enabled: Boolean(session),
+    fetchPage: fetchEntitiesPage,
+  })
+
+  const error = feedError ?? initialError
 
   // Intro gating for unauthenticated users
   if (status === 'loading') {
     return (
-      <div className="container mx-auto px-4 py-12 text-center text-xl">
+      <div className="py-12 text-center text-xl">
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           {tCommon('status.loading')}
         </motion.p>
@@ -134,7 +133,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center text-xl">
+      <div className="py-12 text-center text-xl">
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -148,7 +147,7 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-12">
+      <div className="py-12">
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -157,11 +156,8 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-
-      <div className="container mx-auto px-4 py-6">
-        {/* Empty State */}
-        {entities.length === 0 && !loading && (
+    <div className="min-w-0 text-foreground">
+      {entities.length === 0 && !loading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -184,15 +180,14 @@ export const EntitiesContent: React.FC<EntitiesContentProps> = ({
             <EntityCard key={entity.id} entity={entity} />
           ))}
         </div>
-        
-        <Pagination 
-          page={page} 
-          totalPages={totalPages} 
-          totalEntities={totalEntities}
-        />
-      </div>
 
+        {loading && entities.length > 0 && (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
 
+        {hasMore && <div ref={sentinelRef} className="h-10" />}
     </div>
   )
 }
@@ -313,38 +308,6 @@ const TagList: React.FC<{
             {item}
           </span>
         ))}
-      </div>
-    </div>
-  )
-}
-
-const Pagination: React.FC<{
-  page: number;
-  totalPages: number;
-  totalEntities: number;
-}> = ({ page, totalPages, totalEntities }) => {
-  const t = useTranslations('modules.entities')
-
-  return (
-    <div className="mt-8 flex justify-between items-center">
-      <p className="text-sm text-muted-foreground">
-        {t('showingentities', { start: (page - 1) * 10 + 1, end: Math.min(page * 10, totalEntities), total: totalEntities })}
-      </p>
-      <div className="flex space-x-2">
-        <Button
-          variant="outline"
-          disabled={page === 1}
-          onClick={() => {/* Implement previous page logic */}}
-        >
-          {t('previous')}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={page === totalPages}
-          onClick={() => {/* Implement next page logic */}}
-        >
-          {t('next')}
-        </Button>
       </div>
     </div>
   )

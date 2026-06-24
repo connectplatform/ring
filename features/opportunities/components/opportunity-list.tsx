@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useCallback, useEffect, useTransition } from 'react'
+import React, { useCallback, useEffect, useMemo, useTransition } from 'react'
 import { useOptimistic, useActionState, startTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { useTheme } from 'next-themes'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
 import { useSession } from 'next-auth/react'
-import { useInView } from '@/hooks/use-intersection-observer'
 import Link from 'next/link'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api-client'
@@ -54,6 +54,9 @@ import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportun
 import { formatDateValue, truncateDescription, formatBudget } from '@/lib/utils'
 import UnifiedLoginInline from '@/features/auth/components/unified-login-inline'
 import { AddOpportunityButton } from '@/components/opportunities/add-opportunity-button'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { fingerprintFromSearchParams } from '@/lib/pagination/filter-fingerprint'
+import { normalizePaginatedResponse } from '@/lib/pagination/normalize-paginated-response'
 
 interface OpportunityListProps {
   initialOpportunities: SerializedOpportunity[]
@@ -85,26 +88,91 @@ export default function OpportunityList({
   const t = useTranslations('modules.opportunities')
   const { theme } = useTheme()
   const { data: session, status } = useSession()
-  const { ref, inView } = useInView()
-  const [isPending, startTransitionFn] = useTransition()
+  const searchParams = useSearchParams()
+  const filterFingerprint = useMemo(
+    () => fingerprintFromSearchParams('opportunities', searchParams),
+    [searchParams],
+  )
+  const [, startTransitionFn] = useTransition()
 
-  // Optimistic state for opportunities
+  const fetchOpportunitiesPage = useCallback(
+    async (cursor: string | null) => {
+      const queryParams = new URLSearchParams({ limit: limit.toString() })
+      if (cursor) queryParams.set('startAfter', cursor)
+
+      const response = await apiClient.get(`/api/opportunities?${queryParams}`, {
+        timeout: 10000,
+        retries: 1,
+      })
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch opportunities')
+      }
+
+      return normalizePaginatedResponse<SerializedOpportunity>(response.data, limit)
+    },
+    [limit],
+  )
+
+  const [entities, setEntities] = React.useState<{ [key: string]: Entity }>(initialEntities)
+
+  const loadEntitiesForOpportunities = useCallback(
+    async (opportunities: SerializedOpportunity[]) => {
+      const uniqueEntityIds = [
+        ...new Set(
+          opportunities
+            .map((opp) => opp.organizationId)
+            .filter((id) => id && id.trim() !== ''),
+        ),
+      ].filter((id) => !entities[id])
+
+      if (uniqueEntityIds.length === 0) return
+
+      const entityPromises = uniqueEntityIds.map((id) =>
+        apiClient.get(`/api/entities/${id}`, { timeout: 5000, retries: 1 }),
+      )
+      const fetchResponses = await Promise.allSettled(entityPromises)
+      const entityMap: { [key: string]: Entity } = {}
+
+      fetchResponses.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.success && result.value.data) {
+          entityMap[uniqueEntityIds[index] as string] = result.value.data
+        }
+      })
+
+      setEntities((prev) => ({ ...prev, ...entityMap }))
+    },
+    [entities],
+  )
+
+  const {
+    items: feedItems,
+    loading,
+    hasMore,
+    error: feedError,
+    sentinelRef,
+  } = useCursorFeed<SerializedOpportunity>({
+    moduleId: 'opportunities',
+    locale,
+    limit,
+    filterFingerprint,
+    initialItems: initialOpportunities,
+    initialCursor: initialLastVisible,
+    enabled: Boolean(session),
+    fetchPage: fetchOpportunitiesPage,
+    onItemsAdded: (added) => {
+      void loadEntitiesForOpportunities(added)
+    },
+  })
+
   const [optimisticOpportunities, addOptimisticOpportunity] = useOptimistic<
     OptimisticOpportunity[],
     OptimisticOpportunity
-  >(
-    initialOpportunities,
-    (currentOpportunities, newOpportunity) => {
-      // Add new opportunity at the beginning for instant feedback
-      return [{ ...newOpportunity, isOptimistic: true }, ...currentOpportunities]
-    }
-  )
+  >(feedItems, (currentOpportunities, newOpportunity) => {
+    return [{ ...newOpportunity, isOptimistic: true }, ...currentOpportunities]
+  })
 
-  // Local state for pagination
-  const [entities, setEntities] = React.useState<{ [key: string]: Entity }>(initialEntities)
-  const [loading, setLoading] = React.useState(false)
-  const [lastVisible, setLastVisible] = React.useState<string | null>(initialLastVisible)
-  const [error, setError] = React.useState<string | null>(initialError)
+  const error = feedError ?? initialError
 
   // Sync entities when parent-provided initialEntities change
   useEffect(() => {
@@ -119,81 +187,6 @@ export default function OpportunityList({
 
   // Use optimistic opportunities directly (filtering moved to wrapper)
   const displayOpportunities = optimisticOpportunities
-
-  // Fetch more opportunities for infinite scroll
-  const fetchMoreOpportunities = useCallback(async () => {
-    if (loading || !lastVisible || !session) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const queryParams = new URLSearchParams({
-        limit: limit.toString(),
-        startAfter: lastVisible
-      })
-
-      const response = await apiClient.get(`/api/opportunities?${queryParams}`, {
-        timeout: 10000,
-        retries: 1
-      })
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch opportunities')
-      }
-
-      const data = response.data
-      
-      // Update opportunities without affecting optimistic ones
-      const newOpportunities = data.opportunities.filter((opp: SerializedOpportunity) => 
-        !optimisticOpportunities.some(existing => existing.id === opp.id)
-      )
-      
-      startTransition(() => {
-        newOpportunities.forEach((opp: SerializedOpportunity) => addOptimisticOpportunity(opp))
-      })
-      setLastVisible(data.lastVisible)
-
-      // Fetch entities for new opportunities - with deduplication
-      // Filter out null, empty, or already loaded entities
-      const uniqueEntityIds = [...new Set(newOpportunities
-        .map((opp: SerializedOpportunity) => opp.organizationId)
-        .filter(id => id && id.trim() !== '' && !entities[id]))]
-
-      if (uniqueEntityIds.length > 0) {
-        const entityPromises = uniqueEntityIds.map(id => 
-          apiClient.get(`/api/entities/${id}`, {
-            timeout: 5000,
-            retries: 1
-          })
-        )
-
-        const fetchResponses = await Promise.allSettled(entityPromises)
-        const entityMap: { [key: string]: Entity } = {}
-        
-        fetchResponses.forEach((result, index) => {
-          if (result.status === 'fulfilled' && result.value.success && result.value.data) {
-            entityMap[uniqueEntityIds[index] as string] = result.value.data
-          }
-        })
-        
-        setEntities(prev => ({ ...prev, ...entityMap }))
-      }
-
-    } catch (error) {
-      console.error('Error fetching more opportunities:', error)
-      setError(t('errorFetchingMoreOpportunities'))
-    } finally {
-      setLoading(false)
-    }
-  }, [loading, lastVisible, limit, session, t, optimisticOpportunities, entities, addOptimisticOpportunity])
-
-  // Trigger infinite scroll
-  useEffect(() => {
-    if (inView && !loading) {
-      fetchMoreOpportunities()
-    }
-  }, [inView, fetchMoreOpportunities, loading])
 
   // Handle optimistic opportunity creation
   const handleOptimisticCreate = (opportunityData: Partial<SerializedOpportunity>) => {
@@ -246,11 +239,7 @@ export default function OpportunityList({
   }
 
   return (
-    <div className="min-h-screen bg-background dark:bg-[hsl(var(--page-background))] text-foreground">
-      <div className="container mx-auto px-0 py-0">
-
-
-
+    <>
         {/* Error Display */}
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -306,12 +295,9 @@ export default function OpportunityList({
           )}
 
           {/* Infinite Scroll Trigger */}
-          {!loading && lastVisible && (
-            <div ref={ref} className="h-10" />
-          )}
+          {hasMore && !loading && <div ref={sentinelRef} className="h-10" />}
         </div>
-      </div>
-    </div>
+    </>
   )
 }
 
@@ -388,7 +374,7 @@ function OpportunityCard({
 }: OpportunityCardProps) {
   const t = useTranslations('modules.opportunities')
   const { data: session } = useSession()
-  const { balance: tokenBalance } = useCreditBalance()
+  const { balance: tokenBalance } = useCreditBalanceContext()
 
   // Ensure we always pass a defined translation key
   const typeKey = opportunity?.type === 'request' ? 'request' : 'offer'

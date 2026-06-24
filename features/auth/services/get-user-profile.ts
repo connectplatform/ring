@@ -7,6 +7,7 @@
 
 import { AuthUser, UserRole, NotificationPreferences, UserSettings } from '@/features/auth/types'
 import type { UserRow } from '@/features/auth/lib/user-row'
+import { normalizeAccountStatus } from '@/features/auth/lib/account-status'
 import { cache } from 'react'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
@@ -53,7 +54,9 @@ export async function getUserProfile(userId: string): Promise<AuthUser | null> {
       isVerified: Boolean(data.isVerified ?? data.is_verified ?? false),
       createdAt: new Date(data.createdAt || Date.now()),
       lastLogin: new Date(data.lastLogin || Date.now()),
-      accountStatus: (data.account_status as 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED') || 'ACTIVE',
+      accountStatus: normalizeAccountStatus(
+        (data.account_status as string | undefined) ?? (data.accountStatus as string | undefined),
+      ) as 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED',
       bio: data.bio || undefined,
       canPostconfidentialOpportunities: data.canPostconfidentialOpportunities || false,
       canViewconfidentialOpportunities: data.canViewconfidentialOpportunities || false,

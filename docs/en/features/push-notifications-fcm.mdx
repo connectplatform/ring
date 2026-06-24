@@ -1,7 +1,7 @@
 ---
 title: Push Notifications with FCM (Ring-Powered)
 description: Implement web and cross-platform push notifications using Firebase Cloud Messaging with Ring's Server Action token flow, shared DB layer, and lifecycle management.
-last_modified: 2026-02-27
+last_modified: "2026-06-20"
 ---
 
 # Push Notifications with FCM (Ring-Powered)
@@ -22,7 +22,7 @@ Ring Platform stores FCM tokens in your primary database (PostgreSQL or Firestor
 <Mermaid title="Ring-powered FCM registration and delivery">{`
 flowchart LR
   subgraph client["Client"]
-    React["React app\n(useFCMToken)"]
+    React["React app\n(useFCM + FCMProvider)"]
     NonReact["Non-React\n(mobile, API)"]
   end
   subgraph server["Server"]
@@ -32,7 +32,7 @@ flowchart LR
     Selector["BackendSelector"]
   end
   subgraph storage["Storage"]
-    PG[(PostgreSQL\nfcm_tokens)]
+    PG[(PostgreSQL\nfcm_tokens JSONB)]
     FS[(Firestore\nfcm_tokens)]
   end
   React -->|primary| SA
@@ -43,6 +43,18 @@ flowchart LR
   Selector -->|k8s / supabase| PG
   Selector -->|firebase-full| FS
 `}</Mermaid>
+
+<Cards>
+  <Card title="Notifications API" href="/docs/api/notifications">
+    FCM register/unregister endpoints and realtime tunnel delivery.
+  </Card>
+  <Card title="useAuth sign-out" href="/docs/development/code-structure#hooks-and-providers">
+    `signOut()` unregisters this device's FCM token before session ends.
+  </Card>
+  <Card title="Backend modes" href="/docs/architecture/backend-modes-and-databases">
+    Postgres-primary vs full Firebase and `DB_HYBRID_MODE`.
+  </Card>
+</Cards>
 
 ## Prerequisites
 
@@ -94,43 +106,32 @@ When the Firebase SDK emits a new token (for example via `onTokenRefresh`), call
 
 </Steps>
 
-Example: registering and refreshing the token from a client component.
+Example: `FCMProvider` wraps `useFCM` in the app shell — prefer that over ad-hoc copies.
 
-<Code language="typescript" title="Example: register FCM token from a client component">{`'use client';
+<Code language="typescript" title="useFCM — token registration via Server Action">{`'use client';
 
-import { useEffect, useRef } from 'react';
-import { getToken, getMessaging, onMessage } from 'firebase/messaging';
-import { upsertFcmToken } from '@/app/_actions/fcm';
+import { useFCM } from '@/hooks/use-fcm';
+import { useAuth } from '@/hooks/use-auth';
 
-const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+export function NotificationControls() {
+  const { permission, requestPermission, token, isSupported } = useFCM();
+  const { signOut } = useAuth();
 
-export function useFCMToken(deviceFingerprint: string) {
-  const lastTokenRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !VAPID_KEY || !deviceFingerprint) return;
-
-    const messaging = getMessaging();
-    Notification.requestPermission().then((permission) => {
-      if (permission !== 'granted') return;
-      getToken(messaging, { vapidKey: VAPID_KEY })
-        .then((token) => {
-          if (token && token !== lastTokenRef.current) {
-            lastTokenRef.current = token;
-            upsertFcmToken({
-              token,
-              deviceFingerprint,
-              deviceInfo: {
-                platform: navigator.platform,
-                userAgent: navigator.userAgent,
-              },
-              platform: 'web',
-            });
-          }
-        })
-        .catch(console.error);
-    });
-  }, [deviceFingerprint]);
+  return (
+    <div>
+      {!isSupported ? <p>Push not available</p> : null}
+      {permission !== 'granted' ? (
+        <button type="button" onClick={() => requestPermission()}>
+          Enable notifications
+        </button>
+      ) : (
+        <p>Registered token: {token ? 'active' : 'pending…'}</p>
+      )}
+      <button type="button" onClick={() => signOut({ redirectTo: '/login' })}>
+        Sign out (unregisters FCM for this device)
+      </button>
+    </div>
+  );
 }`}</Code>
 
 ## Non-React Clients: API Route
@@ -187,7 +188,8 @@ VAPID private key and Firebase service account credentials must never be exposed
 
 On logout or when the user disables push:
 
-- **Browser / React** — Call `deleteToken(messaging)` from the Firebase client SDK, then unregister on the server. Send `DELETE /api/notifications/fcm/register` with body `{ "deviceFingerprint": "same-uuid-as-register" }`. Idempotent; safe to call even if the row is already removed or invalidated.
+- **Browser / React** — Call `useAuth().signOut()`. It runs `unregisterCurrentDeviceFcmToken()` (Firebase `deleteToken` + server invalidation by `deviceFingerprint`) before Auth.js sign-out. `FCMProvider` also exposes disable flows via `fcm-provider.tsx`.
+- **Manual disable** — `DELETE /api/notifications/fcm/register` with body `{ "deviceFingerprint": "same-uuid-as-register" }` for non-React clients.
 - **Non-React** — Same `DELETE` request with the same `deviceFingerprint` used at registration.
 
 The server marks the row as `status: 'invalid'` and sets `invalidatedAt`; delivery to that token is stopped.
@@ -204,5 +206,5 @@ The server marks the row as `status: 'invalid'` and sets `invalidatedAt`; delive
 ## See Also
 
 - [Notifications](/docs/features/notifications) — Overview of notification types, channels, and preferences
-- Schema and migration for `fcm_tokens` (e.g. `data/schema.sql`, `data/migrations/fcm_jsonb_schema.sql`) in your Ring clone
+- Schema and migration for `fcm_tokens`: `data/migrations/016_fcm_jsonb_schema.sql`
 - FCM specialist truth lens (`AI-LEGIOX/legiox-truth-lens/fcm-specialist.json`) for token lifecycle, reactive cleanup, and send path details

@@ -67,8 +67,10 @@ export async function upsertFcmTokenForUser(
       userId,
       token,
       deviceFingerprint,
+      ...(platform ? { platform } : {}),
       deviceInfo: {
         ...(deviceInfo ?? {}),
+        platform: platform ?? (deviceInfo as { platform?: string })?.platform ?? 'web',
         lastSeen: (deviceInfo as { lastSeen?: unknown })?.lastSeen
           ? new Date((deviceInfo as { lastSeen: string }).lastSeen)
           : lastSeen,
@@ -77,6 +79,7 @@ export async function upsertFcmTokenForUser(
       status: 'active' as const,
       lastSeen,
       updatedAt: lastSeen,
+      invalidatedAt: null,
     }
 
     if (existingResult.data.length > 0) {
@@ -98,6 +101,79 @@ export async function upsertFcmTokenForUser(
     return { success: true }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to register FCM token'
+    return { error: message }
+  }
+}
+
+const unregisterParamsSchema = z.object({
+  deviceFingerprint: z
+    .string()
+    .max(DEVICE_FINGERPRINT_MAX)
+    .regex(DEVICE_FINGERPRINT_REGEX)
+    .optional(),
+  token: z.string().min(1).optional(),
+}).refine((v) => Boolean(v.deviceFingerprint || v.token), {
+  message: 'deviceFingerprint or token is required',
+})
+
+export type UnregisterFcmTokenParams = z.infer<typeof unregisterParamsSchema>
+
+/**
+ * Unregister FCM token for a user (logout). Prefer deviceFingerprint; token is fallback.
+ */
+export async function unregisterFcmTokenForUser(
+  userId: string,
+  params: UnregisterFcmTokenParams,
+): Promise<UpsertFcmTokenResult> {
+  const parsed = unregisterParamsSchema.safeParse(params)
+  if (!parsed.success) {
+    const first = parsed.error.issues?.[0]?.message ?? 'Validation failed'
+    return { error: first }
+  }
+
+  const { deviceFingerprint, token } = parsed.data
+  const now = new Date()
+
+  try {
+    const filters =
+      deviceFingerprint != null
+        ? [
+            { field: 'userId', operator: '==' as const, value: userId },
+            { field: 'deviceFingerprint', operator: '==' as const, value: deviceFingerprint },
+          ]
+        : [
+            { field: 'userId', operator: '==' as const, value: userId },
+            { field: 'token', operator: '==' as const, value: token! },
+          ]
+
+    const existingResult = await db().queryDocs<FcmTokenRow>({
+      collection: 'fcm_tokens',
+      filters,
+    })
+
+    if (!existingResult.success) {
+      return { error: existingResult.error?.message ?? 'Failed to find FCM token' }
+    }
+
+    if (existingResult.data.length === 0) {
+      return { success: true }
+    }
+
+    for (const row of existingResult.data) {
+      const updateResult = await db().updateDoc('fcm_tokens', row.id, {
+        isActive: false,
+        status: 'invalid',
+        invalidatedAt: now,
+        updatedAt: now,
+      })
+      if (!updateResult.success) {
+        return { error: updateResult.error?.message ?? 'Failed to unregister FCM token' }
+      }
+    }
+
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to unregister FCM token'
     return { error: message }
   }
 }

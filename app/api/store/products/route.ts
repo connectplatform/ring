@@ -1,8 +1,9 @@
 import { NextResponse, connection} from 'next/server'
 import { getStoreAdapter } from '@/features/store/config'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { getVendorByUserId } from '@/features/store/services/get-vendor-by-user'
+import { isVisibleOnMainStore } from '@/features/store/lib/product-document'
 
 export async function POST(request: Request) {
   await connection() // Next.js 16: opt out of prerendering
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     let vendorName: string
 
     // Admin/Superadmin: Use Ring Portal Store
-    if (userRole === UserRole.admin || userRole === UserRole.superadmin) {
+    if (isPlatformAdmin(session.user.role)) {
       vendorId = 'vendor_ring_portal_store'
       vendorName = 'Ring Portal Store'
     } else {

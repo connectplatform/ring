@@ -8,7 +8,10 @@
 
 import { useEffect, useState, useCallback, useRef, useOptimistic } from 'react'
 import { useSession } from 'next-auth/react'
-import { useTunnel, useTunnelNotifications, useTunnelMessages } from './use-tunnel'
+import { useTunnel } from './use-tunnel'
+import { useTunnelChannel } from './use-tunnel-channel'
+import { useNotificationContext } from '@/features/notifications/components/notification-provider'
+import { NotificationType } from '@/features/notifications/types'
 import { TunnelConnectionState, TunnelMessage } from '@/lib/tunnel/types'
 
 /**
@@ -83,54 +86,123 @@ interface NotificationData {
   read?: boolean
 }
 
-export function useRealtimeNotifications() {
-  const { notifications: tunnelNotifications, clearNotifications } = useTunnelNotifications({
-    autoConnect: false, // Let TunnelProvider handle this
-    debug: false // Disable debug to prevent spam
-  })
-  const [unreadCount, setUnreadCount] = useState(0)
-  
-  // Convert tunnel messages to notification format
-  const notifications: NotificationData[] = tunnelNotifications.map(msg => ({
-    id: msg.id,
-    type: msg.payload?.type || 'notification',
-    title: msg.payload?.title || '',
-    body: msg.payload?.body || '',
-    timestamp: new Date(msg.metadata?.timestamp || Date.now()),
-    priority: msg.payload?.priority || 'normal',
-    data: msg.payload?.data,
-    read: msg.payload?.read || false,
-  }))
+export interface UseRealtimeNotificationsOptions {
+  /** When set, only prepend notifications matching these types. */
+  types?: NotificationType[]
+}
 
-  // Calculate unread count
-  useEffect(() => {
-    const unread = notifications.filter(n => !n.read).length
-    setUnreadCount(unread)
-  }, [notifications])
+export function useRealtimeNotifications(options: UseRealtimeNotificationsOptions = {}) {
+  const { types } = options
+  const allowedTypesRef = useRef(types)
+  allowedTypesRef.current = types
 
-  // Mark notifications as read
-  const markAsRead = useCallback(async (notificationIds: string[]) => {
-    // In a real implementation, this would update the backend
-    // For now, we'll just update locally
-    console.log('Marking as read:', notificationIds)
+  const { refreshUnreadCount } = useNotificationContext()
+  const [notifications, setNotifications] = useState<NotificationData[]>([])
+
+  const matchesTypeFilter = useCallback((notificationType: string) => {
+    const allowed = allowedTypesRef.current
+    if (!allowed || allowed.length === 0) {
+      return true
+    }
+    return allowed.includes(notificationType as NotificationType)
   }, [])
 
+  const mapInboxPayload = useCallback((payload: Record<string, unknown>): NotificationData | null => {
+    const action = String(payload?.action ?? payload?.type ?? 'notification')
+    if (action !== 'notification') {
+      return null
+    }
+    const raw = payload?.notification as Record<string, unknown> | undefined
+    if (!raw?.id || !raw?.title) {
+      return null
+    }
+    const notificationType = String(raw.type ?? 'notification')
+    if (!matchesTypeFilter(notificationType)) {
+      return null
+    }
+    return {
+      id: String(raw.id),
+      type: notificationType,
+      title: String(raw.title),
+      body: String(raw.body ?? ''),
+      timestamp: raw.createdAt ? new Date(String(raw.createdAt)) : new Date(),
+      priority: (raw.priority as NotificationData['priority']) ?? 'normal',
+      data: (raw.data as Record<string, unknown>) ?? {},
+      read: Boolean(raw.readAt),
+    }
+  }, [matchesTypeFilter])
+
+  const handleInboxPayload = useCallback((payload: Record<string, unknown>) => {
+    const action = String(payload?.action ?? payload?.type ?? 'notification')
+
+    if (action === 'read' && payload.notificationId) {
+      const id = String(payload.notificationId)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      )
+      void refreshUnreadCount()
+      return
+    }
+
+    if (action === 'read_all') {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      void refreshUnreadCount()
+      return
+    }
+
+    if (action === 'delete' && payload.notificationId) {
+      const id = String(payload.notificationId)
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+      void refreshUnreadCount()
+      return
+    }
+
+    const mapped = mapInboxPayload(payload)
+    if (!mapped) {
+      if (action === 'notification') {
+        void refreshUnreadCount()
+      }
+      return
+    }
+    setNotifications((prev) => [mapped, ...prev.filter((n) => n.id !== mapped.id)].slice(0, 50))
+    void refreshUnreadCount()
+  }, [mapInboxPayload, refreshUnreadCount])
+
+  const { isConnected } = useTunnelChannel<Record<string, unknown>>({
+    channel: 'notifications:inbox',
+    enabled: true,
+    onMessage: handleInboxPayload,
+  })
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([])
+  }, [])
+
+  const markAsRead = useCallback(async (notificationIds: string[]) => {
+    setNotifications((prev) =>
+      prev.map((n) => (notificationIds.includes(n.id) ? { ...n, read: true } : n)),
+    )
+    void refreshUnreadCount()
+  }, [refreshUnreadCount])
+
   const markAllAsRead = useCallback(async () => {
-    const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
-    await markAsRead(unreadIds)
-  }, [notifications, markAsRead])
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    void refreshUnreadCount()
+  }, [refreshUnreadCount])
+
+  const unreadCount = notifications.filter((n) => !n.read).length
 
   return {
     notifications,
     unreadCount,
+    isConnected,
     lastNotification: notifications[0] || null,
     markAsRead,
     markAllAsRead,
     clearNotifications,
     refresh: () => {
-      // Trigger a refresh if needed
-      console.log('Refreshing notifications')
-    }
+      void refreshUnreadCount()
+    },
   }
 }
 
@@ -151,10 +223,20 @@ export type { Message }
 
 export function useRealtimeMessages(conversationId?: string) {
   const channel = conversationId ? `conversation:${conversationId}` : 'messages'
-  const { messages: tunnelMessages, sendMessage } = useTunnelMessages(channel)
+  const { publish } = useTunnel({ autoConnect: false })
+  const [tunnelMessages, setTunnelMessages] = useState<TunnelMessage[]>([])
   const [typingUsers, setTypingUsers] = useState<Map<string, Date>>(new Map())
-  
-  // Convert tunnel messages to message format
+
+  const handleTunnelMessage = useCallback((message: TunnelMessage) => {
+    setTunnelMessages((prev) => [...prev, message])
+  }, [])
+
+  useTunnelChannel({
+    channel,
+    enabled: Boolean(channel),
+    onTunnelMessage: handleTunnelMessage,
+  })
+
   const messages: Message[] = tunnelMessages
     .filter(msg => msg.payload?.conversationId === conversationId || !conversationId)
     .map(msg => ({
@@ -197,8 +279,8 @@ export function useRealtimeMessages(conversationId?: string) {
       timestamp: Date.now(),
     }
 
-    await sendMessage(message)
-  }, [conversationId, sendMessage])
+    await publish(channel, 'message', message)
+  }, [conversationId, channel, publish])
 
   // Typing indicators
   const startTyping = useCallback(() => {
@@ -234,39 +316,33 @@ interface UserPresence {
 export function useRealtimePresence() {
   const [presence, setPresence] = useState<Map<string, UserPresence>>(new Map())
   const tunnel = useTunnel({
-    autoConnect: false, // Let TunnelProvider handle this
-    debug: false // Disable debug to prevent spam
+    autoConnect: false,
+    debug: false,
   })
-  
-  // Stable references to avoid re-subscriptions
-  const isConnected = tunnel.isConnected
-  const subscribe = tunnel.subscribe
-  const publish = tunnel.publish
 
-  useEffect(() => {
-    if (!isConnected) return
-
-    // Subscribe to presence channel - only subscribe once per connection
-    const unsubscribe = subscribe('presence', (message) => {
-      if (message.payload?.userId) {
-        setPresence(prev => {
-          const updated = new Map(prev)
-          updated.set(message.payload.userId, {
-            userId: message.payload.userId,
-            status: message.payload.status || 'online',
-            lastSeen: new Date(message.payload.lastSeen || Date.now()),
-          })
-          return updated
+  const handlePresenceMessage = useCallback((message: TunnelMessage) => {
+    if (message.payload?.userId) {
+      setPresence((prev) => {
+        const updated = new Map(prev)
+        updated.set(message.payload.userId, {
+          userId: message.payload.userId,
+          status: message.payload.status || 'online',
+          lastSeen: new Date(message.payload.lastSeen || Date.now()),
         })
-      }
-    })
+        return updated
+      })
+    }
+  }, [])
 
-    return unsubscribe
-  }, [isConnected, subscribe])
+  useTunnelChannel({
+    channel: 'presence',
+    enabled: true,
+    onTunnelMessage: handlePresenceMessage,
+  })
 
   const updateStatus = useCallback(async (status: 'online' | 'away' | 'offline') => {
-    await publish('presence', 'status', { status })
-  }, [publish])
+    await tunnel.publish('presence', 'status', { status })
+  }, [tunnel])
 
   const onlineUsersList = Array.from(presence.values()).filter(u => u.status === 'online')
   
@@ -291,43 +367,39 @@ export function useRealtimePresence() {
  */
 export function useRealtimeSystemStatus() {
   const tunnel = useTunnel({
-    autoConnect: false, // Let TunnelProvider handle this
-    debug: false // Disable debug to prevent spam
+    autoConnect: false,
+    debug: false,
   })
   const [systemStatus, setSystemStatus] = useState({
     isHealthy: true,
     maintenanceMode: false,
     message: null as string | null,
   })
-  
-  // Stable references to avoid re-subscriptions
-  const isConnected = tunnel.isConnected
-  const subscribe = tunnel.subscribe
+
+  const handleSystemMessage = useCallback((message: TunnelMessage) => {
+    if (message.payload?.type === 'maintenance') {
+      setSystemStatus((prev) => ({
+        ...prev,
+        maintenanceMode: message.payload.enabled,
+        message: message.payload.message,
+      }))
+    } else if (message.payload?.type === 'health') {
+      setSystemStatus((prev) => ({
+        ...prev,
+        isHealthy: message.payload.healthy,
+      }))
+    }
+  }, [])
+
+  useTunnelChannel({
+    channel: 'system',
+    enabled: true,
+    onTunnelMessage: handleSystemMessage,
+  })
+
   const latency = tunnel.latency
   const provider = tunnel.provider
   const health = tunnel.health
-
-  useEffect(() => {
-    if (!isConnected) return
-
-    // Subscribe to system channel - only subscribe once per connection
-    const unsubscribe = subscribe('system', (message) => {
-      if (message.payload?.type === 'maintenance') {
-        setSystemStatus(prev => ({
-          ...prev,
-          maintenanceMode: message.payload.enabled,
-          message: message.payload.message,
-        }))
-      } else if (message.payload?.type === 'health') {
-        setSystemStatus(prev => ({
-          ...prev,
-          isHealthy: message.payload.healthy,
-        }))
-      }
-    })
-
-    return unsubscribe
-  }, [isConnected, subscribe])
 
   return {
     ...systemStatus,

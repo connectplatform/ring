@@ -7,8 +7,7 @@ import { useSession } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import { ROUTES } from '@/constants/routes'
 import { buildOAuthCallbackUrl } from '@/lib/auth/oauth-callback-url'
-import type { Locale } from '@/i18n/shared'
-import { defaultLocale, supportedLocales } from '@/i18n/shared'
+import { localeFromPathname } from '@/lib/pathname-without-locale'
 
 // Type declarations for Google Identity Services
 declare global {
@@ -47,12 +46,7 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
   const [gisLoaded, setGisLoaded] = useState(false)
   const [gisInitialized, setGisInitialized] = useState(false)
 
-  const getLocale = (): Locale => {
-    const pathLocale = pathname?.split('/')[1]
-    return supportedLocales.includes(pathLocale as Locale) ? (pathLocale as Locale) : defaultLocale
-  }
-
-  const locale = getLocale()
+  const locale = localeFromPathname(pathname)
   const oauthCallbackUrl = buildOAuthCallbackUrl(redirectUrl, locale)
 
   // Load GIS script globally
@@ -72,7 +66,7 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
 
     console.log('🟢 Loading Google Identity Services script globally...')
 
-    const hl = getLocale()
+    const hl = localeFromPathname(pathname)
     const script = document.createElement('script')
     script.src = `https://accounts.google.com/gsi/client?hl=${encodeURIComponent(hl)}`
     script.async = true
@@ -97,7 +91,8 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
       return
     }
 
-    if (status === 'authenticated' || session?.user?.email || session?.user?.id) {
+    const sessionUser = session?.user
+    if (status === 'authenticated' || sessionUser?.email || sessionUser?.id) {
       console.log('🟢 Skipping GIS One Tap - user already authenticated')
       if (window.google?.accounts?.id) {
         try {
@@ -120,7 +115,7 @@ export default function GoogleOneTap({ redirectUrl }: GoogleOneTapProps) {
 
       window.google.accounts.id.initialize({
         client_id: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID!,
-        locale: getLocale(),
+        locale: localeFromPathname(pathname),
         callback: async (response: any) => {
           console.log('🟢 One Tap callback received')
           try {

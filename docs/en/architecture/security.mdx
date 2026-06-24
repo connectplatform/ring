@@ -1,14 +1,192 @@
 ---
 title: Security
-description: Security documentation for Ring Platform
+description: Ring Platform security architecture — RBAC, confidential tiers, API hardening, and layout-level auth gates
+last_modified: "2026-06-22"
+audience: both
 ---
 
 # Security Model
 
-- Role-based access control (Subscriber, Member, Confidential, Admin)
-- Confidential entities & opportunities (restricted visibility)
-- API rate limiting and CORS rules
-- ES2022 Error.cause in structured errors
+<Callout type="info">
+  Use **Founder** / **Developer** tabs in the docs sidebar. This page covers the **architecture-level** security model; operational hardening and compliance depth live in [Security & Compliance](../features/security).
+</Callout>
 
+Ring Platform defense is **layered**: Auth.js establishes identity, **layout-level gates** enforce role access before Server Actions run, JSONB rows carry visibility flags, and API routes apply Zod validation plus rate limits. There is no single middleware that replaces domain checks — each layer adds a narrow guarantee.
 
-<Callout type="info">See also: Privacy & GDPR compliance.</Callout>
+## Security layers at a glance
+
+| Layer | Founder view | Developer anchor |
+|-------|--------------|------------------|
+| **Identity** | Magic link, Google, Apple, wallet sign-in | Auth.js v5 — [Authentication](./authentication) |
+| **Roles** | Visitor → Subscriber → Member → Confidential → Admin | `users.data.role` lowercase enum |
+| **Route gates** | Paid tiers unlock posting & confidential reads | Authenticated route layouts call `auth()` |
+| **Data visibility** | Confidential entities/opportunities hidden from public lists | `visibility` fields + cache tags by role |
+| **API surface** | Webhooks verified server-side only | Zod + RBAC in route handlers |
+| **Transport** | HTTPS everywhere; secrets never in MDX | CORS + rate limiting on `/api/*` |
+
+<Audience for="founder">
+
+## What founders configure
+
+### Role ladder (typical clone)
+
+<Cards>
+  <Card title="Subscriber" href="/docs/features/membership">
+    Can browse and receive notifications — baseline community access.
+  </Card>
+  <Card title="Member" href="/docs/features/entities">
+    Can create entities and post public opportunities.
+  </Card>
+  <Card title="Confidential" href="/docs/features/security">
+    Access to confidential listings and deal-room style content.
+  </Card>
+  <Card title="Admin" href="/docs/features/admin">
+    Moderation, analytics, store ERP, news kingdom controls.
+  </Card>
+</Cards>
+
+### Confidential tier — business value
+
+**Confidential entities and opportunities** let you run a **two-speed marketplace**: public discovery for reach, restricted listings for vetted partners (investors, government tenders, M&A). Membership upsell often maps directly to confidential access — see [Membership](../features/membership).
+
+<Callout type="warning" title="Operator rule">
+  Never expose production `AUTH_SECRET`, WayForPay keys, or service accounts in docs widgets, clone READMEs, or client bundles. Ring docs authoring rules forbid embedded secrets.
+</Callout>
+
+### Typical compliance scenarios
+
+- **GDPR delete-my-data** — account deletion flows through Auth.js + Postgres cascades ([Privacy](../features/privacy)).
+- **Payment PCI scope** — card data stays on WayForPay/Stripe; Ring stores order references only ([PaymentConductor](./payment-conductor)).
+- **Regional clone** — wellness/gov rings add audit logging on top of the same RBAC core.
+
+</Audience>
+
+<Audience for="developer">
+
+## Implementation map
+
+<Mermaid title="Request authorization path">
+{`flowchart LR
+  subgraph Edge
+    Proxy[proxy.ts — locale only]
+  end
+  subgraph App
+    Layout[authenticated layout — auth()]
+    SA[Server Action / Route Handler]
+    RBAC[Role + visibility check]
+    DB[(DatabaseService)]
+  end
+  Browser --> Proxy --> Layout --> SA --> RBAC --> DB`}
+</Mermaid>
+
+### Role enum (SSOT)
+
+Persisted on `users.data.role` — lowercase strings validated in Zod:
+
+<Code language="typescript" title="lib/zod/credit-schemas.ts (excerpt)">{`role: z.enum([
+  'visitor',
+  'subscriber',
+  'member',
+  'confidential',
+  'admin',
+  'superadmin',
+])`}</Code>
+
+Permission matrices live in `features/auth/types.ts` (`canViewconfidentialOpportunities`, etc.). Prefer **typed role checks** over ad-hoc boolean flags in new code.
+
+### Layout-level auth gates
+
+`proxy.ts` handles **locale only** — not authentication (v1.6.0 architecture). Protected routes use App Router layouts that call `auth()` and redirect unauthenticated users before children render. See [Authentication](./authentication) and [Proxy & intl](./proxy-and-intl).
+
+### Confidential routes
+
+| Route | Constant |
+|-------|----------|
+| Confidential entities | `/confidential/entities` |
+| Confidential opportunities | `/confidential/opportunities` |
+
+Defined in `constants/routes.ts`. List caches are role-scoped; discovery sync minimizes path churn for confidential hubs ([Discovery mutation sync](./discovery-mutation-sync)).
+
+### API hardening checklist
+
+<Steps>
+<Step>
+
+### Validate input with Zod at the route boundary
+
+Never trust client JSON — mirror Server Action schemas in `/app/api/**`.
+
+</Step>
+<Step>
+
+### Authorize before DatabaseService calls
+
+Check session role + resource ownership (entity `userId`, opportunity poster).
+
+</Step>
+<Step>
+
+### Rate-limit abuse-prone endpoints
+
+Apply limiting on auth, webhook, and public write routes — patterns in [Security & Compliance](../features/security).
+
+</Step>
+<Step>
+
+### Structured errors
+
+Use `Error.cause` (ES2022) for nested failure context in services — aids logging without leaking internals to clients.
+
+</Step>
+</Steps>
+
+### CORS
+
+API routes set explicit CORS for trusted clone origins only — do not widen `Access-Control-Allow-Origin` for convenience in production.
+
+</Audience>
+
+## Related documentation
+
+<Cards>
+  <Card title="Security & Compliance (deep dive)" href="/docs/features/security">
+    Auth.js config, GDPR, PCI notes, Firebase rules legacy paths.
+  </Card>
+  <Card title="Authentication architecture" href="/docs/architecture/authentication">
+    Sessions, Postgres adapter, multi-provider setup.
+  </Card>
+  <Card title="PaymentConductor" href="/docs/architecture/payment-conductor">
+    HMAC webhook verification, idempotent order references.
+  </Card>
+  <Card title="Privacy" href="/docs/features/privacy">
+    Data retention and export for GDPR-facing clones.
+  </Card>
+</Cards>
+
+<FutureFeatureBacklog title="Backlog — security architecture (TBD)">
+
+<FutureFeatureWidget
+  name="Admin route IP allowlist"
+  description="Middleware to restrict /api/admin/* and /admin/* UI to operator CIDR ranges per clone."
+  implementationCost={24}
+  labels={['security', 'admin']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Tamper-evident admin audit log"
+  description="Append-only store for admin mutations (role changes, blocks, verification actions) with export for compliance."
+  implementationCost={56}
+  labels={['security', 'compliance']}
+  voteCount={0}
+/>
+
+<FutureFeatureWidget
+  name="Superadmin 2FA gate"
+  description="Require TOTP/WebAuthn step-up before platform-settings, ProcessConductor manual runs, or Web3 desk changes."
+  implementationCost={40}
+  labels={['security', 'auth']}
+  voteCount={0}
+/>
+
+</FutureFeatureBacklog>

@@ -1,7 +1,6 @@
 import 'server-only'
 
-import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertVerificationAdmin } from '@/features/verification/lib/assert-verification-admin'
 import { db } from '@/lib/database'
 import { EntityPermissionError } from '@/lib/errors'
 import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
@@ -14,12 +13,7 @@ import { notifyVerificationEvent } from '@/features/verification/services/notify
 import type { VerificationProcedureStatus } from '@/features/verification/types/verification-procedure'
 
 async function assertAdminReviewer(): Promise<string> {
-  const session = await auth()
-  const role = session?.user?.role as UserRole | undefined
-  if (!session?.user?.id || (role !== UserRole.admin && role !== UserRole.superadmin)) {
-    throw new EntityPermissionError('Admin access required')
-  }
-  return session.user.id
+  return assertVerificationAdmin()
 }
 
 async function transitionProcedure(
@@ -140,6 +134,21 @@ async function applySubjectOutcome(
 
     await db().updateDoc('entities', procedure.subjectId, patch, { merge: true })
     await syncEntityDiscovery({ entityId: procedure.subjectId, event: 'updated' })
+    return
+  }
+
+  if (procedure.subjectType === 'account_restore') {
+    if (procedure.status === 'approved') {
+      const { reactivateUser } = await import('@/features/auth/services/user-account-status')
+      const { sendAccountReactivateNotification } = await import(
+        '@/app/_actions/admin-account-status'
+      )
+      await reactivateUser(procedure.subjectId, {
+        actorUserId: procedure.reviewerUserId || 'system',
+        note: `Restored via verification procedure ${procedure.procedureNumber}`,
+      })
+      await sendAccountReactivateNotification(procedure.subjectId)
+    }
   }
 }
 

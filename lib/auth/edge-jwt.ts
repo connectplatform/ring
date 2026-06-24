@@ -5,11 +5,16 @@
 
 import { SignJWT, jwtVerify } from 'jose';
 
-// Get secret from environment
+// Tunnel/WebSocket JWT signing — optional dedicated secret, falls back to Auth.js secret
 const getJwtSecret = () => {
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  const secret =
+    process.env.TUNNEL_JWT_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET;
   if (!secret) {
-    throw new Error('AUTH_SECRET or NEXTAUTH_SECRET must be set');
+    throw new Error(
+      'TUNNEL_JWT_SECRET, AUTH_SECRET, or NEXTAUTH_SECRET must be set for tunnel token signing'
+    );
   }
   return new TextEncoder().encode(secret);
 };

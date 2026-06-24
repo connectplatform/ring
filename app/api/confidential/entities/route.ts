@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
-import { getConfidentialEntities } from '@/features/entities/services/get-confidential-entities';
-import { assertKnownUserRole, hasConfidentialAccess } from '@/features/auth/user-role'
+import { getConfidentialEntities } from '@/features/entities/services/get-entities';
+import { hasConfidentialAccess } from '@/features/auth/user-role'
 
 export async function GET(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -51,8 +51,6 @@ export async function GET(request: NextRequest) {
       sort,
       filter,
       startAfter,
-      userId: session.user.id,
-      userRole: assertKnownUserRole(session.user.role),
     });
 
     console.log('API: /api/confidential/entities - entities retrieved:', { 

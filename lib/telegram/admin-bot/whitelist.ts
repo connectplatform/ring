@@ -13,7 +13,7 @@
  */
 
 import { db } from '@/lib/database'
-import { UserRole } from '@/features/auth/types'
+import { PLATFORM_ADMIN_ROLES } from '@/features/auth/user-role'
 
 interface WhitelistCache {
   ids: Set<string>
@@ -48,7 +48,7 @@ export async function getAdminTelegramIds(): Promise<string[]> {
         {
           field: 'role',
           operator: 'in',
-          value: [UserRole.admin, UserRole.superadmin],
+          value: PLATFORM_ADMIN_ROLES,
         },
       ],
     })
@@ -103,7 +103,7 @@ export async function getUserIdFromTelegramId(chatId: string): Promise<string | 
         {
           field: 'role',
           operator: 'in',
-          value: [UserRole.admin, UserRole.superadmin],
+          value: PLATFORM_ADMIN_ROLES,
         },
       ],
     })

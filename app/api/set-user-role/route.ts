@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Prevent self-demotion from admin (unless there are other admins)
-    if (session.user.id === uid && session.user.role === 'admin' && role !== 'admin') {
+    if (session.user.id === uid && isPlatformAdmin(session.user.role) && !isPlatformAdmin(role)) {
       console.log(`API: /api/set-user-role - Admin ${session.user.id} attempted self-demotion`);
       return NextResponse.json({ 
         message: 'Warning: Admin self-demotion prevented. Please contact another administrator.' 

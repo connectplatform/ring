@@ -125,6 +125,14 @@
     "verified": "Verified {role}"
   },
   "docs_sidebar": {
+    "searchPlaceholder": "Filter docs by title…",
+    "audience": {
+      "title": "Reading as",
+      "founder": "Founder",
+      "developer": "Developer",
+      "founderHint": "Concepts, value, and typical clone scenarios — less code.",
+      "developerHint": "Schema, APIs, commands, and integration snippets."
+    },
     "portal": {
       "treeSectionTitle": "Ring Platform · library index",
       "quickLinksTitle": "Quick entry (CTOs · auditors · agents)",
@@ -223,7 +231,6 @@
       "apiExamples": "API Examples",
       "customBranding": "Custom Branding",
       "whiteLabel": "White Label",
-      "multiTenant": "Multi-tenant",
       "web3Integration": "Web3 Integration",
       "appleSignin": "Apple Sign-in",
       "integrations": "Third-party Integrations",
@@ -233,7 +240,6 @@
       "customizationGuide": "Customization Guide",
       "databaseSelection": "Database Selection",
       "tokenEconomics": "Token Economics",
-      "multiTenantSetup": "Multi-tenant Setup",
       "aiCustomization": "AI Customization",
       "successStories": "Success Stories",
       "multiVendorStore": "Multi-Vendor Store",

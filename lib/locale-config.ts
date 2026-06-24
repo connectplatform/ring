@@ -227,11 +227,15 @@ const LOCALE_SELECT_FLAGS: Partial<Record<string, string>> = {
 
 export function getLocaleSelectOptions(): Array<{ value: Locale; label: string }> {
   return SUPPORTED_LOCALES.map((value) => {
-    const flag = LOCALE_SELECT_FLAGS[value] ?? ''
+    const flag = localeFlagEmoji(value)
     const title = localeNativeTitle(value)
     return {
       value,
       label: flag ? `${flag} ${title}` : title,
     }
   })
+}
+
+export function localeFlagEmoji(code: string): string {
+  return LOCALE_SELECT_FLAGS[code] ?? ''
 }

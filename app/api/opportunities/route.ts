@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth'; 
 import { getOpportunitiesForRole } from '@/features/opportunities/services/get-opportunities';
-import { UserRole } from '@/features/auth/types';
+import { resolveSessionUserRole } from '@/features/auth/user-role';
 
 /**
  * GET handler for /api/opportunities
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Step 3: Determine user role for filtering
-    const userRole: UserRole = (session.user.role as UserRole) || UserRole.subscriber;
+    const userRole = resolveSessionUserRole(session.user.role);
     console.log('API: /api/opportunities - User role:', userRole);
 
     // Step 4: Parse query parameters for pagination
@@ -53,9 +53,15 @@ export async function GET(req: NextRequest) {
       hasMore: !!lastVisible,
     });
 
-    // Step 7: Return the opportunities and pagination info
+    // Step 7: Return the opportunities and pagination info (SSOT + legacy aliases)
     return NextResponse.json(
-      { opportunities, lastVisible }, 
+      {
+        opportunities,
+        items: opportunities,
+        lastVisible,
+        cursor: lastVisible,
+        hasMore: !!lastVisible,
+      },
       { 
         status: 200,
         headers: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditBalanceResponseSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest) {
         creditBalance = {
           amount: '0',
           usd_equivalent: '0',
+          fiat_currency: 'USD',
           last_updated: Date.now(),
           subscription_active: false,
         };
@@ -146,7 +148,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check admin role
-    if (session.user.role !== 'admin') {
+    if (!isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

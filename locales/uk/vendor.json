@@ -92,6 +92,8 @@
     "myProducts": "Мої продукти",
     "addProduct": "Додати продукт",
     "editProduct": "Редагувати продукт",
+    "createSubtitle": "Додайте новий продукт до вашого магазину",
+    "editSubtitle": "Оновіть дані продукту",
     "noProducts": "У вас ще немає доданих продуктів",
     "addFirstProduct": "Додайте перший продукт, щоб почати продаж",
     "totalProducts": "{count} продуктів",
@@ -144,6 +146,9 @@
     },
 
     "form": {
+      "productDetails": "Деталі продукту",
+      "mainPhoto": "Головне фото",
+      "addPhoto": "Додати фото",
       "photo": "Фото продукту",
       "photoHint": "Завантажте 1-5 якісних фото. Перше фото буде головним.",
       "photoPlaceholder": "Перетягніть фото або натисніть для вибору",
@@ -155,8 +160,9 @@
       "category": "Категорія",
       "categoryHint": "Оберіть найбільш відповідну категорію",
       "categoryPlaceholder": "Оберіть категорію...",
+      "priceLabel": "Ціна ({currency})",
       "priceUAH": "Ціна (грн)",
-      "priceHint": "Ціна в українських гривнях",
+      "priceHint": "Введіть ціну в {currency}",
       "pricePlaceholder": "100.00",
       "stock": "Кількість на складі",
       "stockHint": "Доступні одиниці",
@@ -177,7 +183,10 @@
       "cancel": "Скасувати",
       "referralCommission": "Реферальна комісія %",
       "referralCommissionHint": "Необов'язково. Залиште порожнім, щоб успадкувати ставку продавця або платформи.",
-      "referralCommissionPlaceholder": "Успадкувати ({percent}%)"
+      "referralCommissionPlaceholder": "Успадкувати ({percent}%)",
+      "rep": "Представник товару",
+      "repHint": "Необов'язково. Призначте користувача Ring за ім'ям користувача.",
+      "repPlaceholder": "Пошук за username…"
     },
 
     "validation": {

@@ -11,6 +11,8 @@
   "searchUsersPlaceholder": "Search by username or name…",
   "searchingUsers": "Searching…",
   "noUsersFound": "No users found",
+  "fromContacts": "From contacts",
+  "fromContactsTitle": "Message a contact",
   "messageUser": "Message {name}",
   "messageUserFallback": "user",
   "entityChatEmpty": "No conversation yet. Visitors can start a chat about this entity."

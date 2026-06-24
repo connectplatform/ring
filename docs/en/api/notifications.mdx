@@ -1,7 +1,7 @@
 ---
 title: Notifications API
 description: Complete API documentation for Ring Platform's notification system with real-time delivery, FCM push notifications, and comprehensive management
-last_modified: "2025-10-16"
+last_modified: "2026-06-20"
 ---
 
 
@@ -282,25 +282,30 @@ Update user notification preferences.
 
 ### `POST /api/notifications/fcm/register`
 
-Register FCM token for push notifications.
+Register FCM token for push notifications. **React apps should prefer the `upsertFcmToken` Server Action** (`app/_actions/fcm.ts`) — this route is rate-limited for non-React clients.
 
 #### Request Body
 
-<Code language="json" title="{">
-{`"token": "fcm_token_from_firebase_sdk",
-  "deviceType": "web",
-  "deviceId": "unique-device-identifier",
-  "userAgent": "Mozilla/5.0..."
+<Code language="json" title="Register body">
+{`{
+  "token": "fcm_token_from_firebase_sdk",
+  "deviceFingerprint": "stable-uuid-per-device",
+  "deviceInfo": {
+    "platform": "web",
+    "userAgent": "Mozilla/5.0..."
+  },
+  "platform": "web"
 }`}
 </Code>
 
+<Callout type="info" title="Server-derived user">
+The authenticated user id comes from `auth()` — never send `userId` in the body. One row per `(user_id, device_fingerprint)`; token rotation updates the same row.
+</Callout>
+
 #### Response
 
-<Code language="json" title="{">
-{`"registered": true,
-  "tokenId": "fcm_123456",
-  "previousToken": "fcm_123455"
-}`}
+<Code language="json" title="Success">
+{`{ "success": true }`}
 </Code>
 
 ### `POST /api/notifications/bulk`
@@ -388,7 +393,7 @@ await publishToUserTunnel(userId, 'notifications:unread', { count })
 
 ### Client
 
-`NotificationProvider` uses `useUnreadCount` → `useSync` on channel `notifications:unread`. When the tunnel is connected, the badge updates without waiting for the poll interval.
+`NotificationProvider` uses `useUnreadCount` → `useSync` on channel `notifications:unread`. Nav badges should call `useNotificationContext()` — not duplicate `useUnreadCount()` in layout widgets.
 
 See [Tunnel protocol](/en/docs/features/tunnel-protocol) for routes and configuration.
 
@@ -396,60 +401,53 @@ See [Tunnel protocol](/en/docs/features/tunnel-protocol) for routes and configur
 
 ### FCM Integration
 
-Ring Platform integrates with Firebase Cloud Messaging for cross-platform push notifications.
+Ring Platform integrates with Firebase Cloud Messaging. Browser registration SSOT: `hooks/use-fcm.ts` inside `FCMProvider`, persisting via `upsertFcmToken` Server Action. Logout SSOT: `useAuth().signOut()` unregisters the device token.
 
-#### Client Setup
+<Callout type="tip" title="Primary path">
+Do not `fetch('/api/notifications/fcm/register')` from React — use the Server Action. Reserve the API route for mobile and external clients.
+</Callout>
 
-// Initialize Firebase
+#### Client setup (SSOT)
 
-<Code language="typescript" title="TypeScript">
-{`import { initializeApp } from 'firebase/app'
-import { getMessaging, getToken, onMessage } from 'firebase/messaging'
+<Code language="typescript" title="useFCM + useAuth">
+{`import { useFCM } from '@/hooks/use-fcm'
+import { useAuth } from '@/hooks/use-auth'
 
-const app = initializeApp(firebaseConfig)
-const messaging = getMessaging(app)
+// FCMProvider in app-client-shell wraps useFCM — handles permission,
+// getToken, upsertFcmToken Server Action, and onMessage foreground toasts.
 
-// Request permission and get token
-const token = await getToken(messaging, {
-  vapidKey: 'your-vapid-key'
-})
+const { requestPermission, token } = useFCM()
+const { signOut } = useAuth()
 
-// Register token with Ring Platform
-await fetch('/api/notifications/fcm/register', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ token, deviceType: 'web' })
-})
-
-// Handle incoming messages
-onMessage(messaging, (payload) => {
-  console.log('Push notification received:', payload)
-  showNotification(payload.notification)
-})`}
+await signOut() // unregisters FCM for this device before session ends`}
 </Code>
 
 #### Service Worker
 
-// public/firebase-messaging-sw.js
+`public/firebase-messaging-sw.js` — Firebase **12.x** compat scripts for background messages.
 
-<Code language="javascript" title="JavaScript">
-{`importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js')
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js')
+<Code language="javascript" title="firebase-messaging-sw.js (excerpt)">
+{`importScripts('https://www.gstatic.com/firebasejs/12.9.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/12.9.0/firebase-messaging-compat.js')
 
-const app = firebase.initializeApp(firebaseConfig)
+firebase.initializeApp({
+  apiKey: '…',
+  projectId: '…',
+  messagingSenderId: '…',
+  appId: '…',
+})
+
 const messaging = firebase.messaging()
-
 messaging.onBackgroundMessage((payload) => {
-  console.log('Background message:', payload)
-  
   self.registration.showNotification(payload.notification.title, {
     body: payload.notification.body,
     icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
-    data: payload.data
+    data: payload.data,
   })
 })`}
 </Code>
+
+See [Push notifications (FCM)](/docs/features/push-notifications-fcm) for the full lifecycle, migration `016_fcm_jsonb_schema.sql`, and troubleshooting.
 
 ## 🎯 Notification Types
 

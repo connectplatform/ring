@@ -5,6 +5,7 @@ import {
   createDocument
 } from '@/lib/services/firebase-service-manager';
 import { auth } from '@/auth';
+import { isPlatformAdmin } from '@/features/auth/user-role';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NewsCategoryInfo, NewsCategory } from '@/features/news/types';
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    if (session.user.role !== 'admin') {
+    if (!isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

@@ -93,6 +93,7 @@ export class UserCreditService {
       const initialBalance: UserCreditBalance = {
         amount: '0',
         usd_equivalent: '0',
+        fiat_currency: 'USD',
         last_updated: Date.now(),
         subscription_active: false,
       };
@@ -191,6 +192,7 @@ export class UserCreditService {
       const currentBalance = userData.credit_balance || {
         amount: '0',
         usd_equivalent: '0',
+        fiat_currency: 'USD',
         last_updated: Date.now(),
         subscription_active: false,
       };
@@ -222,6 +224,7 @@ export class UserCreditService {
         ...currentBalance,
         amount: newAmount,
         usd_equivalent: (parseFloat(currentBalance.usd_equivalent) + parseFloat(usdEquivalent)).toString(),
+        fiat_currency: currentBalance.fiat_currency ?? 'USD',
         last_updated: Date.now(),
         last_transaction_id: transactionId,
       };
@@ -329,6 +332,7 @@ export class UserCreditService {
         ...currentBalance,
         amount: newAmount,
         usd_equivalent: (parseFloat(currentBalance.usd_equivalent) - parseFloat(usdEquivalent)).toString(),
+        fiat_currency: currentBalance.fiat_currency ?? 'USD',
         last_updated: Date.now(),
         last_transaction_id: transactionId,
       };
@@ -558,12 +562,6 @@ export class UserCreditService {
     };
   }
 
-  /**
-   * Publish balance update via Tunnel for real-time UI updates
-   * Replaces polling with push-based updates
-   * 
-   * @see AI-CONTEXT: tunnel-protocol-firebase-rtdb-analog-2025-11-07
-   */
   private async publishBalanceUpdate(userId: string, balance: UserCreditBalance): Promise<void> {
     try {
       // Format balance data for client consumption
@@ -601,6 +599,42 @@ export class UserCreditService {
         error: error instanceof Error ? error.message : error
       });
     }
+  }
+
+  /**
+   * Spend fiat USD credits (ring-platform.org SSOT: credit_balance is always fiat, never RING).
+   */
+  async spendFiatUsd(
+    userId: string,
+    usdAmount: string,
+    description: string,
+    type: CreditTransactionType = 'desk_buy',
+    metadata?: Record<string, unknown>,
+  ) {
+    return this.spendCredits(
+      userId,
+      { amount: usdAmount, description, metadata },
+      type,
+      '1',
+    )
+  }
+
+  /**
+   * Add fiat USD credits (amount and usd_equivalent both USD; usd_rate = 1).
+   */
+  async addFiatUsd(
+    userId: string,
+    usdAmount: string,
+    description: string,
+    type: CreditTransactionType = 'desk_sell',
+    metadata?: Record<string, unknown>,
+  ) {
+    return this.addCredits(
+      userId,
+      { amount: usdAmount, description, metadata },
+      type,
+      '1',
+    )
   }
 }
 

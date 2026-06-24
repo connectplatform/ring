@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server'
 import { db } from '@/lib/database'
 import { auth } from '@/auth'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { revalidatePath } from 'next/cache'
 import { NewsCategory } from '@/features/news/types'
 
@@ -63,7 +64,7 @@ export async function PUT(
     }
 
     // Check if user is admin
-    if (session.user.role !== 'admin') {
+    if (!isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -137,7 +138,7 @@ export async function DELETE(
     }
 
     // Check if user is admin
-    if (session.user.role !== 'admin') {
+    if (!isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

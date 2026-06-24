@@ -5,7 +5,16 @@ import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/routing'
-import { MessageCircle, ArrowLeft, Radio } from 'lucide-react'
+import { MessageCircle, ArrowLeft, Radio, Users } from 'lucide-react'
+import { useLocale } from 'next-intl'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ContactPicker, type ContactPickerSelection } from '@/components/contacts'
+import type { Locale } from '@/i18n/shared'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -23,6 +32,8 @@ import { cn } from '@/lib/utils'
  */
 export default function MessagesContent() {
   const t = useTranslations('common')
+  const tMessenger = useTranslations('modules.messenger')
+  const locale = useLocale() as Locale
   const router = useRouter()
   const { data: session, status } = useSession()
   const { isConnected, connectionState, provider, latency, error: tunnelError } = useTunnel()
@@ -33,6 +44,7 @@ export default function MessagesContent() {
   const [selectedId, setSelectedId] = useState<string | null>(paramC)
   const [showListMobile, setShowListMobile] = useState(true)
   const [showNewConv, setShowNewConv] = useState(false)
+  const [showFromContacts, setShowFromContacts] = useState(false)
   const deepLinkHandledRef = useRef<string | null>(null)
 
   const inbox = useConversations()
@@ -106,6 +118,16 @@ export default function MessagesContent() {
     setShowListMobile(true)
   }, [])
 
+  const handleContactPickerSelect = useCallback(
+    (selection: ContactPickerSelection) => {
+      const targetUserId =
+        selection.kind === 'user' ? selection.user.id : selection.contact.contactUserId
+      setShowFromContacts(false)
+      void openDirectConversation(targetUserId)
+    },
+    [openDirectConversation],
+  )
+
   if (status === 'loading') {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground min-h-[320px]">
@@ -142,6 +164,17 @@ export default function MessagesContent() {
           <MessageCircle className="h-5 w-5" aria-hidden />
           Ring Messenger
         </h1>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowFromContacts(true)}
+          >
+            <Users className="h-4 w-4" aria-hidden />
+            {tMessenger('fromContacts')}
+          </Button>
         <div
           className="flex items-center gap-2 text-xs text-muted-foreground"
           title="Ring tunnel transport (realtime push for this session)"
@@ -155,6 +188,7 @@ export default function MessagesContent() {
             {typeof latency === 'number' && latency > 0 ? ` · ${Math.round(latency)}ms` : ''}
             {connectionState && ` · ${connectionState}`}
           </span>
+        </div>
         </div>
       </div>
 
@@ -228,7 +262,24 @@ export default function MessagesContent() {
         onOpenChangeAction={setShowNewConv}
         createConversation={createConversation}
         onConversationCreatedAction={onSelect}
+        locale={locale}
+        excludeUserIds={session?.user?.id ? [session.user.id] : []}
       />
+
+      <Dialog open={showFromContacts} onOpenChange={setShowFromContacts}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{tMessenger('fromContactsTitle')}</DialogTitle>
+          </DialogHeader>
+          <ContactPicker
+            locale={locale}
+            mode="message"
+            onSelect={handleContactPickerSelect}
+            excludeUserIds={session?.user?.id ? [session.user.id] : []}
+            showSaved
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

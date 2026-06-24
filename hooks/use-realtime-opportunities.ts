@@ -5,10 +5,11 @@
 
 'use client'
 
-import { useEffect, useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTunnel } from './use-tunnel'
+import { useTunnelChannel } from './use-tunnel-channel'
 import { SerializedOpportunity } from '@/features/opportunities/types'
-import { TunnelMessage } from '@/lib/tunnel/types'
+import type { TunnelMessage } from '@/lib/tunnel/types'
 
 interface UseRealtimeOpportunitiesOptions {
   autoConnect?: boolean
@@ -26,51 +27,41 @@ export function useRealtimeOpportunities(options: UseRealtimeOpportunitiesOption
 
   const tunnel = useTunnel({
     autoConnect,
-    debug
+    debug,
   })
 
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [updateHistory, setUpdateHistory] = useState<OpportunityUpdate[]>([])
 
-  // Handle incoming opportunity updates
   const handleOpportunityUpdate = useCallback((message: TunnelMessage) => {
-    const update: OpportunityUpdate = message.payload
+    const update: OpportunityUpdate = message.payload as OpportunityUpdate
 
     if (debug) {
       console.log('Received opportunity update:', update)
     }
 
-    // Update last activity timestamp
     setLastUpdate(new Date())
 
-    // Add to update history (keep last 10 updates)
-    setUpdateHistory(prev => {
+    setUpdateHistory((prev) => {
       const newHistory = [update, ...prev].slice(0, 10)
       return newHistory
     })
 
-    // Emit custom event for components to listen to
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('opportunity-update', {
-        detail: update
-      }))
+      window.dispatchEvent(
+        new CustomEvent('opportunity-update', {
+          detail: update,
+        }),
+      )
     }
   }, [debug])
 
-  // Subscribe to opportunity updates when connected
-  useEffect(() => {
-    if (!tunnel.isConnected) return
+  useTunnelChannel({
+    channel: 'opportunities',
+    enabled: autoConnect,
+    onTunnelMessage: handleOpportunityUpdate,
+  })
 
-    const unsubscribe = tunnel.subscribe('opportunities', handleOpportunityUpdate)
-
-    if (debug) {
-      console.log('Subscribed to opportunities channel')
-    }
-
-    return unsubscribe
-  }, [tunnel.isConnected, tunnel.subscribe, handleOpportunityUpdate, debug])
-
-  // Publish opportunity update (for when local user creates/updates opportunities)
   const publishOpportunityUpdate = useCallback(async (update: OpportunityUpdate) => {
     if (!tunnel.isConnected) {
       console.warn('Cannot publish opportunity update: tunnel not connected')
@@ -88,12 +79,11 @@ export function useRealtimeOpportunities(options: UseRealtimeOpportunitiesOption
     }
   }, [tunnel, debug])
 
-  // Helper functions for specific update types
   const notifyNewOpportunity = useCallback((opportunity: SerializedOpportunity) => {
     return publishOpportunityUpdate({
       type: 'new',
       opportunityId: opportunity.id,
-      data: opportunity
+      data: opportunity,
     })
   }, [publishOpportunityUpdate])
 
@@ -101,14 +91,14 @@ export function useRealtimeOpportunities(options: UseRealtimeOpportunitiesOption
     return publishOpportunityUpdate({
       type: 'updated',
       opportunityId,
-      data: updates
+      data: updates,
     })
   }, [publishOpportunityUpdate])
 
   const notifyOpportunityDeleted = useCallback((opportunityId: string) => {
     return publishOpportunityUpdate({
       type: 'deleted',
-      opportunityId
+      opportunityId,
     })
   }, [publishOpportunityUpdate])
 
@@ -116,28 +106,21 @@ export function useRealtimeOpportunities(options: UseRealtimeOpportunitiesOption
     return publishOpportunityUpdate({
       type: 'application_count_changed',
       opportunityId,
-      data: { applicantCount: newCount }
+      data: { applicantCount: newCount },
     })
   }, [publishOpportunityUpdate])
 
   return {
-    // Connection status
     isConnected: tunnel.isConnected,
     connectionState: tunnel.connectionState,
     provider: tunnel.provider,
-
-    // Real-time data
     lastUpdate,
     updateHistory,
-
-    // Publishing functions
     publishOpportunityUpdate,
     notifyNewOpportunity,
     notifyOpportunityUpdate,
     notifyOpportunityDeleted,
     notifyApplicationCountChange,
-
-    // Transport health
     latency: tunnel.latency,
     health: tunnel.health,
   }
@@ -167,7 +150,7 @@ export function useOpportunityUpdates(callback?: (update: OpportunityUpdate) => 
   }, [callback])
 
   return {
-    lastUpdate
+    lastUpdate,
   }
 }
 
@@ -176,39 +159,30 @@ export function useOpportunityUpdates(callback?: (update: OpportunityUpdate) => 
  */
 export function useOptimisticOpportunities(
   initialOpportunities: SerializedOpportunity[],
-  onRealtimeUpdate?: (update: OpportunityUpdate) => void
+  onRealtimeUpdate?: (update: OpportunityUpdate) => void,
 ) {
   const [opportunities, setOpportunities] = useState(initialOpportunities)
 
-  // Listen for real-time updates
   useOpportunityUpdates((update) => {
-    setOpportunities(prev => {
+    setOpportunities((prev) => {
       switch (update.type) {
         case 'new':
-          // Add new opportunity at the beginning if it's not already there
-          if (!prev.find(opp => opp.id === update.opportunityId) && update.data) {
+          if (!prev.find((opp) => opp.id === update.opportunityId) && update.data) {
             return [update.data as SerializedOpportunity, ...prev]
           }
           return prev
 
         case 'updated':
-          // Update existing opportunity
-          return prev.map(opp =>
-            opp.id === update.opportunityId
-              ? { ...opp, ...update.data }
-              : opp
+          return prev.map((opp) =>
+            opp.id === update.opportunityId ? { ...opp, ...update.data } : opp,
           )
 
         case 'deleted':
-          // Remove opportunity
-          return prev.filter(opp => opp.id !== update.opportunityId)
+          return prev.filter((opp) => opp.id !== update.opportunityId)
 
         case 'application_count_changed':
-          // Update applicant count
-          return prev.map(opp =>
-            opp.id === update.opportunityId
-              ? { ...opp, ...update.data }
-              : opp
+          return prev.map((opp) =>
+            opp.id === update.opportunityId ? { ...opp, ...update.data } : opp,
           )
 
         default:
@@ -216,7 +190,6 @@ export function useOptimisticOpportunities(
       }
     })
 
-    // Call optional callback
     if (onRealtimeUpdate) {
       onRealtimeUpdate(update)
     }
@@ -224,6 +197,6 @@ export function useOptimisticOpportunities(
 
   return {
     opportunities,
-    setOpportunities
+    setOpportunities,
   }
 }

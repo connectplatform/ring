@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
-import { cleanupExpiredReservations } from '@/features/store/services/inventory-sync'
+import { ProcessConductor } from '@/lib/processes'
+import { getPipelineDefinition } from '@/lib/processes/registry'
 
 export async function GET(request: NextRequest) {
   await connection()
@@ -16,11 +17,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const startTime = Date.now()
-    await cleanupExpiredReservations()
+    const handler = getPipelineDefinition('cleanup-reservations')?.handler
+    if (!handler) {
+      return NextResponse.json({ error: 'Pipeline not registered' }, { status: 500 })
+    }
+
+    const { result, run } = await ProcessConductor.recordRun('cleanup-reservations', 'cron', handler)
+    if (run.status === 'error') {
+      return NextResponse.json(
+        { success: false, error: run.error, runId: run.id, timestamp: new Date().toISOString() },
+        { status: 500 },
+      )
+    }
+
     return NextResponse.json({
-      success: true,
-      duration: Date.now() - startTime,
+      ...(result as object),
+      runId: run.id,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

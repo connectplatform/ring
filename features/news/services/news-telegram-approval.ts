@@ -1,6 +1,6 @@
 import { sendMessage } from '@/lib/telegram/admin-bot/bot-config'
 import { db } from '@/lib/database'
-import { UserRole } from '@/features/auth/types'
+import { PLATFORM_ADMIN_ROLES } from '@/features/auth/user-role'
 import { absoluteSiteUrl } from '@/lib/site-branding'
 import { mapNewsDocument } from '@/lib/news/map-news-document'
 
@@ -8,7 +8,7 @@ export async function getAdminTelegramChatIds(): Promise<string[]> {
   const result = await db().queryDocs<Record<string, unknown>>({
     collection: 'users',
     filters: [
-      { field: 'role', operator: 'in', value: [UserRole.admin, UserRole.superadmin] },
+      { field: 'role', operator: 'in', value: PLATFORM_ADMIN_ROLES },
     ],
     pagination: { limit: 100 },
   })

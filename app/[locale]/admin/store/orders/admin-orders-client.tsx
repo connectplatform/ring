@@ -15,49 +15,33 @@ interface Order {
   status?: string
   userId?: string
   createdAt?: string
-  items?: any[]
-  [key: string]: any
-}
-
-export interface AdminOrdersLabels {
-  title: string
-  allStatuses: string
-  refresh: string
-  refreshing: string
-  errorPrefix: string
-  updateStatusError: string
-  noOrders: string
-  orderNumber: string
-  statusLabel: string
-  userLabel: string
-  createdLabel: string
-  itemsLabel: string
-  update: string
-  updating: string
-  statusLabels: Record<OrderStatus, string>
+  items?: Array<{ name?: string; quantity?: number; price?: string; currency?: string }>
+  [key: string]: unknown
 }
 
 interface AdminOrdersClientProps {
   initialOrders: Order[]
   currentStatusFilter?: string
   locale: Locale
-  labels: AdminOrdersLabels
 }
 
 export default function AdminOrdersClient({
   initialOrders,
   currentStatusFilter = '',
   locale,
-  labels,
 }: AdminOrdersClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const tOrders = useTranslations('modules.admin.storeHub.ordersPage')
+  const t = useTranslations('modules.admin.storeHub.ordersPage')
   const [isPending, startTransition] = useTransition()
   const [updateError, setUpdateError] = useState<string | null>(null)
 
-  const statusLabel = (status: string) =>
-    labels.statusLabels[status as OrderStatus] ?? status
+  const statusLabel = (status: string) => {
+    if (ORDER_STATUSES.includes(status as OrderStatus)) {
+      return t(`statuses.${status as OrderStatus}`)
+    }
+    return status
+  }
 
   const handleStatusFilterChange = (newStatus: string) => {
     const params = new URLSearchParams(searchParams)
@@ -88,7 +72,7 @@ export default function AdminOrdersClient({
       setUpdateError(null)
       const result = await updateOrderStatus(formData)
       if (!result.success) {
-        setUpdateError(result.error || labels.updateStatusError)
+        setUpdateError(result.error || t('updateStatusError'))
       } else {
         router.refresh()
       }
@@ -96,12 +80,12 @@ export default function AdminOrdersClient({
   }
 
   const emptyMessage = currentStatusFilter
-    ? tOrders('noOrdersWithStatus', { status: statusLabel(currentStatusFilter) })
-    : labels.noOrders
+    ? t('noOrdersWithStatus', { status: statusLabel(currentStatusFilter) })
+    : t('noOrders')
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-4">{labels.title}</h1>
+      <h1 className="text-2xl font-semibold mb-4">{t('title')}</h1>
 
       <div className="flex items-center gap-3 mb-4">
         <select
@@ -110,10 +94,10 @@ export default function AdminOrdersClient({
           onChange={(e) => handleStatusFilterChange(e.target.value)}
           disabled={isPending}
         >
-          <option value="">{labels.allStatuses}</option>
+          <option value="">{t('allStatuses')}</option>
           {ORDER_STATUSES.map((status) => (
             <option key={status} value={status}>
-              {labels.statusLabels[status]}
+              {t(`statuses.${status}`)}
             </option>
           ))}
         </select>
@@ -123,13 +107,13 @@ export default function AdminOrdersClient({
           onClick={handleRefresh}
           disabled={isPending}
         >
-          {isPending ? labels.refreshing : labels.refresh}
+          {isPending ? t('refreshing') : t('refresh')}
         </button>
       </div>
 
       {updateError && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {labels.errorPrefix}: {updateError}
+          {t('errorPrefix')}: {updateError}
         </div>
       )}
 
@@ -141,7 +125,7 @@ export default function AdminOrdersClient({
             <OrderCard
               key={order.id}
               order={order}
-              labels={labels}
+              statusLabel={statusLabel}
               onUpdateStatus={handleUpdateOrderStatus}
               isUpdating={isPending}
             />
@@ -154,16 +138,15 @@ export default function AdminOrdersClient({
 
 interface OrderCardProps {
   order: Order
-  labels: AdminOrdersLabels
+  statusLabel: (status: string) => string
   onUpdateStatus: (orderId: string, status: string) => void
   isUpdating: boolean
 }
 
-function OrderCard({ order, labels, onUpdateStatus, isUpdating }: OrderCardProps) {
+function OrderCard({ order, statusLabel, onUpdateStatus, isUpdating }: OrderCardProps) {
+  const t = useTranslations('modules.admin.storeHub.ordersPage')
   const [selectedStatus, setSelectedStatus] = useState(order.status || 'new')
   const currentStatus = order.status || 'new'
-  const statusLabel = (status: string) =>
-    labels.statusLabels[status as OrderStatus] ?? status
 
   const handleUpdateClick = () => {
     if (selectedStatus !== order.status) {
@@ -175,27 +158,25 @@ function OrderCard({ order, labels, onUpdateStatus, isUpdating }: OrderCardProps
 
   return (
     <div className="border rounded p-3">
-      <div className="font-medium">
-        {labels.orderNumber.replace('{id}', order.id)}
-      </div>
+      <div className="font-medium">{t('orderNumber', { id: order.id })}</div>
       <div className="text-sm text-muted-foreground">
-        {labels.statusLabel}:{' '}
+        {t('statusLabel')}:{' '}
         <span className={`font-medium ${getStatusColor(currentStatus)}`}>
           {statusLabel(currentStatus)}
         </span>
       </div>
       <div className="text-sm">
-        {labels.userLabel}: {order.userId || '-'}
+        {t('userLabel')}: {order.userId || '-'}
       </div>
       <div className="text-sm">
-        {labels.createdLabel}: {order.createdAt || '-'}
+        {t('createdLabel')}: {order.createdAt || '-'}
       </div>
 
       {order.items && order.items.length > 0 && (
         <div className="text-sm mt-2">
-          <div className="font-medium">{labels.itemsLabel}:</div>
+          <div className="font-medium">{t('itemsLabel')}:</div>
           <div className="ml-2">
-            {order.items.map((item: any, idx: number) => (
+            {order.items.map((item, idx) => (
               <div key={idx} className="flex justify-between">
                 <span>
                   {item.name} × {item.quantity}
@@ -218,7 +199,7 @@ function OrderCard({ order, labels, onUpdateStatus, isUpdating }: OrderCardProps
         >
           {ORDER_STATUSES.map((status) => (
             <option key={status} value={status}>
-              {labels.statusLabels[status]}
+              {t(`statuses.${status}`)}
             </option>
           ))}
         </select>
@@ -232,7 +213,7 @@ function OrderCard({ order, labels, onUpdateStatus, isUpdating }: OrderCardProps
           onClick={handleUpdateClick}
           disabled={isUpdating || !statusChanged}
         >
-          {isUpdating ? labels.updating : labels.update}
+          {isUpdating ? t('updating') : t('update')}
         </button>
       </div>
     </div>

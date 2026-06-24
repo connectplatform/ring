@@ -67,6 +67,14 @@ export const RingAISynapseFlow = dynamic(
   { ssr: false, loading: vizPlaceholder },
 )
 
+export const RingMatcherOrchestration = dynamic(
+  () =>
+    import('@/components/docs/ring-matcher-orchestration').then((mod) => ({
+      default: mod.RingMatcherOrchestration,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
 export const Timeline = dynamic(
   () => import('@/components/docs/timeline').then((mod) => ({ default: mod.Timeline })),
   { ssr: false, loading: vizPlaceholder },
@@ -89,8 +97,40 @@ export const CodeSandbox = dynamic(
 
 export const RingWidgetsContact = dynamic(
   () =>
-    import('@/components/ring-widgets/ring-widgets-contact').then((mod) => ({
+    import('@/components/ring-widgets/contact').then((mod) => ({
       default: mod.RingWidgetsContact,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
+export const RingIntegrationPlanesHub = dynamic(
+  () =>
+    import('@/components/ring-widgets/ring-integration-planes-hub').then((mod) => ({
+      default: mod.RingIntegrationPlanesHub,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
+export const RingWelcomeFeatureExplorer = dynamic(
+  () =>
+    import('@/components/ring-widgets/ring-welcome-feature-explorer').then((mod) => ({
+      default: mod.RingWelcomeFeatureExplorer,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
+export const FutureFeatureWidget = dynamic(
+  () =>
+    import('@/components/docs/future-feature-widget').then((mod) => ({
+      default: mod.FutureFeatureWidget,
+    })),
+  { ssr: false, loading: vizPlaceholder },
+)
+
+export const FutureFeatureBacklog = dynamic(
+  () =>
+    import('@/components/docs/future-feature-widget').then((mod) => ({
+      default: mod.FutureFeatureBacklog,
     })),
   { ssr: false, loading: vizPlaceholder },
 )

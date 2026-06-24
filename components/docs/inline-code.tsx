@@ -23,7 +23,7 @@ export function InlineCode({ children }: InlineCodeProps) {
   return (
     <code
       onClick={handleClick}
-      className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-primary dark:hover:border-primary transition-colors relative group"
+      className="rounded-sm bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground border border-border cursor-pointer hover:border-primary transition-colors relative group"
       title="Click to copy"
     >
       {children}

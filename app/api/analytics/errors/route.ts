@@ -1,162 +1,99 @@
 /**
- * Analytics Errors API Endpoint
- * Logs client-side errors to PostgreSQL for monitoring and debugging
- * Used by error boundaries and global error handlers
+ * Analytics Errors API — client error ingestion + admin listing
  */
 
-import { NextRequest, NextResponse, connection} from 'next/server'
+import { NextRequest, NextResponse, connection } from 'next/server'
 import { auth } from '@/auth'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
+import { insertAnalyticsErrors } from '@/features/analytics/lib/analytics-db'
 
-interface ErrorLogPayload {
-  message: string
-  stack?: string
-  component?: string
-  url?: string
-  userAgent?: string
-  timestamp?: string
-  severity?: 'error' | 'warning' | 'info'
-  metadata?: Record<string, any>
-}
-
-/**
- * POST /api/analytics/errors
- * Log client-side error to database
- */
 export async function POST(request: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
-    // Get session (optional - errors can be logged for anonymous users)
     const session = await auth().catch(() => null)
+    const payload = await request.json()
 
-    // Parse error payload
-    const payload: ErrorLogPayload = await request.json()
-
-    // Validate required fields
-    if (!payload.message) {
-      return NextResponse.json(
-        { success: false, error: 'Error message is required' },
-        { status: 400 }
-      )
+    if ('errors' in payload && session?.user?.id) {
+      payload.userId = session.user.id
+    } else if (session?.user?.id && !payload.userId) {
+      payload.userId = session.user.id
     }
 
-    // Prepare error document
-    const errorDoc = {
-      message: payload.message,
-      stack: payload.stack || null,
-      component: payload.component || 'unknown',
-      url: payload.url || request.url,
-      userAgent: payload.userAgent || request.headers.get('user-agent') || 'unknown',
-      userId: session?.user?.id || null,
-      userEmail: session?.user?.email || null,
-      severity: payload.severity || 'error',
-      metadata: payload.metadata || {},
-      timestamp: payload.timestamp || new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      createdAt: new Date().toISOString()
-    }
-
-    // Log to database (analytics_errors collection)
-    const result = await db().createDoc('analytics_errors', errorDoc)
-
-    // Also log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[Analytics Error Logged]', {
-        message: errorDoc.message,
-        component: errorDoc.component,
-        userId: errorDoc.userId
-      })
-    }
+    const { inserted, skipped } = await insertAnalyticsErrors(payload)
 
     return NextResponse.json({
       success: true,
-      errorId: result.data?.id,
-      message: 'Error logged successfully'
+      inserted,
+      storageSkipped: skipped,
+      message: 'Error logged successfully',
     })
-
   } catch (error) {
-    // Fallback error logging to console if database fails
     console.error('[Analytics Errors API] Failed to log error:', error)
-
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to log error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 }
+      { status: error instanceof Error && error.message.includes('Invalid') ? 400 : 500 },
     )
   }
 }
 
-/**
- * GET /api/analytics/errors
- * Retrieve error logs (admin only)
- */
 export async function GET(request: NextRequest) {
-  await connection() // Next.js 16: opt out of prerendering
+  await connection()
 
   try {
-    // Require authentication
     const session = await auth()
-
     if (!session?.user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
-        { status: 401 }
+        { status: 401 },
       )
     }
 
-    // Check admin role
-    const isAdmin = session.user.role === 'admin' || session.user.role === 'superadmin'
-
-    if (!isAdmin) {
+    if (!isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
-    // Get query parameters
     const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = parseInt(searchParams.get('limit') || '50', 10)
     const severity = searchParams.get('severity')
     const component = searchParams.get('component')
 
-    // Build filters
     const filters: Array<{ field: string; operator: string; value: unknown }> = []
-    if (severity) {
-      filters.push({ field: 'severity', operator: '==', value: severity })
-    }
-    if (component) {
-      filters.push({ field: 'component', operator: '==', value: component })
-    }
+    if (severity) filters.push({ field: 'severity', operator: '==', value: severity })
+    if (component) filters.push({ field: 'component', operator: '==', value: component })
 
-    // Fetch errors from database
     const result = await db().queryDocs({
       collection: 'analytics_errors',
       filters,
-      orderBy: [{ field: 'createdAt', direction: 'desc' }],
-      pagination: { limit: Math.min(limit, 100) }
+      orderBy: [{ field: 'created_at', direction: 'desc' }],
+      pagination: { limit: Math.min(limit, 100) },
     })
+
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch errors' },
+        { status: 500 },
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      errors: result.data || [],
-      count: result.data?.length || 0
+      errors: result.data ?? [],
+      count: result.data?.length ?? 0,
     })
-
   } catch (error) {
     console.error('[Analytics Errors API] Failed to fetch errors:', error)
-
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch errors',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+      { success: false, error: 'Failed to fetch errors' },
+      { status: 500 },
     )
   }
 }

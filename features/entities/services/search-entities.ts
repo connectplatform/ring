@@ -449,7 +449,6 @@ function generateSearchSuggestions(query: string, resultCount: number, types?: E
  */
 export const getEntitySearchSuggestions = cache(async (
   partialQuery: string,
-  userRole?: UserRole
 ): Promise<string[]> => {
   try {
     // This could be enhanced with actual analytics data

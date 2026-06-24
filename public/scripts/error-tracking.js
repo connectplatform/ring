@@ -18,6 +18,7 @@
       'ResizeObserver loop limit exceeded',
       'Script error',
       'Network request failed',
+
       // React Dev + Next DevTools noisy style warnings
       'setValueForStyles',
       'react-dom-client.development.js'
@@ -127,8 +128,8 @@
           
           // Context information
           url: window.location.href,
+          referer: document.referrer || null,
           userAgent: navigator.userAgent,
-          timestamp: Date.now(),
           
           // Additional context
           context: context,
@@ -178,8 +179,9 @@
           
           // Context information
           url: window.location.href,
+          referer: document.referrer || null,
           userAgent: navigator.userAgent,
-          
+
           // Page state
           pageState: {
             visibility: document.visibilityState,
@@ -225,6 +227,7 @@
         
         // Context information
         url: window.location.href,
+        referer: document.referrer || null,
         userAgent: navigator.userAgent,
         
         // Page state
@@ -264,6 +267,7 @@
         
         // Context information
         url: window.location.href,
+        referer: document.referrer || null,
         userAgent: navigator.userAgent
       };
 

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from '@/auth'
 import type { ProfileFormData } from "@/types/profile"
 import type { ProfileUpdateState } from "@/types/profile"
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { ProfileAuthError, ProfileValidationError, ProfileUpdateError, logRingError } from "@/lib/errors"
 
 /**
@@ -35,7 +35,7 @@ export async function updateProfile(prevState: ProfileUpdateState, formData: For
     // For security, we always use the session user ID for profile updates
     // Users can only update their own profile (unless they're admin)
     const currentUserId = session.user.id
-    const isAdmin = session.user.role === UserRole.admin
+    const isAdmin = isPlatformAdmin(session.user.role)
 
     // If admin, allow updating other users (would need additional validation)
     // For now, all users can only update their own profile

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslations, useLocale } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { useSession } from 'next-auth/react'
+import { isPlatformAdmin, hasConfidentialAccess } from '@/features/auth/user-role'
 import { 
   CheckCircle2, 
   Clock, 
@@ -104,8 +105,9 @@ export default function OpportunityStatusToggle({
     if (!session?.user) return false
     
     const isOwner = session.user.id === opportunity.createdBy
-    const isAdmin = session.user.role === 'admin'
-    const isModerator = session.user.role === 'confidential'
+    const role = session.user.role
+    const isAdmin = isPlatformAdmin(role)
+    const isModerator = hasConfidentialAccess(role)
     
     return isOwner || isAdmin || isModerator
   }, [session, opportunity.createdBy])

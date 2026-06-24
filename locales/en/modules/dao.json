@@ -1,0 +1,76 @@
+{
+  "listingTitle": "Public pools",
+  "listingDescription": "Like and chip in {token} to queue future features for this clone.",
+  "detailBack": "All pools",
+  "listingEmpty": "No public pools yet. Like and chip in on docs backlog widgets to seed the first pool.",
+  "fundingSummary": "{pledged} / {goal} {token}",
+  "admin": {
+    "list": {
+      "title": "Public pools (DAO)",
+      "description": "Create, edit, and manage future-feature pools — queue gates, delivery status, and public links.",
+      "createPool": "Create pool",
+      "totalPools": "Total pools",
+      "queuedInProgress": "Queued / in progress",
+      "completed": "Completed",
+      "allPools": "All pools",
+      "allPoolsDescription": "Status changes propagate to docs widgets and",
+      "empty": "No pools yet — create one manually or seed from docs backlog widgets.",
+      "tableTitle": "Title",
+      "tableKind": "Kind",
+      "tableLikes": "Likes",
+      "tableFunding": "Funding",
+      "tableStatus": "Status",
+      "tableActions": "Actions",
+      "edit": "Edit",
+      "view": "View",
+      "statusUpdated": "Pool status updated",
+      "updateFailed": "Update failed",
+      "deleteConfirm": "Delete pool \"{title}\"? Signals and contributions will be removed.",
+      "deleted": "Pool deleted",
+      "deleteFailed": "Delete failed"
+    },
+    "form": {
+      "titleLabel": "Title",
+      "descriptionLabel": "Description",
+      "poolSlugOptional": "Pool slug (optional)",
+      "poolSlugPlaceholder": "manual:my-feature — auto-generated from title if empty",
+      "poolSlugReadonly": "Pool slug",
+      "kindLabel": "Kind",
+      "goalHoursLabel": "Goal hours",
+      "fundingModeLabel": "Funding mode",
+      "statusLabel": "Status",
+      "docPathLabel": "Doc path (optional)",
+      "docPathPlaceholder": "en/architecture/data-model",
+      "labelsLabel": "Labels (comma-separated)",
+      "labelsPlaceholder": "platform, wallet",
+      "likesCount": "Likes: {count}",
+      "pledgedSummary": "Pledged: {pledged} / {goal} {token}",
+      "saving": "Saving…",
+      "createPool": "Create pool",
+      "saveChanges": "Save changes",
+      "cancel": "Cancel",
+      "saveFailed": "Save failed"
+    },
+    "create": {
+      "title": "Create public pool",
+      "description": "Manual pool — appears on /dao and can embed the future-feature widget anywhere."
+    },
+    "edit": {
+      "title": "Edit public pool"
+    },
+    "kind": {
+      "future_feature": "Future feature"
+    },
+    "fundingMode": {
+      "donation": "Donation",
+      "escrow": "Escrow"
+    },
+    "status": {
+      "open": "Open",
+      "queued": "Queued",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  }
+}

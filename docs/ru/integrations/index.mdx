@@ -1,0 +1,112 @@
+---
+title: Интеграции
+description: Интеграции Ring Platform — платежи, Web3-кошельки, OAuth, push, email, API и MCP
+last_modified: "2026-06-15"
+---
+
+# Интеграции
+
+**Подключите клон Ring к сервисам, которыми уже пользуется ваше сообщество** — платёжные рельсы, EVM-кошельки, OAuth, Firebase push, бизнес-почта и автоматизация — через конфигурируемые адаптеры в этой секции.
+
+<Callout type="success" title="Кратко">
+Ring не привязывает вас к одному вендору. Операторы включают интеграции через **`ring-config.json`**, **`.env.local`** и задокументированные модули: **PaymentConductor**, **Wagmi v3**, **Auth.js v5**, **FCM**, **Email AI-CRM** и **REST / Tunnel / MCP**. Начните с [Конфигурации окружения](/docs/deployment/environment).
+</Callout>
+
+<Cards>
+  <Card title="Конфигурация окружения" href="/docs/deployment/environment">
+    `DB_BACKEND_MODE`, PaymentConductor, FCM, OAuth, WalletConnect, Email AI-CRM.
+  </Card>
+  <Card title="Паттерны API-интеграции" href="/docs/examples/api-integration">
+    Server Actions, REST, Tunnel, MCP.
+  </Card>
+  <Card title="Платёжный шлюз" href="/docs/customization/payment-integration">
+    PaymentConductor — WayForPay, Stripe, внутренний кредитный ledger.
+  </Card>
+  <Card title="Ring MCP" href="/docs/mcp">
+    Model Context Protocol для Cursor и автоматизации.
+  </Card>
+</Cards>
+
+<RingIntegrationPlanesHub locale="ru" />
+
+## Каталог интеграций
+
+### Страницы в этой секции
+
+<Cards>
+  <Card title="Ethereum кошельки (Wagmi v3)" href="/docs/integrations/ethereum-wallets">
+    Injected, MetaMask, Coinbase Wallet, WalletConnect.
+  </Card>
+</Cards>
+
+### Платежи и коммерция
+
+<Cards>
+  <Card title="Платёжная интеграция" href="/docs/customization/payment-integration">
+    PaymentConductor для операторов.
+  </Card>
+  <Card title="WayForPay" href="/docs/features/wayforpay-integration">
+    Апгрейд членства, HMAC webhooks.
+  </Card>
+  <Card title="PaymentConductor" href="/docs/features/payment-conductor">
+    Обзор рельс — магазин, членство, промо.
+  </Card>
+  <Card title="Web3 кошелёк" href="/docs/features/wallet">
+    RING credits, top-up, membership.
+  </Card>
+</Cards>
+
+### Идентичность
+
+<Cards>
+  <Card title="Аутентификация" href="/docs/features/authentication">
+    Auth.js v5, OAuth, magic links, кошельки.
+  </Card>
+  <Card title="Архитектура auth" href="/docs/architecture/authentication">
+    Proxy, layout gates, KYC.
+  </Card>
+</Cards>
+
+### Уведомления и realtime
+
+<Cards>
+  <Card title="Push (FCM)" href="/docs/features/push-notifications-fcm">
+    Firebase Cloud Messaging.
+  </Card>
+  <Card title="Tunnel protocol" href="/docs/features/tunnel-protocol">
+    SSE, WebSocket, long-poll.
+  </Card>
+</Cards>
+
+### Email и CRM
+
+<Cards>
+  <Card title="Email AI-CRM" href="/docs/features/email-ai-crm">
+    IMAP, AI-черновики, admin UI.
+  </Card>
+</Cards>
+
+### Разработчикам
+
+<Cards>
+  <Card title="Примеры API" href="/docs/examples/api-integration">
+    REST, Tunnel, curl smoke tests.
+  </Card>
+  <Card title="Справочник API" href="/docs/api">
+    Полный каталог маршрутов.
+  </Card>
+  <Card title="Ring MCP" href="/docs/mcp">
+    `ring-mcp` → `/api/mcp/v1/*`.
+  </Card>
+</Cards>
+
+## Связанное
+
+<Cards>
+  <Card title="Токеномика" href="/docs/customization/token-economics">
+    RING, refcodes, on-chain referral.
+  </Card>
+  <Card title="Web3 документация" href="/docs/web3">
+    Юрисдикции и запуск токена.
+  </Card>
+</Cards>

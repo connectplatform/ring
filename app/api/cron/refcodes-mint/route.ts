@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connection } from 'next/server'
-import { processApprovedRewards } from '@/features/refcodes/services/reward-minter'
+import { ProcessConductor } from '@/lib/processes'
+import { getPipelineDefinition } from '@/lib/processes/registry'
 
 /**
  * Cron: mint approved referral rewards on-chain.
@@ -18,14 +19,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const startTime = Date.now()
-    const result = await processApprovedRewards(20)
-    const duration = Date.now() - startTime
+    const handler = getPipelineDefinition('refcodes-mint')?.handler
+    if (!handler) {
+      return NextResponse.json({ error: 'Pipeline not registered' }, { status: 500 })
+    }
+
+    const { result, run } = await ProcessConductor.recordRun('refcodes-mint', 'cron', handler)
+    if (run.status === 'error') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: run.error,
+          runId: run.id,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 500 },
+      )
+    }
 
     return NextResponse.json({
-      success: true,
-      ...result,
-      duration,
+      ...(result as object),
+      runId: run.id,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

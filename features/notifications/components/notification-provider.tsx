@@ -6,7 +6,6 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useEffect, useState, use } from 'react';
-import { useSession } from 'next-auth/react';
 import { Notification } from '@/features/notifications/types';
 import { ToastContainer, useToastNotifications } from './toast-notification';
 import { NotificationType, NotificationPriority, NotificationStatus, NotificationChannel, NotificationTrigger } from '@/features/notifications/types';
@@ -18,8 +17,12 @@ interface NotificationContextType {
   hideToast: (id: string) => void;
   clearAllToasts: () => void;
   
-  // Global notification state
+  // Global notification state (single useUnreadCount subscription in this provider)
   unreadCount: number;
+  unreadLoading: boolean;
+  unreadError: string | null;
+  refreshUnreadCount: () => Promise<void>;
+  clearUnreadError: () => void;
   hasNewNotifications: boolean;
   markAsRead: (id: string) => void;
   
@@ -47,7 +50,6 @@ export function NotificationProvider({
   defaultDuration = 5000,
   defaultMaxToasts = 5
 }: NotificationProviderProps) {
-  const { data: session } = useSession();
   const { toasts, addToast, removeToast, clearAllToasts } = useToastNotifications();
   
   // Settings state
@@ -55,8 +57,14 @@ export function NotificationProvider({
   const [toastDuration, setToastDuration] = useState(defaultDuration);
   const [maxToasts, setMaxToasts] = useState(defaultMaxToasts);
   
-  // Use optimized unread count hook
-  const { unreadCount, refresh: refreshUnreadCount } = useUnreadCount({
+  // Single unread-count subscription for the whole app tree
+  const {
+    unreadCount,
+    loading: unreadLoading,
+    error: unreadError,
+    refresh: refreshUnreadCount,
+    clearError: clearUnreadError,
+  } = useUnreadCount({
     autoRefresh: true,
     refreshInterval: 180000, // 3 minutes
     cacheTimeout: 120000 // 2 minutes cache TTL
@@ -64,7 +72,6 @@ export function NotificationProvider({
   
   // Global notification state
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
-  const [lastNotificationCheck, setLastNotificationCheck] = useState<Date>(new Date());
 
   // Show toast notification
   const showToast = useCallback((notification: Notification) => {
@@ -92,8 +99,7 @@ export function NotificationProvider({
       });
 
       if (response.ok) {
-        // Refresh unread count to get accurate count
-        refreshUnreadCount();
+        await refreshUnreadCount();
         
         // Remove from toasts if present
         removeToast(id);
@@ -150,6 +156,10 @@ export function NotificationProvider({
     
     // Global notification state
     unreadCount,
+    unreadLoading,
+    unreadError,
+    refreshUnreadCount,
+    clearUnreadError,
     hasNewNotifications,
     markAsRead,
     

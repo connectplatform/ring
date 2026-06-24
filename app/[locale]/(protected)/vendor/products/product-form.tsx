@@ -37,48 +37,94 @@ import {
   SelectValue 
 } from '@/components/ui/select'
 import { createVendorProduct, updateVendorProduct } from '@/app/_actions/vendor-actions'
+import { createAdminStoreProduct, updateAdminStoreProduct } from '@/app/_actions/admin-store-erp'
+import type { AdminVendorOption } from '@/app/_actions/admin-store-erp'
+import VendorEntitySelect from '@/components/admin/vendor-entity-select'
+import { STORE_PRODUCT_CATEGORIES } from '@/lib/zod/store-product'
 import { ROUTES } from '@/constants/routes'
 import type { Locale } from '@/i18n/shared'
 import NicheProductFieldsSection from '@/components/vendor/niche-product-fields-section'
+import ProductRepSelect from '@/components/store/product-rep-select'
+import { useCurrency } from '@/features/store/currency-context'
+import { displayPriceFromUah, getCurrencySymbol } from '@/lib/zod/store-product'
+import ringConfig from '@/ring-config.json'
 
 interface ProductFormProps {
   mode: 'create' | 'edit'
+  variant?: 'vendor' | 'admin'
   locale: Locale
   vendorEntity: any
+  adminVendors?: AdminVendorOption[]
   existingProduct?: any
-  /** Inherited merchant/platform referral % when product override is empty */
   inheritedReferralPercent?: number
 }
 
-// Agricultural categories (same as onboarding)
-const PRODUCT_CATEGORIES = [
-  'organic-produce',
-  'honey-sweets',
-  'essential-oils',
-  'dairy-eggs',
-  'meat-poultry',
-  'herbs-spices',
-  'grains-legumes',
-  'baked-goods',
-  'preserves-pickles',
-  'beverages',
-  'nuts-seeds',
-  'handmade-crafts'
-]
+const PRODUCT_CATEGORIES = [...STORE_PRODUCT_CATEGORIES]
+const HAS_NICHE_PRODUCT_FIELDS = ringConfig.productFields?.preset === 'agricultural'
 
 export default function ProductForm({
   mode,
+  variant = 'vendor',
   locale,
   vendorEntity,
+  adminVendors,
   existingProduct,
   inheritedReferralPercent = 5,
 }: ProductFormProps) {
-  const t = useTranslations('vendor.products.form')
+  const tForm = useTranslations('vendor.products.form')
+  const tProducts = useTranslations('vendor.products')
+  const tAdminPage = useTranslations('modules.admin.storeHub.productsPage')
+  const tAdminForm = useTranslations('modules.admin.storeHub.productsPage.form')
   const tCat = useTranslations('vendor.onboarding.categories')
   const router = useRouter()
-  
-  const serverAction = mode === 'create' ? createVendorProduct : updateVendorProduct
+  const { currency } = useCurrency()
+  const currencySymbol = getCurrencySymbol(currency)
+
+  const pageTitle =
+    variant === 'admin'
+      ? mode === 'create'
+        ? tAdminPage('addTitle')
+        : tAdminPage('editTitle')
+      : mode === 'create'
+        ? tProducts('addProduct')
+        : tProducts('editProduct')
+
+  const pageSubtitle =
+    variant === 'admin'
+      ? mode === 'create'
+        ? tAdminPage('addSubtitle')
+        : tAdminPage('editSubtitle')
+      : mode === 'create'
+        ? tProducts('createSubtitle')
+        : tProducts('editSubtitle')
+
+  const serverAction =
+    variant === 'admin'
+      ? mode === 'create'
+        ? createAdminStoreProduct
+        : updateAdminStoreProduct
+      : mode === 'create'
+        ? createVendorProduct
+        : updateVendorProduct
+
+  const backHref =
+    variant === 'admin'
+      ? ROUTES.ADMIN_STORE_PRODUCTS(locale)
+      : ROUTES.VENDOR_PRODUCTS(locale)
+
   const [state, formAction, isPending] = useActionState(serverAction, null)
+  const [selectedVendorId, setSelectedVendorId] = useState<string>(
+    variant === 'admin'
+      ? String(existingProduct?.entity_id ?? existingProduct?.vendorId ?? vendorEntity?.id ?? '')
+      : vendorEntity?.id ?? '',
+  )
+
+  React.useEffect(() => {
+    if (variant === 'admin' && state && 'success' in state && state.success) {
+      router.push(backHref)
+      router.refresh()
+    }
+  }, [state, variant, router, backHref])
 
   // React 19 useTransition for non-blocking file upload handling
   const [isFilePending, startFileTransition] = useTransition()
@@ -90,23 +136,34 @@ export default function ProductForm({
   const [videoPreview, setVideoPreview] = useState<string | null>(existingProduct?.data?.videoUrl || null)
   const [activeInMyStore, setActiveInMyStore] = useState<boolean>(existingProduct?.status === 'active' || true)
   const [submitToMainStore, setSubmitToMainStore] = useState(false)
+  const [repUsername, setRepUsername] = useState<string>(existingProduct?.rep ?? '')
+  const [priceInput, setPriceInput] = useState(() => {
+    if (!existingProduct?.price) return ''
+    return String(displayPriceFromUah(Number(existingProduct.price), currency))
+  })
+
+  React.useEffect(() => {
+    if (existingProduct?.price) {
+      setPriceInput(String(displayPriceFromUah(Number(existingProduct.price), currency)))
+    }
+  }, [currency, existingProduct?.price])
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     
     if (photos.length + files.length > 5) {
-      alert(t('validation.photoCountExceeded'))
+      alert(tProducts('validation.photoCountExceeded'))
       return
     }
     
     // Validate each file
     for (const file of files) {
       if (file.size > 5 * 1024 * 1024) {
-        alert(t('validation.photoSizeExceeded'))
+        alert(tProducts('validation.photoSizeExceeded'))
         return
       }
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        alert(t('validation.photoInvalidType'))
+        alert(tProducts('validation.photoInvalidType'))
         return
       }
     }
@@ -138,12 +195,12 @@ export default function ProductForm({
     if (!file) return
     
     if (file.size > 50 * 1024 * 1024) {
-      alert(t('validation.videoSizeExceeded'))
+      alert(tProducts('validation.videoSizeExceeded'))
       return
     }
     
     if (!['video/mp4', 'video/webm'].includes(file.type)) {
-      alert(t('validation.videoInvalidType'))
+      alert(tProducts('validation.videoInvalidType'))
       return
     }
     
@@ -160,7 +217,7 @@ export default function ProductForm({
   return (
     <div className="space-y-6">
       {/* Progress Indicator - Only for Create Mode */}
-      {mode === 'create' && (
+      {mode === 'create' && variant === 'vendor' && (
         <motion.div
           className="flex items-center justify-center space-x-4 mb-8"
           initial={{ opacity: 0 }}
@@ -191,38 +248,73 @@ export default function ProductForm({
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href={ROUTES.VENDOR_PRODUCTS(locale)}>
+        <Link href={backHref}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">
-            {mode === 'create' ? t('name') : t('editProduct')}
-          </h1>
-          <p className="text-muted-foreground">
-            {mode === 'create' ? 'Add a new product to your store' : 'Update product details'}
-          </p>
+          <h1 className="text-3xl font-bold">{pageTitle}</h1>
+          <p className="text-muted-foreground">{pageSubtitle}</p>
         </div>
       </div>
 
       {/* Form Card */}
       <form action={formAction}>
         <input type="hidden" name="locale" value={locale} />
+        {variant === 'admin' && (
+          <input type="hidden" name="vendorEntityId" value={selectedVendorId} />
+        )}
         {mode === 'edit' && existingProduct && (
           <input type="hidden" name="productId" value={existingProduct.id} />
         )}
+        <input type="hidden" name="currency" value={currency} />
+        <input type="hidden" name="rep" value={repUsername} />
+        <input type="hidden" name="activeInMyStore" value={activeInMyStore ? 'true' : 'false'} />
+        <input type="hidden" name="submitToMainStore" value={submitToMainStore ? 'true' : 'false'} />
+
+        {variant === 'admin' && adminVendors && mode === 'create' && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>{tAdminForm('vendorOwner')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VendorEntitySelect
+                vendors={adminVendors}
+                value={selectedVendorId}
+                onChange={setSelectedVendorId}
+                placeholder={tAdminForm('vendorOwnerPlaceholder')}
+              />
+            </CardContent>
+          </Card>
+        )}
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Product Details</CardTitle>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
+        {variant === 'admin' ? (
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold tracking-tight">{tForm('productDetails')}</h2>
+            {renderProductFields()}
+          </div>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>{tForm('productDetails')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {renderProductFields()}
+            </CardContent>
+          </Card>
+        )}
+      </form>
+    </div>
+  )
+
+  function renderProductFields() {
+    return (
+      <>
             {/* Photo Upload */}
             <div className="space-y-2">
-              <Label>{t('photo')} *</Label>
-              <p className="text-xs text-muted-foreground">{t('photoHint')}</p>
+              <Label>{tForm('photo')} *</Label>
+              <p className="text-xs text-muted-foreground">{tForm('photoHint')}</p>
               
               <div className="grid grid-cols-3 gap-4">
                 {photoPreviews.map((preview, index) => (
@@ -237,7 +329,7 @@ export default function ProductForm({
                     </button>
                     {index === 0 && (
                       <div className="absolute bottom-0 left-0 right-0 bg-emerald-600 text-white text-xs py-1 text-center">
-                        Main Photo
+                        {tForm('mainPhoto')}
                       </div>
                     )}
                   </div>
@@ -246,7 +338,7 @@ export default function ProductForm({
                 {photos.length + photoPreviews.length < 5 && (
                   <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-colors">
                     <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                    <span className="text-xs text-muted-foreground">Add Photo</span>
+                    <span className="text-xs text-muted-foreground">{tForm('addPhoto')}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -267,12 +359,12 @@ export default function ProductForm({
 
             {/* Product Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">{t('name')} *</Label>
+              <Label htmlFor="name">{tForm('name')} *</Label>
               <Input
                 id="name"
                 name="name"
                 defaultValue={existingProduct?.name || ''}
-                placeholder={t('namePlaceholder')}
+                placeholder={tForm('namePlaceholder')}
                 disabled={isPending}
                 required
               />
@@ -280,10 +372,10 @@ export default function ProductForm({
 
             {/* Category */}
             <div className="space-y-2">
-              <Label htmlFor="category">{t('category')} *</Label>
+              <Label htmlFor="category">{tForm('category')} *</Label>
               <Select name="category" defaultValue={existingProduct?.category || ''} disabled={isPending} required>
                 <SelectTrigger>
-                  <SelectValue placeholder={t('categoryPlaceholder')} />
+                  <SelectValue placeholder={tForm('categoryPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {PRODUCT_CATEGORIES.map(cat => (
@@ -297,7 +389,7 @@ export default function ProductForm({
 
             {/* Referral commission (optional per-product override) */}
             <div className="space-y-2">
-              <Label htmlFor="referralCommission">{t('referralCommission')}</Label>
+              <Label htmlFor="referralCommission">{tForm('referralCommission')}</Label>
               <Input
                 id="referralCommission"
                 name="referralCommission"
@@ -310,77 +402,99 @@ export default function ProductForm({
                   existingProduct?.data?.referralCommission ??
                   ''
                 }
-                placeholder={t('referralCommissionPlaceholder', {
+                placeholder={tForm('referralCommissionPlaceholder', {
                   percent: inheritedReferralPercent,
                 })}
                 disabled={isPending}
               />
-              <p className="text-xs text-muted-foreground">{t('referralCommissionHint')}</p>
+              <p className="text-xs text-muted-foreground">{tForm('referralCommissionHint')}</p>
             </div>
 
             {/* Price and Stock */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="priceUAH">{t('priceUAH')} *</Label>
-                <Input
-                  id="priceUAH"
-                  name="priceUAH"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  defaultValue={existingProduct?.price || ''}
-                  placeholder={t('pricePlaceholder')}
-                  disabled={isPending}
-                  required
-                />
+                <Label htmlFor="priceUAH">
+                  {tForm('priceLabel', { currency })}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="priceUAH"
+                    name="priceUAH"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    placeholder={tForm('pricePlaceholder')}
+                    disabled={isPending}
+                    required
+                    className="pr-14"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    {currencySymbol}
+                  </span>
+                </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="stock">{t('stock')} *</Label>
+                <Label htmlFor="stock">{tForm('stock')} *</Label>
                 <Input
                   id="stock"
                   name="stock"
                   type="number"
                   min="0"
                   defaultValue={existingProduct?.stock_quantity || ''}
-                  placeholder={t('stockPlaceholder')}
+                  placeholder={tForm('stockPlaceholder')}
                   disabled={isPending}
                   required
                 />
               </div>
             </div>
 
+            {/* Product representative */}
+            <div className="space-y-2">
+              <Label htmlFor="rep">{tForm('rep')}</Label>
+              <ProductRepSelect
+                value={repUsername}
+                onChange={setRepUsername}
+                placeholder={tForm('repPlaceholder')}
+                disabled={isPending}
+              />
+              <p className="text-xs text-muted-foreground">{tForm('repHint')}</p>
+            </div>
+
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description">{t('description')}</Label>
+              <Label htmlFor="description">{tForm('description')}</Label>
               <Textarea
                 id="description"
                 name="description"
                 defaultValue={existingProduct?.description || ''}
-                placeholder={t('descriptionPlaceholder')}
+                placeholder={tForm('descriptionPlaceholder')}
                 maxLength={200}
                 disabled={isPending}
               />
             </div>
 
-            {/* Agricultural ERP Fields (Optional - Phase 2) */}
-            <div className="pt-4 border-t">
-              <NicheProductFieldsSection 
-                isPending={isPending}
-                existingData={existingProduct?.data}
-              />
-            </div>
+            {/* Agricultural ERP Fields (Optional — agricultural preset only) */}
+            {HAS_NICHE_PRODUCT_FIELDS && (
+              <div className="pt-4 border-t">
+                <NicheProductFieldsSection 
+                  isPending={isPending}
+                  existingData={existingProduct?.data}
+                />
+              </div>
+            )}
 
             {/* Toggles */}
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="activeInMyStore">{t('activeInMyStore')}</Label>
-                  <p className="text-xs text-muted-foreground">{t('activeInMyStoreHint')}</p>
+                  <Label htmlFor="activeInMyStore">{tForm('activeInMyStore')}</Label>
+                  <p className="text-xs text-muted-foreground">{tForm('activeInMyStoreHint')}</p>
                 </div>
                 <Switch
                   id="activeInMyStore"
-                  name="activeInMyStore"
                   checked={activeInMyStore}
                   onCheckedChange={setActiveInMyStore}
                   disabled={isPending}
@@ -389,12 +503,11 @@ export default function ProductForm({
               
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="submitToMainStore">{t('submitToMainStore')}</Label>
-                  <p className="text-xs text-muted-foreground">{t('submitToMainStoreHint')}</p>
+                  <Label htmlFor="submitToMainStore">{tForm('submitToMainStore')}</Label>
+                  <p className="text-xs text-muted-foreground">{tForm('submitToMainStoreHint')}</p>
                 </div>
                 <Switch
                   id="submitToMainStore"
-                  name="submitToMainStore"
                   checked={submitToMainStore}
                   onCheckedChange={setSubmitToMainStore}
                   disabled={isPending}
@@ -423,26 +536,24 @@ export default function ProductForm({
                 {isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {mode === 'create' ? t('submitting') : t('updating')}
+                    {mode === 'create' ? tForm('submitting') : tForm('updating')}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    {mode === 'create' ? t('submit') : t('update')}
+                    {mode === 'create' ? tForm('submit') : tForm('update')}
                   </>
                 )}
               </Button>
               
-              <Link href={ROUTES.VENDOR_PRODUCTS(locale)}>
+              <Link href={backHref}>
                 <Button type="button" variant="outline" disabled={isPending}>
-                  {t('cancel')}
+                  {tForm('cancel')}
                 </Button>
               </Link>
             </div>
-          </CardContent>
-        </Card>
-      </form>
-    </div>
-  )
+      </>
+    )
+  }
 }
 

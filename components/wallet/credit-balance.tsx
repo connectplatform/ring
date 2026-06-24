@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { RingTopUpModal } from './ring-topup-modal'
 import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
+import { getClientCreditCurrencyCode, formatClientCreditAmount } from '@/lib/payments/credit-currency-client'
 
 interface CreditBalanceProps {
   className?: string
@@ -33,6 +34,7 @@ export function CreditBalance({
 }: CreditBalanceProps) {
   const t = useTranslations('modules.wallet')
   const [showTopUpModal, setShowTopUpModal] = useState(false)
+  const creditCurrency = getClientCreditCurrencyCode()
   
   const { 
     balance, 
@@ -127,7 +129,7 @@ export function CreditBalance({
         <CardHeader className={cn('flex flex-row items-center justify-between space-y-0', compact ? 'pb-2' : 'pb-3')}>
           <CardTitle className={cn('flex items-center gap-2', compact ? 'text-sm' : 'text-base')}>
             <Coins className={cn('text-primary', compact ? 'h-4 w-4' : 'h-5 w-5')} />
-            {t('credit_balance.title', { defaultValue: 'RING Balance' })}
+            {t('credit_balance.title', { defaultValue: 'Credit Balance', currency: creditCurrency })}
           </CardTitle>
           
           <div className="flex items-center gap-2">
@@ -155,7 +157,7 @@ export function CreditBalance({
             <div className="flex items-baseline justify-between">
               <div className="space-y-1">
                 <div className={cn('font-bold', compact ? 'text-lg' : 'text-2xl', balanceColors[balanceStatus])}>
-                  {balance?.amount ? balance.amount : '0'} RING
+                  {balance?.amount ? formatClientCreditAmount(balance.amount, creditCurrency) : `0 ${creditCurrency}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   ≈ ${balance?.usd_equivalent || '0.00'} USD
@@ -200,7 +202,8 @@ export function CreditBalance({
                   </p>
                   <p className="text-destructive/80 text-xs mt-1">
                     {t('credit_balance.low_balance_message', { 
-                      defaultValue: 'Your balance is below 1 RING. Top up to ensure uninterrupted service.' 
+                      defaultValue: 'Your credit balance is low. Top up to ensure uninterrupted service.',
+                      currency: creditCurrency,
                     })}
                   </p>
                 </div>

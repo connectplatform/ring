@@ -27,6 +27,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
@@ -201,7 +202,7 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
           <nav className="flex-1 space-y-0 px-0">
             {session?.user &&
               mounted &&
-              (session.user.role === 'admin' || session.user.role === 'superadmin') && (
+              isPlatformAdmin(session.user.role) && (
                 <div className="mb-3 px-2">
                   <p className="text-[11px] text-[var(--color-contrast-low)] mb-1.5 pl-2 uppercase tracking-wide">
                     {tNav('sidebar.admin')}

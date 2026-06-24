@@ -1,18 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import {
-  canAccessOpportunityCreation,
-  opportunitySelectorUserRole,
-} from '@/features/auth/user-role'
+import { canAccessOpportunityCreation } from '@/features/auth/user-role'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import Link from 'next/link'
+import { Link } from '@/i18n/routing'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { useTranslations, useLocale } from 'next-intl'
-import { OpportunityTypeSelectorClient } from '@/components/opportunities/opportunity-type-selector-client'
 
 interface AddOpportunityButtonProps {
   locale?: Locale
@@ -24,52 +19,32 @@ export function AddOpportunityButton({ locale: localeProp, className }: AddOppor
   const locale = resolvedLocale ?? ('en' as Locale)
   const { role, isAuthenticated } = useAuth()
   const t = useTranslations('modules.opportunities')
-  const [showTypeSelector, setShowTypeSelector] = useState(false)
 
   if (!isAuthenticated) {
     return (
       <Button asChild className={className}>
         <Link
-          href={`${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(ROUTES.OPPORTUNITIES(locale))}`}
+          href={
+            `${ROUTES.LOGIN(locale)}?callbackUrl=${encodeURIComponent(ROUTES.OPPORTUNITIES(locale))}` as '/login'
+          }
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           {t('addOpportunity')}
         </Link>
       </Button>
     )
   }
 
-  if (!canAccessOpportunityCreation(role)) {
-    return (
-      <Button asChild className={className}>
-        <Link
-          href={`${ROUTES.MEMBERSHIP(locale)}?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(locale))}`}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t('addOpportunity')}
-        </Link>
-      </Button>
-    )
-  }
+  const href = canAccessOpportunityCreation(role)
+    ? ROUTES.ADD_OPPORTUNITY(locale)
+    : `${ROUTES.MEMBERSHIP(locale)}?returnTo=${encodeURIComponent(ROUTES.ADD_OPPORTUNITY(locale))}`
 
   return (
-    <>
-      <Button
-        type="button"
-        className={className}
-        onClick={() => setShowTypeSelector(true)}
-      >
-        <Plus className="h-4 w-4 mr-2" />
+    <Button asChild className={className}>
+      <Link href={href as '/opportunities/add'}>
+        <Plus className="mr-2 h-4 w-4" />
         {t('addOpportunity')}
-      </Button>
-      {showTypeSelector && (
-        <OpportunityTypeSelectorClient
-          layout="overlay"
-          userRole={opportunitySelectorUserRole(role)}
-          locale={locale}
-          onClose={() => setShowTypeSelector(false)}
-        />
-      )}
-    </>
+      </Link>
+    </Button>
   )
 }

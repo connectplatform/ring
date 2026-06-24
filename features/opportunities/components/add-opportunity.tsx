@@ -8,7 +8,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { Locale } from '@/i18n/shared'
 import { ROUTES } from '@/constants/routes'
 import { useSession } from 'next-auth/react'
-import { createOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
+import { createOpportunity, updateOpportunity, OpportunityFormState } from '@/app/_actions/opportunities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,13 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -45,10 +38,11 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
-import { UserRole } from '@/features/auth/types'
-import { motion, AnimatePresence } from 'framer-motion'
+import { hasConfidentialAccess, hasMemberPrivileges, resolveSessionUserRole } from '@/features/auth/user-role'
+import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import dynamic from 'next/dynamic'
+import { motion } from 'framer-motion'
 
 // Dynamically import Developer CV form
 const DeveloperCVForm = dynamic(() => import('./developer-cv-form'), {
@@ -60,6 +54,7 @@ const DeveloperCVForm = dynamic(() => import('./developer-cv-form'), {
 
 interface AddOpportunityFormProps {
   opportunityType?: 'request' | 'offer' | 'partnership' | 'volunteer' | 'cv' | 'resource' | 'event' | 'ring_customization'
+  initialOpportunity?: SerializedOpportunity
 }
 
 function SubmitButton() {
@@ -74,6 +69,20 @@ function SubmitButton() {
 }
 
 import { getOpportunityFormTypePreset } from '@/features/opportunities/lib/opportunity-type-presets'
+import {
+  OpportunityFormShell,
+  OpportunityFormSection,
+} from '@/components/opportunities/opportunity-form-shell'
+import { davinciCtaPrimary } from '@/lib/ui/davinci'
+import { getClientCreditFiatCurrency, getClientOpportunityBudgetCurrencies } from '@/lib/ring-config-client'
+import type { SerializedOpportunity } from '@/features/opportunities/types'
+
+function toDateInputValue(iso?: string): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
 
 // Helper function to get form configuration based on opportunity type
 function getFormConfig(type: string) {
@@ -86,8 +95,6 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: false,
       showApplicationDeadline: false,
-      budgetLabel: 'Budget Available',
-      titlePlaceholder: 'What do you need help with?'
     },
     offer: {
       requiresEntity: true,
@@ -97,8 +104,6 @@ function getFormConfig(type: string) {
       showPriority: true,
       showMaxApplicants: true,
       showApplicationDeadline: true,
-      budgetLabel: 'Salary/Payment Range',
-      titlePlaceholder: 'Job title or position name'
     },
     partnership: {
       requiresEntity: true,
@@ -108,8 +113,6 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: false,
       showApplicationDeadline: false,
-      budgetLabel: 'Investment Range',
-      titlePlaceholder: 'Partnership opportunity title'
     },
     volunteer: {
       requiresEntity: true,
@@ -119,8 +122,6 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: true,
       showApplicationDeadline: true,
-      budgetLabel: 'Stipend (if any)',
-      titlePlaceholder: 'Volunteer opportunity title'
     },
     mentorship: {
       requiresEntity: false,
@@ -130,8 +131,6 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: true,
       showApplicationDeadline: false,
-      budgetLabel: 'Fee (if any)',
-      titlePlaceholder: 'Mentorship program title'
     },
     resource: {
       requiresEntity: false,
@@ -141,8 +140,6 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: false,
       showApplicationDeadline: false,
-      budgetLabel: 'Cost/Fee',
-      titlePlaceholder: 'Resource or equipment name'
     },
     event: {
       requiresEntity: true,
@@ -152,20 +149,30 @@ function getFormConfig(type: string) {
       showPriority: false,
       showMaxApplicants: true,
       showApplicationDeadline: true,
-      budgetLabel: 'Ticket Price',
-      titlePlaceholder: 'Event title'
-    }
+    },
+    ring_customization: {
+      requiresEntity: true,
+      showBudget: true,
+      showSkills: true,
+      showDeadline: true,
+      showPriority: false,
+      showMaxApplicants: false,
+      showApplicationDeadline: false,
+    },
   }
   return configs[type as keyof typeof configs] || configs.request
 }
 
-function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps) {
+function AddOpportunityFormContent({ opportunityType, initialOpportunity }: AddOpportunityFormProps) {
   const t = useTranslations('modules.opportunities')
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [tags, setTags] = useState<string[]>([])
+  const isEdit = Boolean(initialOpportunity)
+  const [tags, setTags] = useState<string[]>(initialOpportunity?.tags ?? [])
   const [newTag, setNewTag] = useState('')
-  const [requiredSkills, setRequiredSkills] = useState<string[]>([])
+  const [requiredSkills, setRequiredSkills] = useState<string[]>(
+    initialOpportunity?.requiredSkills ?? [],
+  )
   const [newSkill, setNewSkill] = useState('')
   const [entities, setEntities] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -176,8 +183,11 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
   const [isPending, startTransition] = useTransition()
 
   const [state, formAction] = useActionState<OpportunityFormState | null, FormData>(
-    (state: OpportunityFormState, formData: FormData) => createOpportunity(state, formData, locale),
-    null
+    (prevState: OpportunityFormState, formData: FormData) =>
+      isEdit
+        ? updateOpportunity(prevState, formData, locale)
+        : createOpportunity(prevState, formData, locale),
+    null,
   )
 
   // Handle successful submission with redirect
@@ -191,14 +201,23 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
     }
   }, [state, router])
 
-  const userRole = session?.user?.role as UserRole || UserRole.subscriber
-  const isConfidentialAllowed = userRole === UserRole.confidential || userRole === UserRole.admin || userRole === UserRole.superadmin
-  
-  // Determine the opportunity type - use prop if provided, otherwise default based on role
-  const currentType = opportunityType || (userRole === UserRole.member || userRole === UserRole.confidential || userRole === UserRole.admin || userRole === UserRole.superadmin ? 'offer' : 'request')
-  
-  // Get form configuration based on type
+  const userRole = resolveSessionUserRole(session?.user?.role)
+  const isConfidentialAllowed = hasConfidentialAccess(userRole)
+
+  const currentType =
+    opportunityType ||
+    initialOpportunity?.type ||
+    (hasMemberPrivileges(userRole) || isConfidentialAllowed ? 'offer' : 'request')
+
   const formConfig = getFormConfig(currentType)
+  const budgetCurrencies = getClientOpportunityBudgetCurrencies()
+  const defaultBudgetCurrency =
+    initialOpportunity?.budget?.currency || getClientCreditFiatCurrency()
+  const initialEntityId =
+    initialOpportunity?.contactInfo?.linkedEntity || initialOpportunity?.organizationId || ''
+  const initialDescription =
+    initialOpportunity?.fullDescription || initialOpportunity?.briefDescription || ''
+  const initialContactEmail = initialOpportunity?.contactInfo?.contactAccount || ''
 
   // Load entities when component mounts
   React.useEffect(() => {
@@ -259,332 +278,236 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
   const typeConfig = getOpportunityFormTypePreset(currentType) ?? getOpportunityFormTypePreset('request')!
   const TypeIcon = typeConfig.icon
 
-  // Use specialized Developer CV form for cv type
-  if (currentType === 'cv') {
+  // Use specialized Developer CV form for cv type (create only)
+  if (currentType === 'cv' && !isEdit) {
     return <DeveloperCVForm locale={locale} />
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Animated background with subtle movement */}
-      <div className="absolute inset-0 -z-10">
-        <motion.div 
-          className={`absolute inset-0 ${typeConfig.bgColor}`}
-          animate={{
-            backgroundPosition: ['0% 0%', '100% 100%'],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatType: 'reverse',
-            ease: 'linear'
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-white/30 dark:from-gray-900/50 dark:via-transparent dark:to-gray-900/30" />
-      </div>
+    <OpportunityFormShell
+      icon={TypeIcon}
+      title={
+        isEdit
+          ? t('form.editTitle', { defaultValue: 'Edit opportunity' })
+          : t(`types.${currentType}.title`)
+      }
+      description={
+        isEdit
+          ? t('form.editDescription', {
+              defaultValue: 'Update your listing details and save changes.',
+            })
+          : t(`types.${currentType}.description`)
+      }
+    >
+      <form action={formAction} className="space-y-6">
+        {isEdit && initialOpportunity && (
+          <input type="hidden" name="opportunityId" value={initialOpportunity.id} />
+        )}
+        <input type="hidden" name="tags" value={tags.join(',')} />
+        <input type="hidden" name="requiredSkills" value={requiredSkills.join(',')} />
+        <input type="hidden" name="type" value={currentType} />
+        <input type="hidden" name="applicantCount" value="0" />
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Enhanced header with icon and gradient */}
-        <motion.div 
-          className="text-center mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${typeConfig.color} text-white shadow-lg mb-4`}>
-            <TypeIcon className="h-8 w-8" />
+        {state?.error && (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{state.error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-5">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label htmlFor="title" className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-[var(--davinci-beam)]" />
+                <span>{t('title')} *</span>
+              </Label>
+              <Input
+                id="title"
+                name="title"
+                required
+                defaultValue={initialOpportunity?.title}
+                placeholder={t(`form.titlePlaceholders.${currentType}`)}
+                className="mt-2"
+              />
+              {state?.fieldErrors?.title && (
+                <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                  <AlertCircle className="h-3 w-3" />
+                  {state.fieldErrors.title}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="category" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-[var(--davinci-beam)]" />
+                <span>{t('category')} *</span>
+              </Label>
+              <Select name="category" required defaultValue={initialOpportunity?.category}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder={t('selectCategory')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="technology">{t('technology')}</SelectItem>
+                  <SelectItem value="business">{t('business')}</SelectItem>
+                  <SelectItem value="finance">{t('finance')}</SelectItem>
+                  <SelectItem value="healthcare">{t('healthcare')}</SelectItem>
+                  <SelectItem value="education">{t('education')}</SelectItem>
+                  <SelectItem value="other">{t('other')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {state?.fieldErrors?.category && (
+                <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                  <AlertCircle className="h-3 w-3" />
+                  {state.fieldErrors.category}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="location" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-[var(--davinci-beam)]" />
+                <span>{t('location')} *</span>
+              </Label>
+              <Input
+                id="location"
+                name="location"
+                required
+                defaultValue={initialOpportunity?.location}
+                placeholder={t('locationPlaceholder')}
+                className="mt-2"
+              />
+              {state?.fieldErrors?.location && (
+                <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                  <AlertCircle className="h-3 w-3" />
+                  {state.fieldErrors.location}
+                </p>
+              )}
+            </div>
           </div>
-          <h1 className="text-4xl font-bold mb-2">
-            <span className={`bg-gradient-to-r ${typeConfig.color} bg-clip-text text-transparent`}>
-              {t(`types.${typeConfig.titleKey}`, { defaultValue: typeConfig.id })}
-            </span>
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t(`types.${typeConfig.descriptionKey}`, { defaultValue: '' })}
-          </p>
-        </motion.div>
 
-        {/* Main form card with enhanced styling */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="max-w-4xl mx-auto"
+          <div>
+            <Label htmlFor="description" className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-[var(--davinci-beam)]" />
+              <span>{t('description')} *</span>
+            </Label>
+            <Textarea
+              id="description"
+              name="description"
+              required
+              rows={4}
+              className="mt-2 resize-none"
+              defaultValue={initialDescription}
+              placeholder={t('form.descriptionPlaceholder')}
+            />
+            {state?.fieldErrors?.description && (
+              <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                <AlertCircle className="h-3 w-3" />
+                {state.fieldErrors.description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {formConfig.requiresEntity && (
+          <OpportunityFormSection title={t('organizationDetails')} icon={Users}>
+            <div>
+              <Label htmlFor="entityId" className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-[var(--davinci-beam)]" />
+                <span>{t('entity', { defaultValue: 'Entity' })} *</span>
+              </Label>
+              <Select name="entityId" required defaultValue={initialEntityId || undefined}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder={t('selectEntity', { defaultValue: 'Select entity' })} />
+                </SelectTrigger>
+                <SelectContent>
+                  {entities.map((entity) => (
+                    <SelectItem key={entity.id} value={entity.id}>
+                      {entity.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {state?.fieldErrors?.entityId && (
+                <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
+                  <AlertCircle className="h-3 w-3" />
+                  {state.fieldErrors.entityId}
+                </p>
+              )}
+            </div>
+          </OpportunityFormSection>
+        )}
+
+        <Collapsible
+          open={showOptionalFields || isEdit}
+          onOpenChange={setShowOptionalFields}
         >
-          <Card className={`backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-2 ${typeConfig.borderColor} shadow-2xl`}>
-            <CardContent className="p-8">
-          <form action={formAction} className="space-y-6">
-            {/* Hidden field for tags */}
-            <input type="hidden" name="tags" value={tags.join(',')} />
-            {/* Hidden field for required skills */}
-            <input type="hidden" name="requiredSkills" value={requiredSkills.join(',')} />
-            {/* Hidden field for opportunity type */}
-            <input type="hidden" name="type" value={currentType} />
-            {/* Hidden field for applicant count initialization */}
-            <input type="hidden" name="applicantCount" value="0" />
-
-            {/* Global error message */}
-            {state?.error && (
-              <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{state.error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Essential Fields Section */}
-            <motion.div 
-              className="space-y-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
-              <div className="flex items-center space-x-2 mb-4">
-                <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${typeConfig.color}`} />
-                <h3 className="text-lg font-semibold">Essential Information</h3>
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="outline" className="w-full justify-between">
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span>{t('form.optionalDetails')}</span>
+                <Badge variant="secondary" className="ml-2">
+                  {showOptionalFields ? t('form.hide') : t('form.show')}
+                </Badge>
               </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Title Field with Icon */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="title" className="flex items-center space-x-2">
-                    <Target className="h-4 w-4" />
-                    <span>{t('title')} *</span>
-                  </Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    required
-                    placeholder={formConfig.titlePlaceholder}
-                    className="mt-2 h-12 text-lg"
-                  />
-                  {state?.fieldErrors?.title && (
-                    <motion.span 
-                      className="text-destructive text-sm flex items-center space-x-1 mt-1"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                    >
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{state.fieldErrors.title}</span>
-                    </motion.span>
-                  )}
-                </div>
-
-                {/* Category Field with Icon */}
-                <div>
-                  <Label htmlFor="category" className="flex items-center space-x-2">
-                    <Sparkles className="h-4 w-4" />
-                    <span>{t('category')} *</span>
-                  </Label>
-                  <Select name="category" required>
-                    <SelectTrigger className="mt-2 h-12">
-                      <SelectValue placeholder={t('selectCategory')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technology">{t('technology')}</SelectItem>
-                      <SelectItem value="business">{t('business')}</SelectItem>
-                      <SelectItem value="finance">{t('finance')}</SelectItem>
-                      <SelectItem value="healthcare">{t('healthcare')}</SelectItem>
-                      <SelectItem value="education">{t('education')}</SelectItem>
-                      <SelectItem value="other">{t('other')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {state?.fieldErrors?.category && (
-                    <motion.span 
-                      className="text-destructive text-sm flex items-center space-x-1 mt-1"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                    >
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{state.fieldErrors.category}</span>
-                    </motion.span>
-                  )}
-                </div>
-
-                {/* Location Field with Icon */}
-                <div>
-                  <Label htmlFor="location" className="flex items-center space-x-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>{t('location')} *</span>
-                  </Label>
-                  <Input
-                    id="location"
-                    name="location"
-                    required
-                    placeholder={t('locationPlaceholder')}
-                    className="mt-2 h-12"
-                  />
-                  {state?.fieldErrors?.location && (
-                    <motion.span 
-                      className="text-destructive text-sm flex items-center space-x-1 mt-1"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                    >
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{state.fieldErrors.location}</span>
-                    </motion.span>
-                  )}
-                </div>
-              </div>
-
-              {/* Description Field */}
-              <div>
-                <Label htmlFor="description" className="flex items-center space-x-2">
-                  <Info className="h-4 w-4" />
-                  <span>{t('description')} *</span>
-                </Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  required
-                  rows={4}
-                  className="mt-2 resize-none"
-                  placeholder="Describe your opportunity in detail..."
-                />
-                {state?.fieldErrors?.description && (
-                  <motion.span 
-                    className="text-destructive text-sm flex items-center space-x-1 mt-1"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                  >
-                    <AlertCircle className="h-3 w-3" />
-                    <span>{state.fieldErrors.description}</span>
-                  </motion.span>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Entity field for organizational opportunities */}
-            {formConfig.requiresEntity && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                className="mt-6"
-              >
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${typeConfig.color}`} />
-                  <h3 className="text-lg font-semibold">Organization Details</h3>
-                </div>
-                <div>
-                  <Label htmlFor="entityId" className="flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span>{t('entity', { defaultValue: 'Entity' })} *</span>
-                  </Label>
-                  <Select name="entityId" required>
-                    <SelectTrigger className="mt-2 h-12">
-                      <SelectValue placeholder={t('selectEntity', { defaultValue: 'Select entity' })} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {entities.map((entity) => (
-                        <SelectItem key={entity.id} value={entity.id}>
-                          {entity.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {state?.fieldErrors?.entityId && (
-                    <motion.span 
-                      className="text-destructive text-sm flex items-center space-x-1 mt-1"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                    >
-                      <AlertCircle className="h-3 w-3" />
-                      <span>{state.fieldErrors.entityId}</span>
-                    </motion.span>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Optional Fields Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className="mt-8"
-            >
-              <Collapsible open={showOptionalFields} onOpenChange={setShowOptionalFields}>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-between h-12 text-left"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <Plus className="h-4 w-4" />
-                      <span>Optional Details</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {showOptionalFields ? 'Hide' : 'Show'}
-                      </Badge>
-                    </div>
-                    {showOptionalFields ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-6 mt-6">
-                  <AnimatePresence>
-                    {showOptionalFields && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-6"
-                      >
+              {showOptionalFields ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-4 space-y-6">
                         {/* Requirements Field */}
                         <div>
                           <Label htmlFor="requirements" className="flex items-center space-x-2">
                             <CheckCircle2 className="h-4 w-4" />
                             <span>{t('requirements')}</span>
-                            <Badge variant="outline" className="text-xs">Optional</Badge>
+                            <Badge variant="outline" className="text-xs">{t('form.optional')}</Badge>
                           </Label>
                           <Textarea
                             id="requirements"
                             name="requirements"
                             rows={3}
                             className="mt-2 resize-none"
-                            placeholder="List any specific requirements or qualifications..."
+                            placeholder={t('form.requirementsPlaceholder')}
                           />
                           {state?.fieldErrors?.requirements && (
-                            <motion.span 
-                              className="text-destructive text-sm flex items-center space-x-1 mt-1"
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                            >
+                            <p className="mt-1 flex items-center gap-1 text-sm text-destructive">
                               <AlertCircle className="h-3 w-3" />
-                              <span>{state.fieldErrors.requirements}</span>
-                            </motion.span>
+                              {state.fieldErrors.requirements}
+                            </p>
                           )}
                         </div>
 
                         {/* Budget section - conditional based on opportunity type */}
                         {formConfig.showBudget && (
                           <div>
-                            <Label className="flex items-center space-x-2">
+                            <Label className="flex items-center gap-2">
                               <DollarSign className="h-4 w-4" />
-                              <span>{formConfig.budgetLabel}</span>
-                              <Badge variant="outline" className="text-xs">Optional</Badge>
+                              <span>{t(`form.budgetLabels.${currentType}`)}</span>
+                              <Badge variant="outline" className="text-xs">{t('form.optional')}</Badge>
                             </Label>
-                            <div className="grid grid-cols-3 gap-3 mt-2">
+                            <div className="mt-2 grid grid-cols-3 gap-3">
                               <Input
                                 name="budgetMin"
                                 type="number"
                                 placeholder={t('min')}
-                                className="h-12"
+                                defaultValue={initialOpportunity?.budget?.min ?? ''}
                               />
                               <Input
                                 name="budgetMax"
                                 type="number"
                                 placeholder={t('max')}
-                                className="h-12"
+                                defaultValue={initialOpportunity?.budget?.max ?? ''}
                               />
-                              <Select name="budgetCurrency" defaultValue="USD">
-                                <SelectTrigger className="h-12">
+                              <Select name="budgetCurrency" defaultValue={defaultBudgetCurrency}>
+                                <SelectTrigger>
                                   <SelectValue placeholder={t('currency')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="USD">USD</SelectItem>
-                                  <SelectItem value="EUR">EUR</SelectItem>
-                                  <SelectItem value="GBP">GBP</SelectItem>
-                                  <SelectItem value="UAH">UAH</SelectItem>
+                                  {budgetCurrencies.map((c) => (
+                                    <SelectItem key={c.value} value={c.value}>
+                                      {c.label}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -609,13 +532,14 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
                               <Label htmlFor="deadline" className="flex items-center space-x-2">
                                 <Calendar className="h-4 w-4" />
                                 <span>{t('deadline')}</span>
-                                <Badge variant="outline" className="text-xs">Optional</Badge>
+                                <Badge variant="outline" className="text-xs">{t('form.optional')}</Badge>
                               </Label>
                               <Input
                                 id="deadline"
                                 name="deadline"
                                 type="date"
                                 className="mt-2 h-12"
+                                defaultValue={toDateInputValue(initialOpportunity?.expirationDate)}
                               />
                               {state?.fieldErrors?.deadline && (
                                 <motion.span 
@@ -636,13 +560,14 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
                               <Label htmlFor="applicationDeadline" className="flex items-center space-x-2">
                                 <Clock className="h-4 w-4" />
                                 <span>{t('applicationDeadline', { defaultValue: 'Application Deadline' })}</span>
-                                <Badge variant="outline" className="text-xs">Optional</Badge>
+                                <Badge variant="outline" className="text-xs">{t('form.optional')}</Badge>
                               </Label>
                               <Input
                                 id="applicationDeadline"
                                 name="applicationDeadline"
                                 type="date"
                                 className="mt-2 h-12"
+                                defaultValue={toDateInputValue(initialOpportunity?.applicationDeadline)}
                               />
                               {state?.fieldErrors?.applicationDeadline && (
                                 <motion.span 
@@ -666,7 +591,7 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
                               <Label htmlFor="maxApplicants" className="flex items-center space-x-2">
                                 <Users className="h-4 w-4" />
                                 <span>{t('maxApplicants', { defaultValue: 'Maximum Applicants' })}</span>
-                                <Badge variant="outline" className="text-xs">Optional</Badge>
+                                <Badge variant="outline" className="text-xs">{t('form.optional')}</Badge>
                               </Label>
                               <Input
                                 id="maxApplicants"
@@ -674,6 +599,7 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
                                 type="number"
                                 placeholder={t('maxApplicantsPlaceholder', { defaultValue: 'Leave empty for unlimited' })}
                                 className="mt-2 h-12"
+                                defaultValue={initialOpportunity?.maxApplicants ?? ''}
                               />
                               {state?.fieldErrors?.maxApplicants && (
                                 <motion.span 
@@ -694,9 +620,12 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
                               <Label htmlFor="priority" className="flex items-center space-x-2">
                                 <Target className="h-4 w-4" />
                                 <span>{t('priority', { defaultValue: 'Priority' })}</span>
-                                <Badge variant="outline" className="text-xs">Optional</Badge>
+                                <Badge variant="outline" className="text-xs">{t('form.optional')}</Badge>
                               </Label>
-                              <Select name="priority" defaultValue="normal">
+                              <Select
+                                name="priority"
+                                defaultValue={initialOpportunity?.priority || 'normal'}
+                              >
                                 <SelectTrigger className="mt-2 h-12">
                                   <SelectValue placeholder={t('selectPriority', { defaultValue: 'Select priority' })} />
                                 </SelectTrigger>
@@ -719,71 +648,58 @@ function AddOpportunityFormContent({ opportunityType }: AddOpportunityFormProps)
                             </div>
                           )}
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </CollapsibleContent>
-              </Collapsible>
-            </motion.div>
+          </CollapsibleContent>
+        </Collapsible>
 
-            {/* Enhanced Submit Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.0 }}
-              className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center justify-between">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => router.push(ROUTES.OPPORTUNITIES(locale))}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ← {t('cancel', { defaultValue: 'Cancel' })}
-                </Button>
-                
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`px-8 py-3 h-12 bg-gradient-to-r ${typeConfig.color} hover:opacity-90 text-white border-0 shadow-lg`}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                          className="mr-2"
-                        >
-                          <Sparkles className="h-4 w-4" />
-                        </motion.div>
-                        {t('saving', { defaultValue: 'Creating...' })}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        {t('createOpportunity', { defaultValue: 'Create Opportunity' })}
-                      </>
-                    )}
-                  </Button>
-                </motion.div>
-              </div>
-            </motion.div>
-          </form>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    </div>
+        <div className="flex items-center justify-between border-t border-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)] pt-6">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() =>
+              router.push(
+                isEdit && initialOpportunity
+                  ? ROUTES.OPPORTUNITY(initialOpportunity.id, locale)
+                  : ROUTES.OPPORTUNITIES(locale),
+              )
+            }
+            className="text-muted-foreground hover:text-foreground"
+          >
+            ← {t('cancel', { defaultValue: 'Cancel' })}
+          </Button>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className={cn(davinciCtaPrimary, 'px-6')}
+          >
+            {isSubmitting ? (
+              <>
+                <Sparkles className="mr-2 h-4 w-4 animate-spin" />
+                {t('saving', { defaultValue: isEdit ? 'Saving...' : 'Creating...' })}
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {isEdit
+                  ? t('form.saveChanges', { defaultValue: 'Save changes' })
+                  : t('createOpportunity', { defaultValue: 'Create Opportunity' })}
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </OpportunityFormShell>
   )
 }
 
-export default function AddOpportunityForm({ opportunityType }: AddOpportunityFormProps) {
+export default function AddOpportunityForm({
+  opportunityType,
+  initialOpportunity,
+}: AddOpportunityFormProps) {
   return (
-    <AddOpportunityFormContent opportunityType={opportunityType} />
+    <AddOpportunityFormContent
+      opportunityType={opportunityType}
+      initialOpportunity={initialOpportunity}
+    />
   )
-} 
+}

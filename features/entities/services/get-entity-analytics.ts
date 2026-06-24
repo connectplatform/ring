@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { getSerializedEntityById } from '@/features/entities/services/get-entity-by-id'
 import type { SerializedEntity, StoreMetrics, StoreVerification } from '@/features/entities/types'
 import { db } from '@/lib/database'
@@ -23,8 +23,13 @@ export interface EntityAnalytics {
   generatedAt: string
 }
 
-async function assertEntityAnalyticsAccess(entity: SerializedEntity, userId: string, role: UserRole) {
-  const isAdmin = role === UserRole.admin || role === UserRole.superadmin
+async function assertEntityAnalyticsAccess(
+  entity: SerializedEntity,
+  userId: string,
+  role: string | null | undefined,
+) {
+  const userRole = assertKnownUserRole(role)
+  const isAdmin = isPlatformAdmin(userRole)
   const isOwner = entity.addedBy === userId
   const isMember = Array.isArray(entity.members) && entity.members.includes(userId)
 
@@ -50,7 +55,7 @@ export async function getEntityAnalytics(entityId: string): Promise<EntityAnalyt
   await assertEntityAnalyticsAccess(
     entity,
     session.user.id,
-    session.user.role as UserRole,
+    session.user.role,
   )
 
   let linkedOpportunities = 0

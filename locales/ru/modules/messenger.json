@@ -11,6 +11,8 @@
   "searchUsersPlaceholder": "Поиск по имени или @username…",
   "searchingUsers": "Поиск…",
   "noUsersFound": "Пользователи не найдены",
+  "fromContacts": "Из контактов",
+  "fromContactsTitle": "Написать контакту",
   "messageUser": "Написать {name}",
   "messageUserFallback": "пользователю",
   "entityChatEmpty": "Диалога пока нет. Посетители могут начать чат об этом объекте."

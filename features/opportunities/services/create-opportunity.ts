@@ -7,8 +7,7 @@
  */
 import { Opportunity, SerializedOpportunity } from '@/features/opportunities/types';
 import { auth } from '@/auth';
-import { UserRole } from '@/features/auth/types';
-import { canCreateOpportunityType } from '@/features/opportunities/lib/opportunity-permissions';
+import { canCreateOpportunityType, canCreateOpportunityConfidential } from '@/features/opportunities/lib/opportunity-permissions';
 import { assertKnownUserRole } from '@/features/auth/user-role';
 import { OpportunityAuthError, OpportunityPermissionError, OpportunityDatabaseError, OpportunityQueryError, logRingError } from '@/lib/errors';
 import { validateOpportunityData, validateRequiredFields, hasOwnProperty } from '@/lib/utils';
@@ -89,13 +88,8 @@ export async function createOpportunity(data: NewOpportunityData): Promise<Seria
 
     // ES2022 Object.hasOwn() for safe property checking on confidential opportunities
     if (Object.hasOwn(data, 'isConfidential') && data.isConfidential) {
-      const hasConfidentialAccess =
-        userRole === UserRole.admin ||
-        userRole === UserRole.superadmin ||
-        userRole === UserRole.confidential;
-
-      if (!hasConfidentialAccess) {
-        validationContext.requiredRoles &&= [UserRole.admin, UserRole.superadmin, UserRole.confidential];
+      if (!canCreateOpportunityConfidential(userRole)) {
+        validationContext.requiredRoles &&= ['admin', 'superadmin', 'confidential'];
         throw new OpportunityPermissionError(
           'Only admin, superadmin or confidential users can create confidential opportunities',
           undefined,

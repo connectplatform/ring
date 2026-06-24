@@ -2,7 +2,10 @@ import { NextRequest, NextResponse, connection} from 'next/server';
 import { db } from '@/lib/database';
 import { NewsFilters, NewsFormData } from '@/features/news/types';
 import { auth } from '@/auth';
+import { assertKnownUserRole } from '@/features/auth/user-role';
+import { canCreateNewsArticle } from '@/features/news/lib/news-permissions';
 import { revalidatePath } from 'next/cache';
+import { computePaginationCursor } from '@/lib/pagination/cursor-pagination';
 
 type NewsRow = Record<string, unknown> & { id: string };
 
@@ -29,6 +32,9 @@ export async function GET(request: NextRequest) {
       sortBy: searchParams.get('sortBy') as any || 'publishedAt',
       sortOrder: searchParams.get('sortOrder') as any || 'desc',
     };
+
+    const startAfter = searchParams.get('startAfter') || undefined;
+    const useCursorPagination = Boolean(startAfter) || searchParams.get('pagination') === 'cursor';
 
     // Parse tags if provided
     const tagsParam = searchParams.get('tags');
@@ -59,15 +65,35 @@ export async function GET(request: NextRequest) {
       queryFilters.push({ field: 'authorId', operator: '==', value: filters.authorId });
     }
 
+    const sortField = filters.sortBy || 'publishedAt';
+
+    if (startAfter) {
+      try {
+        const cursorResult = await db().findDocById('news', startAfter);
+        if (cursorResult.success && cursorResult.data) {
+          const cursorValue = cursorResult.data[sortField];
+          if (cursorValue !== undefined && cursorValue !== null) {
+            queryFilters.push({
+              field: sortField,
+              operator: filters.sortOrder === 'asc' ? '>' : '<',
+              value: cursorValue,
+            });
+          }
+        }
+      } catch {
+        /* first-page semantics */
+      }
+    }
+
     // Query database (READ - Server Component can cache)
     const result = await db().queryDocs<NewsRow>({
       collection: 'news',
       filters: queryFilters,
-      orderBy: [{ field: filters.sortBy || 'publishedAt', direction: filters.sortOrder || 'desc' }],
+      orderBy: [{ field: sortField, direction: filters.sortOrder || 'desc' }],
       pagination: {
         limit: filters.limit || 10,
-        offset: filters.offset || 0
-      }
+        offset: useCursorPagination ? 0 : (filters.offset || 0),
+      },
     });
 
     if (!result.success) {
@@ -95,12 +121,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const limit = filters.limit || 10;
+    const { nextCursor, hasMore } = computePaginationCursor(
+      filteredArticles,
+      limit,
+      (article) => article.id,
+    );
+
     return NextResponse.json({
       success: true,
       data: filteredArticles,
+      items: filteredArticles,
+      cursor: hasMore ? nextCursor : null,
+      hasMore,
       pagination: {
-        limit: filters.limit,
-        offset: filters.offset,
+        limit,
+        offset: useCursorPagination ? undefined : filters.offset,
         total: filteredArticles.length,
       },
       filters: filters,
@@ -134,10 +170,10 @@ export async function POST(request: NextRequest) {
 
     // Check if user is admin (you may need to adjust this based on your user role system)
     // For now, we'll assume the user role is stored in the session
-    const userRole = (session.user as any).role;
-    if (userRole !== 'admin') {
+    const userRole = assertKnownUserRole((session.user as { role?: string }).role);
+    if (!canCreateNewsArticle(userRole)) {
       return NextResponse.json(
-        { success: false, error: 'Admin access required' },
+        { success: false, error: 'Insufficient permissions to create news articles' },
         { status: 403 }
       );
     }

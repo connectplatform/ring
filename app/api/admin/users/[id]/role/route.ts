@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, connection} from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/database';
-import { UserRole } from '@/features/auth/types';
+import { isPlatformAdmin, isKnownUserRole } from '@/features/auth/user-role';
 
 type UserRow = Record<string, unknown> & { id: string };
 
@@ -16,7 +16,7 @@ export async function PUT(
     const session = await auth();
 
     // Check authentication and admin/superadmin role
-    if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'superadmin')) {
+    if (!session?.user || !isPlatformAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -26,7 +26,7 @@ export async function PUT(
     const { role } = await request.json();
 
     // Validate role
-    if (!Object.values(UserRole).includes(role)) {
+    if (!isKnownUserRole(role)) {
       return NextResponse.json(
         { error: 'Invalid role' },
         { status: 400 }

@@ -7,13 +7,18 @@
 import { useState, useEffect, useCallback, useRef, use, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { apiClient, ApiClientError, type ApiResponse } from '@/lib/api-client';
+import { useNotificationContext } from '@/features/notifications/components/notification-provider';
+import { useTunnelChannel } from '@/hooks/use-tunnel-channel';
 import { 
   Notification, 
   NotificationListResponse, 
   NotificationStatsResponse,
   NotificationType,
   DetailedNotificationPreferences,
-  NotificationStatus
+  NotificationStatus,
+  NotificationTrigger,
+  NotificationPriority,
+  NotificationChannel,
 } from '@/features/notifications/types';
 
 interface UseNotificationsOptions {
@@ -57,6 +62,7 @@ interface UseNotificationsReturn {
 
 export function useNotifications(options: UseNotificationsOptions = {}): UseNotificationsReturn {
   const { data: session } = useSession();
+  const { unreadCount, refreshUnreadCount } = useNotificationContext();
   const {
     limit = 20,
     unreadOnly = false,
@@ -67,7 +73,6 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
 
   // State
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<string | undefined>();
@@ -87,6 +92,80 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   // Refs
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Live inbox pushes via Tunnel WSS (shared TunnelProvider connection)
+  useTunnelChannel<{
+    type?: string
+    notification?: Partial<Notification> & { id: string; title: string; body: string }
+  }>({
+    channel: 'notifications:inbox',
+    enabled: Boolean(session?.user?.id),
+    onMessage: (payload) => {
+      const action = String((payload as { action?: string; type?: string }).action ?? (payload as { type?: string }).type ?? 'notification')
+
+      if (action === 'read' && (payload as { notificationId?: string }).notificationId) {
+        const id = String((payload as { notificationId: string }).notificationId)
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === id
+              ? { ...n, status: NotificationStatus.READ, readAt: new Date() }
+              : n,
+          ),
+        )
+        void refreshUnreadCount()
+        return
+      }
+
+      if (action === 'read_all') {
+        setNotifications((prev) =>
+          prev.map((n) => ({ ...n, status: NotificationStatus.READ, readAt: new Date() })),
+        )
+        void refreshUnreadCount()
+        return
+      }
+
+      if (action === 'delete' && (payload as { notificationId?: string }).notificationId) {
+        const id = String((payload as { notificationId: string }).notificationId)
+        setNotifications((prev) => prev.filter((n) => n.id !== id))
+        void refreshUnreadCount()
+        return
+      }
+
+      const incoming = payload?.notification
+      if (!incoming?.id) {
+        void refreshUnreadCount()
+        return
+      }
+
+      const incomingType = (incoming.type as NotificationType) ?? NotificationType.SYSTEM_UPDATE
+      if (types && types.length > 0 && !types.includes(incomingType)) {
+        return
+      }
+
+      setNotifications((prev) => {
+        const mapped: Notification = {
+          id: incoming.id,
+          userId: incoming.userId ?? session?.user?.id ?? '',
+          title: incoming.title,
+          body: incoming.body,
+          type: (incoming.type as NotificationType) ?? NotificationType.SYSTEM_UPDATE,
+          priority: (incoming.priority as NotificationPriority) ?? NotificationPriority.NORMAL,
+          status: (incoming.status as NotificationStatus) ?? NotificationStatus.SENT,
+          trigger: (incoming.trigger as NotificationTrigger) ?? NotificationTrigger.SYSTEM_EVENT,
+          channels: (incoming.channels as NotificationChannel[]) ?? [NotificationChannel.IN_APP],
+          deliveries: incoming.deliveries ?? [],
+          data: incoming.data ?? {},
+          createdAt: incoming.createdAt ? new Date(incoming.createdAt) : new Date(),
+          readAt: incoming.readAt ? new Date(incoming.readAt) : undefined,
+          actionText: incoming.actionText,
+          actionUrl: incoming.actionUrl,
+        }
+        const withoutDup = prev.filter((n) => n.id !== mapped.id)
+        return [mapped, ...withoutDup]
+      })
+      void refreshUnreadCount()
+    },
+  });
 
   // Helper function to build query params
   const buildQueryParams = useCallback((options: {
@@ -163,10 +242,10 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
           setNotifications(prev => [...prev, ...data.notifications]);
         }
         
-        setUnreadCount(data.unreadCount);
         setTotalCount(data.totalCount);
         setHasMore(data.hasMore);
         setLastVisible(data.lastVisible);
+        void refreshUnreadCount();
       } else {
         throw new Error(response.error || 'Failed to fetch notifications');
       }
@@ -195,7 +274,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session, limit, unreadOnly, types, lastVisible, notifications.length, buildQueryParams]);
+  }, [session, limit, unreadOnly, types, lastVisible, notifications.length, buildQueryParams, refreshUnreadCount]);
 
   // Fetch more notifications (pagination)
   const fetchMore = useCallback(async () => {
@@ -226,7 +305,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
           )
         );
         
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        void refreshUnreadCount();
         
         return true;
       } else {
@@ -250,7 +329,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     } finally {
       setMarkingAsRead(null);
     }
-  }, [session, markingAsRead]);
+  }, [session, markingAsRead, refreshUnreadCount]);
 
   // Mark all notifications as read with Ring API Client
   const markAllAsRead = useCallback(async (): Promise<boolean> => {
@@ -275,7 +354,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
           }))
         );
         
-        setUnreadCount(0);
+        void refreshUnreadCount();
         
         return true;
       } else {
@@ -298,7 +377,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     } finally {
       setMarkingAllAsRead(false);
     }
-  }, [session, markingAllAsRead]);
+  }, [session, markingAllAsRead, refreshUnreadCount]);
 
   // Fetch notification stats with Ring API Client
   const fetchStats = useCallback(async () => {

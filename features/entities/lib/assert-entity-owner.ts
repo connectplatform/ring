@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { getSerializedEntityById } from '@/features/entities/services/get-entity-by-id'
 import type { SerializedEntity } from '@/features/entities/types'
 
@@ -29,8 +29,8 @@ export async function assertEntityOwnerOrAdmin(entityId: string): Promise<{
     throw new EntityOwnershipError('Entity not found')
   }
 
-  const role = session.user.role as UserRole
-  const isAdmin = role === UserRole.admin || role === UserRole.superadmin
+  const role = assertKnownUserRole(session.user.role)
+  const isAdmin = isPlatformAdmin(role)
   const isOwner = entity.addedBy === session.user.id
 
   if (!isAdmin && !isOwner) {

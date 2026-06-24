@@ -3,7 +3,7 @@ import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { getStorePaymentStatus } from '@/lib/payments/wayforpay-store-service'
 import { StoreOrdersService } from '@/features/store/services/orders-service'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 
 /**
  * GET /api/store/payments/[orderId]/status
@@ -47,7 +47,7 @@ export async function GET(
     }
 
     // Step 3: Verify order belongs to user (unless admin)
-    if (order.userId !== session.user.id && session.user.role !== UserRole.admin) {
+    if (order.userId !== session.user.id && !isPlatformAdmin(session.user.role)) {
       logger.warn('Store Payment Status: Order access denied', {
         orderId,
         userId: session.user.id,

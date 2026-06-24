@@ -1,14 +1,16 @@
 'use client'
 
-import { Suspense, useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { usePathname } from '@/i18n/routing'
+import type { Locale } from '@/i18n/shared'
 import type { SerializedEntity } from '@/features/entities/types'
 import { EntitySuspenseBoundary } from '@/components/suspense/enhanced-suspense-boundary'
 import RingRightRailLayout from '@/components/layout/ring-right-rail-layout'
-import EntitiesFiltersRail from '@/components/entities/entities-filters-rail'
+import { DavinciCenterPane } from '@/components/layout/davinci-center-pane'
+import EntitiesBrowseRail from '@/components/entities/entities-browse-rail'
 
 const EntitiesContent = dynamic(() => import('@/features/entities/components/entities'), {
   ssr: false,
@@ -42,8 +44,10 @@ export default function EntitiesWrapper({
 }: EntitiesWrapperProps) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
+  const locale = useLocale() as Locale
   const t = useTranslations('modules.entities.wrapper')
   const [mounted, setMounted] = useState(false)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
   const [entities, setEntities] = useState<SerializedEntity[]>(initialEntities)
   const [error, setError] = useState<string | null>(initialError)
   const [limit, setLimit] = useState(initialLimit)
@@ -83,7 +87,7 @@ export default function EntitiesWrapper({
   }
 
   const listContent = (
-    <div className="min-w-0 min-h-full px-4 py-4 sm:px-6">
+    <DavinciCenterPane>
       <EntitySuspenseBoundary
         level="page"
         showProgress={true}
@@ -103,19 +107,19 @@ export default function EntitiesWrapper({
           filter={filter}
         />
       </EntitySuspenseBoundary>
-    </div>
+    </DavinciCenterPane>
   )
 
   if (isBrowseListPage) {
     return (
       <RingRightRailLayout
         showRightRail
+        flushCenterPane
+        isOpen={rightSidebarOpen}
+        onToggle={setRightSidebarOpen}
         rightRail={
-          <Suspense fallback={<div className="h-32 animate-pulse rounded-md bg-muted/40" />}>
-            <EntitiesFiltersRail />
-          </Suspense>
+          <EntitiesBrowseRail locale={locale} onNavigate={() => setRightSidebarOpen(false)} />
         }
-        contentClassName="pb-24 lg:pb-8"
       >
         {listContent}
       </RingRightRailLayout>

@@ -54,9 +54,16 @@ async function LocaleLayoutInner({
   const messages = await buildMessages(validLocale, 'full')
   const headersList = await headers()
   const hreflangPath = pathnameWithoutLocale(headersList.get('x-pathname') ?? '/')
+  const isAccountShell =
+    hreflangPath === '/account/suspended' || hreflangPath.startsWith('/account/')
 
   return (
-    <LocaleAppChrome locale={validLocale} messages={messages} hreflangPath={hreflangPath}>
+    <LocaleAppChrome
+      locale={validLocale}
+      messages={messages}
+      hreflangPath={hreflangPath}
+      variant={isAccountShell ? 'minimal' : 'full'}
+    >
       {children}
     </LocaleAppChrome>
   )

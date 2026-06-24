@@ -1,7 +1,7 @@
 ---
 title: Протокол Tunnel
 description: Брокер TunnelHub з native WSS, SSE та long-polling (alpha)
-last_modified: "2026-06-15"
+last_modified: "2026-06-23"
 ---
 
 # Протокол Tunnel
@@ -11,6 +11,7 @@ Realtime-шар Ring Platform: inbox користувача (сповіщенн�
 - **Сервер:** `server.ts` — Next.js + native WSS (`/api/tunnel/ws`) при `RING_DEPLOY_TARGET=k8s|self-hosted`
 - **Брокер:** `lib/tunnel/hub/` → `InMemoryTunnelHub`
 - **Клієнт:** `TunnelProvider` / `useTunnel` → WSS → SSE → poll
+- **Провайдери (2026-06-23):** `CreditBalanceProvider` і `GlobalTunnelListeners` (`AccountStatusTunnelListener`) — всередині `TunnelProvider` у `AppClientShell`; один registry на сесію
 
 ## Маршрути API
 

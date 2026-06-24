@@ -1,4 +1,4 @@
-export type VerificationSubjectType = 'user_kyc' | 'entity_identity' | 'vendor_store'
+export type VerificationSubjectType = 'user_kyc' | 'entity_identity' | 'vendor_store' | 'account_restore'
 
 export type VerificationProcedureStatus =
   | 'draft'

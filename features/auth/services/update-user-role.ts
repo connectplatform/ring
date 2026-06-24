@@ -7,6 +7,7 @@
 
 import { UserRole } from '@/features/auth/types'
 import { auth } from '@/auth'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 
 /**
@@ -33,8 +34,7 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
   try {
     // Step 1: Authenticate and get admin user session
     const session = await auth();
-    const role = session?.user?.role as UserRole | undefined
-    if (!session?.user || ![UserRole.admin, UserRole.superadmin].includes(role as UserRole)) {
+    if (!session?.user || !isPlatformAdmin(assertKnownUserRole(session.user.role))) {
       throw new Error('Unauthorized access: Admin privileges required');
     }
 

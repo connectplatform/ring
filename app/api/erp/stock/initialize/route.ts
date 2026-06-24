@@ -14,7 +14,7 @@ import { NextRequest, NextResponse, connection} from 'next/server'
 import { auth } from '@/auth'
 import { logger } from '@/lib/logger'
 import { ERPStockService, ZERO_WAREHOUSE_ID, DEFAULT_WAREHOUSE_NAME } from '@/features/store/services/erp-stock-service'
-import { UserRole } from '@/features/auth/types'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const session = await auth()
     
     // In production, require admin role
-    const isAdmin = session?.user?.role === UserRole.admin || session?.user?.role === UserRole.superadmin
+    const isAdmin = isPlatformAdmin(session?.user?.role)
     const isDev = process.env.NODE_ENV === 'development'
     
     if (!isDev && !isAdmin) {

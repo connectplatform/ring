@@ -18,7 +18,8 @@ import {
   TrendingUp,
   DollarSign
 } from 'lucide-react'
-import { useCreditBalance } from '@/hooks/use-credit-balance'
+import { useCreditBalanceContext } from '@/components/providers/credit-balance-provider'
+import { getClientCreditCurrencyCode } from '@/lib/payments/credit-currency-client'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import type { Locale } from '@/i18n/shared'
@@ -40,15 +41,17 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
   const { data: session } = useSession()
   const [copied, setCopied] = useState(false)
 
-  // Get wallet balance data
+  const creditCurrency = getClientCreditCurrencyCode()
+
+  // Get fiat credit balance data
   const {
-    balance: tokenBalance,
+    balance: creditBalance,
     subscription,
     limits,
     isLoading,
     error,
     refresh: refetchBalance
-  } = useCreditBalance()
+  } = useCreditBalanceContext()
 
   // Wallet address copy functionality
   const handleCopyAddress = async () => {
@@ -85,8 +88,8 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
   }
 
   // Check if balance is low
-  const hasLowBalance = parseFloat(tokenBalance?.amount || '0') < 1
-  const displayBalance = formatBalance(tokenBalance?.amount)
+  const hasLowBalance = parseFloat(creditBalance?.amount || '0') < 1
+  const displayBalance = formatBalance(creditBalance?.amount)
   const walletAddress = session?.user?.wallets?.[0]?.address
 
   if (isLoading) {
@@ -127,7 +130,7 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
                   <span className="text-white text-sm font-bold">R</span>
                 </div>
-                <span className="text-sm text-muted-foreground">RING Balance</span>
+                <span className="text-sm text-muted-foreground">Credit Balance ({creditCurrency})</span>
                 {hasLowBalance && (
                   <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                     <AlertTriangle className="h-3 w-3 mr-1" />
@@ -136,10 +139,10 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 )}
               </div>
               <div className="text-3xl font-bold mb-1">
-                {displayBalance} <span className="text-xl text-muted-foreground">RING</span>
+                {displayBalance} <span className="text-xl text-muted-foreground">{creditCurrency}</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                ≈ ${tokenBalance?.usd_equivalent || '0.00'} USD
+                ≈ ${creditBalance?.usd_equivalent || '0.00'} USD
               </div>
             </div>
 
@@ -149,7 +152,7 @@ export default function WalletSection({ locale, embedded = false }: WalletSectio
                 className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Top Up RING
+                Top Up Credit
               </Button>
 
               {walletAddress && (

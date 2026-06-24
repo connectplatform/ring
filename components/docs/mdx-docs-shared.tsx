@@ -32,6 +32,7 @@ import {
   MathBlock,
   MindMap,
   RingAISynapseFlow,
+  RingMatcherOrchestration,
   RingGatewayBridge,
   RingCollectiveIntelligenceLoop,
   RingDeploymentPaths,
@@ -40,10 +41,16 @@ import {
   RingHumanityVision,
   Timeline,
   RingWidgetsContact,
+  RingIntegrationPlanesHub,
+  RingWelcomeFeatureExplorer,
+  FutureFeatureWidget,
+  FutureFeatureBacklog,
 } from '@/components/docs/mdx-heavy-components'
 import { collectDiagramSource } from '@/components/docs/diagram-source'
+import { Audience } from '@/components/docs/audience-block'
 
 export const docsMdxComponents = {
+  Audience,
   Callout,
   Steps,
   Step,
@@ -60,6 +67,7 @@ export const docsMdxComponents = {
   MindMap,
   Code,
   RingAISynapseFlow,
+  RingMatcherOrchestration,
   RingGatewayBridge,
   RingCollectiveIntelligenceLoop,
   RingDeploymentPaths,
@@ -71,6 +79,10 @@ export const docsMdxComponents = {
   MathBlock,
   CodeSandbox,
   RingWidgetsContact,
+  RingIntegrationPlanesHub,
+  RingWelcomeFeatureExplorer,
+  FutureFeatureWidget,
+  FutureFeatureBacklog,
   h1: ({ children, ...props }: React.ComponentProps<'h1'>) => (
     <h1
       className="text-4xl font-bold tracking-tight mb-6 mt-8 first:mt-0 text-foreground scroll-mt-20"
@@ -113,17 +125,17 @@ export const docsMdxComponents = {
     </p>
   ),
   ul: ({ children, ...props }: React.ComponentProps<'ul'>) => (
-    <ul className="my-4 ml-6 list-disc [&>li]:mt-2 text-muted-foreground" {...props}>
+    <ul className="my-4 ml-6 list-disc [&>li]:mt-1 text-muted-foreground" {...props}>
       {children}
     </ul>
   ),
   ol: ({ children, ...props }: React.ComponentProps<'ol'>) => (
-    <ol className="my-4 ml-6 list-decimal [&>li]:mt-2 text-muted-foreground" {...props}>
+    <ol className="my-4 ml-6 list-decimal [&>li]:mt-1 text-muted-foreground" {...props}>
       {children}
     </ol>
   ),
   li: ({ children, ...props }: React.ComponentProps<'li'>) => (
-    <li className="leading-7" {...props}>
+    <li className="leading-5" {...props}>
       {children}
     </li>
   ),
@@ -199,11 +211,19 @@ export const docsMdxComponents = {
       {children}
     </em>
   ),
-  a: ({ children, href, ...props }: React.ComponentProps<'a'>) => (
-    <a href={href} className="text-primary hover:underline font-medium" {...props}>
-      {children}
-    </a>
-  ),
+  a: ({ children, href, ...props }: React.ComponentProps<'a'>) => {
+    const external = typeof href === 'string' && /^https?:\/\//.test(href)
+    return (
+      <a
+        href={href}
+        className="text-primary hover:underline font-medium"
+        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        {...props}
+      >
+        {children}
+      </a>
+    )
+  },
   hr: (props: React.ComponentProps<'hr'>) => <hr className="my-8 border-gray-200 dark:border-gray-800" {...props} />,
 }
 

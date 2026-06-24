@@ -20,7 +20,49 @@
     "ring": {
       "symbol": "RING",
       "name": "RING Governance Token",
-      "decimals": 18
+      "decimals": 8
+    },
+    "creditUnit": "USD",
+    "creditFiatCurrency": "USD",
+    "airdrops": {
+      "adminVerify": { "amount": "1", "enabled": true, "requireUsername": true },
+      "ringUsername": { "amount": "1", "enabled": true, "requireVerified": true }
+    },
+    "desk": {
+      "supplyPolicy": "treasury_transfer",
+      "sellTaxBps": 500,
+      "sellTaxDestination": "treasury_ata",
+      "firstSettlerDiscountBps": 2000,
+      "firstSettlerOneTime": true,
+      "firstSettlerGates": ["wallet", "username", "dob", "verified"],
+      "quoteTtlSeconds": 60,
+      "maxSlippageBps": 100
+    }
+  },
+  "chains": {
+    "native": "solana",
+    "enabled": ["solana", "evm"],
+    "solana": {
+      "network": "devnet",
+      "decimals": 8,
+      "sponsorAllRingTransfers": true,
+      "mintAddress": "",
+      "tokenProgram": "spl-token",
+      "rpcUrlEnv": "SOLANA_RPC_URL",
+      "commitment": "confirmed"
+    },
+    "evm": {
+      "enabled": true,
+      "chainId": 137,
+      "decimals": 18,
+      "tokenAddress": "",
+      "legacyReferralRewards": true
+    },
+    "base": {
+      "enabled": false,
+      "chainId": 8453,
+      "decimals": 8,
+      "note": "US L2 mirror — Phase 1.5"
     }
   },
   "features": {
@@ -99,6 +141,11 @@
     "autoApproveMinScore": 0.7,
     "llmConfidenceGate": 0.8
   },
+  "publicPools": {
+    "minGoalHours": 1,
+    "ringPerMachineHour": 1,
+    "likeQueueThreshold": 100
+  },
   "membership": {
     "tiers": {
       "subscriber": {
@@ -107,14 +154,18 @@
         "description": "Ring Platform Subscriber (Free)",
         "duration": "lifetime"
       },
-      "member": {
-        "amount": 299,
-        "currency": "UAH",
-        "description": "Ring Platform Member Upgrade",
-        "duration": "1 month"
-      }
+    "member": {
+      "amount": 299,
+      "currency": "UAH",
+      "description": "Ring Platform Member Upgrade",
+      "duration": "1 month"
     }
   },
+  "ring": {
+    "memberUpgradeAmount": 1,
+    "subscriptionRenewalAmount": 1
+  }
+},
   "integrations": {
     "demoUserEmail": "vendor@ring-platform.org"
   },

@@ -2,7 +2,7 @@ import 'server-only'
 
 import { cache } from 'react'
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
+import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
 import { db } from '@/lib/database'
 import { EntityAuthError, EntityPermissionError, logRingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -182,8 +182,8 @@ export async function adminBlockEntity(
     throw new EntityAuthError('Authentication required')
   }
 
-  const role = session.user.role as UserRole
-  if (role !== UserRole.admin && role !== UserRole.superadmin) {
+  const role = assertKnownUserRole(session.user.role)
+  if (!isPlatformAdmin(role)) {
     throw new EntityPermissionError('Admin access required')
   }
 

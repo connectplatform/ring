@@ -1,7 +1,7 @@
 ---
 title: Code Structure
 description: Next.js 16 App Router layout, payments, news, and services (v1.6.0)
-last_modified: "2026-06-06"
+last_modified: "2026-06-20"
 ---
 
 # Code Structure
@@ -181,6 +181,54 @@ export function useEntities(userId?: string) {
   })
 }`}
 </Code>
+
+## Hooks and providers
+
+Root hooks live in `hooks/` (see `hooks/HOOKS-README.md`). **Provider-owned subscriptions** prevent duplicate tunnel connections and API polls.
+
+<Callout type="warning" title="SSOT rule">
+If a hook opens a tunnel channel or polls an API globally (unread count, credit balance, FCM token), mount it **once** in a provider. UI components consume context — they do not call the raw hook.
+</Callout>
+
+<Mermaid title="Provider layers in app shell">
+{`flowchart TB
+  subgraph shell["app-client-shell.tsx"]
+    Session["SessionProvider"]
+    Credit["CreditBalanceProvider"]
+    FCM["FCMProvider\nuse-fcm.ts"]
+    Tunnel["TunnelProvider\nuse-tunnel.ts"]
+    Web3["Web3Provider"]
+  end
+
+  subgraph locale["locale-app-chrome.tsx"]
+    I18n["I18nProvider"]
+    Notif["NotificationProvider\nuseUnreadCount"]
+  end
+
+  Session --> Tunnel
+  Tunnel --> Notif
+  Credit --> Web3`}
+</Mermaid>
+
+<Cards>
+  <Card title="Hooks & providers (this page)" href="/docs/development/code-structure#hooks-and-providers">
+    Provider matrix above; full backlog in repo `hooks/HOOKS-README.md`.
+  </Card>
+  <Card title="Realtime architecture" href="/docs/architecture/real-time">
+    TunnelHub, WSS routes, and notification channel naming.
+  </Card>
+  <Card title="Push notifications" href="/docs/features/push-notifications-fcm">
+    `useFCM`, Server Action registration, and `useAuth().signOut()` cleanup.
+  </Card>
+</Cards>
+
+| Hook | Provider | Context accessor |
+|------|----------|------------------|
+| `use-auth.ts` | `SessionProvider` | `useAuth()` |
+| `use-fcm.ts` | `FCMProvider` | internal / `useFCM()` in provider only |
+| `use-tunnel.ts` | `TunnelProvider` | `useTunnel()` inside provider tree |
+| `use-unread-count.ts` | `NotificationProvider` | `useNotificationContext()` |
+| `use-credit-balance.ts` | `CreditBalanceProvider` | `useCreditBalanceContext()` |
 
 ## 🔧 Lib Directory
 

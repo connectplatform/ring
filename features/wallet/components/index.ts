@@ -1,4 +1,7 @@
 export { default as WalletSection } from './wallet-section'
-export { default as ContactList } from './contact-list'
 export { default as SendTokens } from './send-tokens'
 export { default as WalletConnectPopup } from './wallet-connect-popup'
+export { default as WalletContactWidget } from './wallet-contact-widget'
+export { default as RingOrderWidget } from './ring-order-widget'
+export { default as WalletTransactionRow } from './wallet-transaction-row'
+export { default as WalletTransactionFeed } from './wallet-transaction-feed'

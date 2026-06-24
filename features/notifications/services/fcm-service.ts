@@ -1,27 +1,8 @@
-// 🚀 RING-NATIVE: DatabaseService for token storage + Firebase Admin for push delivery
-// Token storage: DatabaseService (follows backend mode config)
+// Token storage: Server Action + API route via fcm-token-db.ts
 // Push delivery: Firebase Admin SDK (FCM infrastructure)
-// React 19: NO cache on token operations (real-time device registration)
 
-import { getMessaging } from 'firebase-admin/messaging'
-import { auth } from '@/auth'
+import { getMessaging, type BatchResponse, type Message } from 'firebase-admin/messaging'
 import { db } from '@/lib/database'
-import { revalidatePath } from 'next/cache'
-
-export interface FCMToken {
-  id?: string
-  userId: string
-  token: string
-  deviceInfo: {
-    platform: string
-    browser: string
-    userAgent: string
-    lastSeen: Date
-  }
-  isActive: boolean
-  createdAt: Date
-  updatedAt: Date
-}
 
 export interface FCMNotification {
   title: string
@@ -34,155 +15,70 @@ export interface FCMNotification {
   tag?: string
 }
 
-type FcmTokenRow = Record<string, unknown> & { id: string; token?: string }
+type FcmTokenRow = Record<string, unknown> & {
+  id: string
+  token?: string
+}
+
+const INVALID_FCM_ERROR_CODES = new Set([
+  'messaging/invalid-registration-token',
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-argument',
+])
+
+function extractToken(row: FcmTokenRow): string | null {
+  return typeof row.token === 'string' && row.token.length > 0 ? row.token : null
+}
 
 export class FCMService {
-  private messaging: any = null
+  private messaging: ReturnType<typeof getMessaging> | null = null
 
   private getMessagingInstance() {
     if (!this.messaging) {
-      try {
-        this.messaging = getMessaging()
-      } catch (error) {
-        console.warn('Firebase messaging not available:', error.message)
-        throw error
-      }
+      this.messaging = getMessaging()
     }
     return this.messaging
   }
 
-  /**
-   * Register a new FCM token for a user
-   */
-  async registerToken(
-    userId: string, 
-    token: string, 
-    deviceInfo: FCMToken['deviceInfo']
-  ): Promise<void> {
-    try {
-      const existingResult = await db().queryDocs<FcmTokenRow>({
-        collection: 'fcm_tokens',
-        filters: [{ field: 'token', operator: '==', value: token }],
-        pagination: { limit: 1 }
-      })
+  private async fetchActiveTokenRows(userId: string): Promise<FcmTokenRow[]> {
+    const tokensResult = await db().queryDocs<FcmTokenRow>({
+      collection: 'fcm_tokens',
+      filters: [
+        { field: 'userId', operator: '==', value: userId },
+        { field: 'status', operator: '==', value: 'active' },
+      ],
+    })
 
-      const now = new Date()
-
-      if (existingResult.success && existingResult.data.length > 0) {
-        const tokenId = existingResult.data[0].id
-        await db().updateDoc('fcm_tokens', tokenId, {
-          userId,
-          deviceInfo,
-          isActive: true,
-          updatedAt: now
-        })
-      } else {
-        await db().createDoc('fcm_tokens', {
-          userId,
-          token,
-          deviceInfo: {
-            ...deviceInfo,
-            lastSeen: deviceInfo.lastSeen
-          },
-          isActive: true,
-          createdAt: now,
-          updatedAt: now
-        })
-      }
-
-      console.log(`FCM token registered for user ${userId}`)
-    } catch (error) {
-      console.error('Error registering FCM token:', error)
-      throw new Error('Failed to register FCM token')
+    if (!tokensResult.success) {
+      throw tokensResult.error ?? new Error('Failed to fetch FCM tokens')
     }
+
+    return tokensResult.data
   }
 
-  /**
-   * Send notification to a specific user
-   */
   async sendToUser(userId: string, notification: FCMNotification): Promise<void> {
     try {
-      const tokensResult = await db().queryDocs<FcmTokenRow>({
-        collection: 'fcm_tokens',
-        filters: [
-          { field: 'userId', operator: '==', value: userId },
-          { field: 'isActive', operator: '==', value: true }
-        ]
-      })
-
-      if (!tokensResult.success || tokensResult.data.length === 0) {
+      const rows = await this.fetchActiveTokenRows(userId)
+      if (rows.length === 0) {
         console.log(`No active FCM tokens found for user ${userId}`)
         return
       }
 
-      const tokens = tokensResult.data
-        .map((row) => row.token)
-        .filter((t): t is string => typeof t === 'string')
-      await this.sendToTokens(tokens, notification)
-
+      await this.sendToTokenRows(rows, notification)
     } catch (error) {
       console.error(`Error sending notification to user ${userId}:`, error)
       throw new Error('Failed to send notification to user')
     }
   }
 
-  /**
-   * Send notification to multiple tokens
-   */
-  async sendToTokens(tokens: string[], notification: FCMNotification): Promise<void> {
-    try {
-      const message = {
-        notification: {
-          title: notification.title,
-          body: notification.body,
-          ...(notification.icon && { icon: notification.icon }),
-          ...(notification.image && { image: notification.image })
-        },
-        data: notification.data || {},
-        webpush: {
-          notification: {
-            title: notification.title,
-            body: notification.body,
-            icon: notification.icon || '/icons/notification-icon.png',
-            badge: notification.badge || '/icons/badge-icon.png',
-            ...(notification.image && { image: notification.image }),
-            ...(notification.clickAction && { click_action: notification.clickAction }),
-            ...(notification.tag && { tag: notification.tag }),
-            requireInteraction: true,
-            silent: false
-          },
-          fcm_options: {
-            link: notification.clickAction || '/'
-          }
-        },
-        tokens
-      }
-
-      const response = await this.getMessagingInstance().sendEachForMulticast(message)
-      
-      // Handle failed tokens
-      if (response.failureCount > 0) {
-        await this.handleFailedTokens(tokens, response.responses)
-      }
-
-      console.log(`FCM notification sent to ${response.successCount}/${tokens.length} tokens`)
-    } catch (error) {
-      console.error('Error sending FCM notification:', error)
-      throw new Error('Failed to send FCM notification')
-    }
-  }
-
-  /**
-   * Send notification to multiple users
-   */
   async sendToUsers(userIds: string[], notification: FCMNotification): Promise<void> {
     try {
       const tokensResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
         filters: [
           { field: 'userId', operator: 'in', value: userIds },
-          { field: 'isActive', operator: '==', value: true }
-        ]
+          { field: 'status', operator: '==', value: 'active' },
+        ],
       })
 
       if (!tokensResult.success || tokensResult.data.length === 0) {
@@ -190,25 +86,18 @@ export class FCMService {
         return
       }
 
-      const tokens = tokensResult.data
-        .map((row) => row.token)
-        .filter((t): t is string => typeof t === 'string')
-      await this.sendToTokens(tokens, notification)
-
+      await this.sendToTokenRows(tokensResult.data, notification)
     } catch (error) {
       console.error('Error sending notification to users:', error)
       throw new Error('Failed to send notification to users')
     }
   }
 
-  /**
-   * Send notification to all users (broadcast)
-   */
   async sendToAllUsers(notification: FCMNotification): Promise<void> {
     try {
       const tokensResult = await db().queryDocs<FcmTokenRow>({
         collection: 'fcm_tokens',
-        filters: [{ field: 'isActive', operator: '==', value: true }]
+        filters: [{ field: 'status', operator: '==', value: 'active' }],
       })
 
       if (!tokensResult.success || tokensResult.data.length === 0) {
@@ -216,127 +105,98 @@ export class FCMService {
         return
       }
 
-      const tokens = tokensResult.data
-        .map((row) => row.token)
-        .filter((t): t is string => typeof t === 'string')
-      
-      // Send in batches of 500 (FCM limit)
       const batchSize = 500
-      for (let i = 0; i < tokens.length; i += batchSize) {
-        const batch = tokens.slice(i, i + batchSize)
-        await this.sendToTokens(batch, notification)
+      for (let i = 0; i < tokensResult.data.length; i += batchSize) {
+        await this.sendToTokenRows(tokensResult.data.slice(i, i + batchSize), notification)
       }
-
     } catch (error) {
       console.error('Error sending broadcast notification:', error)
       throw new Error('Failed to send broadcast notification')
     }
   }
 
-  /**
-   * Remove a token (when user logs out or unsubscribes)
-   */
-  async removeToken(token: string): Promise<void> {
-    try {
-      const tokenResult = await db().queryDocs<FcmTokenRow>({
-        collection: 'fcm_tokens',
-        filters: [{ field: 'token', operator: '==', value: token }],
-        pagination: { limit: 1 }
-      })
-
-      if (tokenResult.success && tokenResult.data.length > 0) {
-        const tokenId = tokenResult.data[0].id
-        await db().updateDoc('fcm_tokens', tokenId, {
-          isActive: false,
-          updatedAt: new Date()
-        })
-      }
-
-      console.log('FCM token removed')
-    } catch (error) {
-      console.error('Error removing FCM token:', error)
-      throw new Error('Failed to remove FCM token')
+  private buildMessageForToken(token: string, notification: FCMNotification): Message {
+    return {
+      token,
+      notification: {
+        title: notification.title,
+        body: notification.body,
+        ...(notification.icon && { icon: notification.icon }),
+        ...(notification.image && { image: notification.image }),
+      },
+      data: notification.data || {},
+      webpush: {
+        notification: {
+          title: notification.title,
+          body: notification.body,
+          icon: notification.icon || '/icons/notification-icon.png',
+          badge: notification.badge || '/icons/badge-icon.png',
+          ...(notification.image && { image: notification.image }),
+          ...(notification.clickAction && { click_action: notification.clickAction }),
+          ...(notification.tag && { tag: notification.tag }),
+          requireInteraction: true,
+          silent: false,
+        },
+        fcmOptions: {
+          link: notification.clickAction || '/',
+        },
+      },
     }
   }
 
-  /**
-   * Clean up inactive tokens
-   */
-  async cleanupInactiveTokens(daysInactive: number = 30): Promise<void> {
-    try {
-      const cutoffDate = new Date()
-      cutoffDate.setDate(cutoffDate.getDate() - daysInactive)
+  private async sendToTokenRows(rows: FcmTokenRow[], notification: FCMNotification): Promise<void> {
+    const pairs = rows
+      .map((row) => ({ row, token: extractToken(row) }))
+      .filter((p): p is { row: FcmTokenRow; token: string } => p.token != null)
 
-      const inactiveResult = await db().queryDocs<FcmTokenRow>({
-        collection: 'fcm_tokens',
-        filters: [{ field: 'deviceInfo.lastSeen', operator: '<', value: cutoffDate }]
-      })
-
-      if (!inactiveResult.success || inactiveResult.data.length === 0) {
-        console.log('No inactive tokens to cleanup')
-        return
-      }
-
-      let cleanedCount = 0
-      for (const row of inactiveResult.data) {
-        const updateResult = await db().updateDoc('fcm_tokens', row.id, { isActive: false })
-        if (updateResult.success) cleanedCount++
-      }
-
-      console.log(`Cleaned up ${cleanedCount} inactive FCM tokens`)
-
-    } catch (error) {
-      console.error('Error cleaning up inactive tokens:', error)
-      throw new Error('Failed to cleanup inactive tokens')
+    if (pairs.length === 0) {
+      return
     }
+
+    const messages = pairs.map(({ token }) => this.buildMessageForToken(token, notification))
+    const response = await this.getMessagingInstance().sendEach(messages)
+    await this.handleSendResponses(pairs, response)
+    console.log(`FCM notification sent to ${response.successCount}/${messages.length} tokens`)
   }
 
-  /**
-   * Handle failed token responses
-   */
-  private async handleFailedTokens(
-    tokens: string[], 
-    responses: any[]
+  private async handleSendResponses(
+    pairs: Array<{ row: FcmTokenRow; token: string }>,
+    response: BatchResponse,
   ): Promise<void> {
-    const failedTokens: string[] = []
+    const now = new Date()
 
-    responses.forEach((response, index) => {
-      if (!response.success) {
-        const error = response.error
-        
-        // Token is invalid or unregistered
-        if (error?.code === 'messaging/invalid-registration-token' ||
-            error?.code === 'messaging/registration-token-not-registered') {
-          failedTokens.push(tokens[index])
-        }
-      }
-    })
+    for (let index = 0; index < response.responses.length; index++) {
+      const sendResponse = response.responses[index]
+      const { row } = pairs[index]
+      if (!row?.id) continue
 
-    if (failedTokens.length > 0) {
-      for (const token of failedTokens) {
-        const tokenResult = await db().queryDocs<FcmTokenRow>({
-          collection: 'fcm_tokens',
-          filters: [{ field: 'token', operator: '==', value: token }],
-          pagination: { limit: 1 }
+      if (sendResponse.success) {
+        await db().updateDoc('fcm_tokens', row.id, {
+          lastSeen: now,
+          updatedAt: now,
         })
-        
-        if (tokenResult.success && tokenResult.data.length > 0) {
-          await db().updateDoc('fcm_tokens', tokenResult.data[0].id, { isActive: false })
-        }
+        continue
       }
 
-      console.log(`Removed ${failedTokens.length} invalid FCM tokens`)
+      const code =
+        sendResponse.error?.code ??
+        (sendResponse.error as { errorInfo?: { code?: string } } | undefined)?.errorInfo?.code
+      if (code && INVALID_FCM_ERROR_CODES.has(code)) {
+        await db().updateDoc('fcm_tokens', row.id, {
+          isActive: false,
+          status: 'invalid',
+          invalidatedAt: now,
+          updatedAt: now,
+        })
+      }
     }
   }
 
-  /**
-   * Get user's active tokens count
-   */
   async getUserTokensCount(userId: string): Promise<number> {
     try {
       const countResult = await db().countDocs('fcm_tokens', [
         { field: 'userId', operator: '==', value: userId },
-        { field: 'isActive', operator: '==', value: true }
+        { field: 'status', operator: '==', value: 'active' },
       ])
 
       return countResult.success ? (countResult.data ?? 0) : 0
@@ -345,30 +205,6 @@ export class FCMService {
       return 0
     }
   }
-
-  /**
-   * Update token's last seen timestamp
-   */
-  async updateTokenLastSeen(token: string): Promise<void> {
-    try {
-      const tokenResult = await db().queryDocs<FcmTokenRow>({
-        collection: 'fcm_tokens',
-        filters: [{ field: 'token', operator: '==', value: token }],
-        pagination: { limit: 1 }
-      })
-
-      if (tokenResult.success && tokenResult.data.length > 0) {
-        const tokenId = tokenResult.data[0].id
-        await db().updateDoc('fcm_tokens', tokenId, {
-          'deviceInfo.lastSeen': new Date(),
-          updatedAt: new Date()
-        })
-      }
-    } catch (error) {
-      console.error('Error updating token last seen:', error)
-    }
-  }
 }
 
-// Export singleton instance
 export const fcmService = new FCMService()

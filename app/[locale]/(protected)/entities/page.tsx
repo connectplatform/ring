@@ -51,6 +51,16 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
   const filter = typeof searchParams.filter === 'string' ? searchParams.filter : 'all'
   const startAfter = typeof searchParams.startAfter === 'string' ? searchParams.startAfter : undefined
 
+  const entityFilters = {
+    search: typeof searchParams.q === 'string' ? searchParams.q : undefined,
+    types: typeof searchParams.types === 'string'
+      ? (searchParams.types.split(',').filter(Boolean) as import('@/features/entities/types').EntityType[])
+      : undefined,
+    location: typeof searchParams.location === 'string' ? searchParams.location : undefined,
+    sortBy: sort as import('@/features/entities/services/get-entities').EntityFilters['sortBy'],
+    sortOrder: searchParams.sortOrder === 'asc' ? 'asc' as const : 'desc' as const,
+  }
+
   let initialEntities: any[] = []
   let initialError: string | null = null
   let totalEntities = 0
@@ -63,9 +73,7 @@ export default async function EntitiesPage(props: LocalePageProps<{}>) {
       userRole,
       limit,
       startAfter,
-      filters: {
-        sortBy: sort as any,
-      },
+      filters: entityFilters,
     })
     initialEntities = result.entities
     totalEntities = result.totalCount ?? result.entities.length

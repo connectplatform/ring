@@ -8,6 +8,7 @@
 import { Entity } from '@/features/entities/types'
 import { auth } from '@/auth'
 import { assertKnownUserRole, isPlatformAdmin } from '@/features/auth/user-role'
+import { assertEntityVisibilityPatch } from '@/features/entities/lib/entity-permissions'
 import { checkEntityOwnership } from '../utils/entity-utils'
 import { syncEntityDiscovery } from '@/features/entities/lib/entity-mutation-sync'
 import { db } from '@/lib/database'
@@ -56,6 +57,11 @@ export async function updateEntity(id: string, data: Partial<Entity>): Promise<b
       console.error('Services: updateEntity - Access denied for non-admin user attempting to update entity they did not create');
       throw new Error('Access denied. Only the entity creator or an admin can update this entity.');
     }
+
+    assertEntityVisibilityPatch(userRole, {
+      visibility: data.visibility,
+      isConfidential: data.isConfidential,
+    });
 
     // Step 3: Update entity using db.command() abstraction
     const result = await db().updateDoc('entities', id, data, { merge: true })

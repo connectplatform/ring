@@ -38,6 +38,8 @@ export interface Wallet {
   label?: string;
   isDefault: boolean;
   balance: string;
+  /** Chain discriminator — missing rows treated as evm for backward compatibility */
+  chain?: 'solana' | 'evm';
 }
 
 /**

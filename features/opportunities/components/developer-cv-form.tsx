@@ -45,6 +45,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { Locale } from '@/i18n/shared'
+import { OpportunityFormShell } from '@/components/opportunities/opportunity-form-shell'
+import { davinciCtaPrimary } from '@/lib/ui/davinci'
+import { cn } from '@/lib/utils'
 
 interface DeveloperCVFormProps {
   locale: Locale
@@ -209,7 +212,7 @@ function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <Button type="submit" disabled={pending} className="w-full">
+    <Button type="submit" disabled={pending} className={cn('w-full', davinciCtaPrimary)}>
       {pending ? (
         <>
           <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
@@ -493,19 +496,12 @@ ${cvData.resumeUrl ? `Resume: ${cvData.resumeUrl}` : ''}
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-6 w-6" />
-            Share Your Developer CV
-          </CardTitle>
-          <CardDescription>
-            Create a comprehensive developer profile to showcase your skills and connect with Ring Platform opportunities.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={async (formData: FormData) => { await handleSubmit(formData) }} className="space-y-8">
+    <OpportunityFormShell
+      icon={FileText}
+      title={t('type_selector.cv.title')}
+      description={t('type_selector.cv.description')}
+    >
+      <form action={async (formData: FormData) => { await handleSubmit(formData) }} className="space-y-6">
             {/* Basic Information */}
             <Collapsible
               open={expandedSections.has('basic-info')}
@@ -833,12 +829,10 @@ ${cvData.resumeUrl ? `Resume: ${cvData.resumeUrl}` : ''}
             )}
 
             {/* Submit Button */}
-            <div className="pt-6 border-t">
+            <div className="border-t border-[color-mix(in_oklch,var(--davinci-beam)_14%,transparent)] pt-6">
               <SubmitButton />
             </div>
           </form>
-        </CardContent>
-      </Card>
-    </div>
+    </OpportunityFormShell>
   )
 }

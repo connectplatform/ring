@@ -1,12 +1,9 @@
 'use server'
 
 import { auth } from '@/auth'
-import { UserRole } from '@/features/auth/types'
-import { routing } from '@/i18n/routing'
+import { UserRole, getRoleLevel, UPGRADEABLE_ROLES, isPlatformAdmin } from '@/features/auth/user-role'
 import { logger } from '@/lib/logger'
 import type { Locale } from '@/i18n/shared'
-
-import { getRoleLevel, UPGRADEABLE_ROLES } from '@/features/auth/user-role'
 
 export interface MembershipPaymentFormState {
   success?: boolean
@@ -67,10 +64,10 @@ export async function initiateMembershipPayment(
     }
   }
 
-  // Admin role cannot be purchased
-  if (targetRole === UserRole.admin) {
+  // Platform staff roles cannot be purchased online
+  if (isPlatformAdmin(targetRole)) {
     return {
-      error: 'Admin role cannot be purchased'
+      error: 'Platform admin roles cannot be purchased',
     }
   }
 

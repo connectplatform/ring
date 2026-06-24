@@ -112,6 +112,10 @@ async function importLocaleFile(
       return import(`@/locales/${targetLocale}/modules/messenger.json`)
         .then((m) => m.default)
         .catch(() => ({}))
+    case 'modContacts':
+      return import(`@/locales/${targetLocale}/modules/contacts.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
     case 'modWallet':
       return import(`@/locales/${targetLocale}/modules/wallet.json`).then((m) => m.default).catch(() => ({}))
     case 'modStore':
@@ -140,6 +144,14 @@ async function importLocaleFile(
         .catch(() => ({}))
     case 'modRefcodes':
       return import(`@/locales/${targetLocale}/modules/refcodes.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
+    case 'modDao':
+      return import(`@/locales/${targetLocale}/modules/dao.json`)
+        .then((m) => m.default)
+        .catch(() => ({}))
+    case 'modAccount':
+      return import(`@/locales/${targetLocale}/modules/account.json`)
         .then((m) => m.default)
         .catch(() => ({}))
     case 'vendor':
@@ -244,6 +256,7 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
   if (loaded.modEntities) modules.entities = loaded.modEntities
   if (loaded.modOpp) modules.opportunities = loaded.modOpp
   if (loaded.modMessenger) modules.messenger = loaded.modMessenger
+  if (loaded.modContacts) modules.contacts = loaded.modContacts
   if (loaded.modWallet) modules.wallet = loaded.modWallet
   if (loaded.modStore) modules.store = loaded.modStore
   if (loaded.modProfile) modules.profile = loaded.modProfile
@@ -256,6 +269,8 @@ function assembleMessages(loaded: Partial<Record<LocaleFileId, JsonRecord>>): Js
     modules.notifications = loaded.modNotifications
   }
   if (loaded.modRefcodes) modules.refcodes = loaded.modRefcodes
+  if (loaded.modDao) modules.dao = loaded.modDao
+  if (loaded.modAccount) modules.account = loaded.modAccount
   if (Object.keys(modules).length > 0) messages.modules = modules
 
   return messages

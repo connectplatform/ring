@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, connection } from 'next/server'
 import type { Session } from 'next-auth'
 import { auth } from '@/auth'
 import { db } from '@/lib/database'
+import { isPlatformAdmin } from '@/features/auth/user-role'
 
 const SENSITIVE_USER_KEYS = [
   'password',
@@ -20,10 +21,7 @@ function stripSensitiveUserFields(record: Record<string, unknown>) {
 }
 
 function canManageUsers(session: Session | null) {
-  return (
-    !!session?.user &&
-    (session.user.role === 'admin' || session.user.role === 'superadmin')
-  )
+  return !!session?.user && isPlatformAdmin(session.user.role)
 }
 
 /**

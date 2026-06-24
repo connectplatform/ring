@@ -20,7 +20,7 @@ import { Bell, Settings, Search, X, Wifi, WifiOff, CheckCircle, AlertCircle, Ref
 import { useSession } from 'next-auth/react';
 import { useRealtimeNotifications, useRealtimeConnection } from '@/hooks/use-realtime';
 import { useNotificationNavigation } from '@/hooks/use-notification-navigation';
-import { useUnreadCount } from '@/hooks/use-unread-count';
+import { useNotificationContext } from '@/features/notifications/components/notification-provider';
 import { NotificationItem } from './notification-item';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
@@ -89,7 +89,6 @@ export function NotificationCenter({
   // Real-time WebSocket notifications
   const {
     notifications: wsNotifications,
-    unreadCount: wsUnreadCount,
     lastNotification: wsLastNotification,
     markAsRead: wsMarkAsRead,
     markAllAsRead: wsMarkAllAsRead,
@@ -97,12 +96,7 @@ export function NotificationCenter({
     refresh: wsRefresh
   } = useRealtimeNotifications();
 
-  // Optimized unread count with caching
-  const { unreadCount: cachedUnreadCount, refresh: refreshUnreadCount } = useUnreadCount({
-    autoRefresh: true,
-    refreshInterval: 180000, // 3 minutes
-    cacheTimeout: 120000 // 2 minutes cache TTL
-  });
+  const { unreadCount: cachedUnreadCount, refreshUnreadCount } = useNotificationContext();
 
   // Local state for notifications (combines WebSocket and initial load)
   const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
@@ -200,11 +194,11 @@ export function NotificationCenter({
                     wsNotif.priority === 'high' ? NotificationPriority.HIGH :
                     wsNotif.priority === 'urgent' ? NotificationPriority.URGENT :
                     NotificationPriority.NORMAL),
-          status: NotificationStatus.SENT,
+          status: wsNotif.read ? NotificationStatus.READ : NotificationStatus.SENT,
           trigger: NotificationTrigger.SYSTEM_EVENT,
           channels: [NotificationChannel.IN_APP],
           createdAt: wsNotif.timestamp,
-          readAt: null,
+          readAt: wsNotif.read ? new Date() : null,
           data: wsNotif.data || {},
           deliveries: [{
             channel: NotificationChannel.IN_APP,
@@ -311,6 +305,8 @@ export function NotificationCenter({
         if (!response.success) {
           console.error('Failed to mark notification as read');
           // Could revert optimistic update here if needed
+        } else {
+          void refreshUnreadCount();
         }
       } catch (error) {
         console.error('Failed to mark notification as read:', error);
@@ -342,6 +338,8 @@ export function NotificationCenter({
         
         if (!response.success) {
           console.error('Failed to mark all notifications as read');
+        } else {
+          void refreshUnreadCount();
         }
       } catch (error) {
         console.error('Failed to mark all as read:', error);
@@ -373,6 +371,8 @@ export function NotificationCenter({
         
         if (!response.success) {
           console.error('Failed to delete notification');
+        } else {
+          void refreshUnreadCount();
         }
       } catch (error) {
         console.error('Failed to delete notification:', error);
@@ -623,7 +623,7 @@ export function NotificationBadge({
   onClick,
   animated = true 
 }: NotificationBadgeProps) {
-  const { unreadCount } = useRealtimeNotifications();
+  const { unreadCount } = useNotificationContext();
   const { isConnected } = useRealtimeConnection();
 
   if (unreadCount === 0) {

@@ -105,23 +105,7 @@ export interface ProjectWalletService {
   hasProjectWallet(globalUserId: string): Promise<boolean>
   getPrimaryProjectWallet(globalUserId: string): Promise<WalletAccount | null>
 
-  // Contact Management
-  addContact(globalUserId: string, contactData: Omit<WalletContact, 'id' | 'addedAt'>): Promise<WalletContact>
-  getContacts(globalUserId: string): Promise<WalletContact[]>
-  contactExists(globalUserId: string, address: string): Promise<boolean>
-  removeContact(globalUserId: string, contactId: string): Promise<void>
-
-  // Token Transfer
-  sendTokens(params: {
-    globalUserId: string
-    fromAddress: string
-    toAddress: string
-    amount: string
-    tokenSymbol: string
-    notes?: string
-  }): Promise<WalletTransaction>
-
-  // Transaction History
+  // Transaction History (legacy project_wallet_transactions)
   getTransactionHistory(globalUserId: string, limit?: number): Promise<WalletTransaction[]>
 }
 

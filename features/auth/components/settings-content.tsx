@@ -5,6 +5,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { useFormStatus } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
+import { setThemeWithTransition } from '@/lib/theme/ring-theme-transition'
 import { UserSettings } from '@/features/auth/types'
 import { useSession } from 'next-auth/react'
 import { Alert, AlertTitle } from '@/components/ui/alert'
@@ -237,7 +238,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
    * React 19 Pattern: Direct state updates with optimistic UI
    */
   const handleThemeChange = (value: string) => {
-    setTheme(value)
+    setThemeWithTransition(setTheme, value)
   }
 
   // Render settings form using React 19 patterns
@@ -264,6 +265,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
               {/* React 19 Form with Server Actions */}
               <form action={formAction} className="space-y-6">
                 <input type="hidden" name="userId" value={session?.user?.id} />
+                <input type="hidden" name="theme" value={theme ?? 'system'} />
                 
                 <motion.div variants={itemVariants}>
                   <Label htmlFor="language" className="block mb-2">
@@ -295,7 +297,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                   <Label htmlFor="theme" className="block mb-2">
                     {t('theme')}
                   </Label>
-                  <Select value={theme} onValueChange={handleThemeChange}>
+                  <Select value={theme ?? 'system'} onValueChange={handleThemeChange}>
                     <SelectTrigger id="theme">
                       <SelectValue placeholder={t('selectTheme')} />
                     </SelectTrigger>

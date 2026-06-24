@@ -59,45 +59,14 @@ export default async function AdminStoreStockPage({
     ERPStockService.getRecentStockMovements(25),
   ])
 
-  const tabLabels = {
-    orders: t('storeHub.orders'),
-    stock: t('storeHub.stock'),
-    commissions: t('storeHub.commissions'),
-  }
-
-  const stockLabels = {
-    title: t('storeHub.stockTitle'),
-    initialize: t('storeHub.initializeStock'),
-    initializing: t('storeHub.initializingStock'),
-    summary: t('storeHub.stockSummary'),
-    lowStock: t('storeHub.lowStock'),
-    movements: t('storeHub.movements'),
-    product: t('storeHub.product'),
-    stock: t('storeHub.stock'),
-    type: t('storeHub.movementType'),
-    change: t('storeHub.quantityChange'),
-    when: t('storeHub.timestamp'),
-    totalProductsLabel: t('storeHub.totalProductsLabel'),
-    inStockLabel: t('storeHub.inStockLabel'),
-    lowStockCountLabel: t('storeHub.lowStockCountLabel'),
-    criticalLabel: t('storeHub.criticalLabel'),
-    outOfStockLabel: t('storeHub.outOfStockLabel'),
-    inventoryValueLabel: t('storeHub.inventoryValueLabel'),
-    noLowStockAlerts: t('storeHub.noLowStockAlerts'),
-    noMovementsYet: t('storeHub.noMovementsYet'),
-    stockUnits: t('storeHub.stockUnits'),
-    initStockError: t('storeHub.initStockError'),
-  }
-
   return (
     <AdminWrapper locale={locale} pageContext="store" labels={adminLabels}>
-      <StoreHubTabs locale={locale} active="stock" labels={tabLabels} />
+      <StoreHubTabs locale={locale} active="stock" />
       <Suspense fallback={<div className="h-64 animate-pulse bg-muted rounded-lg" />}>
         <AdminStockClient
           summary={summary}
           lowStockProducts={lowStockProducts}
           movements={movements}
-          labels={stockLabels}
         />
       </Suspense>
     </AdminWrapper>

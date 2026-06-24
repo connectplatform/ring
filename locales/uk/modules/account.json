@@ -1,0 +1,21 @@
+{
+  "suspended": {
+    "title": "Обліковий запис призупинено",
+    "description": "Ваш обліковий запис призупинено до перевірки. Надішліть запит на відновлення для відеоверифікації з нашою командою.",
+    "reasonLabel": "Причина",
+    "formIntro": "Вкажіть контакти та зручний канал для відеодзвінка зі співробітником.",
+    "email": "Email",
+    "phone": "Телефон",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "videoChannel": "Канал відеоверифікації",
+    "videoChannelHelp": "Команда може зв’язатися через Telegram, WhatsApp, Email+Zoom, Email+Meet або Skype.",
+    "message": "Пояснення",
+    "messagePlaceholder": "Коротко опишіть, чому обліковий запис слід відновити…",
+    "submit": "Надіслати запит",
+    "submitting": "Надсилання…",
+    "submitSuccess": "Запит надіслано ({procedure}). Команда розгляне його в черзі верифікації.",
+    "submitError": "Не вдалося надіслати запит",
+    "pendingReview": "Ваш запит {procedure} очікує на розгляд."
+  }
+}

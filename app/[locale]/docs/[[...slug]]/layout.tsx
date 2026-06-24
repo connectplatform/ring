@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { DocsPageNav } from '@/components/docs/docs-page-nav'
+import { DocsArticleShell } from '@/components/docs/docs-article-shell'
 import { normalizeDocsSlug } from '@/lib/docs/docs-path'
 
 type LayoutProps = {
@@ -8,11 +8,11 @@ type LayoutProps = {
 }
 
 export default async function DocsSlugLayout({ children, params }: LayoutProps) {
-  const { slug } = await params
+  const { locale, slug } = await params
 
   return (
     <>
-      <DocsPageNav slug={normalizeDocsSlug(slug)} showOnDesktop />
+      <DocsArticleShell locale={locale} slug={normalizeDocsSlug(slug)} showOnDesktop />
       {children}
     </>
   )

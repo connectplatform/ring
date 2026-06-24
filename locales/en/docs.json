@@ -8,6 +8,27 @@
       "title": "Quick Access"
     }
   },
+  "article": {
+    "back": "Back",
+    "docsRoot": "Docs",
+    "lastModified": "Updated {date}",
+    "listenMinutes": "{minutes} min listen",
+    "playNarration": "Play narration",
+    "watchVideo": "Watch video",
+    "narrationComingSoon": "Doc audio narration is on the roadmap (AudioConductor integration).",
+    "videoComingSoon": "Doc video walkthroughs are on the roadmap."
+  },
+  "notFound": {
+    "badge": "Documentation",
+    "title": "This docs page was not found",
+    "description": "The URL you opened is not in the Ring Platform documentation library. It may have moved, been renamed, or never existed.",
+    "unknownSection": "The section \"{section}\" is not part of our docs tree — we've logged this for review.",
+    "backToDocs": "Back to docs home",
+    "browseSection": "Browse this section",
+    "popularInSection": "Popular in {section}",
+    "popularDocs": "Start here",
+    "readArticle": "Read article"
+  },
   "comingSoon": {
     "title": "Documentation Coming Soon",
     "description": "Ring Platform documentation is available at /docs. Browse the library for setup, deployment, and feature guides."

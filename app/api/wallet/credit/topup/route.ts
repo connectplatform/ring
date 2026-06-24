@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { CreditTopUpRequestSchema } from '@/lib/zod/credit-schemas';
 import { logger } from '@/lib/logger';
+import { formatCreditAmount, getCreditCurrencyCode } from '@/lib/payments/credit-currency';
 import { isPlatformAdmin } from '@/features/auth/user-role';
 import {
   isChainProofRequired,
@@ -58,19 +59,20 @@ export async function POST(request: NextRequest) {
 
     // Validate amount limits (security measure)
     const amount = parseFloat(validatedRequest.amount);
-    const maxTopUpAmount = 10000; // 10,000 RING maximum per transaction
-    const minTopUpAmount = 0.01; // 0.01 RING minimum
+    const creditCurrency = getCreditCurrencyCode();
+    const maxTopUpAmount = 10000;
+    const minTopUpAmount = 0.01;
 
     if (amount > maxTopUpAmount) {
       return NextResponse.json(
-        { error: `Maximum top-up amount is ${maxTopUpAmount} RING` },
+        { error: `Maximum top-up amount is ${formatCreditAmount(maxTopUpAmount, creditCurrency)}` },
         { status: 400 }
       );
     }
 
     if (amount < minTopUpAmount) {
       return NextResponse.json(
-        { error: `Minimum top-up amount is ${minTopUpAmount} RING` },
+        { error: `Minimum top-up amount is ${formatCreditAmount(minTopUpAmount, creditCurrency)}` },
         { status: 400 }
       );
     }
@@ -162,7 +164,7 @@ export async function POST(request: NextRequest) {
       new_balance: result.newBalance,
       amount_added: validatedRequest.amount,
       usd_equivalent: result.transaction.usd_equivalent,
-      message: `Successfully added ${validatedRequest.amount} RING to your balance`,
+      message: `Successfully added ${formatCreditAmount(validatedRequest.amount, creditCurrency)} to your balance`,
     });
 
   } catch (error) {

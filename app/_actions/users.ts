@@ -272,6 +272,22 @@ export async function updateUserProfile(
     // Revalidate user profile (React 19 pattern)
     revalidatePath(`/[locale]/profile/${session.user.id}`)
 
+    if (username) {
+      const userDoc = await db().readDoc<Record<string, unknown>>('users', session.user.id)
+      const isVerified = Boolean(
+        userDoc.data?.isVerified ?? (session.user as { isVerified?: boolean }).isVerified,
+      )
+      if (isVerified) {
+        const { enqueueAirdrop } = await import('@/lib/wallet/airdrop-service')
+        void enqueueAirdrop({
+          userId: session.user.id,
+          trigger: 'ring_username',
+          username,
+          isVerified: true,
+        }).catch(() => undefined)
+      }
+    }
+
     return {
       success: true,
       message: 'Profile updated successfully!'

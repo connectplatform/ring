@@ -4,49 +4,37 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import type { Locale } from '@/i18n/shared'
 import { useStore } from '@/features/store/context'
 import { ProductCard } from '@/features/store/components/product-card'
-import { useInView } from '@/hooks/use-intersection-observer'
 import { useTranslations } from 'next-intl'
 import { DEFAULT_STORE_FILTERS, type StoreFilterState } from '@/lib/store-constants'
 import type { CatalogPriceBounds } from '@/lib/store-price-range'
+import { useCursorFeed } from '@/hooks/use-cursor-feed'
+import { buildFilterFingerprint } from '@/lib/pagination/filter-fingerprint'
 
 interface StorePageClientProps {
   locale: Locale
   onCountsUpdate?: (totalRecords: number, filteredRecords?: number) => void
   onPriceRangeUpdate?: (bounds: CatalogPriceBounds) => void
-  filters?: StoreFilterState // Receive filters from parent wrapper
+  filters?: StoreFilterState
 }
 
-export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUpdate, filters: parentFilters }: StorePageClientProps) {
-  // React 19 useTransition for non-blocking filter operations
-  const [isPending, startTransition] = useTransition()
-
+export default function StorePageClient({
+  locale,
+  onCountsUpdate,
+  onPriceRangeUpdate,
+  filters: parentFilters,
+}: StorePageClientProps) {
+  const [, startTransition] = useTransition()
   const { products } = useStore()
   const t = useTranslations('modules.store')
-  const [items, setItems] = useState<any[]>([])
-  const [totalRecords, setTotalRecords] = useState(0)
-  const [filteredRecords, setFilteredRecords] = useState<number | undefined>(undefined)
-  const [lastVisible, setLastVisible] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const { ref, inView } = useInView({ rootMargin: '200px', skip: !hasMore })
-  
-  // Use shared default filters constant
-  const filters = useMemo(() => parentFilters || DEFAULT_STORE_FILTERS, [parentFilters])
 
-  // Debounce timer for price range slider
+  const filters = useMemo(() => parentFilters || DEFAULT_STORE_FILTERS, [parentFilters])
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [debouncedFilters, setDebouncedFilters] = useState(() => filters)
-
-  // Stable refs to avoid effect loops and stale closures
-  const loadingRef = useRef(loading)
-  const hasMoreRef = useRef(hasMore)
-  const inFlightRef = useRef(false)
-  const hasInitializedRef = useRef(false) // NEW: Track if we've initialized once
-  const errorCountRef = useRef(0) // Track consecutive errors for backoff
-  const lastErrorTimeRef = useRef(0) // Track last error time
-  const debouncedFiltersRef = useRef(debouncedFilters) // Ref for stable callback
-  const lastQueryStringRef = useRef<string | null>(null) // Prevent duplicate loads
+  const debouncedFiltersRef = useRef(debouncedFilters)
   const lastCatalogFilterKeyRef = useRef<string | null>(null)
+
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [filteredRecords, setFilteredRecords] = useState<number | undefined>(undefined)
 
   const catalogFilterKey = useMemo(
     () =>
@@ -63,220 +51,132 @@ export default function StorePageClient({ locale, onCountsUpdate, onPriceRangeUp
       debouncedFilters.inStock,
     ],
   )
-  useEffect(() => { loadingRef.current = loading }, [loading])
-  useEffect(() => { hasMoreRef.current = hasMore }, [hasMore])
-  useEffect(() => { debouncedFiltersRef.current = debouncedFilters }, [debouncedFilters])
 
-  // Initialize with products from context ONCE on mount only
-  // CRITICAL: items.length was causing "loop of doom" - repopulating on empty filter results!
-  useEffect(() => {
-    if (!hasInitializedRef.current) {
-      const initial = Array.isArray(products) ? products : []
-      if (initial.length > 0) {
-        setItems(initial)
-        hasInitializedRef.current = true // Mark as initialized
-        console.log('🎬 Initial products loaded:', initial.length)
-      }
-    }
-  }, [products]) // FIXED: Removed items.length dependency!
+  const filterFingerprint = useMemo(
+    () => buildFilterFingerprint('store', debouncedFilters as unknown as Record<string, unknown>),
+    [debouncedFilters],
+  )
 
-  // Debounced filter updates (750ms delay for slider - Emperor's command!)
-  // FIXED: Single debounce effect - removed duplicate immediate update that was causing loops
   useEffect(() => {
-    // Skip if filters haven't actually changed (reference equality check)
+    debouncedFiltersRef.current = debouncedFilters
+  }, [debouncedFilters])
+
+  useEffect(() => {
     const filtersJson = JSON.stringify(filters)
     const debouncedJson = JSON.stringify(debouncedFilters)
-    if (filtersJson === debouncedJson) {
-      return
-    }
+    if (filtersJson === debouncedJson) return
 
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(() => {
-      startTransition(() => {
-        console.log('⏱️ Debounce complete! Updating filters:', filters)
-        setDebouncedFilters(filters)
-      })
+      startTransition(() => setDebouncedFilters(filters))
     }, 750)
 
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     }
   }, [filters, debouncedFilters])
 
-  // Build query string from debounced filters
-  const queryString = useMemo(() => {
-    const p = new URLSearchParams()
-    p.set('limit', '24')
-    
-    if (debouncedFilters.search) p.set('search', debouncedFilters.search)
-    if (debouncedFilters.categories.length > 0) p.set('categories', debouncedFilters.categories.join(','))
-    if (debouncedFilters.priceMin > 0) p.set('priceMin', debouncedFilters.priceMin.toString())
-    // Always include priceMax if it's set (don't hardcode comparison value)
-    if (debouncedFilters.priceMax) p.set('priceMax', debouncedFilters.priceMax.toString())
-    if (debouncedFilters.inStock !== null) p.set('inStock', String(debouncedFilters.inStock))
-    if (debouncedFilters.sortBy) p.set('sortBy', debouncedFilters.sortBy)
-    
-    return p.toString()
-  }, [debouncedFilters])
-
-  // Load products page - uses ref for filters to avoid callback recreation
-  const loadPage = useCallback(async (reset: boolean, afterId: string | null) => {
-    if (loadingRef.current || inFlightRef.current || (!reset && !hasMoreRef.current)) return
-    
-    // Exponential backoff: prevent request storms after errors
-    const now = Date.now()
-    const timeSinceLastError = now - lastErrorTimeRef.current
-    const backoffDelay = Math.min(1000 * Math.pow(2, errorCountRef.current), 30000) // Max 30s
-    
-    if (errorCountRef.current > 0 && timeSinceLastError < backoffDelay) {
-      console.warn(`⏸️ Backoff: waiting ${backoffDelay}ms after ${errorCountRef.current} errors`)
-      return
-    }
-    
-    setLoading(true)
-    inFlightRef.current = true
-    try {
-      // Use server action instead of API route
-      // FIXED: Use ref to avoid callback recreation on filter changes
-      const currentFilters = debouncedFiltersRef.current
+  const fetchStorePage = useCallback(
+    async (cursor: string | null) => {
       const { getStoreProducts } = await import('@/app/_actions/store-products')
       const data = await getStoreProducts({
-        ...currentFilters,
+        ...debouncedFiltersRef.current,
         limit: 24,
-        afterId: afterId || undefined
+        startAfter: cursor ?? undefined,
       })
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to load products')
       }
 
-      // Reset error count on success
-      errorCountRef.current = 0
-      lastErrorTimeRef.current = 0
-
       const newItems = Array.isArray(data.items) ? data.items : []
+      setTotalRecords(data.total ?? newItems.length)
+      setFilteredRecords(data.filteredTotal)
 
-      // Update items
-      console.log('📦 Setting items:', reset ? 'RESET' : 'APPEND', 'New items count:', newItems.length)
-      setItems(prev => (reset ? newItems : [...prev, ...newItems]))
-
-      // Update counts - CRITICAL: Use data.total (total in DB), not items.length!
-      const dbTotal = data.total !== undefined ? data.total : newItems.length
-      const dbFiltered = data.filteredTotal
-
-      console.log('📊 Counts from server action:', { total: dbTotal, filteredTotal: dbFiltered })
-
-      setTotalRecords(dbTotal)
-      setFilteredRecords(dbFiltered)
-      
-      // Catalog bounds when search/category/vendor/stock change (not price slider alone)
       if (
-        reset &&
         data.priceRange &&
         lastCatalogFilterKeyRef.current !== catalogFilterKey
       ) {
         lastCatalogFilterKeyRef.current = catalogFilterKey
         onPriceRangeUpdate?.(data.priceRange)
       }
-      
-      // onCountsUpdate called by useEffect below to prevent double updates
-      
-      const nextCursor = data.lastVisible || null
-      if (!nextCursor || (!reset && nextCursor === afterId) || newItems.length === 0) {
-        setHasMore(false)
+
+      return {
+        items: newItems,
+        cursor: data.lastVisible ?? null,
+        hasMore: Boolean(data.lastVisible),
       }
-      setLastVisible(nextCursor)
-    } catch (err) {
-      // Exponential backoff: increment error count and record time
-      errorCountRef.current++
-      lastErrorTimeRef.current = Date.now()
-      console.error(`❌ Load error (attempt ${errorCountRef.current}):`, err)
-      
-      // Stop pagination after too many errors
-      if (errorCountRef.current >= 5) {
-        setHasMore(false)
-        console.error('🛑 Too many errors, stopping pagination')
-      }
-    } finally {
-      setLoading(false)
-      inFlightRef.current = false
-    }
-  }, [onPriceRangeUpdate, catalogFilterKey])
+    },
+    [catalogFilterKey, onPriceRangeUpdate],
+  )
 
-  // Reload products when debounced filters change
-  // FIXED: Added duplicate prevention using lastQueryStringRef
+  const {
+    items,
+    loading,
+    hasMore,
+    sentinelRef,
+  } = useCursorFeed<{ id: string }>({
+    moduleId: 'store',
+    locale,
+    limit: 24,
+    filterFingerprint,
+    initialItems: [],
+    initialCursor: null,
+    fetchPage: fetchStorePage,
+  })
+
+  const hasInitializedRef = useRef(false)
   useEffect(() => {
-    // Skip if query string hasn't changed (prevents duplicate loads)
-    if (lastQueryStringRef.current === queryString) {
-      return
+    if (!hasInitializedRef.current && Array.isArray(products) && products.length > 0 && items.length === 0) {
+      hasInitializedRef.current = true
     }
-    lastQueryStringRef.current = queryString
-    
-    console.log('Query string changed, reloading products:', queryString)
-    setLastVisible(null)
-    setHasMore(true)
-    void loadPage(true, null)
-  }, [queryString, loadPage])
+  }, [items.length, products])
 
-  // Load more on scroll
-  useEffect(() => {
-    if (inView && lastVisible && !loading && hasMore) {
-      void loadPage(false, lastVisible)
-    }
-  }, [inView, lastVisible, loading, hasMore, loadPage])
+  const hasActiveFilters =
+    filters.search !== '' ||
+    filters.categories.length > 0 ||
+    filters.priceMin > 0 ||
+    (filters.priceMax !== null && filters.priceMax !== undefined) ||
+    filters.inStock !== null
 
-  // Determine if filters are active
-  const hasActiveFilters = filters.search !== '' || 
-                          filters.categories.length > 0 || 
-                          filters.priceMin > 0 || 
-                          (filters.priceMax !== null && filters.priceMax !== undefined) || // Any custom priceMax
-                          filters.inStock !== null
-
-  // Notify parent wrapper about count updates
   useEffect(() => {
     onCountsUpdate?.(totalRecords, hasActiveFilters ? filteredRecords : undefined)
   }, [totalRecords, filteredRecords, hasActiveFilters, onCountsUpdate])
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t('title')}</h1>
       </div>
-      
-      {/* Products Grid - Show pending state when loading initial data */}
+
       {loading && items.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="border rounded-lg p-4 animate-pulse">
-              <div className="w-full h-48 bg-muted rounded mb-4"></div>
-              <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-              <div className="h-4 bg-muted rounded w-1/2"></div>
+            <div key={i} className="animate-pulse rounded-lg border p-4">
+              <div className="mb-4 h-48 w-full rounded bg-muted" />
+              <div className="mb-2 h-4 w-3/4 rounded bg-muted" />
+              <div className="h-4 w-1/2 rounded bg-muted" />
             </div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map(p => (
-            <ProductCard key={p.id} product={p} locale={locale} />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {items.map((p) => (
+            <ProductCard key={p.id} product={p as any} locale={locale} />
           ))}
         </div>
       )}
-      
-      {/* Loading indicator for pagination */}
+
       {loading && items.length > 0 && (
         <div className="flex justify-center py-8">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+            <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
             <span className="text-sm">{t('loading')}</span>
           </div>
         </div>
       )}
-      <div ref={ref} className="h-10" />
+
+      {hasMore && <div ref={sentinelRef} className="h-10" />}
     </div>
   )
 }

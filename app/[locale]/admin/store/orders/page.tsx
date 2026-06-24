@@ -89,7 +89,6 @@ export default async function AdminOrdersPage({
   const t = await getTranslations('modules.admin');
   const adminLabels = buildModulesAdminLabels(t);
 
-  // Step 1: Authenticate and check admin role
   const session = await auth();
 
   if (!session?.user) {
@@ -118,40 +117,9 @@ export default async function AdminOrdersPage({
     locale: validLocale 
   });
 
-  const tabLabels = {
-    orders: t('storeHub.orders'),
-    stock: t('storeHub.stock'),
-    commissions: t('storeHub.commissions'),
-  }
-
-  const ordersLabels = {
-    title: t('storeHub.ordersPage.title'),
-    allStatuses: t('storeHub.ordersPage.allStatuses'),
-    refresh: t('storeHub.ordersPage.refresh'),
-    refreshing: t('storeHub.ordersPage.refreshing'),
-    errorPrefix: t('storeHub.ordersPage.errorPrefix'),
-    updateStatusError: t('storeHub.ordersPage.updateStatusError'),
-    noOrders: t('storeHub.ordersPage.noOrders'),
-    orderNumber: t('storeHub.ordersPage.orderNumber'),
-    statusLabel: t('storeHub.ordersPage.statusLabel'),
-    userLabel: t('storeHub.ordersPage.userLabel'),
-    createdLabel: t('storeHub.ordersPage.createdLabel'),
-    itemsLabel: t('storeHub.ordersPage.itemsLabel'),
-    update: t('storeHub.ordersPage.update'),
-    updating: t('storeHub.ordersPage.updating'),
-    statusLabels: {
-      new: t('storeHub.ordersPage.statuses.new'),
-      paid: t('storeHub.ordersPage.statuses.paid'),
-      processing: t('storeHub.ordersPage.statuses.processing'),
-      shipped: t('storeHub.ordersPage.statuses.shipped'),
-      completed: t('storeHub.ordersPage.statuses.completed'),
-      canceled: t('storeHub.ordersPage.statuses.canceled'),
-    },
-  }
-
   return (
     <AdminWrapper locale={validLocale} pageContext="store" labels={adminLabels}>
-      <StoreHubTabs locale={validLocale} active="orders" labels={tabLabels} />
+      <StoreHubTabs locale={validLocale} active="orders" />
       <Suspense fallback={
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
@@ -161,7 +129,6 @@ export default async function AdminOrdersPage({
           initialOrders={orders}
           currentStatusFilter={statusFilter}
           locale={validLocale}
-          labels={ordersLabels}
         />
       </Suspense>
     </AdminWrapper>

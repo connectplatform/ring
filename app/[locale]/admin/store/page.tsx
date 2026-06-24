@@ -13,5 +13,5 @@ export default async function AdminStoreHubPage({
     ? (localeParam as Locale)
     : routing.defaultLocale
 
-  redirect(ROUTES.ADMIN_STORE_ORDERS(locale))
+  redirect(ROUTES.ADMIN_STORE_PRODUCTS(locale))
 }

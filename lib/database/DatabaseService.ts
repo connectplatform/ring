@@ -112,6 +112,18 @@ export class DatabaseService {
         },
       }
     }
+    if (this.connected) {
+      return {
+        success: true,
+        data: undefined,
+        metadata: {
+          operation: 'initialize',
+          duration: 0,
+          backend: 'service',
+          timestamp: new Date(),
+        },
+      }
+    }
     try {
       const result = await this.selector.connect();
       if (result.success) {
@@ -734,9 +746,19 @@ export function createHybridDatabaseService(): DatabaseService {
 // ============================================================================
 
 /**
- * Global database service instance
+ * Global database service instance (survives Next.js dev HMR via globalThis).
  */
-let globalDatabaseService: DatabaseService | null = null;
+const globalForDb = globalThis as typeof globalThis & {
+  __ringDatabaseService?: DatabaseService | null
+}
+
+let globalDatabaseService: DatabaseService | null =
+  globalForDb.__ringDatabaseService ?? null;
+
+function persistGlobalDatabaseService(service: DatabaseService | null): void {
+  globalDatabaseService = service;
+  globalForDb.__ringDatabaseService = service;
+}
 
 /**
  * Get or create global database service instance
@@ -757,6 +779,7 @@ export function getDatabaseService(): DatabaseService {
     };
 
     globalDatabaseService = new DatabaseService(config);
+    persistGlobalDatabaseService(globalDatabaseService);
   }
 
   return globalDatabaseService;
@@ -1309,8 +1332,10 @@ export async function initializeDbCommand(): Promise<DatabaseResult<void>> {
 }
 
 /**
- * Initialize global database service
+ * Initialize global database service (single-flight — safe under Promise.all).
  */
+let initializeDatabaseInFlight: Promise<DatabaseResult<void>> | null = null;
+
 export async function initializeDatabase(): Promise<DatabaseResult<void>> {
   if (shouldSkipDatabaseConnect()) {
     return {
@@ -1327,17 +1352,30 @@ export async function initializeDatabase(): Promise<DatabaseResult<void>> {
 
   const service = getDatabaseService();
 
-  // Skip initialization if already done
   if (DatabaseService.isInitialized() && service.isConnected()) {
     return { success: true, data: undefined };
   }
 
-  const result = await service.initialize();
-  if (result.success) {
-    DatabaseService.setInitialized(true);
+  if (initializeDatabaseInFlight) {
+    return initializeDatabaseInFlight;
   }
 
-  return result;
+  initializeDatabaseInFlight = (async () => {
+    try {
+      if (DatabaseService.isInitialized() && service.isConnected()) {
+        return { success: true, data: undefined };
+      }
+      const result = await service.initialize();
+      if (result.success) {
+        DatabaseService.setInitialized(true);
+      }
+      return result;
+    } finally {
+      initializeDatabaseInFlight = null;
+    }
+  })();
+
+  return initializeDatabaseInFlight;
 }
 
 /**
@@ -1346,7 +1384,8 @@ export async function initializeDatabase(): Promise<DatabaseResult<void>> {
 export async function shutdownDatabase(): Promise<DatabaseResult<void>> {
   if (globalDatabaseService) {
     const result = await globalDatabaseService.shutdown();
-    globalDatabaseService = null;
+    persistGlobalDatabaseService(null);
+    DatabaseService.setInitialized(false);
     return result;
   }
 

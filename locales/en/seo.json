@@ -172,6 +172,10 @@
       "title": "Post Opportunity - Ring Platform",
       "description": "Create and post a new business opportunity or partnership request. Connect with the right professionals on Ring platform."
     },
+    "edit": {
+      "title": "Edit Opportunity - Ring Platform",
+      "description": "Update your opportunity listing — title, description, budget, and visibility."
+    },
     "my": {
       "title": "My Opportunities - Ring Platform",
       "description": "Manage opportunities you posted — drafts, pending review, and active listings."

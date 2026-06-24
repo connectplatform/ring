@@ -109,5 +109,29 @@
     "cloneRing": "Клонировать Ring Сейчас",
     "learnTokens": "Узнать о Токенах RING",
     "viewSource": "Посмотреть Исходный Код"
+  },
+  "sidebar": {
+    "publisher_title": "Sonoratek LLC — издатель",
+    "publisher_desc": "Юридический издатель Ring Platform. Создано в Украине, бесплатно для мира.",
+    "quick_actions": "Начать",
+    "clone_hint": "install.sh → ring-config → первый деплой",
+    "tokens_hint": "Токен RING и экономика членства",
+    "source_hint": "connectplatform/ring на GitHub",
+    "help_title": "Документация",
+    "help_desc": "Клонируйте Ring, настройте ring-config.json и разверните white-label.",
+    "view_docs": "Открыть документацию",
+    "docs_hint": "Архитектура, модули и руководства по развёртыванию",
+    "impact": {
+      "deployments": "Активные клоны Ring и white-label сообщества",
+      "value": "Экономическая ценность, созданная на платформе",
+      "benefiting": "Люди, охваченные Ring-платформами",
+      "countries": "Страны с живыми или пилотными инстансами Ring"
+    },
+    "flow": {
+      "step_install": "install.sh",
+      "step_config": "ring-config",
+      "step_deploy": "первый деплой",
+      "quick_start": "Быстрый старт"
+    }
   }
 }

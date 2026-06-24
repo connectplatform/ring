@@ -5,7 +5,10 @@ import { subscriptionService } from '@/services/membership/subscription-service'
 import { userCreditService } from '@/features/wallet/services/user-credit-service';
 import { priceOracleService } from '@/services/blockchain/price-oracle-service';
 import { logger } from '@/lib/logger';
-import { UserRole } from '@/features/auth/types';
+import { UserRole } from '@/features/auth/user-role';
+import { getMembershipRingUpgradeAmount, getMembershipRingRenewalAmount } from '@/lib/membership/pricing';
+import { getRingBalanceForUser } from '@/features/wallet/chains/ring-transfer-service';
+import { getCreditCurrencyCode } from '@/lib/payments/credit-currency';
 
 /**
  * Payment request schema
@@ -14,6 +17,7 @@ const RingPaymentRequestSchema = z.object({
   type: z.enum(['membership_upgrade', 'subscription_renewal', 'membership_fee']),
   amount: z.string().regex(/^\d+(\.\d+)?$/, 'Amount must be a valid positive number').optional(),
   auto_subscribe: z.boolean().default(false),
+  rail: z.enum(['account_credit', 'on_chain_ring']).default('account_credit'),
 });
 
 type RingPaymentRequest = z.infer<typeof RingPaymentRequestSchema>;
@@ -24,6 +28,7 @@ type RingPaymentRequest = z.infer<typeof RingPaymentRequestSchema>;
  */
 export async function POST(request: NextRequest) {
   await connection() // Next.js 16: opt out of prerendering
+  const creditCurrency = getCreditCurrencyCode();
 
   try {
     const session = await auth();
@@ -54,27 +59,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { type, amount, auto_subscribe } = validatedRequest;
+    const { type, amount, auto_subscribe, rail } = validatedRequest;
 
-    // Determine payment amount
-    const membershipFee = amount || '1.0'; // Default 1 RING per month
+    const defaultUpgradeAmount = getMembershipRingUpgradeAmount();
+    const defaultRenewalAmount = getMembershipRingRenewalAmount();
+    const membershipFee =
+      amount ??
+      (type === 'subscription_renewal'
+        ? defaultRenewalAmount.toString()
+        : defaultUpgradeAmount.toString());
     const paymentAmount = parseFloat(membershipFee);
 
     // Validate payment amount
     if (paymentAmount <= 0 || paymentAmount > 100) {
       return NextResponse.json(
-        { error: 'Invalid payment amount. Must be between 0.01 and 100 RING' },
+        {
+          error: `Invalid payment amount. Must be between 0.01 and 100 ${creditCurrency}`,
+        },
         { status: 400 }
       );
     }
 
-    // Check user's credit balance
+    // On-chain RING rail — balance check only; treasury/RingSales settlement is backlog
+    if (rail === 'on_chain_ring') {
+      const onChain = await getRingBalanceForUser(userId);
+      if (parseFloat(onChain.balance) < paymentAmount) {
+        return NextResponse.json(
+          {
+            error: 'Insufficient on-chain RING balance',
+            current_balance: onChain.balance,
+            required_amount: membershipFee,
+            symbol: 'RING',
+          },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json(
+        {
+          error: 'On-chain membership payment via wallet RING is not yet enabled. Use account credit or card.',
+          code: 'ON_CHAIN_MEMBERSHIP_NOT_ENABLED',
+        },
+        { status: 501 },
+      );
+    }
+
+    // Check user's fiat credit balance
     const creditBalance = await userCreditService.getUserCreditBalance(userId);
     if (!creditBalance || parseFloat(creditBalance.amount) < paymentAmount) {
       return NextResponse.json(
         { 
-          error: 'Insufficient RING balance',
+          error: `Insufficient credit balance (${creditCurrency})`,
           current_balance: creditBalance?.amount || '0',
+          currency: creditCurrency,
           required_amount: membershipFee,
           shortfall: creditBalance 
             ? Math.max(0, paymentAmount - parseFloat(creditBalance.amount)).toString()
@@ -185,7 +221,7 @@ export async function POST(request: NextRequest) {
       payment: {
         type: type,
         amount_paid: membershipFee,
-        currency: 'RING',
+        currency: creditCurrency,
         usd_equivalent: (paymentAmount * parseFloat(priceData.price)).toFixed(6),
         exchange_rate: priceData.price,
         transaction_id: result.transaction.id,
@@ -224,7 +260,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       if (error.message.includes('Insufficient balance')) {
         return NextResponse.json(
-          { error: 'Insufficient RING balance for payment' },
+          { error: `Insufficient credit balance (${creditCurrency})` },
           { status: 400 }
         );
       }
@@ -268,9 +304,8 @@ export async function GET(request: NextRequest) {
     const creditBalance = await userCreditService.getUserCreditBalance(userId);
     const currentBalance = parseFloat(creditBalance?.amount || '0');
 
-    // Get current RING price
+    const membershipFee = getMembershipRingUpgradeAmount();
     const priceData = await priceOracleService.getRingUsdPrice();
-    const membershipFee = 1.0;
     const usdCost = membershipFee * parseFloat(priceData.price);
 
     // Get subscription status
@@ -285,7 +320,7 @@ export async function GET(request: NextRequest) {
         title: 'Upgrade to Member',
         description: 'One-time upgrade with optional auto-renewal',
         cost: {
-          ring_amount: '1.0',
+          ring_amount: membershipFee.toFixed(2),
           usd_equivalent: usdCost.toFixed(2),
         },
         available: currentBalance >= membershipFee,
@@ -303,7 +338,7 @@ export async function GET(request: NextRequest) {
         title: 'Renew Subscription',
         description: 'Renew your membership for another month',
         cost: {
-          ring_amount: '1.0',
+          ring_amount: membershipFee.toFixed(2),
           usd_equivalent: usdCost.toFixed(2),
         },
         available: currentBalance >= membershipFee,
@@ -340,7 +375,7 @@ export async function GET(request: NextRequest) {
       },
       pricing: {
         membership_fee: {
-          ring_amount: '1.0',
+          ring_amount: membershipFee.toFixed(2),
           usd_equivalent: usdCost.toFixed(6),
           exchange_rate: priceData.price,
           rate_updated: priceData.timestamp,
@@ -354,7 +389,7 @@ export async function GET(request: NextRequest) {
       },
       payment_options: paymentOptions,
       requirements: {
-        minimum_balance: '1.0',
+        minimum_balance: membershipFee.toFixed(2),
         balance_shortfall: Math.max(0, membershipFee - currentBalance).toString(),
         top_up_needed: currentBalance < membershipFee,
       },
@@ -364,7 +399,7 @@ export async function GET(request: NextRequest) {
         'Complete payment',
         'Access Member features',
       ] : [
-        'Top up RING balance',
+        'Top up credit balance',
         'Return to complete payment',
       ],
     };
