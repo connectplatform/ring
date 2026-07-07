@@ -114,6 +114,7 @@ function NotificationSettings() {
 | `useMediaQuery` | `use-media-query.ts` | Responsive breakpoints |
 | `useToast` | `use-toast.ts` | Shadcn toast helper |
 | `useSessionCache` | `use-session-cache.ts` | Client session cache (cleared on sign-out) |
+| `useVendorStatus` | `use-vendor-status.ts` | `/api/vendor/status` single-flight + 30s TTL cache; one-shot read, no provider needed |
 
 > **Note:** i18n uses `next-intl` (`useTranslations`) — there is no `useLanguage` hook in this tree.
 
@@ -170,9 +171,36 @@ Tracked in `AI-CONTEXT/ring-platform.org/concepts/hooks-provider-subscription-ma
 - [x] `useCreditBalance` migrated off `useTunnelSubscription`.
 - [x] Server publishes `notifications:inbox` on notification create.
 - [x] `useNotifications` + `useRealtimeNotifications` use tunnel inbox + context unread SSOT.
+- [x] `scripts/validate-provider-ssot.sh` recreated (was deleted in an unrelated
+      working-tree cleanup) and wired into CI is still open below; run manually
+      via `./scripts/validate-provider-ssot.sh` until then.
 - [ ] Wire `scripts/validate-provider-ssot.sh` into CI.
 - [ ] Remove deprecated `use-tunnel-subscription.ts` after soak period.
 - [ ] Distributed TunnelHub (Redis) for multi-pod — see `2026-06-20-tunnel-channel-consolidation-p2.json`.
+
+### P4 — duplicate-fetch consolidation (2026-07-07, `ring_ssot_logic_upgrade`)
+
+- [x] **Vendor status** — `hooks/use-vendor-status.ts` single-flight + 30s TTL cache;
+      replaces duplicate inline `fetch('/api/vendor/status')` in
+      `sidebar-synced-layout.tsx` and `sidebar-aside.tsx`.
+- [x] **SessionProvider** — merged tuned refetch settings into the one active
+      `features/auth/components/session-provider.tsx`; deleted two unused
+      duplicates (`components/providers/session-provider.tsx`, `auth-provider.tsx`).
+- [x] **Web Vitals** — `web-vitals-provider.tsx` now buffers `useReportWebVitals`
+      callbacks into one batched POST (debounced) instead of one POST per metric.
+- [x] **Credit balance bootstrap** — module-scope single-flight + 5s TTL in
+      `hooks/use-credit-balance.ts`, impervious to Strict Mode / Suspense-boundary
+      ref resets that previously caused 2-3x duplicate `GET` on mount.
+- [x] **Store products** — `features/store/context.tsx` defers the catalog fetch
+      to store routes / non-empty cart only; `features/store/config.ts` adds
+      `getCachedProductCatalog()` (`'use cache'` + `cacheTag('store:products')`)
+      as the shared SSOT for both `app/api/store/products/route.ts` and the
+      `getStoreProducts` server action, which previously called
+      `adapter.listProducts()` independently.
+- [x] **Tunnel timing/logging** — `/admin` added to `priorityRoutes` with
+      prefix-matching (was exact-match, so `/admin` never matched
+      `/admin/analytics`); publisher "queued" case logs at debug, not info;
+      native WS `auth_ok` now drains the offline queue like the SSE route does.
 
 ### P3 — docs (in progress)
 

@@ -1,5 +1,6 @@
+import { cacheLife, cacheTag } from 'next/cache'
 import { MockStoreAdapter } from './mock-adapter'
-import type { StoreAdapter } from './types'
+import type { StoreAdapter, StoreProduct } from './types'
 
 type StoreAdapterName = 'mock' | 'firebase' | 'connect' | 'postgresql'
 
@@ -38,6 +39,23 @@ export async function getStoreService() {
   const { RingStoreService } = await import('./service')
   const adapter = await getStoreAdapter()
   return new RingStoreService(adapter)
+}
+
+/**
+ * Cached raw catalog read — SSOT for the full unfiltered product list.
+ * Both `app/api/store/products/route.ts` (GET) and `app/_actions/store-products.ts`
+ * (`getStoreProducts`) independently called `adapter.listProducts()`; this
+ * consolidates to one cached read per Next 16 `'use cache'` Cache Components.
+ * Invalidate with `updateTag('store:products')` after any product
+ * create/update/delete (see POST handler in the same route file).
+ */
+export async function getCachedProductCatalog(): Promise<StoreProduct[]> {
+  'use cache'
+  cacheTag('store:products')
+  cacheLife('minutes')
+
+  const adapter = await getStoreAdapter()
+  return adapter.listProducts()
 }
 
 

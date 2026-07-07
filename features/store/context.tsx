@@ -1,5 +1,6 @@
 "use client"
-import React, { createContext, useContext, useEffect, useMemo, useState, use } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState, useTransition, use } from 'react'
+import { usePathname } from 'next/navigation'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import type { StoreProduct, CartItem, CheckoutInfo } from './types'
 import { getClientStoreService } from './client'
@@ -31,6 +32,63 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | null>(null)
 
+/**
+ * Pure transform: raw product list -> enhanced list + recommendation buckets.
+ * SSOT shared by the initial deferred load and manual refreshEnhancedProducts
+ * so both paths derive recommendations identically (manual refresh previously
+ * skipped quality/sustainable/aiRecommended — now consistent).
+ */
+function buildEnhancedProductSets(rawList: StoreProduct[]) {
+  const productList = Array.isArray(rawList) ? rawList : []
+  const enhancedWithEmbeddings = productList.map(product => ({
+    ...product,
+    embedding: generateProductEmbedding({
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      tags: product.tags,
+    }),
+  }))
+
+  const qualityProducts = enhancedWithEmbeddings.filter(p =>
+    p.tags?.includes('organic') || p.tags?.includes('premium') || (p.rating && p.rating >= 4.5)
+  ).slice(0, 10)
+
+  const sustainableList = enhancedWithEmbeddings.filter(p =>
+    p.tags?.includes('eco') || p.tags?.includes('sustainable') || p.tags?.includes('organic')
+  ).slice(0, 10)
+
+  const shuffled = [...enhancedWithEmbeddings].sort(() => Math.random() - 0.5)
+
+  return {
+    productList,
+    enhancedWithEmbeddings,
+    qualityRecommendations: qualityProducts.length > 0 ? qualityProducts : enhancedWithEmbeddings.slice(0, 10),
+    sustainableProducts: sustainableList.length > 0 ? sustainableList : enhancedWithEmbeddings.slice(0, 10),
+    aiRecommendedProducts: shuffled.slice(0, 10),
+  }
+}
+
+/**
+ * Module-scope single-flight for the raw product list network call — dedupes
+ * concurrent StoreProvider mounts (Strict Mode) to one `GET /api/store/products`.
+ * Mirrors `initializeDatabaseInFlight` in `lib/database/DatabaseService.ts`.
+ */
+let storeProductsInFlight: Promise<StoreProduct[]> | null = null
+
+function fetchStoreProductsSingleFlight(storeService: { list: () => Promise<unknown> }): Promise<StoreProduct[]> {
+  if (storeProductsInFlight) return storeProductsInFlight
+
+  storeProductsInFlight = storeService
+    .list()
+    .then((list) => (Array.isArray(list) ? (list as StoreProduct[]) : []))
+    .finally(() => {
+      storeProductsInFlight = null
+    })
+
+  return storeProductsInFlight
+}
+
 export function useStore(): StoreContextType {
   const ctx = use(StoreContext)
   if (!ctx) throw new Error('useStore must be used within StoreProvider')
@@ -54,6 +112,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const [rawCart, setRawCart] = useLocalStorage<{ id: string; qty: number }[]>(`ring_cart`, [])
   const [service, setService] = useState<ReturnType<any> | null>(null)
+  const [, startTransition] = useTransition()
+  const pathname = usePathname()
+  // Ring's own anti-pattern rule (AI-CONTEXT/concepts/frontend/state-management.json
+  // pattern_4_minimal_global_state) disallows full entity catalogs in a global
+  // client store. StoreProvider stays mounted globally (nav cart badge needs
+  // totalItems on every route), but the product-list network call is deferred
+  // until the user is actually on a store route or already has cart items.
+  const isStoreRoute = pathname.includes('/store')
+  const shouldLoadProducts = isStoreRoute || rawCart.length > 0
 
   useEffect(() => {
     let mounted = true
@@ -62,71 +129,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) return
       setService(s)
 
-      // Load products once and use for both legacy and enhanced
+      if (!shouldLoadProducts) return
+
       setIsLoadingEnhanced(true)
       try {
-        const list = await s.list()
+        const productList = await fetchStoreProductsSingleFlight(s)
         if (!mounted) return
-        
-        const productList = Array.isArray(list) ? list : []
-        setProducts(productList)
 
-        // Generate embeddings for products (fast, local operation)
-        const enhancedWithEmbeddings = productList.map(product => ({
-          ...product,
-          embedding: generateProductEmbedding({
-            name: product.name,
-            description: product.description,
-            category: product.category,
-            tags: product.tags
-          })
-        }))
-        setEnhancedProducts(enhancedWithEmbeddings)
-        
-        // Set recommendations from the same product list (no additional DB calls)
-        // Quality: products with high ratings or organic tags
-        const qualityProducts = enhancedWithEmbeddings.filter(p => 
-          p.tags?.includes('organic') || p.tags?.includes('premium') || p.rating && p.rating >= 4.5
-        ).slice(0, 10)
-        setQualityRecommendations(qualityProducts.length > 0 ? qualityProducts : enhancedWithEmbeddings.slice(0, 10))
-        
-        // Sustainable: products with eco/sustainable tags
-        const sustainableList = enhancedWithEmbeddings.filter(p =>
-          p.tags?.includes('eco') || p.tags?.includes('sustainable') || p.tags?.includes('organic')
-        ).slice(0, 10)
-        setSustainableProducts(sustainableList.length > 0 ? sustainableList : enhancedWithEmbeddings.slice(0, 10))
-        
-        // AI Recommended: random selection for now (can be enhanced later)
-        const shuffled = [...enhancedWithEmbeddings].sort(() => Math.random() - 0.5)
-        setAiRecommendedProducts(shuffled.slice(0, 10))
+        const sets = buildEnhancedProductSets(productList)
+        startTransition(() => {
+          setProducts(sets.productList)
+          setEnhancedProducts(sets.enhancedWithEmbeddings)
+          setQualityRecommendations(sets.qualityRecommendations)
+          setSustainableProducts(sets.sustainableProducts)
+          setAiRecommendedProducts(sets.aiRecommendedProducts)
+        })
       } catch (error) {
         console.error('Error loading products:', error)
       } finally {
-        setIsLoadingEnhanced(false)
+        if (mounted) setIsLoadingEnhanced(false)
       }
     })()
     return () => { mounted = false }
-  }, [])
+  }, [shouldLoadProducts])
 
-  // ERP Extension: Refresh products (for manual refresh only)
+  // ERP Extension: Refresh products (for manual refresh only) — always hits
+  // the network fresh, bypassing the single-flight cache used by initial load.
   const loadEnhancedProducts = async (storeService: any) => {
-    // This is now only used for manual refresh, not initial load
     if (!storeService) return
 
     try {
       setIsLoadingEnhanced(true)
-      const productList = await storeService.list()
-      const enhancedWithEmbeddings = Array.isArray(productList) ? productList.map(product => ({
-        ...product,
-        embedding: generateProductEmbedding({
-          name: product.name,
-          description: product.description,
-          category: product.category,
-          tags: product.tags
-        })
-      })) : []
-      setEnhancedProducts(enhancedWithEmbeddings)
-      setProducts(Array.isArray(productList) ? productList : [])
+      const rawList = await storeService.list()
+      const sets = buildEnhancedProductSets(Array.isArray(rawList) ? rawList : [])
+      startTransition(() => {
+        setProducts(sets.productList)
+        setEnhancedProducts(sets.enhancedWithEmbeddings)
+        setQualityRecommendations(sets.qualityRecommendations)
+        setSustainableProducts(sets.sustainableProducts)
+        setAiRecommendedProducts(sets.aiRecommendedProducts)
+      })
     } catch (error) {
       console.error('Error refreshing products:', error)
     } finally {

@@ -5,6 +5,7 @@
  * Implementations: InMemoryHub (today) → RedisHub / ConnectPlatformHub (gated).
  */
 
+import { UserRolesArray } from '@/types';
 import type { TunnelMessage } from '../types';
 
 export interface PublishToUserResult {
@@ -33,6 +34,15 @@ export interface TunnelHub {
 
   /** Messages queued while user was offline — drain on SSE connect (max batch). */
   drainUserQueueForSse(userId: string, maxBatch?: number): TunnelMessage[];
+
+  /**
+   * Same underlying offline queue as `drainUserQueueForSse`, generalized for
+   * any transport. Call on native WS connect too, so messages published
+   * during the connect boot race (e.g. device telemetry fired before the
+   * WSS handshake completes) are delivered instead of sitting until the
+   * queue's next SSE drain.
+   */
+  drainUserQueue(userId: string, maxBatch?: number): TunnelMessage[];
 
   /** Per-user inbox (unread counts, credit balance). */
   publishToUser(userId: string, message: TunnelMessage): PublishToUserResult;

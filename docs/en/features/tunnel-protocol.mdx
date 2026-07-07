@@ -28,6 +28,10 @@ Pair with [Push notifications (FCM)](/en/docs/features/push-notifications-fcm) w
   Do **not** call `useTunnel().subscribe()` inside `useEffect` with `subscribe` in the dependency array. Use **`useTunnelChannel`** or **`useSync`** with `subscribeRef` pattern instead.
 </Callout>
 
+<Callout type="info">
+  A `TunnelPublisher: Queued for user … (no live socket yet)` debug log right after login is expected, not an error. HTTP ingest (e.g. `POST /api/analytics/device`) persists first; tunnel connect follows a short auth-grace delay in `components/providers/tunnel-provider.tsx`. The message is queued and delivered on the next connect — see `lib/tunnel/SUBSCRIPTION-SSOT.md` "Tunnel timing + duplicate fetch consolidation".
+</Callout>
+
 <Audience for="founder">
 
 ## What founders get from Tunnel
@@ -252,7 +256,7 @@ curl "http://localhost:3000/api/tunnel/test"
 | Pattern | Example | Publisher | Consumer hook / module |
 |---------|---------|-----------|------------------------|
 | Per-user inbox | `notifications:inbox` | `notification-service` | `use-notifications.ts`, `use-realtime.ts` |
-| Per-user inbox | `credit:balance` | `UserCreditService` | `CreditBalanceProvider` → `use-credit-balance.ts` (`userScoped: false`) |
+| Per-user inbox | `credit:balance` | `creditBalanceService` | `CreditBalanceProvider` → `use-credit-balance.ts` (`userScoped: false`) |
 | Per-user inbox | `account:status` | `app/_actions/admin-account-status.ts` | `GlobalTunnelListeners` → `AccountStatusTunnelListener` (`userScoped: false`) |
 | Conversation | `conversation:${id}` | chat services | `use-messaging.ts` |
 | Discovery | `opportunities`, `entities` | `sync-discovery.ts` | `use-realtime-opportunities.ts`, `useSync` |

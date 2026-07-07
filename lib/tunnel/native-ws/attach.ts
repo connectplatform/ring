@@ -10,7 +10,7 @@ import { verifyJWT } from '@/lib/auth/edge-jwt';
 import { buildTunnelMessage } from '../hub';
 import type { TunnelHub } from '../hub/types';
 import { TunnelMessageType } from '../types';
-import { decodeFrame, encodeFrame, type TunnelWsClientFrame } from './frames';
+import { decodeFrame, deliverMessageToWs, encodeFrame, type TunnelWsClientFrame } from './frames';
 
 export interface AttachTunnelWssOptions {
   path?: string;
@@ -69,6 +69,14 @@ export function attachTunnelWss(server: HttpServer, options: AttachTunnelWssOpti
         sessions.set(ws, { userId: verified.userId, subscriptions: new Set() });
         hub.registerWsConnection(verified.userId, ws);
         sendJson(ws, { op: 'auth_ok', userId: verified.userId });
+
+        // Deliver messages published while this user had no live socket
+        // (e.g. device telemetry fired during the auth-grace/connect delay
+        // before this WSS handshake completed). Same offline queue the SSE
+        // route already drains on connect — see lib/tunnel/hub/in-memory-hub.ts.
+        for (const queued of hub.drainUserQueue(verified.userId)) {
+          deliverMessageToWs(ws, queued);
+        }
         return;
       }
 

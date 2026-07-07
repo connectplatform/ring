@@ -88,6 +88,11 @@ export class InMemoryTunnelHub implements TunnelHub {
   }
 
   drainUserQueueForSse(userId: string, maxBatch = 10): TunnelMessage[] {
+    return this.drainUserQueue(userId, maxBatch);
+  }
+
+  /** Generalized offline-queue drain — see interface doc in hub/types.ts. */
+  drainUserQueue(userId: string, maxBatch = 10): TunnelMessage[] {
     const queue = this.userSseQueues.get(userId);
     if (!queue || queue.length === 0) return [];
 

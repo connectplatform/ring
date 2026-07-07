@@ -2,8 +2,9 @@
 
 import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
+import { hasMemberPrivileges } from '@/features/auth/user-role'
 import { getVendorByUserId } from '@/features/store/services/get-vendor-by-user'
-import { getStoreAdapter } from '@/features/store/config'
+import { getCachedProductCatalog } from '@/features/store/config'
 import { StoreFilterState } from '@/lib/store-constants'
 import {
   applyCatalogFilters,
@@ -62,18 +63,29 @@ export async function getStoreProducts(
       }
     }
 
-    const adapter = await getStoreAdapter()
-    if (!adapter) {
-      return { success: false, error: 'Store adapter not available' }
-    }
-
-    const allProducts = await adapter.listProducts()
+    const allProducts = await getCachedProductCatalog()
     const totalProducts = allProducts.length
 
     const catalogProducts = applyCatalogFilters(allProducts, filters)
     const priceRange = computeCatalogPriceBounds(catalogProducts)
 
     let filteredProducts = applyPriceFilters(catalogProducts, filters)
+
+    // ── Audience filter: member-only products are hidden from non-member users.
+    // Products tagged with productAudience === 'member' require member privileges
+    // (role >= member). Admins see all products regardless of audience tag.
+    const currentRole = session?.user?.role
+    const isAdmin = currentRole ? isPlatformAdmin(currentRole) : false
+    const userHasMemberAccess = isAdmin || hasMemberPrivileges(currentRole)
+    if (!userHasMemberAccess) {
+      filteredProducts = filteredProducts.filter((product) => {
+        const doc = product as unknown as Record<string, unknown>
+        const audience = doc.productAudience ?? doc.audience
+        // Products with no audience tag or 'public' are visible to all.
+        // Products tagged 'member' are hidden from non-member users.
+        return audience !== 'member'
+      })
+    }
 
     const sortBy = filters.sortBy || 'name-asc'
     filteredProducts.sort((a, b) => {

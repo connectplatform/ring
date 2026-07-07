@@ -45,6 +45,15 @@
 
 **Do not** mount `CreditBalanceProvider` or `GlobalTunnelListeners` above or beside `TunnelProvider`. **Do not** delete `account-status-tunnel-listener.tsx`; it is composed via `GlobalTunnelListeners`.
 
+## Tunnel timing + duplicate fetch consolidation (2026-07-07)
+
+**Boot-race is expected, not a bug:** `DeviceTelemetryProvider` posts to `/api/analytics/device` immediately on `status === 'authenticated'`, outside (above) `TunnelProvider` in `app-client-shell.tsx`. `TunnelProvider` Effect B waits a 400ms auth grace before connecting. The server-side `publishToUserTunnel` call therefore frequently logs `sse=false, ws=false` on first boot — this is HTTP-first-persistence-then-best-effort-fanout by design (see `2026-06-20-device-telemetry-ring-analytics.json`), not a broken WSS server.
+
+Fixes landed this campaign:
+- `lib/tunnel/publisher.ts` — the "queued" case (`!sseDelivered && !wsDelivered`) now logs at `console.debug`, not `console.log`, so it no longer reads as a failure.
+- `lib/tunnel/native-ws/attach.ts` — `hub.drainUserQueue()` now runs on native WS `auth_ok` too (previously SSE-only via `drainUserQueueForSse`), so messages published during the connect race are delivered instead of waiting for the next SSE session.
+- `lib/tunnel/tunnel-timing.ts` — `priorityRoutes` matching was an exact-string `.includes()`, so a bare `/admin` entry never matched `/admin/analytics`. Now prefix-matched (`matchesRoutePrefix`); `/admin` added to `priorityRoutes` so forensics/analytics admin sessions get earlier tunnel connect.
+
 ## Backlog (not yet implemented — tracked in docs widgets)
 
 See `docs/en/features/tunnel-protocol.mdx` → **FutureFeatureBacklog** section:
@@ -54,6 +63,6 @@ See `docs/en/features/tunnel-protocol.mdx` → **FutureFeatureBacklog** section:
 3. **Subscribe telemetry** — ops metrics for duplicate subscribe detection
 4. **useSync → useTunnelChannel** — optional full migration (currently uses `subscribeRef` pattern)
 5. **Deprecated publisher alias** — `publish()` → `publishToUserTunnel()` in `lib/tunnel/publisher.ts`
-6. **StoreProvider route-gating** — limit store context to `/store` routes
+6. ~~**StoreProvider route-gating** — limit store context to `/store` routes~~ — **done 2026-07-07**, but as deferred-fetch (provider stays global for the cart badge; `features/store/context.tsx` now defers the `GET /api/store/products` network call until the route matches `/store` or the cart already has items), not full unmount-gating.
 7. **AppClientShell provider-tier flattening** — composable shells without breaking registry SSOT
 8. **Root-shell locale lint guard** — block `@/i18n/routing` in `AppClientShell` subtree

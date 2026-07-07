@@ -36,7 +36,9 @@ const DEFAULT_TIMING_CONFIG: TunnelTimingConfig = {
   progressiveDesktopDelay: 0,      // Immediate on desktop - PERFECT for fast networks
   progressiveMobileDelay: 500,     // Reduced mobile delay (was 1000ms) - BETTER UX
   authRoutesDelay: 50,             // Ultra-fast auth connection (was 100ms)
-  priorityRoutes: ['/profile', '/wallet', '/notifications', '/dashboard'],
+  // '/admin' added so admin/analytics forensics tools get a live tunnel session
+  // instead of falling back to the initial-load HTTP-only path.
+  priorityRoutes: ['/profile', '/wallet', '/notifications', '/dashboard', '/admin'],
   deferredRoutes: ['/docs', '/about', '/contact', '/blog', '/login', '/auth/status']
 };
 
@@ -66,6 +68,15 @@ export function normalizeTunnelRoute(route?: string): string | undefined {
 }
 
 /**
+ * Prefix match: `/admin` matches `/admin` and every `/admin/*` sub-route.
+ * Previously an exact `.includes()` check, so `/admin/analytics` never
+ * matched a bare `/admin` entry in priorityRoutes/deferredRoutes.
+ */
+function matchesRoutePrefix(normalizedRoute: string, prefixes: string[] = []): boolean {
+  return prefixes.some((prefix) => normalizedRoute === prefix || normalizedRoute.startsWith(`${prefix}/`));
+}
+
+/**
  * Get connection delay based on strategy and device
  */
 export function getConnectionDelay(
@@ -75,12 +86,12 @@ export function getConnectionDelay(
   const normalizedRoute = normalizeTunnelRoute(route);
 
   // Check if route requires immediate connection
-  if (normalizedRoute && config.priorityRoutes?.includes(normalizedRoute)) {
+  if (normalizedRoute && matchesRoutePrefix(normalizedRoute, config.priorityRoutes)) {
     return config.authRoutesDelay || 100;
   }
 
   // Check if route should be deferred to manual only
-  if (normalizedRoute && config.deferredRoutes?.includes(normalizedRoute)) {
+  if (normalizedRoute && matchesRoutePrefix(normalizedRoute, config.deferredRoutes)) {
     return null; // Manual only
   }
 

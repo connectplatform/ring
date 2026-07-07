@@ -44,6 +44,56 @@ interface UseCreditBalancePromiseReturn {
 }
 
 /**
+ * Module-scope single-flight + short TTL cache for the *initial bootstrap* fetch only.
+ * `CreditBalanceProvider` is the sole owner per `hooks/HOOKS-README.md` Provider matrix,
+ * but its Suspense boundary + React Strict Mode can still remount `useCreditBalance`
+ * with a fresh `initialFetchDone` ref in dev, producing 2-3x duplicate
+ * `GET /api/wallet/credit/balance` calls. This guard lives outside any component
+ * instance, so it survives ref resets. Mirrors `initializeDatabaseInFlight` in
+ * `lib/database/DatabaseService.ts` and the TTL pattern in `hooks/use-vendor-status.ts`.
+ * Manual `refresh()` always bypasses this and hits the network directly.
+ *
+ * Keyed by `userId` (not a bare module singleton) — a same-tab user switch
+ * (logout then a different account logs in within the TTL window) must never
+ * serve the previous user's cached balance to the next session.
+ */
+const BOOTSTRAP_CACHE_TTL_MS = 5_000
+let bootstrapInFlight: Promise<CreditBalanceData> | null = null
+let bootstrapInFlightUserId: string | null = null
+let bootstrapCachedAt = 0
+let bootstrapCachedUserId: string | null = null
+let bootstrapCachedData: CreditBalanceData | null = null
+
+function fetchCreditBalanceBootstrap(userId: string): Promise<CreditBalanceData> {
+  const now = Date.now()
+  if (
+    bootstrapCachedUserId === userId &&
+    bootstrapCachedData &&
+    now - bootstrapCachedAt < BOOTSTRAP_CACHE_TTL_MS
+  ) {
+    return Promise.resolve(bootstrapCachedData)
+  }
+  if (bootstrapInFlight && bootstrapInFlightUserId === userId) {
+    return bootstrapInFlight
+  }
+
+  bootstrapInFlightUserId = userId
+  bootstrapInFlight = fetchCreditBalance()
+    .then((result) => {
+      bootstrapCachedData = result
+      bootstrapCachedUserId = userId
+      bootstrapCachedAt = Date.now()
+      return result
+    })
+    .finally(() => {
+      bootstrapInFlight = null
+      bootstrapInFlightUserId = null
+    })
+
+  return bootstrapInFlight
+}
+
+/**
  * Hook for managing user's credit balance
  * 
  * OPTIMIZED: Uses Tunnel push updates instead of polling
@@ -163,11 +213,25 @@ export function useCreditBalance(): UseCreditBalanceReturn {
     await fetchBalance(true)
   }, [fetchBalance])
 
-  // Initial load - only when authenticated (ONE TIME)
+  // Initial load - only when authenticated (ONE TIME per instance; module-scope
+  // single-flight in fetchCreditBalanceBootstrap dedupes across remounts too)
   useEffect(() => {
-    if (status === 'authenticated' && session?.user && !initialFetchDone.current) {
+    if (status === 'authenticated' && session?.user?.id && !initialFetchDone.current) {
       initialFetchDone.current = true
-      fetchBalance()
+      setIsLoading(true)
+      setError(null)
+      fetchCreditBalanceBootstrap(session.user.id)
+        .then((result) => {
+          setData(result)
+          setLastRefreshed(Date.now())
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : 'Unknown error')
+          setData(null)
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
     } else if (status === 'unauthenticated') {
       // Reset data when user becomes unauthenticated
       setData(null)

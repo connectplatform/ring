@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import packageInfo from '@/package.json'
 import { toast } from '@/hooks/use-toast'
+import { useVendorStatus } from '@/hooks/use-vendor-status'
 import type { Locale } from '@/i18n/shared'
 import { SidebarIdentityPanel } from './sidebar-identity-panel'
 import { TunnelIndicatorCompact } from './tunnel-indicator'
@@ -67,21 +68,10 @@ export const SidebarAside = forwardRef<HTMLDivElement, SidebarAsideProps>(
     const tNav = useTranslations('navigation')
     const [mounted, setMounted] = useState(false)
     const [copied, setCopied] = useState(false)
-    const [hasVendorStore, setHasVendorStore] = useState(false)
+    const { hasVendor: hasVendorStore } = useVendorStatus()
     useEffect(() => {
       setMounted(true)
     }, [])
-
-    useEffect(() => {
-      if (!session?.user?.id) {
-        setHasVendorStore(false)
-        return
-      }
-      fetch('/api/vendor/status')
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => setHasVendorStore(Boolean(data?.hasVendor)))
-        .catch(() => setHasVendorStore(false))
-    }, [session?.user?.id])
 
     const handleCopyAddress = useCallback(async () => {
       const address = session?.user?.wallets?.[0]?.address

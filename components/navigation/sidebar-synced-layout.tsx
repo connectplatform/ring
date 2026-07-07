@@ -43,13 +43,14 @@ import { useCreditBalanceContext } from '@/components/providers/credit-balance-p
 import { useNotificationContext } from '@/features/notifications/components/notification-provider'
 import { useOptionalStore } from '@/features/store/context'
 import { useLocalStorage } from '@/hooks/use-local-storage'
+import { useVendorStatus } from '@/hooks/use-vendor-status'
 import {
   localeDisplayLabel,
   localeNativeTitle,
   nextLocaleInRoutingOrder,
   persistRingLocalePreference,
 } from '@/lib/locale-pref'
-import { useCurrency } from '@/features/store/currency-context'
+import { useStoreCurrency } from '@/features/store/currency-context'
 import { useRouter, replaceLocalePath } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
 import packageInfo from '@/package.json'
@@ -128,10 +129,10 @@ export function SidebarSyncedLayout({
   const locale = useLocale() as Locale
   const { data: session } = useSession()
   const { setTheme, theme, resolvedTheme } = useTheme()
-  const { currency, toggleCurrency } = useCurrency()
+  const { currency, toggleCurrency } = useStoreCurrency()
   const nextLocale = nextLocaleInRoutingOrder(locale)
   const [mounted, setMounted] = useState(false)
-  const [hasVendorStore, setHasVendorStore] = useState(false)
+  const { hasVendor: hasVendorStore } = useVendorStatus()
 
   const tNav = useTranslations('navigation')
   const tEntities = useTranslations('modules.entities')
@@ -151,17 +152,6 @@ export function SidebarSyncedLayout({
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setHasVendorStore(false)
-      return
-    }
-    fetch('/api/vendor/status')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setHasVendorStore(Boolean(data?.hasVendor)))
-      .catch(() => setHasVendorStore(false))
-  }, [session?.user?.id])
 
   const isActive = (href: string) => {
     if (href === ROUTES.HOME(locale)) return pathname === ROUTES.HOME(locale)

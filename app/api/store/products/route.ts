@@ -1,5 +1,6 @@
 import { NextResponse, connection} from 'next/server'
-import { getStoreAdapter } from '@/features/store/config'
+import { updateTag } from 'next/cache'
+import { getStoreAdapter, getCachedProductCatalog } from '@/features/store/config'
 import { auth } from '@/auth'
 import { isPlatformAdmin } from '@/features/auth/user-role'
 import { getVendorByUserId } from '@/features/store/services/get-vendor-by-user'
@@ -67,6 +68,9 @@ export async function POST(request: Request) {
       vendorName
     })
 
+    // Invalidate the cached catalog SSOT so the new product shows up immediately.
+    updateTag('store:products')
+
     return NextResponse.json(product, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to create product' }, { status: 500 })
@@ -104,8 +108,7 @@ export async function GET(request: Request) {
       afterId
     })
 
-    const adapter = await getStoreAdapter()
-    let allProducts = await adapter.listProducts()
+    let allProducts = await getCachedProductCatalog()
     const totalProducts = allProducts.length // Total count BEFORE filters
 
     console.log(`📊 Total products in DB: ${totalProducts}`)
