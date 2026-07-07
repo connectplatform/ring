@@ -31,51 +31,29 @@
  * @see types/geolocation.ts for type definitions
  */
 
-import { Pool } from 'pg';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/locale-config';
+import { getSharedPgPool } from '@/lib/database/shared-pg-pool';
 import type { 
   GeolocationPoint,
   NearbySearchParams,
   NearbyResult
 } from '@/types/geolocation';
 
-// PostgreSQL connection pool for raw SQL queries (PostGIS)
-let pgPool: Pool | null = null;
-
-function getPostgreSQLPool(): Pool {
-  if (!pgPool) {
-    pgPool = new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'ring_platform',
-      user: process.env.DB_USER || 'ring_user',
-      password: process.env.DB_PASSWORD || '',
-      max: 20, // Connection pool size
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-  }
-  return pgPool;
-}
+// PostgreSQL connection pool for raw SQL queries (PostGIS) — shared adapter pool
 
 // ============================================================================
 // GEOLOCATION SERVICE
 // ============================================================================
 
 export class GeolocationService {
-  private pool: Pool;
-
-  constructor() {
-    this.pool = getPostgreSQLPool();
-  }
-
   /**
    * Execute raw SQL query with PostGIS functions
    * @private
    */
   private async executeQuery<T = any>(sql: string, params: any[] = []): Promise<T[]> {
     try {
-      const result = await this.pool.query(sql, params);
+      const pool = await getSharedPgPool();
+      const result = await pool.query(sql, params);
       return result.rows as T[];
     } catch (error) {
       console.error('PostGIS query error:', error);

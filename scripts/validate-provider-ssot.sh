@@ -59,4 +59,18 @@ check_allowlist "fetch\\('/api/vendor/status'\\)" 'hooks/use-vendor-status\.ts' 
 check_allowlist "'/api/wallet/credit/balance'" 'hooks/use-credit-balance\.ts' 'credit balance endpoint allowlist (use hooks/use-credit-balance.ts)'
 check_single_definition '^export function SessionProvider' 'SessionProvider single definition'
 
+# --- Added 2026-07-07: DB routing SSOT — rogue pg.Pool gate ---
+check_db_pool_gate() {
+  local hits
+  hits="$(rg -n 'new Pool\(' . --glob '*.{ts,tsx,js,mjs}' 2>/dev/null | rg -v '/lib/database/' || true)"
+  if [[ -n "$hits" ]]; then
+    echo "FAIL: new Pool( allowed only under lib/database/"
+    echo "$hits"
+    fail=1
+  else
+    echo "OK: new Pool( confined to lib/database/"
+  fi
+}
+check_db_pool_gate
+
 exit "$fail"

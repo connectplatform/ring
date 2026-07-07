@@ -24,6 +24,7 @@ export {
   initializeDbCommand,
   shutdownDatabase
 } from './DatabaseService';
+export { getSharedPgPool } from './shared-pg-pool';
 export type { DbRow } from './DatabaseService';
 
 // Synchronization

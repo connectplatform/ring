@@ -20,6 +20,7 @@ import {
 } from './interfaces/IDatabaseService';
 import { PostgreSQLAdapter } from './adapters/PostgreSQLAdapter';
 import { FirebaseAdapter } from './adapters/FirebaseAdapter';
+import type { Pool } from 'pg';
 
 // Only log when explicitly requested via DB_DEBUG
 function shouldLog(): boolean {
@@ -419,6 +420,18 @@ export class BackendSelector implements IDatabaseService {
 
   getBackendType(): string {
     return 'selector';
+  }
+
+  /**
+   * Returns the shared PostgreSQL pool from the registered postgresql backend.
+   * Used for sanctioned raw SQL (PostGIS) after initializeDatabase().
+   */
+  getPostgreSQLPool(): Pool {
+    const adapter = this.backends.get('postgresql');
+    if (!adapter || !(adapter instanceof PostgreSQLAdapter)) {
+      throw new Error('PostgreSQL backend is not available');
+    }
+    return adapter.getPgPool();
   }
 
   async create<T = any>(

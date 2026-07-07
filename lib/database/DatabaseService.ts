@@ -704,6 +704,13 @@ export class DatabaseService {
   getCurrentBackend(): string {
     return this.selector.getBackendType();
   }
+
+  /**
+   * Returns the shared PostgreSQL pool (single connection source for raw SQL).
+   */
+  getPostgreSQLPool(): import('pg').Pool {
+    return this.selector.getPostgreSQLPool();
+  }
 }
 
 // ============================================================================

@@ -1,5 +1,4 @@
-import { Pool } from 'pg'
-import { initializeDatabase } from '@/lib/database'
+import { db, initializeDatabase } from '@/lib/database'
 import { resolveMatcherConfigFromEnv } from '@/features/admin/platform-settings/matcher-config'
 import {
   DEFAULT_PLATFORM_AI_DATA,
@@ -20,18 +19,16 @@ import {
   setCachedNamespace,
 } from '@/features/admin/platform-settings/platform-settings-cache'
 
-let pool: Pool | null = null
+const PLATFORM_SETTINGS_COLLECTION = 'platform_settings'
 
-function getPool(): Pool {
-  if (!pool) {
-    const connectionString = process.env.DATABASE_URL
-    if (!connectionString) {
-      throw new Error('DATABASE_URL is not configured')
-    }
-    pool = new Pool({ connectionString })
-  }
-  return pool
-}
+const ROW_META_KEYS = new Set([
+  'id',
+  'secrets',
+  'updatedBy',
+  'updatedAt',
+  'createdAt',
+  'version',
+])
 
 function isDbDisabled(): boolean {
   return process.env.PLATFORM_SETTINGS_DISABLE_DB === 'true'
@@ -59,6 +56,22 @@ function parseJsonObject(value: unknown): Record<string, unknown> {
   return {}
 }
 
+function extractNamespacePayload(row: Record<string, unknown>) {
+  const secrets = parseJsonObject(row.secrets) as Record<string, string>
+  const data = Object.fromEntries(
+    Object.entries(row).filter(([key]) => !ROW_META_KEYS.has(key)),
+  )
+  const updatedBy = typeof row.updatedBy === 'string' ? row.updatedBy : undefined
+  const updatedAt =
+    row.updatedAt instanceof Date
+      ? row.updatedAt.toISOString()
+      : typeof row.updatedAt === 'string'
+        ? row.updatedAt
+        : undefined
+
+  return { data, secrets, updatedBy, updatedAt }
+}
+
 async function readRow(namespace: PlatformSettingsNamespace) {
   if (isDbDisabled()) return null
 
@@ -73,26 +86,12 @@ async function readRow(namespace: PlatformSettingsNamespace) {
   }
 
   await initializeDatabase()
-  const client = await getPool().connect()
-  try {
-    const result = await client.query(
-      `SELECT id, data, secrets, updated_by, updated_at FROM platform_settings WHERE id = $1`,
-      [namespace],
-    )
-    if (result.rows.length === 0) return null
-    const row = result.rows[0]
-    const data = parseJsonObject(row.data)
-    const secrets = parseJsonObject(row.secrets) as Record<string, string>
-    setCachedNamespace(namespace, data, secrets)
-    return {
-      data,
-      secrets,
-      updatedBy: row.updated_by as string | undefined,
-      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
-    }
-  } finally {
-    client.release()
-  }
+  const result = await db().readDoc<Record<string, unknown>>(PLATFORM_SETTINGS_COLLECTION, namespace)
+  if (!result.success || !result.data) return null
+
+  const row = extractNamespacePayload(result.data)
+  setCachedNamespace(namespace, row.data, row.secrets)
+  return row
 }
 
 export async function getPlatformAIData(): Promise<PlatformAIData> {
@@ -146,20 +145,23 @@ export async function upsertPlatformNamespace(
       }
     : existing?.secrets || {}
 
-  const client = await getPool().connect()
-  try {
-    await client.query(
-      `INSERT INTO platform_settings (id, data, secrets, updated_by, created_at, updated_at)
-       VALUES ($1, $2::jsonb, $3::jsonb, $4, NOW(), NOW())
-       ON CONFLICT (id) DO UPDATE SET
-         data = EXCLUDED.data,
-         secrets = EXCLUDED.secrets,
-         updated_by = EXCLUDED.updated_by,
-         updated_at = NOW()`,
-      [namespace, JSON.stringify(data), JSON.stringify(mergedSecrets), updatedBy],
-    )
-  } finally {
-    client.release()
+  const payload = {
+    ...data,
+    secrets: mergedSecrets,
+    updatedBy,
+  }
+
+  const doc = await db().readDoc<Record<string, unknown>>(PLATFORM_SETTINGS_COLLECTION, namespace)
+  if (doc.success && doc.data) {
+    const update = await db().updateDoc(PLATFORM_SETTINGS_COLLECTION, namespace, payload)
+    if (!update.success) {
+      throw update.error || new Error(`Failed to update ${PLATFORM_SETTINGS_COLLECTION}/${namespace}`)
+    }
+  } else {
+    const create = await db().createDoc(PLATFORM_SETTINGS_COLLECTION, payload, { id: namespace })
+    if (!create.success) {
+      throw create.error || new Error(`Failed to create ${PLATFORM_SETTINGS_COLLECTION}/${namespace}`)
+    }
   }
 
   invalidateNamespace(namespace)

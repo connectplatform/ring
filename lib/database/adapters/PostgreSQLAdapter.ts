@@ -298,6 +298,55 @@ export class PostgreSQLAdapter implements IDatabaseService {
     return 'postgresql';
   }
 
+  /**
+   * Returns the connected pg.Pool for sanctioned raw SQL (PostGIS, etc.).
+   * Call only after connect() / initializeDatabase().
+   */
+  getPgPool(): Pool {
+    if (!this.pool) {
+      throw new Error('PostgreSQL adapter not connected');
+    }
+    return this.pool;
+  }
+
+  private isHybridTopLevelTable(collection: string): boolean {
+    return collection === 'platform_settings';
+  }
+
+  private splitHybridWritePayload(data: Record<string, unknown>): {
+    jsonData: Record<string, unknown>;
+    secrets: Record<string, unknown>;
+    updatedBy?: string;
+  } {
+    const jsonData = { ...data };
+    const secrets =
+      jsonData.secrets && typeof jsonData.secrets === 'object' && !Array.isArray(jsonData.secrets)
+        ? (jsonData.secrets as Record<string, unknown>)
+        : {};
+    const updatedBy =
+      typeof jsonData.updatedBy === 'string'
+        ? jsonData.updatedBy
+        : typeof jsonData.updated_by === 'string'
+          ? jsonData.updated_by
+          : undefined;
+
+    for (const key of [
+      'secrets',
+      'updatedBy',
+      'updated_by',
+      'id',
+      'createdAt',
+      'created_at',
+      'updatedAt',
+      'updated_at',
+      'version',
+    ]) {
+      delete jsonData[key];
+    }
+
+    return { jsonData, secrets, updatedBy };
+  }
+
   async create<T = any>(
     collection: string,
     data: T,
@@ -316,30 +365,56 @@ export class PostgreSQLAdapter implements IDatabaseService {
         const id = options.id || this.generateId();
         const now = new Date();
 
-        // For JSONB-based tables, store all data in the 'data' column
-        const documentData = {
-          id,
-          data: {
-            ...data,
+        let query: string;
+        let values: unknown[];
+
+        if (this.isHybridTopLevelTable(collection)) {
+          const { jsonData, secrets, updatedBy } = this.splitHybridWritePayload(
+            data as Record<string, unknown>,
+          );
+          const payload = {
+            ...jsonData,
             id,
             created_at: now,
             updated_at: now,
-            version: 1
-          },
-          created_at: now,
-          updated_at: now
-        };
+            version: 1,
+          };
+          query = `
+            INSERT INTO ${collection} (id, data, secrets, updated_by, created_at, updated_at)
+            VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6)
+            RETURNING *
+          `;
+          values = [id, JSON.stringify(payload), JSON.stringify(secrets), updatedBy ?? null, now, now];
+        } else {
+          // For JSONB-based tables, store all data in the 'data' column
+          const documentData = {
+            id,
+            data: {
+              ...(data as Record<string, unknown>),
+              id,
+              created_at: now,
+              updated_at: now,
+              version: 1,
+            },
+            created_at: now,
+            updated_at: now,
+          };
 
-        // Build insert query for JSONB schema
-        const columns = ['id', 'data', 'created_at', 'updated_at'];
-        const values = [documentData.id, JSON.stringify(documentData.data), documentData.created_at, documentData.updated_at];
-        const placeholders = ['$1', '$2', '$3', '$4'];
+          const columns = ['id', 'data', 'created_at', 'updated_at'];
+          values = [
+            documentData.id,
+            JSON.stringify(documentData.data),
+            documentData.created_at,
+            documentData.updated_at,
+          ];
+          const placeholders = ['$1', '$2', '$3', '$4'];
 
-        const query = `
-          INSERT INTO ${collection} (${columns.join(', ')})
-          VALUES (${placeholders.join(', ')})
-          RETURNING *
-        `;
+          query = `
+            INSERT INTO ${collection} (${columns.join(', ')})
+            VALUES (${placeholders.join(', ')})
+            RETURNING *
+          `;
+        }
 
         const result = await client.query(query, values);
         const row = result.rows[0];
@@ -493,19 +568,60 @@ export class PostgreSQLAdapter implements IDatabaseService {
           (typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data) :
           {};
 
-        // Merge the new data with existing data
-        const mergedData = options.merge !== false ? { ...currentData, ...data } : data;
-        mergedData.updated_at = now;
+        let result: QueryResult;
 
-        // Update the document using the same field we used for lookup
-        const updateQuery = `
-          UPDATE ${collection}
-          SET data = $1, updated_at = $2
-          WHERE id = $3
-          RETURNING *
-        `;
+        if (this.isHybridTopLevelTable(collection)) {
+          const incoming = data as Record<string, unknown>;
+          const { jsonData, secrets, updatedBy } = this.splitHybridWritePayload(incoming);
+          const mergedData =
+            options.merge !== false ? { ...currentData, ...jsonData } : { ...jsonData };
+          mergedData.updated_at = now;
 
-        const result = await client.query(updateQuery, [JSON.stringify(mergedData), now, lookupValue]);
+          const currentSecrets =
+            currentRow.secrets && typeof currentRow.secrets === 'object'
+              ? currentRow.secrets
+              : typeof currentRow.secrets === 'string'
+                ? JSON.parse(currentRow.secrets)
+                : {};
+          const mergedSecrets =
+            options.merge !== false && Object.keys(secrets).length > 0
+              ? { ...currentSecrets, ...secrets }
+              : Object.keys(secrets).length > 0
+                ? secrets
+                : currentSecrets;
+          const nextUpdatedBy =
+            updatedBy ??
+            (typeof incoming.updatedBy === 'string'
+              ? incoming.updatedBy
+              : currentRow.updated_by ?? null);
+
+          const updateQuery = `
+            UPDATE ${collection}
+            SET data = $1::jsonb, secrets = $2::jsonb, updated_by = $3, updated_at = $4
+            WHERE id = $5
+            RETURNING *
+          `;
+          result = await client.query(updateQuery, [
+            JSON.stringify(mergedData),
+            JSON.stringify(mergedSecrets),
+            nextUpdatedBy,
+            now,
+            lookupValue,
+          ]);
+        } else {
+          // Merge the new data with existing data
+          const mergedData = options.merge !== false ? { ...currentData, ...data } : data;
+          mergedData.updated_at = now;
+
+          const updateQuery = `
+            UPDATE ${collection}
+            SET data = $1, updated_at = $2
+            WHERE id = $3
+            RETURNING *
+          `;
+
+          result = await client.query(updateQuery, [JSON.stringify(mergedData), now, lookupValue]);
+        }
 
         if (result.rows.length === 0) {
           throw new Error('Document not found');
